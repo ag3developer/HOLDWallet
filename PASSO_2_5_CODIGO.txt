@@ -1,0 +1,139 @@
+# CÓDIGO DO PASSO 2.5 - SELETOR DE TOKEN USDT/USDC
+
+## LOCALIZAÇÃO NO ARQUIVO:
+Arquivo: frontend/src/pages/wallet/WalletPage.tsx
+Procure por: {/* Passo 3: Valor a Enviar */}
+COLE ANTES desta linha (por volta da linha 1014)
+
+---
+
+## ESTADO A ADICIONAR (linha ~54):
+
+const [selectedSendToken, setSelectedSendToken] = useState<'native' | 'usdt' | 'usdc'>('native')
+
+---
+
+## FUNÇÃO handleSendConfirm - Adicione token_type (linha ~382):
+
+await sendTransaction({
+  wallet_id: selectedWallet.walletId,
+  to_address: sendToAddress,
+  amount: sendAmount,
+  network: selectedWallet.network,
+  fee_level: feeLevel,
+  note: 'Envio via HOLDWallet',
+  two_factor_token: twoFactorToken,
+  token_type: selectedSendToken  // <- ADICIONE ISTO
+})
+
+---
+
+## CÓDIGO DO PASSO 2.5 (Cole ANTES de "Passo 3"):
+
+              {/* Passo 2.5: Seletor de Token (USDT/USDC) */}
+              {walletsWithAddresses[selectedWalletForReceive]?.network !== 'bitcoin' && (
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg shadow-sm border border-blue-200 dark:border-blue-700 p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                      <CircleDollarSign className="w-4 h-4 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-100">Passo 2.5 ✨</h3>
+                      <p className="text-xs text-blue-700 dark:text-blue-300">Qual ativo enviar?</p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    {/* Token Nativo */}
+                    <button
+                      onClick={() => setSelectedSendToken('native')}
+                      className={`w-full flex items-center justify-between p-3 rounded-lg border-2 transition-all ${
+                        selectedSendToken === 'native'
+                          ? 'border-blue-500 bg-white dark:bg-gray-800 shadow-md'
+                          : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 bg-white dark:bg-gray-800'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <CryptoIcon symbol={walletsWithAddresses[selectedWalletForReceive]?.symbol} size={28} />
+                        <div className="text-left">
+                          <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                            Token Nativo ({walletsWithAddresses[selectedWalletForReceive]?.symbol})
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {walletsWithAddresses[selectedWalletForReceive]?.network === 'ethereum' && 'Ethereum (ETH)'}
+                            {walletsWithAddresses[selectedWalletForReceive]?.network === 'polygon' && 'Polygon (MATIC)'}
+                            {walletsWithAddresses[selectedWalletForReceive]?.network === 'bsc' && 'Binance Coin (BNB)'}
+                            {walletsWithAddresses[selectedWalletForReceive]?.network === 'base' && 'Ethereum na Base (ETH)'}
+                            {walletsWithAddresses[selectedWalletForReceive]?.network === 'avalanche' && 'Avalanche (AVAX)'}
+                            {walletsWithAddresses[selectedWalletForReceive]?.network === 'tron' && 'Tron (TRX)'}
+                          </p>
+                        </div>
+                      </div>
+                      {selectedSendToken === 'native' && (
+                        <CheckCircle className="w-5 h-5 text-blue-500" />
+                      )}
+                    </button>
+
+                    {/* USDT */}
+                    {walletsWithAddresses[selectedWalletForReceive]?.network !== 'base' && (
+                      <button
+                        onClick={() => setSelectedSendToken('usdt')}
+                        className={`w-full flex items-center justify-between p-3 rounded-lg border-2 transition-all ${
+                          selectedSendToken === 'usdt'
+                            ? 'border-green-500 bg-white dark:bg-gray-800 shadow-md'
+                            : 'border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-600 bg-white dark:bg-gray-800'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <CryptoIcon symbol="USDT" size={28} />
+                          <div className="text-left">
+                            <p className="text-sm font-semibold text-gray-900 dark:text-white">USDT (Tether)</p>
+                            <p className="text-xs text-green-600 dark:text-green-400 font-medium">Stablecoin - $1.00 USD</p>
+                          </div>
+                        </div>
+                        {selectedSendToken === 'usdt' && (
+                          <CheckCircle className="w-5 h-5 text-green-500" />
+                        )}
+                      </button>
+                    )}
+
+                    {/* USDC */}
+                    <button
+                      onClick={() => setSelectedSendToken('usdc')}
+                      className={`w-full flex items-center justify-between p-3 rounded-lg border-2 transition-all ${
+                        selectedSendToken === 'usdc'
+                          ? 'border-blue-600 bg-white dark:bg-gray-800 shadow-md'
+                          : 'border-gray-200 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-500 bg-white dark:bg-gray-800'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <CryptoIcon symbol="USDC" size={28} />
+                        <div className="text-left">
+                          <p className="text-sm font-semibold text-gray-900 dark:text-white">USDC (USD Coin)</p>
+                          <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">Stablecoin - $1.00 USD</p>
+                        </div>
+                      </div>
+                      {selectedSendToken === 'usdc' && (
+                        <CheckCircle className="w-5 h-5 text-blue-600" />
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Info Box */}
+                  <div className="mt-3 flex items-start gap-2 bg-white dark:bg-gray-800 rounded-lg p-3 border border-blue-200 dark:border-blue-800">
+                    <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-gray-700 dark:text-gray-300">
+                      {selectedSendToken === 'native' && (
+                        <span><strong>Token Nativo:</strong> Moeda principal da rede {walletsWithAddresses[selectedWalletForReceive]?.network.toUpperCase()}.</span>
+                      )}
+                      {selectedSendToken === 'usdt' && (
+                        <span><strong>USDT:</strong> Stablecoin atrelada ao dólar. Ideal para transferências sem volatilidade! 💵</span>
+                      )}
+                      {selectedSendToken === 'usdc' && (
+                        <span><strong>USDC:</strong> Stablecoin regulada e auditada pela Circle. Valor estável em $1.00 USD. 💵</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              )}
+

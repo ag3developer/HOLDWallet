@@ -1,0 +1,45 @@
+Database path: /Users/josecarlosmartins/Documents/HOLDWallet/holdwallet.db
+Database exists: True
+Current working directory: /Users/josecarlosmartins/Documents/HOLDWallet
+Table columns: [(0, 'id', 'VARCHAR(36)', 1, None, 1), (1, 'user_id', 'VARCHAR(36)', 1, None, 0), (2, 'name', 'VARCHAR(100)', 1, None, 0), (3, 'network', 'VARCHAR(50)', 1, None, 0), (4, 'derivation_path', 'VARCHAR(100)', 0, None, 0), (5, 'is_active', 'BOOLEAN', 1, None, 0), (6, 'created_at', 'DATETIME', 1, None, 0), (7, 'updated_at', 'DATETIME', 0, None, 0), (8, 'encrypted_seed', 'TEXT', 0, None, 0), (9, 'seed_hash', 'VARCHAR(64)', 0, None, 0), (10, 'encrypted_seed_temp', 'TEXT', 0, None, 0)]
+Inserting: user_id=635b6308-1273-49ce-b7d6-f5b15b99931f, name=app@holdwallet.com, network=multi
+Database path: /Users/josecarlosmartins/Documents/HOLDWallet/holdwallet.db
+Database exists: True
+Current working directory: /Users/josecarlosmartins/Documents/HOLDWallet
+Table columns: [(0, 'id', 'VARCHAR(36)', 1, None, 1), (1, 'user_id', 'VARCHAR(36)', 1, None, 0), (2, 'name', 'VARCHAR(100)', 1, None, 0), (3, 'network', 'VARCHAR(50)', 1, None, 0), (4, 'derivation_path', 'VARCHAR(100)', 0, None, 0), (5, 'is_active', 'BOOLEAN', 1, None, 0), (6, 'created_at', 'DATETIME', 1, None, 0), (7, 'updated_at', 'DATETIME', 0, None, 0), (8, 'encrypted_seed', 'TEXT', 0, None, 0), (9, 'seed_hash', 'VARCHAR(64)', 0, None, 0), (10, 'encrypted_seed_temp', 'TEXT', 0, None, 0)]
+Inserting: user_id=635b6308-1273-49ce-b7d6-f5b15b99931f, name=app@holdwallet.com, network=multi
+Database path: /Users/josecarlosmartins/Documents/HOLDWallet/holdwallet.db
+Database exists: True
+Current working directory: /Users/josecarlosmartins/Documents/HOLDWallet
+Table columns: [(0, 'id', 'VARCHAR(36)', 1, None, 1), (1, 'user_id', 'VARCHAR(36)', 1, None, 0), (2, 'name', 'VARCHAR(100)', 1, None, 0), (3, 'network', 'VARCHAR(50)', 1, None, 0), (4, 'derivation_path', 'VARCHAR(100)', 0, None, 0), (5, 'is_active', 'BOOLEAN', 1, None, 0), (6, 'created_at', 'DATETIME', 1, None, 0), (7, 'updated_at', 'DATETIME', 0, None, 0), (8, 'encrypted_seed', 'TEXT', 0, None, 0), (9, 'seed_hash', 'VARCHAR(64)', 0, None, 0), (10, 'encrypted_seed_temp', 'TEXT', 0, None, 0)]
+Inserting: user_id=635b6308-1273-49ce-b7d6-f5b15b99931f, name=holdwallet, network=multi
+Database path: /Users/josecarlosmartins/Documents/HOLDWallet/holdwallet.db
+Database exists: True
+Current working directory: /Users/josecarlosmartins/Documents/HOLDWallet
+Table columns: [(0, 'id', 'VARCHAR(36)', 1, None, 1), (1, 'user_id', 'VARCHAR(36)', 1, None, 0), (2, 'name', 'VARCHAR(100)', 1, None, 0), (3, 'network', 'VARCHAR(50)', 1, None, 0), (4, 'derivation_path', 'VARCHAR(100)', 0, None, 0), (5, 'is_active', 'BOOLEAN', 1, None, 0), (6, 'created_at', 'DATETIME', 1, None, 0), (7, 'updated_at', 'DATETIME', 0, None, 0), (8, 'encrypted_seed', 'TEXT', 0, None, 0), (9, 'seed_hash', 'VARCHAR(64)', 0, None, 0), (10, 'encrypted_seed_temp', 'TEXT', 0, None, 0)]
+Inserting: user_id=1d285076-7b2b-4f97-b7b1-db19854b849e, name=Wallet Multi, network=multi
+Database path: /Users/josecarlosmartins/Documents/HOLDWallet/holdwallet.db
+Database exists: True
+Current working directory: /Users/josecarlosmartins/Documents/HOLDWallet
+Table columns: [(0, 'id', 'VARCHAR(36)', 1, None, 1), (1, 'user_id', 'VARCHAR(36)', 1, None, 0), (2, 'name', 'VARCHAR(100)', 1, None, 0), (3, 'network', 'VARCHAR(50)', 1, None, 0), (4, 'derivation_path', 'VARCHAR(100)', 0, None, 0), (5, 'is_active', 'BOOLEAN', 1, None, 0), (6, 'created_at', 'DATETIME', 1, None, 0), (7, 'updated_at', 'DATETIME', 0, None, 0), (8, 'encrypted_seed', 'TEXT', 0, None, 0), (9, 'seed_hash', 'VARCHAR(64)', 0, None, 0), (10, 'encrypted_seed_temp', 'TEXT', 0, None, 0)]
+Inserting: user_id=1d285076-7b2b-4f97-b7b1-db19854b849e, name=Wallet Multi, network=multi
+Database path: /Users/josecarlosmartins/Documents/HOLDWallet/holdwallet.db
+Database exists: True
+Current working directory: /Users/josecarlosmartins/Documents/HOLDWallet
+Table columns: [(0, 'id', 'VARCHAR(36)', 1, None, 1), (1, 'user_id', 'VARCHAR(36)', 1, None, 0), (2, 'name', 'VARCHAR(100)', 1, None, 0), (3, 'network', 'VARCHAR(50)', 1, None, 0), (4, 'derivation_path', 'VARCHAR(100)', 0, None, 0), (5, 'is_active', 'BOOLEAN', 1, None, 0), (6, 'created_at', 'DATETIME', 1, None, 0), (7, 'updated_at', 'DATETIME', 0, None, 0), (8, 'encrypted_seed', 'TEXT', 0, None, 0), (9, 'seed_hash', 'VARCHAR(64)', 0, None, 0), (10, 'encrypted_seed_temp', 'TEXT', 0, None, 0)]
+Inserting: user_id=635b6308-1273-49ce-b7d6-f5b15b99931f, name=holdwallet, network=multi
+Database path: /Users/josecarlosmartins/Documents/HOLDWallet/holdwallet.db
+Database exists: True
+Current working directory: /Users/josecarlosmartins/Documents/HOLDWallet
+Table columns: [(0, 'id', 'VARCHAR(36)', 1, None, 1), (1, 'user_id', 'VARCHAR(36)', 1, None, 0), (2, 'name', 'VARCHAR(100)', 1, None, 0), (3, 'network', 'VARCHAR(50)', 1, None, 0), (4, 'derivation_path', 'VARCHAR(100)', 0, None, 0), (5, 'is_active', 'BOOLEAN', 1, None, 0), (6, 'created_at', 'DATETIME', 1, None, 0), (7, 'updated_at', 'DATETIME', 0, None, 0), (8, 'encrypted_seed', 'TEXT', 0, None, 0), (9, 'seed_hash', 'VARCHAR(64)', 0, None, 0), (10, 'encrypted_seed_temp', 'TEXT', 0, None, 0)]
+Inserting: user_id=635b6308-1273-49ce-b7d6-f5b15b99931f, name=holdwallet, network=multi
+Database path: /Users/josecarlosmartins/Documents/HOLDWallet/holdwallet.db
+Database exists: True
+Current working directory: /Users/josecarlosmartins/Documents/HOLDWallet
+Table columns: [(0, 'id', 'VARCHAR(36)', 1, None, 1), (1, 'user_id', 'VARCHAR(36)', 1, None, 0), (2, 'name', 'VARCHAR(100)', 1, None, 0), (3, 'network', 'VARCHAR(50)', 1, None, 0), (4, 'derivation_path', 'VARCHAR(100)', 0, None, 0), (5, 'is_active', 'BOOLEAN', 1, None, 0), (6, 'created_at', 'DATETIME', 1, None, 0), (7, 'updated_at', 'DATETIME', 0, None, 0), (8, 'encrypted_seed', 'TEXT', 0, None, 0), (9, 'seed_hash', 'VARCHAR(64)', 0, None, 0), (10, 'encrypted_seed_temp', 'TEXT', 0, None, 0)]
+Inserting: user_id=635b6308-1273-49ce-b7d6-f5b15b99931f, name=holdwallet, network=multi
+Database path: /Users/josecarlosmartins/Documents/HOLDWallet/holdwallet.db
+Database exists: True
+Current working directory: /Users/josecarlosmartins/Documents/HOLDWallet
+Table columns: [(0, 'id', 'VARCHAR(36)', 1, None, 1), (1, 'user_id', 'VARCHAR(36)', 1, None, 0), (2, 'name', 'VARCHAR(100)', 1, None, 0), (3, 'network', 'VARCHAR(50)', 1, None, 0), (4, 'derivation_path', 'VARCHAR(100)', 0, None, 0), (5, 'is_active', 'BOOLEAN', 1, None, 0), (6, 'created_at', 'DATETIME', 1, None, 0), (7, 'updated_at', 'DATETIME', 0, None, 0), (8, 'encrypted_seed', 'TEXT', 0, None, 0), (9, 'seed_hash', 'VARCHAR(64)', 0, None, 0), (10, 'encrypted_seed_temp', 'TEXT', 0, None, 0)]
+Inserting: user_id=635b6308-1273-49ce-b7d6-f5b15b99931f, name=holdwallet, network=multi
