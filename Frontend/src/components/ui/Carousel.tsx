@@ -87,6 +87,14 @@ export function Carousel({
 
   const childrenArray = React.Children.toArray(children)
 
+  const itemStyle = React.useMemo(
+    () => ({
+      width: `calc((100% - ${gap * (currentView - 1)}px) / ${currentView})`,
+      minWidth: currentView === 1 ? '100%' : '250px',
+    }),
+    [gap, currentView]
+  )
+
   return (
     <div className={`relative ${className}`}>
       {showControls && canScrollLeft && (
@@ -105,14 +113,7 @@ export function Carousel({
         style={{ gap: `${gap}px` }}
       >
         {childrenArray.map((child, index) => (
-          <div
-            key={index}
-            className='flex-shrink-0'
-            style={{
-              width: `calc((100% - ${gap * (currentView - 1)}px) / ${currentView})`,
-              minWidth: currentView === 1 ? '100%' : '250px',
-            }}
-          >
+          <div key={index} className='flex-shrink-0' style={itemStyle}>
             {child}
           </div>
         ))}
