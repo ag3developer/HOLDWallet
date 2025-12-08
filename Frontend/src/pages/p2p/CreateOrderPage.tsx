@@ -1,9 +1,9 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Info, AlertCircle, Wallet } from 'lucide-react'
 import { useCreateP2POrder } from '@/hooks/useP2POrders'
 import { usePaymentMethods } from '@/hooks/usePaymentMethods'
-import { useWalletBalance } from '@/hooks/useWalletBalance'
+import { useAuthStore } from '@/stores/useAuthStore'
 import { toast } from 'react-hot-toast'
 
 export const CreateOrderPage = () => {

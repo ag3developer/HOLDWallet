@@ -41,11 +41,23 @@ class InstantTradeService:
         "BTC": Decimal("300000.00"),
         "ETH": Decimal("12500.00"),
         "USDT": Decimal("5.00"),
+        "USDC": Decimal("5.00"),
         "SOL": Decimal("500.00"),
         "ADA": Decimal("2.50"),
         "AVAX": Decimal("140.00"),
         "MATIC": Decimal("8.50"),
         "DOT": Decimal("35.00"),
+        "BASE": Decimal("12.00"),
+        "LINK": Decimal("28.00"),
+        "SHIB": Decimal("0.000015"),
+        "XRP": Decimal("2.50"),
+        "LTC": Decimal("180.00"),
+        "DOGE": Decimal("0.45"),
+        "BNB": Decimal("700.00"),
+        "TRX": Decimal("0.35"),
+        "CARDANO": Decimal("2.50"),
+        "POLYGON": Decimal("8.50"),
+        "POLKADOT": Decimal("35.00"),
     }
 
     def __init__(self, db: Session):
@@ -176,6 +188,26 @@ class InstantTradeService:
         )
         self.db.add(history)
         self.db.commit()
+
+        # ⭐ Transfer balance from user to system wallet if selling
+        if operation == "sell":
+            try:
+                from app.services.wallet_balance_service import WalletBalanceService
+                
+                # Transfer crypto amount from user to system wallet hold
+                WalletBalanceService.transfer_balance(
+                    db=self.db,
+                    from_user_id=user_id,
+                    to_user_id="system-wallet-hold",  # Special system wallet
+                    cryptocurrency=symbol,
+                    amount=float(crypto_amount),
+                    reason=f"Sell trade {reference_code}",
+                    reference_id=trade_id
+                )
+                logger.info(f"✅ Transferred {crypto_amount} {symbol} from user {user_id} to system wallet")
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to transfer balance for sell trade: {e}")
+                # Don't fail the trade creation, just log the warning
 
         logger.info(f"Trade created from quote: {reference_code}")
 

@@ -5,6 +5,7 @@ from .wallet import Wallet
 from .address import Address
 from .transaction import Transaction
 from .two_factor import TwoFactorAuth
+from .balance import WalletBalance
 
 # Import P2P models to ensure tables are created
 from . import p2p
@@ -20,6 +21,7 @@ __all__ = [
     
     # Wallet
     "Wallet",
+    "WalletBalance",
     
     # Address
     "Address",

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 import { TradingLimitsDisplay } from './TradingLimitsDisplay'
+import { useAuthStore } from '@/stores/useAuthStore'
 
 interface CryptoPrice {
   symbol: string
@@ -35,7 +36,6 @@ interface TradingFormProps {
   readonly onQuoteReceived: (quote: Quote) => void
   readonly currency: string
   readonly convertFromBRL: (value: number) => number
-  readonly walletBalance?: number
 }
 
 const API_BASE = 'http://127.0.0.1:8000/api/v1'
@@ -69,15 +69,122 @@ export function TradingForm({
   onQuoteReceived,
   currency,
   convertFromBRL,
-  walletBalance = 0,
 }: TradingFormProps) {
+  const { token } = useAuthStore()
   const [amount, setAmount] = useState('')
   const [loading, setLoading] = useState(false)
   const [lastQuoteTime, setLastQuoteTime] = useState<number>(0)
   const [secondsRemaining, setSecondsRemaining] = useState(0)
+  const [walletBalance, setWalletBalance] = useState<number>(0)
+  const [allBalances, setAllBalances] = useState<Record<string, number>>({})
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const QUOTE_VALIDITY_MS = 60000 // 60 segundos
+
+  // Fetch wallet balances on component mount
+  useEffect(() => {
+    const fetchBalances = async () => {
+      try {
+        if (!token) {
+          console.error('[TradingForm] No token found')
+          return
+        }
+
+        // Get wallets
+        const walletsResp = await fetch('http://127.0.0.1:8000/wallets/', {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+
+        if (!walletsResp.ok) throw new Error(`Failed to fetch wallets: ${walletsResp.status}`)
+
+        const wallets = await walletsResp.json()
+        if (!wallets?.length) throw new Error('No wallets found')
+
+        const walletId = wallets[0].id
+
+        // Get balances
+        const balanceResp = await fetch(
+          `http://127.0.0.1:8000/wallets/${walletId}/balances?include_tokens=true`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        )
+
+        if (!balanceResp.ok) throw new Error(`Failed to fetch balances: ${balanceResp.status}`)
+
+        const balData = await balanceResp.json()
+        const mapped = mapBalances(balData.balances)
+        setAllBalances(mapped)
+      } catch (error) {
+        console.error('[TradingForm] Error fetching balances:', error)
+        setAllBalances({})
+      }
+    }
+
+    fetchBalances()
+  }, [token])
+
+  // Helper function to map network names to symbols
+  const mapBalances = (balances: Record<string, any>): Record<string, number> => {
+    const mapped: Record<string, number> = {}
+
+    for (const [network, balInfo] of Object.entries(balances || {})) {
+      const networkLower = network.toLowerCase()
+      const amount = extractBalance(balInfo)
+      const symbol = mapNetworkToSymbol(networkLower)
+
+      if (symbol) {
+        mapped[symbol] = amount
+      }
+    }
+
+    return mapped
+  }
+
+  // Helper to extract balance amount
+  const extractBalance = (balInfo: any): number => {
+    if (typeof balInfo === 'object' && balInfo?.balance !== undefined) {
+      return Number.parseFloat(String(balInfo.balance)) || 0
+    }
+    return typeof balInfo === 'number' ? balInfo : 0
+  }
+
+  // Helper to map network to symbol
+  const mapNetworkToSymbol = (networkLower: string): string => {
+    if (networkLower.includes('polygon')) {
+      return networkLower.includes('usdt') ? 'USDT' : 'MATIC'
+    }
+    if (networkLower === 'base') return 'BASE'
+    if (networkLower === 'ethereum' || networkLower === 'eth') return 'ETH'
+    return ''
+  }
+
+  // Smart formatting: shows appropriate decimals based on value
+  const formatBalance = (value: number): string => {
+    if (value === 0) return '0'
+    
+    // For very small numbers (< 0.0001), show up to 8 decimals
+    if (value < 0.0001) {
+      return value.toFixed(8).replace(/\.?0+$/, '')
+    }
+    
+    // For small numbers (< 1), show up to 6 decimals
+    if (value < 1) {
+      return value.toFixed(6).replace(/\.?0+$/, '')
+    }
+    
+    // For medium numbers (< 1000), show up to 4 decimals
+    if (value < 1000) {
+      return value.toFixed(4).replace(/\.?0+$/, '')
+    }
+    
+    // For large numbers, show up to 2 decimals
+    return value.toFixed(2).replace(/\.?0+$/, '')
+  }
+
+  // Update walletBalance when selectedSymbol changes
+  useEffect(() => {
+    const newBalance = allBalances[selectedSymbol] || 0
+    setWalletBalance(newBalance)
+  }, [selectedSymbol, allBalances])
 
   // Timer para mostrar contagem regressiva
   useEffect(() => {
@@ -244,17 +351,24 @@ export function TradingForm({
             <label className='block text-sm font-medium text-gray-700 dark:text-gray-300'>
               Amount ({isBuy ? currency : selectedSymbol})
             </label>
-            {!isBuy && walletBalance > 0 && (
-              <button
-                onClick={() => {
-                  setAmount(walletBalance.toString())
-                  setLastQuoteTime(0)
-                }}
-                className='text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-1 rounded hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors'
-              >
-                Available: <span className='font-bold'>{walletBalance.toFixed(8)}</span>{' '}
-                {selectedSymbol} (Max)
-              </button>
+            {!isBuy && (
+              <div className='flex items-center gap-2'>
+                {walletBalance > 0 ? (
+                  <button
+                    onClick={() => {
+                      setAmount(walletBalance.toString())
+                      setLastQuoteTime(0)
+                    }}
+                    className='text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-1 rounded hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors font-medium'
+                  >
+                    Max: {formatBalance(walletBalance)} {selectedSymbol}
+                  </button>
+                ) : (
+                  <span className='text-xs text-gray-500 dark:text-gray-400 px-2 py-1'>
+                    Saldo: 0 {selectedSymbol}
+                  </span>
+                )}
+              </div>
             )}
           </div>
           <input
