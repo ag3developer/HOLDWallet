@@ -47,6 +47,11 @@ class WalletAddressRequest(BaseModel):
     address_type: str = Field(default="receiving", description="Type of address (receiving, change)")
     derivation_index: Optional[int] = None
 
+class WalletUpdate(BaseModel):
+    """Schema for updating a wallet."""
+    name: Optional[str] = Field(default=None, max_length=100, description="Updated wallet name")
+    passphrase: Optional[str] = Field(default=None, description="Updated passphrase")
+
 # Response schemas
 class AddressResponse(BaseModel):
     """Response schema for wallet addresses."""
@@ -120,6 +125,21 @@ class WalletBalancesByNetworkResponse(BaseModel):
     balances: Dict[str, NetworkBalanceDetail]
     total_usd: str = "0"
     total_brl: str = "0"
+
+class WalletWithBalance(BaseModel):
+    """Wallet response with balance information."""
+    id: UUID
+    name: str
+    network: str
+    first_address: Optional[str]
+    balance: str = "0"
+    balance_usd: str = "0"
+    balance_brl: str = "0"
+    created_at: datetime
+    is_active: bool
+    
+    class Config:
+        from_attributes = True
 
 class WalletListResponse(BaseModel):
     """Response schema for wallet list."""

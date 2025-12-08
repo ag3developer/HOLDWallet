@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict
 from decimal import Decimal
+from datetime import datetime
 import logging
 import uuid
 
@@ -15,10 +16,13 @@ from app.core.exceptions import NotFoundError, BlockchainError
 from app.models.user import User
 from app.models.wallet import Wallet
 from app.models.address import Address
+from app.models.transaction import Transaction, TransactionStatus
 from app.services.wallet_service import WalletService
 from app.services.blockchain_service import BlockchainService
 from app.services.transaction_service import transaction_service
 from app.services.blockchain_signer import blockchain_signer
+from app.services.usdt_transaction_service import USDTTransactionService
+from app.config.token_contracts import USDT_CONTRACTS, USDC_CONTRACTS
 from pydantic import BaseModel, Field
 
 from app.schemas.wallet import (
@@ -161,6 +165,7 @@ async def get_user_wallets(
 async def generate_new_address(
     wallet_id: str,
     address_type: str = "receiving",
+    network: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -191,7 +196,8 @@ async def generate_new_address(
         address = await wallet_service.generate_address(
             db=db,
             wallet=wallet,
-            address_type=address_type
+            address_type=address_type,
+            network=network
         )
         
         return AddressResponse(
@@ -201,7 +207,8 @@ async def generate_new_address(
             derivation_index=address.derivation_index,
             derivation_path=address.derivation_path,
             is_active=address.is_active,
-            created_at=address.created_at
+            created_at=address.created_at,
+            network=address.network
         )
         
     except Exception as e:
@@ -264,6 +271,7 @@ async def get_wallet_addresses(
 @router.get("/{wallet_id}/balances", response_model=WalletBalancesByNetworkResponse)
 async def get_wallet_balances_by_network(
     wallet_id: uuid.UUID,
+    include_tokens: bool = Query(False, description="Include token balances"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -352,7 +360,7 @@ async def get_wallet_balances_by_network(
                 balance_data = await blockchain_service.get_address_balance(
                     address_str,
                     network_str,
-                    include_tokens=False
+                    include_tokens=include_tokens  # 🔑 PASSANDO PARÂMETRO DO ENDPOINT!
                 )
                 
                 native_balance = Decimal(balance_data.get('native_balance', '0'))
@@ -378,6 +386,70 @@ async def get_wallet_balances_by_network(
                         balance_brl=f"{balance_brl:.2f}",
                         last_updated=datetime.utcnow()
                     )
+                
+                # 🪙 ADICIONAR SALDOS DE TOKENS
+                token_balances = balance_data.get('token_balances', {})
+                if token_balances:
+                    logger.info(f"📊 Saldos de tokens encontrados para {address_str}: {token_balances}")
+                    
+                    # Verificar USDT e USDC
+                    from app.config.token_contracts import USDT_CONTRACTS, USDC_CONTRACTS
+                    
+                    # Processar USDT
+                    if network_str.lower() in USDT_CONTRACTS:
+                        usdt_address = USDT_CONTRACTS[network_str.lower()]['address'].lower()
+                        for token_addr, token_data in token_balances.items():
+                            if token_addr.lower() == usdt_address:
+                                usdt_balance = Decimal(str(token_data.get('balance', '0')))
+                                # 🔧 MOSTRAR SEMPRE, MESMO COM SALDO 0 (para testes)
+                                # USDT normalmente é $1.00 USD
+                                balance_usd = usdt_balance * Decimal('1.0')
+                                balance_brl = usdt_balance * Decimal(str(prices.get('usd', {}).get('brl', 1.0)))
+                                
+                                if usdt_balance > 0:
+                                    total_usd_value += balance_usd
+                                    total_brl_value += balance_brl
+                                
+                                balances_by_network[f"{network_str}_usdt"] = NetworkBalanceDetail(
+                                    network=f"{network_str} (USDT)",
+                                    address=address_str,
+                                    balance=str(usdt_balance),
+                                    balance_usd=f"{balance_usd:.2f}",
+                                    balance_brl=f"{balance_brl:.2f}",
+                                    last_updated=datetime.utcnow()
+                                )
+                                if usdt_balance > 0:
+                                    logger.info(f"✅ USDT balance on {network_str}: {usdt_balance}")
+                                else:
+                                    logger.info(f"⚠️  USDT (0 balance) on {network_str}")
+                    
+                    # Processar USDC
+                    if network_str.lower() in USDC_CONTRACTS:
+                        usdc_address = USDC_CONTRACTS[network_str.lower()]['address'].lower()
+                        for token_addr, token_data in token_balances.items():
+                            if token_addr.lower() == usdc_address:
+                                usdc_balance = Decimal(str(token_data.get('balance', '0')))
+                                # 🔧 MOSTRAR SEMPRE, MESMO COM SALDO 0 (para testes)
+                                # USDC normalmente é $1.00 USD
+                                balance_usd = usdc_balance * Decimal('1.0')
+                                balance_brl = usdc_balance * Decimal(str(prices.get('usd', {}).get('brl', 1.0)))
+                                
+                                if usdc_balance > 0:
+                                    total_usd_value += balance_usd
+                                    total_brl_value += balance_brl
+                                
+                                balances_by_network[f"{network_str}_usdc"] = NetworkBalanceDetail(
+                                    network=f"{network_str} (USDC)",
+                                    address=address_str,
+                                    balance=str(usdc_balance),
+                                    balance_usd=f"{balance_usd:.2f}",
+                                    balance_brl=f"{balance_brl:.2f}",
+                                    last_updated=datetime.utcnow()
+                                )
+                                if usdc_balance > 0:
+                                    logger.info(f"✅ USDC balance on {network_str}: {usdc_balance}")
+                                else:
+                                    logger.info(f"⚠️  USDC (0 balance) on {network_str}")
             
             except Exception as e:
                 logger.error(f"Error fetching balance for {network_str} address {address_str}: {str(e)}")
@@ -607,6 +679,8 @@ class SendTransactionRequest(BaseModel):
     note: Optional[str] = Field(None, description="Optional transaction note")
     password: Optional[str] = Field(None, description="Wallet password if required")
     two_factor_token: Optional[str] = Field(None, description="2FA token (required if 2FA enabled)", min_length=6, max_length=8)
+    token_symbol: Optional[str] = Field(None, description="Token symbol (e.g., USDT, USDC)")
+    token_address: Optional[str] = Field(None, description="Token contract address")
 
 @router.post("/validate-address")
 async def validate_address(
@@ -760,19 +834,26 @@ async def send_transaction(
         from app.services.two_factor_service import two_factor_service
         from app.models.two_factor import TwoFactorAuth
         
+        logger.info(f"🔍 Checking 2FA for user {current_user.id}")
+        
         two_fa = db.query(TwoFactorAuth).filter(
             TwoFactorAuth.user_id == current_user.id,
             TwoFactorAuth.is_enabled == True
         ).first()
         
+        logger.info(f"📋 2FA Status: {two_fa}")
+        
         if two_fa:
+            logger.info(f"⚠️  2FA is ENABLED for user {current_user.id}")
             # 2FA is enabled - token is required
             if not request.two_factor_token:
+                logger.warning("No 2FA token provided")
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="2FA token required. Please provide your authenticator code."
                 )
             
+            logger.info(f"✓ 2FA token provided: {request.two_factor_token}")
             # Verify 2FA token
             is_valid = await two_factor_service.verify_2fa_for_action(
                 db,
@@ -780,13 +861,17 @@ async def send_transaction(
                 request.two_factor_token
             )
             
+            logger.info(f"2FA validation result: {is_valid}")
             if not is_valid:
+                logger.error("Invalid 2FA token")
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Invalid 2FA token"
                 )
             
             logger.info(f"✅ 2FA verified for transaction from user {current_user.id}")
+        else:
+            logger.info(f"✓ 2FA is NOT enabled for user {current_user.id}, proceeding without 2FA check")
         
         # Verify wallet belongs to user
         wallet = db.query(Wallet).filter(
@@ -890,22 +975,132 @@ async def send_transaction(
             # Get private key
             private_key = bip44_address.PrivateKey().Raw().ToHex()
             
-            # Get gas price based on fee level
+            # Get gas price based on fee level (needed for both tokens and native)
             gas_estimates = await blockchain_signer.estimate_gas_price(request.network, request.fee_level)
             selected_gas = gas_estimates.get(request.fee_level, gas_estimates['standard'])
             
-            # Sign and broadcast transaction
-            tx_hash, tx_details = await blockchain_signer.sign_evm_transaction(
-                network=request.network,
+            # DETECTAR SE É TOKEN USDT OU USDC
+            is_usdt = request.token_symbol and request.token_symbol.upper() == 'USDT'
+            is_usdc = request.token_symbol and request.token_symbol.upper() == 'USDC'
+            
+            tx_hash = None
+            tx_details = None
+            
+            if is_usdt or is_usdc:
+                logger.info(f"🪙 Detectado token {request.token_symbol} - usando USDTTransactionService")
+                
+                # Usar USDTTransactionService para enviar token
+                try:
+                    usdt_service = USDTTransactionService()
+                except Exception as e:
+                    logger.error(f"❌ Erro ao inicializar USDTTransactionService: {e}")
+                    raise HTTPException(
+                        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                        detail=f"Serviço de token temporariamente indisponível. Tente novamente em alguns momentos."
+                    )
+                
+                # Obter endereço do contrato
+                contracts = USDT_CONTRACTS if is_usdt else USDC_CONTRACTS
+                network_lower = request.network.lower()
+                
+                if network_lower not in contracts:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"{request.token_symbol} não suportado na rede {request.network}"
+                    )
+                
+                token_contract = contracts[network_lower]
+                
+                logger.info(f"📝 Preparando transação {request.token_symbol}:")
+                logger.info(f"  De: {from_address}")
+                logger.info(f"  Para: {request.to_address}")
+                logger.info(f"  Valor: {request.amount}")
+                logger.info(f"  Contrato: {token_contract['address']}")
+                
+                # Assinar e enviar transação de token
+                try:
+                    # Usar asyncio.to_thread para não bloquear a event loop
+                    import asyncio
+                    tx_result = await asyncio.to_thread(
+                        usdt_service.sign_and_send_transaction,
+                        from_address,
+                        request.to_address,
+                        request.amount,
+                        request.token_symbol,
+                        request.network,
+                        private_key,
+                        request.fee_level
+                    )
+                except asyncio.TimeoutError:
+                    logger.error("Timeout ao enviar transacao")
+                    raise HTTPException(
+                        status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+                        detail="Transação demorou muito. Tente novamente."
+                    )
+                except Exception as e:
+                    logger.error(f"Erro ao assinar/enviar transacao: {e}")
+                    raise HTTPException(
+                        status_code=status.HTTP_502_BAD_GATEWAY,
+                        detail=f"Erro ao processar transação: {str(e)}"
+                    )
+                
+                if tx_result.get('error'):
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Erro ao enviar {request.token_symbol}: {tx_result['error']}"
+                    )
+                
+                tx_hash = tx_result.get('tx_hash')
+                tx_details = {}  # Não temos detalhes adicionais para tokens
+                logger.info(f"✅ Transação {request.token_symbol} enviada: {tx_hash}")
+                
+            else:
+                logger.info("💱 Transação nativa (não é token) - usando blockchain_signer")
+                
+                # Sign and broadcast transaction (native coin)
+                tx_hash, tx_details = await blockchain_signer.sign_evm_transaction(
+                    network=request.network,
+                    from_address=from_address,
+                    to_address=request.to_address,
+                    amount=request.amount,
+                    private_key=private_key,
+                    gas_price_gwei=float(selected_gas['gas_price_gwei']) if isinstance(selected_gas, dict) else selected_gas
+                )
+            
+            # Determine token_address for database
+            if request.token_address:
+                db_token_address = request.token_address
+            elif is_usdt:
+                db_token_address = USDT_CONTRACTS.get(request.network.lower(), {}).get('address')
+            elif is_usdc:
+                db_token_address = USDC_CONTRACTS.get(request.network.lower(), {}).get('address')
+            else:
+                db_token_address = None
+            
+            # Save transaction to database
+            transaction_record = Transaction(
+                user_id=current_user.id,
+                address_id=address_obj.id if address_obj else None,
+                tx_hash=tx_hash,
                 from_address=from_address,
                 to_address=request.to_address,
-                amount=request.amount,
-                private_key=private_key,
-                gas_price_gwei=float(selected_gas['gas_price_gwei'])
+                amount=str(request.amount),
+                fee=str(selected_gas.get('estimated_cost', '0')) if isinstance(selected_gas, dict) else str(selected_gas),
+                network=request.network,
+                status=TransactionStatus.pending,
+                token_address=db_token_address,
+                token_symbol=request.token_symbol,
+                memo=request.note,
+                raw_transaction=tx_details.get('raw_tx') if tx_details else None,
+                signed_transaction=tx_details.get('signed_tx') if tx_details else None,
+                broadcasted_at=datetime.utcnow(),
             )
+            db.add(transaction_record)
+            db.commit()
+            db.refresh(transaction_record)
+            transaction_id = transaction_record.id
             
-            # TODO: Save transaction to database
-            # transaction_id = save_transaction_to_db(db, tx_details)
+            logger.info(f"✅ Transaction saved to database: ID={transaction_id}, Hash={tx_hash}")
             
             # Get explorer URL
             explorer_urls = {
@@ -921,17 +1116,17 @@ async def send_transaction(
             return {
                 "success": True,
                 "mode": "custodial",
-                "transaction_id": 0,  # TODO: Get from database
+                "transaction_id": transaction_id,
                 "tx_hash": tx_hash,
                 "network": request.network,
                 "from_address": from_address,
                 "to_address": request.to_address,
                 "amount": request.amount,
-                "fee": str(selected_gas['estimated_cost']),
+                "fee": str(selected_gas.get('estimated_cost', '0')) if isinstance(selected_gas, dict) else str(selected_gas),
                 "fee_level": request.fee_level,
                 "status": "pending",
                 "explorer_url": explorer_urls.get(request.network, ""),
-                "estimated_confirmation_time": str(selected_gas['estimated_time']),
+                "estimated_confirmation_time": str(selected_gas.get('estimated_time', '0')) if isinstance(selected_gas, dict) else "0",
                 "message": "✅ Transaction broadcasted successfully! It may take a few minutes to confirm.",
                 "details": tx_details
             }

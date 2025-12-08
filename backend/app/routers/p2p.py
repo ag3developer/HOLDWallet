@@ -909,6 +909,32 @@ async def start_trade(
                 detail=f"Amount must be between {order.min_order_limit} and {order.max_order_limit}"
             )
         
+        # ✅ PHASE 1: Validate buyer balance (for buy orders)
+        if order.order_type == 'buy':
+            # Buyer needs to have BRL balance
+            buyer_balance = db.execute(
+                text("SELECT available_balance FROM wallet_balances WHERE user_id = :user_id AND cryptocurrency = 'BRL'"),
+                {"user_id": buyer_id}
+            ).fetchone()
+            
+            if not buyer_balance or buyer_balance.available_balance < total_price:
+                raise HTTPException(
+                    status_code=http_status.HTTP_402_PAYMENT_REQUIRED,
+                    detail=f"Insufficient balance. You need {total_price} BRL"
+                )
+        else:
+            # Seller needs to have crypto balance
+            seller_balance = db.execute(
+                text("SELECT available_balance FROM wallet_balances WHERE user_id = :user_id AND cryptocurrency = :cryptocurrency"),
+                {"user_id": order.user_id, "cryptocurrency": order.cryptocurrency}
+            ).fetchone()
+            
+            if not seller_balance or seller_balance.available_balance < amount:
+                raise HTTPException(
+                    status_code=http_status.HTTP_402_PAYMENT_REQUIRED,
+                    detail=f"Seller insufficient balance. Needs {amount} {order.cryptocurrency}"
+                )
+        
         # Insert trade
         from datetime import datetime, timedelta
         expires_at = datetime.now() + timedelta(minutes=order.time_limit)
@@ -944,6 +970,39 @@ async def start_trade(
         trade_id = trade_id_result.id if trade_id_result else None
         
         print(f"[DEBUG] Trade created - ID: {trade_id}")
+        
+        # ✅ PHASE 1: Freeze balances for the trade
+        try:
+            if order.order_type == 'buy':
+                # Freeze BRL on buyer side
+                db.execute(text("""
+                    UPDATE wallet_balances
+                    SET locked_balance = locked_balance + :amount,
+                        available_balance = available_balance - :amount,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE user_id = :user_id AND cryptocurrency = 'BRL'
+                """), {"user_id": buyer_id, "amount": total_price})
+            else:
+                # Freeze crypto on seller side
+                db.execute(text("""
+                    UPDATE wallet_balances
+                    SET locked_balance = locked_balance + :amount,
+                        available_balance = available_balance - :amount,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE user_id = :user_id AND cryptocurrency = :cryptocurrency
+                """), {"user_id": order.user_id, "amount": amount, "cryptocurrency": order.cryptocurrency})
+            
+            db.commit()
+            print(f"[DEBUG] Balances frozen for trade {trade_id}")
+        except Exception as freeze_error:
+            # If freezing fails, delete the trade and rollback
+            db.execute(text("DELETE FROM p2p_trades WHERE id = :id"), {"id": trade_id})
+            db.commit()
+            print(f"[ERROR] Failed to freeze balance: {str(freeze_error)}")
+            raise HTTPException(
+                status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to freeze balance for trade: {str(freeze_error)}"
+            )
         
         return {
             "success": True,
@@ -1015,6 +1074,167 @@ async def get_trade_details(
         )
 
 
+@router.post("/trades/{trade_id}/complete")
+async def complete_trade(
+    trade_id: int,
+    completion_data: Dict[str, Any] = Body(...),
+    db: Session = Depends(get_db)
+):
+    """
+    Complete a trade and release the escrow balance
+    
+    This transfers the frozen balance from seller to buyer:
+    - Seller: locked_balance -= amount (the crypto they were selling)
+    - Buyer: available_balance += amount (receives the crypto)
+    
+    Or if it's a buy order:
+    - Buyer: locked_balance -= total_price (the BRL they were paying)
+    - Seller: available_balance += total_price (receives the BRL)
+    """
+    print(f"[DEBUG] POST /trades/{trade_id}/complete")
+    
+    try:
+        # Get trade details
+        trade_query = text("SELECT * FROM p2p_trades WHERE id = :id")
+        trade = db.execute(trade_query, {"id": trade_id}).fetchone()
+        
+        if not trade:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail="Trade not found"
+            )
+        
+        if trade.status != 'pending':
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST,
+                detail=f"Can only complete trades with 'pending' status. Current status: {trade.status}"
+            )
+        
+        # Get the order to determine trade type
+        order_query = text("SELECT * FROM p2p_orders WHERE id = :id")
+        order = db.execute(order_query, {"id": trade.order_id}).fetchone()
+        
+        if not order:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail="Order not found"
+            )
+        
+        # RELEASE BALANCE BASED ON ORDER TYPE
+        if order.order_type == 'buy':
+            # BUY ORDER: Buyer paid BRL, seller receives BRL
+            # Release buyer's frozen BRL → Seller gets it
+            db.execute(text("""
+                UPDATE wallet_balances
+                SET available_balance = available_balance + :amount,
+                    updated_at = CURRENT_TIMESTAMP,
+                    last_updated_reason = 'Trade completed - received payment'
+                WHERE user_id = :user_id AND cryptocurrency = 'BRL'
+            """), {"user_id": trade.seller_id, "amount": trade.total_price})
+            
+            # Move locked balance to available for seller
+            db.execute(text("""
+                UPDATE wallet_balances
+                SET locked_balance = locked_balance - :amount,
+                    updated_at = CURRENT_TIMESTAMP,
+                    last_updated_reason = 'Trade completed - released balance'
+                WHERE user_id = :user_id AND cryptocurrency = :cryptocurrency
+            """), {"user_id": trade.buyer_id, "amount": trade.total_price, "cryptocurrency": 'BRL'})
+        else:
+            # SELL ORDER: Seller paid crypto, buyer receives crypto
+            # Seller receives BRL payment
+            seller_brl_balance = db.execute(
+                text("SELECT available_balance FROM wallet_balances WHERE user_id = :user_id AND cryptocurrency = 'BRL'"),
+                {"user_id": trade.seller_id}
+            ).fetchone()
+            
+            if seller_brl_balance:
+                # Update existing BRL balance
+                db.execute(text("""
+                    UPDATE wallet_balances
+                    SET available_balance = available_balance + :amount,
+                        updated_at = CURRENT_TIMESTAMP,
+                        last_updated_reason = 'Trade completed - received payment'
+                    WHERE user_id = :user_id AND cryptocurrency = 'BRL'
+                """), {"user_id": trade.seller_id, "amount": trade.total_price})
+            else:
+                # Create new BRL balance for seller
+                db.execute(text("""
+                    INSERT INTO wallet_balances (id, user_id, cryptocurrency, available_balance, locked_balance, total_balance, last_updated_reason)
+                    VALUES (lower(hex(randomblob(8))), :user_id, 'BRL', :amount, 0, :amount, 'Trade completed - received payment')
+                """), {"user_id": trade.seller_id, "amount": trade.total_price})
+            
+            # Buyer receives crypto
+            buyer_crypto_balance = db.execute(
+                text("SELECT available_balance FROM wallet_balances WHERE user_id = :user_id AND cryptocurrency = :cryptocurrency"),
+                {"user_id": trade.buyer_id, "cryptocurrency": trade.cryptocurrency}
+            ).fetchone()
+            
+            if buyer_crypto_balance:
+                # Update existing crypto balance
+                db.execute(text("""
+                    UPDATE wallet_balances
+                    SET available_balance = available_balance + :amount,
+                        updated_at = CURRENT_TIMESTAMP,
+                        last_updated_reason = 'Trade completed - received crypto'
+                    WHERE user_id = :user_id AND cryptocurrency = :cryptocurrency
+                """), {"user_id": trade.buyer_id, "amount": trade.amount, "cryptocurrency": trade.cryptocurrency})
+            else:
+                # Create new crypto balance for buyer
+                db.execute(text("""
+                    INSERT INTO wallet_balances (id, user_id, cryptocurrency, available_balance, locked_balance, total_balance, last_updated_reason)
+                    VALUES (lower(hex(randomblob(8))), :user_id, :cryptocurrency, :amount, 0, :amount, 'Trade completed - received crypto')
+                """), {"user_id": trade.buyer_id, "amount": trade.amount, "cryptocurrency": trade.cryptocurrency})
+            
+            # Release seller's locked crypto
+            db.execute(text("""
+                UPDATE wallet_balances
+                SET locked_balance = locked_balance - :amount,
+                    updated_at = CURRENT_TIMESTAMP,
+                    last_updated_reason = 'Trade completed - released balance'
+                WHERE user_id = :user_id AND cryptocurrency = :cryptocurrency
+            """), {"user_id": trade.seller_id, "amount": trade.amount, "cryptocurrency": trade.cryptocurrency})
+            
+            # Release buyer's locked BRL
+            db.execute(text("""
+                UPDATE wallet_balances
+                SET locked_balance = locked_balance - :amount,
+                    updated_at = CURRENT_TIMESTAMP,
+                    last_updated_reason = 'Trade completed - released balance'
+                WHERE user_id = :user_id AND cryptocurrency = 'BRL'
+            """), {"user_id": trade.buyer_id, "amount": trade.total_price})
+        
+        # Update trade status to completed
+        db.execute(text("""
+            UPDATE p2p_trades
+            SET status = 'completed', updated_at = CURRENT_TIMESTAMP
+            WHERE id = :id
+        """), {"id": trade_id})
+        
+        db.commit()
+        
+        print(f"[DEBUG] Trade {trade_id} completed successfully")
+        
+        return {
+            "success": True,
+            "data": {
+                "trade_id": str(trade_id),
+                "status": "completed",
+                "message": "Balance released successfully"
+            }
+        }
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"[ERROR] Failed to complete trade: {str(e)}")
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to complete trade: {str(e)}"
+        )
+
+
 @router.get("/market-stats")
 async def get_market_stats(
     coin: Optional[str] = Query(None),
@@ -1048,3 +1268,420 @@ async def get_market_stats(
             "total_sell_orders": stats.sell_orders or 0
         }
     }
+
+
+# ============================================
+# 💰 BALANCE MANAGEMENT ENDPOINTS
+# ============================================
+
+@router.post("/wallet/deposit")
+async def deposit_balance(
+    balance_data: Dict[str, Any],
+    user_id: int = Query(1),
+    db: Session = Depends(get_db)
+):
+    """
+    Deposit balance to user wallet (for testing)
+    
+    This is called when:
+    1. User deposits crypto via blockchain (webhook from blockchain service)
+    2. Testing purpose: manual deposit
+    
+    Example:
+    POST /wallet/deposit?user_id=123
+    {
+        "cryptocurrency": "USDT",
+        "amount": 1000,
+        "transaction_hash": "0x123abc...",
+        "reason": "Blockchain deposit"
+    }
+    """
+    try:
+        cryptocurrency = balance_data.get("cryptocurrency", "BTC").upper()
+        amount = float(balance_data.get("amount", 0))
+        tx_hash = balance_data.get("transaction_hash", "")
+        reason = balance_data.get("reason", "Deposit")
+        
+        if amount <= 0:
+            raise ValueError("Amount must be greater than 0")
+        
+        # Get or create balance
+        balance = db.execute(
+            text("SELECT id, available_balance, locked_balance FROM wallet_balances WHERE user_id = :user_id AND cryptocurrency = :cryptocurrency"),
+            {"user_id": user_id, "cryptocurrency": cryptocurrency}
+        ).fetchone()
+        
+        old_available = balance.available_balance if balance else 0
+        
+        if not balance:
+            # CREATE NEW BALANCE ENTRY
+            db.execute(text("""
+                INSERT INTO wallet_balances (id, user_id, cryptocurrency, available_balance, locked_balance, total_balance, last_updated_reason)
+                VALUES (lower(hex(randomblob(8))), :user_id, :cryptocurrency, :amount, 0, :amount, :reason)
+            """), {"user_id": user_id, "cryptocurrency": cryptocurrency, "amount": amount, "reason": reason})
+        else:
+            # UPDATE EXISTING BALANCE
+            db.execute(text("""
+                UPDATE wallet_balances
+                SET available_balance = available_balance + :amount,
+                    total_balance = total_balance + :amount,
+                    updated_at = CURRENT_TIMESTAMP,
+                    last_updated_reason = :reason
+                WHERE user_id = :user_id AND cryptocurrency = :cryptocurrency
+            """), {"user_id": user_id, "cryptocurrency": cryptocurrency, "amount": amount, "reason": reason})
+        
+        # RECORD TRANSACTION IN HISTORY (for audit trail)
+        db.execute(text("""
+            INSERT INTO balance_history (id, user_id, cryptocurrency, operation_type, amount, balance_before, balance_after, locked_before, locked_after, reference_id, reason)
+            VALUES (lower(hex(randomblob(8))), :user_id, :cryptocurrency, 'deposit', :amount, :balance_before, :balance_after, 0, 0, :reference_id, :reason)
+        """), {
+            "user_id": user_id,
+            "cryptocurrency": cryptocurrency,
+            "amount": amount,
+            "balance_before": old_available,
+            "balance_after": old_available + amount,
+            "reference_id": tx_hash,
+            "reason": reason
+        })
+        
+        db.commit()
+        
+        # Get updated balance
+        updated = db.execute(
+            text("SELECT available_balance, locked_balance FROM wallet_balances WHERE user_id = :user_id AND cryptocurrency = :cryptocurrency"),
+            {"user_id": user_id, "cryptocurrency": cryptocurrency}
+        ).fetchone()
+        
+        return {
+            "success": True,
+            "data": {
+                "cryptocurrency": cryptocurrency,
+                "available_balance": float(updated.available_balance),
+                "locked_balance": float(updated.locked_balance),
+                "total_balance": float(updated.available_balance + updated.locked_balance),
+                "amount_deposited": amount
+            },
+            "message": f"Deposited {amount} {cryptocurrency} successfully"
+        }
+    except Exception as e:
+        db.rollback()
+        print(f"[ERROR] Failed to deposit: {str(e)}")
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+
+async def get_wallet_balance(
+    user_id: int = Query(1, description="User ID"),
+    cryptocurrency: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """Get user wallet balance(s)"""
+    try:
+        if cryptocurrency:
+            # Get specific cryptocurrency balance
+            balance_query = text("""
+                SELECT id, user_id, cryptocurrency, available_balance, locked_balance, total_balance
+                FROM wallet_balances
+                WHERE user_id = :user_id AND cryptocurrency = :cryptocurrency
+            """)
+            balance = db.execute(
+                balance_query,
+                {"user_id": user_id, "cryptocurrency": cryptocurrency.upper()}
+            ).fetchone()
+            
+            if not balance:
+                # Create new balance if doesn't exist
+                return {
+                    "success": True,
+                    "data": {
+                        "user_id": str(user_id),
+                        "cryptocurrency": cryptocurrency.upper(),
+                        "available_balance": 0.0,
+                        "locked_balance": 0.0,
+                        "total_balance": 0.0
+                    }
+                }
+            
+            return {
+                "success": True,
+                "data": {
+                    "user_id": str(balance.user_id),
+                    "cryptocurrency": balance.cryptocurrency,
+                    "available_balance": float(balance.available_balance),
+                    "locked_balance": float(balance.locked_balance),
+                    "total_balance": float(balance.total_balance)
+                }
+            }
+        else:
+            # Get all cryptocurrency balances for user
+            balances_query = text("""
+                SELECT cryptocurrency, available_balance, locked_balance, total_balance
+                FROM wallet_balances
+                WHERE user_id = :user_id
+            """)
+            balances = db.execute(balances_query, {"user_id": user_id}).fetchall()
+            
+            return {
+                "success": True,
+                "data": [
+                    {
+                        "cryptocurrency": b.cryptocurrency,
+                        "available_balance": float(b.available_balance),
+                        "locked_balance": float(b.locked_balance),
+                        "total_balance": float(b.total_balance)
+                    }
+                    for b in balances
+                ]
+            }
+    except Exception as e:
+        print(f"[ERROR] Failed to get balance: {str(e)}")
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get balance: {str(e)}"
+        )
+
+
+@router.post("/wallet/freeze")
+async def freeze_balance(
+    balance_data: Dict[str, Any],
+    user_id: int = Query(1),
+    db: Session = Depends(get_db)
+):
+    """Freeze (lock) balance for P2P trade"""
+    try:
+        cryptocurrency = balance_data.get("cryptocurrency", "BTC").upper()
+        amount = float(balance_data.get("amount", 0))
+        reason = balance_data.get("reason", "P2P Trade")
+        reference_id = balance_data.get("reference_id")
+        
+        # Get or create balance
+        balance_query = text("""
+            SELECT available_balance, locked_balance FROM wallet_balances
+            WHERE user_id = :user_id AND cryptocurrency = :cryptocurrency
+        """)
+        balance = db.execute(
+            balance_query,
+            {"user_id": user_id, "cryptocurrency": cryptocurrency}
+        ).fetchone()
+        
+        if not balance:
+            # Create new balance
+            db.execute(text("""
+                INSERT INTO wallet_balances (id, user_id, cryptocurrency, available_balance, locked_balance, total_balance)
+                VALUES (lower(hex(randomblob(8))), :user_id, :cryptocurrency, 0, 0, 0)
+            """), {"user_id": user_id, "cryptocurrency": cryptocurrency})
+            db.commit()
+            raise ValueError(f"Insufficient balance for freeze")
+        
+        # Check sufficient balance
+        if balance.available_balance < amount:
+            raise ValueError(
+                f"Insufficient available balance. Available: {balance.available_balance}, Requested: {amount}"
+            )
+        
+        # Freeze balance
+        freeze_query = text("""
+            UPDATE wallet_balances
+            SET available_balance = available_balance - :amount,
+                locked_balance = locked_balance + :amount,
+                updated_at = CURRENT_TIMESTAMP,
+                last_updated_reason = :reason
+            WHERE user_id = :user_id AND cryptocurrency = :cryptocurrency
+        """)
+        
+        db.execute(
+            freeze_query,
+            {
+                "user_id": user_id,
+                "cryptocurrency": cryptocurrency,
+                "amount": amount,
+                "reason": f"Frozen: {reason}"
+            }
+        )
+        
+        # Record in history
+        db.execute(text("""
+            INSERT INTO balance_history (id, user_id, cryptocurrency, operation_type, amount, balance_before, balance_after, locked_before, locked_after, reference_id, reason)
+            VALUES (lower(hex(randomblob(8))), :user_id, :cryptocurrency, 'freeze', :amount, :balance_before, :balance_after, :locked_before, :locked_after, :reference_id, :reason)
+        """), {
+            "user_id": user_id,
+            "cryptocurrency": cryptocurrency,
+            "amount": amount,
+            "balance_before": balance.available_balance,
+            "balance_after": balance.available_balance - amount,
+            "locked_before": balance.locked_balance,
+            "locked_after": balance.locked_balance + amount,
+            "reference_id": reference_id,
+            "reason": reason
+        })
+        
+        db.commit()
+        
+        # Get updated balance
+        updated = db.execute(
+            balance_query,
+            {"user_id": user_id, "cryptocurrency": cryptocurrency}
+        ).fetchone()
+        
+        return {
+            "success": True,
+            "data": {
+                "available_balance": float(updated.available_balance),
+                "locked_balance": float(updated.locked_balance),
+                "total_balance": float(updated.available_balance + updated.locked_balance)
+            },
+            "message": f"Frozen {amount} {cryptocurrency} successfully"
+        }
+    except Exception as e:
+        db.rollback()
+        print(f"[ERROR] Failed to freeze balance: {str(e)}")
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@router.post("/wallet/unfreeze")
+async def unfreeze_balance(
+    balance_data: Dict[str, Any],
+    user_id: int = Query(1),
+    db: Session = Depends(get_db)
+):
+    """Unfreeze (unlock) balance"""
+    try:
+        cryptocurrency = balance_data.get("cryptocurrency", "BTC").upper()
+        amount = float(balance_data.get("amount", 0))
+        reason = balance_data.get("reason", "Trade Cancelled")
+        reference_id = balance_data.get("reference_id")
+        
+        # Get balance
+        balance_query = text("""
+            SELECT available_balance, locked_balance FROM wallet_balances
+            WHERE user_id = :user_id AND cryptocurrency = :cryptocurrency
+        """)
+        balance = db.execute(
+            balance_query,
+            {"user_id": user_id, "cryptocurrency": cryptocurrency}
+        ).fetchone()
+        
+        if not balance or balance.locked_balance < amount:
+            raise ValueError(
+                f"Insufficient locked balance. Locked: {balance.locked_balance if balance else 0}, Requested: {amount}"
+            )
+        
+        # Unfreeze balance
+        unfreeze_query = text("""
+            UPDATE wallet_balances
+            SET available_balance = available_balance + :amount,
+                locked_balance = locked_balance - :amount,
+                updated_at = CURRENT_TIMESTAMP,
+                last_updated_reason = :reason
+            WHERE user_id = :user_id AND cryptocurrency = :cryptocurrency
+        """)
+        
+        db.execute(
+            unfreeze_query,
+            {
+                "user_id": user_id,
+                "cryptocurrency": cryptocurrency,
+                "amount": amount,
+                "reason": f"Unfrozen: {reason}"
+            }
+        )
+        
+        # Record in history
+        db.execute(text("""
+            INSERT INTO balance_history (id, user_id, cryptocurrency, operation_type, amount, balance_before, balance_after, locked_before, locked_after, reference_id, reason)
+            VALUES (lower(hex(randomblob(8))), :user_id, :cryptocurrency, 'unfreeze', :amount, :balance_before, :balance_after, :locked_before, :locked_after, :reference_id, :reason)
+        """), {
+            "user_id": user_id,
+            "cryptocurrency": cryptocurrency,
+            "amount": amount,
+            "balance_before": balance.available_balance,
+            "balance_after": balance.available_balance + amount,
+            "locked_before": balance.locked_balance,
+            "locked_after": balance.locked_balance - amount,
+            "reference_id": reference_id,
+            "reason": reason
+        })
+        
+        db.commit()
+        
+        # Get updated balance
+        updated = db.execute(
+            balance_query,
+            {"user_id": user_id, "cryptocurrency": cryptocurrency}
+        ).fetchone()
+        
+        return {
+            "success": True,
+            "data": {
+                "available_balance": float(updated.available_balance),
+                "locked_balance": float(updated.locked_balance),
+                "total_balance": float(updated.available_balance + updated.locked_balance)
+            },
+            "message": f"Unfrozen {amount} {cryptocurrency} successfully"
+        }
+    except Exception as e:
+        db.rollback()
+        print(f"[ERROR] Failed to unfreeze balance: {str(e)}")
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@router.get("/wallet/history")
+async def get_balance_history(
+    user_id: int = Query(1),
+    cryptocurrency: Optional[str] = Query(None),
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db)
+):
+    """Get balance change history"""
+    try:
+        params = {"user_id": user_id}
+        where_clause = "user_id = :user_id"
+        
+        if cryptocurrency:
+            where_clause += " AND cryptocurrency = :cryptocurrency"
+            params["cryptocurrency"] = cryptocurrency.upper()
+        
+        history_query = text(f"""
+            SELECT id, operation_type, amount, balance_before, balance_after, reference_id, reason, created_at
+            FROM balance_history
+            WHERE {where_clause}
+            ORDER BY created_at DESC
+            LIMIT :limit OFFSET :offset
+        """)
+        
+        params["limit"] = limit
+        params["offset"] = offset
+        
+        history = db.execute(history_query, params).fetchall()
+        
+        return {
+            "success": True,
+            "data": [
+                {
+                    "operation_type": h.operation_type,
+                    "amount": float(h.amount),
+                    "balance_before": float(h.balance_before),
+                    "balance_after": float(h.balance_after),
+                    "reference_id": h.reference_id,
+                    "reason": h.reason,
+                    "created_at": str(h.created_at)
+                }
+                for h in history
+            ]
+        }
+    except Exception as e:
+        print(f"[ERROR] Failed to get history: {str(e)}")
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )

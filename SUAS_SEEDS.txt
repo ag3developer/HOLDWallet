@@ -1,0 +1,28 @@
+🔐 SUAS SEMENTES PRIVADAS - HOLDWALLET
+================================================
+
+⚠️ NUNCA COMPARTILHE ESSAS SEEDS COM NINGUÉM!
+⚠️ GUARDE EM LOCAL SEGURO!
+⚠️ NÃO FAÇA SCREENSHOTS - ESCREVA EM PAPEL!
+
+================================================
+
+1️⃣ SEED USDT (ETHEREUM)
+-----------------------
+[Digite sua seed aqui - 12 ou 24 palavras separadas por espaço]
+
+
+2️⃣ SEED USDT-POLYGON
+-----------------------
+[Digite sua seed aqui - 12 ou 24 palavras separadas por espaço]
+
+
+3️⃣ SEED USDT-BASE
+-----------------------
+[Digite sua seed aqui - 12 ou 24 palavras separadas por espaço]
+
+
+================================================
+Salvo em: /Users/josecarlosmartins/Documents/HOLDWallet/SUAS_SEEDS.txt
+Data: 2025-12-07
+================================================

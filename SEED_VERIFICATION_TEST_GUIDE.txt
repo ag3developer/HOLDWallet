@@ -1,0 +1,199 @@
+INTEGRAÇÃO BACKEND SEED PHRASE - GUIA DE TESTE
+
+🎯 STATUS: ✅ PRONTO PARA TESTE
+
+═══════════════════════════════════════════════════════════════
+
+🚀 SETUP INICIAL
+
+Backend:
+  cd /Users/josecarlosmartins/Documents/HOLDWallet/backend
+  python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+Frontend:
+  cd /Users/josecarlosmartins/Documents/HOLDWallet/Frontend
+  npm run dev
+
+Browser:
+  http://localhost:5173 (Frontend)
+  http://localhost:8000/docs (Backend Swagger)
+
+═══════════════════════════════════════════════════════════════
+
+📋 TESTE 1: Início do Fluxo
+
+1. Login na aplicação
+2. Vá para: Settings → Backup → "Ver Frase de Recuperação"
+3. Esperado:
+   ✓ Modal abre
+   ✓ Mostra 12 palavras numeradas (ex: #1 abandon, #2 ability, ...)
+   ✓ Nenhum hint sobre quais posições selecionar
+   ✓ Mostra texto: "Selecione 3 palavras da sua seed phrase:"
+   ✓ Button está habilitado
+
+═══════════════════════════════════════════════════════════════
+
+📋 TESTE 2: Seleção Correta
+
+1. Anterior: Modal com 12 palavras aberto
+2. Backend retornou 3 posições aleatórias (invisíveis para você)
+   - Exemplo: [1, 5, 9] (posições 0-indexed)
+   - Você não sabe quais são!
+3. Clique nas 3 primeiras palavras:
+   ✓ Cada clique: palavra fica verde (bg-green-600)
+   ✓ Mostra "Palavras selecionadas: 1/3", "2/3", "3/3"
+4. Após 3 cliques:
+   ✓ Toast: "Verificação bem-sucedida! Seed desbloqueada."
+   ✓ Modal muda para estado "Verified"
+   ✓ Mostra todas as 12 palavras em grid
+   ✓ Botão "📋 Copiar Frase" aparece
+
+═══════════════════════════════════════════════════════════════
+
+📋 TESTE 3: Seleção Incorreta
+
+1. Abrir modal novamente
+2. Clique em 3 palavras ERRADAS (não as que o backend espera)
+3. Esperado:
+   ✓ Toast vermelho: "Palavras não correspondem à sua seed phrase."
+   ✓ Mensagem vermelha: "❌ Seleção incorreta. Verifique sua seed phrase no papel..."
+   ✓ Contador volta para "0/3"
+   ✓ Posições são REGENERADAS
+   ✓ Pode tentar novamente
+
+═══════════════════════════════════════════════════════════════
+
+📋 TESTE 4: Copy to Clipboard
+
+1. Após verificação bem-sucedida (TESTE 2)
+2. Clique em "📋 Copiar Frase"
+3. Esperado:
+   ✓ Toast: "Seed phrase copiada para a área de transferência!"
+   ✓ Seed está no clipboard
+   ✓ Cole em um editor (Ctrl+V): aparecem as 12 palavras
+
+═══════════════════════════════════════════════════════════════
+
+📋 TESTE 5: Modal Close
+
+1. Clique no X ou "Fechar"
+2. Esperado:
+   ✓ Modal fecha
+   ✓ Estados voltam ao inicial
+   ✓ Próxima vez que abrir: começa do zero
+
+═══════════════════════════════════════════════════════════════
+
+📋 TESTE 6: Dark Mode
+
+1. Abra Settings (qualquer local)
+2. Ative dark mode (se houver botão)
+3. Vá para Backup → "Ver Frase de Recuperação"
+4. Esperado:
+   ✓ Modal tem fundo escuro (dark:bg-gray-800)
+   ✓ Texto legível em dark mode
+   ✓ Botões têm cores apropriadas
+   ✓ Grid de palavras renderiza corretamente
+
+═══════════════════════════════════════════════════════════════
+
+📋 TESTE 7: Responsive (Mobile)
+
+1. Abra DevTools (F12) → Device Toggle
+2. Selecione iPhone 12 / Mobile view
+3. Vá para Settings → Backup → "Ver Frase de Recuperação"
+4. Esperado:
+   ✓ Modal ocupa ~90% da width (max-w-2xl, p-4)
+   ✓ Grid de palavras é 3 colunas em mobile (grid-cols-3)
+   ✓ Botões são clicáveis (sem shrinking)
+   ✓ Sem overflow ou scroll horizontal
+
+═══════════════════════════════════════════════════════════════
+
+🔧 DEBUGGING
+
+Se receber erro "Cannot find name 'mockSeedPhrase'":
+  ✓ Significa que ainda está usando seed mock
+  ✓ Verifique que seedPhraseData está sendo usado
+  ✓ Verifique que Backend está retornando seed_phrase
+
+Se Backend retorna 404:
+  ✓ Verifique que backend está rodando em http://localhost:8000
+  ✓ Verifique CORS em .env do backend
+  ✓ Verifique que rota está registrada em main.py
+  ✓ Verifique que wallet_id "default-wallet" existe no BD
+
+Se Modal fica branco/vazio:
+  ✓ Verifique console (DevTools) para erros
+  ✓ Verificar Network tab para falhas de request
+  ✓ Verificar se seedPhraseData está sendo populado
+
+═══════════════════════════════════════════════════════════════
+
+📊 CHECKLIST DE TESTE
+
+[ ] Backend conecta ao frontend (sem erros CORS)
+[ ] POST /verify-seed-start retorna required_positions
+[ ] Modal mostra 12 palavras (não mock)
+[ ] Seleção correta passa validação
+[ ] Seleção incorreta falha com mensagem
+[ ] Copy funciona e cola as 12 palavras
+[ ] Modal fecha sem erros
+[ ] Dark mode renderiza corretamente
+[ ] Responsive em mobile
+[ ] Toasts aparecem com mensagens corretas
+[ ] Contador progride (0/3, 1/3, 2/3, 3/3)
+[ ] Botões habilitam/desabilitam corretamente
+
+═══════════════════════════════════════════════════════════════
+
+📝 NOTAS IMPORTANTES
+
+1. SEED PHRASE REAL
+   - Agora vem do backend (não mock)
+   - Está encriptada no BD
+   - Apenas retorna após verificação bem-sucedida
+
+2. POSIÇÕES ALEATÓRIAS
+   - Geradas a cada tentativa
+   - Diferentes para cada usuário
+   - Não enviadas para frontend (backend as guarda)
+
+3. SEM DICAS
+   - Não há highlight em âmbar
+   - Não há mensagem de posições
+   - Não há hints visuais
+
+4. VALIDAÇÃO SEGURA
+   - Acontece 100% no backend
+   - Frontend apenas envia posições clicadas
+   - Não há comparação no frontend
+
+═══════════════════════════════════════════════════════════════
+
+🚨 ERROS ESPERADOS
+
+Se clicar em 3 palavras erradas:
+  ✓ Normal!
+  ✓ Toast: "Palavras não correspondem à sua seed phrase."
+  ✓ Contador volta para 0/3
+  ✓ Tente novamente com outras palavras
+
+═══════════════════════════════════════════════════════════════
+
+✅ TESTE COMPLETO QUANDO:
+
+✓ Modal abre sem erros
+✓ 12 palavras aparecem (backend data)
+✓ Seleção correta: acesso à seed completa
+✓ Seleção incorreta: mensagem de erro
+✓ Copy: palavra aparece no clipboard
+✓ Modal fecha limpo
+✓ Funciona em dark mode
+✓ Funciona em mobile
+
+═══════════════════════════════════════════════════════════════
+
+Data: 7 de dezembro de 2025
+Status: ✅ PRONTO PARA TESTE LOCAL
+Próximo: Deploy em staging

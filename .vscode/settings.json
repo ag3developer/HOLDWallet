@@ -1,4 +1,62 @@
 {
-    "python-envs.defaultEnvManager": "ms-python.python:pyenv",
-    "python-envs.pythonProjects": []
+  "python-envs.defaultEnvManager": "ms-python.python:pyenv",
+  "python-envs.pythonProjects": [],
+
+  // Explorer - Mostrar arquivos sempre
+  "explorer.autoReveal": true,
+  "explorer.sortOrder": "type",
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.patterns": {
+    "*.tsx": "*.css, *.module.css",
+    "*.py": "*.pyc, *.pyo"
+  },
+
+  // Editor padrão
+  "files.defaultLanguage": "typescript",
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+
+  // Python
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.python",
+    "editor.formatOnSave": true
+  },
+
+  // TypeScript/TSX
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+
+  // Arquivos a esconder
+  "files.exclude": {
+    "**/.DS_Store": true,
+    "**/__pycache__": true,
+    "**/*.pyc": true,
+    "**/node_modules": false
+  },
+
+  // Extensões para esconder (mas não desativar)
+  "files.watcherExclude": {
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/node_modules/*/**": true,
+    "**/.pytest_cache": true,
+    "**/.venv": true
+  },
+
+  // Icons - Mostrar ícones com cores
+  "workbench.iconTheme": "vs-seti",
+  "file-icons.associations": {
+    "*.py": "python",
+    "*.tsx": "typescript",
+    "*.ts": "typescript",
+    "*.jsx": "react",
+    "*.json": "json",
+    "*.md": "markdown"
+  }
 }

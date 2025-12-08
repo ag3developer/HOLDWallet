@@ -6,6 +6,7 @@ import { Helmet } from 'react-helmet-async'
 // Stores
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useThemeStore } from '@/stores/useThemeStore'
+import { useLanguageStore } from '@/stores/useLanguageStore'
 
 // Components
 import { Layout } from '@/components/layout/Layout'
@@ -43,7 +44,14 @@ import { NotFoundPage } from '@/pages/NotFoundPage'
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, isLoading, user } = useAuthStore()
 
-  console.log('ProtectedRoute - isAuthenticated:', isAuthenticated, 'isLoading:', isLoading, 'user:', user)
+  console.log(
+    'ProtectedRoute - isAuthenticated:',
+    isAuthenticated,
+    'isLoading:',
+    isLoading,
+    'user:',
+    user
+  )
 
   if (isLoading) {
     console.log('ProtectedRoute - Loading, showing loading screen')
@@ -52,7 +60,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
   if (!isAuthenticated) {
     console.log('ProtectedRoute - Not authenticated, redirecting to login')
-    return <Navigate to="/login" replace />
+    return <Navigate to='/login' replace />
   }
 
   console.log('ProtectedRoute - Authenticated, rendering protected content')
@@ -68,16 +76,17 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />
+    return <Navigate to='/dashboard' replace />
   }
 
   return <>{children}</>
 }
 
 function App() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { initializeAuth } = useAuthStore()
   const { theme, initializeTheme } = useThemeStore()
+  const { language } = useLanguageStore()
 
   // Initialize app on mount
   useEffect(() => {
@@ -85,10 +94,23 @@ function App() {
       try {
         // Initialize theme
         initializeTheme()
-        
+
+        // Initialize language from store
+        if (language) {
+          const languageMap: { [key: string]: string } = {
+            pt: 'pt-BR',
+            en: 'en-US',
+            es: 'es-ES',
+          }
+          const fullLanguageCode = languageMap[language] || language
+          if (i18n.language !== fullLanguageCode) {
+            await i18n.changeLanguage(fullLanguageCode)
+          }
+        }
+
         // Initialize authentication
         await initializeAuth()
-        
+
         // Register service worker for PWA
         if ('serviceWorker' in navigator && import.meta.env.PROD) {
           navigator.serviceWorker.register('/sw.js')
@@ -117,11 +139,11 @@ function App() {
     }
 
     const cleanup = initializeApp()
-    
+
     // Cleanup on unmount
     return () => {
       if (cleanup && typeof cleanup === 'object' && 'then' in cleanup) {
-        cleanup.then((cleanupFn) => {
+        cleanup.then(cleanupFn => {
           if (typeof cleanupFn === 'function') {
             cleanupFn()
           }
@@ -133,7 +155,7 @@ function App() {
   // Apply theme to document
   useEffect(() => {
     const root = document.documentElement
-    
+
     if (theme === 'dark') {
       root.classList.add('dark')
     } else {
@@ -148,19 +170,22 @@ function App() {
         titleTemplate={`%s - ${t('common.appName', 'HOLD Wallet')}`}
       >
         <html lang={t('common.language', 'pt-BR')} />
-        <meta 
-          name="description" 
-          content={t('common.appDescription', 'Carteira digital P2P com sistema de chat e reputação')} 
+        <meta
+          name='description'
+          content={t(
+            'common.appDescription',
+            'Carteira digital P2P com sistema de chat e reputação'
+          )}
         />
-        <meta name="theme-color" content="#3b82f6" media="(prefers-color-scheme: light)" />
-        <meta name="theme-color" content="#1f2937" media="(prefers-color-scheme: dark)" />
+        <meta name='theme-color' content='#3b82f6' media='(prefers-color-scheme: light)' />
+        <meta name='theme-color' content='#1f2937' media='(prefers-color-scheme: dark)' />
       </Helmet>
 
-      <div className="App min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
+      <div className='App min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200'>
         <Routes>
           {/* Public Routes */}
           <Route
-            path="/login"
+            path='/login'
             element={
               <PublicRoute>
                 <LoginPage />
@@ -168,7 +193,7 @@ function App() {
             }
           />
           <Route
-            path="/register"
+            path='/register'
             element={
               <PublicRoute>
                 <RegisterPage />
@@ -176,17 +201,17 @@ function App() {
             }
           />
           <Route
-            path="/forgot-password"
+            path='/forgot-password'
             element={
               <PublicRoute>
                 <ForgotPasswordPage />
               </PublicRoute>
             }
           />
-          
+
           {/* Protected Routes */}
           <Route
-            path="/"
+            path='/'
             element={
               <ProtectedRoute>
                 <Layout />
@@ -194,33 +219,34 @@ function App() {
             }
           >
             {/* Redirect root to dashboard */}
-            <Route index element={<Navigate to="/dashboard" replace />} />
-            
+            <Route index element={<Navigate to='/dashboard' replace />} />
+
             {/* Main app routes */}
-            <Route path="dashboard" element={<DashboardPage />} />
-            <Route path="wallet/*" element={<WalletPage />} />
-            <Route path="wallet/create" element={<CreateWalletPage />} />
-            <Route path="wallet/settings" element={<WalletSettingsPage />} />
-            <Route path="wallet/networks" element={<NetworkComparison />} />
-            <Route path="p2p" element={<P2PPage />} />
-            <Route path="p2p/create-order" element={<CreateOrderPage />} />
-            <Route path="p2p/my-orders" element={<MyOrdersPage />} />
-            <Route path="p2p/order/:orderId" element={<OrderDetailsPage />} />
-            <Route path="instant-trade" element={<InstantTradePage />} />
-            <Route path="chat/*" element={<ChatPage />} />
-            <Route path="profile/*" element={<ProfilePage />} />
-            <Route path="kyc/*" element={<KYCPage />} />
-            <Route path="services" element={<ServicesPage />} />
-            <Route path="contact" element={<ContactPage />} />
-            <Route path="support" element={<SupportPage />} />
-            <Route path="portfolio" element={<PortfolioPage />} />
-            <Route path="institutional" element={<InstitutionalPage />} />
-            <Route path="education" element={<EducationPage />} />
-            <Route path="settings/*" element={<SettingsPage />} />
+            <Route path='dashboard' element={<DashboardPage />} />
+            <Route path='wallet/*' element={<WalletPage />} />
+            <Route path='wallet/create' element={<CreateWalletPage />} />
+            <Route path='wallet/settings' element={<WalletSettingsPage />} />
+            <Route path='wallet/networks' element={<NetworkComparison />} />
+            <Route path='p2p' element={<P2PPage />} />
+            <Route path='p2p/create-order' element={<CreateOrderPage />} />
+            <Route path='p2p/my-orders' element={<MyOrdersPage />} />
+            <Route path='p2p/order/:orderId' element={<OrderDetailsPage />} />
+            <Route path='p2p/trade/:tradeId' element={<TradeProcessPage />} />
+            <Route path='instant-trade' element={<InstantTradePage />} />
+            <Route path='chat/*' element={<ChatPage />} />
+            <Route path='profile/*' element={<ProfilePage />} />
+            <Route path='kyc/*' element={<KYCPage />} />
+            <Route path='services' element={<ServicesPage />} />
+            <Route path='contact' element={<ContactPage />} />
+            <Route path='support' element={<SupportPage />} />
+            <Route path='portfolio' element={<PortfolioPage />} />
+            <Route path='institutional' element={<InstitutionalPage />} />
+            <Route path='education' element={<EducationPage />} />
+            <Route path='settings/*' element={<SettingsPage />} />
           </Route>
 
           {/* 404 Page */}
-          <Route path="*" element={<NotFoundPage />} />
+          <Route path='*' element={<NotFoundPage />} />
         </Routes>
       </div>
     </ErrorBoundary>

@@ -1,0 +1,177 @@
+"""
+🚀 HOLD Wallet - Instant Trade OTC Models
+==========================================
+
+Models para operações OTC (Over-The-Counter) de compra/venda instantânea de criptomoedas.
+Estrutura preparada para escalar de PF para PJ.
+
+Author: HOLD Wallet Team
+"""
+
+from sqlalchemy import (
+    Column, String, Integer, Boolean, DateTime, ForeignKey, 
+    Text, Numeric, Enum as SQLEnum, Index
+)
+from sqlalchemy.orm import relationship
+import uuid
+from datetime import datetime, timezone
+from decimal import Decimal
+import enum
+
+from app.core.db import Base
+
+
+class TradeOperationType(str, enum.Enum):
+    """Tipo de operação OTC"""
+    BUY = "buy"      # Compra de criptomoeda
+    SELL = "sell"    # Venda de criptomoeda
+
+
+class TradeStatus(str, enum.Enum):
+    """Status da operação OTC"""
+    PENDING = "pending"                          # Aguardando confirmação
+    PAYMENT_PROCESSING = "payment_processing"    # Processando pagamento
+    PAYMENT_CONFIRMED = "payment_confirmed"      # Pagamento confirmado
+    COMPLETED = "completed"                      # Operação concluída
+    EXPIRED = "expired"                          # Expirou (15 min)
+    CANCELLED = "cancelled"                      # Cancelada pelo usuário
+    FAILED = "failed"                            # Falha na operação
+
+
+class PaymentMethod(str, enum.Enum):
+    """Métodos de pagamento aceitos"""
+    PIX = "pix"                    # PIX (Brasil)
+    TED = "ted"                    # Transferência eletrônica
+    CREDIT_CARD = "credit_card"    # Cartão de crédito
+    DEBIT_CARD = "debit_card"      # Cartão de débito
+    PAYPAL = "paypal"              # PayPal
+
+
+class InstantTrade(Base):
+    """Modelo para operações OTC instantâneas"""
+    __tablename__ = "instant_trades"
+
+    # Primary key
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    
+    # Foreign keys
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    
+    # Tipo de operação
+    operation_type = Column(
+        SQLEnum(TradeOperationType), 
+        nullable=False, 
+        index=True
+    )
+    
+    # Criptomoeda
+    symbol = Column(String(10), nullable=False)  # 'BTC', 'ETH', 'USDT', etc
+    name = Column(String(50), nullable=False)    # 'Bitcoin', 'Ethereum', etc
+    
+    # Valores (em precisão decimal)
+    fiat_amount = Column(Numeric(18, 2), nullable=False)           # Valor em BRL
+    crypto_amount = Column(Numeric(28, 18), nullable=False)        # Quantidade de crypto
+    crypto_price = Column(Numeric(18, 2), nullable=False)          # Preço no momento
+    
+    # Taxas e spreads
+    spread_percentage = Column(Numeric(5, 2), nullable=False, default=3.00)      # 3%
+    spread_amount = Column(Numeric(18, 2), nullable=False)                       # Valor spread
+    network_fee_percentage = Column(Numeric(5, 2), nullable=False, default=0.25) # 0.25%
+    network_fee_amount = Column(Numeric(18, 2), nullable=False)                  # Valor fee
+    total_amount = Column(Numeric(18, 2), nullable=False)                        # Total com taxas
+    
+    # Pagamento
+    payment_method = Column(
+        SQLEnum(PaymentMethod), 
+        nullable=False,
+        index=True
+    )
+    payment_id = Column(String(255), nullable=True)          # ID externo do gateway
+    payment_proof_url = Column(String(500), nullable=True)   # URL comprovante
+    
+    # Status
+    status = Column(
+        SQLEnum(TradeStatus),
+        nullable=False,
+        default=TradeStatus.PENDING,
+        index=True
+    )
+    
+    # Reference code (OTC-2025-000123)
+    reference_code = Column(String(20), nullable=False, unique=True, index=True)
+    
+    # Endereço de destino (para compra) / origem (para venda)
+    wallet_address = Column(String(255), nullable=True)
+    
+    # Timing
+    expires_at = Column(DateTime, nullable=False, index=True)          # Válido por 15 min
+    payment_confirmed_at = Column(DateTime, nullable=True)              # Quando pagou
+    completed_at = Column(DateTime, nullable=True)                      # Quando completou
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Dados adicionais (JSON para flexibilidade futura)
+    trade_metadata = Column(Text, nullable=True)  # JSON com dados extras
+    error_message = Column(Text, nullable=True)  # Se falhar
+    
+    # Relationships
+    user = relationship("User", back_populates="instant_trades")
+    history = relationship(
+        "InstantTradeHistory",
+        back_populates="trade",
+        cascade="all, delete-orphan"
+    )
+    
+    # Índices para performance
+    __table_args__ = (
+        Index('idx_instant_trades_user_id', 'user_id'),
+        Index('idx_instant_trades_status', 'status'),
+        Index('idx_instant_trades_created_at', 'created_at'),
+        Index('idx_instant_trades_expires_at', 'expires_at'),
+        Index('idx_instant_trades_reference_code', 'reference_code'),
+        Index('idx_instant_trades_symbol', 'symbol'),
+    )
+    
+    def __repr__(self):
+        return f"<InstantTrade(id={self.id}, ref={self.reference_code}, status={self.status})>"
+
+
+class InstantTradeHistory(Base):
+    """Histórico de mudanças de status das operações OTC"""
+    __tablename__ = "instant_trade_history"
+    
+    # Primary key
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    
+    # Foreign key
+    trade_id = Column(String(36), ForeignKey("instant_trades.id"), nullable=False, index=True)
+    
+    # Status anterior e novo
+    old_status = Column(
+        SQLEnum(TradeStatus),
+        nullable=True
+    )
+    new_status = Column(
+        SQLEnum(TradeStatus),
+        nullable=False
+    )
+    
+    # Motivo da mudança
+    reason = Column(String(255), nullable=True)
+    history_details = Column(Text, nullable=True)  # JSON com detalhes
+    
+    # Timestamp
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    
+    # Relationship
+    trade = relationship("InstantTrade", back_populates="history")
+    
+    __table_args__ = (
+        Index('idx_instant_trade_history_trade_id', 'trade_id'),
+        Index('idx_instant_trade_history_created_at', 'created_at'),
+    )
+    
+    def __repr__(self):
+        return f"<InstantTradeHistory(trade={self.trade_id}, {self.old_status} -> {self.new_status})>"

@@ -142,3 +142,10 @@ class TransactionStatsResponse(BaseModel):
     total_fees_paid: str = Field(..., description="Total de taxas pagas")
     networks: List[str] = Field(..., description="Redes utilizadas")
     last_transaction_date: Optional[datetime] = Field(None, description="Data da última transação")
+
+
+# Aliases para compatibilidade com endpoints
+TransactionCreate = TransactionCreateRequest
+TransactionUpdate = TransactionSendRequest  # Use SendTransaction for updates
+SendTransactionRequest = TransactionSendRequest
+TransactionWithPrice = TransactionResponse  # Alias para compatibilidade

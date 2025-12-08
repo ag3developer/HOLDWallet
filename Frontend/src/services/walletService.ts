@@ -62,14 +62,36 @@ class WalletService {
    */
   async createWallet(walletData: WalletCreate): Promise<WalletWithMnemonic> {
     try {
+      console.log('[WalletService] 📤 POST /wallets/create with data:', walletData)
       const response = await this.apiClient.post<WalletWithMnemonic>('/wallets/create', walletData)
+      console.log('[WalletService] ✅ Response received:', response.data)
       return response.data
     } catch (error: any) {
-      console.error('Error creating wallet:', error)
-      throw new Error(
-        error.response?.data?.detail || 
+      console.error('[WalletService] ❌ FULL Error object:', error)
+      console.error('[WalletService] ❌ Error type:', typeof error, error.constructor.name)
+      console.error('[WalletService] ❌ Error message:', error.message)
+      console.error('[WalletService] ❌ Error response:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+      })
+
+      // Try to extract meaningful error message
+      const errorMessage =
+        error.response?.data?.detail ||
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        error.message ||
         'Erro ao criar carteira. Tente novamente.'
-      )
+
+      // Create a new error preserving all info
+      const newError = new Error(errorMessage)
+      ;(newError as any).status = error.response?.status
+      ;(newError as any).code = error.code
+      ;(newError as any).details = error.response?.data
+      ;(newError as any).originalError = error
+
+      throw newError
     }
   }
 
@@ -83,8 +105,8 @@ class WalletService {
     } catch (error: any) {
       console.error('Error restoring wallet:', error)
       throw new Error(
-        error.response?.data?.detail || 
-        'Erro ao restaurar carteira. Verifique a frase de recuperação.'
+        error.response?.data?.detail ||
+          'Erro ao restaurar carteira. Verifique a frase de recuperação.'
       )
     }
   }
@@ -98,10 +120,7 @@ class WalletService {
       return response.data
     } catch (error: any) {
       console.error('Error fetching wallets:', error)
-      throw new Error(
-        error.response?.data?.detail || 
-        'Erro ao carregar carteiras.'
-      )
+      throw new Error(error.response?.data?.detail || 'Erro ao carregar carteiras.')
     }
   }
 
@@ -117,10 +136,7 @@ class WalletService {
       if (error.response?.status === 404) {
         throw new Error('Carteira não encontrada.')
       }
-      throw new Error(
-        error.response?.data?.detail || 
-        'Erro ao carregar carteira.'
-      )
+      throw new Error(error.response?.data?.detail || 'Erro ao carregar carteira.')
     }
   }
 
@@ -136,10 +152,7 @@ class WalletService {
       if (error.response?.status === 404) {
         throw new Error('Carteira não encontrada.')
       }
-      throw new Error(
-        error.response?.data?.detail || 
-        'Erro ao atualizar carteira.'
-      )
+      throw new Error(error.response?.data?.detail || 'Erro ao atualizar carteira.')
     }
   }
 
@@ -154,29 +167,40 @@ class WalletService {
       if (error.response?.status === 404) {
         throw new Error('Carteira não encontrada.')
       }
-      throw new Error(
-        error.response?.data?.detail || 
-        'Erro ao excluir carteira.'
-      )
+      throw new Error(error.response?.data?.detail || 'Erro ao excluir carteira.')
     }
   }
 
   /**
    * Criar novo endereço na carteira
    */
-  async createAddress(walletId: number, addressType: string = 'receiving'): Promise<AddressResponse> {
+  async createAddress(
+    walletId: string | number,
+    addressType: string = 'receiving',
+    network?: string
+  ): Promise<AddressResponse> {
     try {
+      const params = new URLSearchParams({
+        address_type: addressType,
+        ...(network && { network }),
+      }).toString()
+
+      console.log(
+        `[WalletService] 📝 Creating address for wallet ${walletId} on network ${network || 'auto'}`
+      )
+
       const response = await this.apiClient.post<AddressResponse>(
-        `/wallets/${walletId}/addresses`, 
-        { address_type: addressType }
+        `/wallets/${walletId}/addresses?${params}`,
+        {}
+      )
+
+      console.log(
+        `[WalletService] ✅ Address created: ${response.data.address.substring(0, 10)}...`
       )
       return response.data
     } catch (error: any) {
       console.error('Error creating address:', error)
-      throw new Error(
-        error.response?.data?.detail || 
-        'Erro ao gerar novo endereço.'
-      )
+      throw new Error(error.response?.data?.detail || 'Erro ao gerar novo endereço.')
     }
   }
 
@@ -189,38 +213,50 @@ class WalletService {
       return response.data
     } catch (error: any) {
       console.error('Error fetching addresses:', error)
-      throw new Error(
-        error.response?.data?.detail || 
-        'Erro ao carregar endereços.'
-      )
+      throw new Error(error.response?.data?.detail || 'Erro ao carregar endereços.')
     }
   }
 
   /**
    * Obter endereço de rede específica para carteira multi
    * Busca endereço existente para a rede solicitada
+   * Se não existir, gera um novo automaticamente (lazy loading)
    */
   async getNetworkAddress(walletId: string, network: string): Promise<string> {
     try {
+      console.log(`[WalletService] 🔍 Fetching ${network} address for wallet ${walletId}`)
+
       const response = await this.apiClient.get<AddressResponse[]>(`/wallets/${walletId}/addresses`)
-      
+
       // Procurar endereço existente para a rede
-      const networkAddress = response.data.find(addr => 
-        addr.network === network && addr.is_active
-      )
-      
+      const networkAddress = response.data.find(addr => addr.network === network && addr.is_active)
+
       if (networkAddress) {
+        console.log(
+          `[WalletService] ✅ Found existing ${network} address: ${networkAddress.address.substring(0, 10)}...`
+        )
         return networkAddress.address
       }
-      
-      // Se não existe endereço, retornar vazio
-      // O backend deve gerar endereços para todas as redes ao criar carteira multi
-      console.warn(`No ${network} address found for wallet ${walletId}`)
-      return ''
-      
+
+      // Se não existe endereço, gerar um novo automaticamente
+      console.warn(
+        `[WalletService] ⚠️ No ${network} address found for wallet ${walletId}, generating new one...`
+      )
+
+      try {
+        // Tentar gerar novo endereço para a rede específica (sem Number() conversion)
+        const newAddress = await this.createAddress(walletId, 'receiving', network)
+        console.log(
+          `[WalletService] ✅ Generated new ${network} address: ${newAddress.address.substring(0, 10)}...`
+        )
+        return newAddress.address
+      } catch (createError) {
+        console.error(`[WalletService] ❌ Failed to generate ${network} address:`, createError)
+        return ''
+      }
     } catch (error: any) {
-      console.error(`Error fetching ${network} address:`, error)
-      return '' // Retornar vazio se falhar
+      console.error(`[WalletService] ❌ Error fetching ${network} address:`, error)
+      return ''
     }
   }
 
@@ -229,12 +265,12 @@ class WalletService {
    */
   getSupportedNetworks() {
     return [
-      { 
-        id: 'multi', 
-        name: 'Carteira Multi-Rede', 
-        symbol: 'MULTI', 
+      {
+        id: 'multi',
+        name: 'Carteira Multi-Rede',
+        symbol: 'MULTI',
         icon: '🔗',
-        description: 'Suporta múltiplas criptomoedas com uma única seed phrase'
+        description: 'Suporta múltiplas criptomoedas com uma única seed phrase',
       },
       { id: 'bitcoin', name: 'Bitcoin', symbol: 'BTC', icon: '₿' },
       { id: 'ethereum', name: 'Ethereum', symbol: 'ETH', icon: 'Ξ' },
@@ -247,7 +283,7 @@ class WalletService {
       { id: 'avalanche', name: 'Avalanche', symbol: 'AVAX', icon: '🔺' },
       { id: 'polkadot', name: 'Polkadot', symbol: 'DOT', icon: '●' },
       { id: 'chainlink', name: 'Chainlink', symbol: 'LINK', icon: '🔗' },
-      { id: 'xrp', name: 'XRP', symbol: 'XRP', icon: '◈' }
+      { id: 'xrp', name: 'XRP', symbol: 'XRP', icon: '◈' },
     ]
   }
 }

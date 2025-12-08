@@ -246,7 +246,8 @@ class WalletService:
         wallet: Wallet,
         address_type: str = "receiving",
         derivation_index: Optional[int] = None,
-        wallet_data: Optional[Dict] = None
+        wallet_data: Optional[Dict] = None,
+        network: Optional[str] = None
     ) -> Address:
         """
         Generate a new address for a wallet.
@@ -257,16 +258,21 @@ class WalletService:
             address_type: Address type (receiving/change)
             derivation_index: Specific index or auto-increment
             wallet_data: Pre-computed wallet data (optional)
+            network: Network name (for multi-wallet, optional)
             
         Returns:
             Generated Address object
         """
         try:
+            # Use provided network or wallet's network
+            network_name = network or str(wallet.network)
+            
             # Get next index if not specified
             if derivation_index is None:
                 last_address = db.query(Address).filter(
                     Address.wallet_id == wallet.id,
-                    Address.address_type == address_type
+                    Address.address_type == address_type,
+                    Address.network == network_name
                 ).order_by(Address.derivation_index.desc()).first()
                 
                 # Get the actual integer value from the database row
@@ -282,7 +288,6 @@ class WalletService:
             
             # Derive address
             change_index = 1 if address_type == "change" else 0
-            network_name = str(wallet.network)  # Convert to string
             derivation_index = derivation_index or 0  # Ensure it's not None
             
             address_data = self.crypto_service.derive_network_address(
@@ -308,7 +313,7 @@ class WalletService:
             db.commit()
             db.refresh(address)
             
-            logger.info(f"Generated {address_type} address {address.address} for wallet {wallet.id}")
+            logger.info(f"Generated {address_type} address {address.address} for wallet {wallet.id} on {network_name}")
             
             return address
             

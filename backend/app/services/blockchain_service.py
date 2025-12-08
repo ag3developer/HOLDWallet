@@ -52,13 +52,13 @@ class BlockchainService:
             if network_lower == "bitcoin":
                 balance_data = await self.bitcoin_service.get_balance(address)
             elif network_lower == "ethereum":
-                balance_data = await self.ethereum_service.get_balance(address)
+                balance_data = await self.ethereum_service.get_balance(address, include_tokens=include_tokens)
             elif network_lower == "polygon":
-                balance_data = await self.polygon_service.get_balance(address)
+                balance_data = await self.polygon_service.get_balance(address, include_tokens=include_tokens)
             elif network_lower == "bsc":
-                balance_data = await self.bsc_service.get_balance(address)
+                balance_data = await self.bsc_service.get_balance(address, include_tokens=include_tokens)
             elif network_lower == "base":
-                balance_data = await self.base_service.get_balance(address)
+                balance_data = await self.base_service.get_balance(address, include_tokens=include_tokens)
             elif network_lower == "tron":
                 balance_data = await self.tron_service.get_balance(address)
             elif network_lower == "solana":
@@ -313,8 +313,43 @@ class EthereumService:
     def __init__(self, rpc_url: Optional[str] = None):
         self.rpc_url = rpc_url or settings.ETHEREUM_RPC_URL
     
-    async def get_balance(self, address: str) -> Dict[str, Any]:
-        """Obtém saldo ETH de um endereço"""
+    async def get_token_balance(self, address: str, token_contract: str, token_decimals: int = 18) -> Decimal:
+        """Obtém saldo de um token ERC-20 para um endereço"""
+        try:
+            # Função balanceOf codificada em Solidity
+            # balanceOf(address) = 0x70a08231 (selector) + endereço padronizado
+            function_selector = "0x70a08231"
+            
+            async with httpx.AsyncClient() as client:
+                payload = {
+                    "jsonrpc": "2.0",
+                    "method": "eth_call",
+                    "params": [
+                        {
+                            "to": token_contract,
+                            "data": function_selector + address[2:].zfill(64)
+                        },
+                        "latest"
+                    ],
+                    "id": 1
+                }
+                
+                response = await client.post(self.rpc_url, json=payload, timeout=10.0)
+                response.raise_for_status()
+                
+                result = response.json()
+                if "result" in result and result["result"] != "0x":
+                    balance_wei = int(result["result"], 16)
+                    balance = Decimal(balance_wei) / Decimal(10**token_decimals)
+                    return balance
+                return Decimal('0')
+        except Exception as e:
+            logger.error(f"Erro ao obter saldo do token {token_contract}: {str(e)}")
+            return Decimal('0')
+    
+    async def get_balance(self, address: str, include_tokens: bool = False) -> Dict[str, Any]:
+        """Obtém saldo ETH de um endereço e opcionalmente tokens USDT/USDC"""
+        logger.info(f"🔍 EthereumService.get_balance chamado para {address}, include_tokens={include_tokens}")
         async with httpx.AsyncClient() as client:
             payload = {
                 "jsonrpc": "2.0",
@@ -323,18 +358,76 @@ class EthereumService:
                 "id": 1
             }
             
-            response = await client.post(self.rpc_url, json=payload)
+            response = await client.post(self.rpc_url, json=payload, timeout=10.0)
             response.raise_for_status()
             
             result = response.json()
             balance_wei = int(result.get("result", "0x0"), 16)
             balance_eth = Decimal(balance_wei) / Decimal(10**18)
             
-            return {
+            balance_data = {
                 "native_balance": str(balance_eth),
                 "balance_wei": balance_wei,
-                "network": "ethereum"
+                "network": "ethereum",
+                "token_balances": {}
             }
+            
+            # Buscar tokens se solicitado
+            if include_tokens:
+                from app.config.token_contracts import USDT_CONTRACTS, USDC_CONTRACTS
+                
+                # Detectar rede e buscar tokens
+                network = "ethereum"
+                if "polygon" in self.rpc_url.lower():
+                    network = "polygon"
+                elif "base" in self.rpc_url.lower():
+                    network = "base"
+                elif "bsc" in self.rpc_url.lower():
+                    network = "bsc"
+                
+                logger.info(f"🔍 Buscando tokens para {address} na rede {network}")
+                
+                # Buscar USDT
+                if network in USDT_CONTRACTS:
+                    try:
+                        usdt_contract = USDT_CONTRACTS[network]
+                        logger.info(f"📋 USDT Contract: {usdt_contract['address']}")
+                        usdt_balance = await self.get_token_balance(
+                            address, 
+                            usdt_contract['address'],
+                            usdt_contract.get('decimals', 6)
+                        )
+                        logger.info(f"💰 USDT Balance: {usdt_balance}")
+                        if usdt_balance > 0:
+                            balance_data["token_balances"][usdt_contract['address'].lower()] = {
+                                'symbol': 'USDT',
+                                'balance': str(usdt_balance),
+                                'decimals': usdt_contract.get('decimals', 6)
+                            }
+                            logger.info(f"✅ USDT adicionado: {usdt_balance}")
+                    except Exception as e:
+                        logger.error(f"Erro ao buscar USDT em {network}: {str(e)}", exc_info=True)
+                
+                # Buscar USDC
+                if network in USDC_CONTRACTS:
+                    try:
+                        usdc_contract = USDC_CONTRACTS[network]
+                        logger.info(f"📋 USDC Contract: {usdc_contract['address']}")
+                        usdc_balance = await self.get_token_balance(
+                            address,
+                            usdc_contract['address'],
+                            usdc_contract.get('decimals', 6)
+                        )
+                        if usdc_balance > 0:
+                            balance_data["token_balances"][usdc_contract['address'].lower()] = {
+                                'symbol': 'USDC',
+                                'balance': str(usdc_balance),
+                                'decimals': usdc_contract.get('decimals', 6)
+                            }
+                    except Exception as e:
+                        logger.error(f"Erro ao buscar USDC em {network}: {str(e)}")
+            
+            return balance_data
     
     async def get_transactions(self, address: str, limit: int = 50) -> List[Dict[str, Any]]:
         """
@@ -479,9 +572,9 @@ class PolygonService(EthereumService):
     def __init__(self):
         super().__init__(rpc_url=settings.POLYGON_RPC_URL)
     
-    async def get_balance(self, address: str) -> Dict[str, Any]:
-        """Obtém saldo MATIC"""
-        result = await super().get_balance(address)
+    async def get_balance(self, address: str, include_tokens: bool = False) -> Dict[str, Any]:
+        """Obtém saldo MATIC e tokens opcionalmente"""
+        result = await super().get_balance(address, include_tokens=include_tokens)
         result["network"] = "polygon"
         return result
 
@@ -492,9 +585,9 @@ class BSCService(EthereumService):
     def __init__(self):
         super().__init__(rpc_url=settings.BSC_RPC_URL)
     
-    async def get_balance(self, address: str) -> Dict[str, Any]:
-        """Obtém saldo BNB"""
-        result = await super().get_balance(address)
+    async def get_balance(self, address: str, include_tokens: bool = False) -> Dict[str, Any]:
+        """Obtém saldo BNB e tokens opcionalmente"""
+        result = await super().get_balance(address, include_tokens=include_tokens)
         result["network"] = "bsc"
         return result
 
@@ -505,9 +598,9 @@ class BaseService(EthereumService):
     def __init__(self):
         super().__init__(rpc_url="https://mainnet.base.org")
     
-    async def get_balance(self, address: str) -> Dict[str, Any]:
-        """Obtém saldo ETH na Base"""
-        result = await super().get_balance(address)
+    async def get_balance(self, address: str, include_tokens: bool = False) -> Dict[str, Any]:
+        """Obtém saldo ETH na Base e tokens opcionalmente"""
+        result = await super().get_balance(address, include_tokens=include_tokens)
         result["network"] = "base"
         return result
 

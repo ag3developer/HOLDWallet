@@ -13,7 +13,8 @@ from app.services.cache_service import cache_service
 from app.services.cache_service import cache_service
 
 # Routers
-from app.routers import auth, users, wallet, wallets, tx, prices, health, blockchain, transactions, billing, portfolio, exchange, p2p, chat_enterprise, reputation, dashboard, two_factor
+from app.routers import auth, users, wallet, wallets, tx, prices, health, blockchain, transactions, billing, portfolio, exchange, p2p, chat_enterprise, reputation, dashboard, two_factor, tokens, wallet_transactions, instant_trade
+from app.api.v1.endpoints import seed_verification
 
 # Setup logging
 setup_logging()
@@ -126,15 +127,19 @@ app.include_router(users.router, prefix="/users", tags=["users"])
 app.include_router(dashboard.router, prefix="/api/v1", tags=["dashboard"])
 app.include_router(wallet.router, prefix="/wallet", tags=["wallets"]) 
 app.include_router(wallets.router, prefix="/wallets", tags=["hd-wallets"])
+app.include_router(seed_verification.router, prefix="/api/v1/wallets", tags=["seed-verification"])
+app.include_router(wallet_transactions.router, prefix="/api/v1", tags=["wallet-transactions"])
 app.include_router(blockchain.router, prefix="/blockchain", tags=["blockchain"])
 app.include_router(transactions.router, prefix="/api/v1", tags=["transactions"])
 app.include_router(tx.router, prefix="/tx", tags=["transactions"])
 app.include_router(prices.router, prefix="/prices", tags=["prices"])
+app.include_router(tokens.router, prefix="/api/v1", tags=["tokens"])
 
 # New monetization routers
 app.include_router(billing.router, prefix="/api/v1", tags=["billing"])
 app.include_router(portfolio.router, prefix="/api/v1", tags=["portfolio"])
 app.include_router(exchange.router, prefix="/api/v1", tags=["exchange"])
+app.include_router(instant_trade.router, prefix="/api/v1", tags=["instant-trade"])
 app.include_router(p2p.router, prefix="/p2p", tags=["p2p"])  # Changed to /p2p to match frontend
 app.include_router(chat_enterprise.router, prefix="/api/v1", tags=["chat"])
 app.include_router(reputation.router, tags=["reputation"])

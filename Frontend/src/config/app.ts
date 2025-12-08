@@ -3,19 +3,19 @@ export const APP_CONFIG = {
   name: 'HOLD Wallet',
   version: '1.0.0',
   description: 'Carteira digital P2P com sistema de chat e reputação',
-  
+
   // URLs da API
   api: {
-    baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:8000',
-    wsUrl: import.meta.env.VITE_WS_URL || 'ws://localhost:8000',
+    baseUrl: import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000',
+    wsUrl: import.meta.env.VITE_WS_URL || 'ws://127.0.0.1:8000',
     endpoints: {
-      auth: '/auth',
-      users: '/users', 
+      auth: '', // Auth endpoints are at root level: /auth, /auth/register, etc
+      users: '/users',
       wallets: '/wallets',
       p2p: '/p2p',
       chat: '/chat',
       notifications: '/notifications',
-    }
+    },
   },
 
   // Configurações de paginação
@@ -30,8 +30,8 @@ export const APP_CONFIG = {
     allowedTypes: {
       images: ['image/jpeg', 'image/png', 'image/webp'],
       documents: ['application/pdf', 'text/plain'],
-      all: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'text/plain']
-    }
+      all: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'text/plain'],
+    },
   },
 
   // Configurações de criptografia
@@ -39,14 +39,14 @@ export const APP_CONFIG = {
     supportedCoins: ['BTC', 'ETH', 'USDT', 'BNB', 'ADA', 'SOL', 'DOT', 'MATIC'],
     networks: {
       BTC: 'bitcoin',
-      ETH: 'ethereum', 
+      ETH: 'ethereum',
       USDT: 'ethereum',
       BNB: 'bsc',
       ADA: 'cardano',
       SOL: 'solana',
       DOT: 'polkadot',
-      MATIC: 'polygon'
-    }
+      MATIC: 'polygon',
+    },
   },
 
   // Configurações do chat
@@ -94,7 +94,7 @@ export const APP_CONFIG = {
       theme: 'theme',
       language: 'language',
       settings: 'settings',
-    }
+    },
   },
 
   // URLs externas
@@ -116,7 +116,7 @@ export const APP_CONFIG = {
 } as const
 
 // Tipos derivados da configuração
-export type SupportedCoin = typeof APP_CONFIG.crypto.supportedCoins[number]
+export type SupportedCoin = (typeof APP_CONFIG.crypto.supportedCoins)[number]
 export type ApiEndpoint = keyof typeof APP_CONFIG.api.endpoints
 export type ThemeMode = typeof APP_CONFIG.theme.default
 export type SupportedLanguage = typeof APP_CONFIG.i18n.default

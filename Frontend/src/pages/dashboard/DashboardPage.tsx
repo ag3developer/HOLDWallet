@@ -1,55 +1,88 @@
-import React, { useState, useMemo } from 'react'
-import { useTranslation } from 'react-i18next'
+import React, { useState, useMemo, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useCurrentUser } from '@/hooks/useAuth'
 import { useWallets, useMultipleWalletBalances } from '@/hooks/useWallet'
+import { marketPriceService } from '@/services/market-price-service'
 import { CryptoIcon } from '@/components/CryptoIcon'
-import { 
-  DollarSign, 
-  TrendingUp, 
-  Award, 
-  Wallet, 
-  CreditCard, 
-  Send, 
-  Download, 
+import { useCurrencyStore } from '@/stores/useCurrencyStore'
+import {
+  DollarSign,
+  TrendingUp,
+  Award,
+  Wallet,
+  Send,
+  Download,
   MessageCircle,
   Plus,
-  Activity,
-  Database,
-  Wifi,
-  WifiOff,
-  CheckCircle,
-  Clock,
-  ArrowUpRight,
-  ArrowDownLeft,
-  BarChart3,
-  Users,
-  Settings,
-  Bell,
-  Star,
-  Shield,
-  Zap,
   Coins,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  RefreshCw,
+  ArrowUpRight,
+  Shield,
+  Sparkles,
 } from 'lucide-react'
 
 export const DashboardPage = () => {
-  const { t } = useTranslation()
+  const navigate = useNavigate()
   const { data: user, isLoading: userLoading } = useCurrentUser()
   const { data: apiWallets, isLoading: walletsLoading } = useWallets()
+  const { formatCurrency, currency } = useCurrencyStore()
   const [expandedWallets, setExpandedWallets] = useState<Set<string>>(new Set())
-  
-  // Buscar saldos reais de todas as carteiras
+  const [marketPrices, setMarketPrices] = useState<any>({})
+  const [loadingPrices, setLoadingPrices] = useState(false)
+
+  // Dados de exemplo do gráfico serão carregados de uma API real futuramente
+  // Por enquanto, mantemos este espaço para integração futura
+  // const chartData = useMemo(() => { ... }, [])
+
+  // Buscar preços de mercado
+  useEffect(() => {
+    const fetchMarketPrices = async () => {
+      setLoadingPrices(true)
+      try {
+        const symbols = ['BTC', 'ETH', 'USDT', 'SOL', 'BNB']
+        const prices = await marketPriceService.getPrices(symbols)
+        const priceMap: any = {}
+        for (const price of prices) {
+          priceMap[price.symbol] = price
+        }
+        setMarketPrices(priceMap)
+      } catch (error) {
+        console.error('Erro ao buscar preços de mercado:', error)
+      } finally {
+        setLoadingPrices(false)
+      }
+    }
+
+    fetchMarketPrices()
+    const interval = setInterval(fetchMarketPrices, 5 * 60 * 1000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Buscar saldos reais
   const walletIds = useMemo(() => apiWallets?.map(w => w.id) || [], [apiWallets])
   const balancesQueries = useMultipleWalletBalances(walletIds)
 
-  // Carregar preferências de rede do localStorage
+  // Carregar preferências de rede
   const networkPreferences = useMemo(() => {
     const saved = localStorage.getItem('wallet_network_preferences')
     const defaultPreferences = {
-      bitcoin: true, ethereum: true, polygon: true, bsc: true, tron: true,
-      base: true, solana: true, litecoin: true, dogecoin: true, cardano: true,
-      avalanche: true, polkadot: true, chainlink: true, shiba: true, xrp: true
+      bitcoin: true,
+      ethereum: true,
+      polygon: true,
+      bsc: true,
+      tron: true,
+      base: true,
+      solana: true,
+      litecoin: true,
+      dogecoin: true,
+      cardano: true,
+      avalanche: true,
+      polkadot: true,
+      chainlink: true,
+      shiba: true,
+      xrp: true,
     }
     return saved ? { ...defaultPreferences, ...JSON.parse(saved) } : defaultPreferences
   }, [])
@@ -58,69 +91,47 @@ export const DashboardPage = () => {
     const saved = localStorage.getItem('wallet_show_all_networks')
     return saved !== null ? saved === 'true' : true
   }, [])
-  
+
   // Filtrar carteiras por preferências
   const wallets = useMemo(() => {
-    // Verificar se apiWallets existe e é um array
     if (!apiWallets || !Array.isArray(apiWallets)) {
       return []
     }
-    
-    // Se mostrar todas, retorna direto
+
     if (showAllNetworks) {
       return apiWallets
     }
-    
-    // Filtrar por preferências (coin em minúsculo)
+
     const filtered = apiWallets.filter(wallet => {
-      // Validar que wallet.coin existe
       if (!wallet || !wallet.coin) {
         return false
       }
       const coinKey = wallet.coin.toLowerCase()
       return networkPreferences[coinKey as keyof typeof networkPreferences]
     })
-    
-    // Se o filtro removeu todas as carteiras mas existem carteiras,
-    // retorna todas para não deixar o dashboard vazio
+
     if (filtered.length === 0 && apiWallets.length > 0) {
       return apiWallets
     }
-    
+
     return filtered
   }, [apiWallets, networkPreferences, showAllNetworks])
-  
-  // Calculate total balance from all wallets usando dados reais da API
+
+  // Calcular saldo total
   const totalBalanceBRL = useMemo(() => {
     let total = 0
-    
-    balancesQueries.forEach((query, index) => {
-      console.log(`[DEBUG] Wallet ${index} balance query:`, {
-        isLoading: query.isLoading,
-        isError: query.isError,
-        data: query.data,
-        error: query.error
-      })
-      
+
+    balancesQueries.forEach(query => {
       if (query.data) {
         Object.values(query.data).forEach((netBalance: any) => {
           const balanceBrl = parseFloat(netBalance.balance_brl || '0')
-          console.log(`[DEBUG] Network balance:`, netBalance, 'BRL:', balanceBrl)
           total += balanceBrl
         })
       }
     })
-    
-    console.log(`[DEBUG] Total balance BRL:`, total)
-    return total
-  }, [balancesQueries])
 
-  const formatCurrency = (amount: number, currency: string = 'BRL') => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: currency
-    }).format(amount)
-  }
+    return total
+  }, [balancesQueries, currency])
 
   const toggleWallet = (walletId: string) => {
     setExpandedWallets(prev => {
@@ -134,9 +145,28 @@ export const DashboardPage = () => {
     })
   }
 
-  // Redes disponíveis por carteira
+  // Handlers
+  const handleCreateP2POrder = () => {
+    navigate('/p2p/create-order')
+  }
+
+  const handleSendCrypto = () => {
+    navigate('/wallet')
+  }
+
+  const handleReceiveCrypto = () => {
+    navigate('/wallet')
+  }
+
+  const handleChatP2P = () => {
+    navigate('/chat')
+  }
+
+  const handleCreateWallet = () => {
+    navigate('/wallet')
+  }
+
   const getAvailableNetworks = (wallet: any) => {
-    // Redes suportadas pela HOLD Wallet
     return [
       { network: 'bitcoin', name: 'Bitcoin', symbol: 'BTC' },
       { network: 'ethereum', name: 'Ethereum', symbol: 'ETH' },
@@ -152,485 +182,562 @@ export const DashboardPage = () => {
       { network: 'polkadot', name: 'Polkadot', symbol: 'DOT' },
       { network: 'chainlink', name: 'Chainlink', symbol: 'LINK' },
       { network: 'shiba', name: 'Shiba Inu', symbol: 'SHIB' },
-      { network: 'xrp', name: 'XRP', symbol: 'XRP' }
+      { network: 'xrp', name: 'XRP', symbol: 'XRP' },
     ]
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-          {t('dashboard.welcome', 'Dashboard')}
-        </h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          {user ? `Bem-vindo, ${user.username}!` : 'Bem-vindo à HOLD Wallet'}
-        </p>
+    <div className='min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900'>
+      {/* Fundo com efeito de luz */}
+      <div className='fixed inset-0 overflow-hidden pointer-events-none'>
+        <div className='absolute top-0 right-0 w-96 h-96 bg-blue-500 rounded-full mix-blend-screen filter blur-3xl opacity-5 dark:opacity-10'></div>
+        <div className='absolute bottom-0 left-0 w-96 h-96 bg-purple-500 rounded-full mix-blend-screen filter blur-3xl opacity-5 dark:opacity-10'></div>
       </div>
 
-      {/* Loading State */}
-      {(userLoading || walletsLoading) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 animate-pulse">
-              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded mb-2"></div>
-              <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded"></div>
+      {/* Conteúdo */}
+      <div className='relative z-10 p-4 md:p-6 lg:p-8'>
+        {/* Header com greeting customizado */}
+        <div className='mb-8'>
+          <div className='flex items-center gap-3 mb-2'>
+            <div className='w-1.5 h-12 bg-gradient-to-b from-blue-500 via-purple-500 to-pink-500 rounded-full'></div>
+            <div>
+              <h1 className='text-4xl md:text-5xl font-black bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 dark:from-blue-400 dark:via-purple-400 dark:to-pink-400 bg-clip-text text-transparent'>
+                Dashboard
+              </h1>
+              <p className='text-sm text-slate-600 dark:text-slate-400 mt-1'>
+                {new Date().toLocaleDateString('pt-BR')}
+                {user && ` • Bem-vindo de volta, ${user.username}`}
+              </p>
             </div>
-          ))}
+          </div>
         </div>
-      )}
 
-      {/* Dashboard Cards */}
-      {!userLoading && !walletsLoading && (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Total Balance Card */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 border-l-4 border-green-500 hover:shadow-xl transition-shadow">
-              <div className="flex items-center">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <DollarSign className="w-5 h-5 text-green-600" />
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+        {/* Stats Grid - 4 colunas compacto */}
+        {!userLoading && !walletsLoading && (
+          <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6'>
+            {/* Saldo Total */}
+            <div className='group relative bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4 overflow-hidden hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-300'>
+              <div className='absolute inset-0 bg-gradient-to-br from-blue-500/5 dark:from-blue-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity'></div>
+              <div className='absolute -right-8 -top-8 w-16 h-16 bg-blue-500/10 dark:bg-blue-500/20 rounded-full blur-xl group-hover:bg-blue-500/20 dark:group-hover:bg-blue-500/40 transition-all'></div>
+              <div className='relative z-10'>
+                <div className='flex items-start justify-between mb-2'>
+                  <div className='flex-1'>
+                    <p className='text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-widest mb-1'>
                       Saldo Total
-                    </h3>
+                    </p>
+                    <p className='text-2xl font-black text-slate-900 dark:text-white'>
+                      {formatCurrency(totalBalanceBRL)}
+                    </p>
+                    <p className='text-xs text-slate-500 dark:text-slate-500 mt-1'>
+                      {wallets?.length || 0} carteira(s)
+                    </p>
                   </div>
-                  <p className="text-3xl font-bold text-green-600">
-                    {formatCurrency(totalBalanceBRL)}
-                  </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                    {wallets?.length || 0} carteira{(wallets?.length || 0) !== 1 ? 's' : ''}
-                  </p>
+                  <div className='w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform'>
+                    <DollarSign className='w-5 h-5 text-white' />
+                  </div>
                 </div>
-                <div className="w-16 h-16 bg-gradient-to-br from-green-100 to-green-200 dark:from-green-900 dark:to-green-800 rounded-xl flex items-center justify-center">
-                  <Wallet className="w-8 h-8 text-green-600 dark:text-green-400" />
-                </div>
+                <div className='h-0.5 w-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full'></div>
               </div>
             </div>
 
-            {/* Active Orders Card */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 border-l-4 border-blue-500 hover:shadow-xl transition-shadow">
-              <div className="flex items-center">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <TrendingUp className="w-5 h-5 text-blue-600" />
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                      Ordens P2P Ativas
-                    </h3>
+            {/* Ordens P2P */}
+            <div className='group relative bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4 overflow-hidden hover:border-purple-400 dark:hover:border-purple-500 transition-all duration-300'>
+              <div className='absolute inset-0 bg-gradient-to-br from-purple-500/5 dark:from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity'></div>
+              <div className='absolute -right-8 -top-8 w-16 h-16 bg-purple-500/10 dark:bg-purple-500/20 rounded-full blur-xl group-hover:bg-purple-500/20 dark:group-hover:bg-purple-500/40 transition-all'></div>
+              <div className='relative z-10'>
+                <div className='flex items-start justify-between mb-2'>
+                  <div className='flex-1'>
+                    <p className='text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-widest mb-1'>
+                      Ordens Ativas
+                    </p>
+                    <p className='text-2xl font-black text-slate-900 dark:text-white'>0</p>
+                    <p className='text-xs text-slate-500 dark:text-slate-500 mt-1'>
+                      Pronto para negociar
+                    </p>
                   </div>
-                  <p className="text-3xl font-bold text-blue-600">
-                    0
-                  </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                    Nenhuma ordem ativa
-                  </p>
+                  <div className='w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform'>
+                    <TrendingUp className='w-5 h-5 text-white' />
+                  </div>
                 </div>
-                <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-800 rounded-xl flex items-center justify-center">
-                  <Activity className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-                </div>
+                <div className='h-0.5 w-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full'></div>
               </div>
             </div>
 
-            {/* Reputation Card */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 border-l-4 border-yellow-500 hover:shadow-xl transition-shadow">
-              <div className="flex items-center">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Award className="w-5 h-5 text-yellow-600" />
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            {/* Reputação */}
+            <div className='group relative bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4 overflow-hidden hover:border-amber-400 dark:hover:border-amber-500 transition-all duration-300'>
+              <div className='absolute inset-0 bg-gradient-to-br from-amber-500/5 dark:from-amber-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity'></div>
+              <div className='absolute -right-8 -top-8 w-16 h-16 bg-amber-500/10 dark:bg-amber-500/20 rounded-full blur-xl group-hover:bg-amber-500/20 dark:group-hover:bg-amber-500/40 transition-all'></div>
+              <div className='relative z-10'>
+                <div className='flex items-start justify-between mb-2'>
+                  <div className='flex-1'>
+                    <p className='text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-widest mb-1'>
                       Reputação
-                    </h3>
+                    </p>
+                    <p className='text-2xl font-black text-slate-900 dark:text-white'>
+                      {user?.isVerified ? '100%' : 'Novo'}
+                    </p>
+                    <p
+                      className={`text-xs mt-1 font-semibold ${user?.isVerified ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400'}`}
+                    >
+                      {user?.isVerified ? 'Verificado' : 'Complete perfil'}
+                    </p>
                   </div>
-                  <p className="text-3xl font-bold text-yellow-600">
-                    {user?.isVerified ? 'Verificado' : 'Novo'}
-                  </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                    {user?.isVerified ? 'Usuário verificado' : 'Complete seu perfil'}
-                  </p>
+                  <div className='w-10 h-10 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform'>
+                    <Award className='w-5 h-5 text-white' />
+                  </div>
                 </div>
-                <div className="w-16 h-16 bg-gradient-to-br from-yellow-100 to-yellow-200 dark:from-yellow-900 dark:to-yellow-800 rounded-xl flex items-center justify-center">
-                  {user?.isVerified ? (
-                    <CheckCircle className="w-8 h-8 text-yellow-600 dark:text-yellow-400" />
+                <div className='h-0.5 w-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full'></div>
+              </div>
+            </div>
+
+            {/* BTC Price */}
+            <div className='group relative bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4 overflow-hidden hover:border-orange-400 dark:hover:border-orange-500 transition-all duration-300'>
+              <div className='absolute inset-0 bg-gradient-to-br from-orange-500/5 dark:from-orange-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity'></div>
+              <div className='absolute -right-8 -top-8 w-16 h-16 bg-orange-500/10 dark:bg-orange-500/20 rounded-full blur-xl group-hover:bg-orange-500/20 dark:group-hover:bg-orange-500/40 transition-all'></div>
+              <div className='relative z-10'>
+                <div className='flex items-start justify-between mb-2'>
+                  <div className='flex-1'>
+                    <p className='text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-widest mb-1'>
+                      Bitcoin
+                    </p>
+                    <p className='text-xl font-black text-slate-900 dark:text-white'>
+                      {marketPrices.BTC ? marketPrices.BTC.priceUSD : '$--'}
+                    </p>
+                    <p
+                      className={`text-xs font-semibold mt-1 ${marketPrices.BTC && marketPrices.BTC.change24h >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
+                    >
+                      {marketPrices.BTC && marketPrices.BTC.change24h >= 0 ? '↑' : '↓'}
+                      {marketPrices.BTC ? marketPrices.BTC.change24hPercent : '--%'}
+                    </p>
+                  </div>
+                  <div className='w-10 h-10 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform'>
+                    <Coins className='w-5 h-5 text-white' />
+                  </div>
+                </div>
+                <div className='h-0.5 w-full bg-gradient-to-r from-orange-500 to-amber-500 rounded-full'></div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Main Content Grid - Layout reorganizado */}
+        {!userLoading && !walletsLoading && (
+          <div className='grid grid-cols-1 lg:grid-cols-3 gap-4'>
+            {/* Carteiras + Ações Rápidas - 2 colunas */}
+            <div className='lg:col-span-2 space-y-4'>
+              {/* Wallets Card */}
+              <div className='bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden hover:border-blue-400 dark:hover:border-blue-500 transition-all'>
+                <div className='px-5 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between'>
+                  <div className='flex items-center gap-2'>
+                    <div className='p-2 bg-blue-100 dark:bg-blue-500/20 rounded-lg'>
+                      <Wallet className='w-4 h-4 text-blue-600 dark:text-blue-400' />
+                    </div>
+                    <div>
+                      <h3 className='font-bold text-slate-900 dark:text-white text-sm'>
+                        Suas Carteiras
+                      </h3>
+                      <p className='text-xs text-slate-600 dark:text-slate-400'>
+                        Gerencie suas criptomoedas
+                      </p>
+                    </div>
+                  </div>
+                  <Plus className='w-4 h-4 text-slate-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer transition-colors' />
+                </div>
+
+                <div className='p-4'>
+                  {!wallets || wallets.length === 0 ? (
+                    <div className='text-center py-8'>
+                      <div className='w-12 h-12 mx-auto bg-slate-200 dark:bg-slate-700 rounded-full flex items-center justify-center mb-3'>
+                        <Wallet className='w-6 h-6 text-slate-400 dark:text-slate-500' />
+                      </div>
+                      <p className='text-slate-600 dark:text-slate-400 text-sm mb-3'>
+                        Nenhuma carteira criada
+                      </p>
+                      <button
+                        onClick={handleCreateWallet}
+                        className='bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-4 py-2 rounded-lg font-medium text-sm transition-all inline-flex items-center gap-2 shadow-lg'
+                      >
+                        <Plus className='w-4 h-4' />
+                        Criar Carteira
+                      </button>
+                    </div>
                   ) : (
-                    <Clock className="w-8 h-8 text-yellow-600 dark:text-yellow-400" />
+                    <div className='space-y-2'>
+                      {wallets.map(wallet => {
+                        const isExpanded = expandedWallets.has(wallet.id)
+                        const networks = getAvailableNetworks(wallet)
+
+                        return (
+                          <div
+                            key={wallet.id}
+                            className='bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-lg overflow-hidden hover:border-blue-400 dark:hover:border-blue-500 transition-all'
+                          >
+                            <button
+                              onClick={() => toggleWallet(wallet.id)}
+                              className='w-full flex items-center justify-between p-3 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors'
+                            >
+                              <div className='flex items-center space-x-3 flex-1'>
+                                <div className='w-10 h-10 flex items-center justify-center rounded-lg bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-500/20 dark:to-blue-600/20'>
+                                  <Wallet className='w-5 h-5 text-blue-600 dark:text-blue-400' />
+                                </div>
+                                <div className='text-left'>
+                                  <h4 className='font-semibold text-slate-900 dark:text-white text-xs'>
+                                    {wallet.name}
+                                  </h4>
+                                  <p className='text-xs text-slate-600 dark:text-slate-400'>
+                                    {wallet.type} • {networks.length} redes
+                                  </p>
+                                </div>
+                              </div>
+                              <div className='flex items-center space-x-2'>
+                                <div className='text-right'>
+                                  {(() => {
+                                    const walletIndex = walletIds.indexOf(wallet.id)
+                                    const balanceQuery = balancesQueries[walletIndex]
+                                    const balanceData = balanceQuery?.data
+
+                                    if (balanceQuery?.isLoading) {
+                                      return (
+                                        <div className='animate-pulse space-y-1'>
+                                          <div className='h-3 bg-slate-600 rounded w-16'></div>
+                                          <div className='h-2 bg-slate-600 rounded w-12'></div>
+                                        </div>
+                                      )
+                                    }
+
+                                    let totalBRL = 0
+                                    if (balanceData) {
+                                      Object.values(balanceData).forEach((netBalance: any) => {
+                                        totalBRL += parseFloat(netBalance.balance_brl || '0')
+                                      })
+                                    }
+
+                                    return (
+                                      <>
+                                        <p className='font-bold text-white text-xs'>
+                                          {formatCurrency(totalBRL)}
+                                        </p>
+                                        <p className='text-xs text-slate-400'>Saldo</p>
+                                      </>
+                                    )
+                                  })()}
+                                </div>
+                                <div className='text-slate-500'>
+                                  {isExpanded ? (
+                                    <ChevronDown className='w-4 h-4' />
+                                  ) : (
+                                    <ChevronRight className='w-4 h-4' />
+                                  )}
+                                </div>
+                              </div>
+                            </button>
+
+                            {isExpanded && (
+                              <div className='border-t border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/30 p-3'>
+                                <div className='grid grid-cols-1 md:grid-cols-2 gap-2'>
+                                  {networks
+                                    .filter(net => {
+                                      if (showAllNetworks) return true
+                                      return networkPreferences[
+                                        net.network as keyof typeof networkPreferences
+                                      ]
+                                    })
+                                    .map(network => (
+                                      <div
+                                        key={network.network}
+                                        className='flex items-center justify-between p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-500 transition-all'
+                                      >
+                                        <div className='flex items-center space-x-2'>
+                                          <div className='w-8 h-8 flex items-center justify-center rounded-lg bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-500/20 dark:to-blue-600/20'>
+                                            <CryptoIcon symbol={network.symbol} size={24} />
+                                          </div>
+                                          <div>
+                                            <p className='font-medium text-slate-900 dark:text-white text-xs'>
+                                              {network.name}
+                                            </p>
+                                            <p className='text-xs text-slate-500 dark:text-slate-400'>
+                                              {network.symbol}
+                                            </p>
+                                          </div>
+                                        </div>
+                                        <div className='text-right'>
+                                          {(() => {
+                                            const walletIndex = walletIds.indexOf(wallet.id)
+                                            const balanceQuery = balancesQueries[walletIndex]
+                                            const balanceData = balanceQuery?.data
+                                            const networkBalance = balanceData?.[network.network]
+
+                                            if (balanceQuery?.isLoading) {
+                                              return (
+                                                <div className='animate-pulse space-y-1'>
+                                                  <div className='h-2 bg-slate-300 dark:bg-slate-600 rounded w-20'></div>
+                                                  <div className='h-2 bg-slate-300 dark:bg-slate-600 rounded w-16 mt-1'></div>
+                                                </div>
+                                              )
+                                            }
+
+                                            if (networkBalance) {
+                                              return (
+                                                <>
+                                                  <p className='font-semibold text-slate-900 dark:text-white text-xs'>
+                                                    {Number.parseFloat(
+                                                      networkBalance.balance
+                                                    ).toFixed(6)}{' '}
+                                                    {network.symbol}
+                                                  </p>
+                                                  <p className='text-xs text-slate-500 dark:text-slate-400'>
+                                                    {formatCurrency(
+                                                      Number.parseFloat(
+                                                        networkBalance.balance_brl || '0'
+                                                      )
+                                                    )}
+                                                  </p>
+                                                </>
+                                              )
+                                            }
+
+                                            return (
+                                              <>
+                                                <p className='font-semibold text-slate-900 dark:text-white text-xs'>
+                                                  0.000000 {network.symbol}
+                                                </p>
+                                                <p className='text-xs text-slate-500 dark:text-slate-400'>
+                                                  R$ 0,00
+                                                </p>
+                                              </>
+                                            )
+                                          })()}
+                                        </div>
+                                      </div>
+                                    ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
                   )}
                 </div>
               </div>
-            </div>
-          </div>
 
-          {/* Wallets Overview */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <div className="flex items-center gap-2 mb-2">
-                <Wallet className="w-6 h-6 text-gray-600 dark:text-gray-400" />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Suas Carteiras
-                </h3>
-              </div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Gerencie seus ativos de criptomoedas
-              </p>
-            </div>
-            <div className="p-6">
-              {!wallets || wallets.length === 0 ? (
-                <div className="text-center py-8">
-                  <div className="w-16 h-16 mx-auto bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mb-4">
-                    <CreditCard className="w-8 h-8 text-gray-400" />
+              {/* Quick Actions */}
+              <div className='bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden hover:border-emerald-400 dark:hover:border-emerald-500 transition-all'>
+                <div className='px-5 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2'>
+                  <div className='p-2 bg-emerald-100 dark:bg-emerald-500/20 rounded-lg'>
+                    <Sparkles className='w-4 h-4 text-emerald-600 dark:text-emerald-400' />
                   </div>
-                  <p className="text-gray-500 dark:text-gray-400 mb-4">
-                    Nenhuma carteira encontrada
-                  </p>
-                  <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors inline-flex items-center gap-2">
-                    <Plus className="w-4 h-4" />
-                    Criar Primeira Carteira
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {wallets.map((wallet) => {
-                    const isExpanded = expandedWallets.has(wallet.id)
-                    const networks = getAvailableNetworks(wallet)
-                    
-                    return (
-                      <div key={wallet.id} className="border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden">
-                        {/* Wallet Header - Clicável */}
-                        <button
-                          onClick={() => toggleWallet(wallet.id)}
-                          className="w-full flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                        >
-                          <div className="flex items-center space-x-4">
-                            <div className="w-10 h-10 flex items-center justify-center">
-                              <CryptoIcon symbol={wallet.coin || 'BTC'} size={40} />
-                            </div>
-                            <div className="text-left">
-                              <h4 className="font-medium text-gray-900 dark:text-white">
-                                {wallet.name}
-                              </h4>
-                              <p className="text-sm text-gray-500 dark:text-gray-400">
-                                {wallet.type} • {networks.length} redes
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-4">
-                            <div className="text-right">
-                              {(() => {
-                                // Calcular saldo total real desta carteira
-                                const walletIndex = walletIds.indexOf(wallet.id)
-                                const balanceQuery = balancesQueries[walletIndex]
-                                const balanceData = balanceQuery?.data
-                                
-                                if (balanceQuery?.isLoading) {
-                                  return (
-                                    <div className="animate-pulse">
-                                      <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-24 mb-1"></div>
-                                      <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
-                                    </div>
-                                  )
-                                }
-                                
-                                // Somar saldos de todas as redes
-                                let totalBRL = 0
-                                if (balanceData) {
-                                  Object.values(balanceData).forEach((netBalance: any) => {
-                                    totalBRL += parseFloat(netBalance.balance_brl || '0')
-                                  })
-                                }
-                                
-                                return (
-                                  <>
-                                    <p className="font-semibold text-gray-900 dark:text-white">
-                                      {formatCurrency(totalBRL)}
-                                    </p>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                                      Saldo total
-                                    </p>
-                                  </>
-                                )
-                              })()}
-                            </div>
-                            {isExpanded ? (
-                              <ChevronDown className="w-5 h-5 text-gray-400" />
-                            ) : (
-                              <ChevronRight className="w-5 h-5 text-gray-400" />
-                            )}
-                          </div>
-                        </button>
-
-                        {/* Networks List - Expansível */}
-                        {isExpanded && (
-                          <div className="border-t border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50">
-                            <div className="p-4 space-y-2">
-                              {networks
-                                .filter(net => {
-                                  // Filtrar por preferências se não estiver mostrando todas
-                                  if (showAllNetworks) return true
-                                  return networkPreferences[net.network as keyof typeof networkPreferences]
-                                })
-                                .map((network) => (
-                                  <div
-                                    key={network.network}
-                                    className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                                  >
-                                    <div className="flex items-center space-x-3">
-                                      <div className="w-8 h-8 flex items-center justify-center">
-                                        <CryptoIcon symbol={network.symbol} size={32} />
-                                      </div>
-                                      <div>
-                                        <p className="font-medium text-gray-900 dark:text-white text-sm">
-                                          {network.name}
-                                        </p>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                                          {network.symbol}
-                                        </p>
-                                      </div>
-                                    </div>
-                                    <div className="text-right">
-                                      {(() => {
-                                        // Buscar saldo real da API
-                                        const walletIndex = walletIds.indexOf(wallet.id)
-                                        const balanceQuery = balancesQueries[walletIndex]
-                                        const balanceData = balanceQuery?.data
-                                        const networkBalance = balanceData?.[network.network]
-                                        
-                                        // Verificar se está carregando
-                                        if (balanceQuery?.isLoading) {
-                                          return (
-                                            <div className="animate-pulse">
-                                              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-20 mb-1"></div>
-                                              <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
-                                            </div>
-                                          )
-                                        }
-                                        
-                                        // Mostrar saldo se existir
-                                        if (networkBalance) {
-                                          return (
-                                            <>
-                                              <p className="font-medium text-gray-900 dark:text-white text-sm">
-                                                {parseFloat(networkBalance.balance).toFixed(6)} {network.symbol}
-                                              </p>
-                                              <p className="text-xs text-gray-500 dark:text-gray-400">
-                                                {formatCurrency(parseFloat(networkBalance.balance_brl || '0'))}
-                                              </p>
-                                            </>
-                                          )
-                                        }
-                                        
-                                        // Fallback: sem saldo
-                                        return (
-                                          <>
-                                            <p className="font-medium text-gray-900 dark:text-white text-sm">
-                                              0.000000 {network.symbol}
-                                            </p>
-                                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                                              R$ 0,00
-                                            </p>
-                                          </>
-                                        )
-                                      })()}
-                                    </div>
-                                  </div>
-                                ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Quick Actions */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <div className="flex items-center gap-2">
-                <Activity className="w-6 h-6 text-gray-600 dark:text-gray-400" />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Ações Rápidas
-                </h3>
-              </div>
-            </div>
-            <div className="p-6">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <button className="flex flex-col items-center p-6 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl hover:from-blue-100 hover:to-blue-200 dark:hover:from-blue-800/30 dark:hover:to-blue-700/30 transition-all group">
-                  <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                    <DollarSign className="w-6 h-6 text-white" />
-                  </div>
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Criar Ordem P2P</span>
-                </button>
-                <button className="flex flex-col items-center p-6 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-xl hover:from-green-100 hover:to-green-200 dark:hover:from-green-800/30 dark:hover:to-green-700/30 transition-all group">
-                  <div className="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                    <Send className="w-6 h-6 text-white" />
-                  </div>
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Enviar Crypto</span>
-                </button>
-                <button className="flex flex-col items-center p-6 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-xl hover:from-purple-100 hover:to-purple-200 dark:hover:from-purple-800/30 dark:hover:to-purple-700/30 transition-all group">
-                  <div className="w-12 h-12 bg-purple-500 rounded-lg flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                    <Download className="w-6 h-6 text-white" />
-                  </div>
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Receber</span>
-                </button>
-                <button className="flex flex-col items-center p-6 bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 rounded-xl hover:from-orange-100 hover:to-orange-200 dark:hover:from-orange-800/30 dark:hover:to-orange-700/30 transition-all group">
-                  <div className="w-12 h-12 bg-orange-500 rounded-lg flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                    <MessageCircle className="w-6 h-6 text-white" />
-                  </div>
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Chat P2P</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Market Overview */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <TrendingUp className="w-6 h-6 text-gray-600 dark:text-gray-400" />
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Resumo do Mercado
-              </h3>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="flex items-center space-x-3 p-4 bg-gradient-to-r from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 rounded-lg">
-                <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center">
-                  <Coins className="w-4 h-4 text-white" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-orange-700 dark:text-orange-300">Bitcoin</p>
-                  <p className="text-lg font-bold text-orange-600">$43,250</p>
-                  <p className="text-xs text-green-600">+2.4%</p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-3 p-4 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg">
-                <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                  <Coins className="w-4 h-4 text-white" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-blue-700 dark:text-blue-300">Ethereum</p>
-                  <p className="text-lg font-bold text-blue-600">$2,680</p>
-                  <p className="text-xs text-green-600">+1.8%</p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-3 p-4 bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-lg">
-                <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                  <DollarSign className="w-4 h-4 text-white" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-green-700 dark:text-green-300">USDT</p>
-                  <p className="text-lg font-bold text-green-600">$1.00</p>
-                  <p className="text-xs text-gray-500">0.0%</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Recent Activity & Analytics Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            
-            {/* Recent Activity */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
-              <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-                <div className="flex items-center gap-2">
-                  <Clock className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                    Atividade Recente
+                  <h3 className='font-bold text-slate-900 dark:text-white text-sm'>
+                    Ações Rápidas
                   </h3>
                 </div>
-              </div>
-              <div className="p-6">
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                    <div className="w-10 h-10 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
-                      <ArrowDownLeft className="w-5 h-5 text-green-600" />
+                <div className='p-3 space-y-2'>
+                  <button
+                    onClick={handleCreateP2POrder}
+                    className='w-full flex items-center gap-3 p-3 bg-blue-100 dark:bg-blue-600/20 hover:bg-blue-200 dark:hover:bg-blue-600/30 rounded-lg border border-blue-300 dark:border-blue-600/50 hover:border-blue-400 dark:hover:border-blue-500 transition-all group'
+                  >
+                    <div className='w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform'>
+                      <DollarSign className='w-5 h-5 text-white' />
                     </div>
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900 dark:text-white">Conta criada</p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Bem-vindo à HOLD Wallet!
+                    <div className='text-left flex-1'>
+                      <p className='text-xs font-bold text-blue-900 dark:text-white'>P2P Trading</p>
+                      <p className='text-xs text-blue-700 dark:text-slate-400'>Criar ordem</p>
+                    </div>
+                    <ArrowUpRight className='w-4 h-4 text-blue-600 dark:text-blue-400' />
+                  </button>
+
+                  <button
+                    onClick={handleSendCrypto}
+                    className='w-full flex items-center gap-3 p-3 bg-green-100 dark:bg-green-600/20 hover:bg-green-200 dark:hover:bg-green-600/30 rounded-lg border border-green-300 dark:border-green-600/50 hover:border-green-400 dark:hover:border-green-500 transition-all group'
+                  >
+                    <div className='w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform'>
+                      <Send className='w-5 h-5 text-white' />
+                    </div>
+                    <div className='text-left flex-1'>
+                      <p className='text-xs font-bold text-green-900 dark:text-white'>Enviar</p>
+                      <p className='text-xs text-green-700 dark:text-slate-400'>
+                        Transferir cripto
                       </p>
                     </div>
-                    <span className="text-sm text-gray-500 dark:text-gray-400">Hoje</span>
-                  </div>
-                  
-                  <div className="text-center py-8">
-                    <Activity className="w-12 h-12 mx-auto text-gray-400 mb-3" />
-                    <p className="text-gray-500 dark:text-gray-400">
-                      Suas atividades aparecerão aqui
-                    </p>
-                  </div>
+                    <ArrowUpRight className='w-4 h-4 text-green-600 dark:text-green-400' />
+                  </button>
+
+                  <button
+                    onClick={handleReceiveCrypto}
+                    className='w-full flex items-center gap-3 p-3 bg-purple-100 dark:bg-purple-600/20 hover:bg-purple-200 dark:hover:bg-purple-600/30 rounded-lg border border-purple-300 dark:border-purple-600/50 hover:border-purple-400 dark:hover:border-purple-500 transition-all group'
+                  >
+                    <div className='w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform'>
+                      <Download className='w-5 h-5 text-white' />
+                    </div>
+                    <div className='text-left flex-1'>
+                      <p className='text-xs font-bold text-purple-900 dark:text-white'>Receber</p>
+                      <p className='text-xs text-purple-700 dark:text-slate-400'>
+                        Endereço de depósito
+                      </p>
+                    </div>
+                    <ArrowUpRight className='w-4 h-4 text-purple-600 dark:text-purple-400' />
+                  </button>
+
+                  <button
+                    onClick={handleChatP2P}
+                    className='w-full flex items-center gap-3 p-3 bg-orange-100 dark:bg-orange-600/20 hover:bg-orange-200 dark:hover:bg-orange-600/30 rounded-lg border border-orange-300 dark:border-orange-600/50 hover:border-orange-400 dark:hover:border-orange-500 transition-all group'
+                  >
+                    <div className='w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform'>
+                      <MessageCircle className='w-5 h-5 text-white' />
+                    </div>
+                    <div className='text-left flex-1'>
+                      <p className='text-xs font-bold text-orange-900 dark:text-white'>Chat</p>
+                      <p className='text-xs text-orange-700 dark:text-slate-400'>
+                        Negociar com outros
+                      </p>
+                    </div>
+                    <ArrowUpRight className='w-4 h-4 text-orange-600 dark:text-orange-400' />
+                  </button>
                 </div>
               </div>
             </div>
 
-            {/* Portfolio Analytics */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
-              <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-                <div className="flex items-center gap-2">
-                  <BarChart3 className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                    Análise de Portfolio
-                  </h3>
+            {/* Mercado + Segurança - 1 coluna */}
+            <div className='space-y-4'>
+              {/* Market Prices */}
+              <div className='bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden hover:border-rose-400 dark:hover:border-rose-500 transition-all'>
+                <div className='px-5 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between'>
+                  <div className='flex items-center gap-2'>
+                    <div className='p-2 bg-rose-100 dark:bg-rose-500/20 rounded-lg'>
+                      <TrendingUp className='w-4 h-4 text-rose-600 dark:text-rose-400' />
+                    </div>
+                    <h3 className='font-bold text-slate-900 dark:text-white text-sm'>Mercado</h3>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      setLoadingPrices(true)
+                      try {
+                        const symbols = ['BTC', 'ETH', 'USDT', 'SOL', 'BNB']
+                        const prices = await marketPriceService.getPrices(symbols)
+                        const priceMap: any = {}
+                        for (const price of prices) {
+                          priceMap[price.symbol] = price
+                        }
+                        setMarketPrices(priceMap)
+                      } catch (error) {
+                        console.error('Erro ao atualizar preços:', error)
+                      } finally {
+                        setLoadingPrices(false)
+                      }
+                    }}
+                    disabled={loadingPrices}
+                    className='p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-50'
+                    title='Atualizar preços'
+                  >
+                    <RefreshCw
+                      className={`w-3.5 h-3.5 text-slate-600 dark:text-slate-400 ${loadingPrices ? 'animate-spin' : ''}`}
+                    />
+                  </button>
+                </div>
+                <div className='p-3 space-y-2'>
+                  {[
+                    {
+                      symbol: 'BTC',
+                      name: 'Bitcoin',
+                      color: 'bg-orange-100 dark:bg-orange-600/20',
+                      border: 'border-orange-300 dark:border-orange-600/50',
+                      text: 'text-orange-900 dark:text-slate-200',
+                    },
+                    {
+                      symbol: 'ETH',
+                      name: 'Ethereum',
+                      color: 'bg-blue-100 dark:bg-blue-600/20',
+                      border: 'border-blue-300 dark:border-blue-600/50',
+                      text: 'text-blue-900 dark:text-slate-200',
+                    },
+                    {
+                      symbol: 'BNB',
+                      name: 'BNB',
+                      color: 'bg-yellow-100 dark:bg-yellow-600/20',
+                      border: 'border-yellow-300 dark:border-yellow-600/50',
+                      text: 'text-yellow-900 dark:text-slate-200',
+                    },
+                    {
+                      symbol: 'SOL',
+                      name: 'Solana',
+                      color: 'bg-purple-100 dark:bg-purple-600/20',
+                      border: 'border-purple-300 dark:border-purple-600/50',
+                      text: 'text-purple-900 dark:text-slate-200',
+                    },
+                    {
+                      symbol: 'USDT',
+                      name: 'USDT',
+                      color: 'bg-green-100 dark:bg-green-600/20',
+                      border: 'border-green-300 dark:border-green-600/50',
+                      text: 'text-green-900 dark:text-slate-200',
+                    },
+                  ].map(crypto => (
+                    <div
+                      key={crypto.symbol}
+                      className={`p-2.5 ${crypto.color} rounded-lg border ${crypto.border} hover:border-opacity-100 transition-all`}
+                    >
+                      <div className='flex items-center justify-between'>
+                        <div className='flex items-center gap-2'>
+                          <div className='w-6 h-6 rounded-lg bg-slate-300 dark:bg-slate-700 flex items-center justify-center'>
+                            <CryptoIcon symbol={crypto.symbol} size={20} />
+                          </div>
+                          <p className={`text-xs font-bold ${crypto.text}`}>{crypto.name}</p>
+                        </div>
+                        <div className='text-right'>
+                          <p className={`text-xs font-bold ${crypto.text}`}>
+                            {marketPrices[crypto.symbol]
+                              ? marketPrices[crypto.symbol].priceUSD
+                              : '$--'}
+                          </p>
+                          <p
+                            className={`text-xs font-semibold ${marketPrices[crypto.symbol] && marketPrices[crypto.symbol].change24h >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
+                          >
+                            {marketPrices[crypto.symbol]
+                              ? marketPrices[crypto.symbol].change24hPercent
+                              : '--%'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-              <div className="p-6">
-                <div className="space-y-6">
-                  
-                  {/* Portfolio Distribution */}
-                  <div>
-                    <div className="flex justify-between items-center mb-3">
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Distribuição</span>
-                      <span className="text-sm text-gray-500 dark:text-gray-400">100%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                      <div className="bg-blue-500 h-2 rounded-full w-full"></div>
-                    </div>
-                    <div className="flex justify-between mt-2">
-                      <span className="text-xs text-gray-500 dark:text-gray-400">BRL 100%</span>
+
+              {/* Security Status */}
+              <div className='bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden hover:border-cyan-400 dark:hover:border-cyan-500 transition-all'>
+                <div className='px-5 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2'>
+                  <div className='p-2 bg-cyan-100 dark:bg-cyan-500/20 rounded-lg'>
+                    <Shield className='w-4 h-4 text-cyan-600 dark:text-cyan-400' />
+                  </div>
+                  <h3 className='font-bold text-slate-900 dark:text-white text-sm'>Segurança</h3>
+                </div>
+                <div className='p-4 space-y-3'>
+                  <div className='flex items-center gap-3 p-2 bg-slate-100 dark:bg-slate-700/50 rounded-lg'>
+                    <div className='w-2 h-2 bg-green-500 rounded-full'></div>
+                    <div className='flex-1'>
+                      <p className='text-xs font-semibold text-slate-900 dark:text-white'>
+                        2FA Ativado
+                      </p>
+                      <p className='text-xs text-slate-600 dark:text-slate-400'>
+                        {user?.isVerified ? 'Verificado' : 'Pendente'}
+                      </p>
                     </div>
                   </div>
-
-                  {/* Performance Stats */}
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="text-center p-3 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-lg">
-                      <div className="flex items-center justify-center gap-1 text-green-600 mb-1">
-                        <TrendingUp className="w-4 h-4" />
-                        <span className="text-lg font-bold">0%</span>
-                      </div>
-                      <span className="text-xs text-gray-600 dark:text-gray-400">24h</span>
-                    </div>
-                    <div className="text-center p-3 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg">
-                      <div className="flex items-center justify-center gap-1 text-blue-600 mb-1">
-                        <BarChart3 className="w-4 h-4" />
-                        <span className="text-lg font-bold">0%</span>
-                      </div>
-                      <span className="text-xs text-gray-600 dark:text-gray-400">7d</span>
-                    </div>
-                    <div className="text-center p-3 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-lg">
-                      <div className="flex items-center justify-center gap-1 text-purple-600 mb-1">
-                        <Star className="w-4 h-4" />
-                        <span className="text-lg font-bold">0</span>
-                      </div>
-                      <span className="text-xs text-gray-600 dark:text-gray-400">Trades</span>
+                  <div className='flex items-center gap-3 p-2 bg-slate-100 dark:bg-slate-700/50 rounded-lg'>
+                    <div className='w-2 h-2 bg-green-500 rounded-full'></div>
+                    <div className='flex-1'>
+                      <p className='text-xs font-semibold text-slate-900 dark:text-white'>
+                        Senha Forte
+                      </p>
+                      <p className='text-xs text-slate-600 dark:text-slate-400'>Bem protegido</p>
                     </div>
                   </div>
-
-                  {/* Getting Started Tips */}
-                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Zap className="w-4 h-4 text-blue-600" />
-                      <span className="font-medium text-blue-700 dark:text-blue-300">Dica</span>
-                    </div>
-                    <p className="text-sm text-blue-600 dark:text-blue-400">
-                      Comece criando sua primeira carteira para começar a negociar!
-                    </p>
-                  </div>
-
                 </div>
               </div>
             </div>
-
           </div>
-        </>
-      )}
+        )}
+      </div>
     </div>
   )
 }

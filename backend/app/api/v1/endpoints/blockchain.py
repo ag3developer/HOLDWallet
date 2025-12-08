@@ -96,7 +96,7 @@ async def get_transaction_history(
 
 @router.get("/gas/{network}")
 async def get_gas_prices(
-    network: str = Query(..., description="Network name (ethereum, polygon, bsc)")
+    network: str
 ):
     """Get current gas prices for EVM networks."""
     try:

@@ -45,6 +45,8 @@ class TransactionService:
         Cria uma nova transação (ainda não assinada)
         """
         try:
+            logger.info(f"🔍 Criando transação: from={from_address}, to={to_address}, network={network}, user_id={user_id}")
+            
             # Validar endereços
             if not await blockchain_service.validate_address(from_address, network):
                 raise ValueError("Endereço de origem inválido")
@@ -53,13 +55,24 @@ class TransactionService:
                 raise ValueError("Endereço de destino inválido")
             
             # Verificar se o endereço de origem pertence ao usuário
+            # Normalizar o endereço para Ethereum (lowercase para checksum)
+            from_address_normalized = from_address.lower() if network.lower() in ["ethereum", "polygon", "bsc"] else from_address
+            
+            logger.info(f"🔎 Procurando endereço: {from_address_normalized} para user_id: {user_id}")
+            
             from_addr = db.query(Address).filter(
-                Address.address == from_address,
+                Address.address.ilike(from_address_normalized) if network.lower() in ["ethereum", "polygon", "bsc"] else Address.address == from_address_normalized,
                 Address.wallet.has(user_id=user_id)
             ).first()
             
             if not from_addr:
+                # Log de debug: listar todos os endereços do usuário
+                all_user_addresses = db.query(Address).join(Wallet).filter(Wallet.user_id == user_id).all()
+                logger.warning(f"⚠️ Endereço {from_address} não encontrado para user_id {user_id}")
+                logger.warning(f"📋 Endereços disponíveis para este usuário: {[addr.address for addr in all_user_addresses]}")
                 raise ValueError("Endereço de origem não pertence ao usuário")
+            
+            logger.info(f"✅ Endereço verificado: {from_addr.address} para wallet_id: {from_addr.wallet_id}")
             
             # Obter saldo atual
             balance_data = await blockchain_service.get_address_balance(

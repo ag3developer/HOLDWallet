@@ -51,10 +51,10 @@
   "navigation": {
     "dashboard": "Panel",
     "wallet": "Billetera",
-    "p2p": "P2P",
+    "marketplace": "Marketplace",
     "instantTrade": "Trade Instantáneo",
     "services": "Servicios",
-    "contact": "Contacto", 
+    "contact": "Contacto",
     "support": "Soporte",
     "portfolio": "Cartera",
     "institutional": "Institucional",

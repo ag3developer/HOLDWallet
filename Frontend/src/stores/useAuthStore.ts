@@ -9,7 +9,7 @@ interface AuthStore extends AuthState {
   login: (credentials: LoginRequest) => Promise<void>
   setAuthData: (user: User, token: string) => void
   register: (userData: RegisterRequest) => Promise<void>
-  logout: () => void
+  logout: () => Promise<void>
   refreshToken: () => Promise<void>
   updateUser: (user: Partial<User>) => void
   clearError: () => void
@@ -29,10 +29,10 @@ export const useAuthStore = create<AuthStore>()(
       // Login action
       login: async (credentials: LoginRequest) => {
         set({ isLoading: true, error: null })
-        
+
         try {
           const response: AuthResponse = await authService.login(credentials)
-          
+
           set({
             user: response.user,
             token: response.access_token,
@@ -66,10 +66,10 @@ export const useAuthStore = create<AuthStore>()(
       // Register action
       register: async (userData: RegisterRequest) => {
         set({ isLoading: true, error: null })
-        
+
         try {
           const response: AuthResponse = await authService.register(userData)
-          
+
           set({
             user: response.user,
             token: response.access_token,
@@ -90,12 +90,25 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       // Logout action
-      logout: () => {
+      logout: async () => {
+        // Get token BEFORE clearing state
+        const currentToken = get().token
+
         // Call logout service to invalidate token on server
-        if (get().token) {
-          authService.logout().catch(console.error)
+        if (currentToken) {
+          try {
+            console.log('[AuthStore] 🚪 Calling logout service with token')
+            await authService.logout()
+            console.log('[AuthStore] ✅ Logout successful on server')
+          } catch (error) {
+            console.error(
+              '[AuthStore] ⚠️ Logout request failed (will clear locally anyway):',
+              error
+            )
+          }
         }
 
+        // Clear local state
         set({
           user: null,
           token: null,
@@ -103,19 +116,21 @@ export const useAuthStore = create<AuthStore>()(
           isLoading: false,
           error: null,
         })
+
+        console.log('[AuthStore] ✅ Local state cleared')
       },
 
       // Refresh token action
       refreshToken: async () => {
         const currentToken = get().token
-        
+
         if (!currentToken) {
           throw new Error('No token available')
         }
 
         try {
           const response: AuthResponse = await authService.refreshToken(currentToken)
-          
+
           set({
             user: response.user,
             token: response.access_token,
@@ -147,7 +162,7 @@ export const useAuthStore = create<AuthStore>()(
       // Initialize auth on app start
       initializeAuth: async () => {
         const token = get().token
-        
+
         if (!token) {
           set({ isLoading: false })
           return
@@ -158,7 +173,7 @@ export const useAuthStore = create<AuthStore>()(
         try {
           // Verify token and get current user
           const user = await authService.getCurrentUser(token)
-          
+
           set({
             user,
             isAuthenticated: true,
@@ -167,6 +182,7 @@ export const useAuthStore = create<AuthStore>()(
           })
         } catch (error: any) {
           // Token is invalid, clear auth state
+          console.error('[AuthStore] Token validation failed:', error.message)
           set({
             user: null,
             token: null,
@@ -179,12 +195,12 @@ export const useAuthStore = create<AuthStore>()(
     }),
     {
       name: `${APP_CONFIG.storage.prefix}${APP_CONFIG.storage.keys.auth}`,
-      partialize: (state) => ({
+      partialize: state => ({
         user: state.user,
         token: state.token,
         isAuthenticated: state.isAuthenticated,
       }),
-      onRehydrateStorage: () => (state) => {
+      onRehydrateStorage: () => state => {
         // Verify stored auth state on rehydration
         if (state?.token && state?.user) {
           state.initializeAuth()

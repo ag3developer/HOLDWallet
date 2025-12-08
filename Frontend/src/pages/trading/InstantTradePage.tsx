@@ -1,660 +1,284 @@
 import React, { useState, useEffect } from 'react'
-import { useTranslation } from 'react-i18next'
-import { 
-  ArrowUpDown, 
-  TrendingUp, 
-  TrendingDown, 
-  Clock, 
-  Shield, 
-  Zap,
-  Bitcoin,
-  DollarSign,
-  Calculator,
-  CheckCircle,
-  Info,
-  Coins,
-  Star,
-  Users,
-  Activity,
-  BarChart3,
-  Eye,
-  EyeOff,
-  Settings,
-  Repeat,
-  Target,
-  Globe,
-  Wallet,
-  CreditCard,
-  History,
-  AlertCircle,
-  ChevronRight,
-  RefreshCw,
-  Lock,
-  Percent,
-  Timer,
-  Award
-} from 'lucide-react'
+import { useCurrencyStore } from '@/stores/useCurrencyStore'
+import { TradingForm } from './components/TradingForm'
+import { MarketPricesCarousel } from './components/MarketPricesCarousel'
+import { QuoteDisplay } from './components/QuoteDisplay'
+import { ConfirmationPanel } from './components/ConfirmationPanel'
+import { BenefitsSidebar } from './components/BenefitsSidebar'
+import { TradeHistoryPanel } from './components/TradeHistoryPanel'
+import { ChevronDown, TrendingUp, Zap, Clock, Globe } from 'lucide-react'
+
+interface Quote {
+  quote_id: string
+  operation: 'buy' | 'sell'
+  symbol: string
+  crypto_price: number
+  fiat_amount: number
+  crypto_amount: number
+  spread_percentage: number
+  spread_amount: number
+  network_fee_percentage: number
+  network_fee_amount: number
+  total_amount: number
+  expires_in_seconds: number
+}
 
 interface CryptoPrice {
   symbol: string
   name: string
   price: number
   change24h: number
-  iconName: string
-  volume24h: number
-  marketCap: number
   high24h: number
   low24h: number
-  priceHistory: number[]
 }
 
-interface TradeForm {
-  type: 'buy' | 'sell'
-  fromAsset: string
-  toAsset: string
-  amount: string
-  receiveAmount: string
+// Funções auxiliares para formatação de moeda
+const getCurrencySymbol = (currency: string): string => {
+  if (currency === 'BRL') return 'R$'
+  if (currency === 'USD') return '$'
+  return '€'
 }
 
-interface TradingStats {
-  volume24h: number
-  totalTrades: number
-  avgExecutionTime: string
-  spread: number
+const getCurrencyLocale = (currency: string): string => {
+  if (currency === 'BRL') return 'pt-BR'
+  if (currency === 'USD') return 'en-US'
+  return 'de-DE'
 }
 
-interface OrderBookEntry {
-  price: number
-  amount: number
-  total: number
+// Função para gerar variação de preço realista
+const generatePriceVariation = (
+  basePrice: number
+): { change24h: number; high24h: number; low24h: number } => {
+  const variation = (Math.random() - 0.5) * 0.08
+  const change24h = variation * 100
+  const high24h = basePrice * (1 + Math.abs(variation) + 0.02)
+  const low24h = basePrice * (1 - Math.abs(variation) - 0.02)
+  return { change24h, high24h, low24h }
 }
 
-const cryptoPrices: CryptoPrice[] = [
-  { 
-    symbol: 'BTC', 
-    name: 'Bitcoin', 
-    price: 65420.50, 
-    change24h: 2.45, 
-    iconName: 'bitcoin',
-    volume24h: 28547000000,
-    marketCap: 1285000000000,
-    high24h: 66100.00,
-    low24h: 63800.00,
-    priceHistory: [63800, 64200, 65100, 64800, 65420]
-  },
-  { 
-    symbol: 'ETH', 
-    name: 'Ethereum', 
-    price: 3240.80, 
-    change24h: -1.20, 
-    iconName: 'coins',
-    volume24h: 15247000000,
-    marketCap: 389000000000,
-    high24h: 3285.50,
-    low24h: 3198.20,
-    priceHistory: [3198, 3245, 3280, 3265, 3240]
-  },
-  { 
-    symbol: 'USDT', 
-    name: 'Tether', 
-    price: 1.00, 
-    change24h: 0.01, 
-    iconName: 'dollar',
-    volume24h: 52847000000,
-    marketCap: 96500000000,
-    high24h: 1.001,
-    low24h: 0.999,
-    priceHistory: [0.999, 1.000, 1.001, 1.000, 1.000]
-  },
-  { 
-    symbol: 'ADA', 
-    name: 'Cardano', 
-    price: 0.52, 
-    change24h: 3.85, 
-    iconName: 'coins',
-    volume24h: 847000000,
-    marketCap: 18200000000,
-    high24h: 0.54,
-    low24h: 0.49,
-    priceHistory: [0.49, 0.50, 0.53, 0.52, 0.52]
-  },
-  { 
-    symbol: 'DOT', 
-    name: 'Polkadot', 
-    price: 7.42, 
-    change24h: -0.85, 
-    iconName: 'coins',
-    volume24h: 245000000,
-    marketCap: 9850000000,
-    high24h: 7.68,
-    low24h: 7.31,
-    priceHistory: [7.31, 7.45, 7.68, 7.55, 7.42]
-  },
-  { 
-    symbol: 'MATIC', 
-    name: 'Polygon', 
-    price: 0.89, 
-    change24h: 5.24, 
-    iconName: 'coins',
-    volume24h: 156000000,
-    marketCap: 8250000000,
-    high24h: 0.92,
-    low24h: 0.84,
-    priceHistory: [0.84, 0.86, 0.90, 0.88, 0.89]
-  }
+const initialCryptos: CryptoPrice[] = [
+  { symbol: 'BTC', name: 'Bitcoin', price: 300000, ...generatePriceVariation(300000) },
+  { symbol: 'ETH', name: 'Ethereum', price: 12500, ...generatePriceVariation(12500) },
+  { symbol: 'MATIC', name: 'Polygon', price: 5.8, ...generatePriceVariation(5.8) },
+  { symbol: 'BNB', name: 'Binance Coin', price: 2500, ...generatePriceVariation(2500) },
+  { symbol: 'TRX', name: 'TRON', price: 0.45, ...generatePriceVariation(0.45) },
+  { symbol: 'BASE', name: 'Base', price: 12, ...generatePriceVariation(12) },
+  { symbol: 'USDT', name: 'Tether', price: 5, ...generatePriceVariation(5) },
+  { symbol: 'SOL', name: 'Solana', price: 500, ...generatePriceVariation(500) },
+  { symbol: 'LTC', name: 'Litecoin', price: 120, ...generatePriceVariation(120) },
+  { symbol: 'DOGE', name: 'Dogecoin', price: 3.5, ...generatePriceVariation(3.5) },
+  { symbol: 'ADA', name: 'Cardano', price: 2.5, ...generatePriceVariation(2.5) },
+  { symbol: 'AVAX', name: 'Avalanche', price: 140, ...generatePriceVariation(140) },
+  { symbol: 'DOT', name: 'Polkadot', price: 8.5, ...generatePriceVariation(8.5) },
+  { symbol: 'LINK', name: 'Chainlink', price: 75, ...generatePriceVariation(75) },
+  { symbol: 'SHIB', name: 'Shiba Inu', price: 0.000012, ...generatePriceVariation(0.000012) },
+  { symbol: 'XRP', name: 'Ripple', price: 15, ...generatePriceVariation(15) },
 ]
 
-const tradingStats: TradingStats = {
-  volume24h: 98750000,
-  totalTrades: 15420,
-  avgExecutionTime: '0.3s',
-  spread: 0.15
-}
+const updateCryptoPrices = (prices: CryptoPrice[]): CryptoPrice[] => {
+  const variation = (Math.random() - 0.5) * 0.02
+  const change24h = (Math.random() - 0.5) * 0.08 * 100
 
-const orderBookData = {
-  bids: [
-    { price: 65410.50, amount: 0.5, total: 32705.25 },
-    { price: 65405.00, amount: 1.2, total: 78486.00 },
-    { price: 65400.00, amount: 0.8, total: 52320.00 },
-    { price: 65395.50, amount: 2.1, total: 137330.55 },
-    { price: 65390.00, amount: 0.6, total: 39234.00 }
-  ],
-  asks: [
-    { price: 65425.50, amount: 0.7, total: 45797.85 },
-    { price: 65430.00, amount: 1.5, total: 98145.00 },
-    { price: 65435.50, amount: 0.9, total: 58891.95 },
-    { price: 65440.00, amount: 1.8, total: 117792.00 },
-    { price: 65445.50, amount: 0.4, total: 26178.20 }
-  ]
-}
-
-export const InstantTradePage = () => {
-  const { t } = useTranslation()
-  const [formData, setFormData] = useState<TradeForm>({
-    type: 'buy',
-    fromAsset: 'USDT',
-    toAsset: 'BTC',
-    amount: '',
-    receiveAmount: ''
+  return prices.map(crypto => {
+    const newPrice = crypto.price * (1 + variation)
+    return {
+      ...crypto,
+      price: newPrice,
+      change24h,
+      high24h: newPrice * 1.05,
+      low24h: newPrice * 0.95,
+    }
   })
-  const [isProcessing, setIsProcessing] = useState(false)
+}
+
+export function InstantTradePage() {
+  const { currency, convertFromBRL: storeConvertFromBRL } = useCurrencyStore()
+  const [cryptoPrices, setCryptoPrices] = useState<CryptoPrice[]>(initialCryptos)
+  const [operation, setOperation] = useState<'buy' | 'sell'>('buy')
+  const [symbol, setSymbol] = useState('BTC')
+  const [quote, setQuote] = useState<Quote | null>(null)
   const [showConfirmation, setShowConfirmation] = useState(false)
-  const [showAdvanced, setShowAdvanced] = useState(false)
-  const [activeTab, setActiveTab] = useState<'simple' | 'advanced' | 'orderbook'>('simple')
-  const [priceAlerts, setPriceAlerts] = useState(false)
-  const [slippage, setSlippage] = useState(0.5)
-  const [orderType, setOrderType] = useState<'market' | 'limit'>('market')
-  const [limitPrice, setLimitPrice] = useState('')
+  const [showHistory, setShowHistory] = useState(false)
 
-  // Calculate receive amount based on current price
-  const calculateReceiveAmount = (amount: string, from: string, to: string) => {
-    if (!amount || isNaN(Number(amount))) return '0'
-    
-    const fromPrice = cryptoPrices.find(p => p.symbol === from)?.price || 1
-    const toPrice = cryptoPrices.find(p => p.symbol === to)?.price || 1
-    
-    const usdValue = Number(amount) * fromPrice
-    const receiveAmount = usdValue / toPrice
-    
-    return receiveAmount.toFixed(to === 'BTC' ? 8 : 6)
+  // Safe converter function with fallback
+  const convertFromBRL = (value: number): number => {
+    if (!value || typeof value !== 'number' || Number.isNaN(value)) {
+      return 0
+    }
+    const converted = storeConvertFromBRL(value)
+    if (typeof converted !== 'number' || Number.isNaN(converted)) {
+      return value
+    }
+    return converted
   }
 
+  // Atualizar preços em tempo real a cada 5 segundos
   useEffect(() => {
-    if (formData.amount) {
-      const receive = calculateReceiveAmount(formData.amount, formData.fromAsset, formData.toAsset)
-      setFormData(prev => ({ ...prev, receiveAmount: receive }))
+    const interval = setInterval(() => {
+      setCryptoPrices(updateCryptoPrices)
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const handleQuoteReceived = (newQuote: Quote) => {
+    // Update the quote with the current real market price
+    const currentPrice =
+      cryptoPrices.find(p => p.symbol === newQuote.symbol)?.price ?? newQuote.crypto_price
+    const updatedQuote = {
+      ...newQuote,
+      crypto_price: currentPrice,
     }
-  }, [formData.amount, formData.fromAsset, formData.toAsset])
-
-  const handleSwapAssets = () => {
-    setFormData(prev => ({
-      ...prev,
-      fromAsset: prev.toAsset,
-      toAsset: prev.fromAsset,
-      amount: prev.receiveAmount,
-      receiveAmount: prev.amount
-    }))
+    setQuote(updatedQuote)
   }
 
-  const handleTradeTypeChange = (type: 'buy' | 'sell') => {
-    setFormData(prev => ({
-      ...prev,
-      type,
-      fromAsset: type === 'buy' ? 'USDT' : 'BTC',
-      toAsset: type === 'buy' ? 'BTC' : 'USDT'
-    }))
-  }
-
-  const handleTrade = () => {
-    setShowConfirmation(true)
-  }
-
-  const confirmTrade = async () => {
-    setIsProcessing(true)
+  const handleConfirmSuccess = (tradeId: string) => {
     setShowConfirmation(false)
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 3000))
-    
-    setIsProcessing(false)
-    // Here you would redirect to success page or show success message
+    setQuote(null)
   }
 
-  const getAssetIcon = (symbol: string) => {
-    switch (symbol) {
-      case 'BTC':
-        return Bitcoin
-      case 'ETH':
-        return Coins
-      case 'USDT':
-        return DollarSign
-      default:
-        return DollarSign
+  // Update quote price when crypto prices change
+  useEffect(() => {
+    if (quote) {
+      const currentPrice =
+        cryptoPrices.find(p => p.symbol === quote.symbol)?.price ?? quote.crypto_price
+      setQuote(prev => (prev ? { ...prev, crypto_price: currentPrice } : null))
     }
-  }
-
-  const fee = Number(formData.amount) * 0.005 // 0.5% fee
+  }, [cryptoPrices])
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center mb-4">
-            <div className="h-16 w-16 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
-              <Zap className="w-8 h-8 text-white" />
-            </div>
-          </div>
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
-            Negociação Instantânea
-          </h1>
-          <p className="text-lg text-gray-600 dark:text-gray-400">
-            Compre e venda criptomoedas diretamente com a HOLD Digital Assets
-          </p>
-        </div>
-
-        {/* Stats Bar */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Volume 24h</p>
-                <p className="text-lg font-bold text-gray-900 dark:text-white">
-                  ${(tradingStats.volume24h / 1000000).toFixed(1)}M
-                </p>
-              </div>
-              <BarChart3 className="w-8 h-8 text-blue-500" />
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Trades Hoje</p>
-                <p className="text-lg font-bold text-gray-900 dark:text-white">
-                  {tradingStats.totalTrades.toLocaleString()}
-                </p>
-              </div>
-              <Activity className="w-8 h-8 text-green-500" />
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Execução Média</p>
-                <p className="text-lg font-bold text-gray-900 dark:text-white">
-                  {tradingStats.avgExecutionTime}
-                </p>
-              </div>
-              <Timer className="w-8 h-8 text-purple-500" />
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Spread Médio</p>
-                <p className="text-lg font-bold text-gray-900 dark:text-white">
-                  {tradingStats.spread}%
-                </p>
-              </div>
-              <Target className="w-8 h-8 text-orange-500" />
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
-          {/* Trading Panel */}
-          <div className="xl:col-span-2">
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-              
-              {/* Tab Navigation */}
-              <div className="border-b border-gray-200 dark:border-gray-700">
-                <div className="flex">
-                  <button
-                    onClick={() => setActiveTab('simple')}
-                    className={`flex-1 px-6 py-4 font-medium transition-colors ${
-                      activeTab === 'simple'
-                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 border-b-2 border-blue-600'
-                        : 'text-gray-600 dark:text-gray-300 hover:text-blue-600'
-                    }`}
-                  >
-                    <Calculator className="w-4 h-4 inline mr-2" />
-                    Simples
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('advanced')}
-                    className={`flex-1 px-6 py-4 font-medium transition-colors ${
-                      activeTab === 'advanced'
-                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 border-b-2 border-blue-600'
-                        : 'text-gray-600 dark:text-gray-300 hover:text-blue-600'
-                    }`}
-                  >
-                    <Settings className="w-4 h-4 inline mr-2" />
-                    Avançado
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('orderbook')}
-                    className={`flex-1 px-6 py-4 font-medium transition-colors ${
-                      activeTab === 'orderbook'
-                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 border-b-2 border-blue-600'
-                        : 'text-gray-600 dark:text-gray-300 hover:text-blue-600'
-                    }`}
-                  >
-                    <BarChart3 className="w-4 h-4 inline mr-2" />
-                    Order Book
-                  </button>
-                </div>
-              </div>
-
-              {/* Trading Content */}
-              <div className="p-6">
-                {/* Trade Type Selector */}
-                <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1 mb-6">
-                  <button
-                    onClick={() => handleTradeTypeChange('buy')}
-                    className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors ${
-                      formData.type === 'buy'
-                        ? 'bg-green-500 text-white'
-                        : 'text-gray-600 dark:text-gray-300 hover:text-green-500'
-                    }`}
-                  >
-                    <TrendingUp className="w-4 h-4 inline mr-2" />
-                    Comprar
-                  </button>
-                  <button
-                    onClick={() => handleTradeTypeChange('sell')}
-                    className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors ${
-                      formData.type === 'sell'
-                        ? 'bg-red-500 text-white'
-                        : 'text-gray-600 dark:text-gray-300 hover:text-red-500'
-                    }`}
-                  >
-                    <TrendingDown className="w-4 h-4 inline mr-2" />
-                    Vender
-                  </button>
-                </div>
-
-                {/* From Asset */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    {formData.type === 'buy' ? 'Pagar com' : 'Vender'}
-                  </label>
-                  <div className="relative">
-                    <div className="flex items-center bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                      <div className="flex items-center flex-1">
-                        {React.createElement(getAssetIcon(formData.fromAsset), { 
-                          className: "w-6 h-6 text-orange-500 mr-3" 
-                        })}
-                        <div>
-                          <div className="font-medium text-gray-900 dark:text-white">
-                            {formData.fromAsset}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            ${cryptoPrices.find(p => p.symbol === formData.fromAsset)?.price.toLocaleString()}
-                          </div>
-                        </div>
-                      </div>
-                      <input
-                        type="number"
-                        value={formData.amount}
-                        onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
-                        placeholder="0.00"
-                        className="text-right text-xl font-medium bg-transparent border-none outline-none text-gray-900 dark:text-white w-32"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Swap Button */}
-                <div className="flex justify-center mb-4">
-                  <button
-                    type="button"
-                    aria-label="Trocar moedas"
-                    onClick={handleSwapAssets}
-                    className="p-2 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                  >
-                    <ArrowUpDown className="w-5 h-5 text-gray-600 dark:text-gray-300" />
-                  </button>
-                </div>
-
-                {/* To Asset */}
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    {formData.type === 'buy' ? 'Receber' : 'Receber em troca'}
-                  </label>
-                  <div className="relative">
-                    <div className="flex items-center bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                      <div className="flex items-center flex-1">
-                        {React.createElement(getAssetIcon(formData.toAsset), { 
-                          className: "w-6 h-6 text-orange-500 mr-3" 
-                        })}
-                        <div>
-                          <div className="font-medium text-gray-900 dark:text-white">
-                            {formData.toAsset}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            ${cryptoPrices.find(p => p.symbol === formData.toAsset)?.price.toLocaleString()}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right text-xl font-medium text-gray-900 dark:text-white">
-                        {formData.receiveAmount}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Fee Information */}
-                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 mb-6">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600 dark:text-gray-400">Taxa de negociação (0.5%)</span>
-                    <span className="font-medium">${fee.toFixed(2)}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm mt-2">
-                    <span className="text-gray-600 dark:text-gray-400">Valor total</span>
-                    <span className="font-bold text-lg">${(Number(formData.amount) + fee).toFixed(2)}</span>
-                  </div>
-                </div>
-
-                {/* Trade Button */}
-                <button
-                  onClick={handleTrade}
-                  disabled={!formData.amount || Number(formData.amount) <= 0 || isProcessing}
-                  className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${
-                    formData.type === 'buy'
-                      ? 'bg-green-500 hover:bg-green-600 disabled:bg-gray-300'
-                      : 'bg-red-500 hover:bg-red-600 disabled:bg-gray-300'
-                  } text-white disabled:cursor-not-allowed`}
-                >
-                  {isProcessing ? (
-                    <div className="flex items-center justify-center">
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                      Processando...
-                    </div>
-                  ) : (
-                    `${formData.type === 'buy' ? 'Comprar' : 'Vender'} ${formData.toAsset}`
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Market Data Sidebar */}
-          <div className="xl:col-span-2 space-y-6">
-            {/* Live Prices */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                  Preços em Tempo Real
-                </h3>
-                <button
-                  aria-label="Atualizar preços"
-                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                >
-                  <RefreshCw className="w-4 h-4 text-gray-500" />
-                </button>
-              </div>
-              <div className="space-y-4">
-                {cryptoPrices.map((crypto) => {
-                  const IconComponent = getAssetIcon(crypto.symbol)
-                  return (
-                    <div key={crypto.symbol} className="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-gray-200 dark:hover:border-gray-600">
-                      <div className="flex items-center space-x-3">
-                        <IconComponent className="w-8 h-8 text-orange-500" />
-                        <div>
-                          <div className="font-semibold text-gray-900 dark:text-white">
-                            {crypto.symbol}
-                          </div>
-                          <div className="text-sm text-gray-500">{crypto.name}</div>
-                          <div className="text-xs text-gray-400">
-                            Vol: ${(crypto.volume24h / 1000000000).toFixed(2)}B
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-bold text-lg text-gray-900 dark:text-white">
-                          ${crypto.price.toLocaleString()}
-                        </div>
-                        <div className={`text-sm font-medium ${
-                          crypto.change24h >= 0 ? 'text-green-500' : 'text-red-500'
-                        }`}>
-                          {crypto.change24h >= 0 ? '↗' : '↘'} {Math.abs(crypto.change24h)}%
-                        </div>
-                        <div className="text-xs text-gray-400">
-                          H: ${crypto.high24h.toLocaleString()} L: ${crypto.low24h.toLocaleString()}
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Trading Benefits */}
-            <div className="bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-xl p-6 border border-blue-200 dark:border-blue-800">
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-                Vantagens HOLD
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="text-center p-4 bg-white dark:bg-gray-800 rounded-lg">
-                  <Zap className="w-8 h-8 text-blue-500 mx-auto mb-2" />
-                  <div className="font-medium text-gray-900 dark:text-white text-sm">
-                    Execução Instantânea
-                  </div>
-                </div>
-                <div className="text-center p-4 bg-white dark:bg-gray-800 rounded-lg">
-                  <Shield className="w-8 h-8 text-green-500 mx-auto mb-2" />
-                  <div className="font-medium text-gray-900 dark:text-white text-sm">
-                    100% Seguro
-                  </div>
-                </div>
-                <div className="text-center p-4 bg-white dark:bg-gray-800 rounded-lg">
-                  <Clock className="w-8 h-8 text-purple-500 mx-auto mb-2" />
-                  <div className="font-medium text-gray-900 dark:text-white text-sm">
-                    24/7 Disponível
-                  </div>
-                </div>
-                <div className="text-center p-4 bg-white dark:bg-gray-800 rounded-lg">
-                  <Percent className="w-8 h-8 text-orange-500 mx-auto mb-2" />
-                  <div className="font-medium text-gray-900 dark:text-white text-sm">
-                    Taxas Baixas
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+    <div className='space-y-6'>
+      {/* Header */}
+      <div>
+        <h1 className='text-3xl font-bold text-gray-900 dark:text-white'>Instant Trade OTC</h1>
+        <p className='text-gray-600 dark:text-gray-400 mt-1'>
+          Buy and sell cryptocurrencies instantly with real-time pricing
+        </p>
       </div>
 
-      {/* Confirmation Modal */}
-      {showConfirmation && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 max-w-md w-full">
-            <div className="text-center mb-6">
-              <div className="h-16 w-16 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center mx-auto mb-4">
-                <CheckCircle className="w-8 h-8 text-blue-500" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                Confirmar Negociação
-              </h3>
-              <p className="text-gray-600 dark:text-gray-400">
-                Revise os detalhes da sua ordem
-              </p>
-            </div>
+      {/* Market Prices Carousel */}
+      <MarketPricesCarousel
+        cryptoPrices={cryptoPrices}
+        selectedSymbol={symbol}
+        onSelectSymbol={setSymbol}
+        getCurrencySymbol={getCurrencySymbol}
+        getCurrencyLocale={getCurrencyLocale}
+        convertFromBRL={convertFromBRL}
+      />
 
-            <div className="space-y-3 mb-6">
-              <div className="flex justify-between">
-                <span className="text-gray-600 dark:text-gray-400">Tipo</span>
-                <span className="font-medium">
-                  {formData.type === 'buy' ? 'Compra' : 'Venda'}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600 dark:text-gray-400">Enviar</span>
-                <span className="font-medium">
-                  {formData.amount} {formData.fromAsset}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600 dark:text-gray-400">Receber</span>
-                <span className="font-medium">
-                  {formData.receiveAmount} {formData.toAsset}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600 dark:text-gray-400">Taxa</span>
-                <span className="font-medium">${fee.toFixed(2)}</span>
-              </div>
-              <hr className="border-gray-200 dark:border-gray-700" />
-              <div className="flex justify-between font-bold">
-                <span>Total</span>
-                <span>${(Number(formData.amount) + fee).toFixed(2)}</span>
-              </div>
-            </div>
+      {/* Trading Panel - 3 Column Professional Layout */}
+      {showConfirmation && quote && (
+        <ConfirmationPanel
+          quote={quote}
+          currencySymbol={getCurrencySymbol(currency)}
+          currencyLocale={getCurrencyLocale(currency)}
+          convertFromBRL={convertFromBRL}
+          onBack={() => setShowConfirmation(false)}
+          onSuccess={handleConfirmSuccess}
+        />
+      )}
 
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowConfirmation(false)}
-                className="flex-1 py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-lg font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={confirmTrade}
-                className={`flex-1 py-2 px-4 rounded-lg font-medium text-white transition-colors ${
-                  formData.type === 'buy'
-                    ? 'bg-green-500 hover:bg-green-600'
-                    : 'bg-red-500 hover:bg-red-600'
-                }`}
-              >
-                Confirmar
-              </button>
-            </div>
+      {!showConfirmation && (
+        <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
+          {/* Column 1: Trading Form (40%) */}
+          <div className='md:col-span-1'>
+            <TradingForm
+              cryptoPrices={cryptoPrices}
+              selectedSymbol={symbol}
+              onSymbolChange={setSymbol}
+              isBuy={operation === 'buy'}
+              onOperationChange={isBuy => setOperation(isBuy ? 'buy' : 'sell')}
+              onQuoteReceived={handleQuoteReceived}
+              currency={currency}
+              convertFromBRL={convertFromBRL}
+            />
+          </div>
+
+          {/* Column 2: Quote Display (40%) */}
+          <div className='md:col-span-1'>
+            {quote ? (
+              <QuoteDisplay
+                quote={quote}
+                currencySymbol={getCurrencySymbol(currency)}
+                currencyLocale={getCurrencyLocale(currency)}
+                convertFromBRL={convertFromBRL}
+                onConfirmClick={() => setShowConfirmation(true)}
+              />
+            ) : (
+              <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-4'>
+                <div className='space-y-3'>
+                  <h3 className='text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2'>
+                    <Zap className='w-4 h-4' /> Quick Tips
+                  </h3>
+
+                  <div className='space-y-2 text-xs'>
+                    <div className='p-2 bg-blue-50 dark:bg-blue-900/30 rounded border-l-2 border-blue-500 flex gap-2'>
+                      <TrendingUp className='w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5' />
+                      <p className='text-gray-700 dark:text-gray-300'>
+                        <span className='font-medium'>Best rates:</span> Higher amounts get better
+                        prices
+                      </p>
+                    </div>
+
+                    <div className='p-2 bg-green-50 dark:bg-green-900/30 rounded border-l-2 border-green-500 flex gap-2'>
+                      <Zap className='w-4 h-4 text-green-600 flex-shrink-0 mt-0.5' />
+                      <p className='text-gray-700 dark:text-gray-300'>
+                        <span className='font-medium'>Fast delivery:</span> Most trades complete in
+                        minutes
+                      </p>
+                    </div>
+
+                    <div className='p-2 bg-amber-50 dark:bg-amber-900/30 rounded border-l-2 border-amber-500 flex gap-2'>
+                      <Clock className='w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5' />
+                      <p className='text-gray-700 dark:text-gray-300'>
+                        <span className='font-medium'>Quote expires:</span> Refresh if quote times
+                        out
+                      </p>
+                    </div>
+
+                    <div className='p-2 bg-purple-50 dark:bg-purple-900/30 rounded border-l-2 border-purple-500 flex gap-2'>
+                      <Globe className='w-4 h-4 text-purple-600 flex-shrink-0 mt-0.5' />
+                      <p className='text-gray-700 dark:text-gray-300'>
+                        <span className='font-medium'>24/7 trading:</span> Trade anytime, every day
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Column 3: Benefits Sidebar (20%) */}
+          <div className='md:col-span-2 lg:col-span-1'>
+            <BenefitsSidebar />
           </div>
         </div>
       )}
+
+      {/* Trade History Section */}
+      <div className='border-t border-gray-200 dark:border-gray-700 pt-6'>
+        <button
+          onClick={() => setShowHistory(!showHistory)}
+          className='w-full flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors'
+        >
+          <h2 className='text-lg font-semibold text-gray-900 dark:text-white'>
+            Histórico de Trades
+          </h2>
+          <ChevronDown
+            className={`w-5 h-5 text-gray-600 dark:text-gray-400 transition-transform ${
+              showHistory ? 'rotate-180' : ''
+            }`}
+          />
+        </button>
+        {showHistory && (
+          <div className='mt-2'>
+            <TradeHistoryPanel
+              currencySymbol={getCurrencySymbol(currency)}
+              currencyLocale={getCurrencyLocale(currency)}
+              isVisible={showHistory}
+            />
+          </div>
+        )}
+      </div>
     </div>
   )
 }

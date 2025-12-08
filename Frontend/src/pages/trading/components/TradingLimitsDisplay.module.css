@@ -1,0 +1,3 @@
+.progressBar {
+  width: var(--bar-width, 0%);
+}

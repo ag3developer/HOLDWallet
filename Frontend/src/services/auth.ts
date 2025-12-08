@@ -17,10 +17,16 @@ class AuthService {
   // Logout user
   async logout(): Promise<void> {
     try {
-      await apiClient.post('/auth/logout')
-    } catch (error) {
-      // Ignore logout errors, user will be logged out locally anyway
-      console.warn('Logout request failed:', error)
+      console.log('[AuthService] 🚪 Sending logout request to server')
+      const response = await apiClient.post('/auth/logout')
+      console.log('[AuthService] ✅ Logout response:', response.status)
+    } catch (error: any) {
+      // Log the error but don't throw - user will be logged out locally anyway
+      console.warn('[AuthService] ⚠️ Logout request failed:', {
+        status: error.response?.status,
+        message: error.message,
+      })
+      // Don't re-throw, allow local logout to proceed
     }
   }
 
@@ -96,7 +102,11 @@ class AuthService {
   }
 
   // Get 2FA status
-  async get2FAStatus(): Promise<{ enabled: boolean; verified: boolean; has_backup_codes: boolean }> {
+  async get2FAStatus(): Promise<{
+    enabled: boolean
+    verified: boolean
+    has_backup_codes: boolean
+  }> {
     const response = await apiClient.get('/auth/2fa/status')
     return response.data
   }
