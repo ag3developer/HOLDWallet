@@ -123,18 +123,18 @@ export function MarketPricesCarousel({
             <button
               key={crypto.symbol}
               onClick={() => onSelectSymbol(crypto.symbol)}
-              className={`flex-shrink-0 w-48 text-left bg-white dark:bg-gray-800 rounded-lg shadow p-3 cursor-pointer transition-all hover:shadow-lg hover:scale-105 ${
+              className={`flex-shrink-0 w-44 text-left bg-white dark:bg-gray-800 rounded-lg shadow p-2.5 cursor-pointer transition-all hover:shadow-lg hover:scale-105 ${
                 selectedSymbol === crypto.symbol ? 'ring-2 ring-blue-500 scale-105' : ''
               }`}
             >
-              <div className='flex items-start justify-between mb-2'>
+              <div className='flex items-start justify-between mb-1.5'>
                 <div className='flex items-center gap-2 flex-1'>
                   {/* Crypto Logo */}
                   <div className='flex-shrink-0'>
                     <img
                       src={CRYPTO_LOGOS[crypto.symbol] || ''}
                       alt={crypto.symbol}
-                      className='w-8 h-8 rounded-full'
+                      className='w-7 h-7 rounded-full'
                       onError={e => {
                         // Fallback if image fails to load
                         e.currentTarget.style.display = 'none'
@@ -166,7 +166,7 @@ export function MarketPricesCarousel({
                 </div>
               </div>
 
-              <p className='text-lg font-bold text-gray-900 dark:text-white mb-1 leading-tight'>
+              <p className='text-base font-bold text-gray-900 dark:text-white mb-1 leading-tight'>
                 {getCurrencySymbol(currency)}{' '}
                 {safeConvertFromBRL(crypto.price).toLocaleString(getCurrencyLocale(currency), {
                   maximumFractionDigits: 2,
@@ -174,7 +174,7 @@ export function MarketPricesCarousel({
                 })}
               </p>
 
-              <div className='grid grid-cols-2 gap-1 pt-1.5 border-t border-gray-200 dark:border-gray-700 text-xs'>
+              <div className='grid grid-cols-2 gap-1 pt-1 border-t border-gray-200 dark:border-gray-700 text-xs'>
                 <div>
                   <p className='text-gray-600 dark:text-gray-400 text-xs leading-tight'>H</p>
                   <p className='font-medium text-gray-900 dark:text-white text-xs'>

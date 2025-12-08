@@ -296,76 +296,76 @@ export const MyOrdersPage = () => {
               </button>
             </div>
           ) : (
-            <div className='space-y-4'>
+            <div className='space-y-3'>
               {filteredOrders.map((order: any) => (
                 <div
                   key={order.id}
-                  className='border border-gray-200 dark:border-gray-700 rounded-lg p-6 hover:border-blue-500 dark:hover:border-blue-500 transition-colors'
+                  className='border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-blue-500 dark:hover:border-blue-500 transition-colors'
                 >
-                  <div className='flex flex-col lg:flex-row lg:items-center justify-between gap-4'>
+                  <div className='flex flex-col lg:flex-row lg:items-center justify-between gap-3'>
                     {/* Order Info */}
                     <div className='flex-1'>
-                      <div className='flex items-center gap-3 mb-3'>
+                      <div className='flex items-center gap-2 mb-2'>
                         <div
-                          className={`p-2 rounded-lg ${
+                          className={`p-1.5 rounded-lg ${
                             order.type === 'sell'
                               ? 'bg-green-100 dark:bg-green-900'
                               : 'bg-red-100 dark:bg-red-900'
                           }`}
                         >
                           {order.type === 'sell' ? (
-                            <TrendingUp className='w-5 h-5 text-green-600' />
+                            <TrendingUp className='w-4 h-4 text-green-600' />
                           ) : (
-                            <TrendingDown className='w-5 h-5 text-red-600' />
+                            <TrendingDown className='w-4 h-4 text-red-600' />
                           )}
                         </div>
                         <div>
-                          <h3 className='text-lg font-semibold text-gray-900 dark:text-white'>
+                          <h3 className='text-base font-semibold text-gray-900 dark:text-white'>
                             {order.type === 'sell' ? 'Vender' : 'Comprar'} {order.coin}
                           </h3>
-                          <p className='text-sm text-gray-600 dark:text-gray-400'>
+                          <p className='text-xs text-gray-600 dark:text-gray-400'>
                             Criada em {new Date(order.created_at).toLocaleDateString('pt-BR')}
                           </p>
                         </div>
                       </div>
 
-                      <div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
+                      <div className='grid grid-cols-2 md:grid-cols-4 gap-3'>
                         <div>
-                          <p className='text-xs text-gray-600 dark:text-gray-400 mb-1'>Preço</p>
-                          <p className='font-semibold text-gray-900 dark:text-white'>
+                          <p className='text-xs text-gray-600 dark:text-gray-400 mb-0.5'>Preço</p>
+                          <p className='font-semibold text-gray-900 dark:text-white text-sm'>
                             {formatCurrency(Number(order.price) || 0)}
                           </p>
                         </div>
                         <div>
-                          <p className='text-xs text-gray-600 dark:text-gray-400 mb-1'>
+                          <p className='text-xs text-gray-600 dark:text-gray-400 mb-0.5'>
                             Quantidade
                           </p>
-                          <p className='font-semibold text-gray-900 dark:text-white'>
+                          <p className='font-semibold text-gray-900 dark:text-white text-sm'>
                             {Number(order.total_amount || order.amount) || 0}{' '}
                             {order.cryptocurrency || order.coin}
                           </p>
                         </div>
                         <div>
-                          <p className='text-xs text-gray-600 dark:text-gray-400 mb-1'>Limites</p>
-                          <p className='font-semibold text-gray-900 dark:text-white text-sm'>
+                          <p className='text-xs text-gray-600 dark:text-gray-400 mb-0.5'>Limites</p>
+                          <p className='font-semibold text-gray-900 dark:text-white text-xs'>
                             {formatCurrency(Number(order.min_order_limit || order.minAmount) || 0)}{' '}
                             -{' '}
                             {formatCurrency(Number(order.max_order_limit || order.maxAmount) || 0)}
                           </p>
                         </div>
                         <div>
-                          <p className='text-xs text-gray-600 dark:text-gray-400 mb-1'>Trades</p>
-                          <p className='font-semibold text-gray-900 dark:text-white'>
+                          <p className='text-xs text-gray-600 dark:text-gray-400 mb-0.5'>Trades</p>
+                          <p className='font-semibold text-gray-900 dark:text-white text-sm'>
                             {order.completed_trades || order.completedTrades || 0} completos
                           </p>
                         </div>
                       </div>
 
-                      <div className='flex flex-wrap gap-2 mt-3'>
+                      <div className='flex flex-wrap gap-1.5 mt-2'>
                         {order.payment_methods?.map((method: string, index: number) => (
                           <span
                             key={index}
-                            className='px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded text-xs font-medium'
+                            className='px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded text-xs font-medium'
                           >
                             {method}
                           </span>
@@ -374,10 +374,10 @@ export const MyOrdersPage = () => {
                     </div>
 
                     {/* Status and Actions */}
-                    <div className='flex flex-col items-end gap-3'>
+                    <div className='flex flex-col items-end gap-2'>
                       {getStatusBadge(order.status)}
 
-                      <div className='flex gap-2'>
+                      <div className='flex gap-1.5'>
                         <button
                           onClick={() => navigate(`/p2p/order/${order.id}`)}
                           className='p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors'
