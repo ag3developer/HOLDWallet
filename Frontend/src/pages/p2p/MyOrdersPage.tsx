@@ -23,6 +23,8 @@ import {
 } from 'lucide-react'
 import { useMyP2POrders, useCancelP2POrder, useToggleOrderStatus } from '@/hooks/useP2POrders'
 import { toast } from 'react-hot-toast'
+import { Carousel } from '@/components/ui/Carousel'
+import { StatCard } from '@/components/ui/StatCard'
 
 export const MyOrdersPage = () => {
   const navigate = useNavigate()
@@ -151,66 +153,47 @@ export const MyOrdersPage = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className='grid grid-cols-1 md:grid-cols-4 gap-4'>
-        <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-4'>
-          <div className='flex items-center justify-between'>
-            <div>
-              <p className='text-sm text-gray-600 dark:text-gray-400'>Ordens Ativas</p>
-              <p className='text-2xl font-bold text-gray-900 dark:text-white'>
-                {ordersData?.data?.filter((o: any) => o.status === 'active').length || 0}
-              </p>
-            </div>
-            <div className='w-12 h-12 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center'>
-              <CheckCircle className='w-6 h-6 text-green-600' />
-            </div>
-          </div>
-        </div>
-
-        <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-4'>
-          <div className='flex items-center justify-between'>
-            <div>
-              <p className='text-sm text-gray-600 dark:text-gray-400'>Pausadas</p>
-              <p className='text-2xl font-bold text-gray-900 dark:text-white'>
-                {ordersData?.data?.filter((o: any) => o.status === 'paused').length || 0}
-              </p>
-            </div>
-            <div className='w-12 h-12 bg-yellow-100 dark:bg-yellow-900 rounded-lg flex items-center justify-center'>
-              <Pause className='w-6 h-6 text-yellow-600' />
-            </div>
-          </div>
-        </div>
-
-        <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-4'>
-          <div className='flex items-center justify-between'>
-            <div>
-              <p className='text-sm text-gray-600 dark:text-gray-400'>Completas</p>
-              <p className='text-2xl font-bold text-gray-900 dark:text-white'>
-                {ordersData?.data?.filter((o: any) => o.status === 'completed').length || 0}
-              </p>
-            </div>
-            <div className='w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center'>
-              <CheckCircle className='w-6 h-6 text-blue-600' />
-            </div>
-          </div>
-        </div>
-
-        <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-4'>
-          <div className='flex items-center justify-between'>
-            <div>
-              <p className='text-sm text-gray-600 dark:text-gray-400'>Volume Total</p>
-              <p className='text-2xl font-bold text-gray-900 dark:text-white'>
-                {formatCurrency(
-                  ordersData?.data?.reduce((acc: number, o: any) => acc + o.price * o.amount, 0) ||
-                    0
-                )}
-              </p>
-            </div>
-            <div className='w-12 h-12 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center'>
-              <DollarSign className='w-6 h-6 text-purple-600' />
-            </div>
-          </div>
-        </div>
-      </div>
+      <Carousel
+        itemsPerView={{ mobile: 1, tablet: 2, desktop: 4 }}
+        gap={16}
+        showControls={true}
+        className='mb-6'
+      >
+        <StatCard
+          title='Ordens Ativas'
+          value={ordersData?.data?.filter((o: any) => o.status === 'active').length || 0}
+          icon={<CheckCircle className='w-6 h-6' />}
+          iconColor='text-green-600'
+          iconBg='bg-green-100 dark:bg-green-900'
+          compact
+        />
+        <StatCard
+          title='Pausadas'
+          value={ordersData?.data?.filter((o: any) => o.status === 'paused').length || 0}
+          icon={<Pause className='w-6 h-6' />}
+          iconColor='text-yellow-600'
+          iconBg='bg-yellow-100 dark:bg-yellow-900'
+          compact
+        />
+        <StatCard
+          title='Completas'
+          value={ordersData?.data?.filter((o: any) => o.status === 'completed').length || 0}
+          icon={<CheckCircle className='w-6 h-6' />}
+          iconColor='text-blue-600'
+          iconBg='bg-blue-100 dark:bg-blue-900'
+          compact
+        />
+        <StatCard
+          title='Volume Total'
+          value={formatCurrency(
+            ordersData?.data?.reduce((acc: number, o: any) => acc + o.price * o.amount, 0) || 0
+          )}
+          icon={<DollarSign className='w-6 h-6' />}
+          iconColor='text-purple-600'
+          iconBg='bg-purple-100 dark:bg-purple-900'
+          compact
+        />
+      </Carousel>
 
       {/* Filters and Search */}
       <div className='bg-white dark:bg-gray-800 rounded-lg shadow'>

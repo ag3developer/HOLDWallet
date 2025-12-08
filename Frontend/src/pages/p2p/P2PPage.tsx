@@ -29,6 +29,8 @@ import {
 } from 'lucide-react'
 import { useP2POrders, useMarketStats } from '@/hooks/useP2POrders'
 import { usePaymentMethods } from '@/hooks/usePaymentMethods'
+import { Carousel } from '@/components/ui/Carousel'
+import { StatCard } from '@/components/ui/StatCard'
 
 export const P2PPage = () => {
   const { t } = useTranslation()
@@ -202,63 +204,45 @@ export const P2PPage = () => {
       </div>
 
       {/* Trading Stats */}
-      <div className='grid grid-cols-1 md:grid-cols-4 gap-4'>
-        <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-4'>
-          <div className='flex items-center justify-between'>
-            <div>
-              <p className='text-sm text-gray-600 dark:text-gray-400'>Volume 24h</p>
-              <p className='text-xl font-bold text-gray-900 dark:text-white'>
-                {formatCurrency(marketStats?.volume_24h || 0)}
-              </p>
-            </div>
-            <div className='w-10 h-10 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center'>
-              <TrendingUp className='w-5 h-5 text-green-600' />
-            </div>
-          </div>
-        </div>
-
-        <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-4'>
-          <div className='flex items-center justify-between'>
-            <div>
-              <p className='text-sm text-gray-600 dark:text-gray-400'>Trades Ativos</p>
-              <p className='text-xl font-bold text-gray-900 dark:text-white'>
-                {marketStats?.active_trades || 0}
-              </p>
-            </div>
-            <div className='w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center'>
-              <Users className='w-5 h-5 text-blue-600' />
-            </div>
-          </div>
-        </div>
-
-        <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-4'>
-          <div className='flex items-center justify-between'>
-            <div>
-              <p className='text-sm text-gray-600 dark:text-gray-400'>Traders Online</p>
-              <p className='text-xl font-bold text-gray-900 dark:text-white'>
-                {marketStats?.online_traders || 0}
-              </p>
-            </div>
-            <div className='w-10 h-10 bg-yellow-100 dark:bg-yellow-900 rounded-lg flex items-center justify-center'>
-              <Shield className='w-5 h-5 text-yellow-600' />
-            </div>
-          </div>
-        </div>
-
-        <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-4'>
-          <div className='flex items-center justify-between'>
-            <div>
-              <p className='text-sm text-gray-600 dark:text-gray-400'>Taxa Sucesso</p>
-              <p className='text-xl font-bold text-gray-900 dark:text-white'>
-                {marketStats?.success_rate ? `${marketStats.success_rate}%` : '0%'}
-              </p>
-            </div>
-            <div className='w-10 h-10 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center'>
-              <CheckCircle className='w-5 h-5 text-purple-600' />
-            </div>
-          </div>
-        </div>
-      </div>
+      <Carousel
+        itemsPerView={{ mobile: 1, tablet: 2, desktop: 4 }}
+        gap={16}
+        showControls={true}
+        className='mb-6'
+      >
+        <StatCard
+          title='Volume 24h'
+          value={formatCurrency(marketStats?.volume_24h || 0)}
+          icon={<TrendingUp className='w-5 h-5' />}
+          iconColor='text-green-600'
+          iconBg='bg-green-100 dark:bg-green-900'
+          compact
+        />
+        <StatCard
+          title='Trades Ativos'
+          value={marketStats?.active_trades || 0}
+          icon={<Users className='w-5 h-5' />}
+          iconColor='text-blue-600'
+          iconBg='bg-blue-100 dark:bg-blue-900'
+          compact
+        />
+        <StatCard
+          title='Traders Online'
+          value={marketStats?.online_traders || 0}
+          icon={<Shield className='w-5 h-5' />}
+          iconColor='text-yellow-600'
+          iconBg='bg-yellow-100 dark:bg-yellow-900'
+          compact
+        />
+        <StatCard
+          title='Taxa Sucesso'
+          value={marketStats?.success_rate ? `${marketStats.success_rate}%` : '0%'}
+          icon={<CheckCircle className='w-5 h-5' />}
+          iconColor='text-purple-600'
+          iconBg='bg-purple-100 dark:bg-purple-900'
+          compact
+        />
+      </Carousel>
 
       {/* Trading Interface */}
       <div className='bg-white dark:bg-gray-800 rounded-lg shadow'>

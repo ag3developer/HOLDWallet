@@ -5,6 +5,7 @@ import { useWallets, useMultipleWalletBalances } from '@/hooks/useWallet'
 import { marketPriceService } from '@/services/market-price-service'
 import { CryptoIcon } from '@/components/CryptoIcon'
 import { useCurrencyStore } from '@/stores/useCurrencyStore'
+import { Carousel } from '@/components/ui/Carousel'
 import {
   DollarSign,
   TrendingUp,
@@ -214,9 +215,14 @@ export const DashboardPage = () => {
 
         {/* Stats Grid - 4 colunas compacto */}
         {!userLoading && !walletsLoading && (
-          <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6'>
+          <Carousel
+            itemsPerView={{ mobile: 1, tablet: 2, desktop: 4 }}
+            gap={12}
+            showControls={true}
+            className='mb-6'
+          >
             {/* Saldo Total */}
-            <div className='group relative bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4 overflow-hidden hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-300'>
+            <div className='group relative bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4 overflow-hidden hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-300 h-full'>
               <div className='absolute inset-0 bg-gradient-to-br from-blue-500/5 dark:from-blue-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity'></div>
               <div className='absolute -right-8 -top-8 w-16 h-16 bg-blue-500/10 dark:bg-blue-500/20 rounded-full blur-xl group-hover:bg-blue-500/20 dark:group-hover:bg-blue-500/40 transition-all'></div>
               <div className='relative z-10'>
@@ -241,7 +247,7 @@ export const DashboardPage = () => {
             </div>
 
             {/* Ordens P2P */}
-            <div className='group relative bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4 overflow-hidden hover:border-purple-400 dark:hover:border-purple-500 transition-all duration-300'>
+            <div className='group relative bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4 overflow-hidden hover:border-purple-400 dark:hover:border-purple-500 transition-all duration-300 h-full'>
               <div className='absolute inset-0 bg-gradient-to-br from-purple-500/5 dark:from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity'></div>
               <div className='absolute -right-8 -top-8 w-16 h-16 bg-purple-500/10 dark:bg-purple-500/20 rounded-full blur-xl group-hover:bg-purple-500/20 dark:group-hover:bg-purple-500/40 transition-all'></div>
               <div className='relative z-10'>
@@ -264,7 +270,7 @@ export const DashboardPage = () => {
             </div>
 
             {/* Reputação */}
-            <div className='group relative bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4 overflow-hidden hover:border-amber-400 dark:hover:border-amber-500 transition-all duration-300'>
+            <div className='group relative bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4 overflow-hidden hover:border-amber-400 dark:hover:border-amber-500 transition-all duration-300 h-full'>
               <div className='absolute inset-0 bg-gradient-to-br from-amber-500/5 dark:from-amber-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity'></div>
               <div className='absolute -right-8 -top-8 w-16 h-16 bg-amber-500/10 dark:bg-amber-500/20 rounded-full blur-xl group-hover:bg-amber-500/20 dark:group-hover:bg-amber-500/40 transition-all'></div>
               <div className='relative z-10'>
@@ -291,7 +297,7 @@ export const DashboardPage = () => {
             </div>
 
             {/* BTC Price */}
-            <div className='group relative bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4 overflow-hidden hover:border-orange-400 dark:hover:border-orange-500 transition-all duration-300'>
+            <div className='group relative bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4 overflow-hidden hover:border-orange-400 dark:hover:border-orange-500 transition-all duration-300 h-full'>
               <div className='absolute inset-0 bg-gradient-to-br from-orange-500/5 dark:from-orange-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity'></div>
               <div className='absolute -right-8 -top-8 w-16 h-16 bg-orange-500/10 dark:bg-orange-500/20 rounded-full blur-xl group-hover:bg-orange-500/20 dark:group-hover:bg-orange-500/40 transition-all'></div>
               <div className='relative z-10'>
@@ -317,7 +323,7 @@ export const DashboardPage = () => {
                 <div className='h-0.5 w-full bg-gradient-to-r from-orange-500 to-amber-500 rounded-full'></div>
               </div>
             </div>
-          </div>
+          </Carousel>
         )}
 
         {/* Main Content Grid - Layout reorganizado */}
