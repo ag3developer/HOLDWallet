@@ -149,78 +149,6 @@ async def create_trade(
         )
 
 
-# ⭐ IMPORTANT: Specific routes BEFORE generic routes with path parameters
-# This ensures /history/my-trades is matched before /{trade_id}
-
-@router.get("/history/my-trades")
-async def get_trade_history(
-    page: int = Query(1, ge=1),
-    per_page: int = Query(10, ge=1, le=100),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    """
-    Get user's trade history with complete details.
-    
-    Parameters:
-    - page: Page number (default: 1)
-    - per_page: Items per page (default: 10, max: 100)
-    
-    Returns:
-    - List of user's trades with full details including:
-      * Trade ID and reference code
-      * Operation type (buy/sell)
-      * Cryptocurrency and amounts
-      * Fees and totals
-      * Payment method
-      * Status and timestamps
-    """
-    try:
-        service = get_instant_trade_service(db)
-        
-        user_id_str = str(current_user.id)
-        
-        history = service.get_user_trades(
-            user_id=user_id_str,
-            page=page,
-            per_page=per_page,
-        )
-
-        return {
-            "success": True,
-            "data": history,
-        }
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        )
-
-
-@router.get("/fees")
-async def get_fees():
-    """
-    Get OTC fee structure.
-    
-    Returns:
-    - Spread: 3%
-    - Network Fee: 0.25%
-    - Total: 3.25%
-    """
-    return {
-        "success": True,
-        "fees": {
-            "spread": "3.00%",
-            "network_fee": "0.25%",
-            "total": "3.25%",
-        },
-    }
-
-
-# ⭐ Generic routes with path parameters come AFTER specific routes
-# This prevents /{trade_id} from catching /history/my-trades
-
 @router.get("/{trade_id}")
 async def get_trade_status(
     trade_id: str,
@@ -277,6 +205,52 @@ async def cancel_trade(
         return {
             "success": True,
             "message": "Trade cancelled successfully",
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
+
+@router.get("/history/my-trades")
+async def get_trade_history(
+    page: int = Query(1, ge=1),
+    per_page: int = Query(10, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Get user's trade history with complete details.
+    
+    Parameters:
+    - page: Page number (default: 1)
+    - per_page: Items per page (default: 10, max: 100)
+    
+    Returns:
+    - List of user's trades with full details including:
+      * Trade ID and reference code
+      * Operation type (buy/sell)
+      * Cryptocurrency and amounts
+      * Fees and totals
+      * Payment method
+      * Status and timestamps
+    """
+    try:
+        service = get_instant_trade_service(db)
+        
+        user_id_str = str(current_user.id)
+        
+        history = service.get_user_trades(
+            user_id=user_id_str,
+            page=page,
+            per_page=per_page,
+        )
+
+        return {
+            "success": True,
+            "data": history,
         }
 
     except Exception as e:
@@ -387,3 +361,28 @@ async def get_trade_audit_log(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         )
+
+
+@router.get("/fees")
+async def get_fees():
+    """
+    Get OTC fee structure.
+    
+    Returns:
+    - Spread: 3%
+    - Network Fee: 0.25%
+    - Total: 3.25%
+    """
+    return {
+        "success": True,
+        "fees": {
+            "spread": "3.00%",
+            "network_fee": "0.25%",
+            "total": "3.25%",
+        },
+        "limits": {
+            "min": "R$ 50,00",
+            "max": "R$ 50.000,00",
+        },
+        "message": "PF (Pessoa Física) limits",
+    }

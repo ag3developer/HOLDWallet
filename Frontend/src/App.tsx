@@ -23,6 +23,7 @@ import { P2PPage } from '@/pages/p2p/P2PPage'
 import { CreateOrderPage } from '@/pages/p2p/CreateOrderPage'
 import { MyOrdersPage } from '@/pages/p2p/MyOrdersPage'
 import { OrderDetailsPage } from '@/pages/p2p/OrderDetailsPage'
+import { EditOrderPage } from '@/pages/p2p/EditOrderPage'
 import { TradeProcessPage } from '@/pages/p2p/TradeProcessPage'
 import { InstantTradePage } from '@/pages/trading/InstantTradePage'
 import { ChatPage } from '@/pages/chat/ChatPage'
@@ -231,6 +232,7 @@ function App() {
             <Route path='p2p/create-order' element={<CreateOrderPage />} />
             <Route path='p2p/my-orders' element={<MyOrdersPage />} />
             <Route path='p2p/order/:orderId' element={<OrderDetailsPage />} />
+            <Route path='p2p/edit-order/:orderId' element={<EditOrderPage />} />
             <Route path='p2p/trade/:tradeId' element={<TradeProcessPage />} />
             <Route path='instant-trade' element={<InstantTradePage />} />
             <Route path='chat/*' element={<ChatPage />} />

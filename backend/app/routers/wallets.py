@@ -17,7 +17,6 @@ from app.models.user import User
 from app.models.wallet import Wallet
 from app.models.address import Address
 from app.models.transaction import Transaction, TransactionStatus
-from app.models.balance import WalletBalance
 from app.services.wallet_service import WalletService
 from app.services.blockchain_service import BlockchainService
 from app.services.transaction_service import transaction_service
@@ -33,8 +32,7 @@ from app.schemas.wallet import (
     WalletWithMnemonic,
     AddressResponse,
     WalletBalancesByNetworkResponse,
-    NetworkBalanceDetail,
-    AllBalancesResponse
+    NetworkBalanceDetail
 )
 
 router = APIRouter()
@@ -161,139 +159,6 @@ async def get_user_wallets(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to get wallets: {str(e)}"
-        )
-
-@router.get("/test-balances-all")
-async def test_balances_all(current_user: User = Depends(get_current_user)):
-    """Test endpoint - se isso funcionar, o problema é na lógica"""
-    logger.info(f"🧪 TEST ENDPOINT CALLED for user {current_user.id}")
-    return {"status": "ok", "message": "Test endpoint works!"}
-
-@router.get("/all-balances", response_model=AllBalancesResponse)
-async def get_all_user_balances(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """
-    Get all balances for the current user aggregated by cryptocurrency symbol.
-    Calls blockchain service for each address (same as /wallets/{id}/balances).
-    """
-    try:
-        logger.info(f"🚀 Fetching aggregated balances for user {current_user.id}")
-        
-        # Get all wallets for user
-        wallets = db.query(Wallet).filter(
-            Wallet.user_id == current_user.id,
-            Wallet.is_active == True
-        ).all()
-        
-        if not wallets:
-            logger.info(f"  ℹ️ No wallets found")
-            return AllBalancesResponse(
-                balances={},
-                total_usd="0.00",
-                total_brl="0.00"
-            )
-        
-        balances_map: Dict[str, float] = {}
-        
-        # Network to symbol mapping
-        network_symbols = {
-            "bitcoin": "BTC",
-            "ethereum": "ETH",
-            "polygon": "MATIC",
-            "polygon_usdt": "USDT",
-            "polygon_usdc": "USDC",
-            "bsc": "BNB",
-            "tron": "TRX",
-            "base": "BASE",
-            "solana": "SOL",
-            "litecoin": "LTC",
-            "dogecoin": "DOGE",
-            "cardano": "ADA",
-            "avalanche": "AVAX",
-            "polkadot": "DOT",
-            "chainlink": "LINK",
-            "shiba": "SHIB",
-            "xrp": "XRP"
-        }
-        
-        blockchain_service = BlockchainService()
-        
-        # For each wallet, get all addresses and fetch balances from blockchain
-        for wallet in wallets:
-            try:
-                # Get all addresses for this wallet
-                addresses = db.query(Address).filter(
-                    Address.wallet_id == wallet.id,
-                    Address.is_active == True
-                ).all()
-                
-                logger.info(f"  📍 Wallet {wallet.id}: found {len(addresses)} addresses")
-                
-                for address in addresses:
-                    try:
-                        network = (address.network or "").lower()
-                        if not network:
-                            continue
-                        
-                        # Get balance from blockchain service
-                        balance_data = await blockchain_service.get_address_balance(
-                            network=network,
-                            address=str(address.address)
-                        )
-                        
-                        if not balance_data:
-                            logger.debug(f"  ℹ️ No balance data for {network} {address.address}")
-                            continue
-                        
-                        # Process native balance
-                        if balance_data.get('balance'):
-                            try:
-                                native_amount = float(balance_data['balance'])
-                                if native_amount > 0:
-                                    symbol = network_symbols.get(network, network.upper())
-                                    balances_map[symbol] = balances_map.get(symbol, 0) + native_amount
-                                    logger.info(f"    ✅ {symbol}: {native_amount}")
-                            except (ValueError, TypeError):
-                                pass
-                        
-                        # Process tokens (for USDT, USDC, etc)
-                        tokens = balance_data.get('token_balances', {})
-                        for token_addr, token_data in tokens.items():
-                            try:
-                                token_symbol = (token_data.get('symbol') or "").upper()
-                                token_amount = float(token_data.get('balance', 0))
-                                
-                                if token_symbol and token_amount > 0:
-                                    balances_map[token_symbol] = balances_map.get(token_symbol, 0) + token_amount
-                                    logger.info(f"    ✅ {token_symbol}: {token_amount}")
-                            except (ValueError, TypeError):
-                                pass
-                    
-                    except Exception as addr_err:
-                        logger.debug(f"  ⚠️ Error processing address: {addr_err}")
-                        continue
-            
-            except Exception as wallet_err:
-                logger.debug(f"  ⚠️ Error processing wallet {wallet.id}: {wallet_err}")
-                continue
-        
-        logger.info(f"✅ Aggregated balances: {balances_map}")
-        
-        return AllBalancesResponse(
-            balances=balances_map,
-            total_usd="0.00",
-            total_brl="0.00"
-        )
-        
-    except Exception as e:
-        logger.error(f"❌ Error in get_all_user_balances: {e}", exc_info=True)
-        return AllBalancesResponse(
-            balances={},
-
-            total_usd="0.00",
-            total_brl="0.00"
         )
 
 @router.post("/{wallet_id}/addresses", response_model=AddressResponse)
@@ -500,46 +365,6 @@ async def get_wallet_balances_by_network(
                 
                 native_balance = Decimal(balance_data.get('native_balance', '0'))
                 
-                # 💾 SALVAR SALDO NO BANCO DE DADOS
-                def save_balance_to_db():
-                    try:
-                        symbol = network_symbols.get(network_str, network_str.upper())
-                        balance_float = float(native_balance)
-                        
-                        # Procurar saldo existente
-                        existing = db.query(WalletBalance).filter(
-                            WalletBalance.user_id == current_user.id,
-                            WalletBalance.cryptocurrency == symbol
-                        ).first()
-                        
-                        if existing:
-                            existing.available_balance = balance_float
-                            existing.total_balance = balance_float
-                            existing.updated_at = datetime.now()
-                            existing.last_updated_reason = f"Blockchain sync from {network_str}"
-                        else:
-                            new_balance = WalletBalance(
-                                user_id=current_user.id,
-                                cryptocurrency=symbol,
-                                available_balance=balance_float,
-                                locked_balance=0.0,
-                                total_balance=balance_float,
-                                last_updated_reason=f"Initial blockchain sync from {network_str}"
-                            )
-                            db.add(new_balance)
-                        
-                        db.commit()
-                        logger.info(f"✅ Saved {symbol} balance in DB: {native_balance}")
-                    except Exception as e:
-                        logger.error(f"⚠️ Could not save balance to DB (non-critical): {str(e)}")
-                        db.rollback()
-                
-                # Save balance to database (non-blocking)
-                try:
-                    save_balance_to_db()
-                except Exception:
-                    pass  # Non-critical error
-                
                 if native_balance > 0:
                     # Get price for this network
                     symbol = network_symbols.get(network_str, network_str)
@@ -591,41 +416,8 @@ async def get_wallet_balances_by_network(
                                     balance=str(usdt_balance),
                                     balance_usd=f"{balance_usd:.2f}",
                                     balance_brl=f"{balance_brl:.2f}",
-                                    last_updated=datetime.now()
+                                    last_updated=datetime.utcnow()
                                 )
-                                
-                                # 💾 SALVAR USDT NO BANCO
-                                def save_usdt_to_db():
-                                    try:
-                                        existing = db.query(WalletBalance).filter(
-                                            WalletBalance.user_id == current_user.id,
-                                            WalletBalance.cryptocurrency == "USDT"
-                                        ).first()
-                                        if existing:
-                                            existing.available_balance = float(usdt_balance)
-                                            existing.total_balance = float(usdt_balance)
-                                            existing.updated_at = datetime.now()
-                                            existing.last_updated_reason = f"USDT sync from {network_str}"
-                                        else:
-                                            db.add(WalletBalance(
-                                                user_id=current_user.id,
-                                                cryptocurrency="USDT",
-                                                available_balance=float(usdt_balance),
-                                                locked_balance=0.0,
-                                                total_balance=float(usdt_balance),
-                                                last_updated_reason=f"Initial USDT sync from {network_str}"
-                                            ))
-                                        db.commit()
-                                        logger.info(f"✅ Saved USDT balance: {usdt_balance}")
-                                    except Exception as e:
-                                        logger.error(f"⚠️ Could not save USDT to DB: {str(e)}")
-                                        db.rollback()
-                                
-                                try:
-                                    save_usdt_to_db()
-                                except Exception:
-                                    pass
-                                
                                 if usdt_balance > 0:
                                     logger.info(f"✅ USDT balance on {network_str}: {usdt_balance}")
                                 else:

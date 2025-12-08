@@ -116,8 +116,8 @@ class InstantTrade(Base):
     trade_metadata = Column(Text, nullable=True)  # JSON com dados extras
     error_message = Column(Text, nullable=True)  # Se falhar
     
-    # Relationships (comentado para evitar ciclo de importação)
-    # user = relationship("User", back_populates="instant_trades")
+    # Relationships
+    user = relationship("User", back_populates="instant_trades")
     history = relationship(
         "InstantTradeHistory",
         back_populates="trade",

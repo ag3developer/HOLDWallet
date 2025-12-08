@@ -160,22 +160,22 @@ export function TradingForm({
   // Smart formatting: shows appropriate decimals based on value
   const formatBalance = (value: number): string => {
     if (value === 0) return '0'
-    
+
     // For very small numbers (< 0.0001), show up to 8 decimals
     if (value < 0.0001) {
       return value.toFixed(8).replace(/\.?0+$/, '')
     }
-    
+
     // For small numbers (< 1), show up to 6 decimals
     if (value < 1) {
       return value.toFixed(6).replace(/\.?0+$/, '')
     }
-    
+
     // For medium numbers (< 1000), show up to 4 decimals
     if (value < 1000) {
       return value.toFixed(4).replace(/\.?0+$/, '')
     }
-    
+
     // For large numbers, show up to 2 decimals
     return value.toFixed(2).replace(/\.?0+$/, '')
   }

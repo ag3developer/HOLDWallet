@@ -486,11 +486,19 @@ async def get_orders(
     limit: int = Query(20, ge=1, le=100),
     type: Optional[str] = Query(None),
     coin: Optional[str] = Query(None),
+    status: Optional[str] = Query('active', description="Filter by status: active, paused, completed, cancelled"),
     db: Session = Depends(get_db)
 ):
     """Get P2P orders"""
-    conditions = ["status = 'active'"]
+    conditions = []
     params = {}
+    
+    # Default to 'active' if not specified
+    if status:
+        conditions.append("status = :status")
+        params["status"] = status.lower()
+    else:
+        conditions.append("status = 'active'")
     
     if type:
         conditions.append("order_type = :order_type")

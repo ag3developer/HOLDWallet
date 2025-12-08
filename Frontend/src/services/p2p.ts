@@ -51,8 +51,24 @@ interface SendTradeMessageRequest {
 
 class P2PService {
   // Get all active orders
-  async getOrders(page = 1, limit = 20, filters?: OrderFilters): Promise<PaginatedResponse<P2POrder>> {
-    const params = { page: page.toString(), limit: limit.toString(), ...filters }
+  async getOrders(
+    page = 1,
+    limit = 20,
+    filters?: OrderFilters
+  ): Promise<PaginatedResponse<P2POrder>> {
+    const params: Record<string, string> = { page: page.toString(), limit: limit.toString() }
+
+    // Only add filter params if they have values
+    if (filters) {
+      if (filters.type) params.type = filters.type
+      if (filters.coin) params.coin = filters.coin
+      if (filters.paymentMethod) params.paymentMethod = filters.paymentMethod
+      if (filters.minAmount) params.minAmount = filters.minAmount
+      if (filters.maxAmount) params.maxAmount = filters.maxAmount
+      if (filters.verified !== undefined) params.verified = filters.verified.toString()
+      if (filters.online !== undefined) params.online = filters.online.toString()
+    }
+
     const response = await apiClient.get<PaginatedResponse<P2POrder>>('/p2p/orders', { params })
     return response.data
   }
@@ -121,15 +137,20 @@ class P2PService {
 
   // Mark payment as sent (buyer)
   async markPaymentSent(tradeId: string, message?: string): Promise<Trade> {
-    const response = await apiClient.post<ApiResponse<Trade>>(`/p2p/trades/${tradeId}/payment-sent`, {
-      message
-    })
+    const response = await apiClient.post<ApiResponse<Trade>>(
+      `/p2p/trades/${tradeId}/payment-sent`,
+      {
+        message,
+      }
+    )
     return response.data.data
   }
 
   // Confirm payment received (seller)
   async confirmPaymentReceived(tradeId: string): Promise<Trade> {
-    const response = await apiClient.post<ApiResponse<Trade>>(`/p2p/trades/${tradeId}/payment-confirmed`)
+    const response = await apiClient.post<ApiResponse<Trade>>(
+      `/p2p/trades/${tradeId}/payment-confirmed`
+    )
     return response.data.data
   }
 
@@ -142,28 +163,37 @@ class P2PService {
   // Cancel trade
   async cancelTrade(tradeId: string, reason: string): Promise<Trade> {
     const response = await apiClient.post<ApiResponse<Trade>>(`/p2p/trades/${tradeId}/cancel`, {
-      reason
+      reason,
     })
     return response.data.data
   }
 
   // Dispute trade
-  async disputeTrade(tradeId: string, reason: string, description: string, evidence?: File[]): Promise<Trade> {
+  async disputeTrade(
+    tradeId: string,
+    reason: string,
+    description: string,
+    evidence?: File[]
+  ): Promise<Trade> {
     const formData = new FormData()
     formData.append('reason', reason)
     formData.append('description', description)
-    
+
     if (evidence) {
       evidence.forEach((file, index) => {
         formData.append(`evidence_${index}`, file)
       })
     }
 
-    const response = await apiClient.post<ApiResponse<Trade>>(`/p2p/trades/${tradeId}/dispute`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
+    const response = await apiClient.post<ApiResponse<Trade>>(
+      `/p2p/trades/${tradeId}/dispute`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       }
-    })
+    )
     return response.data.data
   }
 
@@ -173,20 +203,20 @@ class P2PService {
       const formData = new FormData()
       formData.append('message', messageData.message)
       formData.append('type', messageData.type || 'text')
-      
+
       messageData.attachments.forEach((file, index) => {
         formData.append(`attachments_${index}`, file)
       })
 
       await apiClient.post(`/p2p/trades/${messageData.tradeId}/messages`, formData, {
         headers: {
-          'Content-Type': 'multipart/form-data'
-        }
+          'Content-Type': 'multipart/form-data',
+        },
       })
     } else {
       await apiClient.post(`/p2p/trades/${messageData.tradeId}/messages`, {
         message: messageData.message,
-        type: messageData.type || 'text'
+        type: messageData.type || 'text',
       })
     }
   }
@@ -209,13 +239,22 @@ class P2PService {
     type: string
     details: Record<string, any>
   }): Promise<PaymentMethod> {
-    const response = await apiClient.post<ApiResponse<PaymentMethod>>('/p2p/payment-methods', paymentMethodData)
+    const response = await apiClient.post<ApiResponse<PaymentMethod>>(
+      '/p2p/payment-methods',
+      paymentMethodData
+    )
     return response.data.data
   }
 
   // Update payment method
-  async updatePaymentMethod(methodId: string, updates: Partial<PaymentMethod>): Promise<PaymentMethod> {
-    const response = await apiClient.put<ApiResponse<PaymentMethod>>(`/p2p/payment-methods/${methodId}`, updates)
+  async updatePaymentMethod(
+    methodId: string,
+    updates: Partial<PaymentMethod>
+  ): Promise<PaymentMethod> {
+    const response = await apiClient.put<ApiResponse<PaymentMethod>>(
+      `/p2p/payment-methods/${methodId}`,
+      updates
+    )
     return response.data.data
   }
 
@@ -233,16 +272,23 @@ class P2PService {
   // Get user's feedback/reviews
   async getUserFeedback(userId: string, page = 1, limit = 20): Promise<PaginatedResponse<any>> {
     const params = { page: page.toString(), limit: limit.toString() }
-    const response = await apiClient.get<PaginatedResponse<any>>(`/p2p/users/${userId}/feedback`, { params })
+    const response = await apiClient.get<PaginatedResponse<any>>(`/p2p/users/${userId}/feedback`, {
+      params,
+    })
     return response.data
   }
 
   // Leave feedback for trade partner
-  async leaveFeedback(tradeId: string, rating: number, comment: string, type: 'positive' | 'neutral' | 'negative'): Promise<void> {
+  async leaveFeedback(
+    tradeId: string,
+    rating: number,
+    comment: string,
+    type: 'positive' | 'neutral' | 'negative'
+  ): Promise<void> {
     await apiClient.post(`/p2p/trades/${tradeId}/feedback`, {
       rating,
       comment,
-      type
+      type,
     })
   }
 
@@ -262,7 +308,11 @@ class P2PService {
   }
 
   // Get price suggestions based on current market
-  async getPriceSuggestions(coin: string, type: 'buy' | 'sell', amount: string): Promise<{
+  async getPriceSuggestions(
+    coin: string,
+    type: 'buy' | 'sell',
+    amount: string
+  ): Promise<{
     suggested: string
     min: string
     max: string
@@ -270,20 +320,25 @@ class P2PService {
     median: string
   }> {
     const response = await apiClient.get<ApiResponse<any>>('/p2p/price-suggestions', {
-      params: { coin, type, amount }
+      params: { coin, type, amount },
     })
     return response.data.data
   }
 
   // Get recent trades for a coin pair
-  async getRecentTrades(coin: string, limit = 10): Promise<{
-    amount: string
-    price: string
-    type: 'buy' | 'sell'
-    timestamp: string
-  }[]> {
+  async getRecentTrades(
+    coin: string,
+    limit = 10
+  ): Promise<
+    {
+      amount: string
+      price: string
+      type: 'buy' | 'sell'
+      timestamp: string
+    }[]
+  > {
     const response = await apiClient.get<ApiResponse<any>>(`/p2p/recent-trades/${coin}`, {
-      params: { limit: limit.toString() }
+      params: { limit: limit.toString() },
     })
     return response.data.data
   }

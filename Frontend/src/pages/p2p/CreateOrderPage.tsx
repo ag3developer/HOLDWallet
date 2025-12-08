@@ -6,20 +6,38 @@ import { usePaymentMethods } from '@/hooks/usePaymentMethods'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { toast } from 'react-hot-toast'
 
+// Crypto logos from CoinGecko (free CDN)
+const CRYPTO_LOGOS: Record<string, string> = {
+  BTC: 'https://assets.coingecko.com/coins/images/1/large/bitcoin.png?1696501400',
+  ETH: 'https://assets.coingecko.com/coins/images/279/large/ethereum.png?1696501628',
+  MATIC: 'https://assets.coingecko.com/coins/images/4713/large/matic-token-icon.png?1696504745',
+  BNB: 'https://assets.coingecko.com/coins/images/825/large/bnb-icon2_2x.png?1696501970',
+  TRX: 'https://assets.coingecko.com/coins/images/1094/large/tron-logo.png?1696502193',
+  BASE: 'https://assets.coingecko.com/coins/images/30617/large/base.jpg?1696519330',
+  USDT: 'https://assets.coingecko.com/coins/images/325/large/Tether.png?1696501661',
+  SOL: 'https://assets.coingecko.com/coins/images/4128/large/solana.png?1696504756',
+  LTC: 'https://assets.coingecko.com/coins/images/2/large/litecoin.png?1696501400',
+  DOGE: 'https://assets.coingecko.com/coins/images/5/large/dogecoin.png?1696501400',
+  ADA: 'https://assets.coingecko.com/coins/images/975/large/cardano.png?1696502090',
+  AVAX: 'https://assets.coingecko.com/coins/images/12559/large/Avalanche_Circle_RedWhite_Trans.png?1696512369',
+  DOT: 'https://assets.coingecko.com/coins/images/12171/large/polkadot.png?1696512008',
+  LINK: 'https://assets.coingecko.com/coins/images/877/large/chainlink-new-logo.png?1696502009',
+  SHIB: 'https://assets.coingecko.com/coins/images/11939/large/shiba.png?1622619446',
+  XRP: 'https://assets.coingecko.com/coins/images/44/large/xrp-symbol-white-128.png?1696501442',
+}
+
 export const CreateOrderPage = () => {
   const navigate = useNavigate()
   const createOrderMutation = useCreateP2POrder()
   const { data: paymentMethodsData } = usePaymentMethods()
-
-  // Get wallet balance for current user
-  const currentUserId = '1'
-  const { data: walletData } = useWalletBalance(currentUserId)
+  const { token } = useAuthStore()
 
   // Form state
   const [orderType, setOrderType] = useState<'buy' | 'sell'>('sell')
   const [coin, setCoin] = useState('BTC')
   const [fiatCurrency, setFiatCurrency] = useState('BRL')
-  const [price, setPrice] = useState('')
+  const [basePrice, setBasePrice] = useState<number>(0)
+  const [priceMargin, setPriceMargin] = useState<number>(0) // percentage: -10 to +50
   const [amount, setAmount] = useState('')
   const [minAmount, setMinAmount] = useState('')
   const [maxAmount, setMaxAmount] = useState('')
@@ -27,14 +45,159 @@ export const CreateOrderPage = () => {
   const [selectedPaymentMethods, setSelectedPaymentMethods] = useState<string[]>([])
   const [terms, setTerms] = useState('')
   const [autoReply, setAutoReply] = useState('')
+  const [allBalances, setAllBalances] = useState<Record<string, number>>({})
+  const [loadingPrice, setLoadingPrice] = useState(false)
 
-  const cryptoOptions = [
-    { symbol: 'BTC', name: 'Bitcoin' },
-    { symbol: 'ETH', name: 'Ethereum' },
-    { symbol: 'USDT', name: 'Tether' },
-    { symbol: 'BNB', name: 'BNB' },
-    { symbol: 'SOL', name: 'Solana' },
-  ]
+  // Fetch wallet balances on component mount
+  useEffect(() => {
+    const fetchBalances = async () => {
+      try {
+        if (!token) {
+          console.error('[CreateOrder] No token found')
+          return
+        }
+
+        // Get wallets
+        const walletsResp = await fetch('http://127.0.0.1:8000/wallets/', {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+
+        if (!walletsResp.ok) throw new Error(`Failed to fetch wallets: ${walletsResp.status}`)
+
+        const wallets = await walletsResp.json()
+        if (!wallets?.length) throw new Error('No wallets found')
+
+        const walletId = wallets[0].id
+
+        // Get balances
+        const balanceResp = await fetch(
+          `http://127.0.0.1:8000/wallets/${walletId}/balances?include_tokens=true`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        )
+
+        if (!balanceResp.ok) throw new Error(`Failed to fetch balances: ${balanceResp.status}`)
+
+        const balData = await balanceResp.json()
+        const mapped = mapBalances(balData.balances)
+        setAllBalances(mapped)
+      } catch (error) {
+        console.error('[CreateOrder] Error fetching balances:', error)
+        setAllBalances({})
+      }
+    }
+
+    fetchBalances()
+  }, [token])
+
+  // Fetch market price when coin or fiatCurrency changes
+  useEffect(() => {
+    const fetchMarketPrice = async () => {
+      try {
+        setLoadingPrice(true)
+        // Using CoinGecko free API to get market price
+        const coinId = getCoinGeckoId(coin)
+        if (!coinId) {
+          setBasePrice(0)
+          return
+        }
+
+        const fiatLower = fiatCurrency.toLowerCase()
+        const response = await fetch(
+          `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=${fiatLower}&include_market_cap=false&include_24hr_vol=false&include_24hr_change=false`
+        )
+
+        if (!response.ok) throw new Error('Failed to fetch price')
+
+        const data = await response.json()
+        const price = data[coinId]?.[fiatLower] || 0
+        setBasePrice(price)
+      } catch (error) {
+        console.error('[CreateOrder] Error fetching market price:', error)
+        setBasePrice(0)
+      } finally {
+        setLoadingPrice(false)
+      }
+    }
+
+    fetchMarketPrice()
+  }, [coin, fiatCurrency])
+
+  // Helper to get CoinGecko ID from symbol
+  const getCoinGeckoId = (symbol: string): string => {
+    const coinMap: Record<string, string> = {
+      BTC: 'bitcoin',
+      ETH: 'ethereum',
+      MATIC: 'matic-network',
+      BNB: 'binancecoin',
+      TRX: 'tron',
+      BASE: 'base',
+      USDT: 'tether',
+      SOL: 'solana',
+      LTC: 'litecoin',
+      DOGE: 'dogecoin',
+      ADA: 'cardano',
+      AVAX: 'avalanche-2',
+      DOT: 'polkadot',
+      LINK: 'chainlink',
+      SHIB: 'shiba-inu',
+      XRP: 'ripple',
+    }
+    return coinMap[symbol] || ''
+  }
+
+  // Calculate final price based on basePrice and margin
+  const finalPrice = basePrice > 0 ? basePrice * (1 + priceMargin / 100) : 0
+  const totalValue =
+    finalPrice > 0 && amount ? (finalPrice * Number.parseFloat(amount)).toFixed(2) : '0.00'
+
+  // Helper function to map network names to symbols
+  const mapBalances = (balances: Record<string, any>): Record<string, number> => {
+    const mapped: Record<string, number> = {}
+
+    for (const [network, balInfo] of Object.entries(balances || {})) {
+      const networkLower = network.toLowerCase()
+      const amount = extractBalance(balInfo)
+      const symbol = mapNetworkToSymbol(networkLower)
+
+      if (symbol) {
+        mapped[symbol] = amount
+      }
+    }
+
+    return mapped
+  }
+
+  // Helper to extract balance amount
+  const extractBalance = (balInfo: any): number => {
+    if (typeof balInfo === 'object' && balInfo?.balance !== undefined) {
+      return Number.parseFloat(String(balInfo.balance)) || 0
+    }
+    return typeof balInfo === 'number' ? balInfo : 0
+  }
+
+  // Helper to map network to symbol
+  const mapNetworkToSymbol = (networkLower: string): string => {
+    if (networkLower.includes('polygon')) {
+      return networkLower.includes('usdt') ? 'USDT' : 'MATIC'
+    }
+    if (networkLower === 'base') return 'BASE'
+    if (networkLower === 'ethereum' || networkLower === 'eth') return 'ETH'
+    if (networkLower === 'bitcoin' || networkLower === 'btc') return 'BTC'
+    if (networkLower === 'solana' || networkLower === 'sol') return 'SOL'
+    return ''
+  }
+
+  // Smart formatting: shows appropriate decimals based on value
+  const formatBalance = (value: number): string => {
+    if (value === 0) return '0'
+    if (value < 0.0001) return value.toFixed(8).replace(/\.?0+$/, '')
+    if (value < 1) return value.toFixed(6).replace(/\.?0+$/, '')
+    if (value < 1000) return value.toFixed(4).replace(/\.?0+$/, '')
+    return value.toFixed(2).replace(/\.?0+$/, '')
+  }
+
+  // Get current coin balance
+  const currentBalance = allBalances[coin] || 0
 
   const fiatOptions = [
     { code: 'BRL', name: 'Real Brasileiro', symbol: 'R$' },
@@ -42,23 +205,136 @@ export const CreateOrderPage = () => {
     { code: 'EUR', name: 'Euro', symbol: '€' },
   ]
 
+  // Get available cryptos from actual balances, sorted by amount
+  const availableCryptos = Object.entries(allBalances)
+    .sort((a, b) => b[1] - a[1])
+    .map(([symbol, balance]) => ({ symbol, name: symbol, balance }))
+
   const handlePaymentMethodToggle = (methodId: string) => {
     setSelectedPaymentMethods(prev =>
       prev.includes(methodId) ? prev.filter(id => id !== methodId) : [...prev, methodId]
     )
   }
 
+  // Helper for currency symbol
+  const getCurrencySymbol = () => {
+    if (fiatCurrency === 'BRL') return 'R$'
+    if (fiatCurrency === 'USD') return '$'
+    return '€'
+  }
+
+  // Helper for balance validation message
+  const getBalanceValidationMessage = () => {
+    if (!amount) return null
+    if (currentBalance > 0 && Number.parseFloat(amount) <= currentBalance) {
+      return <span className='text-green-600 dark:text-green-400'>✓ Você tem saldo suficiente</span>
+    }
+    if (currentBalance > 0) {
+      return (
+        <span className='text-red-600 dark:text-red-400'>
+          ✗ Saldo insuficiente (Máximo: {formatBalance(currentBalance)})
+        </span>
+      )
+    }
+    return null
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Validation
-    if (!price || !amount || !minAmount || !maxAmount) {
-      toast.error('Por favor, preencha todos os campos obrigatórios')
+    // Validate raw string inputs first
+    if (!amount || amount.trim() === '') {
+      toast.error('Por favor, preencha a Quantidade')
       return
     }
 
-    if (parseFloat(minAmount) > parseFloat(maxAmount)) {
+    if (!minAmount || minAmount.trim() === '') {
+      toast.error('Por favor, preencha o Valor Mínimo')
+      return
+    }
+
+    if (!maxAmount || maxAmount.trim() === '') {
+      toast.error('Por favor, preencha o Valor Máximo')
+      return
+    }
+
+    console.log('[CreateOrder] handleSubmit called with state:', {
+      basePrice,
+      finalPrice,
+      priceMargin,
+      coin,
+      fiatCurrency,
+      amount,
+      minAmount,
+      maxAmount,
+      currentBalance,
+      allBalances,
+    })
+
+    // Validate price first
+    if (basePrice <= 0) {
+      toast.error('Aguarde o carregamento do preço de mercado antes de criar a ordem')
+      return
+    }
+
+    if (finalPrice <= 0) {
+      toast.error('Preço final inválido. Verifique a moeda selecionada')
+      return
+    }
+
+    // Convert and validate amounts
+    const amountNum = Number.parseFloat(amount)
+    const minAmountNum = Number.parseFloat(minAmount)
+    const maxAmountNum = Number.parseFloat(maxAmount)
+    const totalValueNum = Number.parseFloat(totalValue)
+
+    console.log('[CreateOrder] Converted values:', {
+      amountNum,
+      minAmountNum,
+      maxAmountNum,
+      totalValueNum,
+    })
+
+    if (Number.isNaN(amountNum) || amountNum <= 0) {
+      toast.error('Quantidade deve ser um número maior que 0')
+      return
+    }
+
+    if (Number.isNaN(minAmountNum) || minAmountNum <= 0) {
+      toast.error('Valor mínimo deve ser um número maior que 0')
+      return
+    }
+
+    if (Number.isNaN(maxAmountNum) || maxAmountNum <= 0) {
+      toast.error('Valor máximo deve ser um número maior que 0')
+      return
+    }
+
+    if (minAmountNum > maxAmountNum) {
       toast.error('O valor mínimo não pode ser maior que o máximo')
+      return
+    }
+
+    // Validate balance: amount must be <= currentBalance
+    if (amountNum > currentBalance) {
+      toast.error(
+        `Saldo insuficiente. Você tem ${formatBalance(currentBalance)} ${coin}, mas quer vender ${formatBalance(amountNum)} ${coin}`
+      )
+      return
+    }
+
+    // Validate that total order value is within min/max range
+    if (totalValueNum < minAmountNum) {
+      toast.error(
+        `Valor total (${getCurrencySymbol()} ${totalValue}) é menor que o mínimo (${getCurrencySymbol()} ${minAmount})`
+      )
+      return
+    }
+
+    if (totalValueNum > maxAmountNum) {
+      toast.error(
+        `Valor total (${getCurrencySymbol()} ${totalValue}) é maior que o máximo (${getCurrencySymbol()} ${maxAmount})`
+      )
       return
     }
 
@@ -68,19 +344,33 @@ export const CreateOrderPage = () => {
     }
 
     try {
-      await createOrderMutation.mutateAsync({
+      const orderData: Parameters<typeof createOrderMutation.mutateAsync>[0] = {
         type: orderType,
         coin,
         fiat_currency: fiatCurrency,
-        price: parseFloat(price),
-        amount: parseFloat(amount),
-        min_amount: parseFloat(minAmount),
-        max_amount: parseFloat(maxAmount),
+        price: finalPrice.toString(),
+        amount: amountNum.toString(),
+        min_amount: minAmountNum.toString(),
+        max_amount: maxAmountNum.toString(),
         payment_methods: selectedPaymentMethods,
-        time_limit: parseInt(timeLimit),
-        terms: terms || undefined,
-        auto_reply: autoReply || undefined,
+        time_limit: Number.parseInt(timeLimit),
+      }
+
+      if (terms) orderData.terms = terms
+      if (autoReply) orderData.auto_reply = autoReply
+
+      console.log('[CreateOrder] Enviando ordem com dados:', {
+        finalPrice,
+        amountNum,
+        minAmountNum,
+        maxAmountNum,
+        totalValueNum,
+        basePrice,
+        priceMargin,
+        orderData,
       })
+
+      await createOrderMutation.mutateAsync(orderData)
 
       toast.success('Ordem criada com sucesso!')
       navigate('/p2p')
@@ -89,388 +379,475 @@ export const CreateOrderPage = () => {
     }
   }
 
-  const totalValue = price && amount ? (parseFloat(price) * parseFloat(amount)).toFixed(2) : '0.00'
-
   return (
-    <div className='max-w-4xl mx-auto space-y-6'>
-      {/* Header */}
-      <div className='flex items-center gap-4'>
-        <button
-          onClick={() => navigate('/p2p')}
-          title='Voltar'
-          className='p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors'
-        >
-          <ArrowLeft className='w-5 h-5' />
-        </button>
-        <div>
-          <h1 className='text-3xl font-bold text-gray-900 dark:text-white'>Criar Nova Ordem P2P</h1>
-          <p className='text-gray-600 dark:text-gray-400 mt-1'>
-            Configure sua ordem de {orderType === 'buy' ? 'compra' : 'venda'}
-          </p>
-        </div>
-      </div>
-
-      {/* Wallet Balance Card */}
-      {walletData && (
-        <div className='bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg shadow-lg p-6 text-white'>
-          <div className='flex items-center justify-between'>
-            <div className='flex items-center gap-3'>
-              <div className='w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center'>
-                <AlertCircle className='w-6 h-6' />
-              </div>
-              <div>
-                <p className='text-sm font-medium text-blue-100'>Saldo Disponível</p>
-                <p className='text-2xl font-bold'>
-                  {walletData.available_balance?.toFixed(8) || '0.00000000'}{' '}
-                  {walletData.cryptocurrency}
-                </p>
-                {walletData.locked_balance > 0 && (
-                  <p className='text-sm text-blue-100'>
-                    Congelado: {walletData.locked_balance.toFixed(8)} {walletData.cryptocurrency}
-                  </p>
-                )}
-              </div>
-            </div>
-            <div className='text-right'>
-              <p className='text-sm font-medium text-blue-100'>Total</p>
-              <p className='text-2xl font-bold'>
-                {walletData.total_balance?.toFixed(8) || '0.00000000'} {walletData.cryptocurrency}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit} className='space-y-6'>
-        {/* Order Type */}
-        <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-6'>
-          <h2 className='text-xl font-semibold text-gray-900 dark:text-white mb-4'>
-            Tipo de Ordem
-          </h2>
-          <div className='flex gap-4'>
-            <button
-              type='button'
-              onClick={() => setOrderType('sell')}
-              className={`flex-1 py-3 px-6 rounded-lg font-medium transition-colors ${
-                orderType === 'sell'
-                  ? 'bg-green-600 text-white shadow-lg'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-              }`}
-            >
-              Vender (Receber {fiatCurrency})
-            </button>
-            <button
-              type='button'
-              onClick={() => setOrderType('buy')}
-              className={`flex-1 py-3 px-6 rounded-lg font-medium transition-colors ${
-                orderType === 'buy'
-                  ? 'bg-red-600 text-white shadow-lg'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-              }`}
-            >
-              Comprar (Pagar {fiatCurrency})
-            </button>
-          </div>
-        </div>
-
-        {/* Asset Selection */}
-        <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-6'>
-          <h2 className='text-xl font-semibold text-gray-900 dark:text-white mb-4'>
-            Ativo e Moeda
-          </h2>
-          <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-            <div>
-              <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
-                Criptomoeda *
-              </label>
-              <select
-                value={coin}
-                onChange={e => setCoin(e.target.value)}
-                aria-label='Selecionar criptomoeda'
-                className='w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-                required
-              >
-                {cryptoOptions.map(crypto => (
-                  <option key={crypto.symbol} value={crypto.symbol}>
-                    {crypto.symbol} - {crypto.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
-                Moeda Fiat *
-              </label>
-              <select
-                value={fiatCurrency}
-                onChange={e => setFiatCurrency(e.target.value)}
-                aria-label='Selecionar moeda fiat'
-                className='w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-                required
-              >
-                {fiatOptions.map(fiat => (
-                  <option key={fiat.code} value={fiat.code}>
-                    {fiat.code} - {fiat.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Price and Amount */}
-        <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-6'>
-          <h2 className='text-xl font-semibold text-gray-900 dark:text-white mb-4'>
-            Preço e Quantidade
-          </h2>
-          <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-            <div>
-              <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
-                Preço Unitário ({fiatCurrency}) *
-              </label>
-              <input
-                type='number'
-                step='0.01'
-                value={price}
-                onChange={e => setPrice(e.target.value)}
-                placeholder='0.00'
-                className='w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-                required
-              />
-            </div>
-
-            <div>
-              <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
-                Quantidade ({coin}) *
-              </label>
-              <input
-                type='number'
-                step='0.00000001'
-                value={amount}
-                onChange={e => setAmount(e.target.value)}
-                placeholder='0.00000000'
-                className='w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-                required
-              />
-            </div>
-          </div>
-
-          {/* Total Value */}
-          <div className='mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800'>
-            <div className='flex items-center justify-between'>
-              <span className='text-sm font-medium text-gray-700 dark:text-gray-300'>
-                Valor Total:
-              </span>
-              <span className='text-xl font-bold text-blue-600 dark:text-blue-400'>
-                {fiatCurrency} {totalValue}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Order Limits */}
-        <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-6'>
-          <h2 className='text-xl font-semibold text-gray-900 dark:text-white mb-4'>
-            Limites da Ordem
-          </h2>
-          <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-            <div>
-              <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
-                Valor Mínimo ({fiatCurrency}) *
-              </label>
-              <input
-                type='number'
-                step='0.01'
-                value={minAmount}
-                onChange={e => setMinAmount(e.target.value)}
-                placeholder='0.00'
-                className='w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-                required
-              />
-            </div>
-
-            <div>
-              <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
-                Valor Máximo ({fiatCurrency}) *
-              </label>
-              <input
-                type='number'
-                step='0.01'
-                value={maxAmount}
-                onChange={e => setMaxAmount(e.target.value)}
-                placeholder='0.00'
-                className='w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-                required
-              />
-            </div>
-          </div>
-
-          <div className='mt-4'>
-            <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
-              Tempo Limite (minutos) *
-            </label>
-            <select
-              value={timeLimit}
-              onChange={e => setTimeLimit(e.target.value)}
-              aria-label='Selecionar tempo limite'
-              className='w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-              required
-            >
-              <option value='15'>15 minutos</option>
-              <option value='30'>30 minutos</option>
-              <option value='45'>45 minutos</option>
-              <option value='60'>60 minutos</option>
-            </select>
-            <p className='mt-2 text-sm text-gray-600 dark:text-gray-400'>
-              Tempo que o comprador tem para completar o pagamento
+    <div className='min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-6'>
+      <div className='max-w-6xl mx-auto'>
+        {/* Header Compacto */}
+        <div className='flex items-center gap-3 mb-4'>
+          <button
+            onClick={() => navigate('/p2p')}
+            title='Voltar'
+            className='p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors'
+          >
+            <ArrowLeft className='w-5 h-5' />
+          </button>
+          <div>
+            <h1 className='text-2xl md:text-3xl font-bold text-gray-900 dark:text-white'>
+              Criar Ordem P2P
+            </h1>
+            <p className='text-sm text-gray-600 dark:text-gray-400'>
+              {orderType === 'buy' ? 'Compra' : 'Venda'} de {coin}
             </p>
           </div>
         </div>
 
-        {/* Payment Methods */}
-        <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-6'>
-          <h2 className='text-xl font-semibold text-gray-900 dark:text-white mb-4'>
-            Métodos de Pagamento *
-          </h2>
+        {/* Main Grid: 2 Colunas */}
+        <div className='grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6'>
+          {/* Coluna Esquerda: Formulário Principal */}
+          <div className='lg:col-span-2 space-y-4'>
+            <form onSubmit={handleSubmit} className='space-y-4'>
+              {/* Card: Tipo de Ordem + Moedas */}
+              <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-4 md:p-5'>
+                <h3 className='text-lg font-semibold text-gray-900 dark:text-white mb-3'>
+                  Configuração Básica
+                </h3>
 
-          {paymentMethodsData && paymentMethodsData.length > 0 ? (
-            <div className='grid grid-cols-1 md:grid-cols-2 gap-3'>
-              {paymentMethodsData.map((method: any) => {
-                // Details is already an object from backend
-                const detailsObj =
-                  typeof method.details === 'string' ? JSON.parse(method.details) : method.details
-
-                // Format display text based on payment type
-                const getDisplayText = () => {
-                  const type = method.type?.toUpperCase() || ''
-                  if (type === 'PIX') {
-                    return detailsObj.keyValue || detailsObj.key || 'PIX'
-                  }
-                  if (type.includes('BANC') || type === 'BANK') {
-                    return detailsObj.bankName || detailsObj.account || 'Transferência Bancária'
-                  }
-                  return detailsObj.holderName || method.type
-                }
-
-                return (
-                  <label
-                    key={method.id}
-                    className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                      selectedPaymentMethods.includes(method.id)
-                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                        : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
-                    }`}
-                  >
-                    <input
-                      type='checkbox'
-                      checked={selectedPaymentMethods.includes(method.id)}
-                      onChange={() => handlePaymentMethodToggle(method.id)}
-                      className='w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500'
-                    />
-                    <div className='flex-1'>
-                      <p className='font-medium text-gray-900 dark:text-white uppercase'>
-                        {method.type}
-                      </p>
-                      <p className='text-sm text-gray-600 dark:text-gray-400'>{getDisplayText()}</p>
-                    </div>
+                {/* Tipo de Ordem */}
+                <div className='mb-4'>
+                  <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                    Tipo de Ordem
                   </label>
-                )
-              })}
-            </div>
-          ) : (
-            <div className='p-6 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-center'>
-              <AlertCircle className='w-12 h-12 mx-auto text-gray-400 mb-3' />
-              <p className='text-gray-600 dark:text-gray-400 mb-3'>
-                Você ainda não tem métodos de pagamento cadastrados
-              </p>
+                  <div className='grid grid-cols-2 gap-2'>
+                    <button
+                      type='button'
+                      onClick={() => setOrderType('sell')}
+                      className={`py-2 px-3 rounded-lg font-medium transition-colors text-sm ${
+                        orderType === 'sell'
+                          ? 'bg-green-600 text-white shadow'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                      }`}
+                    >
+                      Vender ({fiatCurrency})
+                    </button>
+                    <button
+                      type='button'
+                      onClick={() => setOrderType('buy')}
+                      className={`py-2 px-3 rounded-lg font-medium transition-colors text-sm ${
+                        orderType === 'buy'
+                          ? 'bg-red-600 text-white shadow'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                      }`}
+                    >
+                      Comprar ({fiatCurrency})
+                    </button>
+                  </div>
+                </div>
+
+                {/* Moedas em Grid Horizontal */}
+                {Object.keys(allBalances).length > 0 && (
+                  <div className='mb-3'>
+                    <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                      Moeda
+                    </label>
+                    <div className='grid grid-cols-2 md:grid-cols-3 gap-2 max-h-32 overflow-y-auto'>
+                      {Object.entries(allBalances)
+                        .sort((a, b) => b[1] - a[1])
+                        .map(([symbol, balance]) => (
+                          <button
+                            key={symbol}
+                            type='button'
+                            onClick={() => setCoin(symbol)}
+                            className={`p-2 rounded-lg text-xs font-medium transition-all ${
+                              coin === symbol
+                                ? 'bg-blue-100 dark:bg-blue-900/30 border-2 border-blue-500 text-blue-700 dark:text-blue-300'
+                                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600'
+                            }`}
+                          >
+                            <div className='flex items-center gap-1 justify-center'>
+                              {CRYPTO_LOGOS[symbol] && (
+                                <img
+                                  src={CRYPTO_LOGOS[symbol]}
+                                  alt={symbol}
+                                  className='w-4 h-4 rounded-full'
+                                />
+                              )}
+                              <span>{symbol}</span>
+                            </div>
+                            <div className='text-xs text-gray-600 dark:text-gray-400'>
+                              {formatBalance(balance)}
+                            </div>
+                          </button>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Moeda Fiat */}
+                <div>
+                  <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                    Moeda Fiat
+                  </label>
+                  <select
+                    value={fiatCurrency}
+                    onChange={e => setFiatCurrency(e.target.value)}
+                    aria-label='Selecionar moeda fiat'
+                    className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm'
+                  >
+                    <option value='BRL'>Real Brasileiro (R$)</option>
+                    <option value='USD'>Dólar Americano ($)</option>
+                    <option value='EUR'>Euro (€)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Card: Preço & Quantidade */}
+              <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-4 md:p-5'>
+                <h3 className='text-lg font-semibold text-gray-900 dark:text-white mb-3'>
+                  Preço & Quantidade
+                </h3>
+
+                {/* Preço Base */}
+                {loadingPrice ? (
+                  <div className='mb-3 p-2 bg-blue-50 dark:bg-blue-900/20 rounded text-sm text-blue-700 dark:text-blue-300'>
+                    Buscando preço de mercado...
+                  </div>
+                ) : basePrice > 0 ? (
+                  <div className='mb-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800'>
+                    <div className='grid grid-cols-2 gap-3 text-sm'>
+                      <div>
+                        <p className='text-xs text-gray-600 dark:text-gray-400'>Preço Mercado:</p>
+                        <p className='font-semibold text-gray-900 dark:text-white'>
+                          {getCurrencySymbol()} {formatBalance(basePrice)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className='text-xs text-gray-600 dark:text-gray-400'>Seu Preço:</p>
+                        <p className='font-semibold text-blue-600 dark:text-blue-400'>
+                          {getCurrencySymbol()} {formatBalance(finalPrice)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className='mb-3 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded text-xs text-yellow-700 dark:text-yellow-300'>
+                    ⚠ Não conseguimos buscar o preço. Tente novamente.
+                  </div>
+                )}
+
+                {/* Margem de Lucro */}
+                <div className='mb-3'>
+                  <div className='flex items-center justify-between mb-2'>
+                    <label className='text-sm font-medium text-gray-700 dark:text-gray-300'>
+                      Margem de Lucro
+                    </label>
+                    <span
+                      className={`text-sm font-bold ${priceMargin >= 0 ? 'text-green-600' : 'text-red-600'}`}
+                    >
+                      {priceMargin > 0 ? '+' : ''}
+                      {priceMargin.toFixed(1)}%
+                    </span>
+                  </div>
+                  <input
+                    type='range'
+                    min='-50'
+                    max='100'
+                    step='0.5'
+                    value={priceMargin}
+                    onChange={e => setPriceMargin(Number.parseFloat(e.target.value))}
+                    aria-label='Margem de lucro'
+                    className='w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer'
+                  />
+                  <div className='flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1'>
+                    <span>-50%</span>
+                    <span>0%</span>
+                    <span>+100%</span>
+                  </div>
+
+                  {/* Quick Buttons */}
+                  <div className='grid grid-cols-3 gap-2 mt-2'>
+                    <button
+                      type='button'
+                      onClick={() => setPriceMargin(-10)}
+                      className='py-1 px-2 rounded text-xs font-medium bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/30 transition'
+                    >
+                      -10%
+                    </button>
+                    <button
+                      type='button'
+                      onClick={() => setPriceMargin(0)}
+                      className='py-1 px-2 rounded text-xs font-medium bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition'
+                    >
+                      Mercado
+                    </button>
+                    <button
+                      type='button'
+                      onClick={() => setPriceMargin(10)}
+                      className='py-1 px-2 rounded text-xs font-medium bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/30 transition'
+                    >
+                      +10%
+                    </button>
+                  </div>
+                </div>
+
+                {/* Quantidade */}
+                <div>
+                  <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                    Quantidade a Vender ({coin}) *
+                  </label>
+                  <div className='flex gap-2'>
+                    <input
+                      type='number'
+                      step='0.01'
+                      value={amount}
+                      onChange={e => setAmount(e.target.value)}
+                      placeholder='0.00'
+                      className='flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm'
+                      required
+                    />
+                    <button
+                      type='button'
+                      onClick={() => setAmount(currentBalance.toString())}
+                      className='px-3 py-2 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/30 transition text-sm font-medium'
+                    >
+                      Max ({formatBalance(currentBalance)} {coin})
+                    </button>
+                  </div>
+                  {amount && currentBalance > 0 && (
+                    <p className='text-xs mt-1 text-green-600 dark:text-green-400'>
+                      ✓ Saldo suficiente
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Card: Limites e Métodos */}
+              <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-4 md:p-5'>
+                <h3 className='text-lg font-semibold text-gray-900 dark:text-white mb-3'>
+                  Detalhes da Ordem
+                </h3>
+
+                {/* Limites */}
+                <div className='grid grid-cols-2 gap-3 mb-4'>
+                  <div>
+                    <label className='block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1'>
+                      Mín. ({fiatCurrency}) *
+                    </label>
+                    <input
+                      type='number'
+                      step='0.01'
+                      value={minAmount}
+                      onChange={e => setMinAmount(e.target.value)}
+                      placeholder='0.00'
+                      className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm'
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className='block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1'>
+                      Máx. ({fiatCurrency}) *
+                    </label>
+                    <input
+                      type='number'
+                      step='0.01'
+                      value={maxAmount}
+                      onChange={e => setMaxAmount(e.target.value)}
+                      placeholder='0.00'
+                      className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm'
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Tempo Limite */}
+                <div className='mb-4'>
+                  <label className='block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1'>
+                    Tempo Limite (min) *
+                  </label>
+                  <select
+                    value={timeLimit}
+                    onChange={e => setTimeLimit(e.target.value)}
+                    aria-label='Selecionar tempo limite'
+                    className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm'
+                    required
+                  >
+                    <option value='15'>15 minutos</option>
+                    <option value='30'>30 minutos</option>
+                    <option value='45'>45 minutos</option>
+                    <option value='60'>60 minutos</option>
+                  </select>
+                </div>
+
+                {/* Métodos de Pagamento */}
+                <div>
+                  <label className='block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                    Métodos de Pagamento *
+                  </label>
+                  {paymentMethodsData && paymentMethodsData.length > 0 ? (
+                    <div className='space-y-1 max-h-32 overflow-y-auto'>
+                      {paymentMethodsData.map((method: any) => {
+                        const detailsObj =
+                          typeof method.details === 'string'
+                            ? JSON.parse(method.details)
+                            : method.details
+                        const accountLabel = detailsObj?.account_number || detailsObj?.key || 'N/A'
+
+                        return (
+                          <label
+                            key={method.id}
+                            className='flex items-center gap-2 p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer text-sm'
+                          >
+                            <input
+                              type='checkbox'
+                              checked={selectedPaymentMethods.includes(method.id)}
+                              onChange={() => handlePaymentMethodToggle(method.id)}
+                              className='rounded border-gray-300 text-blue-600 focus:ring-blue-500'
+                            />
+                            <div className='flex-1 min-w-0'>
+                              <p className='font-medium text-gray-900 dark:text-white truncate'>
+                                {method.method_type}
+                              </p>
+                              <p className='text-xs text-gray-600 dark:text-gray-400 truncate'>
+                                {accountLabel}
+                              </p>
+                            </div>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <p className='text-xs text-gray-600 dark:text-gray-400'>
+                      Nenhum método de pagamento configurado
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Card: Termos */}
+              <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-4 md:p-5'>
+                <h3 className='text-lg font-semibold text-gray-900 dark:text-white mb-3'>
+                  Mensagens (Opcional)
+                </h3>
+
+                <div className='space-y-3'>
+                  <div>
+                    <label className='block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1'>
+                      Termos da Transação
+                    </label>
+                    <textarea
+                      value={terms}
+                      onChange={e => setTerms(e.target.value)}
+                      placeholder='Ex: Apenas transferência bancária confirmada...'
+                      rows={2}
+                      className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm resize-none'
+                    />
+                  </div>
+
+                  <div>
+                    <label className='block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1'>
+                      Resposta Automática
+                    </label>
+                    <textarea
+                      value={autoReply}
+                      onChange={e => setAutoReply(e.target.value)}
+                      placeholder='Ex: Olá! Você tem 30 minutos para pagar...'
+                      rows={2}
+                      className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm resize-none'
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Submit Button */}
               <button
-                type='button'
-                onClick={() => navigate('/settings/payment-methods')}
-                className='text-blue-600 hover:text-blue-700 font-medium'
+                type='submit'
+                disabled={createOrderMutation.isPending || loadingPrice || basePrice <= 0}
+                className='w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold rounded-lg transition-all shadow-md hover:shadow-lg'
+                title={basePrice <= 0 ? 'Aguarde o carregamento do preço de mercado' : ''}
               >
-                Adicionar Método de Pagamento
+                {createOrderMutation.isPending
+                  ? 'Criando ordem...'
+                  : loadingPrice
+                    ? 'Carregando preço...'
+                    : 'Criar Ordem'}
               </button>
-            </div>
-          )}
-        </div>
-
-        {/* Terms and Auto Reply */}
-        <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-6'>
-          <h2 className='text-xl font-semibold text-gray-900 dark:text-white mb-4'>
-            Termos e Resposta Automática
-          </h2>
-
-          <div className='space-y-4'>
-            <div>
-              <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
-                Termos da Ordem (opcional)
-              </label>
-              <textarea
-                value={terms}
-                onChange={e => setTerms(e.target.value)}
-                rows={3}
-                placeholder='Ex: Aceito apenas pagamentos PIX instantâneos, respondo em até 5 minutos...'
-                className='w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none'
-              />
-            </div>
-
-            <div>
-              <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
-                Mensagem Automática (opcional)
-              </label>
-              <textarea
-                value={autoReply}
-                onChange={e => setAutoReply(e.target.value)}
-                rows={3}
-                placeholder='Ex: Olá! Obrigado por iniciar um trade comigo. Por favor, realize o pagamento e envie o comprovante...'
-                className='w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none'
-              />
-            </div>
+            </form>
           </div>
-        </div>
 
-        {/* Important Notice */}
-        <div className='bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4'>
-          <div className='flex gap-3'>
-            <Info className='w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5' />
-            <div className='text-sm text-gray-700 dark:text-gray-300'>
-              <p className='font-medium mb-2'>Informações Importantes:</p>
-              <ul className='list-disc list-inside space-y-1'>
-                <li>Certifique-se de que tem saldo suficiente para realizar a ordem</li>
-                <li>Suas criptomoedas ficarão em escrow até a conclusão do trade</li>
-                <li>Responda rapidamente aos compradores para manter sua reputação alta</li>
-                <li>Não compartilhe informações pessoais fora da plataforma</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className='flex gap-4'>
-          <button
-            type='button'
-            onClick={() => navigate('/p2p')}
-            className='flex-1 px-6 py-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium transition-colors'
-          >
-            Cancelar
-          </button>
-          <button
-            type='submit'
-            disabled={createOrderMutation.isPending}
-            className='flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors inline-flex items-center justify-center gap-2'
-          >
-            {createOrderMutation.isPending ? (
-              <>
-                <div className='w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin' />
-                Criando...
-              </>
-            ) : (
-              'Criar Ordem'
+          {/* Coluna Direita: Resumo & Saldo */}
+          <div className='lg:col-span-1 space-y-4'>
+            {/* Card: Resumo */}
+            {finalPrice > 0 && amount && (
+              <div className='bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-900/20 rounded-lg shadow p-4 border border-blue-200 dark:border-blue-800 sticky top-4'>
+                <h4 className='text-sm font-semibold text-gray-900 dark:text-white mb-3'>
+                  Resumo da Ordem
+                </h4>
+                <div className='space-y-2 text-sm'>
+                  <div className='flex justify-between'>
+                    <span className='text-gray-700 dark:text-gray-400'>Quantidade:</span>
+                    <span className='font-semibold text-gray-900 dark:text-white'>
+                      {formatBalance(Number.parseFloat(amount))} {coin}
+                    </span>
+                  </div>
+                  <div className='flex justify-between'>
+                    <span className='text-gray-700 dark:text-gray-400'>Preço Unit.:</span>
+                    <span className='font-semibold text-gray-900 dark:text-white'>
+                      {getCurrencySymbol()} {formatBalance(finalPrice)}
+                    </span>
+                  </div>
+                  <div className='border-t border-blue-300 dark:border-blue-700 pt-2 flex justify-between'>
+                    <span className='font-semibold text-gray-900 dark:text-white'>Total:</span>
+                    <span className='text-lg font-bold text-blue-600 dark:text-blue-400'>
+                      {getCurrencySymbol()} {totalValue}
+                    </span>
+                  </div>
+                </div>
+              </div>
             )}
-          </button>
+
+            {/* Card: Saldo */}
+            {(currentBalance > 0 || Object.keys(allBalances).length > 0) && (
+              <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-4'>
+                <h4 className='text-sm font-semibold text-gray-900 dark:text-white mb-3'>
+                  Seus Saldos
+                </h4>
+                <div className='space-y-2 max-h-48 overflow-y-auto'>
+                  {Object.entries(allBalances)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([symbol, balance]) => (
+                      <div key={symbol} className='flex items-center justify-between text-sm'>
+                        <div className='flex items-center gap-2'>
+                          {CRYPTO_LOGOS[symbol] && (
+                            <img
+                              src={CRYPTO_LOGOS[symbol]}
+                              alt={symbol}
+                              className='w-4 h-4 rounded-full'
+                            />
+                          )}
+                          <span className='font-medium text-gray-900 dark:text-white'>
+                            {symbol}
+                          </span>
+                        </div>
+                        <span
+                          className={`font-semibold ${balance > 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-500'}`}
+                        >
+                          {formatBalance(balance)}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+                <div className='mt-3 pt-3 border-t border-gray-200 dark:border-gray-700'>
+                  <div className='flex items-center justify-between font-semibold text-gray-900 dark:text-white'>
+                    <span>Total:</span>
+                    <span className='text-lg text-blue-600 dark:text-blue-400'>
+                      {formatBalance(Object.values(allBalances).reduce((a, b) => a + b, 0))}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-      </form>
+      </div>
     </div>
   )
 }

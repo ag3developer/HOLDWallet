@@ -10,7 +10,6 @@ from app.core.uuid_type import UUID
 
 if TYPE_CHECKING:
     from app.models.reputation import UserReputation
-    from app.models.instant_trade import InstantTrade
 
 class User(Base):
     """User model for authentication and user management."""
@@ -37,6 +36,7 @@ class User(Base):
     wallets = relationship("Wallet", back_populates="user")
     transactions = relationship("Transaction", back_populates="user")
     two_factor_auth = relationship("TwoFactorAuth", back_populates="user", uselist=False)
+    instant_trades = relationship("InstantTrade", back_populates="user")
     
     def __repr__(self):
         return f"<User(id={self.id}, username='{self.username}', email='{self.email}')>"

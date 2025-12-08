@@ -147,25 +147,3 @@ class WalletListResponse(BaseModel):
     total_count: int
     offset: int
     limit: int
-
-class AllBalancesResponse(BaseModel):
-    """Response schema for all user balances aggregated."""
-    balances: Dict[str, float] = Field(..., description="All balances by symbol (BTC, ETH, MATIC, USDT, etc)")
-    total_usd: str = Field(default="0", description="Total value in USD")
-    total_brl: str = Field(default="0", description="Total value in BRL")
-    
-    class Config:
-        schema_extra = {
-            "example": {
-                "balances": {
-                    "BTC": 0.5,
-                    "ETH": 2.5,
-                    "MATIC": 22.99,
-                    "USDT": 2.04,
-                    "BASE": 0.00269
-                },
-                "total_usd": "5000.00",
-                "total_brl": "25000.00",
-                "last_updated": "2025-01-01T00:00:00Z"
-            }
-        }

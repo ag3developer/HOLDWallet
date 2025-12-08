@@ -207,8 +207,8 @@ export function InstantTradePage() {
                       <div className='p-2 bg-green-50 dark:bg-green-900/30 rounded border-l-2 border-green-500 flex gap-2'>
                         <Zap className='w-4 h-4 text-green-600 flex-shrink-0 mt-0.5' />
                         <p className='text-gray-700 dark:text-gray-300'>
-                          <span className='font-medium'>Fast delivery:</span> Most trades complete in
-                          minutes
+                          <span className='font-medium'>Fast delivery:</span> Most trades complete
+                          in minutes
                         </p>
                       </div>
 
@@ -223,7 +223,8 @@ export function InstantTradePage() {
                       <div className='p-2 bg-purple-50 dark:bg-purple-900/30 rounded border-l-2 border-purple-500 flex gap-2'>
                         <Globe className='w-4 h-4 text-purple-600 flex-shrink-0 mt-0.5' />
                         <p className='text-gray-700 dark:text-gray-300'>
-                          <span className='font-medium'>24/7 trading:</span> Trade anytime, every day
+                          <span className='font-medium'>24/7 trading:</span> Trade anytime, every
+                          day
                         </p>
                       </div>
                     </div>
@@ -273,19 +274,22 @@ export function InstantTradePage() {
                     <div className='p-2 bg-blue-50 dark:bg-blue-900/30 rounded border-l-2 border-blue-500 flex gap-2'>
                       <TrendingUp className='w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5' />
                       <p className='text-gray-700 dark:text-gray-300'>
-                        <span className='font-medium'>Best rates:</span> Higher amounts get better prices
+                        <span className='font-medium'>Best rates:</span> Higher amounts get better
+                        prices
                       </p>
                     </div>
                     <div className='p-2 bg-green-50 dark:bg-green-900/30 rounded border-l-2 border-green-500 flex gap-2'>
                       <Zap className='w-4 h-4 text-green-600 flex-shrink-0 mt-0.5' />
                       <p className='text-gray-700 dark:text-gray-300'>
-                        <span className='font-medium'>Fast delivery:</span> Most trades complete in minutes
+                        <span className='font-medium'>Fast delivery:</span> Most trades complete in
+                        minutes
                       </p>
                     </div>
                     <div className='p-2 bg-amber-50 dark:bg-amber-900/30 rounded border-l-2 border-amber-500 flex gap-2'>
                       <Clock className='w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5' />
                       <p className='text-gray-700 dark:text-gray-300'>
-                        <span className='font-medium'>Quote expires:</span> Refresh if quote times out
+                        <span className='font-medium'>Quote expires:</span> Refresh if quote times
+                        out
                       </p>
                     </div>
                     <div className='p-2 bg-purple-50 dark:bg-purple-900/30 rounded border-l-2 border-purple-500 flex gap-2'>
@@ -336,19 +340,22 @@ export function InstantTradePage() {
                     <div className='p-2 bg-blue-50 dark:bg-blue-900/30 rounded border-l-2 border-blue-500 flex gap-2'>
                       <TrendingUp className='w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5' />
                       <p className='text-gray-700 dark:text-gray-300'>
-                        <span className='font-medium'>Best rates:</span> Higher amounts get better prices
+                        <span className='font-medium'>Best rates:</span> Higher amounts get better
+                        prices
                       </p>
                     </div>
                     <div className='p-2 bg-green-50 dark:bg-green-900/30 rounded border-l-2 border-green-500 flex gap-2'>
                       <Zap className='w-4 h-4 text-green-600 flex-shrink-0 mt-0.5' />
                       <p className='text-gray-700 dark:text-gray-300'>
-                        <span className='font-medium'>Fast delivery:</span> Most trades complete in minutes
+                        <span className='font-medium'>Fast delivery:</span> Most trades complete in
+                        minutes
                       </p>
                     </div>
                     <div className='p-2 bg-amber-50 dark:bg-amber-900/30 rounded border-l-2 border-amber-500 flex gap-2'>
                       <Clock className='w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5' />
                       <p className='text-gray-700 dark:text-gray-300'>
-                        <span className='font-medium'>Quote expires:</span> Refresh if quote times out
+                        <span className='font-medium'>Quote expires:</span> Refresh if quote times
+                        out
                       </p>
                     </div>
                     <div className='p-2 bg-purple-50 dark:bg-purple-900/30 rounded border-l-2 border-purple-500 flex gap-2'>
