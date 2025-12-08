@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react'
 import { TrendingUp, TrendingDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useCurrencyStore } from '@/stores/useCurrencyStore'
+import baseLogo from '@/assets/crypto-icons/base.png'
 
 interface CryptoPrice {
   symbol: string
@@ -20,14 +21,14 @@ interface MarketPricesCarouselProps {
   convertFromBRL: (amount: number) => number
 }
 
-// Crypto logos from CoinGecko (free CDN)
+// Crypto logos from CoinGecko (free CDN) + local assets
 const CRYPTO_LOGOS: Record<string, string> = {
   BTC: 'https://assets.coingecko.com/coins/images/1/large/bitcoin.png?1696501400',
   ETH: 'https://assets.coingecko.com/coins/images/279/large/ethereum.png?1696501628',
   MATIC: 'https://assets.coingecko.com/coins/images/4713/large/matic-token-icon.png?1696504745',
   BNB: 'https://assets.coingecko.com/coins/images/825/large/bnb-icon2_2x.png?1696501970',
   TRX: 'https://assets.coingecko.com/coins/images/1094/large/tron-logo.png?1696502193',
-  BASE: 'https://assets.coingecko.com/coins/images/30617/large/base.jpg?1696519330',
+  BASE: baseLogo,
   USDT: 'https://assets.coingecko.com/coins/images/325/large/Tether.png?1696501661',
   SOL: 'https://assets.coingecko.com/coins/images/4128/large/solana.png?1696504756',
   LTC: 'https://assets.coingecko.com/coins/images/2/large/litecoin.png?1696501400',

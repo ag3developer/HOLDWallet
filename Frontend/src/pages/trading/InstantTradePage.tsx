@@ -1,12 +1,35 @@
 import React, { useState, useEffect } from 'react'
 import { useCurrencyStore } from '@/stores/useCurrencyStore'
+import { useAuthStore } from '@/stores/useAuthStore'
+import { usePrices } from '@/hooks/usePrices'
+import { CryptoIcon } from '@/components/CryptoIcon'
 import { TradingForm } from './components/TradingForm'
-import { MarketPricesCarousel } from './components/MarketPricesCarousel'
 import { QuoteDisplay } from './components/QuoteDisplay'
 import { ConfirmationPanel } from './components/ConfirmationPanel'
 import { BenefitsSidebar } from './components/BenefitsSidebar'
 import { TradeHistoryPanel } from './components/TradeHistoryPanel'
-import { ChevronDown, TrendingUp, Zap, Clock, Globe } from 'lucide-react'
+import { ChevronDown, TrendingUp, Zap, Clock, Globe, AlertCircle, Loader2 } from 'lucide-react'
+
+const API_BASE = 'http://127.0.0.1:8000'
+
+// List of supported cryptocurrencies (fixed list)
+const SUPPORTED_CRYPTOS = [
+  { symbol: 'BTC', name: 'Bitcoin' },
+  { symbol: 'ETH', name: 'Ethereum' },
+  { symbol: 'USDT', name: 'Tether' },
+  { symbol: 'USDC', name: 'USD Coin' },
+  { symbol: 'SOL', name: 'Solana' },
+  { symbol: 'ADA', name: 'Cardano' },
+  { symbol: 'AVAX', name: 'Avalanche' },
+  { symbol: 'MATIC', name: 'Polygon' },
+  { symbol: 'DOT', name: 'Polkadot' },
+  { symbol: 'BNB', name: 'Binance Coin' },
+  { symbol: 'XRP', name: 'Ripple' },
+  { symbol: 'LINK', name: 'Chainlink' },
+  { symbol: 'DOGE', name: 'Dogecoin' },
+  { symbol: 'LTC', name: 'Litecoin' },
+  { symbol: 'SHIB', name: 'Shiba Inu' },
+]
 
 interface Quote {
   quote_id: string
@@ -44,59 +67,124 @@ const getCurrencyLocale = (currency: string): string => {
   return 'de-DE'
 }
 
-const generatePriceVariation = (
-  basePrice: number
-): { change24h: number; high24h: number; low24h: number } => {
-  const variation = (Math.random() - 0.5) * 0.08
-  const change24h = variation * 100
-  const high24h = basePrice * (1 + Math.abs(variation) + 0.02)
-  const low24h = basePrice * (1 - Math.abs(variation) - 0.02)
-  return { change24h, high24h, low24h }
-}
-
-const initialCryptos: CryptoPrice[] = [
-  { symbol: 'BTC', name: 'Bitcoin', price: 300000, ...generatePriceVariation(300000) },
-  { symbol: 'ETH', name: 'Ethereum', price: 12500, ...generatePriceVariation(12500) },
-  { symbol: 'MATIC', name: 'Polygon', price: 5.8, ...generatePriceVariation(5.8) },
-  { symbol: 'BNB', name: 'Binance Coin', price: 2500, ...generatePriceVariation(2500) },
-  { symbol: 'TRX', name: 'TRON', price: 0.45, ...generatePriceVariation(0.45) },
-  { symbol: 'BASE', name: 'Base', price: 12, ...generatePriceVariation(12) },
-  { symbol: 'USDT', name: 'Tether', price: 5, ...generatePriceVariation(5) },
-  { symbol: 'SOL', name: 'Solana', price: 500, ...generatePriceVariation(500) },
-  { symbol: 'LTC', name: 'Litecoin', price: 120, ...generatePriceVariation(120) },
-  { symbol: 'DOGE', name: 'Dogecoin', price: 3.5, ...generatePriceVariation(3.5) },
-  { symbol: 'ADA', name: 'Cardano', price: 2.5, ...generatePriceVariation(2.5) },
-  { symbol: 'AVAX', name: 'Avalanche', price: 140, ...generatePriceVariation(140) },
-  { symbol: 'DOT', name: 'Polkadot', price: 8.5, ...generatePriceVariation(8.5) },
-  { symbol: 'LINK', name: 'Chainlink', price: 75, ...generatePriceVariation(75) },
-  { symbol: 'SHIB', name: 'Shiba Inu', price: 0.000012, ...generatePriceVariation(0.000012) },
-  { symbol: 'XRP', name: 'Ripple', price: 15, ...generatePriceVariation(15) },
-]
-
-const updateCryptoPrices = (prices: CryptoPrice[]): CryptoPrice[] => {
-  const variation = (Math.random() - 0.5) * 0.02
-  const change24h = (Math.random() - 0.5) * 0.08 * 100
-
-  return prices.map(crypto => {
-    const newPrice = crypto.price * (1 + variation)
-    return {
-      ...crypto,
-      price: newPrice,
-      change24h,
-      high24h: newPrice * 1.05,
-      low24h: newPrice * 0.95,
-    }
-  })
-}
-
 export function InstantTradePage() {
   const { currency, convertFromBRL: storeConvertFromBRL } = useCurrencyStore()
-  const [cryptoPrices, setCryptoPrices] = useState<CryptoPrice[]>(initialCryptos)
+  const { token } = useAuthStore()
+  const {
+    prices: priceData,
+    loading: loadingPrices,
+    error: priceError,
+    refetch,
+  } = usePrices(SUPPORTED_CRYPTOS.map(c => c.symbol))
+  const [cryptoPrices, setCryptoPrices] = useState<CryptoPrice[]>([])
   const [operation, setOperation] = useState<'buy' | 'sell'>('buy')
   const [symbol, setSymbol] = useState('BTC')
   const [quote, setQuote] = useState<Quote | null>(null)
   const [showConfirmation, setShowConfirmation] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
+  const [walletBalances, setWalletBalances] = useState<Record<string, number>>({})
+  const [loadingBalances, setLoadingBalances] = useState(true)
+
+  // Fetch wallet balances
+  useEffect(() => {
+    const fetchBalances = async () => {
+      try {
+        if (!token) {
+          setLoadingBalances(false)
+          return
+        }
+
+        // Get wallets
+        const walletsResp = await fetch('http://127.0.0.1:8000/wallets/', {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+
+        if (!walletsResp.ok) throw new Error('Failed to fetch wallets')
+
+        const wallets = await walletsResp.json()
+        if (!wallets?.length) {
+          setWalletBalances({})
+          setLoadingBalances(false)
+          return
+        }
+
+        const walletId = wallets[0].id
+
+        // Fetch balances
+        const balanceResp = await fetch(
+          `http://127.0.0.1:8000/wallets/${walletId}/balances?include_tokens=true`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        )
+
+        if (!balanceResp.ok) throw new Error('Failed to fetch balances')
+
+        const balData = await balanceResp.json()
+        const balances: Record<string, number> = {}
+
+        // Map network balances to crypto symbols
+        for (const [network, balInfo] of Object.entries(balData.balances || {})) {
+          const networkLower = (network as string).toLowerCase()
+          let amount = 0
+
+          if (typeof balInfo === 'object' && (balInfo as any)?.balance !== undefined) {
+            amount = Number.parseFloat(String((balInfo as any).balance)) || 0
+          } else if (typeof balInfo === 'number') {
+            amount = balInfo
+          }
+
+          // Map network to symbol
+          if (networkLower.includes('polygon')) {
+            const symbol = networkLower.includes('usdt') ? 'USDT' : 'MATIC'
+            balances[symbol] = (balances[symbol] || 0) + amount
+          } else if (networkLower === 'base') {
+            balances['BASE'] = amount
+          } else if (networkLower === 'ethereum' || networkLower === 'eth') {
+            balances['ETH'] = amount
+          } else if (networkLower === 'bitcoin' || networkLower === 'btc') {
+            balances['BTC'] = amount
+          } else if (networkLower === 'solana' || networkLower === 'sol') {
+            balances['SOL'] = amount
+          }
+        }
+
+        setWalletBalances(balances)
+        setLoadingBalances(false)
+      } catch (error) {
+        console.error('Error fetching wallet balances:', error)
+        setWalletBalances({})
+        setLoadingBalances(false)
+      }
+    }
+
+    fetchBalances()
+  }, [token])
+
+  // Update cryptoPrices when hook provides new prices
+  useEffect(() => {
+    if (Object.keys(priceData).length > 0) {
+      const prices = SUPPORTED_CRYPTOS.map(crypto => {
+        const priceInfo = priceData[crypto.symbol]
+        if (!priceInfo) return null
+
+        return {
+          symbol: crypto.symbol,
+          name: crypto.name,
+          price: priceInfo.price,
+          change24h: priceInfo.change_24h,
+          high24h: priceInfo.price * 1.05,
+          low24h: priceInfo.price * 0.95,
+        } as CryptoPrice
+      }).filter((p): p is CryptoPrice => p !== null)
+
+      setCryptoPrices(prices)
+
+      // Auto-select first crypto if current not available
+      const currentSymbolExists = prices.some(p => p.symbol === symbol)
+      if (!currentSymbolExists && prices.length > 0) {
+        setSymbol(prices[0].symbol)
+      }
+    }
+  }, [priceData, symbol])
 
   const convertFromBRL = (value: number): number => {
     if (!value || typeof value !== 'number' || Number.isNaN(value)) {
@@ -108,13 +196,6 @@ export function InstantTradePage() {
     }
     return converted
   }
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCryptoPrices(updateCryptoPrices)
-    }, 5000)
-    return () => clearInterval(interval)
-  }, [])
 
   const handleQuoteReceived = (newQuote: Quote) => {
     const currentPrice =
@@ -131,6 +212,28 @@ export function InstantTradePage() {
     setQuote(null)
   }
 
+  // Helper to format balance display
+  const formatBalance = (value: number): string => {
+    if (value === 0) return '0'
+    if (value < 0.0001) return value.toFixed(8).replace(/\.?0+$/, '')
+    if (value < 1) return value.toFixed(6).replace(/\.?0+$/, '')
+    if (value < 1000) return value.toFixed(4).replace(/\.?0+$/, '')
+    return value.toFixed(2).replace(/\.?0+$/, '')
+  }
+
+  // Get all cryptos with their prices and balances
+  const cryptosWithBalances = SUPPORTED_CRYPTOS.map(crypto => {
+    const price = cryptoPrices.find(p => p.symbol === crypto.symbol)
+    const balance = walletBalances[crypto.symbol] || 0
+    return {
+      ...crypto,
+      price: price?.price || 0,
+      balance,
+      change24h: price?.change24h || 0,
+    }
+  })
+
+  // Update quote if price changed
   useEffect(() => {
     if (quote) {
       const currentPrice =
@@ -149,239 +252,325 @@ export function InstantTradePage() {
         </p>
       </div>
 
-      {/* Market Prices Carousel */}
-      <MarketPricesCarousel
-        cryptoPrices={cryptoPrices}
-        selectedSymbol={symbol}
-        onSelectSymbol={setSymbol}
-        getCurrencySymbol={getCurrencySymbol}
-        getCurrencyLocale={getCurrencyLocale}
-        convertFromBRL={convertFromBRL}
-      />
-
-      {/* Main Trading Area */}
-      {!showConfirmation ? (
-        <div className='space-y-6'>
-          {/* Desktop Layout: Side by side */}
-          <div className='hidden lg:grid lg:grid-cols-3 gap-6'>
-            {/* Left Column: Trading Form */}
-            <div className='lg:col-span-1'>
-              <TradingForm
-                cryptoPrices={cryptoPrices}
-                selectedSymbol={symbol}
-                onSymbolChange={setSymbol}
-                isBuy={operation === 'buy'}
-                onOperationChange={isBuy => setOperation(isBuy ? 'buy' : 'sell')}
-                onQuoteReceived={handleQuoteReceived}
-                currency={currency}
-                convertFromBRL={convertFromBRL}
-              />
-            </div>
-
-            {/* Middle Column: Quote Display */}
-            <div className='lg:col-span-1'>
-              {quote ? (
-                <QuoteDisplay
-                  quote={quote}
-                  currencySymbol={getCurrencySymbol(currency)}
-                  currencyLocale={getCurrencyLocale(currency)}
-                  convertFromBRL={convertFromBRL}
-                  onConfirmClick={() => setShowConfirmation(true)}
-                />
-              ) : (
-                <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-4'>
-                  <div className='space-y-3'>
-                    <h3 className='text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2'>
-                      <Zap className='w-4 h-4' /> Quick Tips
-                    </h3>
-
-                    <div className='space-y-2 text-xs'>
-                      <div className='p-2 bg-blue-50 dark:bg-blue-900/30 rounded border-l-2 border-blue-500 flex gap-2'>
-                        <TrendingUp className='w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5' />
-                        <p className='text-gray-700 dark:text-gray-300'>
-                          <span className='font-medium'>Best rates:</span> Higher amounts get better
-                          prices
-                        </p>
-                      </div>
-
-                      <div className='p-2 bg-green-50 dark:bg-green-900/30 rounded border-l-2 border-green-500 flex gap-2'>
-                        <Zap className='w-4 h-4 text-green-600 flex-shrink-0 mt-0.5' />
-                        <p className='text-gray-700 dark:text-gray-300'>
-                          <span className='font-medium'>Fast delivery:</span> Most trades complete
-                          in minutes
-                        </p>
-                      </div>
-
-                      <div className='p-2 bg-amber-50 dark:bg-amber-900/30 rounded border-l-2 border-amber-500 flex gap-2'>
-                        <Clock className='w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5' />
-                        <p className='text-gray-700 dark:text-gray-300'>
-                          <span className='font-medium'>Quote expires:</span> Refresh if quote times
-                          out
-                        </p>
-                      </div>
-
-                      <div className='p-2 bg-purple-50 dark:bg-purple-900/30 rounded border-l-2 border-purple-500 flex gap-2'>
-                        <Globe className='w-4 h-4 text-purple-600 flex-shrink-0 mt-0.5' />
-                        <p className='text-gray-700 dark:text-gray-300'>
-                          <span className='font-medium'>24/7 trading:</span> Trade anytime, every
-                          day
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Right Column: Benefits Sidebar */}
-            <div className='lg:col-span-1'>
-              <BenefitsSidebar />
-            </div>
+      {/* Error Message */}
+      {priceError && (
+        <div className='p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-3'>
+          <AlertCircle className='w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0' />
+          <div>
+            <p className='text-red-700 dark:text-red-300 font-medium'>Erro ao carregar preços</p>
+            <p className='text-red-600 dark:text-red-400 text-sm'>{priceError}</p>
           </div>
+          <button
+            onClick={refetch}
+            className='ml-auto px-3 py-1 text-sm font-medium bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-900/60 rounded transition-colors'
+          >
+            Tentar Novamente
+          </button>
+        </div>
+      )}
 
-          {/* Tablet Layout: Stacked */}
-          <div className='hidden md:block lg:hidden space-y-6'>
-            {/* Trading Form */}
-            <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-6'>
-              <TradingForm
-                cryptoPrices={cryptoPrices}
-                selectedSymbol={symbol}
-                onSymbolChange={setSymbol}
-                isBuy={operation === 'buy'}
-                onOperationChange={isBuy => setOperation(isBuy ? 'buy' : 'sell')}
-                onQuoteReceived={handleQuoteReceived}
-                currency={currency}
-                convertFromBRL={convertFromBRL}
-              />
-            </div>
-
-            {/* Quote or Tips */}
-            {quote ? (
-              <QuoteDisplay
-                quote={quote}
-                currencySymbol={getCurrencySymbol(currency)}
-                currencyLocale={getCurrencyLocale(currency)}
-                convertFromBRL={convertFromBRL}
-                onConfirmClick={() => setShowConfirmation(true)}
-              />
-            ) : (
-              <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-4'>
-                <div className='space-y-3'>
-                  <h3 className='text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2'>
-                    <Zap className='w-4 h-4' /> Quick Tips
-                  </h3>
-                  <div className='space-y-2 text-xs'>
-                    <div className='p-2 bg-blue-50 dark:bg-blue-900/30 rounded border-l-2 border-blue-500 flex gap-2'>
-                      <TrendingUp className='w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5' />
-                      <p className='text-gray-700 dark:text-gray-300'>
-                        <span className='font-medium'>Best rates:</span> Higher amounts get better
-                        prices
-                      </p>
-                    </div>
-                    <div className='p-2 bg-green-50 dark:bg-green-900/30 rounded border-l-2 border-green-500 flex gap-2'>
-                      <Zap className='w-4 h-4 text-green-600 flex-shrink-0 mt-0.5' />
-                      <p className='text-gray-700 dark:text-gray-300'>
-                        <span className='font-medium'>Fast delivery:</span> Most trades complete in
-                        minutes
-                      </p>
-                    </div>
-                    <div className='p-2 bg-amber-50 dark:bg-amber-900/30 rounded border-l-2 border-amber-500 flex gap-2'>
-                      <Clock className='w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5' />
-                      <p className='text-gray-700 dark:text-gray-300'>
-                        <span className='font-medium'>Quote expires:</span> Refresh if quote times
-                        out
-                      </p>
-                    </div>
-                    <div className='p-2 bg-purple-50 dark:bg-purple-900/30 rounded border-l-2 border-purple-500 flex gap-2'>
-                      <Globe className='w-4 h-4 text-purple-600 flex-shrink-0 mt-0.5' />
-                      <p className='text-gray-700 dark:text-gray-300'>
-                        <span className='font-medium'>24/7 trading:</span> Trade anytime, every day
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Benefits */}
-            <BenefitsSidebar />
-          </div>
-
-          {/* Mobile Layout: Full width stacked */}
-          <div className='md:hidden space-y-6'>
-            {/* Trading Form */}
-            <TradingForm
-              cryptoPrices={cryptoPrices}
-              selectedSymbol={symbol}
-              onSymbolChange={setSymbol}
-              isBuy={operation === 'buy'}
-              onOperationChange={isBuy => setOperation(isBuy ? 'buy' : 'sell')}
-              onQuoteReceived={handleQuoteReceived}
-              currency={currency}
-              convertFromBRL={convertFromBRL}
-            />
-
-            {/* Quote or Tips */}
-            {quote ? (
-              <QuoteDisplay
-                quote={quote}
-                currencySymbol={getCurrencySymbol(currency)}
-                currencyLocale={getCurrencyLocale(currency)}
-                convertFromBRL={convertFromBRL}
-                onConfirmClick={() => setShowConfirmation(true)}
-              />
-            ) : (
-              <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-4'>
-                <div className='space-y-3'>
-                  <h3 className='text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2'>
-                    <Zap className='w-4 h-4' /> Quick Tips
-                  </h3>
-                  <div className='space-y-2 text-xs'>
-                    <div className='p-2 bg-blue-50 dark:bg-blue-900/30 rounded border-l-2 border-blue-500 flex gap-2'>
-                      <TrendingUp className='w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5' />
-                      <p className='text-gray-700 dark:text-gray-300'>
-                        <span className='font-medium'>Best rates:</span> Higher amounts get better
-                        prices
-                      </p>
-                    </div>
-                    <div className='p-2 bg-green-50 dark:bg-green-900/30 rounded border-l-2 border-green-500 flex gap-2'>
-                      <Zap className='w-4 h-4 text-green-600 flex-shrink-0 mt-0.5' />
-                      <p className='text-gray-700 dark:text-gray-300'>
-                        <span className='font-medium'>Fast delivery:</span> Most trades complete in
-                        minutes
-                      </p>
-                    </div>
-                    <div className='p-2 bg-amber-50 dark:bg-amber-900/30 rounded border-l-2 border-amber-500 flex gap-2'>
-                      <Clock className='w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5' />
-                      <p className='text-gray-700 dark:text-gray-300'>
-                        <span className='font-medium'>Quote expires:</span> Refresh if quote times
-                        out
-                      </p>
-                    </div>
-                    <div className='p-2 bg-purple-50 dark:bg-purple-900/30 rounded border-l-2 border-purple-500 flex gap-2'>
-                      <Globe className='w-4 h-4 text-purple-600 flex-shrink-0 mt-0.5' />
-                      <p className='text-gray-700 dark:text-gray-300'>
-                        <span className='font-medium'>24/7 trading:</span> Trade anytime, every day
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Benefits */}
-            <BenefitsSidebar />
-          </div>
+      {/* Loading State */}
+      {loadingPrices && loadingBalances ? (
+        <div className='p-8 bg-white dark:bg-gray-800 rounded-lg shadow flex flex-col items-center justify-center gap-4'>
+          <Loader2 className='w-8 h-8 text-blue-600 animate-spin' />
+          <p className='text-gray-700 dark:text-gray-300 font-medium'>
+            Carregando preços em tempo real...
+          </p>
+          <p className='text-gray-600 dark:text-gray-400 text-sm'>Conectando ao CoinGecko</p>
         </div>
       ) : (
-        <ConfirmationPanel
-          quote={quote}
-          currencySymbol={getCurrencySymbol(currency)}
-          currencyLocale={getCurrencyLocale(currency)}
-          convertFromBRL={convertFromBRL}
-          onBackClick={() => setShowConfirmation(false)}
-          onSuccess={handleConfirmSuccess}
-        />
+        <>
+          {/* All Supported Cryptos with Prices and Balances */}
+          <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-6'>
+            <h2 className='text-lg font-semibold text-gray-900 dark:text-white mb-4'>
+              Criptomoedas Disponíveis
+            </h2>
+            <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3'>
+              {cryptosWithBalances.map(crypto => (
+                <button
+                  key={crypto.symbol}
+                  onClick={() => setSymbol(crypto.symbol)}
+                  className={`p-4 rounded-lg border-2 transition-all text-left ${
+                    symbol === crypto.symbol
+                      ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-500'
+                      : 'bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-400'
+                  }`}
+                >
+                  {/* Crypto Name and Symbol */}
+                  <div className='flex items-center justify-between mb-3'>
+                    <div>
+                      <p className='font-semibold text-gray-900 dark:text-white'>{crypto.symbol}</p>
+                      <p className='text-xs text-gray-600 dark:text-gray-400'>{crypto.name}</p>
+                    </div>
+                    <CryptoIcon symbol={crypto.symbol} size={32} className='rounded-full' />
+                  </div>
+
+                  {/* Price */}
+                  {crypto.price > 0 ? (
+                    <>
+                      <div className='mb-2'>
+                        <p className='text-sm text-gray-600 dark:text-gray-400'>Preço</p>
+                        <p className='font-semibold text-gray-900 dark:text-white'>
+                          R$ {formatBalance(crypto.price)}
+                        </p>
+                      </div>
+                      {crypto.change24h !== 0 && (
+                        <p
+                          className={`text-xs font-medium ${
+                            crypto.change24h >= 0
+                              ? 'text-green-600 dark:text-green-400'
+                              : 'text-red-600 dark:text-red-400'
+                          }`}
+                        >
+                          {crypto.change24h >= 0 ? '+' : ''}
+                          {crypto.change24h.toFixed(2)}%
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <div className='mb-2 animate-pulse'>
+                      <div className='h-4 bg-gray-300 dark:bg-gray-600 rounded w-20'></div>
+                    </div>
+                  )}
+
+                  {/* Balance */}
+                  <div className='mt-2 pt-2 border-t border-gray-200 dark:border-gray-600'>
+                    <p className='text-xs text-gray-600 dark:text-gray-400'>Seu Saldo</p>
+                    <p className='font-semibold text-gray-900 dark:text-white'>
+                      {loadingBalances ? '...' : formatBalance(crypto.balance)} {crypto.symbol}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Main Trading Area */}
+          {showConfirmation && quote ? (
+            <ConfirmationPanel
+              quote={quote}
+              currencySymbol={getCurrencySymbol(currency)}
+              currencyLocale={getCurrencyLocale(currency)}
+              convertFromBRL={convertFromBRL}
+              onSuccess={handleConfirmSuccess}
+            />
+          ) : (
+            <div className='space-y-6'>
+              {/* Desktop Layout: Side by side */}
+              <div className='hidden lg:grid lg:grid-cols-3 gap-6'>
+                {/* Left Column: Trading Form */}
+                <div className='lg:col-span-1'>
+                  <TradingForm
+                    cryptoPrices={cryptoPrices}
+                    selectedSymbol={symbol}
+                    onSymbolChange={setSymbol}
+                    isBuy={operation === 'buy'}
+                    onOperationChange={isBuy => setOperation(isBuy ? 'buy' : 'sell')}
+                    onQuoteReceived={handleQuoteReceived}
+                    currency={currency}
+                    convertFromBRL={convertFromBRL}
+                  />
+                </div>
+
+                {/* Middle Column: Quote Display */}
+                <div className='lg:col-span-1'>
+                  {quote ? (
+                    <QuoteDisplay
+                      quote={quote}
+                      currencySymbol={getCurrencySymbol(currency)}
+                      currencyLocale={getCurrencyLocale(currency)}
+                      convertFromBRL={convertFromBRL}
+                      onConfirmClick={() => setShowConfirmation(true)}
+                    />
+                  ) : (
+                    <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-4'>
+                      <div className='space-y-3'>
+                        <h3 className='text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2'>
+                          <Zap className='w-4 h-4' /> Quick Tips
+                        </h3>
+
+                        <div className='space-y-2 text-xs'>
+                          <div className='p-2 bg-blue-50 dark:bg-blue-900/30 rounded border-l-2 border-blue-500 flex gap-2'>
+                            <TrendingUp className='w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5' />
+                            <p className='text-gray-700 dark:text-gray-300'>
+                              <span className='font-medium'>Best rates:</span> Higher amounts get
+                              better prices
+                            </p>
+                          </div>
+
+                          <div className='p-2 bg-green-50 dark:bg-green-900/30 rounded border-l-2 border-green-500 flex gap-2'>
+                            <Zap className='w-4 h-4 text-green-600 flex-shrink-0 mt-0.5' />
+                            <p className='text-gray-700 dark:text-gray-300'>
+                              <span className='font-medium'>Fast delivery:</span> Most trades
+                              complete in minutes
+                            </p>
+                          </div>
+
+                          <div className='p-2 bg-amber-50 dark:bg-amber-900/30 rounded border-l-2 border-amber-500 flex gap-2'>
+                            <Clock className='w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5' />
+                            <p className='text-gray-700 dark:text-gray-300'>
+                              <span className='font-medium'>Quote expires:</span> Refresh if quote
+                              times out
+                            </p>
+                          </div>
+
+                          <div className='p-2 bg-purple-50 dark:bg-purple-900/30 rounded border-l-2 border-purple-500 flex gap-2'>
+                            <Globe className='w-4 h-4 text-purple-600 flex-shrink-0 mt-0.5' />
+                            <p className='text-gray-700 dark:text-gray-300'>
+                              <span className='font-medium'>24/7 trading:</span> Trade anytime,
+                              every day
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Right Column: Benefits Sidebar */}
+                <div className='lg:col-span-1'>
+                  <BenefitsSidebar />
+                </div>
+              </div>
+
+              {/* Tablet Layout: Stacked */}
+              <div className='hidden md:block lg:hidden space-y-6'>
+                {/* Trading Form */}
+                <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-6'>
+                  <TradingForm
+                    cryptoPrices={cryptoPrices}
+                    selectedSymbol={symbol}
+                    onSymbolChange={setSymbol}
+                    isBuy={operation === 'buy'}
+                    onOperationChange={isBuy => setOperation(isBuy ? 'buy' : 'sell')}
+                    onQuoteReceived={handleQuoteReceived}
+                    currency={currency}
+                    convertFromBRL={convertFromBRL}
+                  />
+                </div>
+
+                {/* Quote or Tips */}
+                {quote ? (
+                  <QuoteDisplay
+                    quote={quote}
+                    currencySymbol={getCurrencySymbol(currency)}
+                    currencyLocale={getCurrencyLocale(currency)}
+                    convertFromBRL={convertFromBRL}
+                    onConfirmClick={() => setShowConfirmation(true)}
+                  />
+                ) : (
+                  <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-4'>
+                    <div className='space-y-3'>
+                      <h3 className='text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2'>
+                        <Zap className='w-4 h-4' /> Quick Tips
+                      </h3>
+                      <div className='space-y-2 text-xs'>
+                        <div className='p-2 bg-blue-50 dark:bg-blue-900/30 rounded border-l-2 border-blue-500 flex gap-2'>
+                          <TrendingUp className='w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5' />
+                          <p className='text-gray-700 dark:text-gray-300'>
+                            <span className='font-medium'>Best rates:</span> Higher amounts get
+                            better prices
+                          </p>
+                        </div>
+                        <div className='p-2 bg-green-50 dark:bg-green-900/30 rounded border-l-2 border-green-500 flex gap-2'>
+                          <Zap className='w-4 h-4 text-green-600 flex-shrink-0 mt-0.5' />
+                          <p className='text-gray-700 dark:text-gray-300'>
+                            <span className='font-medium'>Fast delivery:</span> Most trades complete
+                            in minutes
+                          </p>
+                        </div>
+                        <div className='p-2 bg-amber-50 dark:bg-amber-900/30 rounded border-l-2 border-amber-500 flex gap-2'>
+                          <Clock className='w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5' />
+                          <p className='text-gray-700 dark:text-gray-300'>
+                            <span className='font-medium'>Quote expires:</span> Refresh if quote
+                            times out
+                          </p>
+                        </div>
+                        <div className='p-2 bg-purple-50 dark:bg-purple-900/30 rounded border-l-2 border-purple-500 flex gap-2'>
+                          <Globe className='w-4 h-4 text-purple-600 flex-shrink-0 mt-0.5' />
+                          <p className='text-gray-700 dark:text-gray-300'>
+                            <span className='font-medium'>24/7 trading:</span> Trade anytime, every
+                            day
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Benefits */}
+                <BenefitsSidebar />
+              </div>
+
+              {/* Mobile Layout: Full width stacked */}
+              <div className='md:hidden space-y-6'>
+                {/* Trading Form */}
+                <TradingForm
+                  cryptoPrices={cryptoPrices}
+                  selectedSymbol={symbol}
+                  onSymbolChange={setSymbol}
+                  isBuy={operation === 'buy'}
+                  onOperationChange={isBuy => setOperation(isBuy ? 'buy' : 'sell')}
+                  onQuoteReceived={handleQuoteReceived}
+                  currency={currency}
+                  convertFromBRL={convertFromBRL}
+                />
+
+                {/* Quote or Tips */}
+                {quote ? (
+                  <QuoteDisplay
+                    quote={quote}
+                    currencySymbol={getCurrencySymbol(currency)}
+                    currencyLocale={getCurrencyLocale(currency)}
+                    convertFromBRL={convertFromBRL}
+                    onConfirmClick={() => setShowConfirmation(true)}
+                  />
+                ) : (
+                  <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-4'>
+                    <div className='space-y-3'>
+                      <h3 className='text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2'>
+                        <Zap className='w-4 h-4' /> Quick Tips
+                      </h3>
+                      <div className='space-y-2 text-xs'>
+                        <div className='p-2 bg-blue-50 dark:bg-blue-900/30 rounded border-l-2 border-blue-500 flex gap-2'>
+                          <TrendingUp className='w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5' />
+                          <p className='text-gray-700 dark:text-gray-300'>
+                            <span className='font-medium'>Best rates:</span> Higher amounts get
+                            better prices
+                          </p>
+                        </div>
+                        <div className='p-2 bg-green-50 dark:bg-green-900/30 rounded border-l-2 border-green-500 flex gap-2'>
+                          <Zap className='w-4 h-4 text-green-600 flex-shrink-0 mt-0.5' />
+                          <p className='text-gray-700 dark:text-gray-300'>
+                            <span className='font-medium'>Fast delivery:</span> Most trades complete
+                            in minutes
+                          </p>
+                        </div>
+                        <div className='p-2 bg-amber-50 dark:bg-amber-900/30 rounded border-l-2 border-amber-500 flex gap-2'>
+                          <Clock className='w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5' />
+                          <p className='text-gray-700 dark:text-gray-300'>
+                            <span className='font-medium'>Quote expires:</span> Refresh if quote
+                            times out
+                          </p>
+                        </div>
+                        <div className='p-2 bg-purple-50 dark:bg-purple-900/30 rounded border-l-2 border-purple-500 flex gap-2'>
+                          <Globe className='w-4 h-4 text-purple-600 flex-shrink-0 mt-0.5' />
+                          <p className='text-gray-700 dark:text-gray-300'>
+                            <span className='font-medium'>24/7 trading:</span> Trade anytime, every
+                            day
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Benefits */}
+                <BenefitsSidebar />
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* Trade History Section */}

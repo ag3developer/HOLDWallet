@@ -8,8 +8,10 @@ A página `CreateOrderPage.tsx` foi completamente restaurada com todas as melhor
 
 ## 🎯 Principais Melhorias Implementadas
 
-### 1. **Busca de Saldos em Tempo Real** 
+### 1. **Busca de Saldos em Tempo Real**
+
 ✅ **Ativo e funcional**
+
 - Conecta ao backend para buscar saldos da carteira
 - Suporta múltiplas moedas (BTC, ETH, MATIC, USDT, SOL, BASE, etc)
 - Usa o token JWT da sessão do usuário
@@ -21,12 +23,14 @@ useEffect(() => {
     // GET /wallets → lista todas as carteiras
     // GET /wallets/{id}/balances → busca saldos detalhados
     // Mapeia networks para símbolos (polygon → MATIC, etc)
-  }
-}, [token])
+  };
+}, [token]);
 ```
 
 ### 2. **Integração com CoinGecko (Preço de Mercado)**
+
 ✅ **Ativo e funcional**
+
 - Busca preço de mercado em tempo real (sem custo)
 - Suporta 16 criptomoedas
 - 3 moedas fiat: BRL, USD, EUR
@@ -38,20 +42,25 @@ useEffect(() => {
 ```
 
 ### 3. **Sistema de Margem de Preço**
+
 ✅ **Ativo e funcional**
+
 - Slider de margem: -50% a +100%
 - Visualização em tempo real do preço final
 - Quick buttons: -10%, Mercado (0%), +10%
 - Cores dinâmicas (vermelho para negativo, verde para positivo)
 
 **Fórmula:**
+
 ```
 finalPrice = basePrice × (1 + priceMargin / 100)
 totalValue = finalPrice × amount
 ```
 
 ### 4. **Logos de Criptomoedas**
+
 ✅ **Ativo e funcional**
+
 - 16 logos de CoinGecko CDN (grátis)
 - Aparece em:
   - Grid de seleção de moedas
@@ -60,12 +69,29 @@ totalValue = finalPrice × amount
 
 ```typescript
 const CRYPTO_LOGOS = {
-  BTC, ETH, MATIC, BNB, USDT, SOL, LTC, BASE, ADA, AVAX, DOT, LINK, SHIB, XRP, TRX, DOGE
-}
+  BTC,
+  ETH,
+  MATIC,
+  BNB,
+  USDT,
+  SOL,
+  LTC,
+  BASE,
+  ADA,
+  AVAX,
+  DOT,
+  LINK,
+  SHIB,
+  XRP,
+  TRX,
+  DOGE,
+};
 ```
 
 ### 5. **Layout 3 Colunas Responsivo**
+
 ✅ **Ativo e funcional**
+
 - **Desktop (lg screens):** 3 colunas (2 left, 1 right)
   - Esquerda: Formulário principal
   - Direita: Resumo + Saldos (sticky)
@@ -73,14 +99,16 @@ const CRYPTO_LOGOS = {
 - **Tablet:** Adapta dinamicamente
 
 ```tsx
-<div className='grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6'>
+<div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
   {/* lg:col-span-2 */}
   {/* lg:col-span-1 */}
 </div>
 ```
 
 ### 6. **Card de Saldo Disponível** (Coluna Direita)
+
 ✅ **Ativo e funcional**
+
 - Lista todos os saldos do usuário
 - Ordenado por quantidade (maior primeiro)
 - Mostra logo, símbolo e saldo
@@ -88,14 +116,18 @@ const CRYPTO_LOGOS = {
 - Máximo 48 pixels de altura com scroll
 
 ```tsx
-{/* Card: Seus Saldos */}
-<div className='max-h-48 overflow-y-auto'>
+{
+  /* Card: Seus Saldos */
+}
+<div className="max-h-48 overflow-y-auto">
   {/* Listagem de moedas com saldos */}
-</div>
+</div>;
 ```
 
 ### 7. **Card de Resumo da Ordem** (Coluna Direita)
+
 ✅ **Ativo e funcional**
+
 - Mostra quantidade selecionada
 - Mostra preço unitário final (com margem)
 - Mostra valor total
@@ -104,17 +136,21 @@ const CRYPTO_LOGOS = {
 - Background azul gradiente
 
 ```tsx
-{finalPrice > 0 && amount && (
-  <div className='sticky top-4'>
-    {/* Resumo com quantidade, preço unit e total */}
-  </div>
-)}
+{
+  finalPrice > 0 && amount && (
+    <div className="sticky top-4">
+      {/* Resumo com quantidade, preço unit e total */}
+    </div>
+  );
+}
 ```
 
 ### 8. **Validações Robustas**
+
 ✅ **Ativo e funcional**
 
 **Front-end:**
+
 - Todas as strings preenchidas
 - Números válidos e > 0
 - Saldo suficiente para vender
@@ -122,12 +158,15 @@ const CRYPTO_LOGOS = {
 - Pelo menos 1 método de pagamento
 
 **Feedback:**
+
 - Toast de erro específico
 - Validação instantânea
 - Botão desabilitado até carregar preço
 
 ### 9. **Botão "Max" para Quantidade**
+
 ✅ **Ativo e funcional**
+
 - Clique preenche com saldo máximo disponível
 - Mostra: "Max (X.XX MATIC)"
 - Design: Botão azul ao lado do input
@@ -140,9 +179,11 @@ const CRYPTO_LOGOS = {
 ```
 
 ### 10. **Formatação Inteligente de Saldos**
+
 ✅ **Ativo e funcional**
 
 Sistema de decimais automático:
+
 ```
 < 0.0001  → 8 casas (valor muito pequeno)
 < 1       → 6 casas (token altissense)
@@ -156,17 +197,18 @@ Remove zeros à direita automaticamente.
 
 ## 🔧 Arquivos & Localizações
 
-| Arquivo | Status | Linhas |
-|---------|--------|--------|
-| `CreateOrderPage.tsx` | ✅ Restaurado | 854 |
-| `App.tsx` | ✅ Rota definida | - |
-| `EditOrderPage.tsx` | ✅ Novo (criado anterioremente) | 270 |
+| Arquivo               | Status                          | Linhas |
+| --------------------- | ------------------------------- | ------ |
+| `CreateOrderPage.tsx` | ✅ Restaurado                   | 854    |
+| `App.tsx`             | ✅ Rota definida                | -      |
+| `EditOrderPage.tsx`   | ✅ Novo (criado anterioremente) | 270    |
 
 ---
 
 ## 📊 Dados que Fluem
 
 ### 1. Busca de Balances
+
 ```
 Hook useAuthStore → token JWT
    ↓
@@ -182,6 +224,7 @@ UI: Grid de moedas + Card de saldos
 ```
 
 ### 2. Busca de Preço
+
 ```
 coin = 'MATIC', fiatCurrency = 'BRL'
    ↓
@@ -197,6 +240,7 @@ finalPrice = 2.45 * (1 + 0/100) = 2.45
 ```
 
 ### 3. Cálculo de Total
+
 ```
 amount = 10 (de input)
 finalPrice = 2.45
@@ -215,11 +259,13 @@ Valida se está entre minAmount e maxAmount
 ### Cards Principais:
 
 1. **Configuração Básica**
+
    - Tipo de ordem (Buy/Sell)
    - Seletor de moedas em grid
    - Seletor de moeda fiat
 
 2. **Preço & Quantidade**
+
    - Display de preço mercado
    - Display de seu preço
    - Slider de margem + quick buttons
@@ -227,6 +273,7 @@ Valida se está entre minAmount e maxAmount
    - Botão Max
 
 3. **Detalhes da Ordem**
+
    - Valor mínimo e máximo
    - Tempo limite
    - Seletor de métodos de pagamento
@@ -240,11 +287,13 @@ Valida se está entre minAmount e maxAmount
 ## 🚀 Como Testar
 
 ### Pré-requisito:
+
 - Backend rodando em `http://127.0.0.1:8000`
 - Usuário autenticado com token válido
 - Pelo menos 1 wallet com saldos
 
 ### Passos:
+
 1. Abra: `http://localhost:3000/p2p/create-order`
 2. Veja os saldos carregando na coluna direita
 3. Selecione uma moeda (aparece com logo)
@@ -292,7 +341,7 @@ Valida se está entre minAmount e maxAmount
 Build Status: `✓ built in 7.18s`  
 Modules: 1970  
 No errors  
-No warnings  
+No warnings
 
 ---
 

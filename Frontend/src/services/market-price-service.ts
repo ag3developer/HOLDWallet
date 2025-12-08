@@ -1,6 +1,6 @@
 /**
  * Market Price Service
- * Busca preços reais de criptomoedas da CoinGecko API (gratuita e sem restrições)
+ * Busca preços via backend proxy para evitar CORS issues
  */
 
 interface CryptoPriceData {
@@ -14,7 +14,7 @@ interface CryptoPriceData {
 }
 
 class MarketPriceService {
-  private readonly COINGECKO_API = 'https://api.coingecko.com/api/v3'
+  private readonly BACKEND_API = 'http://127.0.0.1:8000'
   private readonly priceCache: Map<string, { data: CryptoPriceData; timestamp: number }> = new Map()
   private readonly CACHE_DURATION = 5 * 60 * 1000 // 5 minutos
 
@@ -38,7 +38,7 @@ class MarketPriceService {
   }
 
   /**
-   * Busca o preço atual de uma criptomoeda via CoinGecko API (Gratuita)
+   * Busca o preço atual via backend proxy (sem CORS issues)
    */
   async getPrice(symbol: string): Promise<CryptoPriceData | null> {
     try {
@@ -49,16 +49,14 @@ class MarketPriceService {
         return cached.data
       }
 
-      // Converter símbolo para ID do CoinGecko
-      const coingeckoId = this.symbolToCoingeckoId[symbol.toUpperCase()]
-      if (!coingeckoId) {
-        console.warn(`Símbolo não mapeado: ${symbol}`)
-        return null
-      }
-
-      // Chamar CoinGecko API
+      // Chamar backend proxy endpoint
       const response = await fetch(
-        `${this.COINGECKO_API}/simple/price?ids=${coingeckoId}&vs_currencies=usd&include_24hr_change=true`
+        `${this.BACKEND_API}/prices/market/price?symbol=${symbol.toUpperCase()}&fiat=usd`,
+        {
+          headers: {
+            Authorization: `Bearer ${this.getTokenFromStorage()}`,
+          },
+        }
       )
 
       if (!response.ok) {
@@ -66,16 +64,8 @@ class MarketPriceService {
       }
 
       const data = await response.json()
-      const priceData = data[coingeckoId]
-
-      if (!priceData?.usd) {
-        console.warn(`Dados inválidos para ${symbol}`)
-        return null
-      }
-
-      // Extrair dados da resposta do CoinGecko
-      const price = Number(priceData.usd || 0)
-      const change24h = Number(priceData.usd_24h_change || 0)
+      const price = Number(data.price || 0)
+      const change24h = Number(data.change_24h || 0)
 
       const result: CryptoPriceData = {
         symbol: symbol.toUpperCase(),
@@ -124,27 +114,19 @@ class MarketPriceService {
   }
 
   /**
-   * Converte símbolo para nome amigável
+   * Obtém token do localStorage
    */
-  private getNameFromSymbol(symbol: string): string {
-    const names: Record<string, string> = {
-      BTC: 'Bitcoin',
-      ETH: 'Ethereum',
-      USDT: 'Tether',
-      USDC: 'USD Coin',
-      XRP: 'Ripple',
-      ADA: 'Cardano',
-      SOL: 'Solana',
-      DOT: 'Polkadot',
-      LINK: 'Chainlink',
-      MATIC: 'Polygon',
-      BNB: 'Binance Coin',
-      LTC: 'Litecoin',
-      DOGE: 'Dogecoin',
-      AVAX: 'Avalanche',
-      SHIB: 'Shiba Inu',
+  private getTokenFromStorage(): string {
+    try {
+      const authState = localStorage.getItem('auth-storage')
+      if (authState) {
+        const parsed = JSON.parse(authState)
+        return parsed.state?.token || ''
+      }
+    } catch (e) {
+      console.error('Erro ao ler token:', e)
     }
-    return names[symbol.toUpperCase()] || symbol
+    return ''
   }
 
   /**

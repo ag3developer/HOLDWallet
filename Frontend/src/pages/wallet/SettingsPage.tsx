@@ -19,6 +19,7 @@ import ethereumLogo from '../../assets/crypto-icons/eth.svg'
 import polygonLogo from '../../assets/crypto-icons/matic.svg'
 import bnbLogo from '../../assets/crypto-icons/bnb.svg'
 import tronLogo from '../../assets/crypto-icons/trx.svg'
+import baseLogo from '../../assets/crypto-icons/base.png'
 import solanLogo from '../../assets/crypto-icons/sol.svg'
 import litecoinLogo from '../../assets/crypto-icons/ltc.svg'
 import dogecoinLogo from '../../assets/crypto-icons/doge.svg'
@@ -415,7 +416,7 @@ export const SettingsPage = () => {
       key: 'base' as const,
       name: 'Base',
       symbol: 'BASE',
-      logo: ethereumLogo, // Base usa logo similar ao Ethereum
+      logo: baseLogo,
       color: 'bg-blue-600',
     },
     {

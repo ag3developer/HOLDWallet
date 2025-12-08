@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import asyncio
+import httpx
 
 from app.core.db import get_db
 from app.core.security import get_current_user
@@ -323,3 +324,91 @@ async def convert_amount(
         
     except Exception as e:
         raise ExternalServiceError(f"Failed to convert amount: {str(e)}")
+
+@router.get("/market/price")
+async def get_market_price(
+    symbol: str = Query(..., description="Crypto symbol (BTC, ETH, MATIC, etc)"),
+    fiat: str = Query("usd", description="Fiat currency (usd, brl, eur, etc)"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get current market price for a specific cryptocurrency.
+    This endpoint serves as a CORS proxy to avoid browser CORS issues.
+    Direct CoinGecko API call (no async service complexity).
+    """
+    
+    # Map symbol to CoinGecko ID
+    symbol_map = {
+        'BTC': 'bitcoin',
+        'ETH': 'ethereum',
+        'MATIC': 'matic-network',
+        'BNB': 'binancecoin',
+        'TRX': 'tron',
+        'BASE': 'base',
+        'USDT': 'tether',
+        'SOL': 'solana',
+        'LTC': 'litecoin',
+        'DOGE': 'dogecoin',
+        'ADA': 'cardano',
+        'AVAX': 'avalanche-2',
+        'DOT': 'polkadot',
+        'LINK': 'chainlink',
+        'SHIB': 'shiba-inu',
+        'XRP': 'ripple',
+    }
+    
+    coin_id = symbol_map.get(symbol.upper())
+    if not coin_id:
+        raise ValidationError(f"Unknown symbol: {symbol}")
+    
+    try:
+        # Direct call to CoinGecko with proper error handling
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            url = "https://api.coingecko.com/api/v3/simple/price"
+            params = {
+                "ids": coin_id,
+                "vs_currencies": fiat.lower(),
+                "include_market_cap": "true",
+                "include_24hr_vol": "true",
+                "include_24hr_change": "true"
+            }
+            
+            response = await client.get(url, params=params)
+            
+            if response.status_code == 429:
+                raise ExternalServiceError("CoinGecko API rate limit reached. Please try again in a moment.")
+            
+            if response.status_code == 503:
+                raise ExternalServiceError("CoinGecko API service temporarily unavailable. Please try again in a moment.")
+            
+            response.raise_for_status()
+            
+            data = response.json()
+            coin_data = data.get(coin_id, {})
+            
+            if not coin_data or fiat.lower() not in coin_data:
+                raise ValidationError(f"Price data not available for {symbol}/{fiat}")
+            
+            price = coin_data.get(fiat.lower(), 0)
+            
+            return {
+                "symbol": symbol.upper(),
+                "price": float(price),
+                "fiat": fiat.upper(),
+                "market_cap": coin_data.get(f"{fiat.lower()}_market_cap"),
+                "volume_24h": coin_data.get(f"{fiat.lower()}_24h_vol"),
+                "change_24h": coin_data.get(f"{fiat.lower()}_24h_change"),
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+        
+    except httpx.TimeoutException:
+        raise ExternalServiceError("Request to CoinGecko timed out. Please try again.")
+    except ValidationError:
+        raise
+    except ExternalServiceError:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise ExternalServiceError(f"Failed to fetch market price: {str(e)}")

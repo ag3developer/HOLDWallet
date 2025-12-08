@@ -4,27 +4,8 @@ import { ArrowLeft, Info, AlertCircle, Wallet } from 'lucide-react'
 import { useCreateP2POrder } from '@/hooks/useP2POrders'
 import { usePaymentMethods } from '@/hooks/usePaymentMethods'
 import { useAuthStore } from '@/stores/useAuthStore'
+import { CryptoIcon } from '@/components/CryptoIcon'
 import { toast } from 'react-hot-toast'
-
-// Crypto logos from CoinGecko (free CDN)
-const CRYPTO_LOGOS: Record<string, string> = {
-  BTC: 'https://assets.coingecko.com/coins/images/1/large/bitcoin.png?1696501400',
-  ETH: 'https://assets.coingecko.com/coins/images/279/large/ethereum.png?1696501628',
-  MATIC: 'https://assets.coingecko.com/coins/images/4713/large/matic-token-icon.png?1696504745',
-  BNB: 'https://assets.coingecko.com/coins/images/825/large/bnb-icon2_2x.png?1696501970',
-  TRX: 'https://assets.coingecko.com/coins/images/1094/large/tron-logo.png?1696502193',
-  BASE: 'https://assets.coingecko.com/coins/images/30617/large/base.jpg?1696519330',
-  USDT: 'https://assets.coingecko.com/coins/images/325/large/Tether.png?1696501661',
-  SOL: 'https://assets.coingecko.com/coins/images/4128/large/solana.png?1696504756',
-  LTC: 'https://assets.coingecko.com/coins/images/2/large/litecoin.png?1696501400',
-  DOGE: 'https://assets.coingecko.com/coins/images/5/large/dogecoin.png?1696501400',
-  ADA: 'https://assets.coingecko.com/coins/images/975/large/cardano.png?1696502090',
-  AVAX: 'https://assets.coingecko.com/coins/images/12559/large/Avalanche_Circle_RedWhite_Trans.png?1696512369',
-  DOT: 'https://assets.coingecko.com/coins/images/12171/large/polkadot.png?1696512008',
-  LINK: 'https://assets.coingecko.com/coins/images/877/large/chainlink-new-logo.png?1696502009',
-  SHIB: 'https://assets.coingecko.com/coins/images/11939/large/shiba.png?1622619446',
-  XRP: 'https://assets.coingecko.com/coins/images/44/large/xrp-symbol-white-128.png?1696501442',
-}
 
 export const CreateOrderPage = () => {
   const navigate = useNavigate()
@@ -47,6 +28,8 @@ export const CreateOrderPage = () => {
   const [autoReply, setAutoReply] = useState('')
   const [allBalances, setAllBalances] = useState<Record<string, number>>({})
   const [loadingPrice, setLoadingPrice] = useState(false)
+  const [lockedBalances, setLockedBalances] = useState<Record<string, number>>({})
+  const [loadingBalances, setLoadingBalances] = useState(true)
 
   // Fetch wallet balances on component mount
   useEffect(() => {
@@ -54,8 +37,11 @@ export const CreateOrderPage = () => {
       try {
         if (!token) {
           console.error('[CreateOrder] No token found')
+          setLoadingBalances(false)
           return
         }
+
+        setLoadingBalances(true)
 
         // Get wallets
         const walletsResp = await fetch('http://127.0.0.1:8000/wallets/', {
@@ -69,7 +55,7 @@ export const CreateOrderPage = () => {
 
         const walletId = wallets[0].id
 
-        // Get balances
+        // Fetch balances
         const balanceResp = await fetch(
           `http://127.0.0.1:8000/wallets/${walletId}/balances?include_tokens=true`,
           { headers: { Authorization: `Bearer ${token}` } }
@@ -80,47 +66,90 @@ export const CreateOrderPage = () => {
         const balData = await balanceResp.json()
         const mapped = mapBalances(balData.balances)
         setAllBalances(mapped)
+
+        // NOTE: Active orders/locked balances feature disabled due to backend endpoint issues
+        // Will be re-enabled when /p2p/orders endpoint is ready
+        setLockedBalances({})
+        setLoadingBalances(false)
       } catch (error) {
         console.error('[CreateOrder] Error fetching balances:', error)
         setAllBalances({})
+        setLockedBalances({})
+        setLoadingBalances(false)
       }
     }
 
     fetchBalances()
   }, [token])
 
+  // Auto-select first coin with balance when balances are loaded
+  useEffect(() => {
+    if (Object.keys(allBalances).length > 0 && coin === 'BTC') {
+      // If we still have default BTC selected, check if user actually has it
+      const availableCryptos = Object.entries(allBalances)
+        .sort((a, b) => b[1] - a[1])
+        .map(([symbol, balance]) => symbol)
+
+      // If user doesn't have BTC but has other coins, select the one with most balance
+      if (!allBalances['BTC'] && availableCryptos.length > 0) {
+        console.log(`[CreateOrder] Auto-selecting coin: ${availableCryptos[0]} (most balance)`)
+        setCoin(availableCryptos[0])
+      }
+    }
+  }, [allBalances])
+
   // Fetch market price when coin or fiatCurrency changes
   useEffect(() => {
     const fetchMarketPrice = async () => {
       try {
         setLoadingPrice(true)
-        // Using CoinGecko free API to get market price
-        const coinId = getCoinGeckoId(coin)
-        if (!coinId) {
-          setBasePrice(0)
-          return
+
+        // Retry logic with exponential backoff
+        let lastError: Error | null = null
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            const response = await fetch(
+              `http://127.0.0.1:8000/prices/market/price?symbol=${coin}&fiat=${fiatCurrency}`,
+              { headers: { Authorization: `Bearer ${token}` } }
+            )
+
+            if (response.ok) {
+              const data = await response.json()
+              const price = data.price || 0
+              setBasePrice(price)
+              return
+            }
+
+            // If 503 or 429, retry with delay
+            if (response.status === 503 || response.status === 429) {
+              lastError = new Error(`API Rate Limited (${response.status})`)
+              if (attempt < 2) {
+                await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000))
+                continue
+              }
+            }
+
+            lastError = new Error(`Failed to fetch price (${response.status})`)
+            break
+          } catch (fetchError) {
+            lastError = fetchError as Error
+            if (attempt < 2) {
+              await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000))
+            }
+          }
         }
 
-        const fiatLower = fiatCurrency.toLowerCase()
-        const response = await fetch(
-          `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=${fiatLower}&include_market_cap=false&include_24hr_vol=false&include_24hr_change=false`
-        )
-
-        if (!response.ok) throw new Error('Failed to fetch price')
-
-        const data = await response.json()
-        const price = data[coinId]?.[fiatLower] || 0
-        setBasePrice(price)
-      } catch (error) {
-        console.error('[CreateOrder] Error fetching market price:', error)
+        console.error('[CreateOrder] Error fetching market price after retries:', lastError)
         setBasePrice(0)
       } finally {
         setLoadingPrice(false)
       }
     }
 
-    fetchMarketPrice()
-  }, [coin, fiatCurrency])
+    if (token) {
+      fetchMarketPrice()
+    }
+  }, [coin, fiatCurrency, token])
 
   // Helper to get CoinGecko ID from symbol
   const getCoinGeckoId = (symbol: string): string => {
@@ -198,6 +227,8 @@ export const CreateOrderPage = () => {
 
   // Get current coin balance
   const currentBalance = allBalances[coin] || 0
+  const lockedBalance = lockedBalances[coin] || 0
+  const availableBalance = currentBalance - lockedBalance
 
   const fiatOptions = [
     { code: 'BRL', name: 'Real Brasileiro', symbol: 'R$' },
@@ -315,10 +346,10 @@ export const CreateOrderPage = () => {
       return
     }
 
-    // Validate balance: amount must be <= currentBalance
-    if (amountNum > currentBalance) {
+    // Validate balance: amount must be <= availableBalance
+    if (amountNum > availableBalance) {
       toast.error(
-        `Saldo insuficiente. Você tem ${formatBalance(currentBalance)} ${coin}, mas quer vender ${formatBalance(amountNum)} ${coin}`
+        `Saldo indisponível. Você tem ${formatBalance(availableBalance)} ${coin} disponível (${formatBalance(lockedBalance)} ${coin} bloqueado em ordens ativas)`
       )
       return
     }
@@ -444,7 +475,24 @@ export const CreateOrderPage = () => {
                 </div>
 
                 {/* Moedas em Grid Horizontal */}
-                {Object.keys(allBalances).length > 0 && (
+                {loadingBalances ? (
+                  <div className='mb-3'>
+                    <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                      Moeda
+                    </label>
+                    <div className='grid grid-cols-2 md:grid-cols-3 gap-2'>
+                      {[1, 2, 3, 4, 5, 6].map(i => (
+                        <div
+                          key={i}
+                          className='h-16 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse'
+                        />
+                      ))}
+                    </div>
+                    <p className='text-xs text-gray-600 dark:text-gray-400 mt-2'>
+                      Carregando suas moedas disponíveis...
+                    </p>
+                  </div>
+                ) : Object.keys(allBalances).length > 0 ? (
                   <div className='mb-3'>
                     <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
                       Moeda
@@ -452,33 +500,39 @@ export const CreateOrderPage = () => {
                     <div className='grid grid-cols-2 md:grid-cols-3 gap-2 max-h-32 overflow-y-auto'>
                       {Object.entries(allBalances)
                         .sort((a, b) => b[1] - a[1])
-                        .map(([symbol, balance]) => (
-                          <button
-                            key={symbol}
-                            type='button'
-                            onClick={() => setCoin(symbol)}
-                            className={`p-2 rounded-lg text-xs font-medium transition-all ${
-                              coin === symbol
-                                ? 'bg-blue-100 dark:bg-blue-900/30 border-2 border-blue-500 text-blue-700 dark:text-blue-300'
-                                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600'
-                            }`}
-                          >
-                            <div className='flex items-center gap-1 justify-center'>
-                              {CRYPTO_LOGOS[symbol] && (
-                                <img
-                                  src={CRYPTO_LOGOS[symbol]}
-                                  alt={symbol}
-                                  className='w-4 h-4 rounded-full'
-                                />
-                              )}
-                              <span>{symbol}</span>
-                            </div>
-                            <div className='text-xs text-gray-600 dark:text-gray-400'>
-                              {formatBalance(balance)}
-                            </div>
-                          </button>
-                        ))}
+                        .map(([symbol, balance]) => {
+                          const locked = lockedBalances[symbol] || 0
+                          const available = balance - locked
+                          return (
+                            <button
+                              key={symbol}
+                              type='button'
+                              onClick={() => setCoin(symbol)}
+                              className={`p-2 rounded-lg text-xs font-medium transition-all ${
+                                coin === symbol
+                                  ? 'bg-blue-100 dark:bg-blue-900/30 border-2 border-blue-500 text-blue-700 dark:text-blue-300'
+                                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600'
+                              }`}
+                            >
+                              <div className='flex items-center gap-1 justify-center'>
+                                <CryptoIcon symbol={symbol} size={16} className='rounded-full' />
+                                <span>{symbol}</span>
+                              </div>
+                              <div className='text-xs text-gray-600 dark:text-gray-400'>
+                                {formatBalance(available)}
+                                {locked > 0 ? ` (-${formatBalance(locked)})` : ''}
+                              </div>
+                            </button>
+                          )
+                        })}
                     </div>
+                  </div>
+                ) : (
+                  <div className='mb-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800'>
+                    <p className='text-sm text-yellow-700 dark:text-yellow-300'>
+                      ⚠️ Nenhuma moeda encontrada. Você precisa adicionar saldo à sua carteira
+                      primeiro.
+                    </p>
                   </div>
                 )}
 
@@ -606,13 +660,13 @@ export const CreateOrderPage = () => {
                     />
                     <button
                       type='button'
-                      onClick={() => setAmount(currentBalance.toString())}
+                      onClick={() => setAmount(availableBalance.toString())}
                       className='px-3 py-2 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/30 transition text-sm font-medium'
                     >
-                      Max ({formatBalance(currentBalance)} {coin})
+                      Max ({formatBalance(availableBalance)} {coin})
                     </button>
                   </div>
-                  {amount && currentBalance > 0 && (
+                  {amount && availableBalance > 0 && (
                     <p className='text-xs mt-1 text-green-600 dark:text-green-400'>
                       ✓ Saldo suficiente
                     </p>
@@ -805,44 +859,77 @@ export const CreateOrderPage = () => {
             )}
 
             {/* Card: Saldo */}
-            {(currentBalance > 0 || Object.keys(allBalances).length > 0) && (
+            {(currentBalance > 0 || Object.keys(allBalances).length > 0 || loadingBalances) && (
               <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-4'>
                 <h4 className='text-sm font-semibold text-gray-900 dark:text-white mb-3'>
                   Seus Saldos
                 </h4>
-                <div className='space-y-2 max-h-48 overflow-y-auto'>
-                  {Object.entries(allBalances)
-                    .sort((a, b) => b[1] - a[1])
-                    .map(([symbol, balance]) => (
-                      <div key={symbol} className='flex items-center justify-between text-sm'>
-                        <div className='flex items-center gap-2'>
-                          {CRYPTO_LOGOS[symbol] && (
-                            <img
-                              src={CRYPTO_LOGOS[symbol]}
-                              alt={symbol}
-                              className='w-4 h-4 rounded-full'
-                            />
-                          )}
-                          <span className='font-medium text-gray-900 dark:text-white'>
-                            {symbol}
-                          </span>
+                {loadingBalances ? (
+                  <div className='space-y-3'>
+                    {[1, 2, 3].map(i => (
+                      <div key={i} className='flex items-center justify-between'>
+                        <div className='flex items-center gap-2 flex-1'>
+                          <div className='w-4 h-4 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse' />
+                          <div className='h-4 bg-gray-200 dark:bg-gray-700 rounded w-16 animate-pulse' />
                         </div>
-                        <span
-                          className={`font-semibold ${balance > 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-500'}`}
-                        >
-                          {formatBalance(balance)}
-                        </span>
+                        <div className='h-4 bg-gray-200 dark:bg-gray-700 rounded w-20 animate-pulse' />
                       </div>
                     ))}
-                </div>
-                <div className='mt-3 pt-3 border-t border-gray-200 dark:border-gray-700'>
-                  <div className='flex items-center justify-between font-semibold text-gray-900 dark:text-white'>
-                    <span>Total:</span>
-                    <span className='text-lg text-blue-600 dark:text-blue-400'>
-                      {formatBalance(Object.values(allBalances).reduce((a, b) => a + b, 0))}
-                    </span>
+                    <p className='text-xs text-gray-500 dark:text-gray-400 mt-3'>
+                      Carregando seus saldos...
+                    </p>
                   </div>
-                </div>
+                ) : Object.keys(allBalances).length > 0 ? (
+                  <>
+                    <div className='space-y-2 max-h-48 overflow-y-auto'>
+                      {Object.entries(allBalances)
+                        .sort((a, b) => b[1] - a[1])
+                        .map(([symbol, balance]) => {
+                          const locked = lockedBalances[symbol] || 0
+                          const available = balance - locked
+                          return (
+                            <div key={symbol} className='flex flex-col gap-1'>
+                              <div className='flex items-center justify-between text-sm'>
+                                <div className='flex items-center gap-2'>
+                                  <CryptoIcon symbol={symbol} size={16} className='rounded-full' />
+                                  <span className='font-medium text-gray-900 dark:text-white'>
+                                    {symbol}
+                                  </span>
+                                </div>
+                                <span className='font-semibold text-green-600 dark:text-green-400'>
+                                  {formatBalance(balance)}
+                                </span>
+                              </div>
+                              {locked > 0 && (
+                                <div className='flex justify-between text-xs px-6 text-gray-600 dark:text-gray-400'>
+                                  <span>Disponível:</span>
+                                  <span>{formatBalance(available)}</span>
+                                </div>
+                              )}
+                              {locked > 0 && (
+                                <div className='flex justify-between text-xs px-6 text-orange-600 dark:text-orange-400 font-medium'>
+                                  <span>🔒 Bloqueado:</span>
+                                  <span>{formatBalance(locked)}</span>
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+                    </div>
+                    <div className='mt-3 pt-3 border-t border-gray-200 dark:border-gray-700'>
+                      <div className='flex items-center justify-between font-semibold text-gray-900 dark:text-white'>
+                        <span>Total:</span>
+                        <span className='text-lg text-blue-600 dark:text-blue-400'>
+                          {formatBalance(Object.values(allBalances).reduce((a, b) => a + b, 0))}
+                        </span>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <p className='text-xs text-gray-500 dark:text-gray-400'>
+                    Nenhuma moeda encontrada. Adicione saldo à sua carteira.
+                  </p>
+                )}
               </div>
             )}
           </div>
