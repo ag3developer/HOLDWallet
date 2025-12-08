@@ -91,6 +91,11 @@ const updateCryptoPrices = (prices: CryptoPrice[]): CryptoPrice[] => {
   })
 }
 
+interface WalletBalance {
+  symbol: string
+  balance: number
+}
+
 export function InstantTradePage() {
   const { currency, convertFromBRL: storeConvertFromBRL } = useCurrencyStore()
   const [cryptoPrices, setCryptoPrices] = useState<CryptoPrice[]>(initialCryptos)
@@ -99,6 +104,119 @@ export function InstantTradePage() {
   const [quote, setQuote] = useState<Quote | null>(null)
   const [showConfirmation, setShowConfirmation] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
+  const [walletBalances, setWalletBalances] = useState<Record<string, number>>({})
+
+  // Helper function to extract crypto symbol from network name
+  const networkSymbolMap: Record<string, string> = {
+    bitcoin: 'BTC',
+    ethereum: 'ETH',
+    polygon: 'MATIC',
+    bsc: 'BNB',
+    tron: 'TRX',
+    base: 'BASE',
+    solana: 'SOL',
+    litecoin: 'LTC',
+    dogecoin: 'DOGE',
+    cardano: 'ADA',
+    avalanche: 'AVAX',
+    polkadot: 'DOT',
+  }
+
+  const extractCryptoSymbol = (network: string): string | null => {
+    const normalized = network.toLowerCase()
+    return networkSymbolMap[normalized] || null
+  }
+
+  // Fetch wallet balances on mount
+  useEffect(() => {
+    const fetchWalletBalances = async () => {
+      try {
+        const token = localStorage.getItem('token')
+        if (!token) {
+          console.warn('No token found')
+          return
+        }
+
+        // Step 1: Get user's wallets
+        const walletsResponse = await fetch('http://127.0.0.1:8000/api/v1/wallets', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+
+        if (!walletsResponse.ok) {
+          throw new Error(`Failed to fetch wallets: ${walletsResponse.status}`)
+        }
+
+        const walletsData = await walletsResponse.json()
+        const wallets = Array.isArray(walletsData) ? walletsData : walletsData.wallets || []
+
+        if (wallets.length === 0) {
+          console.warn('No wallets found')
+          setWalletBalances({})
+          return
+        }
+
+        const balancesMap: Record<string, number> = {}
+
+        // Step 2: For each wallet, fetch balances from blockchain
+        for (const wallet of wallets) {
+          const walletId = wallet.id || wallet.wallet_id
+          if (!walletId) continue
+
+          try {
+            // Fetch balances - includes token balances from blockchain
+            const balancesResponse = await fetch(
+              `http://127.0.0.1:8000/api/v1/wallets/${walletId}/balances?include_tokens=true`,
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+              }
+            )
+
+            if (balancesResponse.ok) {
+              const balancesData = await balancesResponse.json()
+              processBalancesData(balancesData, balancesMap)
+            }
+          } catch (walletError) {
+            console.warn(`Error fetching balances for wallet ${walletId}:`, walletError)
+          }
+        }
+
+        if (Object.keys(balancesMap).length > 0) {
+          console.log('✅ Saldos carregados do blockchain:', balancesMap)
+          setWalletBalances(balancesMap)
+        } else {
+          console.warn('⚠️ Nenhum saldo encontrado')
+          setWalletBalances({})
+        }
+      } catch (error) {
+        console.error('❌ Erro ao buscar saldos:', error)
+        setWalletBalances({})
+      }
+    }
+
+    const processBalancesData = (balancesData: any, balancesMap: Record<string, number>) => {
+      // balancesData.balances é um objeto: { "bitcoin": {...}, "ethereum": {...} }
+      if (!balancesData.balances || typeof balancesData.balances !== 'object') return
+
+      for (const [network, balanceDetail] of Object.entries(balancesData.balances) as any) {
+        if (balanceDetail && typeof balanceDetail.balance === 'string') {
+          const symbol = extractCryptoSymbol(network)
+          const balance = Number.parseFloat(balanceDetail.balance)
+
+          if (symbol && !Number.isNaN(balance) && balance > 0) {
+            // Somar múltiplas wallets do mesmo símbolo
+            balancesMap[symbol] = (balancesMap[symbol] || 0) + balance
+            console.log(`  ${symbol}: ${balance}`)
+          }
+        }
+      }
+    }
+
+    fetchWalletBalances()
+  }, [])
 
   // Safe converter function with fallback
   const convertFromBRL = (value: number): number => {
@@ -190,6 +308,7 @@ export function InstantTradePage() {
               onQuoteReceived={handleQuoteReceived}
               currency={currency}
               convertFromBRL={convertFromBRL}
+              walletBalance={walletBalances[symbol] || 0}
             />
           </div>
 

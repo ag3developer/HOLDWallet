@@ -35,6 +35,7 @@ interface TradingFormProps {
   readonly onQuoteReceived: (quote: Quote) => void
   readonly currency: string
   readonly convertFromBRL: (value: number) => number
+  readonly walletBalance?: number
 }
 
 const API_BASE = 'http://127.0.0.1:8000/api/v1'
@@ -68,6 +69,7 @@ export function TradingForm({
   onQuoteReceived,
   currency,
   convertFromBRL,
+  walletBalance = 0,
 }: TradingFormProps) {
   const [amount, setAmount] = useState('')
   const [loading, setLoading] = useState(false)
@@ -238,9 +240,23 @@ export function TradingForm({
 
         {/* Amount Input */}
         <div>
-          <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
-            Amount ({isBuy ? currency : selectedSymbol})
-          </label>
+          <div className='flex items-center justify-between mb-2'>
+            <label className='block text-sm font-medium text-gray-700 dark:text-gray-300'>
+              Amount ({isBuy ? currency : selectedSymbol})
+            </label>
+            {!isBuy && walletBalance > 0 && (
+              <button
+                onClick={() => {
+                  setAmount(walletBalance.toString())
+                  setLastQuoteTime(0)
+                }}
+                className='text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-1 rounded hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors'
+              >
+                Available: <span className='font-bold'>{walletBalance.toFixed(8)}</span>{' '}
+                {selectedSymbol} (Max)
+              </button>
+            )}
+          </div>
           <input
             type='number'
             value={amount}
@@ -252,9 +268,38 @@ export function TradingForm({
               }
             }}
             placeholder='0.00'
+            max={isBuy ? undefined : walletBalance}
             className='w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
           />
         </div>
+
+        {/* Status Message when loading */}
+        {loading && (
+          <div className='flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-700'>
+            <div className='animate-spin rounded-full h-3 w-3 border-2 border-blue-600 border-t-transparent' />
+            <span className='text-xs text-blue-700 dark:text-blue-400'>Fetching quote...</span>
+          </div>
+        )}
+
+        {/* Insufficient Balance Warning */}
+        {!isBuy && amount && Number(amount) > walletBalance && (
+          <div className='flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-700'>
+            <svg
+              className='w-4 h-4 text-red-600 dark:text-red-400 flex-shrink-0'
+              fill='currentColor'
+              viewBox='0 0 20 20'
+            >
+              <path
+                fillRule='evenodd'
+                d='M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z'
+                clipRule='evenodd'
+              />
+            </svg>
+            <span className='text-xs text-red-700 dark:text-red-400'>
+              Insufficient balance. You have {walletBalance.toFixed(8)} {selectedSymbol}
+            </span>
+          </div>
+        )}
 
         {/* Status Message when loading */}
         {loading && (
