@@ -75,7 +75,10 @@ export function InstantTradePage() {
     loading: loadingPrices,
     error: priceError,
     refetch,
-  } = usePrices(SUPPORTED_CRYPTOS.map(c => c.symbol))
+  } = usePrices(
+    SUPPORTED_CRYPTOS.map(c => c.symbol),
+    currency
+  )
   const [cryptoPrices, setCryptoPrices] = useState<CryptoPrice[]>([])
   const [operation, setOperation] = useState<'buy' | 'sell'>('buy')
   const [symbol, setSymbol] = useState('BTC')
@@ -184,7 +187,7 @@ export function InstantTradePage() {
         setSymbol(prices[0].symbol)
       }
     }
-  }, [priceData, symbol])
+  }, [priceData, symbol, currency])
 
   const convertFromBRL = (value: number): number => {
     if (!value || typeof value !== 'number' || Number.isNaN(value)) {
@@ -280,69 +283,82 @@ export function InstantTradePage() {
         </div>
       ) : (
         <>
-          {/* All Supported Cryptos with Prices and Balances */}
-          <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-6'>
+          {/* All Supported Cryptos with Prices and Balances - Horizontal Carousel */}
+          <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-4'>
             <h2 className='text-lg font-semibold text-gray-900 dark:text-white mb-4'>
               Criptomoedas Disponíveis
             </h2>
-            <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3'>
-              {cryptosWithBalances.map(crypto => (
-                <button
-                  key={crypto.symbol}
-                  onClick={() => setSymbol(crypto.symbol)}
-                  className={`p-4 rounded-lg border-2 transition-all text-left ${
-                    symbol === crypto.symbol
-                      ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-500'
-                      : 'bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-400'
-                  }`}
-                >
-                  {/* Crypto Name and Symbol */}
-                  <div className='flex items-center justify-between mb-3'>
-                    <div>
-                      <p className='font-semibold text-gray-900 dark:text-white'>{crypto.symbol}</p>
-                      <p className='text-xs text-gray-600 dark:text-gray-400'>{crypto.name}</p>
+            {/* Horizontal scrollable carousel */}
+            <div className='overflow-x-auto pb-2 -mx-4 px-4 scroll-smooth'>
+              <div className='flex gap-2 min-w-min'>
+                {cryptosWithBalances.map(crypto => (
+                  <button
+                    key={crypto.symbol}
+                    onClick={() => setSymbol(crypto.symbol)}
+                    className={`flex-shrink-0 w-40 p-3 rounded-lg border-2 transition-all text-left ${
+                      symbol === crypto.symbol
+                        ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-500'
+                        : 'bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-400'
+                    }`}
+                  >
+                    {/* Crypto Icon */}
+                    <div className='flex justify-center mb-2'>
+                      <CryptoIcon symbol={crypto.symbol} size={28} className='rounded-full' />
                     </div>
-                    <CryptoIcon symbol={crypto.symbol} size={32} className='rounded-full' />
-                  </div>
 
-                  {/* Price */}
-                  {crypto.price > 0 ? (
-                    <>
-                      <div className='mb-2'>
-                        <p className='text-sm text-gray-600 dark:text-gray-400'>Preço</p>
-                        <p className='font-semibold text-gray-900 dark:text-white'>
-                          R$ {formatBalance(crypto.price)}
+                    {/* Crypto Name and Symbol */}
+                    <div className='mb-1'>
+                      <p className='font-semibold text-gray-900 dark:text-white text-sm text-center'>
+                        {crypto.symbol}
+                      </p>
+                      <p className='text-xs text-gray-600 dark:text-gray-400 text-center truncate'>
+                        {crypto.name}
+                      </p>
+                    </div>
+
+                    {/* Price */}
+                    {crypto.price > 0 ? (
+                      <div className='mb-1'>
+                        <p className='text-xs text-gray-600 dark:text-gray-400'>Preço</p>
+                        <p className='font-semibold text-gray-900 dark:text-white text-sm'>
+                          {getCurrencySymbol(currency)} {formatBalance(crypto.price)}
                         </p>
                       </div>
-                      {crypto.change24h !== 0 && (
-                        <p
-                          className={`text-xs font-medium ${
-                            crypto.change24h >= 0
-                              ? 'text-green-600 dark:text-green-400'
-                              : 'text-red-600 dark:text-red-400'
-                          }`}
-                        >
-                          {crypto.change24h >= 0 ? '+' : ''}
-                          {crypto.change24h.toFixed(2)}%
-                        </p>
-                      )}
-                    </>
-                  ) : (
-                    <div className='mb-2 animate-pulse'>
-                      <div className='h-4 bg-gray-300 dark:bg-gray-600 rounded w-20'></div>
-                    </div>
-                  )}
+                    ) : (
+                      <div className='mb-1 animate-pulse'>
+                        <div className='h-3 bg-gray-300 dark:bg-gray-600 rounded w-full'></div>
+                      </div>
+                    )}
 
-                  {/* Balance */}
-                  <div className='mt-2 pt-2 border-t border-gray-200 dark:border-gray-600'>
-                    <p className='text-xs text-gray-600 dark:text-gray-400'>Seu Saldo</p>
-                    <p className='font-semibold text-gray-900 dark:text-white'>
-                      {loadingBalances ? '...' : formatBalance(crypto.balance)} {crypto.symbol}
-                    </p>
-                  </div>
-                </button>
-              ))}
+                    {/* Change 24h */}
+                    {crypto.change24h !== 0 && (
+                      <p
+                        className={`text-xs font-medium text-center ${
+                          crypto.change24h >= 0
+                            ? 'text-green-600 dark:text-green-400'
+                            : 'text-red-600 dark:text-red-400'
+                        }`}
+                      >
+                        {crypto.change24h >= 0 ? '+' : ''}
+                        {crypto.change24h.toFixed(2)}%
+                      </p>
+                    )}
+
+                    {/* Balance */}
+                    <div className='mt-2 pt-2 border-t border-gray-200 dark:border-gray-600'>
+                      <p className='text-xs text-gray-600 dark:text-gray-400'>Saldo</p>
+                      <p className='font-semibold text-gray-900 dark:text-white text-sm truncate'>
+                        {loadingBalances ? '...' : formatBalance(crypto.balance)} {crypto.symbol}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
+            {/* Scroll Hint */}
+            <p className='text-xs text-gray-500 dark:text-gray-400 mt-2 text-center'>
+              ← Deslize para ver mais moedas →
+            </p>
           </div>
 
           {/* Main Trading Area */}

@@ -27,6 +27,7 @@ const CACHE_TTL = 60000 // 1 minute (backend caches for 20 min)
 interface CachedData {
   prices: PricesMap
   timestamp: number
+  fiat: string
 }
 
 export function usePrices(symbols: string[], fiat: string = 'BRL'): UsePricesReturn {
@@ -40,7 +41,7 @@ export function usePrices(symbols: string[], fiat: string = 'BRL'): UsePricesRet
     return {
       data: null as CachedData | null,
       isExpired: function () {
-        return !this.data || Date.now() - this.data.timestamp > CACHE_TTL
+        return !this.data || Date.now() - this.data.timestamp > CACHE_TTL || this.data.fiat !== fiat
       },
       get: function () {
         return this.isExpired() ? null : this.data?.prices
@@ -49,10 +50,11 @@ export function usePrices(symbols: string[], fiat: string = 'BRL'): UsePricesRet
         this.data = {
           prices: newPrices,
           timestamp: Date.now(),
+          fiat: fiat,
         }
       },
     }
-  }, [])
+  }, [fiat])
 
   const fetchPrices = useCallback(async () => {
     if (!token || symbols.length === 0) {
