@@ -4,6 +4,9 @@ import { ArrowLeft, Info, AlertCircle, Wallet } from 'lucide-react'
 import { useCreateP2POrder } from '@/hooks/useP2POrders'
 import { usePaymentMethods } from '@/hooks/usePaymentMethods'
 import { useAuthStore } from '@/stores/useAuthStore'
+import { usePrices } from '@/hooks/usePrices'
+import { useWalletBalances } from '@/hooks/useWalletBalances'
+import WalletService from '@/services/wallet-service'
 import { toast } from 'react-hot-toast'
 
 // Crypto logos from CoinGecko (free CDN)
@@ -47,145 +50,72 @@ export const CreateOrderPage = () => {
   const [autoReply, setAutoReply] = useState('')
   const [allBalances, setAllBalances] = useState<Record<string, number>>({})
   const [loadingPrice, setLoadingPrice] = useState(false)
+  const { prices: cryptoPrices } = usePrices([coin], fiatCurrency)
+  const [walletId, setWalletId] = useState<string | undefined>(undefined)
+  const [balancesLoading, setBalancesLoading] = useState(true)
 
-  // Fetch wallet balances on component mount
+  // Fetch wallet ID first
   useEffect(() => {
-    const fetchBalances = async () => {
+    const fetchWalletId = async () => {
       try {
         if (!token) {
           console.error('[CreateOrder] No token found')
+          setBalancesLoading(false)
           return
         }
 
-        // Get wallets
-        const walletsResp = await fetch('http://127.0.0.1:8000/wallets/', {
+        console.log('[CreateOrder] Fetching wallet list...')
+        // Get wallets list
+        const response = await fetch('http://127.0.0.1:8000/wallets/', {
           headers: { Authorization: `Bearer ${token}` },
         })
 
-        if (!walletsResp.ok) throw new Error(`Failed to fetch wallets: ${walletsResp.status}`)
-
-        const wallets = await walletsResp.json()
-        if (!wallets?.length) throw new Error('No wallets found')
-
-        const walletId = wallets[0].id
-
-        // Get balances
-        const balanceResp = await fetch(
-          `http://127.0.0.1:8000/wallets/${walletId}/balances?include_tokens=true`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        )
-
-        if (!balanceResp.ok) throw new Error(`Failed to fetch balances: ${balanceResp.status}`)
-
-        const balData = await balanceResp.json()
-        const mapped = mapBalances(balData.balances)
-        setAllBalances(mapped)
-      } catch (error) {
-        console.error('[CreateOrder] Error fetching balances:', error)
-        setAllBalances({})
-      }
-    }
-
-    fetchBalances()
-  }, [token])
-
-  // Fetch market price when coin or fiatCurrency changes
-  useEffect(() => {
-    const fetchMarketPrice = async () => {
-      try {
-        setLoadingPrice(true)
-        // Using CoinGecko free API to get market price
-        const coinId = getCoinGeckoId(coin)
-        if (!coinId) {
-          setBasePrice(0)
-          return
+        if (!response.ok) {
+          throw new Error(`Failed to fetch wallets: ${response.status}`)
         }
 
-        const fiatLower = fiatCurrency.toLowerCase()
-        const response = await fetch(
-          `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=${fiatLower}&include_market_cap=false&include_24hr_vol=false&include_24hr_change=false`
-        )
+        const wallets = await response.json()
+        console.log('[CreateOrder] Wallets fetched:', wallets)
+        
+        if (!wallets?.length) {
+          throw new Error('No wallets found')
+        }
 
-        if (!response.ok) throw new Error('Failed to fetch price')
-
-        const data = await response.json()
-        const price = data[coinId]?.[fiatLower] || 0
-        setBasePrice(price)
+        setWalletId(wallets[0].id)
+        console.log('[CreateOrder] Wallet ID set:', wallets[0].id)
       } catch (error) {
-        console.error('[CreateOrder] Error fetching market price:', error)
-        setBasePrice(0)
-      } finally {
-        setLoadingPrice(false)
+        console.error('[CreateOrder] Error fetching wallet ID:', error)
+        setWalletId(undefined)
+        setBalancesLoading(false)
       }
     }
 
-    fetchMarketPrice()
-  }, [coin, fiatCurrency])
+    fetchWalletId()
+  }, [token])
 
-  // Helper to get CoinGecko ID from symbol
-  const getCoinGeckoId = (symbol: string): string => {
-    const coinMap: Record<string, string> = {
-      BTC: 'bitcoin',
-      ETH: 'ethereum',
-      MATIC: 'matic-network',
-      BNB: 'binancecoin',
-      TRX: 'tron',
-      BASE: 'base',
-      USDT: 'tether',
-      SOL: 'solana',
-      LTC: 'litecoin',
-      DOGE: 'dogecoin',
-      ADA: 'cardano',
-      AVAX: 'avalanche-2',
-      DOT: 'polkadot',
-      LINK: 'chainlink',
-      SHIB: 'shiba-inu',
-      XRP: 'ripple',
+  // Use the hook to fetch balances
+  const { balances, loading: balancesHookLoading } = useWalletBalances(walletId)
+
+  // Update balances when they change from hook
+  useEffect(() => {
+    console.log('[CreateOrder] Balances updated from hook:', balances, 'Loading:', balancesHookLoading)
+    setAllBalances(balances)
+    setBalancesLoading(balancesHookLoading)
+  }, [balances, balancesHookLoading])
+
+  // Update base price from hook when cryptoPrices change
+  useEffect(() => {
+    if (cryptoPrices && cryptoPrices[coin]) {
+      setBasePrice(cryptoPrices[coin].price)
+    } else {
+      setBasePrice(0)
     }
-    return coinMap[symbol] || ''
-  }
+  }, [cryptoPrices, coin])
 
   // Calculate final price based on basePrice and margin
   const finalPrice = basePrice > 0 ? basePrice * (1 + priceMargin / 100) : 0
   const totalValue =
     finalPrice > 0 && amount ? (finalPrice * Number.parseFloat(amount)).toFixed(2) : '0.00'
-
-  // Helper function to map network names to symbols
-  const mapBalances = (balances: Record<string, any>): Record<string, number> => {
-    const mapped: Record<string, number> = {}
-
-    for (const [network, balInfo] of Object.entries(balances || {})) {
-      const networkLower = network.toLowerCase()
-      const amount = extractBalance(balInfo)
-      const symbol = mapNetworkToSymbol(networkLower)
-
-      if (symbol) {
-        mapped[symbol] = amount
-      }
-    }
-
-    return mapped
-  }
-
-  // Helper to extract balance amount
-  const extractBalance = (balInfo: any): number => {
-    if (typeof balInfo === 'object' && balInfo?.balance !== undefined) {
-      return Number.parseFloat(String(balInfo.balance)) || 0
-    }
-    return typeof balInfo === 'number' ? balInfo : 0
-  }
-
-  // Helper to map network to symbol
-  const mapNetworkToSymbol = (networkLower: string): string => {
-    if (networkLower.includes('polygon')) {
-      return networkLower.includes('usdt') ? 'USDT' : 'MATIC'
-    }
-    if (networkLower === 'base') return 'BASE'
-    if (networkLower === 'ethereum' || networkLower === 'eth') return 'ETH'
-    if (networkLower === 'bitcoin' || networkLower === 'btc') return 'BTC'
-    if (networkLower === 'solana' || networkLower === 'sol') return 'SOL'
-    return ''
-  }
 
   // Smart formatting: shows appropriate decimals based on value
   const formatBalance = (value: number): string => {
@@ -444,7 +374,16 @@ export const CreateOrderPage = () => {
                 </div>
 
                 {/* Moedas em Grid Horizontal */}
-                {Object.keys(allBalances).length > 0 && (
+                {balancesLoading ? (
+                  <div className='mb-3 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg'>
+                    <div className='flex items-center gap-2'>
+                      <div className='animate-spin'>⏳</div>
+                      <span className='text-sm text-blue-700 dark:text-blue-300'>
+                        Carregando seus saldos da carteira...
+                      </span>
+                    </div>
+                  </div>
+                ) : Object.keys(allBalances).length > 0 ? (
                   <div className='mb-3'>
                     <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
                       Moeda
@@ -478,6 +417,18 @@ export const CreateOrderPage = () => {
                             </div>
                           </button>
                         ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className='mb-3 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg flex items-start gap-2'>
+                    <AlertCircle className='w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5' />
+                    <div>
+                      <p className='text-sm font-medium text-yellow-800 dark:text-yellow-300'>
+                        Nenhum saldo encontrado
+                      </p>
+                      <p className='text-xs text-yellow-700 dark:text-yellow-400 mt-1'>
+                        Você precisa ter uma carteira com criptomoedas para criar uma ordem de venda.
+                      </p>
                     </div>
                   </div>
                 )}

@@ -136,62 +136,91 @@ class ApiClient {
 
   private getStoredToken(): string | null {
     try {
-      // First, try the in-memory Zustand store (fastest and most reliable)
+      // Strategy 1: Check in-memory Zustand store (fastest & most reliable)
       const zustandToken = useAuthStore.getState().token
       if (zustandToken) {
         console.log('[API] ✅ Token found in Zustand store (in-memory)')
         return zustandToken
       }
 
-      // Fallback: Try the Zustand persist format from localStorage
+      // Strategy 2: Try the Zustand persist format from localStorage
       const zustandKey = `${APP_CONFIG.storage.prefix}${APP_CONFIG.storage.keys.auth}`
       const authData = localStorage.getItem(zustandKey)
-      const token = this.extractTokenFromData(authData)
-
-      if (token) {
-        console.log('[API] ✅ Token found in localStorage (Zustand format)')
-        // Also restore to in-memory store
-        const parsed = JSON.parse(authData || '{}')
-        if (parsed.state?.user) {
-          useAuthStore.getState().setAuthData(parsed.state.user, token)
+      
+      if (authData) {
+        const token = this.extractTokenFromData(authData)
+        if (token) {
+          console.log('[API] ✅ Token found in localStorage (Zustand format)')
+          // Restore to in-memory store for faster future access
+          try {
+            const parsed = JSON.parse(authData)
+            if (parsed.state?.user) {
+              useAuthStore.getState().setAuthData(parsed.state.user, token)
+            }
+          } catch (e) {
+            console.warn('[API] Could not restore auth to memory')
+          }
+          return token
         }
-        return token
       }
 
-      // Last fallback: Check all localStorage keys for token
-      return this.findTokenInAllKeys()
+      // Strategy 3: Check all localStorage keys (comprehensive fallback)
+      const foundToken = this.findTokenInAllKeys()
+      if (foundToken) {
+        return foundToken
+      }
+
+      console.warn('[API] ⚠️ No token found - user not logged in or session expired')
+      return null
     } catch (error) {
-      console.error('[API] ❌ Error retrieving token:', error)
+      console.error('[API] Error retrieving token:', error)
       return null
     }
   }
 
   private extractTokenFromData(data: string | null): string | null {
     if (!data) return null
+    
     try {
       const parsed = JSON.parse(data)
-      return parsed.state?.token || parsed.token || null
-    } catch {
+      // Handle Zustand persist: { state: { token: '...' } }
+      if (parsed.state?.token && typeof parsed.state.token === 'string') {
+        return parsed.state.token
+      }
+      // Handle direct format: { token: '...' }
+      if (parsed.token && typeof parsed.token === 'string') {
+        return parsed.token
+      }
+      return null
+    } catch (e) {
+      console.warn('[API] Failed to parse token data:', e)
       return null
     }
   }
 
   private findTokenInAllKeys(): string | null {
-    console.warn('[API] ⚠️ Token not found in standard location, checking all keys...')
-
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i)
-      if (key?.includes('auth')) {
-        const data = localStorage.getItem(key)
-        const token = this.extractTokenFromData(data)
-        if (token) {
-          console.log(`[API] ✅ Token found in fallback key: ${key}`)
-          return token
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (!key) continue
+        
+        // Look for keys that likely contain auth data
+        if (key.includes('auth') || key.includes('token')) {
+          const data = localStorage.getItem(key)
+          if (!data) continue
+          
+          const token = this.extractTokenFromData(data)
+          // Validate token (should be a non-empty string)
+          if (token && token.length > 10) {
+            console.log(`[API] ✅ Token found in fallback key: ${key}`)
+            return token
+          }
         }
       }
+    } catch (e) {
+      console.warn('[API] Error searching localStorage:', e)
     }
-
-    console.error('[API] ❌ No token found in any localStorage location')
+    
     return null
   }
 

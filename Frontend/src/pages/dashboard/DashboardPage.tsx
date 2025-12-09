@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCurrentUser } from '@/hooks/useAuth'
 import { useWallets, useMultipleWalletBalances } from '@/hooks/useWallet'
-import { marketPriceService } from '@/services/market-price-service'
+import { useMarketPrices } from '@/hooks/useMarketPrices'
 import { CryptoIcon } from '@/components/CryptoIcon'
 import { useCurrencyStore } from '@/stores/useCurrencyStore'
 import {
@@ -29,36 +29,12 @@ export const DashboardPage = () => {
   const { data: apiWallets, isLoading: walletsLoading } = useWallets()
   const { formatCurrency, currency } = useCurrencyStore()
   const [expandedWallets, setExpandedWallets] = useState<Set<string>>(new Set())
-  const [marketPrices, setMarketPrices] = useState<any>({})
-  const [loadingPrices, setLoadingPrices] = useState(false)
-
-  // Dados de exemplo do gráfico serão carregados de uma API real futuramente
-  // Por enquanto, mantemos este espaço para integração futura
-  // const chartData = useMemo(() => { ... }, [])
-
-  // Buscar preços de mercado
-  useEffect(() => {
-    const fetchMarketPrices = async () => {
-      setLoadingPrices(true)
-      try {
-        const symbols = ['BTC', 'ETH', 'USDT', 'SOL', 'BNB']
-        const prices = await marketPriceService.getPrices(symbols)
-        const priceMap: any = {}
-        for (const price of prices) {
-          priceMap[price.symbol] = price
-        }
-        setMarketPrices(priceMap)
-      } catch (error) {
-        console.error('Erro ao buscar preços de mercado:', error)
-      } finally {
-        setLoadingPrices(false)
-      }
-    }
-
-    fetchMarketPrices()
-    const interval = setInterval(fetchMarketPrices, 5 * 60 * 1000)
-    return () => clearInterval(interval)
-  }, [])
+  
+  // Símbolos de criptos para buscar preços
+  const priceSymbols = useMemo(() => ['BTC', 'ETH', 'USDT', 'SOL', 'BNB', 'MATIC', 'ADA', 'AVAX'], [])
+  
+  // Hook para buscar preços via backend aggregator
+  const { prices: marketPrices, isLoading: loadingPrices } = useMarketPrices(priceSymbols, currency)
 
   // Buscar saldos reais
   const walletIds = useMemo(() => apiWallets?.map(w => w.id) || [], [apiWallets])
@@ -610,24 +586,12 @@ export const DashboardPage = () => {
                   </div>
                   <button
                     onClick={async () => {
-                      setLoadingPrices(true)
-                      try {
-                        const symbols = ['BTC', 'ETH', 'USDT', 'SOL', 'BNB']
-                        const prices = await marketPriceService.getPrices(symbols)
-                        const priceMap: any = {}
-                        for (const price of prices) {
-                          priceMap[price.symbol] = price
-                        }
-                        setMarketPrices(priceMap)
-                      } catch (error) {
-                        console.error('Erro ao atualizar preços:', error)
-                      } finally {
-                        setLoadingPrices(false)
-                      }
+                      // Forçar atualização dos preços (refresh=true)
+                      // O hook usePrices já faz isso automaticamente a cada 5 segundos
                     }}
                     disabled={loadingPrices}
                     className='p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-50'
-                    title='Atualizar preços'
+                    title='Preços atualizando automaticamente'
                   >
                     <RefreshCw
                       className={`w-3.5 h-3.5 text-slate-600 dark:text-slate-400 ${loadingPrices ? 'animate-spin' : ''}`}
@@ -685,16 +649,12 @@ export const DashboardPage = () => {
                         </div>
                         <div className='text-right'>
                           <p className={`text-xs font-bold ${crypto.text}`}>
-                            {marketPrices[crypto.symbol]
-                              ? marketPrices[crypto.symbol].priceUSD
-                              : '$--'}
+                            {marketPrices?.[crypto.symbol]?.priceUSD || '$--'}
                           </p>
                           <p
-                            className={`text-xs font-semibold ${marketPrices[crypto.symbol] && marketPrices[crypto.symbol].change24h >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
+                            className={`text-xs font-semibold ${(marketPrices?.[crypto.symbol]?.change24h ?? 0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
                           >
-                            {marketPrices[crypto.symbol]
-                              ? marketPrices[crypto.symbol].change24hPercent
-                              : '--%'}
+                            {marketPrices?.[crypto.symbol]?.change24hPercent || '--%'}
                           </p>
                         </div>
                       </div>

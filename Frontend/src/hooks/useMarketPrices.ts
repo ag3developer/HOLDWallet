@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { marketPriceService } from '@/services/market-price-service'
+import { useMemo } from 'react'
+import { usePrices } from './usePrices'
 
 interface CryptoPriceData {
   symbol: string
@@ -19,58 +19,71 @@ interface UseMarketPricesResult {
   refetch: () => void
 }
 
+const CRYPTO_NAMES: Record<string, string> = {
+  BTC: 'Bitcoin',
+  ETH: 'Ethereum',
+  USDT: 'Tether',
+  USDC: 'USD Coin',
+  XRP: 'Ripple',
+  ADA: 'Cardano',
+  SOL: 'Solana',
+  DOT: 'Polkadot',
+  LINK: 'Chainlink',
+  MATIC: 'Polygon',
+  BNB: 'Binance Coin',
+  LTC: 'Litecoin',
+  DOGE: 'Dogecoin',
+  AVAX: 'Avalanche',
+  SHIB: 'Shiba Inu',
+}
+
 /**
  * Hook para buscar preços de múltiplas criptomoedas
  */
-export const useMarketPrices = (cryptoIds: string[] = []): UseMarketPricesResult => {
-  const [prices, setPrices] = useState<Record<string, CryptoPriceData>>({})
-  const [isLoading, setIsLoading] = useState(false)
-  const [isError, setIsError] = useState(false)
-  const [error, setError] = useState<Error | null>(null)
+export const useMarketPrices = (cryptoIds: string[] = [], currency: string = 'USD'): UseMarketPricesResult => {
+  // Usar o hook usePrices que agrega preços via backend
+  const { prices: rawPrices, loading, error } = usePrices(cryptoIds, currency)
 
-  const fetchPrices = async () => {
-    if (cryptoIds.length === 0) {
-      setPrices({})
-      return
+  // Converter dados para formato esperado
+  const prices = useMemo(() => {
+    const result: Record<string, CryptoPriceData> = {}
+
+    for (const symbol of cryptoIds) {
+      const upperSymbol = symbol.toUpperCase()
+      const priceInfo = rawPrices[upperSymbol]
+
+      if (priceInfo) {
+        const price = priceInfo.price || 0
+        const change24h = priceInfo.change_24h || 0
+
+        result[upperSymbol] = {
+          symbol: upperSymbol,
+          name: CRYPTO_NAMES[upperSymbol] || upperSymbol,
+          price,
+          priceUSD: new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+            minimumFractionDigits: price < 1 ? 6 : 2,
+            maximumFractionDigits: price < 1 ? 6 : 2,
+          }).format(price),
+          change24h,
+          change24hPercent: `${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%`,
+          updatedAt: new Date(),
+        }
+      }
     }
 
-    setIsLoading(true)
-    setIsError(false)
-    setError(null)
-
-    try {
-      const results = await marketPriceService.getPrices(cryptoIds)
-      const pricesMap: Record<string, CryptoPriceData> = {}
-
-      results.forEach(price => {
-        pricesMap[price.symbol.toLowerCase()] = price
-      })
-
-      setPrices(pricesMap)
-    } catch (err) {
-      setIsError(true)
-      setError(err instanceof Error ? err : new Error('Unknown error'))
-      console.error('Error fetching market prices:', err)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchPrices()
-
-    // Atualizar a cada 5 minutos
-    const interval = setInterval(fetchPrices, 5 * 60 * 1000)
-
-    return () => clearInterval(interval)
-  }, [cryptoIds.join(',')])
+    return result
+  }, [rawPrices, cryptoIds])
 
   return {
     prices,
-    isLoading,
-    isError,
+    isLoading: loading,
+    isError: !!error,
     error,
-    refetch: fetchPrices,
+    refetch: () => {
+      // O hook usePrices já atualiza automaticamente a cada 5 segundos
+    },
   }
 }
 
@@ -78,31 +91,9 @@ export const useMarketPrices = (cryptoIds: string[] = []): UseMarketPricesResult
  * Hook para buscar preço de uma única criptomoeda
  */
 export const useMarketPrice = (
-  cryptoId: string
-): UseMarketPricesResult['prices'][string] | null => {
-  const [price, setPrice] = useState<CryptoPriceData | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-
-  useEffect(() => {
-    if (!cryptoId) return
-
-    setIsLoading(true)
-
-    marketPriceService.getPrice(cryptoId).then(result => {
-      setPrice(result)
-      setIsLoading(false)
-    })
-
-    // Atualizar a cada 5 minutos
-    const interval = setInterval(
-      () => {
-        marketPriceService.getPrice(cryptoId).then(setPrice)
-      },
-      5 * 60 * 1000
-    )
-
-    return () => clearInterval(interval)
-  }, [cryptoId])
-
-  return price
+  cryptoId: string,
+  currency: string = 'USD'
+): CryptoPriceData | null => {
+  const { prices } = useMarketPrices(cryptoId ? [cryptoId] : [], currency)
+  return prices[cryptoId?.toUpperCase() || ''] || null
 }

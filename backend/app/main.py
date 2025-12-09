@@ -13,7 +13,7 @@ from app.services.cache_service import cache_service
 from app.services.cache_service import cache_service
 
 # Routers
-from app.routers import auth, users, wallet, wallets, tx, prices, health, blockchain, transactions, billing, portfolio, exchange, p2p, chat_enterprise, reputation, dashboard, two_factor, tokens, wallet_transactions, instant_trade
+from app.routers import auth, users, wallet, wallets, tx, prices, prices_batch, prices_batch_v2, health, blockchain, transactions, billing, portfolio, exchange, p2p, chat_enterprise, reputation, dashboard, two_factor, tokens, wallet_transactions, instant_trade
 from app.api.v1.endpoints import seed_verification
 
 # Setup logging
@@ -133,6 +133,7 @@ app.include_router(blockchain.router, prefix="/blockchain", tags=["blockchain"])
 app.include_router(transactions.router, prefix="/api/v1", tags=["transactions"])
 app.include_router(tx.router, prefix="/tx", tags=["transactions"])
 app.include_router(prices.router, prefix="/prices", tags=["prices"])
+app.include_router(prices_batch_v2.router, prefix="/api/v1/prices", tags=["prices-batch"])
 app.include_router(tokens.router, prefix="/api/v1", tags=["tokens"])
 
 # New monetization routers
