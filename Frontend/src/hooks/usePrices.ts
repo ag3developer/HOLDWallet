@@ -39,10 +39,8 @@ export function usePrices(symbols: string[], currency: string = 'USD'): UsePrice
     try {
       // Construir query string com símbolos em UPPERCASE
       const symbolsQuery = symbols.map(s => s.toUpperCase()).join(',')
-
-      // ⚠️ PADRÃO: Backend SEMPRE retorna preços em USD
-      // Não enviar a moeda selecionada, sempre solicitar USD
-      const currencyCode = 'usd' // Hardcoded para USD - backend sempre retorna USD
+      const currencyCode = currency.toLowerCase()
+      console.log('[usePrices] Fetching prices for:', { symbols, currency: currencyCode })
 
       // Usar axios client com baseURL configurado
       const client = axios.create({
@@ -63,6 +61,13 @@ export function usePrices(symbols: string[], currency: string = 'USD'): UsePrice
       })
 
       const data = response.data
+      console.log('[usePrices] Response data structure:', {
+        hasData: !!data,
+        hasPrices: !!data?.prices,
+        pricesType: typeof data?.prices,
+        pricesKeys: data?.prices ? Object.keys(data.prices) : [],
+        fullData: data,
+      })
 
       // Transformar resposta do endpoint batch
       const pricesMap: Record<string, PriceInfo> = {}
@@ -73,14 +78,13 @@ export function usePrices(symbols: string[], currency: string = 'USD'): UsePrice
           const symbolUpper = symbol.toUpperCase()
           const price = info.price || 0
 
-          // Debug log for MATIC price
-          if (symbolUpper === 'MATIC') {
-            console.log('[usePrices] MATIC price fetched:', {
-              raw: info.price,
-              formatted: price,
-              timestamp: new Date().toISOString(),
-            })
-          }
+          // Debug log for all prices
+          console.log('[usePrices] Processing symbol:', {
+            originalSymbol: symbol,
+            upperSymbol: symbolUpper,
+            priceInfo: info,
+            extractedPrice: price,
+          })
 
           pricesMap[symbolUpper] = {
             price: price,
@@ -91,13 +95,40 @@ export function usePrices(symbols: string[], currency: string = 'USD'): UsePrice
             volume_24h: info.volume_24h,
           }
         }
+      } else if (data.data && typeof data.data === 'object') {
+        // Try alternative structure: data.data instead of data.prices
+        console.log('[usePrices] Trying alternative structure: data.data')
+        for (const [symbol, priceInfo] of Object.entries(data.data)) {
+          const info = priceInfo as Record<string, any>
+          const symbolUpper = symbol.toUpperCase()
+          const price = info.price || info.value || 0
+
+          console.log('[usePrices] Processing from data.data:', {
+            originalSymbol: symbol,
+            upperSymbol: symbolUpper,
+            priceInfo: info,
+            extractedPrice: price,
+          })
+
+          pricesMap[symbolUpper] = {
+            price: price,
+            change_24h: info.change_24h || 0,
+            high_24h: info.high_24h || 0,
+            low_24h: info.low_24h || 0,
+            market_cap: info.market_cap,
+            volume_24h: info.volume_24h,
+          }
+        }
+      } else {
+        console.warn('[usePrices] Unexpected response structure:', data)
       }
 
+      // ...existing code...
       console.log('[usePrices] Prices map updated:', Object.keys(pricesMap), pricesMap)
       setPrices(pricesMap)
     } catch (err) {
       const errorMessage = err instanceof Error ? err : new Error('Unknown error occurred')
-      setError(errorMessage as Error)
+      setError(errorMessage)
       console.error('[usePrices] Error fetching prices:', errorMessage)
 
       // Retornar dados vazios em caso de erro

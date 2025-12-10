@@ -1,33 +1,13 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Info, AlertCircle, Wallet } from 'lucide-react'
+import { ArrowLeft, AlertCircle, Loader2, RefreshCw } from 'lucide-react'
 import { useCreateP2POrder } from '@/hooks/useP2POrders'
 import { usePaymentMethods } from '@/hooks/usePaymentMethods'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { usePrices } from '@/hooks/usePrices'
 import { useWalletBalances } from '@/hooks/useWalletBalances'
-import WalletService from '@/services/wallet-service'
+import { CryptoIcon } from '@/components/CryptoIcon'
 import { toast } from 'react-hot-toast'
-
-// Crypto logos from CoinGecko (free CDN)
-const CRYPTO_LOGOS: Record<string, string> = {
-  BTC: 'https://assets.coingecko.com/coins/images/1/large/bitcoin.png?1696501400',
-  ETH: 'https://assets.coingecko.com/coins/images/279/large/ethereum.png?1696501628',
-  MATIC: 'https://assets.coingecko.com/coins/images/4713/large/matic-token-icon.png?1696504745',
-  BNB: 'https://assets.coingecko.com/coins/images/825/large/bnb-icon2_2x.png?1696501970',
-  TRX: 'https://assets.coingecko.com/coins/images/1094/large/tron-logo.png?1696502193',
-  BASE: 'https://assets.coingecko.com/coins/images/30617/large/base.jpg?1696519330',
-  USDT: 'https://assets.coingecko.com/coins/images/325/large/Tether.png?1696501661',
-  SOL: 'https://assets.coingecko.com/coins/images/4128/large/solana.png?1696504756',
-  LTC: 'https://assets.coingecko.com/coins/images/2/large/litecoin.png?1696501400',
-  DOGE: 'https://assets.coingecko.com/coins/images/5/large/dogecoin.png?1696501400',
-  ADA: 'https://assets.coingecko.com/coins/images/975/large/cardano.png?1696502090',
-  AVAX: 'https://assets.coingecko.com/coins/images/12559/large/Avalanche_Circle_RedWhite_Trans.png?1696512369',
-  DOT: 'https://assets.coingecko.com/coins/images/12171/large/polkadot.png?1696512008',
-  LINK: 'https://assets.coingecko.com/coins/images/877/large/chainlink-new-logo.png?1696502009',
-  SHIB: 'https://assets.coingecko.com/coins/images/11939/large/shiba.png?1622619446',
-  XRP: 'https://assets.coingecko.com/coins/images/44/large/xrp-symbol-white-128.png?1696501442',
-}
 
 export const CreateOrderPage = () => {
   const navigate = useNavigate()
@@ -37,7 +17,7 @@ export const CreateOrderPage = () => {
 
   // Form state
   const [orderType, setOrderType] = useState<'buy' | 'sell'>('sell')
-  const [coin, setCoin] = useState('BTC')
+  const [coin, setCoin] = useState('')
   const [fiatCurrency, setFiatCurrency] = useState('BRL')
   const [basePrice, setBasePrice] = useState<number>(0)
   const [priceMargin, setPriceMargin] = useState<number>(0) // percentage: -10 to +50
@@ -49,10 +29,18 @@ export const CreateOrderPage = () => {
   const [terms, setTerms] = useState('')
   const [autoReply, setAutoReply] = useState('')
   const [allBalances, setAllBalances] = useState<Record<string, number>>({})
-  const [loadingPrice, setLoadingPrice] = useState(false)
-  const { prices: cryptoPrices } = usePrices([coin], fiatCurrency)
   const [walletId, setWalletId] = useState<string | undefined>(undefined)
   const [balancesLoading, setBalancesLoading] = useState(true)
+
+  // Get available cryptos - only those user actually has
+  const availableCryptos = Object.keys(allBalances).length > 0 ? Object.keys(allBalances) : []
+
+  // Only fetch prices for cryptos user actually has
+  // If coin is selected and available, fetch its price; otherwise fetch all available
+  const { prices: cryptoPrices, loading: pricesLoading } = usePrices(
+    coin ? [coin] : availableCryptos,
+    fiatCurrency
+  )
 
   // Fetch wallet ID first
   useEffect(() => {
@@ -76,7 +64,7 @@ export const CreateOrderPage = () => {
 
         const wallets = await response.json()
         console.log('[CreateOrder] Wallets fetched:', wallets)
-        
+
         if (!wallets?.length) {
           throw new Error('No wallets found')
         }
@@ -94,18 +82,33 @@ export const CreateOrderPage = () => {
   }, [token])
 
   // Use the hook to fetch balances
-  const { balances, loading: balancesHookLoading } = useWalletBalances(walletId)
+  const { balances, loading: balancesHookLoading, refreshBalances } = useWalletBalances(walletId)
 
   // Update balances when they change from hook
   useEffect(() => {
-    console.log('[CreateOrder] Balances updated from hook:', balances, 'Loading:', balancesHookLoading)
+    console.log(
+      '[CreateOrder] Balances updated from hook:',
+      balances,
+      'Loading:',
+      balancesHookLoading
+    )
     setAllBalances(balances)
     setBalancesLoading(balancesHookLoading)
-  }, [balances, balancesHookLoading])
+
+    // Auto-select first available coin if not selected yet
+    if (!coin && Object.keys(balances).length > 0) {
+      const firstCoin = Object.keys(balances).sort((a, b) => balances[b] - balances[a])[0]
+      if (firstCoin) {
+        console.log('[CreateOrder] Auto-selecting first coin:', firstCoin)
+        setCoin(firstCoin)
+      }
+    }
+  }, [balances, balancesHookLoading, coin])
 
   // Update base price from hook when cryptoPrices change
   useEffect(() => {
-    if (cryptoPrices && cryptoPrices[coin]) {
+    if (coin && cryptoPrices?.[coin]?.price) {
+      console.log(`[CreateOrder] Price updated for ${coin}:`, cryptoPrices[coin].price)
       setBasePrice(cryptoPrices[coin].price)
     } else {
       setBasePrice(0)
@@ -135,8 +138,8 @@ export const CreateOrderPage = () => {
     { code: 'EUR', name: 'Euro', symbol: '€' },
   ]
 
-  // Get available cryptos from actual balances, sorted by amount
-  const availableCryptos = Object.entries(allBalances)
+  // Get available cryptos with details for UI display (already defined above, but with more details)
+  const availableCryptosWithDetails = Object.entries(allBalances)
     .sort((a, b) => b[1] - a[1])
     .map(([symbol, balance]) => ({ symbol, name: symbol, balance }))
 
@@ -377,7 +380,7 @@ export const CreateOrderPage = () => {
                 {balancesLoading ? (
                   <div className='mb-3 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg'>
                     <div className='flex items-center gap-2'>
-                      <div className='animate-spin'>⏳</div>
+                      <Loader2 className='w-4 h-4 animate-spin text-blue-600 dark:text-blue-400' />
                       <span className='text-sm text-blue-700 dark:text-blue-300'>
                         Carregando seus saldos da carteira...
                       </span>
@@ -403,13 +406,11 @@ export const CreateOrderPage = () => {
                             }`}
                           >
                             <div className='flex items-center gap-1 justify-center'>
-                              {CRYPTO_LOGOS[symbol] && (
-                                <img
-                                  src={CRYPTO_LOGOS[symbol]}
-                                  alt={symbol}
-                                  className='w-4 h-4 rounded-full'
-                                />
-                              )}
+                              <CryptoIcon
+                                symbol={symbol}
+                                size={16}
+                                className='rounded-full flex-shrink-0'
+                              />
                               <span>{symbol}</span>
                             </div>
                             <div className='text-xs text-gray-600 dark:text-gray-400'>
@@ -427,7 +428,8 @@ export const CreateOrderPage = () => {
                         Nenhum saldo encontrado
                       </p>
                       <p className='text-xs text-yellow-700 dark:text-yellow-400 mt-1'>
-                        Você precisa ter uma carteira com criptomoedas para criar uma ordem de venda.
+                        Você precisa ter uma carteira com criptomoedas para criar uma ordem de
+                        venda.
                       </p>
                     </div>
                   </div>
@@ -458,9 +460,14 @@ export const CreateOrderPage = () => {
                 </h3>
 
                 {/* Preço Base */}
-                {loadingPrice ? (
-                  <div className='mb-3 p-2 bg-blue-50 dark:bg-blue-900/20 rounded text-sm text-blue-700 dark:text-blue-300'>
-                    Buscando preço de mercado...
+                {basePrice <= 0 ? (
+                  <div className='mb-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800'>
+                    <div className='flex items-center gap-2'>
+                      <Loader2 className='w-4 h-4 animate-spin text-blue-600 dark:text-blue-400' />
+                      <span className='text-sm text-blue-700 dark:text-blue-300'>
+                        Carregando cotação de {coin || 'moeda'}...
+                      </span>
+                    </div>
                   </div>
                 ) : basePrice > 0 ? (
                   <div className='mb-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800'>
@@ -711,15 +718,11 @@ export const CreateOrderPage = () => {
               {/* Submit Button */}
               <button
                 type='submit'
-                disabled={createOrderMutation.isPending || loadingPrice || basePrice <= 0}
+                disabled={createOrderMutation.isPending || basePrice <= 0}
                 className='w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold rounded-lg transition-all shadow-md hover:shadow-lg'
                 title={basePrice <= 0 ? 'Aguarde o carregamento do preço de mercado' : ''}
               >
-                {createOrderMutation.isPending
-                  ? 'Criando ordem...'
-                  : loadingPrice
-                    ? 'Carregando preço...'
-                    : 'Criar Ordem'}
+                {createOrderMutation.isPending ? 'Criando ordem...' : 'Criar Ordem'}
               </button>
             </form>
           </div>
@@ -758,22 +761,28 @@ export const CreateOrderPage = () => {
             {/* Card: Saldo */}
             {(currentBalance > 0 || Object.keys(allBalances).length > 0) && (
               <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-4'>
-                <h4 className='text-sm font-semibold text-gray-900 dark:text-white mb-3'>
-                  Seus Saldos
-                </h4>
+                <div className='flex items-center justify-between mb-3'>
+                  <h4 className='text-sm font-semibold text-gray-900 dark:text-white'>
+                    Seus Saldos
+                  </h4>
+                  <button
+                    onClick={() => refreshBalances()}
+                    disabled={balancesLoading}
+                    className='p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors'
+                    title='Atualizar saldos'
+                  >
+                    <RefreshCw
+                      className={`w-4 h-4 text-gray-600 dark:text-gray-400 ${balancesLoading ? 'animate-spin' : ''}`}
+                    />
+                  </button>
+                </div>
                 <div className='space-y-2 max-h-48 overflow-y-auto'>
                   {Object.entries(allBalances)
                     .sort((a, b) => b[1] - a[1])
                     .map(([symbol, balance]) => (
                       <div key={symbol} className='flex items-center justify-between text-sm'>
                         <div className='flex items-center gap-2'>
-                          {CRYPTO_LOGOS[symbol] && (
-                            <img
-                              src={CRYPTO_LOGOS[symbol]}
-                              alt={symbol}
-                              className='w-4 h-4 rounded-full'
-                            />
-                          )}
+                          <CryptoIcon symbol={symbol} size={16} className='rounded-full' />
                           <span className='font-medium text-gray-900 dark:text-white'>
                             {symbol}
                           </span>
