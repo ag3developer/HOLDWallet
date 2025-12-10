@@ -5,6 +5,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { X, PhoneOff, Mic, MicOff, Video, VideoOff, Volume2, VolumeX } from 'lucide-react'
+import { AudioRecorderPanel } from './AudioRecorderPanel'
 
 export interface CallModalProps {
   readonly isOpen: boolean
@@ -228,6 +229,9 @@ export function CallModal({
           <div className='w-2 h-2 bg-green-500 rounded-full animate-pulse' />
           <span>{callType === 'video' ? 'Chamada de vídeo' : 'Chamada de voz'} em andamento</span>
         </div>
+
+        {/* Audio Recorder Panel */}
+        <AudioRecorderPanel />
       </div>
     </div>
   )

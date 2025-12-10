@@ -270,6 +270,49 @@ class ChatP2PService {
   }
 
   /**
+   * Enviar mensagem de áudio
+   */
+  async sendAudioMessage(audioBlob: Blob): Promise<void> {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      throw new Error('WebSocket not connected')
+    }
+
+    // Converter blob para base64
+    const reader = new FileReader()
+    return new Promise((resolve, reject) => {
+      reader.onload = () => {
+        const base64Audio = reader.result as string
+        const message = {
+          type: 'message',
+          message_type: 'audio',
+          content: 'Mensagem de áudio',
+          attachments: [
+            {
+              type: 'audio',
+              data: base64Audio,
+              size: audioBlob.size,
+              timestamp: new Date().toISOString(),
+            }
+          ]
+        }
+
+        try {
+          this.ws!.send(JSON.stringify(message))
+          resolve()
+        } catch (error) {
+          reject(error)
+        }
+      }
+
+      reader.onerror = () => {
+        reject(new Error('Erro ao ler arquivo de áudio'))
+      }
+
+      reader.readAsDataURL(audioBlob)
+    })
+  }
+
+  /**
    * Notificar que está digitando
    */
   async sendTyping(isTyping: boolean): Promise<void> {
