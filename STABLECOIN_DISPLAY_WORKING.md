@@ -3,6 +3,7 @@
 ## 📊 Resultado do Teste
 
 O teste foi executado com sucesso usando as credenciais fornecidas:
+
 - **Email**: app@holdwallet.com
 - **Senha**: Abc123@@
 
@@ -30,17 +31,20 @@ A stablecoin **USDT na rede Polygon** aparece corretamente:
 
 ```typescript
 // ANTES:
-const response = await apiClient.get<WalletBalancesByNetwork>(`/wallets/${walletId}/balances`)
+const response = await apiClient.get<WalletBalancesByNetwork>(
+  `/wallets/${walletId}/balances`
+);
 
 // DEPOIS:
 const response = await apiClient.get<WalletBalancesByNetwork>(
   `/wallets/${walletId}/balances?include_tokens=true`
-)
+);
 ```
 
 ### 2. **Backend - Suporte a tokens já implementado** ✅
 
 O backend (`/backend/app/routers/wallets.py`) já tinha:
+
 - ✅ Parâmetro `include_tokens` no endpoint
 - ✅ Lógica para buscar USDT/USDC
 - ✅ Retorno dos balances com tokens
@@ -120,6 +124,7 @@ As stablecoins agora aparecem no **backend**, mas para aparecerem no **frontend*
 **Localização**: `/test_stablecoins_display.py`
 
 Para re-executar o teste:
+
 ```bash
 cd /Users/josecarlosmartins/Documents/HOLDWallet
 python3 test_stablecoins_display.py

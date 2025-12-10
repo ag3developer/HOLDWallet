@@ -102,10 +102,13 @@ export function TradingForm({
 
         const walletId = wallets[0].id
 
-        // Get balances (without tokens to avoid timeout)
-        const balanceResp = await fetch(`http://127.0.0.1:8000/wallets/${walletId}/balances`, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
+        // Get balances with tokens (USDT, USDC, etc)
+        const balanceResp = await fetch(
+          `http://127.0.0.1:8000/wallets/${walletId}/balances?include_tokens=true`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        )
 
         if (!balanceResp.ok) throw new Error(`Failed to fetch balances: ${balanceResp.status}`)
 
@@ -131,7 +134,8 @@ export function TradingForm({
       const symbol = mapNetworkToSymbol(networkLower)
 
       if (symbol) {
-        mapped[symbol] = amount
+        // Somar saldos do mesmo símbolo (ex: USDT de múltiplas redes)
+        mapped[symbol] = (mapped[symbol] || 0) + amount
       }
     }
 
@@ -148,12 +152,41 @@ export function TradingForm({
 
   // Helper to map network to symbol
   const mapNetworkToSymbol = (networkLower: string): string => {
-    if (networkLower.includes('polygon')) {
-      return networkLower.includes('usdt') ? 'USDT' : 'MATIC'
+    // Detectar tokens stablecoin primeiro
+    if (networkLower.includes('usdt')) return 'USDT'
+    if (networkLower.includes('usdc')) return 'USDC'
+
+    // Mapping de redes nativas
+    const networkMap: Record<string, string> = {
+      polygon: 'MATIC',
+      ethereum: 'ETH',
+      eth: 'ETH',
+      bitcoin: 'BTC',
+      btc: 'BTC',
+      base: 'BASE',
+      bsc: 'BNB',
+      solana: 'SOL',
+      sol: 'SOL',
+      tron: 'TRX',
+      trx: 'TRX',
+      litecoin: 'LTC',
+      ltc: 'LTC',
+      dogecoin: 'DOGE',
+      doge: 'DOGE',
+      cardano: 'ADA',
+      ada: 'ADA',
+      avalanche: 'AVAX',
+      avax: 'AVAX',
+      polkadot: 'DOT',
+      dot: 'DOT',
+      chainlink: 'LINK',
+      link: 'LINK',
+      shiba: 'SHIB',
+      shib: 'SHIB',
+      xrp: 'XRP',
     }
-    if (networkLower === 'base') return 'BASE'
-    if (networkLower === 'ethereum' || networkLower === 'eth') return 'ETH'
-    return ''
+
+    return networkMap[networkLower] || ''
   }
 
   // Smart formatting: shows appropriate decimals based on value

@@ -10,12 +10,14 @@ Os stablecoins (USDT, USDC) não estavam aparecendo na página de wallet (`/wall
 ## 🔍 Análise
 
 ### Backend Status ✅
+
 - `GET /wallets/{wallet_id}/balances` - **JÁ IMPLEMENTADO**
 - Suporta parâmetro `include_tokens: bool = Query(False)`
 - Detecta automaticamente USDT e USDC na blockchain
 - Retorna dados com chaves como `polygon_usdt`, `ethereum_usdc`, etc.
 
 ### Frontend Status ❌ → ✅
+
 - **PROBLEMA**: O frontend **NÃO estava passando** `include_tokens=true` ao backend
 - **SOLUÇÃO**: Adicionar parâmetro `include_tokens=true` na chamada API
 
@@ -29,12 +31,12 @@ Os stablecoins (USDT, USDC) não estavam aparecendo na página de wallet (`/wall
 // ANTES
 const response = await apiClient.get<WalletBalancesByNetwork>(
   `/wallets/${walletId}/balances`
-)
+);
 
 // DEPOIS
 const response = await apiClient.get<WalletBalancesByNetwork>(
   `/wallets/${walletId}/balances?include_tokens=true`
-)
+);
 ```
 
 ## 📊 Fluxo de Dados - Após Fix
@@ -79,6 +81,7 @@ O endpoint `/wallets/{wallet_id}/balances` já implementa:
 5. ✅ Logging detalhado para debug
 
 **Configuração de Contratos:** `backend/app/config/token_contracts.py`
+
 - USDT no Polygon: `0xc2132D05D31c914a87C6611C10748AEb04B58e8F` ✅
 - USDC no Polygon: `0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174` ✅
 - Suporta 9+ redes diferentes
@@ -86,6 +89,7 @@ O endpoint `/wallets/{wallet_id}/balances` já implementa:
 ### Arquivo: `backend/app/services/blockchain_service.py`
 
 Classe `EthereumService.get_balance()`:
+
 - Recebe `include_tokens=True`
 - Detecta rede automaticamente (polygon, ethereum, base, bsc)
 - Busca USDT via `get_token_balance()`
@@ -100,7 +104,7 @@ Classe `EthereumService.get_balance()`:
 // Tokens são detectados por regex na chave:
 // polygon_usdt, ethereum_usdc, etc.
 
-const tokenMatch = keyLower.match(/^([a-z0-9]+)_(usdt|usdc)$/)
+const tokenMatch = keyLower.match(/^([a-z0-9]+)_(usdt|usdc)$/);
 
 if (tokenMatch) {
   // Extrai símbolo do token (USDT ou USDC)
@@ -115,6 +119,7 @@ Também implementado em `DashboardPage.tsx` com mesma lógica ✅
 ## 🧪 Como Testar
 
 ### 1. Backend já está funcionando
+
 O endpoint está pronto no backend. Você pode testar com:
 
 ```bash
@@ -125,6 +130,7 @@ curl "http://localhost:8000/wallets/{wallet_id}/balances?include_tokens=true" \
 Esperado: Retorna saldos nativos + `polygon_usdt`, `ethereum_usdc`, etc.
 
 ### 2. Frontend - Após a mudança
+
 1. Abra: `http://localhost:3000/wallet`
 2. Verifique se suas stablecoins aparecem:
    - USDT no Polygon
@@ -134,6 +140,7 @@ Esperado: Retorna saldos nativos + `polygon_usdt`, `ethereum_usdc`, etc.
 ## 📈 Dados de Teste
 
 Você forneceu:
+
 - **Email**: app@holdwallet.com
 - **Senha**: Abc123@@
 - **Saldo Known**: USDT na rede Polygon
@@ -141,6 +148,7 @@ Você forneceu:
 ## 🔐 Verificação de Segurança
 
 ✅ `include_tokens=true` não abre brecha de segurança:
+
 - Token balances só são buscados se o usuário os tem
 - Verificação de ownership de carteira mantida (`Wallet.user_id == current_user.id`)
 - Preços retornados sempre do backend (nunca do frontend)
@@ -154,13 +162,13 @@ Você forneceu:
 
 ## 📝 Resumo das Mudanças
 
-| Arquivo | Mudança | Status |
-|---------|---------|--------|
-| `Frontend/src/services/wallet.ts` | Adicionar `?include_tokens=true` | ✅ FEITO |
-| `backend/app/routers/wallets.py` | Nenhuma (já está pronto) | ✅ OK |
-| `backend/app/services/blockchain_service.py` | Nenhuma (já está pronto) | ✅ OK |
-| `Frontend/src/pages/wallet/WalletPage.tsx` | Nenhuma (já processa tokens) | ✅ OK |
-| `Frontend/src/pages/dashboard/DashboardPage.tsx` | Nenhuma (já processa tokens) | ✅ OK |
+| Arquivo                                          | Mudança                          | Status   |
+| ------------------------------------------------ | -------------------------------- | -------- |
+| `Frontend/src/services/wallet.ts`                | Adicionar `?include_tokens=true` | ✅ FEITO |
+| `backend/app/routers/wallets.py`                 | Nenhuma (já está pronto)         | ✅ OK    |
+| `backend/app/services/blockchain_service.py`     | Nenhuma (já está pronto)         | ✅ OK    |
+| `Frontend/src/pages/wallet/WalletPage.tsx`       | Nenhuma (já processa tokens)     | ✅ OK    |
+| `Frontend/src/pages/dashboard/DashboardPage.tsx` | Nenhuma (já processa tokens)     | ✅ OK    |
 
 ---
 

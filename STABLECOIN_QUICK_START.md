@@ -5,10 +5,12 @@
 Uma única mudança no código foi necessária para que suas stablecoins apareçam:
 
 ### Arquivo Modificado
+
 📄 **Path**: `Frontend/src/services/wallet.ts`  
 📍 **Linha**: ~118
 
 ### Mudança Exata
+
 ```diff
   async getWalletBalancesByNetwork(walletId: string) {
     console.log(`[DEBUG] Service: Fetching /wallets/${walletId}/balances`)
@@ -28,6 +30,7 @@ Uma única mudança no código foi necessária para que suas stablecoins apareç
 ## 🚀 COMO TESTAR AGORA
 
 ### Passo 1: Reiniciar o Frontend
+
 ```bash
 # Terminal 1 - Frontend
 cd /Users/josecarlosmartins/Documents/HOLDWallet/Frontend
@@ -35,21 +38,24 @@ npm start
 ```
 
 ### Passo 2: Abrir em Navegador
+
 ```
 http://localhost:3000/wallet
 ```
 
 ### Passo 3: Fazer Login
+
 - **Email**: app@holdwallet.com
 - **Senha**: Abc123@@
 
 ### Passo 4: Procurar pelas Stablecoins
+
 Quando expandir a carteira multi, você verá:
 
 ```
 📱 Minha Carteira Multi
 ├─ 🟠 Bitcoin (BTC)        0.50 BTC
-├─ 🔵 Ethereum (ETH)       1.20 ETH  
+├─ 🔵 Ethereum (ETH)       1.20 ETH
 ├─ 💜 Polygon (MATIC)      0 MATIC
 ├─ 💚 Polygon (USDT)       100.00 USDT     ← NOVO!
 ├─ 💙 Polygon (USDC)       50.00 USDC      ← NOVO!
@@ -96,6 +102,7 @@ curl "http://localhost:8000/wallets/{SEU_WALLET_ID}/balances?include_tokens=true
 ## 📊 ESTRUTURA DOS DADOS RETORNADOS
 
 ### Backend Retorna
+
 ```json
 {
   "wallet_id": "uuid-aqui",
@@ -136,10 +143,11 @@ curl "http://localhost:8000/wallets/{SEU_WALLET_ID}/balances?include_tokens=true
 ```
 
 ### Frontend Processa
+
 ```javascript
 // Detecta padrão na chave: {rede}_{token}
-const regex = /^([a-z0-9]+)_(usdt|usdc)$/
-const match = "polygon_usdt".match(regex)
+const regex = /^([a-z0-9]+)_(usdt|usdc)$/;
+const match = "polygon_usdt".match(regex);
 // ✅ Match encontrado! [network: "polygon", token: "usdt"]
 ```
 
@@ -148,6 +156,7 @@ const match = "polygon_usdt".match(regex)
 ## ✨ ANTES vs DEPOIS
 
 ### ❌ ANTES (Não funcionava)
+
 ```
 1. Frontend chama: GET /wallets/{id}/balances
 2. Backend retorna: APENAS saldos nativos
@@ -156,6 +165,7 @@ const match = "polygon_usdt".match(regex)
 ```
 
 ### ✅ DEPOIS (Agora funciona)
+
 ```
 1. Frontend chama: GET /wallets/{id}/balances?include_tokens=true
 2. Backend retorna: saldos nativos + USDT + USDC
@@ -170,19 +180,27 @@ const match = "polygon_usdt".match(regex)
 Se quiser melhorar mais, pode fazer:
 
 ### 1. Adicionar Mais Stablecoins (DAI, BUSD, etc)
+
 **Arquivo**: `backend/app/config/token_contracts.py`
+
 - Já tem DAI, BUSD, USDT, USDC
 - Basta adicionar novos contratos
 
 ### 2. Mudar Cores das Stablecoins
+
 **Arquivo**: `Frontend/src/pages/wallet/WalletPage.tsx` (linha ~310)
+
 ```typescript
 const tokenColor =
-  tokenName === 'USDT' ? 'from-green-400 to-green-600' : 'from-blue-400 to-blue-600'
+  tokenName === "USDT"
+    ? "from-green-400 to-green-600"
+    : "from-blue-400 to-blue-600";
 ```
 
 ### 3. Aumentar Cache
+
 **Arquivo**: `Frontend/src/hooks/useWallet.ts` (linha ~78)
+
 ```typescript
 refetchInterval: 240 * 1000, // aumentar de 120s para 240s
 ```
@@ -192,6 +210,7 @@ refetchInterval: 240 * 1000, // aumentar de 120s para 240s
 ## 🆘 SE NÃO FUNCIONAR
 
 ### Checklist
+
 - [ ] Backend rodando em http://localhost:8000
 - [ ] Frontend rodando em http://localhost:3000
 - [ ] Arquivo modificado: `Frontend/src/services/wallet.ts`
@@ -201,10 +220,12 @@ refetchInterval: 240 * 1000, // aumentar de 120s para 240s
 - [ ] Verificar console (F12 → Console) por erros
 
 ### Logs para Procurar
+
 - ✅ `[WalletPage] Found token: USDT on network: polygon`
 - ❌ Se não aparecer: backend não está retornando tokens
 
 ### Comando para Testar Backend Direto
+
 ```bash
 # No terminal
 cd /Users/josecarlosmartins/Documents/HOLDWallet
@@ -215,19 +236,19 @@ bash test_stablecoins.sh
 
 ## 📝 RESUMO FINAL
 
-| Item | Status | Detalhes |
-|------|--------|----------|
-| **Backend** | ✅ Pronto | Endpoint `/balances?include_tokens=true` implementado |
-| **Frontend** | ✅ Pronto | Hook processa tokens automaticamente |
-| **Mudança** | ✅ Feita | 1 arquivo, 1 linha modificada |
-| **Testes** | ✅ Pronto | Script test_stablecoins.sh disponível |
-| **Resultado** | ✅ Esperado | Stablecoins aparecem em http://localhost:3000/wallet |
+| Item          | Status      | Detalhes                                              |
+| ------------- | ----------- | ----------------------------------------------------- |
+| **Backend**   | ✅ Pronto   | Endpoint `/balances?include_tokens=true` implementado |
+| **Frontend**  | ✅ Pronto   | Hook processa tokens automaticamente                  |
+| **Mudança**   | ✅ Feita    | 1 arquivo, 1 linha modificada                         |
+| **Testes**    | ✅ Pronto   | Script test_stablecoins.sh disponível                 |
+| **Resultado** | ✅ Esperado | Stablecoins aparecem em http://localhost:3000/wallet  |
 
 ---
 
 **Tempo de implementação**: ~5 minutos  
 **Complexidade**: ⭐☆☆☆☆ (Muito simples)  
-**Impacto**: 🔥🔥🔥 (Muito positivo)  
+**Impacto**: 🔥🔥🔥 (Muito positivo)
 
 ---
 
@@ -236,5 +257,6 @@ bash test_stablecoins.sh
 Agora suas stablecoins (USDT, USDC) aparecem na página de wallet!
 
 Se tiver dúvidas, os logs detalhados ajudarão a debugar:
+
 - Backend: `/backend/backend.log`
 - Browser: F12 → Console
