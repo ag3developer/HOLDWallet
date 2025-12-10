@@ -530,17 +530,52 @@ async def get_orders(
     # Enrich orders with user data and payment methods
     enriched_orders = []
     for o in orders:
-        # Mock user data
-        user_data = {
-            "id": str(o.user_id),
-            "username": f"user_{o.user_id}",
-            "verified": True,
-            "total_trades": o.completed_trades,
-            "success_rate": 98.5,
-            "avg_rating": 4.8,
-            "badges": ["verified", "pro_trader"],
-            "is_online": True
-        }
+        # Get trader profile data from database
+        # o.user_id might be integer or UUID, so convert to string for comparison
+        user_id_str = str(o.user_id)
+        
+        trader_profile_query = """
+            SELECT tp.display_name, tp.avatar_url, tp.is_verified, tp.verification_level,
+                   tp.total_trades, tp.completed_trades, tp.success_rate, tp.average_rating,
+                   tp.total_reviews, u.email
+            FROM trader_profiles tp
+            LEFT JOIN users u ON tp.user_id = u.id
+            WHERE tp.user_id = :user_id
+        """
+        trader_result = db.execute(text(trader_profile_query), {"user_id": user_id_str}).fetchone()
+        
+        if trader_result:
+            user_data = {
+                "id": str(o.user_id),
+                "username": trader_result.email.split('@')[0] if trader_result.email else f"user_{o.user_id}",
+                "display_name": trader_result.display_name,
+                "avatar": trader_result.avatar_url,
+                "verified": trader_result.is_verified,
+                "verification_level": trader_result.verification_level,
+                "total_trades": trader_result.total_trades or 0,
+                "completed_trades": trader_result.completed_trades or 0,
+                "success_rate": (trader_result.success_rate or 0) * 100,
+                "avg_rating": trader_result.average_rating or 0,
+                "total_reviews": trader_result.total_reviews or 0,
+                "badges": ["verified", "pro_trader"] if trader_result.is_verified else [],
+                "is_online": True
+            }
+        else:
+            # Fallback if no trader profile found
+            user_data = {
+                "id": str(o.user_id),
+                "username": f"user_{o.user_id}",
+                "display_name": f"Trader {o.user_id}",
+                "verified": False,
+                "verification_level": "basic",
+                "total_trades": o.completed_trades or 0,
+                "completed_trades": o.completed_trades or 0,
+                "success_rate": 98.5,
+                "avg_rating": 4.8,
+                "total_reviews": 0,
+                "badges": [],
+                "is_online": True
+            }
         
         # Get payment methods (just count for listing)
         pm_ids = json.loads(o.payment_methods) if o.payment_methods else []
@@ -711,19 +746,57 @@ async def get_order_details(
                 })
         
         # Mock user data (later integrate with real users table)
-        user_data = {
-            "id": str(result.user_id),
-            "username": f"user_{result.user_id}",
-            "email": f"user{result.user_id}@holdwallet.com",
-            "verified": True,
-            "joined_date": "2024-01-15",
-            "total_trades": result.completed_trades,
-            "success_rate": 98.5,
-            "avg_rating": 4.8,
-            "badges": ["verified", "pro_trader"],
-            "is_online": True,
-            "last_seen": str(result.updated_at)
-        }
+        # Get trader profile data from database
+        # result.user_id might be integer or UUID, so convert to string for comparison
+        user_id_str = str(result.user_id)
+        
+        trader_profile_query = """
+            SELECT tp.display_name, tp.avatar_url, tp.is_verified, tp.verification_level,
+                   tp.total_trades, tp.completed_trades, tp.success_rate, tp.average_rating,
+                   tp.total_reviews, u.email
+            FROM trader_profiles tp
+            LEFT JOIN users u ON tp.user_id = u.id
+            WHERE tp.user_id = :user_id
+        """
+        trader_result = db.execute(text(trader_profile_query), {"user_id": user_id_str}).fetchone()
+        
+        if trader_result:
+            user_data = {
+                "id": str(result.user_id),
+                "username": trader_result.email.split('@')[0] if trader_result.email else f"user_{result.user_id}",
+                "display_name": trader_result.display_name,
+                "email": trader_result.email,
+                "avatar": trader_result.avatar_url,
+                "verified": trader_result.is_verified,
+                "verification_level": trader_result.verification_level,
+                "joined_date": "2024-01-15",
+                "total_trades": trader_result.total_trades or 0,
+                "completed_trades": trader_result.completed_trades or 0,
+                "success_rate": (trader_result.success_rate or 0) * 100,
+                "avg_rating": trader_result.average_rating or 0,
+                "total_reviews": trader_result.total_reviews or 0,
+                "badges": ["verified", "pro_trader"] if trader_result.is_verified else [],
+                "is_online": True,
+                "last_seen": str(result.updated_at)
+            }
+        else:
+            user_data = {
+                "id": str(result.user_id),
+                "username": f"user_{result.user_id}",
+                "display_name": f"Trader {result.user_id}",
+                "email": f"user{result.user_id}@holdwallet.com",
+                "verified": False,
+                "verification_level": "basic",
+                "joined_date": "2024-01-15",
+                "total_trades": result.completed_trades or 0,
+                "completed_trades": result.completed_trades or 0,
+                "success_rate": 98.5,
+                "avg_rating": 4.8,
+                "total_reviews": 0,
+                "badges": [],
+                "is_online": True,
+                "last_seen": str(result.updated_at)
+            }
         
         return {
             "success": True,

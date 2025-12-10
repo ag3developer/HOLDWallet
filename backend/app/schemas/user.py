@@ -1,12 +1,12 @@
 from pydantic import BaseModel, Field, EmailStr, validator
 from typing import Optional, List, Dict, Any
 from datetime import datetime
-import uuid
+from uuid import UUID
 
 # User response schemas
 class UserResponse(BaseModel):
     """Response schema for user information."""
-    id: int
+    id: UUID
     email: str
     username: str
     created_at: datetime

@@ -48,7 +48,7 @@ class AuthService {
 
   // Update user profile
   async updateProfile(userData: Partial<User>): Promise<User> {
-    const response = await apiClient.put('/users/profile', userData)
+    const response = await apiClient.put('/users/me', userData)
     return response.data
   }
 

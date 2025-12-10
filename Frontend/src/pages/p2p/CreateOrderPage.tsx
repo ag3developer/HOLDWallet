@@ -7,6 +7,7 @@ import { useAuthStore } from '@/stores/useAuthStore'
 import { usePrices } from '@/hooks/usePrices'
 import { useWalletBalances } from '@/hooks/useWalletBalances'
 import { CryptoIcon } from '@/components/CryptoIcon'
+import { UserProfileSection } from '@/components/trader/UserProfileSection'
 import { toast } from 'react-hot-toast'
 
 export const CreateOrderPage = () => {
@@ -727,8 +728,16 @@ export const CreateOrderPage = () => {
             </form>
           </div>
 
-          {/* Coluna Direita: Resumo & Saldo */}
+          {/* Coluna Direita: Perfil, Resumo & Saldo */}
           <div className='lg:col-span-1 space-y-4'>
+            {/* Card: Seu Perfil */}
+            <UserProfileSection
+              token={token}
+              onEdit={() => navigate('/p2p/trader-profile/edit')}
+              showEditButton={true}
+              showProfileLink={true}
+            />
+
             {/* Card: Resumo */}
             {finalPrice > 0 && amount && (
               <div className='bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-900/20 rounded-lg shadow p-4 border border-blue-200 dark:border-blue-800 sticky top-4'>

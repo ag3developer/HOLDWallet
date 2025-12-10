@@ -39,6 +39,7 @@ import { SettingsPage } from '@/pages/settings/SettingsPage'
 import { CreateWalletPage } from '@/pages/wallet/CreateWalletPage'
 import { SettingsPage as WalletSettingsPage } from '@/pages/wallet/SettingsPage'
 import { NetworkComparison } from '@/components/NetworkComparison'
+import { TraderProfileEditPage } from '@/pages/p2p/TraderProfileEditPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 
 // Protected Route Component
@@ -234,6 +235,7 @@ function App() {
             <Route path='p2p/order/:orderId' element={<OrderDetailsPage />} />
             <Route path='p2p/edit-order/:orderId' element={<EditOrderPage />} />
             <Route path='p2p/trade/:tradeId' element={<TradeProcessPage />} />
+            <Route path='p2p/trader-profile/edit' element={<TraderProfileEditPage />} />
             <Route path='instant-trade' element={<InstantTradePage />} />
             <Route path='chat/*' element={<ChatPage />} />
             <Route path='profile/*' element={<ProfilePage />} />

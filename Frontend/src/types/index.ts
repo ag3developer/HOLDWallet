@@ -49,12 +49,7 @@ export interface NotificationSettings {
   security: boolean
 }
 
-export type KYCStatus = 
-  | 'not_started'
-  | 'pending'
-  | 'under_review'
-  | 'approved'
-  | 'rejected'
+export type KYCStatus = 'not_started' | 'pending' | 'under_review' | 'approved' | 'rejected'
 
 // Tipos de autenticação
 export interface AuthState {
@@ -101,11 +96,7 @@ export interface Wallet {
   updatedAt: string
 }
 
-export type WalletType = 
-  | 'hot'
-  | 'cold'
-  | 'hardware'
-  | 'multisig'
+export type WalletType = 'hot' | 'cold' | 'hardware' | 'multisig'
 
 export interface Transaction {
   id: string
@@ -127,18 +118,9 @@ export interface Transaction {
   updatedAt: string
 }
 
-export type TransactionType = 
-  | 'send'
-  | 'receive'
-  | 'trade'
-  | 'fee'
+export type TransactionType = 'send' | 'receive' | 'trade' | 'fee'
 
-export type TransactionStatus = 
-  | 'pending'
-  | 'confirming'
-  | 'confirmed'
-  | 'failed'
-  | 'cancelled'
+export type TransactionStatus = 'pending' | 'confirming' | 'confirmed' | 'failed' | 'cancelled'
 
 // Tipos de P2P Trading
 export interface P2POrder {
@@ -171,12 +153,7 @@ export interface P2POrder {
 
 export type OrderType = 'buy' | 'sell'
 
-export type OrderStatus = 
-  | 'active'
-  | 'inactive'
-  | 'completed'
-  | 'cancelled'
-  | 'disputed'
+export type OrderStatus = 'active' | 'inactive' | 'completed' | 'cancelled' | 'disputed'
 
 export interface PaymentMethod {
   id: string
@@ -186,13 +163,7 @@ export interface PaymentMethod {
   isActive: boolean
 }
 
-export type PaymentMethodType = 
-  | 'bank_transfer'
-  | 'pix'
-  | 'paypal'
-  | 'wise'
-  | 'cash'
-  | 'crypto'
+export type PaymentMethodType = 'bank_transfer' | 'pix' | 'paypal' | 'wise' | 'cash' | 'crypto'
 
 export interface Trade {
   id: string
@@ -216,7 +187,7 @@ export interface Trade {
   updatedAt: string
 }
 
-export type TradeStatus = 
+export type TradeStatus =
   | 'payment_pending'
   | 'payment_sent'
   | 'payment_confirmed'
@@ -236,12 +207,7 @@ export interface TradeMessage {
   createdAt: string
 }
 
-export type MessageType = 
-  | 'text'
-  | 'image'
-  | 'file'
-  | 'payment_proof'
-  | 'system'
+export type MessageType = 'text' | 'image' | 'file' | 'payment_proof' | 'system'
 
 export interface MessageAttachment {
   id: string
@@ -266,17 +232,9 @@ export interface Dispute {
   updatedAt: string
 }
 
-export type DisputeReason = 
-  | 'payment_not_received'
-  | 'payment_not_sent'
-  | 'fraud'
-  | 'other'
+export type DisputeReason = 'payment_not_received' | 'payment_not_sent' | 'fraud' | 'other'
 
-export type DisputeStatus = 
-  | 'open'
-  | 'under_review'
-  | 'resolved'
-  | 'closed'
+export type DisputeStatus = 'open' | 'under_review' | 'resolved' | 'closed'
 
 export interface DisputeEvidence {
   id: string
@@ -286,11 +244,7 @@ export interface DisputeEvidence {
   createdAt: string
 }
 
-export type EvidenceType = 
-  | 'screenshot'
-  | 'document'
-  | 'transaction_proof'
-  | 'chat_log'
+export type EvidenceType = 'screenshot' | 'document' | 'transaction_proof' | 'chat_log'
 
 // Tipos de chat
 export interface ChatConversation {
@@ -307,10 +261,7 @@ export interface ChatConversation {
   updatedAt: string
 }
 
-export type ConversationType = 
-  | 'direct'
-  | 'group'
-  | 'trade'
+export type ConversationType = 'direct' | 'group' | 'trade'
 
 export interface ChatMessage {
   id: string
@@ -326,12 +277,7 @@ export interface ChatMessage {
   updatedAt: string
 }
 
-export type MessageStatus = 
-  | 'sending'
-  | 'sent'
-  | 'delivered'
-  | 'read'
-  | 'failed'
+export type MessageStatus = 'sending' | 'sent' | 'delivered' | 'read' | 'failed'
 
 export interface MessageReaction {
   emoji: string
@@ -345,6 +291,7 @@ export interface PublicUser {
   firstName?: string
   lastName?: string
   username?: string
+  display_name?: string
   email?: string
   avatar?: string
   isVerified?: boolean
@@ -372,12 +319,7 @@ export interface UserReputation {
   joinDate: string
 }
 
-export type ReputationLevel = 
-  | 'bronze'
-  | 'silver'
-  | 'gold'
-  | 'platinum'
-  | 'diamond'
+export type ReputationLevel = 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond'
 
 export interface UserStats {
   totalTrades: number
@@ -400,11 +342,7 @@ export interface Badge {
   earnedAt: string
 }
 
-export type BadgeRarity = 
-  | 'common'
-  | 'rare'
-  | 'epic'
-  | 'legendary'
+export type BadgeRarity = 'common' | 'rare' | 'epic' | 'legendary'
 
 // Tipos de API
 export interface ApiResponse<T = any> {
@@ -458,7 +396,7 @@ export interface Notification {
   createdAt: string
 }
 
-export type NotificationType = 
+export type NotificationType =
   | 'trade_update'
   | 'payment_received'
   | 'message'

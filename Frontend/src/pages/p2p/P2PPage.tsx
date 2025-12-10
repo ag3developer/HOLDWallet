@@ -471,7 +471,7 @@ export const P2PPage = () => {
                       <div className='flex items-center space-x-3'>
                         <div className='relative'>
                           <div className='w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold'>
-                            {order.user?.username?.charAt(0) || 'U'}
+                            {(order.user?.display_name || order.user?.username)?.charAt(0) || 'U'}
                           </div>
                           {order.user?.is_online && (
                             <div className='absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white dark:border-gray-800 rounded-full'></div>
@@ -480,7 +480,7 @@ export const P2PPage = () => {
                         <div>
                           <div className='flex items-center gap-2'>
                             <p className='font-medium text-gray-900 dark:text-white'>
-                              {order.user?.username || 'Anônimo'}
+                              {order.user?.display_name || order.user?.username || 'Anônimo'}
                             </p>
                             {(order.user?.is_verified || order.user?.verified) && (
                               <CheckCircle className='w-4 h-4 text-blue-500' />
