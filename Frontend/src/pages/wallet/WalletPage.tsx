@@ -26,6 +26,18 @@ import { useMultipleWalletBalances } from '@/hooks/useWallet'
 import { useSendTransaction } from '@/hooks/useSendTransaction'
 import { use2FAStatus } from '@/hooks/use2FAStatus'
 import { usePriceChange24h, useMultiplePriceChanges24h } from '@/hooks/usePriceChange24h'
+import { useMarketPrices } from '@/hooks/useMarketPrices'
+
+// Crypto logos from CoinGecko (free CDN)
+const CRYPTO_LOGOS: Record<string, string> = {
+  // ... logos ...
+}
+
+// Todos os símbolos de criptomoedas suportados
+const ALL_CRYPTO_SYMBOLS = [
+  'BTC', 'ETH', 'MATIC', 'BNB', 'TRX', 'BASE', 'SOL', 'LTC',
+  'DOGE', 'ADA', 'AVAX', 'DOT', 'LINK', 'SHIB', 'XRP', 'USDT', 'USDC'
+]
 
 export const WalletPage = () => {
   const [showBalances, setShowBalances] = useState(true)
@@ -61,6 +73,16 @@ export const WalletPage = () => {
   useEffect(() => {
     console.log('[WalletPage] 2FA Status:', twoFAStatus)
   }, [twoFAStatus])
+
+  // Buscar preços em tempo real (atualiza a cada 5 segundos)
+  const { prices: marketPrices } = useMarketPrices(ALL_CRYPTO_SYMBOLS)
+
+  // Debug: Log marketPrices updates
+  useEffect(() => {
+    if (marketPrices && Object.keys(marketPrices).length > 0) {
+      console.log('[WalletPage] marketPrices updated:', Object.keys(marketPrices))
+    }
+  }, [marketPrices])
 
   // Buscar saldos reais de todas as carteiras
   const walletIds = useMemo(() => apiWallets?.map(w => String(w.id)) || [], [apiWallets])
@@ -157,8 +179,12 @@ export const WalletPage = () => {
         filteredNetworks.forEach(({ network, symbol, color }) => {
           // Buscar saldo real desta rede
           const networkBalance = realBalances[network]
-          const nativeBalance = networkBalance ? parseFloat(networkBalance.balance || '0') : 0
-          const balanceUSD = networkBalance ? parseFloat(networkBalance.balance_usd || '0') : 0
+          const nativeBalance = networkBalance ? Number.parseFloat(networkBalance.balance || '0') : 0
+          
+          // Usar preço em tempo real em vez de balance_usd estático da API
+          const marketPriceData = marketPrices[symbol.toUpperCase()]
+          const priceUSD = marketPriceData?.price || Number.parseFloat(networkBalance?.balance_usd || '0')
+          const balanceUSD = nativeBalance * priceUSD
           // ⚠️ Backend agora retorna APENAS balance_usd, frontend converte para BRL conforme settings
 
           // Adicionar label de rede se for Base ou outra rede com mesmo símbolo
@@ -198,10 +224,11 @@ export const WalletPage = () => {
             }
 
             const balance = (value as any)?.balance ? Number.parseFloat((value as any).balance) : 0
-            const balanceUSD = (value as any)?.balance_usd
-              ? Number.parseFloat((value as any).balance_usd)
-              : 0
-            // ⚠️ Backend agora retorna APENAS balance_usd, frontend converte para BRL conforme settings
+            
+            // Usar preço em tempo real em vez de balance_usd estático da API
+            const marketPriceData = marketPrices[tokenName]
+            const priceUSD = marketPriceData?.price || Number.parseFloat((value as any)?.balance_usd || '0')
+            const balanceUSD = balance * priceUSD
 
             // Cor padrão para tokens stablecoin
             const tokenColor =
@@ -238,8 +265,11 @@ export const WalletPage = () => {
         // Buscar saldo real da rede específica
         const networkBalance = realBalances[wallet.network]
         const nativeBalance = networkBalance ? Number.parseFloat(networkBalance.balance || '0') : 0
-        const balanceUSD = networkBalance ? Number.parseFloat(networkBalance.balance_usd || '0') : 0
-        // ⚠️ Backend agora retorna APENAS balance_usd, frontend converte para BRL conforme settings
+        
+        // Usar preço em tempo real em vez de balance_usd estático da API
+        const marketPriceData = marketPrices[symbol.toUpperCase()]
+        const priceUSD = marketPriceData?.price || Number.parseFloat(networkBalance?.balance_usd || '0')
+        const balanceUSD = nativeBalance * priceUSD
 
         expandedWallets.push({
           id: wallet.id,
@@ -257,8 +287,14 @@ export const WalletPage = () => {
       }
     })
 
+    console.log('[WalletPage] Expanded wallets with balances:', expandedWallets.map(w => ({
+      symbol: w.symbol,
+      balance: w.balance,
+      balanceUSD: w.balanceUSD
+    })))
+
     return expandedWallets
-  }, [apiWallets, networkPreferences, showAllNetworks, balancesQueries, tokenPreferences])
+  }, [apiWallets, networkPreferences, showAllNetworks, balancesQueries, tokenPreferences, marketPrices])
 
   // Buscar variação de preço de 24h para BTC (usando como indicador principal)
   const { change24h: btcChange24h } = usePriceChange24h('BTC')
@@ -332,6 +368,11 @@ export const WalletPage = () => {
 
   // ⚠️ PADRÃO: Somar todos os saldos em USD, depois converter conforme moeda selecionada
   const totalBalanceUSD = walletsWithAddresses.reduce((sum, wallet) => sum + wallet.balanceUSD, 0)
+  
+  // Debug: Log total balance
+  useEffect(() => {
+    console.log('[WalletPage] totalBalanceUSD:', totalBalanceUSD, 'from', walletsWithAddresses.length, 'wallets')
+  }, [totalBalanceUSD, walletsWithAddresses.length])
 
   // Loading state
   if (isLoading) {

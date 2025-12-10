@@ -30,14 +30,38 @@ export const DashboardPage = () => {
   const { formatCurrency, currency } = useCurrencyStore()
   const [expandedWallets, setExpandedWallets] = useState<Set<string>>(new Set())
 
+  // Mapear nome da rede para símbolo da criptomoeda
+  const networkToSymbol: Record<string, string> = {
+    bitcoin: 'BTC',
+    ethereum: 'ETH',
+    polygon: 'MATIC',
+    bsc: 'BNB',
+    tron: 'TRX',
+    base: 'BASE',
+    solana: 'SOL',
+    litecoin: 'LTC',
+    dogecoin: 'DOGE',
+    cardano: 'ADA',
+    avalanche: 'AVAX',
+    polkadot: 'DOT',
+    chainlink: 'LINK',
+    shiba: 'SHIB',
+    xrp: 'XRP',
+  }
+
   // Símbolos de criptos para buscar preços
   const priceSymbols = useMemo(
-    () => ['BTC', 'ETH', 'USDT', 'SOL', 'BNB', 'MATIC', 'ADA', 'AVAX'],
+    () => ['BTC', 'ETH', 'USDT', 'USDC', 'SOL', 'BNB', 'MATIC', 'ADA', 'AVAX', 'TRX', 'BASE', 'LTC', 'DOGE', 'DOT', 'LINK', 'SHIB', 'XRP'],
     []
   )
 
   // Hook para buscar preços via backend aggregator
   const { prices: marketPrices, isLoading: loadingPrices } = useMarketPrices(priceSymbols, currency)
+
+  // Debug log
+  useEffect(() => {
+    console.log('[DashboardPage] marketPrices updated:', Object.keys(marketPrices), marketPrices)
+  }, [marketPrices])
 
   // Buscar saldos reais
   const walletIds = useMemo(() => apiWallets?.map(w => w.id) || [], [apiWallets])
@@ -102,19 +126,26 @@ export const DashboardPage = () => {
 
     balancesQueries.forEach(query => {
       if (query.data) {
-        Object.values(query.data).forEach((netBalance: any) => {
-          // ⚠️ Backend agora retorna price_usd + balance
-          // Frontend calcula: balance × price_usd = total em USD
+        Object.entries(query.data).forEach(([networkKey, netBalance]: any) => {
           const balance = parseFloat(netBalance.balance || '0')
-          const priceUSD = parseFloat(netBalance.price_usd || '0')
+          
+          // Mapear nome da rede para símbolo (e.g., 'polygon' -> 'MATIC')
+          const symbol = networkToSymbol[networkKey] || networkKey.toUpperCase()
+          
+          // ✅ Use real-time price from marketPrices hook instead of backend price
+          const marketPriceData = marketPrices[symbol]
+          const priceUSD = marketPriceData?.price || parseFloat(netBalance.price_usd || '0')
+          
           const balanceUSD = balance * priceUSD
+          console.log(`[Dashboard] ${networkKey} (${symbol}): balance=${balance}, price=${priceUSD}, total=${balanceUSD}`)
           total += balanceUSD
         })
       }
     })
 
+    console.log('[Dashboard] totalBalanceUSD:', total)
     return total
-  }, [balancesQueries, currency])
+  }, [balancesQueries, marketPrices, currency, networkToSymbol])
 
   const toggleWallet = (walletId: string) => {
     setExpandedWallets(prev => {
@@ -391,11 +422,17 @@ export const DashboardPage = () => {
                                     let totalBRL = 0
                                     let hasLoadingPrice = false
                                     if (balanceData) {
-                                      Object.values(balanceData).forEach((netBalance: any) => {
-                                        // ⚠️ Backend agora retorna price_usd + balance + price_loading
+                                      Object.entries(balanceData).forEach(([networkKey, netBalance]: any) => {
                                         const balance = parseFloat(netBalance.balance || '0')
-                                        const priceUSD = parseFloat(netBalance.price_usd || '0')
-                                        const priceLoading = netBalance.price_loading || false
+                                        
+                                        // Mapear nome da rede para símbolo (e.g., 'polygon' -> 'MATIC')
+                                        const symbol = networkToSymbol[networkKey] || networkKey.toUpperCase()
+                                        
+                                        // ✅ Use real-time price from marketPrices hook
+                                        const marketPriceData = marketPrices[symbol]
+                                        const priceUSD = marketPriceData?.price || parseFloat(netBalance.price_usd || '0')
+                                        const priceLoading = marketPriceData === undefined || netBalance.price_loading || false
+                                        
                                         const balanceUSD = balance * priceUSD
                                         totalBRL += balanceUSD
                                         if (priceLoading) hasLoadingPrice = true
@@ -471,15 +508,16 @@ export const DashboardPage = () => {
                                             }
 
                                             if (networkBalance) {
-                                              // ⚠️ Backend agora retorna price_usd + balance + price_loading
                                               const balance = Number.parseFloat(
                                                 (networkBalance as any).balance || '0'
                                               )
-                                              const priceUSD = Number.parseFloat(
+                                              
+                                              // ✅ Use real-time price from marketPrices
+                                              const marketPriceData = marketPrices[network.symbol]
+                                              const priceUSD = marketPriceData?.price || Number.parseFloat(
                                                 (networkBalance as any).price_usd || '0'
                                               )
-                                              const priceLoading =
-                                                (networkBalance as any).price_loading || false
+                                              const priceLoading = marketPriceData === undefined || false
                                               const totalUSD = balance * priceUSD
 
                                               return (

@@ -85,8 +85,8 @@ export function usePrices(symbols: string[], currency: string = 'USD'): UsePrice
           pricesMap[symbolUpper] = {
             price: price,
             change_24h: info.change_24h || 0,
-            high_24h: price * 1.05 || 0,
-            low_24h: price * 0.95 || 0,
+            high_24h: info.high_24h || 0,
+            low_24h: info.low_24h || 0,
             market_cap: info.market_cap,
             volume_24h: info.volume_24h,
           }
@@ -111,8 +111,11 @@ export function usePrices(symbols: string[], currency: string = 'USD'): UsePrice
   useEffect(() => {
     fetchPrices()
 
-    // Atualizar a cada 10 segundos (mais responsivo - antes era 30s)
-    const interval = setInterval(fetchPrices, 10000)
+    // Atualizar a cada 5 segundos (mais responsivo que 10s)
+    const interval = setInterval(() => {
+      console.log('[usePrices] Auto-refreshing prices every 5 seconds...')
+      fetchPrices()
+    }, 5000)
 
     return () => clearInterval(interval)
   }, [fetchPrices])
