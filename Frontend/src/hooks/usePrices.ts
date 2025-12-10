@@ -39,7 +39,10 @@ export function usePrices(symbols: string[], currency: string = 'USD'): UsePrice
     try {
       // Construir query string com símbolos em UPPERCASE
       const symbolsQuery = symbols.map(s => s.toUpperCase()).join(',')
-      const currencyCode = currency.toLowerCase()
+
+      // ⚠️ PADRÃO: Backend SEMPRE retorna preços em USD
+      // Não enviar a moeda selecionada, sempre solicitar USD
+      const currencyCode = 'usd' // Hardcoded para USD - backend sempre retorna USD
 
       // Usar axios client com baseURL configurado
       const client = axios.create({
@@ -67,17 +70,30 @@ export function usePrices(symbols: string[], currency: string = 'USD'): UsePrice
       if (data.prices && typeof data.prices === 'object') {
         for (const [symbol, priceInfo] of Object.entries(data.prices)) {
           const info = priceInfo as Record<string, any>
-          pricesMap[symbol.toUpperCase()] = {
-            price: info.price || 0,
+          const symbolUpper = symbol.toUpperCase()
+          const price = info.price || 0
+
+          // Debug log for MATIC price
+          if (symbolUpper === 'MATIC') {
+            console.log('[usePrices] MATIC price fetched:', {
+              raw: info.price,
+              formatted: price,
+              timestamp: new Date().toISOString(),
+            })
+          }
+
+          pricesMap[symbolUpper] = {
+            price: price,
             change_24h: info.change_24h || 0,
-            high_24h: info.price * 1.05 || 0,
-            low_24h: info.price * 0.95 || 0,
+            high_24h: price * 1.05 || 0,
+            low_24h: price * 0.95 || 0,
             market_cap: info.market_cap,
             volume_24h: info.volume_24h,
           }
         }
       }
 
+      console.log('[usePrices] Prices map updated:', Object.keys(pricesMap), pricesMap)
       setPrices(pricesMap)
     } catch (err) {
       const errorMessage = err instanceof Error ? err : new Error('Unknown error occurred')
@@ -95,8 +111,8 @@ export function usePrices(symbols: string[], currency: string = 'USD'): UsePrice
   useEffect(() => {
     fetchPrices()
 
-    // Atualizar a cada 5 segundos
-    const interval = setInterval(fetchPrices, 5000)
+    // Atualizar a cada 10 segundos (mais responsivo - antes era 30s)
+    const interval = setInterval(fetchPrices, 10000)
 
     return () => clearInterval(interval)
   }, [fetchPrices])

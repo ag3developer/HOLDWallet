@@ -50,13 +50,14 @@ class CoinGeckoSource(PriceSource):
     
     # Mapeamento de símbolos para IDs do CoinGecko
     SYMBOL_MAP = {
-        'BTC': 'bitcoin', 'ETH': 'ethereum', 'MATIC': 'matic-network',
+        'BTC': 'bitcoin', 'ETH': 'ethereum', 'MATIC': 'polygon-ecosystem-token',
         'BNB': 'binancecoin', 'TRX': 'tron', 'BASE': 'base',
         'USDT': 'tether', 'SOL': 'solana', 'LTC': 'litecoin',
         'DOGE': 'dogecoin', 'ADA': 'cardano', 'AVAX': 'avalanche-2',
         'DOT': 'polkadot', 'LINK': 'chainlink', 'SHIB': 'shiba-inu',
         'XRP': 'ripple', 'BCH': 'bitcoin-cash', 'XLM': 'stellar',
         'ATOM': 'cosmos', 'NEAR': 'near', 'APE': 'apecoin',
+        'USDC': 'usd-coin', 'DAI': 'dai',
     }
     
     async def fetch_prices(

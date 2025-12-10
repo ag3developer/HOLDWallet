@@ -29,6 +29,8 @@ const CRYPTO_LOGOS: Record<string, string> = {
   TRX: 'https://assets.coingecko.com/coins/images/1094/large/tron-logo.png?1696502193',
   BASE: 'https://assets.coingecko.com/coins/images/30617/large/base.jpg?1696519330',
   USDT: 'https://assets.coingecko.com/coins/images/325/large/Tether.png?1696501661',
+  USDC: 'https://assets.coingecko.com/coins/images/6319/large/usdc.png?1696506055',
+  DAI: 'https://assets.coingecko.com/coins/images/9956/large/4943.png?1696510096',
   SOL: 'https://assets.coingecko.com/coins/images/4128/large/solana.png?1696504756',
   LTC: 'https://assets.coingecko.com/coins/images/2/large/litecoin.png?1696501400',
   DOGE: 'https://assets.coingecko.com/coins/images/5/large/dogecoin.png?1696501400',
@@ -87,9 +89,38 @@ export function MarketPricesCarousel({
     if (Number.isNaN(value)) {
       return 0
     }
-    const converted = convertFromBRL(value)
-    const result = typeof converted === 'number' && !Number.isNaN(converted) ? converted : value
-    return Number.isFinite(result) ? result : 0
+    // IMPORTANTE: Os preços do backend já vêm na moeda solicitada (fiat parameter)
+    // Portanto, NÃO devemos converter! Retornar o valor direto.
+    // A função convertFromBRL era usada quando os preços vinham sempre em BRL,
+    // mas agora o backend retorna na moeda correta.
+    return Number.isFinite(value) ? value : 0
+  }
+
+  // Format price with appropriate decimal places based on value
+  const formatPrice = (price: number): string => {
+    if (price === 0) return '0.00'
+
+    // For very small numbers (< 0.01), show up to 6 decimals (e.g., MATIC: 0.125980)
+    if (price < 0.01) {
+      return price.toLocaleString(getCurrencyLocale(currency), {
+        minimumFractionDigits: 4,
+        maximumFractionDigits: 6,
+      })
+    }
+
+    // For small numbers (0.01 to 1), show up to 4 decimals (e.g., 0.5123)
+    if (price < 1) {
+      return price.toLocaleString(getCurrencyLocale(currency), {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 4,
+      })
+    }
+
+    // For normal numbers (>= 1), show 2 decimals
+    return price.toLocaleString(getCurrencyLocale(currency), {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })
   }
 
   return (
@@ -99,7 +130,7 @@ export function MarketPricesCarousel({
         <div className='flex gap-2'>
           <button
             onClick={() => scroll('left')}
-            disabled={!canScrollLeft}
+            disabled={!canScrollLeft || cryptoPrices.length === 0}
             title='Scroll left'
             className='p-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
           >
@@ -107,7 +138,7 @@ export function MarketPricesCarousel({
           </button>
           <button
             onClick={() => scroll('right')}
-            disabled={!canScrollRight}
+            disabled={!canScrollRight || cryptoPrices.length === 0}
             title='Scroll right'
             className='p-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
           >
@@ -115,91 +146,110 @@ export function MarketPricesCarousel({
           </button>
         </div>
       </div>
-      <div ref={carouselRef} className='flex gap-3 overflow-x-auto scrollbar-hide'>
-        {cryptoPrices.map(crypto => {
-          const isPositive = crypto.change24h >= 0
-          return (
-            <button
-              key={crypto.symbol}
-              onClick={() => onSelectSymbol(crypto.symbol)}
-              className={`flex-shrink-0 w-48 text-left bg-white dark:bg-gray-800 rounded-lg shadow p-3 cursor-pointer transition-all hover:shadow-lg hover:scale-105 ${
-                selectedSymbol === crypto.symbol ? 'ring-2 ring-blue-500 scale-105' : ''
-              }`}
+
+      {/* Show loading state or carousel */}
+      {cryptoPrices.length === 0 ? (
+        <div className='flex gap-3 overflow-x-auto scrollbar-hide'>
+          {/* Loading skeleton - mostrar 5 cards vazios */}
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div
+              key={`skeleton-${String(i)}`}
+              className='flex-shrink-0 w-48 bg-gray-200 dark:bg-gray-700 rounded-lg p-3 animate-pulse'
             >
-              <div className='flex items-start justify-between mb-2'>
-                <div className='flex items-center gap-2 flex-1'>
-                  {/* Crypto Logo */}
-                  <div className='flex-shrink-0'>
-                    <img
-                      src={CRYPTO_LOGOS[crypto.symbol] || ''}
-                      alt={crypto.symbol}
-                      className='w-8 h-8 rounded-full'
-                      onError={e => {
-                        // Fallback if image fails to load
-                        e.currentTarget.style.display = 'none'
-                      }}
-                    />
+              <div className='h-4 bg-gray-300 dark:bg-gray-600 rounded w-24 mb-2'></div>
+              <div className='h-6 bg-gray-300 dark:bg-gray-600 rounded w-32 mb-2'></div>
+              <div className='h-4 bg-gray-300 dark:bg-gray-600 rounded w-20'></div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div ref={carouselRef} className='flex gap-3 overflow-x-auto scrollbar-hide'>
+          {cryptoPrices.map(crypto => {
+            const isPositive = crypto.change24h >= 0
+            return (
+              <button
+                key={crypto.symbol}
+                onClick={() => onSelectSymbol(crypto.symbol)}
+                className={`flex-shrink-0 w-48 text-left bg-white dark:bg-gray-800 rounded-lg shadow p-3 cursor-pointer transition-all hover:shadow-lg hover:scale-105 ${
+                  selectedSymbol === crypto.symbol ? 'ring-2 ring-blue-500 scale-105' : ''
+                }`}
+              >
+                <div className='flex items-start justify-between mb-2'>
+                  <div className='flex items-center gap-2 flex-1'>
+                    {/* Crypto Logo */}
+                    <div className='flex-shrink-0'>
+                      <img
+                        src={CRYPTO_LOGOS[crypto.symbol] || ''}
+                        alt={crypto.symbol}
+                        className='w-8 h-8 rounded-full'
+                        onError={e => {
+                          // Fallback if image fails to load
+                          e.currentTarget.style.display = 'none'
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <p className='font-bold text-gray-900 dark:text-white text-sm'>
+                        {crypto.symbol}
+                      </p>
+                      <p className='text-xs text-gray-600 dark:text-gray-400 leading-tight'>
+                        {crypto.name}
+                      </p>
+                    </div>
+                  </div>
+                  <div
+                    className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-medium ${
+                      isPositive
+                        ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300'
+                        : 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300'
+                    }`}
+                  >
+                    {isPositive ? (
+                      <TrendingUp className='w-2.5 h-2.5' />
+                    ) : (
+                      <TrendingDown className='w-2.5 h-2.5' />
+                    )}
+                    <span className='text-xs'>{Math.abs(crypto.change24h).toFixed(1)}%</span>
+                  </div>
+                </div>
+
+                <p className='text-lg font-bold text-gray-900 dark:text-white mb-1 leading-tight'>
+                  {getCurrencySymbol(currency)} {formatPrice(safeConvertFromBRL(crypto.price))}
+                </p>
+
+                <div className='grid grid-cols-2 gap-1 pt-1.5 border-t border-gray-200 dark:border-gray-700 text-xs'>
+                  <div>
+                    <p className='text-gray-600 dark:text-gray-400 text-xs leading-tight'>H</p>
+                    <p className='font-medium text-gray-900 dark:text-white text-xs'>
+                      {crypto.high24h > 0 ? (
+                        <>
+                          {getCurrencySymbol(currency)}{' '}
+                          {formatPrice(safeConvertFromBRL(crypto.high24h))}
+                        </>
+                      ) : (
+                        <span className='text-gray-400'>—</span>
+                      )}
+                    </p>
                   </div>
                   <div>
-                    <p className='font-bold text-gray-900 dark:text-white text-sm'>
-                      {crypto.symbol}
-                    </p>
-                    <p className='text-xs text-gray-600 dark:text-gray-400 leading-tight'>
-                      {crypto.name}
+                    <p className='text-gray-600 dark:text-gray-400 text-xs leading-tight'>L</p>
+                    <p className='font-medium text-gray-900 dark:text-white text-xs'>
+                      {crypto.low24h > 0 ? (
+                        <>
+                          {getCurrencySymbol(currency)}{' '}
+                          {formatPrice(safeConvertFromBRL(crypto.low24h))}
+                        </>
+                      ) : (
+                        <span className='text-gray-400'>—</span>
+                      )}
                     </p>
                   </div>
                 </div>
-                <div
-                  className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-medium ${
-                    isPositive
-                      ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300'
-                      : 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300'
-                  }`}
-                >
-                  {isPositive ? (
-                    <TrendingUp className='w-2.5 h-2.5' />
-                  ) : (
-                    <TrendingDown className='w-2.5 h-2.5' />
-                  )}
-                  <span className='text-xs'>{Math.abs(crypto.change24h).toFixed(1)}%</span>
-                </div>
-              </div>
-
-              <p className='text-lg font-bold text-gray-900 dark:text-white mb-1 leading-tight'>
-                {getCurrencySymbol(currency)}{' '}
-                {safeConvertFromBRL(crypto.price).toLocaleString(getCurrencyLocale(currency), {
-                  maximumFractionDigits: 2,
-                  minimumFractionDigits: 2,
-                })}
-              </p>
-
-              <div className='grid grid-cols-2 gap-1 pt-1.5 border-t border-gray-200 dark:border-gray-700 text-xs'>
-                <div>
-                  <p className='text-gray-600 dark:text-gray-400 text-xs leading-tight'>H</p>
-                  <p className='font-medium text-gray-900 dark:text-white text-xs'>
-                    {getCurrencySymbol(currency)}{' '}
-                    {safeConvertFromBRL(crypto.high24h).toLocaleString(
-                      getCurrencyLocale(currency),
-                      {
-                        maximumFractionDigits: 0,
-                      }
-                    )}
-                  </p>
-                </div>
-                <div>
-                  <p className='text-gray-600 dark:text-gray-400 text-xs leading-tight'>L</p>
-                  <p className='font-medium text-gray-900 dark:text-white text-xs'>
-                    {getCurrencySymbol(currency)}{' '}
-                    {safeConvertFromBRL(crypto.low24h).toLocaleString(getCurrencyLocale(currency), {
-                      maximumFractionDigits: 0,
-                    })}
-                  </p>
-                </div>
-              </div>
-            </button>
-          )
-        })}
-      </div>
+              </button>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

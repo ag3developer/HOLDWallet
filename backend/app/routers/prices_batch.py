@@ -57,12 +57,13 @@ def _parse_batch_symbols(symbols: str, symbol_map: Dict[str, str]) -> tuple[List
 def _parse_coingecko_response(data: Dict, valid_symbols: List[str], coin_ids: List[str], fiat: str) -> Dict[str, Any]:
     """Helper: Parse CoinGecko API response into price result"""
     prices_result = {}
+    fiat_lower = fiat.lower()
     
     for symbol, coin_id in zip(valid_symbols, coin_ids):
         coin_data = data.get(coin_id, {})
-        fiat_lower = fiat.lower()
         
-        if fiat_lower in coin_data:
+        # Se há dados e o fiat está presente, adicione
+        if coin_data and fiat_lower in coin_data:
             price = coin_data.get(fiat_lower, 0)
             prices_result[symbol] = {
                 "symbol": symbol,
@@ -74,9 +75,8 @@ def _parse_coingecko_response(data: Dict, valid_symbols: List[str], coin_ids: Li
                 "cached": False
             }
     
-    if not prices_result:
-        raise ValidationError("No price data available for requested symbols")
-    
+    # Se nenhum preço foi encontrado, retorne vazio em vez de levantar erro
+    # Isso permite que o endpoint retorne sucesso com preços parciais
     return prices_result
 
 
@@ -105,12 +105,12 @@ async def get_batch_prices(
     
     # Symbol to CoinGecko ID mapping
     symbol_map = {
-        'BTC': 'bitcoin', 'ETH': 'ethereum', 'MATIC': 'matic-network',
+        'BTC': 'bitcoin', 'ETH': 'ethereum', 'MATIC': 'polygon-ecosystem-token',
         'BNB': 'binancecoin', 'TRX': 'tron', 'BASE': 'base',
         'USDT': 'tether', 'SOL': 'solana', 'LTC': 'litecoin',
         'DOGE': 'dogecoin', 'ADA': 'cardano', 'AVAX': 'avalanche-2',
         'DOT': 'polkadot', 'LINK': 'chainlink', 'SHIB': 'shiba-inu',
-        'XRP': 'ripple',
+        'XRP': 'ripple', 'USDC': 'usd-coin', 'DAI': 'dai',
     }
     
     # Parse and validate symbols

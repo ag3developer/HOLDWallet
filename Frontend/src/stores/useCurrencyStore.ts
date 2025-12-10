@@ -15,7 +15,7 @@ interface CurrencyStore {
 export const useCurrencyStore = create<CurrencyStore>()(
   persist(
     (set, get) => ({
-      currency: 'USD',
+      currency: 'USD', // ⚠️ Sempre começa com USD
       setCurrency: (currency: Currency) => set({ currency }),
 
       /**
@@ -35,13 +35,25 @@ export const useCurrencyStore = create<CurrencyStore>()(
       },
 
       /**
-       * Formata um valor em BRL para a moeda selecionada com formatação apropriada
+       * Formata um valor que vem do backend em USD
+       * Converte para BRL se o usuário selecionou BRL nas Settings
        */
       formatCurrency: (amount: number, currency?: Currency) => {
-        const activeCurrency = currency || get().currency
+        // ⚠️ PADRÃO: Backend sempre retorna valores em USD
+        // Frontend converte para BRL conforme seleção em Settings
+        const targetCurrency = currency || get().currency
 
-        // Converter de BRL para a moeda ativa
-        const convertedAmount = currencyConverterService.convert(amount, 'BRL', activeCurrency)
+        let displayAmount = amount // Já em USD do backend
+        let displayCurrency: Currency = 'USD'
+
+        // Se usuário quer ver em BRL, converte
+        if (targetCurrency === 'BRL') {
+          displayAmount = currencyConverterService.convert(amount, 'USD', 'BRL')
+          displayCurrency = 'BRL'
+        } else if (targetCurrency === 'EUR') {
+          displayAmount = currencyConverterService.convert(amount, 'USD', 'EUR')
+          displayCurrency = 'EUR'
+        }
 
         const currencyLocale: Record<Currency, { locale: string; code: string }> = {
           USD: { locale: 'en-US', code: 'USD' },
@@ -49,11 +61,11 @@ export const useCurrencyStore = create<CurrencyStore>()(
           EUR: { locale: 'de-DE', code: 'EUR' },
         }
 
-        const { locale, code } = currencyLocale[activeCurrency]
+        const { locale, code } = currencyLocale[displayCurrency]
         return new Intl.NumberFormat(locale, {
           style: 'currency',
           currency: code,
-        }).format(convertedAmount)
+        }).format(displayAmount)
       },
     }),
     {

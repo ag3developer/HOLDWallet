@@ -1,25 +1,32 @@
 /**
  * Serviço de conversão de moedas
  * Mantém as taxas de câmbio e realiza conversões entre moedas
+ *
+ * ⚠️ PADRÃO: Todos os preços do backend vêm em USD
+ * Conversão: USD → BRL usando taxa ~5.0 (1 USD = 5 BRL)
  */
 
-// Taxas de câmbio aproximadas (você pode integrar com uma API real)
-// Atualizar estas taxas regularmente ou buscar de uma API
+// Taxas de câmbio em relação a USD (base)
+// 1 USD = X de outra moeda
 const EXCHANGE_RATES: Record<string, number> = {
-  BRL: 1, // Base currency
-  USD: 0.2, // 1 BRL = 0.20 USD
-  EUR: 0.19, // 1 BRL = 0.19 EUR
+  USD: 1, // Base currency
+  BRL: 5, // 1 USD = 5 BRL (aproximadamente)
+  EUR: 0.92, // 1 USD = 0.92 EUR (aproximadamente)
 }
 
 export const currencyConverterService = {
   /**
    * Converte um valor de uma moeda para outra
    * @param amount Valor a ser convertido
-   * @param fromCurrency Moeda de origem (padrão BRL)
-   * @param toCurrency Moeda de destino (padrão USD)
+   * @param fromCurrency Moeda de origem
+   * @param toCurrency Moeda de destino
    * @returns Valor convertido
+   *
+   * ⚠️ PADRÃO: USD é a base (todas as conversões passam por USD)
+   * Exemplo: USD 100 → BRL 500 (100 * 5)
+   *          USD 100 → EUR 92 (100 * 0.92)
    */
-  convert: (amount: number, fromCurrency: string = 'BRL', toCurrency: string = 'USD'): number => {
+  convert: (amount: number, fromCurrency: string = 'USD', toCurrency: string = 'BRL'): number => {
     if (fromCurrency === toCurrency) {
       return amount
     }
@@ -27,9 +34,9 @@ export const currencyConverterService = {
     const fromRate = EXCHANGE_RATES[fromCurrency] || 1
     const toRate = EXCHANGE_RATES[toCurrency] || 1
 
-    // Converter para a moeda base (BRL) e depois para a moeda destino
-    const inBRL = fromCurrency === 'BRL' ? amount : amount / fromRate
-    const converted = inBRL * toRate
+    // Converter para USD primeiro (base), depois para moeda destino
+    const inUSD = fromCurrency === 'USD' ? amount : amount / fromRate
+    const converted = inUSD * toRate
 
     return converted
   },
@@ -37,7 +44,7 @@ export const currencyConverterService = {
   /**
    * Obtém a taxa de câmbio entre duas moedas
    */
-  getRate: (fromCurrency: string = 'BRL', toCurrency: string = 'USD'): number => {
+  getRate: (fromCurrency: string = 'USD', toCurrency: string = 'BRL'): number => {
     if (fromCurrency === toCurrency) {
       return 1
     }

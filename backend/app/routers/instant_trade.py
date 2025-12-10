@@ -86,7 +86,7 @@ async def get_quote(
                 )
             amount = request.crypto_amount
 
-        quote = service.calculate_quote(
+        quote = await service.calculate_quote(
             operation=request.operation,
             symbol=request.symbol,
             amount=amount,

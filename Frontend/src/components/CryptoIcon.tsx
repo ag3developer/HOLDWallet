@@ -1,4 +1,5 @@
-import { ImgHTMLAttributes } from 'react'
+import { ImgHTMLAttributes, useState, useEffect } from 'react'
+import baseLogo from '../assets/crypto-icons/base.png'
 
 interface CryptoIconProps extends ImgHTMLAttributes<HTMLImageElement> {
   symbol: string
@@ -7,43 +8,66 @@ interface CryptoIconProps extends ImgHTMLAttributes<HTMLImageElement> {
 }
 
 const symbolMap: Record<string, string> = {
-  'BTC': 'btc',
-  'ETH': 'eth',
-  'USDT': 'usdt',
-  'USDC': 'usdc',
-  'BNB': 'bnb',
-  'MATIC': 'matic',
-  'TRX': 'trx',
-  'BASE': 'eth', // Base usa logo ETH
-  'SOL': 'sol',
-  'LTC': 'ltc',
-  'DOGE': 'doge',
-  'ADA': 'ada',
-  'AVAX': 'avax',
-  'DOT': 'dot',
-  'LINK': 'link',
-  'SHIB': 'shib',
-  'XRP': 'xrp',
-  'DAI': 'dai',
-  'BUSD': 'busd',
+  BTC: 'btc',
+  ETH: 'eth',
+  USDT: 'usdt',
+  USDC: 'usdc',
+  BNB: 'bnb',
+  MATIC: 'matic',
+  TRX: 'trx',
+  BASE: 'base', // ✅ Base agora tem seu próprio ícone
+  SOL: 'sol',
+  LTC: 'ltc',
+  DOGE: 'doge',
+  ADA: 'ada',
+  AVAX: 'avax',
+  DOT: 'dot',
+  LINK: 'link',
+  SHIB: 'shib',
+  XRP: 'xrp',
+  DAI: 'dai',
+  BUSD: 'busd',
+}
+
+// Mapa de ícones locais importados
+const localIconMap: Record<string, string> = {
+  base: baseLogo,
 }
 
 export const CryptoIcon = ({ symbol, size = 24, className = '', ...props }: CryptoIconProps) => {
   const iconName = symbolMap[symbol?.toUpperCase()] || 'btc'
-  
-  // Usar URL pública da CDN como fallback enquanto os locais não funcionam
-  const iconPath = `https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/svg/color/${iconName}.svg`
-  
+  const localIcon = localIconMap[iconName]
+
+  // Tentar primeiro o arquivo local se existir, depois a CDN
+  const cdnPath = `https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/svg/color/${iconName}.svg`
+  const initialSrc = localIcon || cdnPath
+
+  const [src, setSrc] = useState(initialSrc)
+
+  useEffect(() => {
+    setSrc(initialSrc)
+  }, [initialSrc])
+
   return (
     <img
-      src={iconPath}
+      src={src}
       alt={`${symbol} logo`}
       width={size}
       height={size}
       className={`${className} object-contain`}
-      onError={(e) => {
-        // Fallback para ícone genérico colorido
-        e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"%3E%3Ccircle cx="16" cy="16" r="16" fill="%236366f1"/%3E%3Ctext x="16" y="21" text-anchor="middle" fill="white" font-size="14" font-weight="bold"%3E' + encodeURIComponent(symbol?.[0] || '?') + '%3C/text%3E%3C/svg%3E'
+      onError={() => {
+        // Se temos um arquivo local, tentar a CDN
+        if (localIcon && src === localIcon) {
+          setSrc(cdnPath)
+          return
+        }
+
+        // Se a CDN também falhar, usar ícone genérico colorido
+        setSrc(
+          'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"%3E%3Ccircle cx="16" cy="16" r="16" fill="%236366f1"/%3E%3Ctext x="16" y="21" text-anchor="middle" fill="white" font-size="14" font-weight="bold"%3E' +
+            encodeURIComponent(symbol?.[0] || '?') +
+            '%3C/text%3E%3C/svg%3E'
+        )
       }}
       {...props}
     />

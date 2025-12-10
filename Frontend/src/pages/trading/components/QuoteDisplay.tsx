@@ -136,44 +136,115 @@ export function QuoteDisplay({
       {/* Detailed Breakdown */}
       {showDetails && (
         <div className='bg-white dark:bg-gray-800 rounded p-2 mb-2 space-y-1 text-xs'>
-          <div className='flex justify-between'>
-            <span className='text-gray-600 dark:text-gray-400'>Fiat Amount</span>
-            <span className='font-medium text-gray-900 dark:text-white'>
-              {currencySymbol} {formatValue(quote.fiat_amount ?? 0)}
-            </span>
-          </div>
+          {quote.operation === 'sell' ? (
+            <>
+              <div className='flex justify-between'>
+                <span className='text-gray-600 dark:text-gray-400'>Crypto Amount</span>
+                <span className='font-medium text-gray-900 dark:text-white'>
+                  {(quote.crypto_amount ?? 0).toFixed(8)} {quote.symbol}
+                </span>
+              </div>
 
-          <div className='border-t border-gray-200 dark:border-gray-700 my-1 pt-1'>
-            <div className='flex justify-between mb-1'>
-              <span className='text-gray-600 dark:text-gray-400'>Spread Cost</span>
-              <span className='text-red-600 dark:text-red-400 font-medium'>
-                -{currencySymbol} {formatValue(quote.spread_amount ?? 0)}
-              </span>
-            </div>
+              <div className='flex justify-between'>
+                <span className='text-gray-600 dark:text-gray-400'>Price per Unit</span>
+                <span className='font-medium text-gray-900 dark:text-white'>
+                  {currencySymbol} {formatValue(quote.crypto_price ?? 0)}
+                </span>
+              </div>
 
-            <div className='flex justify-between'>
-              <span className='text-gray-600 dark:text-gray-400'>Network Fee</span>
-              <span className='text-red-600 dark:text-red-400 font-medium'>
-                -{currencySymbol} {formatValue(quote.network_fee_amount ?? 0)}
-              </span>
-            </div>
-          </div>
+              <div className='border-t border-gray-200 dark:border-gray-700 my-1 pt-1'>
+                <div className='flex justify-between mb-1 font-semibold text-gray-900 dark:text-white'>
+                  <span>Fiat Value (Before Fees)</span>
+                  <span>
+                    {currencySymbol} {formatValue(quote.fiat_amount ?? 0)}
+                  </span>
+                </div>
+              </div>
 
-          <div className='border-t border-gray-200 dark:border-gray-700 pt-1 flex justify-between font-semibold text-gray-900 dark:text-white'>
-            <span>Final Amount</span>
-            <span>
-              {currencySymbol} {formatValue(quote.total_amount ?? 0)}
-            </span>
-          </div>
+              <div className='border-t border-gray-200 dark:border-gray-700 my-1 pt-1'>
+                <div className='flex justify-between mb-1'>
+                  <span className='text-gray-600 dark:text-gray-400'>
+                    Spread ({(quote.spread_percentage ?? 0).toFixed(2)}%)
+                  </span>
+                  <span className='text-red-600 dark:text-red-400 font-medium'>
+                    -{currencySymbol} {formatValue(quote.spread_amount ?? 0)}
+                  </span>
+                </div>
 
-          <div className='pt-1 border-t border-gray-200 dark:border-gray-700'>
-            <div className='text-gray-600 dark:text-gray-400 text-xs'>
-              <p>
-                Total Costs:{' '}
-                {((quote.spread_percentage ?? 0) + (quote.network_fee_percentage ?? 0)).toFixed(2)}%
-              </p>
-            </div>
-          </div>
+                <div className='flex justify-between'>
+                  <span className='text-gray-600 dark:text-gray-400'>
+                    Network Fee ({(quote.network_fee_percentage ?? 0).toFixed(2)}%)
+                  </span>
+                  <span className='text-red-600 dark:text-red-400 font-medium'>
+                    -{currencySymbol} {formatValue(quote.network_fee_amount ?? 0)}
+                  </span>
+                </div>
+              </div>
+
+              <div className='border-t border-gray-200 dark:border-gray-700 pt-1 flex justify-between font-semibold text-green-600 dark:text-green-400'>
+                <span>You Receive</span>
+                <span>
+                  {currencySymbol} {formatValue(quote.total_amount ?? 0)}
+                </span>
+              </div>
+
+              <div className='pt-1 border-t border-gray-200 dark:border-gray-700'>
+                <div className='text-gray-600 dark:text-gray-400 text-xs'>
+                  <p>
+                    Total Costs:{' '}
+                    {((quote.spread_percentage ?? 0) + (quote.network_fee_percentage ?? 0)).toFixed(
+                      2
+                    )}
+                    %
+                  </p>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className='flex justify-between'>
+                <span className='text-gray-600 dark:text-gray-400'>Fiat Amount</span>
+                <span className='font-medium text-gray-900 dark:text-white'>
+                  {currencySymbol} {formatValue(quote.fiat_amount ?? 0)}
+                </span>
+              </div>
+
+              <div className='border-t border-gray-200 dark:border-gray-700 my-1 pt-1'>
+                <div className='flex justify-between mb-1'>
+                  <span className='text-gray-600 dark:text-gray-400'>Spread Cost</span>
+                  <span className='text-red-600 dark:text-red-400 font-medium'>
+                    -{currencySymbol} {formatValue(quote.spread_amount ?? 0)}
+                  </span>
+                </div>
+
+                <div className='flex justify-between'>
+                  <span className='text-gray-600 dark:text-gray-400'>Network Fee</span>
+                  <span className='text-red-600 dark:text-red-400 font-medium'>
+                    -{currencySymbol} {formatValue(quote.network_fee_amount ?? 0)}
+                  </span>
+                </div>
+              </div>
+
+              <div className='border-t border-gray-200 dark:border-gray-700 pt-1 flex justify-between font-semibold text-gray-900 dark:text-white'>
+                <span>Final Amount</span>
+                <span>
+                  {currencySymbol} {formatValue(quote.total_amount ?? 0)}
+                </span>
+              </div>
+
+              <div className='pt-1 border-t border-gray-200 dark:border-gray-700'>
+                <div className='text-gray-600 dark:text-gray-400 text-xs'>
+                  <p>
+                    Total Costs:{' '}
+                    {((quote.spread_percentage ?? 0) + (quote.network_fee_percentage ?? 0)).toFixed(
+                      2
+                    )}
+                    %
+                  </p>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       )}
 

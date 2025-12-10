@@ -1,6 +1,12 @@
-import { useQuery, useMutation, useQueryClient, useInfiniteQuery, useQueries } from '@tanstack/react-query'
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  useInfiniteQuery,
+  useQueries,
+} from '@tanstack/react-query'
 import { walletService } from '@/services'
-import type { Wallet, Transaction } from '@/types'
+import type { Wallet } from '@/types'
 
 // Query keys
 export const walletKeys = {
@@ -57,20 +63,23 @@ export function useWalletBalancesByNetwork(walletId: string, enabled = true) {
       return result
     },
     enabled: enabled && !!walletId,
-    staleTime: 30 * 1000, // 30 seconds
-    refetchInterval: 60 * 1000, // Auto-refresh every 60 seconds
+    staleTime: 60 * 1000, // Keep fresh for 60 seconds
+    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
+    refetchInterval: 120 * 1000, // Auto-refresh every 2 minutes (reduced from 60)
   })
 }
 
 // Get balances for multiple wallets by network
+// Optimized for performance: caches results, reduces refetches
 export function useMultipleWalletBalances(walletIds: string[]) {
   return useQueries({
     queries: walletIds.map(id => ({
       queryKey: walletKeys.balancesByNetwork(id),
       queryFn: () => walletService.getWalletBalancesByNetwork(id),
-      staleTime: 30 * 1000, // 30 seconds
-      refetchInterval: 60 * 1000, // Auto-refresh every 60 seconds
-    }))
+      staleTime: 60 * 1000, // Keep fresh for 60 seconds
+      gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
+      refetchInterval: 120 * 1000, // Auto-refresh every 2 minutes
+    })),
   })
 }
 
@@ -105,8 +114,13 @@ export function useUpdateWallet() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ walletId, updates }: { walletId: string; updates: Partial<Pick<Wallet, 'name' | 'isActive'>> }) =>
-      walletService.updateWallet(walletId, updates),
+    mutationFn: ({
+      walletId,
+      updates,
+    }: {
+      walletId: string
+      updates: Partial<Pick<Wallet, 'name' | 'isActive'>>
+    }) => walletService.updateWallet(walletId, updates),
     onSuccess: (updatedWallet, { walletId }) => {
       // Update cached wallet data
       queryClient.setQueryData(walletKeys.detail(walletId), updatedWallet)
@@ -160,13 +174,13 @@ export function useSendTransaction() {
 
   return useMutation({
     mutationFn: walletService.sendTransaction,
-    onSuccess: (transaction) => {
+    onSuccess: transaction => {
       // Invalidate wallet balance and transactions
-      queryClient.invalidateQueries({ 
-        queryKey: walletKeys.balance(transaction.walletId) 
+      queryClient.invalidateQueries({
+        queryKey: walletKeys.balance(transaction.walletId),
       })
-      queryClient.invalidateQueries({ 
-        queryKey: walletKeys.transactions(transaction.walletId) 
+      queryClient.invalidateQueries({
+        queryKey: walletKeys.transactions(transaction.walletId),
       })
     },
   })
@@ -175,7 +189,12 @@ export function useSendTransaction() {
 // Estimate transaction fee
 export function useEstimateFee() {
   return useMutation({
-    mutationFn: ({ walletId, toAddress, amount, priority }: {
+    mutationFn: ({
+      walletId,
+      toAddress,
+      amount,
+      priority,
+    }: {
       walletId: string
       toAddress: string
       amount: string
@@ -185,10 +204,7 @@ export function useEstimateFee() {
 }
 
 // Get wallet transactions with infinite query
-export function useWalletTransactions(
-  walletId: string,
-  filters?: Record<string, any>
-) {
+export function useWalletTransactions(walletId: string, filters?: Record<string, any>) {
   return useInfiniteQuery({
     queryKey: [...walletKeys.transactions(walletId), filters],
     queryFn: ({ pageParam = 1 }) =>
@@ -205,8 +221,7 @@ export function useWalletTransactions(
 export function useTransactions(filters?: Record<string, any>) {
   return useInfiniteQuery({
     queryKey: ['transactions', 'all', filters],
-    queryFn: ({ pageParam = 1 }) =>
-      walletService.getTransactions(pageParam as number, 20, filters),
+    queryFn: ({ pageParam = 1 }) => walletService.getTransactions(pageParam as number, 20, filters),
     getNextPageParam: (lastPage: any) =>
       lastPage.pagination.hasNext ? lastPage.pagination.page + 1 : undefined,
     initialPageParam: 1,
@@ -230,12 +245,12 @@ export function useCancelTransaction() {
 
   return useMutation({
     mutationFn: (transactionId: string) => walletService.cancelTransaction(transactionId),
-    onSuccess: (transaction) => {
+    onSuccess: transaction => {
       // Update cached transaction
       queryClient.setQueryData(['transactions', 'detail', transaction.id], transaction)
       // Invalidate transactions list
-      queryClient.invalidateQueries({ 
-        queryKey: walletKeys.transactions(transaction.walletId) 
+      queryClient.invalidateQueries({
+        queryKey: walletKeys.transactions(transaction.walletId),
       })
     },
   })
@@ -247,12 +262,12 @@ export function useResendTransaction() {
 
   return useMutation({
     mutationFn: (transactionId: string) => walletService.resendTransaction(transactionId),
-    onSuccess: (transaction) => {
+    onSuccess: transaction => {
       // Update cached transaction
       queryClient.setQueryData(['transactions', 'detail', transaction.id], transaction)
       // Invalidate transactions list
-      queryClient.invalidateQueries({ 
-        queryKey: walletKeys.transactions(transaction.walletId) 
+      queryClient.invalidateQueries({
+        queryKey: walletKeys.transactions(transaction.walletId),
       })
     },
   })
@@ -295,7 +310,11 @@ export function useRestoreWallet() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ backupData, checksum, newName }: {
+    mutationFn: ({
+      backupData,
+      checksum,
+      newName,
+    }: {
       backupData: string
       checksum: string
       newName?: string

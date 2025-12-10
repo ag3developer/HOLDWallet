@@ -114,7 +114,9 @@ class NetworkBalanceDetail(BaseModel):
     network: str
     address: str
     balance: str
-    balance_usd: str = "0"
+    price_usd: str = "0"  # Unit price in USD (preço unitário)
+    price_loading: bool = False  # True se preço ainda está carregando
+    balance_usd: str = "0"  # Total balance in USD (quantidade × preço)
     balance_brl: str = "0"
     last_updated: Optional[datetime] = None
 
@@ -133,6 +135,7 @@ class WalletWithBalance(BaseModel):
     network: str
     first_address: Optional[str]
     balance: str = "0"
+    price_usd: str = "0"  # Unit price in USD
     balance_usd: str = "0"
     balance_brl: str = "0"
     created_at: datetime

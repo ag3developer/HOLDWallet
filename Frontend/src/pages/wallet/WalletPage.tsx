@@ -159,17 +159,20 @@ export const WalletPage = () => {
           const networkBalance = realBalances[network]
           const nativeBalance = networkBalance ? parseFloat(networkBalance.balance || '0') : 0
           const balanceUSD = networkBalance ? parseFloat(networkBalance.balance_usd || '0') : 0
-          const balanceBRL = networkBalance ? parseFloat(networkBalance.balance_brl || '0') : 0
+          // ⚠️ Backend agora retorna APENAS balance_usd, frontend converte para BRL conforme settings
+
+          // Adicionar label de rede se for Base ou outra rede com mesmo símbolo
+          const networkLabel = network === 'base' ? ` (${symbol} - Base)` : ` (${symbol})`
 
           expandedWallets.push({
             id: `${wallet.id}-${network}`,
             walletId: wallet.id,
-            name: `${wallet.name} (${symbol})`,
+            name: `${wallet.name}${networkLabel}`,
             symbol: symbol,
             network: network,
             balance: nativeBalance,
             balanceUSD: balanceUSD,
-            balanceBRL: balanceBRL,
+            balanceBRL: balanceUSD, // Temporário: será convertido para BRL no display via formatCurrency()
             change24h: 0,
             color: color,
             address: '', // Será preenchido pelo hook useWalletAddresses
@@ -198,9 +201,7 @@ export const WalletPage = () => {
             const balanceUSD = (value as any)?.balance_usd
               ? Number.parseFloat((value as any).balance_usd)
               : 0
-            const balanceBRL = (value as any)?.balance_brl
-              ? Number.parseFloat((value as any).balance_brl)
-              : 0
+            // ⚠️ Backend agora retorna APENAS balance_usd, frontend converte para BRL conforme settings
 
             // Cor padrão para tokens stablecoin
             const tokenColor =
@@ -214,7 +215,7 @@ export const WalletPage = () => {
               network: networkKey,
               balance: balance,
               balanceUSD: balanceUSD,
-              balanceBRL: balanceBRL,
+              balanceBRL: balanceUSD, // Temporário: será convertido para BRL no display via formatCurrency()
               change24h: 0,
               color: tokenColor,
               address: '', // Será preenchido pelo hook useWalletAddresses
@@ -236,9 +237,9 @@ export const WalletPage = () => {
 
         // Buscar saldo real da rede específica
         const networkBalance = realBalances[wallet.network]
-        const nativeBalance = networkBalance ? parseFloat(networkBalance.balance || '0') : 0
-        const balanceUSD = networkBalance ? parseFloat(networkBalance.balance_usd || '0') : 0
-        const balanceBRL = networkBalance ? parseFloat(networkBalance.balance_brl || '0') : 0
+        const nativeBalance = networkBalance ? Number.parseFloat(networkBalance.balance || '0') : 0
+        const balanceUSD = networkBalance ? Number.parseFloat(networkBalance.balance_usd || '0') : 0
+        // ⚠️ Backend agora retorna APENAS balance_usd, frontend converte para BRL conforme settings
 
         expandedWallets.push({
           id: wallet.id,
@@ -248,7 +249,7 @@ export const WalletPage = () => {
           network: wallet.network,
           balance: nativeBalance,
           balanceUSD: balanceUSD,
-          balanceBRL: balanceBRL,
+          balanceBRL: balanceUSD, // Temporário: será convertido para BRL no display via formatCurrency()
           change24h: 0,
           color: color,
           address: wallet.first_address || '',
@@ -329,7 +330,8 @@ export const WalletPage = () => {
   // Mapear transações da API para o formato do componente - NÃO MAIS NECESSÁRIO
   // Agora usando TransactionsPage component diretamente
 
-  const totalBalanceBRL = walletsWithAddresses.reduce((sum, wallet) => sum + wallet.balanceBRL, 0)
+  // ⚠️ PADRÃO: Somar todos os saldos em USD, depois converter conforme moeda selecionada
+  const totalBalanceUSD = walletsWithAddresses.reduce((sum, wallet) => sum + wallet.balanceUSD, 0)
 
   // Loading state
   if (isLoading) {
@@ -439,7 +441,7 @@ export const WalletPage = () => {
 
           <div className='mb-2'>
             <span className='text-4xl font-bold'>
-              {showBalances ? formatCurrency(totalBalanceBRL) : '••••••'}
+              {showBalances ? formatCurrency(totalBalanceUSD) : '••••••'}
             </span>
           </div>
 
@@ -553,7 +555,7 @@ export const WalletPage = () => {
                 </div>
                 <div className='flex items-center justify-between'>
                   <span className='text-sm text-gray-500 dark:text-gray-400'>
-                    {showBalances ? `$${wallet.balanceUSD.toFixed(2)}` : '••••'}
+                    {showBalances ? formatCurrency(wallet.balanceUSD) : '••••'}
                   </span>
                   {(() => {
                     const change24h = priceChanges24h[wallet.symbol] ?? 0

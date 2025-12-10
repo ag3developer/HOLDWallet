@@ -29,10 +29,13 @@ export const DashboardPage = () => {
   const { data: apiWallets, isLoading: walletsLoading } = useWallets()
   const { formatCurrency, currency } = useCurrencyStore()
   const [expandedWallets, setExpandedWallets] = useState<Set<string>>(new Set())
-  
+
   // Símbolos de criptos para buscar preços
-  const priceSymbols = useMemo(() => ['BTC', 'ETH', 'USDT', 'SOL', 'BNB', 'MATIC', 'ADA', 'AVAX'], [])
-  
+  const priceSymbols = useMemo(
+    () => ['BTC', 'ETH', 'USDT', 'SOL', 'BNB', 'MATIC', 'ADA', 'AVAX'],
+    []
+  )
+
   // Hook para buscar preços via backend aggregator
   const { prices: marketPrices, isLoading: loadingPrices } = useMarketPrices(priceSymbols, currency)
 
@@ -93,15 +96,19 @@ export const DashboardPage = () => {
     return filtered
   }, [apiWallets, networkPreferences, showAllNetworks])
 
-  // Calcular saldo total
-  const totalBalanceBRL = useMemo(() => {
+  // Calcular saldo total (em USD, depois convertemos com formatCurrency)
+  const totalBalanceUSD = useMemo(() => {
     let total = 0
 
     balancesQueries.forEach(query => {
       if (query.data) {
         Object.values(query.data).forEach((netBalance: any) => {
-          const balanceBrl = parseFloat(netBalance.balance_brl || '0')
-          total += balanceBrl
+          // ⚠️ Backend agora retorna price_usd + balance
+          // Frontend calcula: balance × price_usd = total em USD
+          const balance = parseFloat(netBalance.balance || '0')
+          const priceUSD = parseFloat(netBalance.price_usd || '0')
+          const balanceUSD = balance * priceUSD
+          total += balanceUSD
         })
       }
     })
@@ -202,7 +209,7 @@ export const DashboardPage = () => {
                       Saldo Total
                     </p>
                     <p className='text-2xl font-black text-slate-900 dark:text-white'>
-                      {formatCurrency(totalBalanceBRL)}
+                      {formatCurrency(totalBalanceUSD)}
                     </p>
                     <p className='text-xs text-slate-500 dark:text-slate-500 mt-1'>
                       {wallets?.length || 0} carteira(s)
@@ -382,16 +389,27 @@ export const DashboardPage = () => {
                                     }
 
                                     let totalBRL = 0
+                                    let hasLoadingPrice = false
                                     if (balanceData) {
                                       Object.values(balanceData).forEach((netBalance: any) => {
-                                        totalBRL += parseFloat(netBalance.balance_brl || '0')
+                                        // ⚠️ Backend agora retorna price_usd + balance + price_loading
+                                        const balance = parseFloat(netBalance.balance || '0')
+                                        const priceUSD = parseFloat(netBalance.price_usd || '0')
+                                        const priceLoading = netBalance.price_loading || false
+                                        const balanceUSD = balance * priceUSD
+                                        totalBRL += balanceUSD
+                                        if (priceLoading) hasLoadingPrice = true
                                       })
                                     }
 
                                     return (
                                       <>
                                         <p className='font-bold text-white text-xs'>
-                                          {formatCurrency(totalBRL)}
+                                          {hasLoadingPrice ? (
+                                            <span className='animate-pulse'>Atualizando...</span>
+                                          ) : (
+                                            formatCurrency(totalBRL)
+                                          )}
                                         </p>
                                         <p className='text-xs text-slate-400'>Saldo</p>
                                       </>
@@ -453,19 +471,29 @@ export const DashboardPage = () => {
                                             }
 
                                             if (networkBalance) {
+                                              // ⚠️ Backend agora retorna price_usd + balance + price_loading
+                                              const balance = Number.parseFloat(
+                                                (networkBalance as any).balance || '0'
+                                              )
+                                              const priceUSD = Number.parseFloat(
+                                                (networkBalance as any).price_usd || '0'
+                                              )
+                                              const priceLoading =
+                                                (networkBalance as any).price_loading || false
+                                              const totalUSD = balance * priceUSD
+
                                               return (
                                                 <>
                                                   <p className='font-semibold text-slate-900 dark:text-white text-xs'>
-                                                    {Number.parseFloat(
-                                                      networkBalance.balance
-                                                    ).toFixed(6)}{' '}
-                                                    {network.symbol}
+                                                    {balance.toFixed(6)} {network.symbol}
                                                   </p>
                                                   <p className='text-xs text-slate-500 dark:text-slate-400'>
-                                                    {formatCurrency(
-                                                      Number.parseFloat(
-                                                        networkBalance.balance_brl || '0'
-                                                      )
+                                                    {priceLoading ? (
+                                                      <span className='animate-pulse'>
+                                                        Carregando preço...
+                                                      </span>
+                                                    ) : (
+                                                      formatCurrency(totalUSD)
                                                     )}
                                                   </p>
                                                 </>

@@ -8,7 +8,7 @@ class ApiClient {
   constructor() {
     this.client = axios.create({
       baseURL: APP_CONFIG.api.baseUrl,
-      timeout: 30000,
+      timeout: 60000, // Aumentado para 60 segundos para operações mais complexas
       headers: {
         'Content-Type': 'application/json',
       },
@@ -146,7 +146,7 @@ class ApiClient {
       // Strategy 2: Try the Zustand persist format from localStorage
       const zustandKey = `${APP_CONFIG.storage.prefix}${APP_CONFIG.storage.keys.auth}`
       const authData = localStorage.getItem(zustandKey)
-      
+
       if (authData) {
         const token = this.extractTokenFromData(authData)
         if (token) {
@@ -180,7 +180,7 @@ class ApiClient {
 
   private extractTokenFromData(data: string | null): string | null {
     if (!data) return null
-    
+
     try {
       const parsed = JSON.parse(data)
       // Handle Zustand persist: { state: { token: '...' } }
@@ -203,12 +203,12 @@ class ApiClient {
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i)
         if (!key) continue
-        
+
         // Look for keys that likely contain auth data
         if (key.includes('auth') || key.includes('token')) {
           const data = localStorage.getItem(key)
           if (!data) continue
-          
+
           const token = this.extractTokenFromData(data)
           // Validate token (should be a non-empty string)
           if (token && token.length > 10) {
@@ -220,7 +220,7 @@ class ApiClient {
     } catch (e) {
       console.warn('[API] Error searching localStorage:', e)
     }
-    
+
     return null
   }
 

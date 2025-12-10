@@ -102,11 +102,10 @@ export function TradingForm({
 
         const walletId = wallets[0].id
 
-        // Get balances
-        const balanceResp = await fetch(
-          `http://127.0.0.1:8000/wallets/${walletId}/balances?include_tokens=true`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        )
+        // Get balances (without tokens to avoid timeout)
+        const balanceResp = await fetch(`http://127.0.0.1:8000/wallets/${walletId}/balances`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
 
         if (!balanceResp.ok) throw new Error(`Failed to fetch balances: ${balanceResp.status}`)
 

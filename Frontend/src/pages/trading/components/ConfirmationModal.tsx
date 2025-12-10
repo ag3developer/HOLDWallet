@@ -80,8 +80,9 @@ export function ConfirmationModal({
       return '0.00'
     }
 
-    const converted = convertFromBRL(value)
-    const safeValue = typeof converted === 'number' && !Number.isNaN(converted) ? converted : value
+    // IMPORTANTE: Os preços do backend já vêm na moeda solicitada
+    // Portanto, usar o valor direto sem converter
+    const safeValue = Number.isFinite(value) ? value : 0
 
     if (!Number.isFinite(safeValue)) {
       return '0.00'

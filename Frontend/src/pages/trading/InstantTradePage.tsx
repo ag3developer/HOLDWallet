@@ -46,14 +46,26 @@ const getCurrencyLocale = (currency: string): string => {
 }
 
 const SUPPORTED_CRYPTOS = [
-  { symbol: 'BTC', name: 'Bitcoin' },
-  { symbol: 'ETH', name: 'Ethereum' },
-  { symbol: 'USDT', name: 'Tether' },
-  { symbol: 'SOL', name: 'Solana' },
-  { symbol: 'ADA', name: 'Cardano' },
-  { symbol: 'AVAX', name: 'Avalanche' },
-  { symbol: 'MATIC', name: 'Polygon' },
-  { symbol: 'DOT', name: 'Polkadot' },
+  // 🪙 MOEDAS NATIVAS (15 blockchains)
+  { symbol: 'BTC', name: 'Bitcoin', category: 'Native' },
+  { symbol: 'ETH', name: 'Ethereum', category: 'Native' },
+  { symbol: 'MATIC', name: 'Polygon', category: 'Native' },
+  { symbol: 'BNB', name: 'Binance Smart Chain', category: 'Native' },
+  { symbol: 'TRX', name: 'TRON', category: 'Native' },
+  { symbol: 'SOL', name: 'Solana', category: 'Native' },
+  { symbol: 'LTC', name: 'Litecoin', category: 'Native' },
+  { symbol: 'DOGE', name: 'Dogecoin', category: 'Native' },
+  { symbol: 'ADA', name: 'Cardano', category: 'Native' },
+  { symbol: 'AVAX', name: 'Avalanche', category: 'Native' },
+  { symbol: 'DOT', name: 'Polkadot', category: 'Native' },
+  { symbol: 'LINK', name: 'Chainlink', category: 'Native' },
+  { symbol: 'SHIB', name: 'Shiba Inu', category: 'Native' },
+  { symbol: 'XRP', name: 'XRP', category: 'Native' },
+
+  // 💵 STABLECOINS (Criptodólares)
+  { symbol: 'USDT', name: 'Tether USD', category: 'Stablecoin' },
+  { symbol: 'USDC', name: 'USD Coin', category: 'Stablecoin' },
+  { symbol: 'DAI', name: 'Dai Stablecoin', category: 'Stablecoin' },
 ]
 
 const generatePriceVariation = (
@@ -67,7 +79,7 @@ const generatePriceVariation = (
 }
 
 export function InstantTradePage() {
-  const { currency, convertFromBRL: storeConvertFromBRL } = useCurrencyStore()
+  const { currency } = useCurrencyStore()
   const { prices: priceData } = usePrices(
     SUPPORTED_CRYPTOS.map(c => c.symbol),
     currency
@@ -81,43 +93,87 @@ export function InstantTradePage() {
 
   // Update cryptoPrices when hook provides new prices
   useEffect(() => {
-    if (Object.keys(priceData).length > 0) {
-      const prices = SUPPORTED_CRYPTOS.map(crypto => {
-        const priceInfo = priceData[crypto.symbol]
-        if (!priceInfo) return null
+    // Verificar se temos dados de preço válidos
+    if (!priceData || Object.keys(priceData).length === 0) {
+      return
+    }
 
-        return {
+    console.log('[InstantTradePage] priceData received from usePrices:', priceData)
+
+    // Mapear dados de preço para CryptoPrice com fallback seguro
+    const prices: CryptoPrice[] = []
+
+    for (const crypto of SUPPORTED_CRYPTOS) {
+      const priceInfo = priceData[crypto.symbol]
+
+      // Se não tiver preço, usar um valor padrão para manter a moeda na lista
+      if (priceInfo) {
+        const price = priceInfo.price || 0
+        const change24h = priceInfo.change_24h || 0
+
+        console.log(`[InstantTradePage] ${crypto.symbol}: price=${price}, change=${change24h}%`)
+
+        prices.push({
           symbol: crypto.symbol,
           name: crypto.name,
-          price: priceInfo.price,
-          change24h: priceInfo.change_24h,
-          high24h: priceInfo.price * 1.05,
-          low24h: priceInfo.price * 0.95,
-        } as CryptoPrice
-      }).filter((p): p is CryptoPrice => p !== null)
-
-      setCryptoPrices(prices)
-
-      // Auto-select first crypto if current not available
-      const currentSymbolExists = prices.some(p => p.symbol === symbol)
-      if (!currentSymbolExists && prices.length > 0) {
-        const firstPrice = prices[0]
-        if (firstPrice) {
-          setSymbol(firstPrice.symbol)
-        }
+          price: price,
+          change24h: change24h,
+          high24h: priceInfo.high_24h || 0, // Use real backend data if available
+          low24h: priceInfo.low_24h || 0, // Use real backend data if available
+        })
+      } else {
+        // Manter a moeda mesmo sem preço atual (vai carregar em breve)
+        prices.push({
+          symbol: crypto.symbol,
+          name: crypto.name,
+          price: 0,
+          change24h: 0,
+          high24h: 0,
+          low24h: 0,
+        })
       }
     }
-  }, [priceData, symbol])
+
+    console.log('[InstantTradePage] cryptoPrices state updated:', prices)
+    // Atualizar lista de preços
+    setCryptoPrices(prices)
+
+    // Auto-select primeiro crypto apenas se não há seleção válida
+    // Usar um ref para evitar re-renders infinitos
+    if (!symbol || !prices.some(p => p.symbol === symbol)) {
+      if (prices.length > 0) {
+        setSymbol(prices[0]?.symbol || 'BTC')
+      }
+    }
+  }, [priceData]) // IMPORTANTE: Remover 'symbol' da dependência para evitar loops
 
   const convertFromBRL = (value: number): number => {
+    // ⚠️ PADRÃO: Backend retorna preços em USD
+    // Esta função converte USD → moeda selecionada (BRL, EUR, etc)
+    // Renomeada para "convertPriceToDisplayCurrency" para ser mais claro
+
     if (!value || typeof value !== 'number' || Number.isNaN(value)) {
       return 0
     }
-    const converted = storeConvertFromBRL(value)
-    if (typeof converted !== 'number' || Number.isNaN(converted)) {
+
+    // Se moeda é USD, não converter
+    if (currency === 'USD') {
       return value
     }
-    return converted
+
+    // Se moeda é BRL, converter USD → BRL
+    if (currency === 'BRL') {
+      const converted = value * 5 // 1 USD = 5 BRL
+      return Number.isNaN(converted) ? value : converted
+    }
+
+    // Se moeda é EUR, converter USD → EUR
+    if (currency === 'EUR') {
+      const converted = value * 0.92 // 1 USD = 0.92 EUR
+      return Number.isNaN(converted) ? value : converted
+    }
+
+    return value
   }
 
   const handleQuoteReceived = (newQuote: Quote) => {

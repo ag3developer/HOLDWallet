@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import toast, { Toaster } from 'react-hot-toast'
 import { seedVerificationService } from '../../services/seed-verification-service'
+import { CryptoIcon } from '../../components/CryptoIcon'
 
 // Import dos logos das moedas
 import bitcoinLogo from '../../assets/crypto-icons/btc.svg'
@@ -415,7 +416,7 @@ export const SettingsPage = () => {
       key: 'base' as const,
       name: 'Base',
       symbol: 'BASE',
-      logo: ethereumLogo, // Base usa logo similar ao Ethereum
+      logo: null, // Usar CryptoIcon component
       color: 'bg-blue-600',
     },
     {
@@ -623,11 +624,15 @@ export const SettingsPage = () => {
                     title={network.name}
                   >
                     {/* Logo da Moeda */}
-                    <img
-                      src={network.logo}
-                      alt={network.name}
-                      className='w-8 h-8 mb-2 object-contain'
-                    />
+                    {network.logo ? (
+                      <img
+                        src={network.logo}
+                        alt={network.name}
+                        className='w-8 h-8 mb-2 object-contain'
+                      />
+                    ) : (
+                      <CryptoIcon symbol={network.symbol} size={32} className='mb-2' />
+                    )}
 
                     {/* Símbolo */}
                     <p className='text-xs font-semibold text-center'>{network.symbol}</p>

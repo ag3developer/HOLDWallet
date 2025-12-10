@@ -14,9 +14,11 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 import uuid
 import logging
+import asyncio
 
 from app.models.instant_trade import InstantTrade, InstantTradeHistory, TradeStatus, PaymentMethod
 from app.core.exceptions import ValidationError
+from app.services.price_aggregator import price_aggregator
 
 logger = logging.getLogger(__name__)
 
@@ -36,47 +38,58 @@ class InstantTradeService:
     MIN_TRADE_AMOUNT_BRL = Decimal("50.00")
     MAX_TRADE_AMOUNT_BRL = Decimal("50000.00")
 
-    # Mock prices (in production, use API)
-    CRYPTO_PRICES = {
-        "BTC": Decimal("300000.00"),
-        "ETH": Decimal("12500.00"),
-        "USDT": Decimal("5.00"),
-        "SOL": Decimal("500.00"),
-        "ADA": Decimal("2.50"),
-        "AVAX": Decimal("140.00"),
-        "MATIC": Decimal("8.50"),
-        "DOT": Decimal("35.00"),
-    }
-
     def __init__(self, db: Session):
         self.db = db
 
-    def get_current_price(self, symbol: str) -> Decimal:
-        """Get current crypto price"""
+    async def get_current_price(self, symbol: str) -> Decimal:
+        """Get current crypto price from price_aggregator API (ALWAYS real-time, NO fallback)"""
         symbol_upper = symbol.upper()
-        if symbol_upper not in self.CRYPTO_PRICES:
-            raise ValidationError(f"Symbol {symbol_upper} not supported")
-        return self.CRYPTO_PRICES[symbol_upper]
+        
+        # Always get from price_aggregator API (real-time prices)
+        try:
+            # Get prices from aggregator (async)
+            prices = await price_aggregator.get_prices([symbol_upper], currency="usd")
+            if symbol_upper in prices:
+                price_data = prices[symbol_upper]
+                logger.info(f"Got real-time price for {symbol_upper}: ${price_data.price} USD from API")
+                return Decimal(str(price_data.price))
+        except Exception as e:
+            logger.error(f"Failed to get price from API for {symbol_upper}: {str(e)}")
+            raise ValidationError(f"Unable to fetch price for {symbol_upper}. Please try again.")
+        
+        # Symbol not found in API response
+        raise ValidationError(f"Symbol {symbol_upper} not found in price data")
 
-    def calculate_quote(self, operation: str, symbol: str, amount: Decimal) -> Dict[str, Any]:
+    async def calculate_quote(self, operation: str, symbol: str, amount: Decimal) -> Dict[str, Any]:
         """Calculate quote with fees and cache it"""
         symbol_upper = symbol.upper()
-        price = self.get_current_price(symbol_upper)
+        price = await self.get_current_price(symbol_upper)
+
+        # Initialize variables for both operations
+        fiat_amount = 0
+        crypto_amount = 0
+        spread_amount = 0
+        fee = 0
+        total = 0
 
         if operation == "buy":
             # For buy: spread increases price
             otc_price = price * (1 + self.SPREAD_PERCENTAGE / 100)
+            fiat_amount = amount  # Input is fiat
+            spread_amount = amount * (self.SPREAD_PERCENTAGE / 100)
             fee = amount * (self.NETWORK_FEE_PERCENTAGE / 100)
             crypto_amount = (amount - fee) / otc_price
-            total = amount
+            total = amount + spread_amount + fee
 
         else:  # sell
             # For sell: spread decreases price
             otc_price = price * (1 - self.SPREAD_PERCENTAGE / 100)
-            fiat_amount = amount * otc_price
-            fee = fiat_amount * (self.NETWORK_FEE_PERCENTAGE / 100)
-            total = fiat_amount - fee
-            crypto_amount = amount
+            crypto_amount = amount  # Input is crypto
+            fiat_before_fees = amount * otc_price  # Value in fiat BEFORE fees
+            spread_amount = fiat_before_fees * (self.SPREAD_PERCENTAGE / 100)
+            fee = fiat_before_fees * (self.NETWORK_FEE_PERCENTAGE / 100)
+            fiat_amount = fiat_before_fees  # Fiat amount before fees (for display)
+            total = fiat_before_fees - spread_amount - fee  # Net amount user receives
 
         # Generate quote ID
         quote_id = f"quote_{uuid.uuid4().hex[:12]}"
@@ -87,10 +100,10 @@ class InstantTradeService:
             "operation": operation,
             "symbol": symbol_upper,
             "crypto_price": float(price),
-            "fiat_amount": float(amount if operation == "buy" else total),
+            "fiat_amount": float(fiat_amount),
             "crypto_amount": float(crypto_amount),
             "spread_percentage": float(self.SPREAD_PERCENTAGE),
-            "spread_amount": float(amount * self.SPREAD_PERCENTAGE / 100),
+            "spread_amount": float(spread_amount),
             "network_fee_percentage": float(self.NETWORK_FEE_PERCENTAGE),
             "network_fee_amount": float(fee),
             "total_amount": float(total),
@@ -194,9 +207,9 @@ class InstantTradeService:
             "expires_at": expires_at.isoformat(),
         }
 
-    def create_trade(self, user_id: str, operation: str, symbol: str, amount: Decimal, payment_method: str) -> Dict[str, Any]:
+    async def create_trade(self, user_id: str, operation: str, symbol: str, amount: Decimal, payment_method: str) -> Dict[str, Any]:
         """Create new trade (legacy method for backward compatibility)"""
-        quote = self.calculate_quote(operation, symbol, amount)
+        quote = await self.calculate_quote(operation, symbol, amount)
 
         trade_id = str(uuid.uuid4())
         reference_code = f"OTC-{datetime.now().year}-{uuid.uuid4().hex[:6].upper()}"

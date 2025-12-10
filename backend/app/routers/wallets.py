@@ -9,10 +9,11 @@ from decimal import Decimal
 from datetime import datetime
 import logging
 import uuid
+import asyncio
 
 from app.core.db import get_db
 from app.core.security import get_current_user
-from app.core.exceptions import NotFoundError, BlockchainError
+from app.core.exceptions import NotFoundError, BlockchainError, ValidationError
 from app.models.user import User
 from app.models.wallet import Wallet
 from app.models.address import Address
@@ -21,7 +22,8 @@ from app.services.wallet_service import WalletService
 from app.services.blockchain_service import BlockchainService
 from app.services.transaction_service import transaction_service
 from app.services.blockchain_signer import blockchain_signer
-from app.services.usdt_transaction_service import USDTTransactionService
+from app.services.usdt_transaction_service import USDTTransactionService, usdt_transaction_service
+from app.services.price_aggregator import PriceData
 from app.config.token_contracts import USDT_CONTRACTS, USDC_CONTRACTS
 from pydantic import BaseModel, Field
 
@@ -279,7 +281,7 @@ async def get_wallet_balances_by_network(
     Get wallet balances grouped by network for multi-network wallets.
     Returns balance, USD and BRL values for each supported network.
     """
-    from app.clients.price_client import price_client
+    from app.services.price_aggregator import price_aggregator
     from datetime import datetime
     
     # Verify wallet ownership
@@ -337,16 +339,21 @@ async def get_wallet_balances_by_network(
     try:
         balances_by_network: Dict[str, NetworkBalanceDetail] = {}
         total_usd_value = Decimal('0')
-        total_brl_value = Decimal('0')
         
-        # Get prices for all symbols (with fallback)
+        # Get prices for all symbols (with fallback to multiple sources)
         symbols = list(set(network_symbols.values()))
+        prices_usd = {}
+        
         try:
-            prices = await price_client.get_prices(symbols, ["usd", "brl"])
+            # ⚠️ PADRÃO: Backend sempre retorna preços em USD em TEMPO REAL
+            # Frontend é responsável pela conversão para BRL via Settings
+            prices_usd = await price_aggregator.get_prices(symbols, "usd")
+            logger.info(f"[BALANCE DEBUG] Prices fetched (USD) - symbols: {list(prices_usd.keys())}")
+            logger.info(f"[BALANCE DEBUG] Missing USD prices: {set(symbols) - set(prices_usd.keys())}")
         except Exception as price_error:
-            logger.warning(f"Price fetch failed (rate limit or API error), continuing without prices: {price_error}")
-            # Create empty prices dict so balances still work
-            prices = {symbol: {"usd": 0, "brl": 0} for symbol in symbols}
+            logger.warning(f"⚠️ Price fetch failed: {price_error}")
+            # NÃO usar fallback prices - retornar 0 para permitir que frontend mostre loading
+            # Preços sempre devem vir em tempo real, nunca fixo
         
         # Get balance for each network
         for address_obj in addresses:
@@ -364,26 +371,43 @@ async def get_wallet_balances_by_network(
                 )
                 
                 native_balance = Decimal(balance_data.get('native_balance', '0'))
+                logger.info(f"[BALANCE DEBUG] {network_str}: native_balance={native_balance}")
                 
                 if native_balance > 0:
                     # Get price for this network
-                    symbol = network_symbols.get(network_str, network_str)
-                    price_usd = Decimal(str(prices.get(symbol, {}).get('usd', 0)))
-                    price_brl = Decimal(str(prices.get(symbol, {}).get('brl', 0)))
+                    symbol = network_symbols.get(network_str, network_str).lower()
+                    logger.info(f"[BALANCE DEBUG] {network_str}: symbol={symbol}, native_balance={native_balance}")
                     
-                    # Calculate USD and BRL values
+                    # Get prices (PriceData objects from aggregator)
+                    price_data_usd = prices_usd.get(symbol)
+                    
+                    # Se preço não estiver disponível, retorna com price_usd = 0
+                    # O frontend mostrará loading para preço enquanto tenta carregar
+                    if not price_data_usd:
+                        logger.warning(f"⚠️ Price not available for {symbol} - returning with price_usd=0")
+                        price_usd = Decimal('0')
+                    else:
+                        price_usd = Decimal(str(price_data_usd.price))
+                    
+                    logger.info(f"[BALANCE DEBUG] {network_str}: price_usd={price_usd}, symbol={symbol}")
+                    
+                    # Calculate USD value only (Frontend will handle conversion to BRL)
                     balance_usd = native_balance * price_usd
-                    balance_brl = native_balance * price_brl
+                    
+                    # Indicar se o preço está em loading (price_usd = 0)
+                    price_loading = price_usd == 0
+                    
+                    logger.info(f"[BALANCE DEBUG] {network_str}: balance_usd={balance_usd}, native_balance={native_balance}, price_usd={price_usd}, price_loading={price_loading}")
                     
                     total_usd_value += balance_usd
-                    total_brl_value += balance_brl
                     
                     balances_by_network[network_str] = NetworkBalanceDetail(
                         network=network_str,
                         address=address_str,
                         balance=str(native_balance),
+                        price_usd=f"{price_usd:.6f}",  # Retorna preço unitário
+                        price_loading=price_loading,  # Indica se preço está em loading
                         balance_usd=f"{balance_usd:.2f}",
-                        balance_brl=f"{balance_brl:.2f}",
                         last_updated=datetime.utcnow()
                     )
                 
@@ -401,21 +425,19 @@ async def get_wallet_balances_by_network(
                         for token_addr, token_data in token_balances.items():
                             if token_addr.lower() == usdt_address:
                                 usdt_balance = Decimal(str(token_data.get('balance', '0')))
-                                # 🔧 MOSTRAR SEMPRE, MESMO COM SALDO 0 (para testes)
                                 # USDT normalmente é $1.00 USD
                                 balance_usd = usdt_balance * Decimal('1.0')
-                                balance_brl = usdt_balance * Decimal(str(prices.get('usd', {}).get('brl', 1.0)))
                                 
                                 if usdt_balance > 0:
                                     total_usd_value += balance_usd
-                                    total_brl_value += balance_brl
                                 
                                 balances_by_network[f"{network_str}_usdt"] = NetworkBalanceDetail(
                                     network=f"{network_str} (USDT)",
                                     address=address_str,
                                     balance=str(usdt_balance),
+                                    price_usd="1.00",  # USDT é sempre $1.00 USD
+                                    price_loading=False,  # USDT sempre tem preço
                                     balance_usd=f"{balance_usd:.2f}",
-                                    balance_brl=f"{balance_brl:.2f}",
                                     last_updated=datetime.utcnow()
                                 )
                                 if usdt_balance > 0:
@@ -429,21 +451,19 @@ async def get_wallet_balances_by_network(
                         for token_addr, token_data in token_balances.items():
                             if token_addr.lower() == usdc_address:
                                 usdc_balance = Decimal(str(token_data.get('balance', '0')))
-                                # 🔧 MOSTRAR SEMPRE, MESMO COM SALDO 0 (para testes)
                                 # USDC normalmente é $1.00 USD
                                 balance_usd = usdc_balance * Decimal('1.0')
-                                balance_brl = usdc_balance * Decimal(str(prices.get('usd', {}).get('brl', 1.0)))
                                 
                                 if usdc_balance > 0:
                                     total_usd_value += balance_usd
-                                    total_brl_value += balance_brl
                                 
                                 balances_by_network[f"{network_str}_usdc"] = NetworkBalanceDetail(
                                     network=f"{network_str} (USDC)",
                                     address=address_str,
                                     balance=str(usdc_balance),
+                                    price_usd="1.00",  # USDC é sempre $1.00 USD
+                                    price_loading=False,  # USDC sempre tem preço
                                     balance_usd=f"{balance_usd:.2f}",
-                                    balance_brl=f"{balance_brl:.2f}",
                                     last_updated=datetime.utcnow()
                                 )
                                 if usdc_balance > 0:
@@ -456,12 +476,19 @@ async def get_wallet_balances_by_network(
                 # Continue with other networks even if one fails
                 continue
         
+        # ⚠️ PADRÃO: Backend returns totals in USD only
+        # Frontend handles conversion to BRL
+        logger.info(f"[BALANCE DEBUG] FINAL TOTAL USD: {total_usd_value}")
+        logger.info(f"[BALANCE DEBUG] Balances count: {len(balances_by_network)}")
+        for network, detail in balances_by_network.items():
+            logger.info(f"[BALANCE DEBUG]   {network}: USD={detail.balance_usd}, balance={detail.balance}")
+        
         return WalletBalancesByNetworkResponse(
             wallet_id=wallet_id,
             wallet_name=str(wallet.name),
             balances=balances_by_network,
             total_usd=f"{total_usd_value:.2f}",
-            total_brl=f"{total_brl_value:.2f}"
+            total_brl=f"{(total_usd_value * Decimal('4.50')):.2f}"  # Frontend will recalculate with real exchange rate
         )
         
     except Exception as e:
@@ -782,7 +809,7 @@ async def estimate_transaction_fee(
             "cardano": "ADA",
             "avalanche": "AVAX"
         }
-        currency = network_currencies.get(request.network.lower(), request.network.upper())
+        currency = network_currencies.get(request.network.lower(), request.network.upper());
         
         return {
             "wallet_id": request.wallet_id,
@@ -989,16 +1016,6 @@ async def send_transaction(
             if is_usdt or is_usdc:
                 logger.info(f"🪙 Detectado token {request.token_symbol} - usando USDTTransactionService")
                 
-                # Usar USDTTransactionService para enviar token
-                try:
-                    usdt_service = USDTTransactionService()
-                except Exception as e:
-                    logger.error(f"❌ Erro ao inicializar USDTTransactionService: {e}")
-                    raise HTTPException(
-                        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                        detail=f"Serviço de token temporariamente indisponível. Tente novamente em alguns momentos."
-                    )
-                
                 # Obter endereço do contrato
                 contracts = USDT_CONTRACTS if is_usdt else USDC_CONTRACTS
                 network_lower = request.network.lower()
@@ -1020,9 +1037,8 @@ async def send_transaction(
                 # Assinar e enviar transação de token
                 try:
                     # Usar asyncio.to_thread para não bloquear a event loop
-                    import asyncio
                     tx_result = await asyncio.to_thread(
-                        usdt_service.sign_and_send_transaction,
+                        usdt_transaction_service.sign_and_send_transaction,
                         from_address,
                         request.to_address,
                         request.amount,
@@ -1078,29 +1094,36 @@ async def send_transaction(
                 db_token_address = None
             
             # Save transaction to database
-            transaction_record = Transaction(
-                user_id=current_user.id,
-                address_id=address_obj.id if address_obj else None,
-                tx_hash=tx_hash,
-                from_address=from_address,
-                to_address=request.to_address,
-                amount=str(request.amount),
-                fee=str(selected_gas.get('estimated_cost', '0')) if isinstance(selected_gas, dict) else str(selected_gas),
-                network=request.network,
-                status=TransactionStatus.pending,
-                token_address=db_token_address,
-                token_symbol=request.token_symbol,
-                memo=request.note,
-                raw_transaction=tx_details.get('raw_tx') if tx_details else None,
-                signed_transaction=tx_details.get('signed_tx') if tx_details else None,
-                broadcasted_at=datetime.utcnow(),
-            )
-            db.add(transaction_record)
-            db.commit()
-            db.refresh(transaction_record)
-            transaction_id = transaction_record.id
-            
-            logger.info(f"✅ Transaction saved to database: ID={transaction_id}, Hash={tx_hash}")
+            try:
+                transaction_record = Transaction(
+                    user_id=current_user.id,
+                    address_id=address_obj.id if address_obj else None,
+                    tx_hash=tx_hash,
+                    from_address=from_address,
+                    to_address=request.to_address,
+                    amount=str(request.amount),
+                    fee=str(selected_gas.get('estimated_cost', '0')) if isinstance(selected_gas, dict) else str(selected_gas),
+                    network=request.network,
+                    status=TransactionStatus.pending,
+                    token_address=db_token_address,
+                    token_symbol=request.token_symbol,
+                    memo=request.note,
+                    raw_transaction=tx_details.get('raw_tx') if tx_details else None,
+                    signed_transaction=tx_details.get('signed_tx') if tx_details else None,
+                    broadcasted_at=datetime.utcnow(),
+                )
+                db.add(transaction_record)
+                db.commit()
+                db.refresh(transaction_record)
+                transaction_id = transaction_record.id
+                
+                logger.info(f"✅ Transaction saved to database: ID={transaction_id}, Hash={tx_hash}")
+            except Exception as db_error:
+                logger.error(f"❌ Error saving transaction to database: {db_error}")
+                # Even if DB save fails, transaction was already sent to blockchain!
+                # We should still return success to user
+                logger.warning("⚠️  Transaction sent to blockchain but failed to save to database. Attempting backup save...")
+                transaction_id = None
             
             # Get explorer URL
             explorer_urls = {
@@ -1116,7 +1139,7 @@ async def send_transaction(
             return {
                 "success": True,
                 "mode": "custodial",
-                "transaction_id": transaction_id,
+                "transaction_id": transaction_id or "pending_save",
                 "tx_hash": tx_hash,
                 "network": request.network,
                 "from_address": from_address,
