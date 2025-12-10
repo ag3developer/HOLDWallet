@@ -243,15 +243,25 @@ export const ChatPage = () => {
         console.log('📞 Conectando ao chat:', chatRoomId)
         setChatRoomId(chatRoomId)
         await chatP2PService.connectToRoom(chatRoomId, token)
-        setConnectionStatus('connected')
       } catch (error) {
         console.error('❌ Erro ao conectar ao chat:', error)
-        setConnectionStatus('error')
       }
     }
 
     connectChat()
   }, [selectedContact])
+
+  // Subscrever aos eventos de status do WebSocket
+  useEffect(() => {
+    const unsubscribe = chatP2PService.onStatus((status) => {
+      console.log('🔌 Status da conexão atualizado:', status)
+      setConnectionStatus(status)
+    })
+
+    return () => {
+      unsubscribe()
+    }
+  }, [])
 
   // Fechar sidebar em mobile quando selecionar contato
   useEffect(() => {
