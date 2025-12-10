@@ -5,6 +5,8 @@ export { walletService } from './wallet'
 export { p2pService } from './p2p'
 export { chatService } from './chat'
 export { notificationService } from './notification'
+export { webrtcService } from './webrtcService'
+export { callSignalingService } from './callSignalingService'
 
 // Re-export types for convenience
 export type {
