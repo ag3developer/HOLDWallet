@@ -123,6 +123,9 @@ export const ChatPage = () => {
   const remoteVideoRef = useRef<HTMLVideoElement>(null)
   const localVideoRef = useRef<HTMLVideoElement>(null)
   const callDurationRef = useRef(0)
+  
+  // Ref para rastrear o status da conexão atual (para evitar problemas de closure)
+  const connectionStatusRef = useRef<'connected' | 'disconnected' | 'connecting' | 'error'>('disconnected')
 
   // Estado da sidebar - DEVE vir ANTES de qualquer useEffect que o use
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
@@ -256,6 +259,7 @@ export const ChatPage = () => {
     const unsubscribe = chatP2PService.onStatus((status) => {
       console.log('🔌 Status da conexão atualizado:', status)
       setConnectionStatus(status)
+      connectionStatusRef.current = status
     })
 
     return () => {
@@ -1349,18 +1353,18 @@ export const ChatPage = () => {
                       setMessages(prev => [...prev, message])
                       
                       // Debug
-                      console.log('🔌 connectionStatus:', connectionStatus)
+                      console.log('🔌 connectionStatus:', connectionStatusRef.current)
                       console.log('🆔 chatRoomId:', chatRoomId)
                       
                       // Esperar pela conexão do WebSocket
                       let retries = 0
-                      while (connectionStatus !== 'connected' && retries < 5) {
+                      while (connectionStatusRef.current !== 'connected' && retries < 5) {
                         console.log(`⏳ Esperando conexão... (${retries}/5)`)
                         await new Promise(resolve => setTimeout(resolve, 500))
                         retries++
                       }
 
-                      if (connectionStatus !== 'connected') {
+                      if (connectionStatusRef.current !== 'connected') {
                         console.warn('⚠️ WebSocket não conectado, salvando localmente')
                         // Salvar localmente se não conseguir conectar
                         setMessages(prev => {
@@ -1377,7 +1381,7 @@ export const ChatPage = () => {
                       // Enviar para o servidor
                       console.log('📤 Enviando áudio para o servidor...')
                       if (!chatRoomId) throw new Error('chatRoomId não encontrado')
-                      await chatP2PService.sendAudioMessage(chatRoomId, audio)
+                      await chatP2PService.sendAudioMessage(audio)
                       console.log('✅ Áudio enviado com sucesso')
                       
                       // Atualizar status
