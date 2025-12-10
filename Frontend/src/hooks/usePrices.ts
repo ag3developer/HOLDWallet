@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import axios from 'axios'
-import { APP_CONFIG } from '@/config/app'
+import PriceService from '@/services/price-service'
+import PriceCache from '@/services/price-cache'
 
 interface PriceInfo {
   price: number
@@ -18,6 +18,7 @@ interface UsePricesResult {
 
 /**
  * Hook para buscar preços em tempo real de múltiplas criptomoedas
+ * Usa serviço centralizado com deduplicação e cache
  * @param symbols - Array de símbolos de criptomoedas (ex: ['BTC', 'ETH', 'USDT'])
  * @param currency - Moeda de referência (BRL, USD, EUR, etc.)
  * @returns Objeto com preços, estado de carregamento e erros
@@ -27,6 +28,29 @@ export function usePrices(symbols: string[], currency: string = 'USD'): UsePrice
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
 
+  // Carregar preços em cache imediatamente
+  useEffect(() => {
+    const cachedPrices: Record<string, PriceInfo> = {}
+
+    for (const symbol of symbols) {
+      const cached = PriceCache.getPrice(symbol, currency)
+      if (cached) {
+        cachedPrices[symbol.toUpperCase()] = {
+          price: cached.price,
+          change_24h: 0,
+          high_24h: 0,
+          low_24h: 0,
+        }
+      }
+    }
+
+    if (Object.keys(cachedPrices).length > 0) {
+      console.log('[usePrices] Loading cached prices:', Object.keys(cachedPrices))
+      setPrices(cachedPrices)
+    }
+  }, [symbols.join(','), currency])
+
+  // Buscar preços atualizados do serviço centralizado
   const fetchPrices = useCallback(async () => {
     if (!symbols || symbols.length === 0) {
       setPrices({})
@@ -37,101 +61,34 @@ export function usePrices(symbols: string[], currency: string = 'USD'): UsePrice
     setError(null)
 
     try {
-      // Construir query string com símbolos em UPPERCASE
-      const symbolsQuery = symbols.map(s => s.toUpperCase()).join(',')
-      const currencyCode = currency.toLowerCase()
-      console.log('[usePrices] Fetching prices for:', { symbols, currency: currencyCode })
+      console.log('[usePrices] Fetching prices for:', symbols, 'currency:', currency)
+      const pricesData = await PriceService.getPrices(symbols, currency)
 
-      // Usar axios client com baseURL configurado
-      const client = axios.create({
-        baseURL: APP_CONFIG.api.baseUrl,
-        timeout: 30000,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
-
-      // Buscar do novo endpoint batch v2
-      const response = await client.get('/api/v1/prices/batch', {
-        params: {
-          symbols: symbolsQuery,
-          fiat: currencyCode,
-          refresh: false,
-        },
-      })
-
-      const data = response.data
-      console.log('[usePrices] Response data structure:', {
-        hasData: !!data,
-        hasPrices: !!data?.prices,
-        pricesType: typeof data?.prices,
-        pricesKeys: data?.prices ? Object.keys(data.prices) : [],
-        fullData: data,
-      })
-
-      // Transformar resposta do endpoint batch
-      const pricesMap: Record<string, PriceInfo> = {}
-
-      if (data.prices && typeof data.prices === 'object') {
-        for (const [symbol, priceInfo] of Object.entries(data.prices)) {
-          const info = priceInfo as Record<string, any>
-          const symbolUpper = symbol.toUpperCase()
-          const price = info.price || 0
-
-          // Debug log for all prices
-          console.log('[usePrices] Processing symbol:', {
-            originalSymbol: symbol,
-            upperSymbol: symbolUpper,
-            priceInfo: info,
-            extractedPrice: price,
-          })
-
-          pricesMap[symbolUpper] = {
-            price: price,
-            change_24h: info.change_24h || 0,
-            high_24h: info.high_24h || 0,
-            low_24h: info.low_24h || 0,
-            market_cap: info.market_cap,
-            volume_24h: info.volume_24h,
-          }
+      // Converter para formato esperado
+      const formattedPrices: Record<string, PriceInfo> = {}
+      for (const [symbol, data] of Object.entries(pricesData)) {
+        const dataAsAny = data as any
+        formattedPrices[symbol] = {
+          price: dataAsAny.price || 0,
+          change_24h: dataAsAny.change_24h || 0,
+          high_24h: dataAsAny.high_24h || 0,
+          low_24h: dataAsAny.low_24h || 0,
         }
-      } else if (data.data && typeof data.data === 'object') {
-        // Try alternative structure: data.data instead of data.prices
-        console.log('[usePrices] Trying alternative structure: data.data')
-        for (const [symbol, priceInfo] of Object.entries(data.data)) {
-          const info = priceInfo as Record<string, any>
-          const symbolUpper = symbol.toUpperCase()
-          const price = info.price || info.value || 0
-
-          console.log('[usePrices] Processing from data.data:', {
-            originalSymbol: symbol,
-            upperSymbol: symbolUpper,
-            priceInfo: info,
-            extractedPrice: price,
-          })
-
-          pricesMap[symbolUpper] = {
-            price: price,
-            change_24h: info.change_24h || 0,
-            high_24h: info.high_24h || 0,
-            low_24h: info.low_24h || 0,
-            market_cap: info.market_cap,
-            volume_24h: info.volume_24h,
-          }
-        }
-      } else {
-        console.warn('[usePrices] Unexpected response structure:', data)
       }
 
-      // ...existing code...
-      console.log('[usePrices] Prices map updated:', Object.keys(pricesMap), pricesMap)
-      setPrices(pricesMap)
+      console.log('[usePrices] Prices fetched successfully:', Object.keys(formattedPrices))
+      setPrices(formattedPrices)
+
+      // Salvar em cache
+      const simplePrices: Record<string, number> = {}
+      for (const [symbol, info] of Object.entries(formattedPrices)) {
+        simplePrices[symbol] = info.price
+      }
+      PriceCache.setPrices(simplePrices, currency)
     } catch (err) {
       const errorMessage = err instanceof Error ? err : new Error('Unknown error occurred')
       setError(errorMessage)
       console.error('[usePrices] Error fetching prices:', errorMessage)
-
-      // Retornar dados vazios em caso de erro
       setPrices({})
     } finally {
       setLoading(false)
@@ -142,9 +99,9 @@ export function usePrices(symbols: string[], currency: string = 'USD'): UsePrice
   useEffect(() => {
     fetchPrices()
 
-    // Atualizar a cada 5 segundos (mais responsivo que 10s)
+    // Atualizar a cada 5 segundos
     const interval = setInterval(() => {
-      console.log('[usePrices] Auto-refreshing prices every 5 seconds...')
+      console.log('[usePrices] Auto-refreshing prices...')
       fetchPrices()
     }, 5000)
 
