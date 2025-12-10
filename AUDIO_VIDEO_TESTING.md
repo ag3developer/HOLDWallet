@@ -335,4 +335,110 @@ Agora você pode:
 
 ---
 
-**Tudo pronto! O chat P2P com voz e vídeo está funcional! 🚀**
+## 🎙️ NOVO: Chat Audio Messages (WhatsApp/Telegram Style)
+
+### ✨ O Que Foi Adicionado
+
+✅ **Botão de Microfone no Input**
+- Aparece ao lado da barra de mensagem
+- Clique para iniciar gravação
+- Interface intuitiva (como WhatsApp)
+
+✅ **Gravação de Áudio**
+- Gravação em tempo real
+- Mostra timer (00:00 → 00:15)
+- Feedback visual (cor muda)
+- Controle de qualidade
+
+✅ **Reprodução de Áudio**
+- Ouça o áudio gravado antes de enviar
+- Botão ▶️ para reproduzir
+- Você ouve sua própria voz
+
+✅ **Envio de Áudio**
+- Enviar como mensagem no chat
+- Exibe "[Áudio - X.XX KB]" no chat
+- Funciona com qualquer contato
+- Múltiplos áudios suportados
+
+✅ **Cancelamento**
+- Botão ✕ para descartar
+- Volta ao input normal
+- Nada é enviado
+
+---
+
+## 🎯 Como Testar Chat Audio
+
+### 1. Localize o Botão de Mic
+```
+Input de Mensagem:
+[Paperclip] [🎙️] [Digite aqui...] [✏️] [➤️]
+             ↑
+          Clique!
+```
+
+### 2. Inicie Gravação
+```
+Clique em 🎙️
+  ↓
+Interface muda para:
+🔴 Gravando... 00:00  [⏹️]
+```
+
+### 3. Fale Algo
+```
+Seu microfone está gravando
+Tempo incrementa: 00:00 → 00:05
+```
+
+### 4. Pare a Gravação
+```
+Clique em ⏹️
+  ↓
+Status muda para:
+✅ 2.34 KB  [▶️] [➤️] [✕]
+```
+
+### 5. Ouça (Opcional)
+```
+Clique em ▶️ (azul)
+  ↓
+Você ouve sua própria voz
+```
+
+### 6. Envie o Áudio
+```
+Clique em ➤️ (verde)
+  ↓
+Áudio é enviado
+  ↓
+Mensagem aparece:
+"[Áudio - 2.34 KB]" ✓✓
+```
+
+---
+
+## 📱 Estados da Interface
+
+### Estado Normal
+```
+[Paperclip] [🎙️] [Input] [✏️] [Send]
+```
+
+### Estado Gravando
+```
+🔴 Gravando... 00:15  [⏹️]
+Vermelho = Status ao vivo
+```
+
+### Estado Áudio Pronto
+```
+✅ 2.34 KB  [▶️] [➤️] [✕]
+Verde = Pronto para enviar
+```
+
+---
+
+**Tudo pronto! Chat P2P completo com voz, vídeo e áudio! 🚀**
+

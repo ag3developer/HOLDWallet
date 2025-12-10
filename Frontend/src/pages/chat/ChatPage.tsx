@@ -46,6 +46,8 @@ import { webrtcService } from '@/services/webrtcService'
 import { CallModal } from '@/components/chat/CallModal'
 import { IncomingCallModal } from '@/components/chat/IncomingCallModal'
 import { BotContactsSection } from '@/components/chat/BotContactsSection'
+import { AudioMessageInput } from '@/components/chat/AudioMessageInput'
+import { AudioMessage } from '@/components/chat/AudioMessage'
 import { useBotCalls } from '@/hooks/useBotCalls'
 import { useMediaCapture } from '@/hooks/useMediaCapture'
 
@@ -86,10 +88,11 @@ interface Message {
   content: string
   timestamp: string
   isOwn: boolean
-  status: 'sent' | 'delivered' | 'read'
+  status: 'sent' | 'sending' | 'delivered' | 'read'
   type?: 'text' | 'system' | 'file'
-  fileType?: 'receipt' | 'image' | 'document'
+  fileType?: 'receipt' | 'image' | 'document' | 'audio'
   sender_id?: string
+  audioBlob?: Blob
 }
 
 export const ChatPage = () => {
@@ -226,6 +229,29 @@ export const ChatPage = () => {
   useEffect(() => {
     localStorage.setItem('chatSidebarOpen', String(isSidebarOpen))
   }, [isSidebarOpen])
+
+  // Conectar ao WebSocket quando selecionado um contato
+  useEffect(() => {
+    const connectChat = async () => {
+      if (!selectedContact) return
+
+      const token = localStorage.getItem('token')
+      if (!token) return
+
+      try {
+        const chatRoomId = `chat_${selectedContact}`
+        console.log('📞 Conectando ao chat:', chatRoomId)
+        setChatRoomId(chatRoomId)
+        await chatP2PService.connectToRoom(chatRoomId, token)
+        setConnectionStatus('connected')
+      } catch (error) {
+        console.error('❌ Erro ao conectar ao chat:', error)
+        setConnectionStatus('error')
+      }
+    }
+
+    connectChat()
+  }, [selectedContact])
 
   // Fechar sidebar em mobile quando selecionar contato
   useEffect(() => {
@@ -1158,6 +1184,13 @@ export const ChatPage = () => {
                           : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700'
                       }`}
                     >
+                      {/* Renderizar áudio se for tipo audio */}
+                      {message.fileType === 'audio' && message.audioBlob ? (
+                        <div className='mb-2'>
+                          <AudioMessage audioBlob={message.audioBlob} isOwn={message.isOwn} />
+                        </div>
+                      ) : null}
+                      
                       <p className='text-xs sm:text-sm break-words'>{message.content}</p>
                       <div
                         className={`flex items-center justify-between mt-1 gap-2 ${
@@ -1168,6 +1201,7 @@ export const ChatPage = () => {
                         {message.isOwn && (
                           <div className='flex items-center'>
                             {message.status === 'sent' && <Check className='w-3 h-3' />}
+                            {message.status === 'sending' && <Clock className='w-3 h-3 animate-spin' />}
                             {message.status === 'delivered' && <CheckCheck className='w-3 h-3' />}
                             {message.status === 'read' && (
                               <CheckCheck className='w-3 h-3 text-blue-300' />
@@ -1285,13 +1319,81 @@ export const ChatPage = () => {
                   </button>
                 </div>
 
-                {/* Botão mic - oculto em mobile pequeno */}
-                <button
-                  aria-label='Gravar áudio'
-                  className='hidden xs:block p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors'
-                >
-                  <Mic className='w-4 h-4 sm:w-5 sm:h-5' />
-                </button>
+                {/* Botão de Áudio com Gravação */}
+                <AudioMessageInput 
+                  onAudioSend={async (audio) => {
+                    try {
+                      console.log('📤 Áudio para enviar:', audio.size, 'bytes')
+                      
+                      // Adicionar mensagem localmente
+                      const message: Message = {
+                        id: Date.now().toString(),
+                        content: `[Áudio - ${(audio.size / 1024).toFixed(1)} KB]`,
+                        timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+                        isOwn: true,
+                        status: 'sending',
+                        type: 'file',
+                        fileType: 'audio',
+                        audioBlob: audio,
+                      }
+                      setMessages(prev => [...prev, message])
+                      
+                      // Debug
+                      console.log('🔌 connectionStatus:', connectionStatus)
+                      console.log('🆔 chatRoomId:', chatRoomId)
+                      
+                      // Esperar pela conexão do WebSocket
+                      let retries = 0
+                      while (connectionStatus !== 'connected' && retries < 5) {
+                        console.log(`⏳ Esperando conexão... (${retries}/5)`)
+                        await new Promise(resolve => setTimeout(resolve, 500))
+                        retries++
+                      }
+
+                      if (connectionStatus !== 'connected') {
+                        console.warn('⚠️ WebSocket não conectado, salvando localmente')
+                        // Salvar localmente se não conseguir conectar
+                        setMessages(prev => {
+                          const updated = [...prev]
+                          const lastMsg = updated[updated.length - 1]
+                          if (lastMsg && lastMsg.id === message.id) {
+                            lastMsg.status = 'sent'
+                          }
+                          return updated
+                        })
+                        return
+                      }
+
+                      // Enviar para o servidor
+                      console.log('📤 Enviando áudio para o servidor...')
+                      if (!chatRoomId) throw new Error('chatRoomId não encontrado')
+                      await chatP2PService.sendAudioMessage(chatRoomId, audio)
+                      console.log('✅ Áudio enviado com sucesso')
+                      
+                      // Atualizar status
+                      setMessages(prev => {
+                        const updated = [...prev]
+                        const lastMsg = updated[updated.length - 1]
+                        if (lastMsg && lastMsg.id === message.id) {
+                          lastMsg.status = 'delivered'
+                        }
+                        return updated
+                      })
+                    } catch (error) {
+                      console.error('❌ Erro ao enviar áudio:', error)
+                      // Salvar mensagem localmente mesmo se não conseguir enviar
+                      setMessages(prev => {
+                        const updated = [...prev]
+                        const lastMsg = updated[updated.length - 1]
+                        if (lastMsg) {
+                          lastMsg.status = 'sent'
+                        }
+                        return updated
+                      })
+                    }
+                  }}
+                  isDisabled={!currentContact}
+                />
 
                 <button
                   onClick={handleSendMessage}
