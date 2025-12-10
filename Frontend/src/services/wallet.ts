@@ -116,8 +116,10 @@ class WalletService {
 
   // Get wallet balances by network (for multi-network wallets)
   async getWalletBalancesByNetwork(walletId: string): Promise<Record<string, NetworkBalance>> {
-    console.log(`[DEBUG] Service: Fetching /wallets/${walletId}/balances`)
-    const response = await apiClient.get<WalletBalancesByNetwork>(`/wallets/${walletId}/balances`)
+    console.log(`[DEBUG] Service: Fetching /wallets/${walletId}/balances with include_tokens=true`)
+    const response = await apiClient.get<WalletBalancesByNetwork>(
+      `/wallets/${walletId}/balances?include_tokens=true`
+    )
     console.log(`[DEBUG] Service: Response received:`, response.data)
     // API retorna direto sem wrapper ApiResponse
     const balances = response.data.balances || {}
