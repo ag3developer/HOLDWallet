@@ -25,11 +25,13 @@ Procure por logs assim:
 ## ✅ Se Vir Os Logs
 
 Significa que:
+
 - ✅ Bots foram carregados (3 bots)
 - ✅ Sidebar está aberta (`isSidebarOpen: true`)
 - ✅ Deve renderizar (`shouldRender: true`)
 
 **Procure na sidebar por:**
+
 ```
 🤖 Bots de Teste
 ├─ 🤖 Bot Suporte
@@ -44,6 +46,7 @@ Significa que:
 Algo está errado. Tente:
 
 1. **Reload a página:**
+
    ```
    Ctrl+Shift+R (Windows)
    Cmd+Shift+R (Mac)
@@ -53,7 +56,7 @@ Algo está errado. Tente:
 
 3. **Execute no console:**
    ```javascript
-   console.log('Página carregada')
+   console.log("Página carregada");
    ```
    Se ver a mensagem, tudo carregou OK.
 
@@ -103,6 +106,7 @@ Algo está errado. Tente:
 **Parabéns!** 🎉
 
 Os bots estão funcionando. Agora você pode:
+
 - ☎️ Fazer audio calls
 - 📹 Fazer video calls
 - 🎤 Testar mute
@@ -114,6 +118,7 @@ Os bots estão funcionando. Agora você pode:
 ## 🚨 Se Não Funcionar
 
 **Abra issue com:**
+
 1. Screenshot do console (com os logs)
 2. Se vê erro em vermelho (qual é?)
 3. Se vê ou não os bots

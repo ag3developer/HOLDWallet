@@ -9,6 +9,7 @@ O sistema inclui **3 bots simulados** que podem ser encontrados no chat. Eles ap
 ## 👥 Bots Disponíveis
 
 ### 1. 🤖 **Bot Trader**
+
 - **ID:** `bot-1`
 - **Função:** Simula um trader regular
 - **Status:** Online (sempre)
@@ -16,6 +17,7 @@ O sistema inclui **3 bots simulados** que podem ser encontrados no chat. Eles ap
 - **Avatar:** Bot Trader customizado
 
 ### 2. 🎧 **Bot Support**
+
 - **ID:** `bot-2`
 - **Função:** Simula um agente de suporte
 - **Status:** Online (sempre)
@@ -23,6 +25,7 @@ O sistema inclui **3 bots simulados** que podem ser encontrados no chat. Eles ap
 - **Avatar:** Bot Support customizado
 
 ### 3. 💼 **Bot Manager**
+
 - **ID:** `bot-3`
 - **Função:** Simula um gerenciador/admin
 - **Status:** Online (sempre)
@@ -61,6 +64,7 @@ Acesse: `http://localhost:5173`
 ```
 
 **Ou busque diretamente:**
+
 1. Use o campo de busca de contatos
 2. Digite "Bot" ou "bot"
 3. Os bots aparecerão na lista
@@ -78,6 +82,7 @@ Acesse: `http://localhost:5173`
 3. Clique em um dos botões
 
 **Exemplo:**
+
 ```
 Chat Page > 🤖 Bot Trader > [☎️ ou 📹]
 ```
@@ -90,6 +95,7 @@ Assim que você clica para fazer uma chamada:
 
 1. **Modal aparece:** "Bot Trader está tentando fazer contato"
 2. **Dois botões:**
+
    - 🔴 **Rejeitar** - Encerra a chamada
    - 🟢 **Aceitar** - Inicia a chamada
 
@@ -102,6 +108,7 @@ Assim que você clica para fazer uma chamada:
 Depois que aceita (ou o bot aceita):
 
 1. **CallModal abre** com:
+
    - Nome do contato (Bot Trader)
    - Avatar do bot
    - Timer de duração
@@ -109,6 +116,7 @@ Depois que aceita (ou o bot aceita):
    - Vídeo: Área para vídeo remoto + vídeo local
 
 2. **Controles disponíveis:**
+
    - 🎤 **Mute/Unmute** - Desabilitar áudio
    - 📹 **Camera** (vídeo only) - Ligar/desligar câmera
    - 🔊 **Volume** - Controlar volume
@@ -123,11 +131,13 @@ Depois que aceita (ou o bot aceita):
 **Opções:**
 
 1. **Botão vermelho 📞 (End Call)**
+
    - Clique no botão de encerramento
    - Modal fecha automaticamente
    - Volta para o chat normal
 
 2. **Botão X no header**
+
    - Fecha o modal
    - Encerra a chamada
 
@@ -156,6 +166,7 @@ Depois que aceita (ou o bot aceita):
 ```
 
 **Resultado Esperado:** ✅
+
 - Modal abre
 - Duração incrementa
 - Botão responde ao click
@@ -180,6 +191,7 @@ Depois que aceita (ou o bot aceita):
 ```
 
 **Resultado Esperado:** ✅
+
 - Modal abre com área de vídeo
 - Todos os 4 botões funcionam
 - Botão de vídeo fica vermelho quando desativado
@@ -198,6 +210,7 @@ Depois que aceita (ou o bot aceita):
 ```
 
 **Resultado Esperado:** ✅
+
 - Modal fecha
 - Nenhuma chamada ativa
 - Volta para chat normal
@@ -216,6 +229,7 @@ Depois que aceita (ou o bot aceita):
 ```
 
 **Resultado Esperado:** ✅
+
 - 50% de chance: Bot aceita e CallModal abre
 - 50% de chance: Você precisa aceitar manualmente
 
@@ -270,6 +284,7 @@ Você deve ver logs como:
 ### ❌ Bots não aparecem na lista
 
 **Solução:**
+
 1. Limpe cache: `Ctrl+Shift+R` (Windows) ou `Cmd+Shift+R` (Mac)
 2. Feche DevTools (F12)
 3. Recarregue a página
@@ -280,6 +295,7 @@ Você deve ver logs como:
 ### ❌ Modal não abre ao clicar no bot
 
 **Solução:**
+
 1. Abra Console (F12)
 2. Clique no bot
 3. Procure por erros em vermelho
@@ -291,6 +307,7 @@ Você deve ver logs como:
 ### ❌ Controles não respondem
 
 **Solução:**
+
 1. Clique fora do modal e volte
 2. Verifique se CallModal está renderizado (DevTools → React)
 3. Verifique console por erros
@@ -301,6 +318,7 @@ Você deve ver logs como:
 ### ❌ Timer não incrementa
 
 **Solução:**
+
 1. Verifique console por erros
 2. Abra DevTools e veja `callDuration` incrementando
 3. Pode ser que a chamada foi rejeitada
@@ -313,6 +331,7 @@ Você deve ver logs como:
 Para simular um cenário mais realista:
 
 1. **Navegador 1 (User A):**
+
    - Abrir `http://localhost:5173`
    - Login com usuário A
    - Iniciar chamada com Bot
@@ -345,16 +364,16 @@ Para simular um cenário mais realista:
 
 ## 📊 Métricas de Sucesso
 
-| Métrica | Esperado | Status |
-|---------|----------|--------|
-| Bots aparecem na lista | 3 bots visíveis | ✅ |
-| Chamada audio funciona | Modal abre | ✅ |
-| Chamada video funciona | Modal abre com vídeo | ✅ |
-| Controles funcionam | Respondem ao click | ✅ |
-| Timer funciona | Incrementa por segundo | ✅ |
-| Encerramento funciona | Modal fecha | ✅ |
-| Console sem erros | 0 erros | ✅ |
-| Performance | Build < 10s | ✅ |
+| Métrica                | Esperado               | Status |
+| ---------------------- | ---------------------- | ------ |
+| Bots aparecem na lista | 3 bots visíveis        | ✅     |
+| Chamada audio funciona | Modal abre             | ✅     |
+| Chamada video funciona | Modal abre com vídeo   | ✅     |
+| Controles funcionam    | Respondem ao click     | ✅     |
+| Timer funciona         | Incrementa por segundo | ✅     |
+| Encerramento funciona  | Modal fecha            | ✅     |
+| Console sem erros      | 0 erros                | ✅     |
+| Performance            | Build < 10s            | ✅     |
 
 ---
 
@@ -363,15 +382,18 @@ Para simular um cenário mais realista:
 Após confirmar que os bots funcionam:
 
 1. **Testar com usuários reais:**
+
    - Abrir 2 navegadores
    - User A chama User B
    - User B recebe e aceita
 
 2. **Testar WebRTC real:**
+
    - Verificar se streams de áudio/vídeo fluem
    - Testar em rede diferente (não localhost)
 
 3. **Testar integração com backend:**
+
    - Verificar se signaling funciona
    - Testar ICE candidates
    - Verificar SDP offers/answers

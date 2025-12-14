@@ -51,6 +51,7 @@ Verificar que audio e vídeo estão funcionando com bots.
 ## 🎬 O Que Você Deve Ver
 
 ### Audio Call
+
 ```
 ┌────────────────────────┐
 │ 🤖 Bot Trader   00:15  │
@@ -65,6 +66,7 @@ Verificar que audio e vídeo estão funcionando com bots.
 ```
 
 ### Video Call
+
 ```
 ┌────────────────────────┐
 │ 🤖 Bot Trader   00:15  │
@@ -84,6 +86,7 @@ Verificar que audio e vídeo estão funcionando com bots.
 ## 🔍 Console (F12)
 
 ### Audio Call - Logs Esperados
+
 ```
 📞 Iniciando chamada de voz com: Bot Trader
 🎤 Solicitando permissões de mídia: audio
@@ -91,6 +94,7 @@ Verificar que audio e vídeo estão funcionando com bots.
 ```
 
 ### Video Call - Logs Esperados
+
 ```
 📹 Iniciando chamada de vídeo com: Bot Trader
 🎤 Solicitando permissões de mídia: video
@@ -104,17 +108,20 @@ Verificar que audio e vídeo estão funcionando com bots.
 ## ⚠️ Se Não Funcionar
 
 ### Problema 1: "Câmera não aparece"
+
 - Feche outros apps (Zoom, Teams, etc)
 - Recarregue a página (Ctrl+R)
 - Tente novamente
 
 ### Problema 2: "Permissão negada"
+
 - Abra browser settings
 - Privacy & Security > Camera
 - Permita para localhost:5173
 - Reload
 
 ### Problema 3: "Console com erro"
+
 - Abra DevTools (F12)
 - Vá para Console
 - Procure erro em vermelho

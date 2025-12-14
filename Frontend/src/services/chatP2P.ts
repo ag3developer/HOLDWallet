@@ -90,10 +90,12 @@ class ChatP2PService {
   private maxReconnectAttempts = 5
   private reconnectInterval = 3000
   private isConnecting = false
-  
+
   // Event listeners
   private messageListeners: ((message: ChatMessageP2P) => void)[] = []
-  private statusListeners: ((status: 'connected' | 'disconnected' | 'connecting' | 'error') => void)[] = []
+  private statusListeners: ((
+    status: 'connected' | 'disconnected' | 'connecting' | 'error'
+  ) => void)[] = []
   private typingListeners: ((data: { user_id: string; is_typing: boolean }) => void)[] = []
   private connectionEstablishedListeners: ((data: any) => void)[] = []
 
@@ -120,7 +122,7 @@ class ChatP2PService {
       // URL do WebSocket com autenticação JWT
       const wsBaseUrl = APP_CONFIG.api.wsUrl || 'ws://localhost:8000'
       const wsUrl = `${wsBaseUrl}/api/v1/chat/ws/${chatRoomId}?token=${encodeURIComponent(token)}`
-      
+
       console.log(`🔌 Connecting to P2P Chat WebSocket: ${chatRoomId}`)
       this.ws = new WebSocket(wsUrl)
 
@@ -131,7 +133,7 @@ class ChatP2PService {
         this.notifyStatus('connected')
       }
 
-      this.ws.onmessage = (event) => {
+      this.ws.onmessage = event => {
         try {
           const data = JSON.parse(event.data)
           this.handleMessage(data)
@@ -140,18 +142,18 @@ class ChatP2PService {
         }
       }
 
-      this.ws.onclose = (event) => {
+      this.ws.onclose = event => {
         console.log('🔌 P2P Chat WebSocket disconnected', event.code, event.reason)
         this.isConnecting = false
         this.notifyStatus('disconnected')
-        
+
         // Tentar reconectar se não foi fechamento intencional
         if (event.code !== 1000 && this.currentRoomId) {
           this.handleReconnect(chatRoomId, token)
         }
       }
 
-      this.ws.onerror = (error) => {
+      this.ws.onerror = error => {
         console.error('❌ P2P Chat WebSocket error:', error)
         this.isConnecting = false
         this.notifyStatus('error')
@@ -190,7 +192,7 @@ class ChatP2PService {
 
       case 'typing':
         // Alguém está digitando
-        this.typingListeners.forEach(listener => 
+        this.typingListeners.forEach(listener =>
           listener({ user_id: data.user_id, is_typing: data.is_typing })
         )
         break
@@ -219,8 +221,10 @@ class ChatP2PService {
   private handleReconnect(chatRoomId: string, token: string): void {
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       this.reconnectAttempts++
-      console.log(`🔄 Attempting to reconnect... (${this.reconnectAttempts}/${this.maxReconnectAttempts})`)
-      
+      console.log(
+        `🔄 Attempting to reconnect... (${this.reconnectAttempts}/${this.maxReconnectAttempts})`
+      )
+
       setTimeout(() => {
         this.connectToRoom(chatRoomId, token).catch(error => {
           console.error('❌ Reconnection failed:', error)
@@ -263,7 +267,7 @@ class ChatP2PService {
     const message = {
       type: 'message',
       content,
-      attachments: []
+      attachments: [],
     }
 
     this.ws.send(JSON.stringify(message))
@@ -292,8 +296,8 @@ class ChatP2PService {
               data: base64Audio,
               size: audioBlob.size,
               timestamp: new Date().toISOString(),
-            }
-          ]
+            },
+          ],
         }
 
         try {
@@ -322,7 +326,7 @@ class ChatP2PService {
 
     const message = {
       type: 'typing',
-      is_typing: isTyping
+      is_typing: isTyping,
     }
 
     this.ws.send(JSON.stringify(message))
@@ -344,7 +348,11 @@ class ChatP2PService {
   /**
    * Criar sala de chat para transação P2P
    */
-  async createChatRoom(matchId: string, buyerId: string, sellerId: string): Promise<CreateChatRoomResponse> {
+  async createChatRoom(
+    matchId: string,
+    buyerId: string,
+    sellerId: string
+  ): Promise<CreateChatRoomResponse> {
     const formData = new FormData()
     formData.append('buyer_id', buyerId)
     formData.append('seller_id', sellerId)
@@ -359,11 +367,15 @@ class ChatP2PService {
   /**
    * Obter histórico de mensagens
    */
-  async getChatHistory(chatRoomId: string, limit: number = 50, offset: number = 0): Promise<ChatHistoryResponse> {
+  async getChatHistory(
+    chatRoomId: string,
+    limit: number = 50,
+    offset: number = 0
+  ): Promise<ChatHistoryResponse> {
     const response = await apiClient.get<ChatHistoryResponse>(
       `/api/v1/chat/rooms/${chatRoomId}/history`,
       {
-        params: { limit, offset }
+        params: { limit, offset },
       }
     )
     return response.data
@@ -373,8 +385,8 @@ class ChatP2PService {
    * Upload de arquivo (comprovante de pagamento)
    */
   async uploadFile(
-    chatRoomId: string, 
-    file: File, 
+    chatRoomId: string,
+    file: File,
     messageContent: string = '',
     onProgress?: (progress: number) => void
   ): Promise<FileUploadResult> {
@@ -387,14 +399,14 @@ class ChatP2PService {
       formData,
       {
         headers: {
-          'Content-Type': 'multipart/form-data'
+          'Content-Type': 'multipart/form-data',
         },
-        onUploadProgress: (progressEvent) => {
+        onUploadProgress: progressEvent => {
           if (onProgress && progressEvent.total) {
             const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total)
             onProgress(progress)
           }
-        }
+        },
       }
     )
 
@@ -405,32 +417,22 @@ class ChatP2PService {
    * Baixar arquivo
    */
   async downloadFile(fileId: string): Promise<Blob> {
-    const response = await apiClient.get<Blob>(
-      `/api/v1/chat/files/${fileId}/download`,
-      {
-        responseType: 'blob'
-      }
-    )
+    const response = await apiClient.get<Blob>(`/api/v1/chat/files/${fileId}/download`, {
+      responseType: 'blob',
+    })
     return response.data
   }
 
   /**
    * Criar disputa
    */
-  async createDispute(
-    matchId: string,
-    reason: string,
-    evidenceMessages: string[]
-  ): Promise<any> {
+  async createDispute(matchId: string, reason: string, evidenceMessages: string[]): Promise<any> {
     const formData = new FormData()
     formData.append('match_id', matchId)
     formData.append('reason', reason)
     evidenceMessages.forEach(msg => formData.append('evidence_messages', msg))
 
-    const response = await apiClient.post(
-      `/api/v1/chat/disputes/create`,
-      formData
-    )
+    const response = await apiClient.post(`/api/v1/chat/disputes/create`, formData)
     return response.data
   }
 
@@ -448,9 +450,7 @@ class ChatP2PService {
    * Confirmar pagamento
    */
   async confirmPayment(tradeId: string): Promise<any> {
-    const response = await apiClient.post(
-      `/p2p/trades/${tradeId}/confirm-payment`
-    )
+    const response = await apiClient.post(`/p2p/trades/${tradeId}/confirm-payment`)
     return response.data
   }
 
@@ -458,10 +458,7 @@ class ChatP2PService {
    * Cancelar trade
    */
   async cancelTrade(tradeId: string, reason: string): Promise<any> {
-    const response = await apiClient.post(
-      `/p2p/trades/${tradeId}/cancel`,
-      { reason }
-    )
+    const response = await apiClient.post(`/p2p/trades/${tradeId}/cancel`, { reason })
     return response.data
   }
 
@@ -481,7 +478,9 @@ class ChatP2PService {
   /**
    * Registrar listener para status da conexão
    */
-  onStatus(callback: (status: 'connected' | 'disconnected' | 'connecting' | 'error') => void): () => void {
+  onStatus(
+    callback: (status: 'connected' | 'disconnected' | 'connecting' | 'error') => void
+  ): () => void {
     this.statusListeners.push(callback)
     return () => {
       const index = this.statusListeners.indexOf(callback)

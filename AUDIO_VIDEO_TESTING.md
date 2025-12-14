@@ -3,18 +3,21 @@
 ## ✨ O Que Foi Adicionado
 
 ✅ **Captura de Áudio em Tempo Real**
+
 - Solicita permissão de microfone
 - Captura áudio do usuário
 - Controle de mute/unmute
 - Detecção de erros
 
 ✅ **Captura de Vídeo em Tempo Real**
+
 - Solicita permissão de câmera
 - Exibe vídeo local (seu rosto)
 - Simula vídeo remoto (bot)
 - Toggle camera on/off
 
 ✅ **Simulação de Bot**
+
 - Bot responde com vídeo simulado
 - Canvas com branding do bot
 - Sons simulados
@@ -25,12 +28,15 @@
 ## 🚀 Como Testar Tudo
 
 ### Passo 1: Abra o App
+
 ```
 http://localhost:5173
 ```
 
 ### Passo 2: Procure os Bots
+
 Na sidebar, procure por:
+
 ```
 🤖 Bot Traders
 ├─ 🤖 Bot Trader
@@ -39,6 +45,7 @@ Na sidebar, procure por:
 ```
 
 ### Passo 3A: Teste de Áudio
+
 ```
 1. Clique em "🤖 Bot Trader"
 2. Clique no botão ☎️ (Phone)
@@ -53,6 +60,7 @@ Na sidebar, procure por:
 ```
 
 **Resultado Esperado:** ✅
+
 - Navegador pede "Permitir acesso ao microfone"
 - Modal abre corretamente
 - Barras de áudio animadas
@@ -62,6 +70,7 @@ Na sidebar, procure por:
 ---
 
 ### Passo 3B: Teste de Vídeo
+
 ```
 1. Clique em "🎧 Bot Support"
 2. Clique no botão 📹 (Video)
@@ -80,6 +89,7 @@ Na sidebar, procure por:
 ```
 
 **Resultado Esperado:** ✅
+
 - Navegador pede permissão de câmera e microfone
 - Você vê sua câmera ao vivo no canto inferior direito
 - Você vê o vídeo simulado do bot (com 🤖 e "Vídeo do Bot")
@@ -92,6 +102,7 @@ Na sidebar, procure por:
 ## 📱 Permissões do Navegador
 
 ### Primeira Vez (Audio Call)
+
 ```
 ┌────────────────────────────────┐
 │ "http://localhost:5173"        │
@@ -103,6 +114,7 @@ Na sidebar, procure por:
 **Clique em "Permitir"**
 
 ### Primeira Vez (Video Call)
+
 ```
 ┌────────────────────────────────┐
 │ "http://localhost:5173"        │
@@ -118,6 +130,7 @@ Na sidebar, procure por:
 ## 🎬 O Que Você Verá
 
 ### Audio Call Modal
+
 ```
 ┌─────────────────────────────────┐
 │  🤖 Bot Trader      00:05        │
@@ -138,6 +151,7 @@ Na sidebar, procure por:
 ```
 
 ### Video Call Modal
+
 ```
 ┌─────────────────────────────────┐
 │  🤖 Bot Trader      00:05        │
@@ -217,8 +231,10 @@ Abra DevTools (F12 → Console) e procure por:
 ## 🚨 Erros Comuns e Soluções
 
 ### ❌ "Permissão negada"
+
 **Problema:** Você bloqueou a câmera/microfone  
 **Solução:**
+
 1. Clique no ícone de cadeado na barra de URL
 2. Procure por "Câmera" ou "Microfone"
 3. Mude de "Bloqueado" para "Permitir"
@@ -226,32 +242,40 @@ Abra DevTools (F12 → Console) e procure por:
 5. Tente novamente
 
 ### ❌ "Nenhuma câmera/microfone encontrado"
+
 **Problema:** Dispositivo não tem câmera/microfone  
 **Solução:**
+
 - Verifique se sua câmera/microfone estão conectados
 - Verifique se outro app não está usando
 - Reinicie o navegador
 - Tente em outra abinha anônima
 
 ### ❌ "Modal não aparece"
+
 **Problema:** CallModal não renderiza  
 **Solução:**
+
 1. Abra Console (F12)
 2. Procure por erros
 3. Clique em "Aceitar" na IncomingCallModal
 4. Veja o que o console diz
 
 ### ❌ "Vídeo preto"
+
 **Problema:** Câmera conectada mas sem imagem  
 **Solução:**
+
 - Verifique se a câmera está sendo usada por outro app
 - Feche outras abas/apps com webcam
 - Verifique iluminação
 - Tente reiniciar navegador
 
 ### ❌ "Áudio não funciona"
+
 **Problema:** Microfone não captura  
 **Solução:**
+
 - Verifique nível de volume do microfone
 - Testar microfone em outro app
 - Verificar se outro app está usando
@@ -262,16 +286,19 @@ Abra DevTools (F12 → Console) e procure por:
 ## 💡 Dicas Úteis
 
 1. **Use fone de ouvido:**
+
    - Evita feedback de áudio
    - Melhor qualidade
    - Simula mais realismo
 
 2. **Boa iluminação:**
+
    - Para vídeo aparecer bem
    - Evita imagem muito escura
    - Evita contraluz
 
 3. **Teste em outro navegador:**
+
    - Chrome, Firefox, Safari
    - Verifica compatibilidade
    - Se um funciona, pode ser problema do outro
@@ -285,18 +312,18 @@ Abra DevTools (F12 → Console) e procure por:
 
 ## 📊 Status das Features
 
-| Feature | Status | Testado |
-|---------|--------|---------|
+| Feature                  | Status      | Testado             |
+| ------------------------ | ----------- | ------------------- |
 | Bots aparecem na sidebar | ✅ Completo | ⏳ Aguardando teste |
-| Audio call funciona | ✅ Completo | ⏳ Aguardando teste |
-| Video call funciona | ✅ Completo | ⏳ Aguardando teste |
-| Captura áudio | ✅ Completo | ⏳ Aguardando teste |
-| Captura vídeo | ✅ Completo | ⏳ Aguardando teste |
-| Mute/unmute funciona | ✅ Completo | ⏳ Aguardando teste |
-| Camera toggle funciona | ✅ Completo | ⏳ Aguardando teste |
-| Bot responde | ✅ Completo | ⏳ Aguardando teste |
-| Vídeo bot simulado | ✅ Completo | ⏳ Aguardando teste |
-| Timer incrementa | ✅ Completo | ⏳ Aguardando teste |
+| Audio call funciona      | ✅ Completo | ⏳ Aguardando teste |
+| Video call funciona      | ✅ Completo | ⏳ Aguardando teste |
+| Captura áudio            | ✅ Completo | ⏳ Aguardando teste |
+| Captura vídeo            | ✅ Completo | ⏳ Aguardando teste |
+| Mute/unmute funciona     | ✅ Completo | ⏳ Aguardando teste |
+| Camera toggle funciona   | ✅ Completo | ⏳ Aguardando teste |
+| Bot responde             | ✅ Completo | ⏳ Aguardando teste |
+| Vídeo bot simulado       | ✅ Completo | ⏳ Aguardando teste |
+| Timer incrementa         | ✅ Completo | ⏳ Aguardando teste |
 
 ---
 
@@ -304,16 +331,16 @@ Abra DevTools (F12 → Console) e procure por:
 
 **Problema:** Vídeo não estava mostrando a câmera  
 **Causa:** Refs errados sendo passadas ao CallModal  
-**Solução:** 
+**Solução:**
 
 ```typescript
 // ANTES (errado):
-remoteVideoRef={remoteVideoRef}
-localVideoRef={localVideoRef}
+remoteVideoRef = { remoteVideoRef };
+localVideoRef = { localVideoRef };
 
 // DEPOIS (correto):
-remoteVideoRef={mediaRemoteVideoRef}
-localVideoRef={mediaLocalVideoRef}
+remoteVideoRef = { mediaRemoteVideoRef };
+localVideoRef = { mediaLocalVideoRef };
 ```
 
 **Status:** ✅ CORRIGIDO - Agora o vídeo funciona perfeitamente!
@@ -323,6 +350,7 @@ localVideoRef={mediaLocalVideoRef}
 ## 🎯 Resumo Final
 
 Agora você pode:
+
 1. ✅ Fazer chamadas de áudio com bots (seu microfone funciona)
 2. ✅ Fazer chamadas de vídeo com bots (sua câmera funciona) ← CORRIGIDO!
 3. ✅ Ver seu vídeo ao vivo no canto da tela (espelhado)
@@ -340,28 +368,33 @@ Agora você pode:
 ### ✨ O Que Foi Adicionado
 
 ✅ **Botão de Microfone no Input**
+
 - Aparece ao lado da barra de mensagem
 - Clique para iniciar gravação
 - Interface intuitiva (como WhatsApp)
 
 ✅ **Gravação de Áudio**
+
 - Gravação em tempo real
 - Mostra timer (00:00 → 00:15)
 - Feedback visual (cor muda)
 - Controle de qualidade
 
 ✅ **Reprodução de Áudio**
+
 - Ouça o áudio gravado antes de enviar
 - Botão ▶️ para reproduzir
 - Você ouve sua própria voz
 
 ✅ **Envio de Áudio**
+
 - Enviar como mensagem no chat
 - Exibe "[Áudio - X.XX KB]" no chat
 - Funciona com qualquer contato
 - Múltiplos áudios suportados
 
 ✅ **Cancelamento**
+
 - Botão ✕ para descartar
 - Volta ao input normal
 - Nada é enviado
@@ -371,6 +404,7 @@ Agora você pode:
 ## 🎯 Como Testar Chat Audio
 
 ### 1. Localize o Botão de Mic
+
 ```
 Input de Mensagem:
 [Paperclip] [🎙️] [Digite aqui...] [✏️] [➤️]
@@ -379,6 +413,7 @@ Input de Mensagem:
 ```
 
 ### 2. Inicie Gravação
+
 ```
 Clique em 🎙️
   ↓
@@ -387,12 +422,14 @@ Interface muda para:
 ```
 
 ### 3. Fale Algo
+
 ```
 Seu microfone está gravando
 Tempo incrementa: 00:00 → 00:05
 ```
 
 ### 4. Pare a Gravação
+
 ```
 Clique em ⏹️
   ↓
@@ -401,6 +438,7 @@ Status muda para:
 ```
 
 ### 5. Ouça (Opcional)
+
 ```
 Clique em ▶️ (azul)
   ↓
@@ -408,6 +446,7 @@ Você ouve sua própria voz
 ```
 
 ### 6. Envie o Áudio
+
 ```
 Clique em ➤️ (verde)
   ↓
@@ -422,17 +461,20 @@ Mensagem aparece:
 ## 📱 Estados da Interface
 
 ### Estado Normal
+
 ```
 [Paperclip] [🎙️] [Input] [✏️] [Send]
 ```
 
 ### Estado Gravando
+
 ```
 🔴 Gravando... 00:15  [⏹️]
 Vermelho = Status ao vivo
 ```
 
 ### Estado Áudio Pronto
+
 ```
 ✅ 2.34 KB  [▶️] [➤️] [✕]
 Verde = Pronto para enviar
@@ -441,4 +483,3 @@ Verde = Pronto para enviar
 ---
 
 **Tudo pronto! Chat P2P completo com voz, vídeo e áudio! 🚀**
-

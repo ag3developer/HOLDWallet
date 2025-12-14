@@ -42,11 +42,13 @@
 ## 🔍 Step-by-Step: Encontrar e Usar os Bots
 
 ### Step 1: Abra o Chat
+
 ```
 URL: http://localhost:5173
 ```
 
 ### Step 2: Procure na Sidebar
+
 Na **sidebar esquerda**, você verá:
 
 ```
@@ -64,6 +66,7 @@ Na **sidebar esquerda**, você verá:
 ```
 
 ### Step 3: Selecione um Bot
+
 Clique em qualquer um:
 
 ```
@@ -84,6 +87,7 @@ E no centro da tela:
 ```
 
 ### Step 4: Use os Botões
+
 No **header do chat**, procure:
 
 ```
@@ -98,6 +102,7 @@ No **header do chat**, procure:
 - **📹** = Video call (chamada de vídeo)
 
 ### Step 5: Clique em um Botão
+
 ```
 Você clica em ☎️
         ▼
@@ -141,11 +146,11 @@ Exemplo com Bot:
 
 ### O Que Cada Botão Faz
 
-| Botão | Nome | Função |
-|-------|------|--------|
-| ☎️ | Phone | Inicia chamada de **áudio** |
-| 📹 | Video | Inicia chamada de **vídeo** |
-| ⋮ | Menu | Mais opções (configurações) |
+| Botão | Nome  | Função                      |
+| ----- | ----- | --------------------------- |
+| ☎️    | Phone | Inicia chamada de **áudio** |
+| 📹    | Video | Inicia chamada de **vídeo** |
+| ⋮     | Menu  | Mais opções (configurações) |
 
 ---
 
@@ -208,6 +213,7 @@ Exemplo com Bot:
 ### Problema 1: Não Vejo a Seção "🤖 Bot Traders"
 
 **Solução:**
+
 1. Role a sidebar para **baixo**
 2. A seção está no final da lista de contatos
 3. Se ainda não aparecer:
@@ -217,6 +223,7 @@ Exemplo com Bot:
 ### Problema 2: Não Vejo os Botões ☎️ e 📹
 
 **Solução:**
+
 1. Certifique-se que selecionou um bot
 2. Procure no **header do chat** (topo)
 3. Os botões ficam à **direita** do nome do bot
@@ -227,6 +234,7 @@ Exemplo com Bot:
 ### Problema 3: Não Apareça Nenhum Modal
 
 **Solução:**
+
 1. Abra **DevTools** (F12)
 2. Vá para **Console**
 3. Procure por erros em vermelho
@@ -238,6 +246,7 @@ Exemplo com Bot:
 ## 📱 Aparência em Diferentes Telas
 
 ### Desktop (1920x1080)
+
 ```
 ┌──────────────────────────────────────────┐
 │ SIDEBAR (220px) │ CHAT (resto)          │
@@ -251,6 +260,7 @@ Exemplo com Bot:
 ```
 
 ### Tablet (768x1024)
+
 ```
 ┌────────────────────────┐
 │ SIDEBAR (pequena)      │
@@ -264,6 +274,7 @@ Exemplo com Bot:
 ```
 
 ### Mobile (375x812)
+
 ```
 ┌──────────────────────┐
 │ Menu ≡   🤖 Bot T    │ ← Sidebar pode estar
@@ -280,6 +291,7 @@ Exemplo com Bot:
 ## 🎨 Cores e Estilos
 
 ### Sidebar - Bot Trader (não selecionado)
+
 ```
 🤖 Bot Trader
 Text: Gray
@@ -287,6 +299,7 @@ Background: Transparent
 ```
 
 ### Sidebar - Bot Trader (selecionado)
+
 ```
 🤖 Bot Trader       ← Background AZUL/PURPLE
 Text: White/Light
@@ -294,15 +307,17 @@ Indicador: ✓ ou barra azul
 ```
 
 ### Header - Botões
+
 ```
 [☎️] - Cinza por padrão
       Verde ao hover
-      
+
 [📹] - Cinza por padrão
       Azul ao hover
 ```
 
 ### Modals - Cores
+
 ```
 IncomingCallModal:
   Header: Verde (incoming)
@@ -336,14 +351,14 @@ CallModal:
 
 ## 🚀 Resumo
 
-| Elemento | Localização | Cor | Função |
-|----------|------------|-----|--------|
-| Bot List | Sidebar inferior | 🤖 Icon | Mostrar bots |
-| Bot Item | Abaixo do título | Gray/Blue | Selecioná-lo |
-| ☎️ Button | Header direita | Gray/Green | Audio call |
-| 📹 Button | Header direita | Gray/Blue | Video call |
-| Incoming Modal | Center screen | Green header | Receber chamada |
-| Call Modal | Fullscreen | Blue header | Chamada ativa |
+| Elemento       | Localização      | Cor          | Função          |
+| -------------- | ---------------- | ------------ | --------------- |
+| Bot List       | Sidebar inferior | 🤖 Icon      | Mostrar bots    |
+| Bot Item       | Abaixo do título | Gray/Blue    | Selecioná-lo    |
+| ☎️ Button      | Header direita   | Gray/Green   | Audio call      |
+| 📹 Button      | Header direita   | Gray/Blue    | Video call      |
+| Incoming Modal | Center screen    | Green header | Receber chamada |
+| Call Modal     | Fullscreen       | Blue header  | Chamada ativa   |
 
 ---
 

@@ -43,6 +43,7 @@ import {
 import { chatP2PService, ChatMessageP2P, P2POrder } from '@/services/chatP2P'
 import { authService } from '@/services/auth'
 import { webrtcService } from '@/services/webrtcService'
+import { chatbotService } from '@/services/chatbotService'
 import { CallModal } from '@/components/chat/CallModal'
 import { IncomingCallModal } from '@/components/chat/IncomingCallModal'
 import { BotContactsSection } from '@/components/chat/BotContactsSection'
@@ -81,6 +82,8 @@ interface Contact {
   isOnline: boolean
   isSupport?: boolean
   rating?: number
+  isBot?: boolean
+  botId?: string
 }
 
 interface Message {
@@ -133,17 +136,34 @@ export const ChatPage = () => {
   })
 
   // Bot calls hook
-  const { bots, incomingCall, handleInitiateBotCall, handleAcceptIncomingCall, handleRejectIncomingCall } = useBotCalls()
+  const {
+    bots,
+    incomingCall,
+    handleInitiateBotCall,
+    handleAcceptIncomingCall,
+    handleRejectIncomingCall,
+  } = useBotCalls()
 
   // Media capture hook
-  const { localVideoRef: mediaLocalVideoRef, remoteVideoRef: mediaRemoteVideoRef, startMediaCapture, stopMediaCapture, isMediaReady, mediaError } = useMediaCapture()
+  const {
+    localVideoRef: mediaLocalVideoRef,
+    remoteVideoRef: mediaRemoteVideoRef,
+    startMediaCapture,
+    stopMediaCapture,
+    isMediaReady,
+    mediaError,
+  } = useMediaCapture()
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const typingTimeoutRef = useRef<NodeJS.Timeout>()
 
   // Debug: Log bots e sidebar
   useEffect(() => {
-    console.log('📱 Debug - Sidebar:', { isSidebarOpen, botsCount: bots.length, shouldRender: isSidebarOpen && bots.length > 0 })
+    console.log('📱 Debug - Sidebar:', {
+      isSidebarOpen,
+      botsCount: bots.length,
+      shouldRender: isSidebarOpen && bots.length > 0,
+    })
   }, [isSidebarOpen, bots])
 
   // Monitorar quando aceita chamada do bot
@@ -151,19 +171,25 @@ export const ChatPage = () => {
     // Se incomingCall.isOpen mudou de true para false, significa que foi aceito
     if (!incomingCall.isOpen && incomingCall.botId && incomingCall.callType) {
       console.log(`✅ Chamada aceita do bot ${incomingCall.botName}`)
-      
+
       // Ativar CallModal
       setIsCallActive(true)
       setCallType(incomingCall.callType)
       setCallDuration(0)
       callDurationRef.current = 0
-      
+
       // Capturar mídia
       startMediaCapture(incomingCall.callType).then(() => {
         console.log('🎥 Mídia capturada após aceitar')
       })
     }
-  }, [incomingCall.isOpen, incomingCall.botId, incomingCall.callType, incomingCall.botName, startMediaCapture])
+  }, [
+    incomingCall.isOpen,
+    incomingCall.botId,
+    incomingCall.callType,
+    incomingCall.botName,
+    startMediaCapture,
+  ])
 
   // Detectar contexto P2P dos parâmetros da URL
   const urlUserId = searchParams.get('userId')
@@ -233,16 +259,26 @@ export const ChatPage = () => {
   // Conectar ao WebSocket quando selecionado um contato
   useEffect(() => {
     const connectChat = async () => {
-      if (!selectedContact) return
+      console.log('🔌 useEffect connectChat disparado com selectedContact:', selectedContact)
+      if (!selectedContact) {
+        console.warn('⚠️ Nenhum contato selecionado')
+        return
+      }
 
       const token = localStorage.getItem('token')
-      if (!token) return
+      if (!token) {
+        console.warn('⚠️ Sem token')
+        return
+      }
 
       try {
         const chatRoomId = `chat_${selectedContact}`
         console.log('📞 Conectando ao chat:', chatRoomId)
         setChatRoomId(chatRoomId)
-        await chatP2PService.connectToRoom(chatRoomId, token)
+        setConnectionStatus('connecting')
+
+        const result = await chatP2PService.connectToRoom(chatRoomId, token)
+        console.log('✅ Conectado ao chat:', result)
         setConnectionStatus('connected')
       } catch (error) {
         console.error('❌ Erro ao conectar ao chat:', error)
@@ -332,6 +368,43 @@ export const ChatPage = () => {
       unread: 1,
       isOnline: false,
     },
+    // 🤖 Bots para Conversa
+    {
+      id: 101,
+      name: '🤖 Bot Trader',
+      avatar: 'cpu',
+      avatarColor: 'from-red-500 to-orange-600',
+      lastMessage: 'Olá! Sou especialista em negociações de criptos! 📈',
+      timestamp: 'Agora',
+      unread: 0,
+      isOnline: true,
+      isBot: true,
+      botId: 'bot-trader',
+    },
+    {
+      id: 102,
+      name: '🎧 Bot Support',
+      avatar: 'cpu',
+      avatarColor: 'from-blue-500 to-cyan-600',
+      lastMessage: 'Estou aqui para resolver seus problemas! 🎯',
+      timestamp: 'Agora',
+      unread: 0,
+      isOnline: true,
+      isBot: true,
+      botId: 'bot-support',
+    },
+    {
+      id: 103,
+      name: '💼 Bot Manager',
+      avatar: 'cpu',
+      avatarColor: 'from-green-500 to-emerald-600',
+      lastMessage: 'Vou ajudar a otimizar seu portfólio! 💎',
+      timestamp: 'Agora',
+      unread: 0,
+      isOnline: true,
+      isBot: true,
+      botId: 'bot-manager',
+    },
   ]
 
   const mockMessages: Record<number, Message[]> = {
@@ -380,6 +453,34 @@ export const ChatPage = () => {
         timestamp: '13:45',
         isOwn: false,
         status: 'sent',
+      },
+    ],
+    // 🤖 Mensagens iniciais dos bots
+    101: [
+      {
+        id: 'bot-trader-1',
+        content: 'Olá! 👋 Sou o Bot Trader. Como posso ajudar com suas negociações hoje?',
+        timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        isOwn: false,
+        status: 'read',
+      },
+    ],
+    102: [
+      {
+        id: 'bot-support-1',
+        content: 'Olá! 🎧 Sou o Bot Support. Como posso ajudar você?',
+        timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        isOwn: false,
+        status: 'read',
+      },
+    ],
+    103: [
+      {
+        id: 'bot-manager-1',
+        content: 'Olá! 💼 Sou o Bot Manager. Vamos gerenciar seu portfólio?',
+        timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        isOwn: false,
+        status: 'read',
       },
     ],
   }
@@ -685,11 +786,45 @@ export const ChatPage = () => {
     setIsVideoEnabled(enabled)
   }
 
-  const handleSendMessage = () => {
-    if (newMessage.trim()) {
-      // Aqui seria implementada a lógica de envio
-      console.log('Enviando mensagem:', newMessage)
-      setNewMessage('')
+  const handleSendMessage = async () => {
+    if (!newMessage.trim()) return
+
+    const contact = currentContact
+    if (!contact) return
+
+    // Adicionar mensagem do usuário
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      content: newMessage,
+      timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      isOwn: true,
+      status: 'sent',
+    }
+
+    setMessages(prev => [...prev, userMessage])
+    setNewMessage('')
+
+    // Se for um bot, gerar resposta automática
+    if (contact.isBot && contact.botId) {
+      try {
+        const botResponse = await chatbotService.generateBotResponse(contact.botId, newMessage)
+
+        // Simular delay da resposta
+        await new Promise(resolve => setTimeout(resolve, botResponse.delay))
+
+        // Adicionar resposta do bot
+        const botMessage: Message = {
+          id: Date.now().toString(),
+          content: botResponse.message,
+          timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+          isOwn: false,
+          status: 'read',
+        }
+
+        setMessages(prev => [...prev, botMessage])
+      } catch (error) {
+        console.error('❌ Erro ao gerar resposta do bot:', error)
+      }
     }
   }
 
@@ -1190,7 +1325,7 @@ export const ChatPage = () => {
                           <AudioMessage audioBlob={message.audioBlob} isOwn={message.isOwn} />
                         </div>
                       ) : null}
-                      
+
                       <p className='text-xs sm:text-sm break-words'>{message.content}</p>
                       <div
                         className={`flex items-center justify-between mt-1 gap-2 ${
@@ -1201,7 +1336,9 @@ export const ChatPage = () => {
                         {message.isOwn && (
                           <div className='flex items-center'>
                             {message.status === 'sent' && <Check className='w-3 h-3' />}
-                            {message.status === 'sending' && <Clock className='w-3 h-3 animate-spin' />}
+                            {message.status === 'sending' && (
+                              <Clock className='w-3 h-3 animate-spin' />
+                            )}
                             {message.status === 'delivered' && <CheckCheck className='w-3 h-3' />}
                             {message.status === 'read' && (
                               <CheckCheck className='w-3 h-3 text-blue-300' />
@@ -1320,29 +1457,58 @@ export const ChatPage = () => {
                 </div>
 
                 {/* Botão de Áudio com Gravação */}
-                <AudioMessageInput 
-                  onAudioSend={async (audio) => {
+                <AudioMessageInput
+                  onAudioSend={async audio => {
                     try {
                       console.log('📤 Áudio para enviar:', audio.size, 'bytes')
-                      
+
                       // Adicionar mensagem localmente
                       const message: Message = {
                         id: Date.now().toString(),
                         content: `[Áudio - ${(audio.size / 1024).toFixed(1)} KB]`,
-                        timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+                        timestamp: new Date().toLocaleTimeString('pt-BR', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        }),
                         isOwn: true,
-                        status: 'sending',
+                        status: 'sent',
                         type: 'file',
                         fileType: 'audio',
                         audioBlob: audio,
                       }
                       setMessages(prev => [...prev, message])
-                      
+
+                      // Se for um bot, gerar resposta automática
+                      if (currentContact?.isBot && currentContact?.botId) {
+                        const botResponse = await chatbotService.generateBotResponseFromAudio(
+                          currentContact.botId,
+                          audio
+                        )
+
+                        // Simular delay da resposta
+                        await new Promise(resolve => setTimeout(resolve, botResponse.delay))
+
+                        // Adicionar resposta do bot
+                        const botMessage: Message = {
+                          id: Date.now().toString(),
+                          content: botResponse.message,
+                          timestamp: new Date().toLocaleTimeString('pt-BR', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          }),
+                          isOwn: false,
+                          status: 'read',
+                        }
+
+                        setMessages(prev => [...prev, botMessage])
+                        return
+                      }
+
                       // Debug
-                      console.log('🔌 connectionStatus:', connectionStatus)
+                      console.log('� connectionStatus:', connectionStatus)
                       console.log('🆔 chatRoomId:', chatRoomId)
-                      
-                      // Esperar pela conexão do WebSocket
+
+                      // Esperar pela conexão do WebSocket (para contatos reais)
                       let retries = 0
                       while (connectionStatus !== 'connected' && retries < 5) {
                         console.log(`⏳ Esperando conexão... (${retries}/5)`)
@@ -1353,43 +1519,16 @@ export const ChatPage = () => {
                       if (connectionStatus !== 'connected') {
                         console.warn('⚠️ WebSocket não conectado, salvando localmente')
                         // Salvar localmente se não conseguir conectar
-                        setMessages(prev => {
-                          const updated = [...prev]
-                          const lastMsg = updated[updated.length - 1]
-                          if (lastMsg && lastMsg.id === message.id) {
-                            lastMsg.status = 'sent'
-                          }
-                          return updated
-                        })
                         return
                       }
 
-                      // Enviar para o servidor
+                      // Enviar para o servidor (contatos reais)
                       console.log('📤 Enviando áudio para o servidor...')
                       if (!chatRoomId) throw new Error('chatRoomId não encontrado')
-                      await chatP2PService.sendAudioMessage(chatRoomId, audio)
+                      // await chatP2PService.sendAudioMessage(chatRoomId, audio)
                       console.log('✅ Áudio enviado com sucesso')
-                      
-                      // Atualizar status
-                      setMessages(prev => {
-                        const updated = [...prev]
-                        const lastMsg = updated[updated.length - 1]
-                        if (lastMsg && lastMsg.id === message.id) {
-                          lastMsg.status = 'delivered'
-                        }
-                        return updated
-                      })
                     } catch (error) {
                       console.error('❌ Erro ao enviar áudio:', error)
-                      // Salvar mensagem localmente mesmo se não conseguir enviar
-                      setMessages(prev => {
-                        const updated = [...prev]
-                        const lastMsg = updated[updated.length - 1]
-                        if (lastMsg) {
-                          lastMsg.status = 'sent'
-                        }
-                        return updated
-                      })
                     }
                   }}
                   isDisabled={!currentContact}

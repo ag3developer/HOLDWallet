@@ -64,45 +64,45 @@ export function useBotCalls(): UseBotCallsResult {
   }, [bots, incomingCall.botId])
 
   // Iniciar chamada com bot (simular chamada recebida)
-  const handleInitiateBotCall = useCallback(
-    async (botId: string, callType: 'audio' | 'video') => {
-      try {
-        const bot = botUserService.getBot(botId)
-        if (!bot) {
-          throw new Error(`Bot ${botId} não encontrado`)
-        }
-
-        console.log(`📞 Iniciando chamada com ${bot.name}`)
-
-        // Simular chamada recebida do bot
-        await botUserService.simulateIncomingCall(botId, callType)
-
-        setIncomingCall(prev => ({
-          ...prev,
-          botId,
-          botName: bot.name,
-          callType,
-          isOpen: true,
-        }))
-
-        // 50% de chance do bot aceitar automaticamente
-        if (Math.random() > 0.5) {
-          setTimeout(async () => {
-            const callId = `call_bot_${Date.now()}`
-            await botUserService.acceptCall(callId)
-
-            // Simular fim da chamada após 10-30 segundos
-            setTimeout(() => {
-              botUserService.endCall(callId, Math.random() * 20 + 10)
-            }, Math.random() * 20000 + 10000)
-          }, 2000)
-        }
-      } catch (error) {
-        console.error('Erro ao iniciar chamada com bot:', error)
+  const handleInitiateBotCall = useCallback(async (botId: string, callType: 'audio' | 'video') => {
+    try {
+      const bot = botUserService.getBot(botId)
+      if (!bot) {
+        throw new Error(`Bot ${botId} não encontrado`)
       }
-    },
-    [],
-  )
+
+      console.log(`📞 Iniciando chamada com ${bot.name}`)
+
+      // Simular chamada recebida do bot
+      await botUserService.simulateIncomingCall(botId, callType)
+
+      setIncomingCall(prev => ({
+        ...prev,
+        botId,
+        botName: bot.name,
+        callType,
+        isOpen: true,
+      }))
+
+      // 50% de chance do bot aceitar automaticamente
+      if (Math.random() > 0.5) {
+        setTimeout(async () => {
+          const callId = `call_bot_${Date.now()}`
+          await botUserService.acceptCall(callId)
+
+          // Simular fim da chamada após 10-30 segundos
+          setTimeout(
+            () => {
+              botUserService.endCall(callId, Math.random() * 20 + 10)
+            },
+            Math.random() * 20000 + 10000
+          )
+        }, 2000)
+      }
+    } catch (error) {
+      console.error('Erro ao iniciar chamada com bot:', error)
+    }
+  }, [])
 
   // Aceitar chamada recebida
   const handleAcceptIncomingCall = useCallback(async () => {
@@ -120,9 +120,12 @@ export function useBotCalls(): UseBotCallsResult {
       await botUserService.acceptCall(callId)
 
       // Simular fim da chamada após 10-30 segundos
-      setTimeout(() => {
-        botUserService.endCall(callId, Math.random() * 20 + 10)
-      }, Math.random() * 20000 + 10000)
+      setTimeout(
+        () => {
+          botUserService.endCall(callId, Math.random() * 20 + 10)
+        },
+        Math.random() * 20000 + 10000
+      )
     } catch (error) {
       console.error('Erro ao aceitar chamada:', error)
     }

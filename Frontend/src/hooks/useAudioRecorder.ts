@@ -100,11 +100,11 @@ export function useAudioRecorder(): UseAudioRecorderResult {
       mediaRecorder.onstop = () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' })
         setRecordedAudio(audioBlob)
-        
+
         // Parar stream
         const tracks = streamRef.current?.getTracks() ?? []
         tracks.forEach(track => track.stop())
-        
+
         setIsRecording(false)
 
         if (recordingTimerRef.current) {

@@ -11,7 +11,16 @@ export interface AudioRecorderPanelProps {
 }
 
 export function AudioRecorderPanel({ onAudioSend }: AudioRecorderPanelProps) {
-  const { isRecording, recordedAudio, recordingTime, startRecording, stopRecording, playRecording, sendRecording, clearRecording } = useAudioRecorder()
+  const {
+    isRecording,
+    recordedAudio,
+    recordingTime,
+    startRecording,
+    stopRecording,
+    playRecording,
+    sendRecording,
+    clearRecording,
+  } = useAudioRecorder()
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60)
@@ -38,9 +47,13 @@ export function AudioRecorderPanel({ onAudioSend }: AudioRecorderPanelProps) {
       {/* Status */}
       <div className='text-xs text-gray-400 text-center'>
         {isRecording ? (
-          <span className='text-red-400 font-semibold'>🔴 Gravando... {formatTime(recordingTime)}</span>
+          <span className='text-red-400 font-semibold'>
+            🔴 Gravando... {formatTime(recordingTime)}
+          </span>
         ) : recordedAudio ? (
-          <span className='text-green-400 font-semibold'>✅ Áudio gravado ({(recordedAudio.size / 1024).toFixed(1)} KB)</span>
+          <span className='text-green-400 font-semibold'>
+            ✅ Áudio gravado ({(recordedAudio.size / 1024).toFixed(1)} KB)
+          </span>
         ) : (
           <span>🎙️ Nenhum áudio gravado</span>
         )}

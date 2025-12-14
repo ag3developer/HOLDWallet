@@ -13,7 +13,7 @@ Na **sidebar do chat**, procure por:
 ```
 🤖 Bot Traders
 ├─ 🤖 Bot Trader         ← Trader simulado
-├─ 🎧 Bot Support        ← Support simulado  
+├─ 🎧 Bot Support        ← Support simulado
 └─ 💼 Bot Manager        ← Manager simulado
 ```
 
@@ -24,13 +24,17 @@ Todos **online 24/7** e prontos para atender!
 ## 📞 Como Fazer Uma Chamada
 
 ### 1. Selecione um Bot
+
 Clique em qualquer bot na lista:
+
 ```
 🤖 Bot Traders > 🤖 Bot Trader
 ```
 
 ### 2. Escolha o Tipo
+
 No topo, você verá:
+
 ```
 [☎️ Phone]  [📹 Video]
 ```
@@ -39,7 +43,9 @@ No topo, você verá:
 - **📹 Video** = Audio + vídeo
 
 ### 3. Modal Aparece
+
 Você verá:
+
 ```
 ┌─────────────────────────┐
 │  🤖 Bot Trader          │
@@ -50,10 +56,13 @@ Você verá:
 ```
 
 ### 4. Aceitar a Chamada
+
 Clique em **"Aceitar"** (botão verde)
 
 ### 5. Chamada Ativa
+
 Abre a chamada com:
+
 - **Áudio:** Visualizador com barras animadas
 - **Vídeo:** Área de vídeo (remoto + local)
 - **Controles:**
@@ -64,6 +73,7 @@ Abre a chamada com:
 - **Timer:** Mostra duração (00:00 → 00:01 → ...)
 
 ### 6. Encerrar
+
 Clique no botão **📞 vermelho** para encerrar
 
 ---
@@ -96,18 +106,19 @@ Clique no botão **📞 vermelho** para encerrar
 
 Durante uma chamada ativa:
 
-| Botão | Função | Estado |
-|-------|--------|--------|
-| 🎤 | Mutar áudio | Cinza = Som ON, Vermelho = Mudo |
-| 📹 | Camera (video only) | Cinza = ON, Vermelho = OFF |
-| 🔊 | Controle de volume | Alterna som |
-| 📞 (vermelho) | Encerrar chamada | Fecha tudo |
+| Botão         | Função              | Estado                          |
+| ------------- | ------------------- | ------------------------------- |
+| 🎤            | Mutar áudio         | Cinza = Som ON, Vermelho = Mudo |
+| 📹            | Camera (video only) | Cinza = ON, Vermelho = OFF      |
+| 🔊            | Controle de volume  | Alterna som                     |
+| 📞 (vermelho) | Encerrar chamada    | Fecha tudo                      |
 
 ---
 
 ## 📊 O Que Você Verá
 
 ### Audio Call (☎️)
+
 ```
 ┌─────────────────────────┐
 │  🤖 Bot Trader          │
@@ -129,6 +140,7 @@ Durante uma chamada ativa:
 ```
 
 ### Video Call (📹)
+
 ```
 ┌─────────────────────────┐
 │  🤖 Bot Trader          │
@@ -193,23 +205,28 @@ R: Sim! Permita quando o navegador pedir
 ## 🐛 Se Algo Não Funcionar
 
 ### 1. Limpar Cache
+
 ```
 Ctrl+Shift+R (Windows)
 Cmd+Shift+R (Mac)
 ```
 
 ### 2. Abrir Console (F12)
+
 Procure por erros em vermelho
 
 ### 3. Recarregar Página
+
 ```
 Ctrl+R ou Cmd+R
 ```
 
 ### 4. Verificar Bots Carregados
+
 No Console, execute:
+
 ```javascript
-console.log(bots)
+console.log(bots);
 // Deve mostrar 3 bots
 ```
 

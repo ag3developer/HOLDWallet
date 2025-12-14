@@ -32,11 +32,11 @@ Procure pelo botão **🎙️** ao lado do input
 3️⃣  CONTINUE SEGURANDO
     Você verá uma barra vermelha aparecer:
     "🔴 Segure para gravar: 00:00"
-    
+
 4️⃣  FALE ALGO
     Diga sua mensagem de áudio
     O tempo incrementa (00:00 → 00:15)
-    
+
 5️⃣  SOLTE O BOTÃO
     Solte o mouse ou o dedo
     ⚡ AUTOMATICAMENTE:
@@ -45,20 +45,21 @@ Procure pelo botão **🎙️** ao lado do input
        - Mensagem aparece no chat
 ```
 
-3️⃣  Você verá:
-    ┌──────────────────────────────┐
-    │ 🎙️ Segure para gravar: 00:05  │
-    │ Solte para enviar →          │
-    └──────────────────────────────┘
+3️⃣ Você verá:
+┌──────────────────────────────┐
+│ 🎙️ Segure para gravar: 00:05 │
+│ Solte para enviar → │
+└──────────────────────────────┘
 
-4️⃣  Fale algo enquanto segura
-    (seu áudio está sendo gravado)
+4️⃣ Fale algo enquanto segura
+(seu áudio está sendo gravado)
 
-5️⃣  Solte o botão
-    (áudio é enviado automaticamente)
+5️⃣ Solte o botão
+(áudio é enviado automaticamente)
 
-6️⃣  Mensagem com áudio aparece no chat
-    (você pode clicar para ouvir)
+6️⃣ Mensagem com áudio aparece no chat
+(você pode clicar para ouvir)
+
 ```
 
 ---
@@ -68,28 +69,31 @@ Procure pelo botão **🎙️** ao lado do input
 ### Desktop (Mouse)
 
 ```
+
 ANTES (modo normal):
 ┌─────────────────────────────┐
-│ Escreva uma mensagem...     │
-│ [📎] [🎙️] [➤️]            │
-│       ↑                      │
-│   Pressione e segure         │
+│ Escreva uma mensagem... │
+│ [📎] [🎙️] [➤️] │
+│ ↑ │
+│ Pressione e segure │
 └─────────────────────────────┘
 
 DURANTE (gravando):
 ┌──────────────────────────────┐
 │ 🎙️ Segure para gravar: 00:08 │
-│ Solte para enviar →         │
+│ Solte para enviar → │
 └──────────────────────────────┘
 
 DEPOIS (enviado):
 Você: [🎙️ Áudio 8 segundos] ← Com botão play
-      00:00 ─────●───── 00:08
+00:00 ─────●───── 00:08
+
 ```
 
 ### Mobile (Touch)
 
 ```
+
 Mesmo sistema, mas com toque do dedo!
 
 1. Coloque o dedo no 🎙️
@@ -97,6 +101,7 @@ Mesmo sistema, mas com toque do dedo!
 3. Veja o tempo incrementar
 4. Levante o dedo
 5. Áudio enviado!
+
 ```
 
 ---
@@ -104,6 +109,7 @@ Mesmo sistema, mas com toque do dedo!
 ## 🧪 Teste Rápido (30 segundos)
 
 ```
+
 1. ✅ Abra o chat
 2. ✅ Localize o botão 🎙️
 3. ✅ Pressione e segure por 3 segundos
@@ -111,6 +117,7 @@ Mesmo sistema, mas com toque do dedo!
 5. ✅ Solte o botão
 6. ✅ Áudio aparece como mensagem no chat
 7. ✅ Clique para ouvir sua mensagem
+
 ```
 
 ---
@@ -121,28 +128,32 @@ Mesmo sistema, mas com toque do dedo!
 
 **Pressionar, Falar, Soltar:**
 ```
+
 [Pressiona] 🎙️
-    ↓
+↓
 Tempo: 00:00 → 00:01 → 00:05 → ...
-    ↓
+↓
 [Fala algo]
-    ↓
+↓
 [Solta] 🎙️
-    ↓
+↓
 Áudio enviado automaticamente ✅
 Mensagem aparece no chat
+
 ```
 
 **Pressionar e Sair:**
 ```
+
 [Pressiona] 🎙️
-    ↓
+↓
 [Move mouse para fora do botão]
-    ↓
+↓
 [Solta] 🎙️
-    ↓
+↓
 Gravação cancelada ❌
 Nenhuma mensagem enviada
+
 ```
 
 ---
@@ -151,22 +162,28 @@ Nenhuma mensagem enviada
 
 ### Estado 1: Botão Normal
 ```
+
 [🎙️]
 Cinzento com hover vermelho
+
 ```
 
 ### Estado 2: Gravando (Holding)
 ```
+
 ┌──────────────────────────────┐
 │ 🎙️ Segure para gravar: 00:15 │
-│ Solte para enviar →         │
+│ Solte para enviar → │
 └──────────────────────────────┘
+
 ```
 
 ### Estado 3: Enviado
 ```
-Você: [🎙️ Áudio - 15s]  ← Aparece no chat
-      ▶️ [─────●──────]
+
+Você: [🎙️ Áudio - 15s] ← Aparece no chat
+▶️ [─────●──────]
+
 ```
 
 ---
@@ -180,8 +197,10 @@ Quando você pressiona o botão:
 
 Se clicar em "Bloquear":
 ```
+
 ❌ Erro: Acesso ao microfone negado
-```
+
+````
 
 **Solução:** Abra permissões do navegador e permita microfone.
 
@@ -214,14 +233,16 @@ Se clicar em "Bloquear":
 
 // Na mensagem
 [Áudio gravado com sucesso]
-```
+````
 
 ### Se Não Funcionar
 
 1. **Cheque a permissão de microfone**
+
    - F12 → Application → Permissions → Microphone
 
 2. **Verifique o console**
+
    - F12 → Console
    - Procure por logs com 🎙️
 
@@ -233,14 +254,17 @@ Se clicar em "Bloquear":
 ## 📱 Compatibilidade
 
 ✅ **Desktop**
+
 - Mouse press-and-hold funciona
 - Cancelamento ao sair do botão
 
 ✅ **Tablet**
+
 - Touch press-and-hold funciona
 - Mesmo comportamento
 
 ✅ **Mobile**
+
 - Touch press-and-hold funciona
 - Otimizado para tela pequena
 
@@ -269,12 +293,12 @@ Se clicar em "Bloquear":
 **Antes:** Botões de gravação, parar, ouvir, enviar  
 **Agora:** Press-and-hold automático (como WhatsApp!)
 
-| Ação | Antes | Agora |
-|------|-------|-------|
+| Ação   | Antes          | Agora           |
+| ------ | -------------- | --------------- |
 | Gravar | Click "Gravar" | Pressione botão |
-| Parar | Click "Parar" | Solte botão |
-| Enviar | Click "Enviar" | Automático |
-| Ouvir | Click "Ouvir" | No chat |
+| Parar  | Click "Parar"  | Solte botão     |
+| Enviar | Click "Enviar" | Automático      |
+| Ouvir  | Click "Ouvir"  | No chat         |
 
 ---
 
@@ -284,6 +308,6 @@ Se clicar em "Bloquear":
 **Feature:** ✅ Press-and-hold implementado  
 **Mobile:** ✅ Touch funciona  
 **Auto-send:** ✅ Ativado  
-**Testing:** ✅ Pronto  
+**Testing:** ✅ Pronto
 
 **Pronto para usar! 🎉**

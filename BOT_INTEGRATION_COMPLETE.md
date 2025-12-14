@@ -3,32 +3,38 @@
 ## ✅ O que foi implementado
 
 ### 1. **Bot Service** (`botService.ts`)
+
 - ✅ Serviço que gerencia 3 bots simulados
 - ✅ Cada bot com avatar, nome, status e delay de resposta
 - ✅ Métodos para iniciar, aceitar, rejeitar e encerrar chamadas
 - ✅ Sistema de eventos para comunicação
 
 ### 2. **Bot User Service** (`botUserService.ts`) - Já existia
+
 - ✅ Serviço mais avançado para gerenciar bots
 - ✅ Integração com WebRTC
 - ✅ Simulação de chamadas recebidas
 
 ### 3. **Hook useBotCalls** - Já existia
+
 - ✅ Hook React para gerenciar estado de chamadas com bot
 - ✅ Controla incoming calls modal
 - ✅ Lista de bots disponíveis
 
 ### 4. **BotContactsSection Component** - Já existia
+
 - ✅ Renderiza lista de bots disponíveis
 - ✅ Botões para chamar cada bot (áudio/vídeo)
 - ✅ Integrado no ChatPage na sidebar
 
 ### 5. **IncomingCallModal** - Já existia
+
 - ✅ Modal para receber chamadas (do bot ou usuário real)
 - ✅ 2 botões: Aceitar / Rejeitar
 - ✅ Animação de ring com 3 pontinhos
 
 ### 6. **CallModal** - Já existia
+
 - ✅ Modal para chamada ativa
 - ✅ Controles: Mute, Video toggle, Volume, End call
 - ✅ Timer incrementando
@@ -36,6 +42,7 @@
 - ✅ Suporte para vídeo (remote + local)
 
 ### 7. **ChatPage Integration** - Já existia
+
 - ✅ Importa `useBotCalls` hook
 - ✅ Renderiza `BotContactsSection`
 - ✅ Renderiza `IncomingCallModal`
@@ -73,9 +80,9 @@ ChatPage (principal)
 
 ## 🤖 Bots Disponíveis
 
-| Nome | ID | Avatar | Delay | Tipo |
-|------|----|----|-------|------|
-| 🤖 Bot Trader | bot-1 | Customizado | 500ms | Trader |
+| Nome           | ID    | Avatar      | Delay | Tipo    |
+| -------------- | ----- | ----------- | ----- | ------- |
+| 🤖 Bot Trader  | bot-1 | Customizado | 500ms | Trader  |
 | 🎧 Bot Support | bot-2 | Customizado | 800ms | Support |
 | 💼 Bot Manager | bot-3 | Customizado | 600ms | Manager |
 
@@ -84,6 +91,7 @@ ChatPage (principal)
 ## 🧪 Fluxo de Teste
 
 ### Cenário 1: Audio Call
+
 ```
 1. Sidebar → 🤖 Bot Traders → 🤖 Bot Trader
 2. Click ☎️ (phone icon)
@@ -98,6 +106,7 @@ ChatPage (principal)
 ```
 
 ### Cenário 2: Video Call
+
 ```
 1. Sidebar → 🤖 Bot Traders → 🎧 Bot Support
 2. Click 📹 (video icon)
@@ -115,11 +124,13 @@ ChatPage (principal)
 ## 📁 Arquivos Criados/Modificados
 
 ### Criados:
+
 - ✅ `/Frontend/src/services/botService.ts` (novo)
 - ✅ `/Frontend/src/components/chat/CallModalTest.tsx` (teste)
 - ✅ `/BOT_TESTING_GUIDE.md` (este arquivo)
 
 ### Já Existentes (Integrados):
+
 - ✅ `/Frontend/src/services/botUserService.ts`
 - ✅ `/Frontend/src/hooks/useBotCalls.ts`
 - ✅ `/Frontend/src/components/chat/BotContactsSection.tsx`
@@ -132,18 +143,22 @@ ChatPage (principal)
 ## 🚀 Como Usar
 
 ### 1. Iniciar o App
+
 ```bash
 cd Frontend
 npm run dev
 ```
 
 ### 2. Abrir no Navegador
+
 ```
 http://localhost:5173
 ```
 
 ### 3. Encontrar Bots
+
 Na sidebar esquerda, role para baixo até encontrar:
+
 ```
 🤖 Bot Traders
 ├─ 🤖 Bot Trader
@@ -152,6 +167,7 @@ Na sidebar esquerda, role para baixo até encontrar:
 ```
 
 ### 4. Fazer Chamada
+
 - Clique no bot
 - Clique em ☎️ (áudio) ou 📹 (vídeo)
 - Aguarde a chamada
@@ -163,17 +179,20 @@ Na sidebar esquerda, role para baixo até encontrar:
 ## ✨ Features
 
 ✅ **3 Bots Simulados**
+
 - Aparecem como contatos reais
 - Com avatares customizados
 - Online 24/7
 
 ✅ **Audio Calls**
+
 - CallModal com visualizador de áudio
 - Animação de barras pulsantes
 - Controle de mute/unmute
 - Timer de duração
 
 ✅ **Video Calls**
+
 - CallModal com áreas de vídeo
 - Remote video (full screen)
 - Local video (corner)
@@ -181,16 +200,19 @@ Na sidebar esquerda, role para baixo até encontrar:
 - Volume control
 
 ✅ **Incoming Call Modal**
+
 - Ring animation
 - 2 botões (Aceitar/Rejeitar)
 - Nome e avatar do contato
 
 ✅ **System Messages**
+
 - "☎️ Chamada de voz iniciada..."
 - "🛑 Chamada encerrada"
 - Aparecem no histórico de chat
 
 ✅ **No Delay Rendering**
+
 - Consoles logs para debug
 - Verificação de condições de render
 - Props passadas corretamente
@@ -200,6 +222,7 @@ Na sidebar esquerda, role para baixo até encontrar:
 ## 🔍 Debug
 
 ### Console Logs
+
 ```javascript
 // Ao iniciar
 📞 Iniciando chamada de voz com: Bot Trader
@@ -218,6 +241,7 @@ Na sidebar esquerda, role para baixo até encontrar:
 ```
 
 ### DevTools React
+
 - `ChatPage` → estados de chamada
 - `IncomingCallModal` → `isOpen`
 - `CallModal` → `isOpen`, `callType`
@@ -262,16 +286,19 @@ PWA:
 ## 🚀 Próximos Passos (Opcional)
 
 1. **Teste com usuários reais**
+
    - Open 2 browsers
    - User A chama User B
    - Verificar se WebRTC funciona
 
 2. **Audio/Video real**
+
    - Verificar streams de mídia
    - Testar codecs
    - Verificar ICE candidates
 
 3. **Performance**
+
    - Testar múltiplas chamadas
    - Longa duração
    - Reconexão automática
@@ -300,4 +327,4 @@ Bots: 3 implementados
 Calls: Audio + Video  
 Modals: Incoming + Active  
 Testing: Guia completo  
-Build: Sucesso  
+Build: Sucesso

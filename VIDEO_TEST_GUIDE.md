@@ -12,23 +12,28 @@
 ## 🎬 Como Testar Video Call
 
 ### Passo 1: Recarregue a página
+
 ```
 F5 ou Cmd+R
 ```
 
 ### Passo 2: Abra o chat
+
 ```
 http://localhost:5173
 ```
 
 ### Passo 3: Procure o bot
+
 Na **sidebar**, procure por:
+
 ```
 🤖 Bot Traders
 └─ 🤖 Bot Trader (ou outro bot)
 ```
 
 ### Passo 4: Clique no botão 📹 (video)
+
 ```
 Header do chat > [☎️]  [📹]
                       ↑
@@ -36,7 +41,9 @@ Header do chat > [☎️]  [📹]
 ```
 
 ### Passo 5: Permita acesso à câmera
+
 O navegador vai pedir:
+
 ```
 "ChatPage quer acessar sua câmera e microfone"
 
@@ -44,6 +51,7 @@ O navegador vai pedir:
 ```
 
 ### Passo 6: Veja o modal de chamada recebida
+
 ```
 ┌─────────────────────────┐
 │  🤖 Bot Trader          │
@@ -54,6 +62,7 @@ O navegador vai pedir:
 ```
 
 ### Passo 7: Clique "Aceitar"
+
 ```
 Modal fecha
      ↓
@@ -115,7 +124,9 @@ Você vê sua câmera! 🎥
 ## 🐛 Se a Câmera Não Abrir
 
 ### Problema 1: "Permissão Negada"
+
 **Solução:**
+
 1. Verifique as configurações do navegador
 2. Va para: `Settings → Privacy & security → Camera`
 3. Permita acesso para `localhost:5173`
@@ -123,14 +134,18 @@ Você vê sua câmera! 🎥
 5. Tente novamente
 
 ### Problema 2: "Nenhuma câmera encontrada"
+
 **Solução:**
+
 1. Verifique se sua câmera está conectada
 2. Feche outros aplicativos que usam câmera (Zoom, Teams, etc)
 3. Reinicie o navegador
 4. Tente novamente
 
 ### Problema 3: Console mostra erro
+
 **Solução:**
+
 1. Abra DevTools (F12)
 2. Vá para Console
 3. Procure por erro vermelho
@@ -158,6 +173,7 @@ Se vir todos esses logs: ✅ **Perfeito!**
 ## 🎮 Teste dos Controles
 
 ### 1. Botão 🎤 (Mute)
+
 ```
 Clique em 🎤
   ↓
@@ -169,6 +185,7 @@ Clique novamente para ativar
 ```
 
 ### 2. Botão 📹 (Camera)
+
 ```
 Clique em 📹
   ↓
@@ -182,6 +199,7 @@ Clique novamente para ativar
 ```
 
 ### 3. Botão 🔊 (Volume)
+
 ```
 Clique em 🔊
   ↓
@@ -189,6 +207,7 @@ Alterna som (simulado)
 ```
 
 ### 4. Botão 📞 (End Call)
+
 ```
 Clique em 📞 (RED)
   ↓
@@ -253,6 +272,7 @@ Volta para chat normal
 ## 🔧 Técnico: Como Funciona
 
 ### Audio Capture
+
 ```
 navigator.mediaDevices.getUserMedia({
   audio: {
@@ -268,6 +288,7 @@ Pronto para enviar para WebRTC
 ```
 
 ### Video Capture
+
 ```
 navigator.mediaDevices.getUserMedia({
   video: {
@@ -285,6 +306,7 @@ Você vê sua câmera em tempo real
 ```
 
 ### Remote Video (Simulado)
+
 ```
 Canvas criado com dimensões 1280x720
   ↓

@@ -14,11 +14,13 @@
 ## 🎯 O Que Você Consegue Fazer AGORA
 
 ### 1. Chat com Bots
+
 - 3 bots sempre online na sidebar
 - Clique para abrir o chat
 - Conversar como contato normal
 
 ### 2. Chamadas de Áudio
+
 - Clique no botão ☎️
 - Bot responde chamada
 - Seu microfone é capturado
@@ -26,6 +28,7 @@
 - Duração mostra em tempo real
 
 ### 3. Chamadas de Vídeo
+
 - Clique no botão 📹
 - Bot responde chamada
 - Sua câmera é capturada
@@ -34,12 +37,14 @@
 - Ligar/desligar câmera disponível
 
 ### 4. Controles Completos
+
 - 🎤 Mute/Unmute (fica vermelho quando mudo)
 - 📹 Camera on/off (fica vermelho quando off - video only)
 - 🔊 Volume control
 - 📞 Encerrar chamada (vermelho)
 
 ### 5. Fluxo Completo
+
 - Recebe modal de chamada
 - Aceita ou rejeita
 - Chamada ativa com vídeo/áudio
@@ -50,37 +55,41 @@
 
 ## 📊 Estatísticas Finais
 
-| Métrica | Valor |
-|---------|-------|
-| Bots implementados | 3 |
-| Tipos de chamada | 2 (áudio + vídeo) |
-| Controles | 4 (mute, video, volume, end) |
-| Componentes criados | 5+ |
-| Hooks criados | 2 |
-| Services criados | 2+ |
-| Build time | 8.34s |
-| Erros de compilação | 0 |
-| Tamanho bundle | 1.2MB (gzip: 316KB) |
+| Métrica             | Valor                        |
+| ------------------- | ---------------------------- |
+| Bots implementados  | 3                            |
+| Tipos de chamada    | 2 (áudio + vídeo)            |
+| Controles           | 4 (mute, video, volume, end) |
+| Componentes criados | 5+                           |
+| Hooks criados       | 2                            |
+| Services criados    | 2+                           |
+| Build time          | 8.34s                        |
+| Erros de compilação | 0                            |
+| Tamanho bundle      | 1.2MB (gzip: 316KB)          |
 
 ---
 
 ## 🗂️ Arquivos Principais Criados
 
 ### Componentes
+
 - ✅ `CallModal.tsx` - Modal de chamada ativa
 - ✅ `IncomingCallModal.tsx` - Modal de chamada recebida
 - ✅ `BotContactsSection.tsx` - Seção de bots
 
 ### Hooks
+
 - ✅ `useMediaCapture.ts` - Captura áudio/vídeo
 - ✅ `useBotCalls.ts` - Lógica de bots
 
 ### Services
+
 - ✅ `botUserService.ts` - Gerenciador de bots
 - ✅ `botService.ts` - Simulação de bots
 - ✅ `webrtcService.ts` - WebRTC (já existia)
 
 ### Integração
+
 - ✅ `ChatPage.tsx` - Integração completa
 
 ---
@@ -112,6 +121,7 @@
 ## 🔍 Debug Info
 
 ### Console Logs (F12 → Console)
+
 ```
 🤖 Bots carregados no hook: [...]
 📱 Debug - Sidebar: { isSidebarOpen, botsCount, ... }
@@ -122,6 +132,7 @@
 ```
 
 ### DevTools React
+
 - Inspect ChatPage component
 - Ver estado: `isCallActive`, `callType`, `callDuration`
 - Ver hooks: `useBotCalls`, `useMediaCapture`
@@ -131,17 +142,20 @@
 ## 🚀 Próximas Fases (Opcional)
 
 ### Curto Prazo
+
 - [ ] Gravação de chamadas
 - [ ] Histórico de chamadas
 - [ ] Screen sharing
 
 ### Médio Prazo
+
 - [ ] Integração com WebRTC real
 - [ ] Múltiplas chamadas simultâneas
 - [ ] Transferência de arquivos
 - [ ] Chat de texto durante chamada
 
 ### Longo Prazo
+
 - [ ] Videoconferência (3+ usuários)
 - [ ] Monetização (pagar por minuto)
 - [ ] Analytics de chamadas
@@ -152,18 +166,21 @@
 ## 🛠️ Customizações Feitas
 
 ### UI Improvements
+
 - ✅ Botões sempre visíveis (não só on hover)
 - ✅ Animações suaves
 - ✅ Design responsivo
 - ✅ Cores intuitivas
 
 ### Funcionalidade
+
 - ✅ Auto-start de mídia após aceitar
 - ✅ Tratamento de erros completo
 - ✅ Logs detalhados para debug
 - ✅ Fallbacks para navegadores antigos
 
 ### Performance
+
 - ✅ Cleanup de streams
 - ✅ Refs gerenciados corretamente
 - ✅ Sem memory leaks
@@ -239,6 +256,7 @@ Components:
 ## 🎉 Conclusão
 
 ### Implementado:
+
 ✅ 3 Bots simulados  
 ✅ Chamadas áudio + vídeo  
 ✅ Captura de câmera/mic  
@@ -246,15 +264,18 @@ Components:
 ✅ UI completa e responsiva  
 ✅ Integração total com chat  
 ✅ Build sem erros  
-✅ Documentação completa  
+✅ Documentação completa
 
 ### Status:
+
 🟢 **PRONTO PARA PRODUÇÃO**
 
 ### Tempo:
+
 ⏱️ ~2 horas de desenvolvimento
 
 ### Qualidade:
+
 ⭐⭐⭐⭐⭐ (5/5)
 
 ---

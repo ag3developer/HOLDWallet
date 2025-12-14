@@ -17,6 +17,7 @@
 ## 🎬 Teste Rápido
 
 ### Audio (1 minuto)
+
 ```
 1. Sidebar > 🤖 Bot Traders > 🤖 Bot Trader
 2. Click ☎️
@@ -27,6 +28,7 @@
 ```
 
 ### Video (2 minutos)
+
 ```
 1. Sidebar > 🤖 Bot Traders > 🤖 Bot Trader
 2. Click 📹
@@ -43,17 +45,17 @@
 
 ## 📞 Resumo Técnico
 
-| Componente | Status |
-|------------|--------|
-| Bots | ✅ 3 disponíveis |
-| Audio Capture | ✅ Funciona |
-| Video Capture | ✅ Funciona |
-| CallModal | ✅ Renderiza |
-| IncomingCallModal | ✅ Renderiza |
-| Controles | ✅ Funcionam |
-| Permissões | ✅ Solicitadas |
-| Msgs de Sistema | ✅ Aparecem |
-| Build | ✅ 8.92s, 0 errors |
+| Componente        | Status             |
+| ----------------- | ------------------ |
+| Bots              | ✅ 3 disponíveis   |
+| Audio Capture     | ✅ Funciona        |
+| Video Capture     | ✅ Funciona        |
+| CallModal         | ✅ Renderiza       |
+| IncomingCallModal | ✅ Renderiza       |
+| Controles         | ✅ Funcionam       |
+| Permissões        | ✅ Solicitadas     |
+| Msgs de Sistema   | ✅ Aparecem        |
+| Build             | ✅ 8.92s, 0 errors |
 
 ---
 

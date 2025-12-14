@@ -3,22 +3,28 @@
 ## ⏱️ 3 Passos para Testar
 
 ### ✅ Passo 1: Abra o Chat
+
 ```
 http://localhost:5173
 ```
 
 ### ✅ Passo 2: Encontre um Bot
+
 Na **sidebar esquerda**, role para baixo até encontrar:
+
 ```
 🤖 Bot Traders
 ├─ 🤖 Bot Trader
 ├─ 🎧 Bot Support
 └─ 💼 Bot Manager
 ```
+
 **Clique em qualquer um**
 
 ### ✅ Passo 3: Clique em ☎️ ou 📹
+
 No topo do chat, você verá:
+
 ```
 [☎️ Phone]  [📹 Video]
 ```
@@ -28,6 +34,7 @@ No topo do chat, você verá:
 ## 🎥 O Que Vai Acontecer
 
 **1️⃣ Modal Aparece**
+
 ```
 ┌──────────────────────────┐
 │  🎧 Bot Suporte          │
@@ -38,10 +45,12 @@ No topo do chat, você verá:
 ```
 
 **2️⃣ Clique "Aceitar"**
+
 - Navegador pede permissão
 - Clique "Permitir"
 
 **3️⃣ CallModal Abre**
+
 ```
 ┌──────────────────────────┐
 │  🎧 Bot Suporte  00:05   │
@@ -58,12 +67,12 @@ No topo do chat, você verá:
 
 ## 🎮 Teste os Botões
 
-| Botão | Ação |
-|-------|------|
-| 🎤 | Click = mute (fica vermelho) |
-| 📹 | Click = desliga camera (fica vermelho) |
-| 🔊 | Click = muda som |
-| 📞 vermelho | Click = encerra |
+| Botão       | Ação                                   |
+| ----------- | -------------------------------------- |
+| 🎤          | Click = mute (fica vermelho)           |
+| 📹          | Click = desliga camera (fica vermelho) |
+| 🔊          | Click = muda som                       |
+| 📞 vermelho | Click = encerra                        |
 
 ---
 
@@ -101,6 +110,6 @@ Se quiser mais detalhes, veja:
 ✅ Chamadas áudio + vídeo  
 ✅ Captura de câmera/mic  
 ✅ Todos os controles  
-✅ Build sem erros  
+✅ Build sem erros
 
 **Pronto para produção!** 🎉

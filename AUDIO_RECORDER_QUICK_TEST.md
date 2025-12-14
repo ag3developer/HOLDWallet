@@ -3,17 +3,20 @@
 ## 🚀 Em 3 Minutos
 
 ### Step 1: Abra o Chat
+
 ```
 http://localhost:5173
 ```
 
 ### Step 2: Faça Uma Chamada
+
 ```
 Sidebar → 🤖 Bot Support → [☎️]
 Modal: Click "Aceitar"
 ```
 
 ### Step 3: Procure o Painel de Áudio
+
 Na CallModal, role para **baixo**. Você verá:
 
 ```
@@ -27,6 +30,7 @@ Na CallModal, role para **baixo**. Você verá:
 ```
 
 ### Step 4: Clique em "Gravar"
+
 ```
 Botão vermelho com 🎙️
     ↓
@@ -36,6 +40,7 @@ Fale algo: "Olá, teste de áudio"
 ```
 
 ### Step 5: Clique em "Parar"
+
 ```
 Após falar 5-10 segundos:
     ↓
@@ -45,6 +50,7 @@ Status: "✅ Áudio gravado (X.XX KB)"
 ```
 
 ### Step 6: Clique em "Ouvir"
+
 ```
 Botão azul ▶️
     ↓
@@ -52,6 +58,7 @@ Você ouve SUA PRÓPRIA VOZ! 👂
 ```
 
 ### Step 7: Clique em "Enviar"
+
 ```
 Botão verde ➤️
     ↓

@@ -70,21 +70,25 @@ Depois de permitir, você verá:
 ### Passo 3: Teste os Controles
 
 **Para Áudio:**
+
 - Clique em 🎤 (mute button)
 - Deve ficar **vermelho** (mudo)
 - Clique novamente para desmutar (volta a cinza)
 
 **Para Vídeo:**
+
 - Clique em 📹 (camera button)
 - Deve ficar **vermelho** (câmera desligada)
 - Você deixa de ver seu vídeo no canto
 - Clique novamente para ligar
 
 **Para Volume:**
+
 - Clique em 🔊 (volume button)
 - Alterna mudo de som
 
 **Para Encerrar:**
+
 - Clique em 📞 **vermelho** (end call)
 - Modal fecha
 - Volta para o chat
@@ -96,6 +100,7 @@ Depois de permitir, você verá:
 ### ❌ Navegador Pede Permissão e Você Clica "Bloquear"
 
 **Solução:**
+
 1. Reload a página (Ctrl+R)
 2. Tente novamente
 3. Clique em "Permitir" desta vez
@@ -103,6 +108,7 @@ Depois de permitir, você verá:
 ### ❌ Permite mas Não Abre a Câmera
 
 **Solução:**
+
 1. Abra **DevTools** (F12)
 2. Vá para **Console**
 3. Procure por erros em vermelho (tipo "❌ Permissão negada")
@@ -111,6 +117,7 @@ Depois de permitir, você verá:
 ### ❌ CallModal Não Abre Depois de Aceitar
 
 **Solução:**
+
 1. Verifique console (F12 → Console)
 2. Procure por logs:
    - `✅ Aceitando chamada do bot...`
@@ -121,6 +128,7 @@ Depois de permitir, você verá:
 
 **Possível Causa:** Câmera está bloqueada  
 **Solução:**
+
 1. Verifique configurações de câmera do SO (Windows/Mac)
 2. Veja se outro app está usando câmera
 3. Reinicie navegador
@@ -130,6 +138,7 @@ Depois de permitir, você verá:
 
 **Possível Causa:** Microfone está mudo  
 **Solução:**
+
 1. Verifique configurações de áudio do SO
 2. Veja se outro app está usando microfone
 3. Tente clicar no botão 🎤 para desmutar
@@ -257,7 +266,7 @@ Você                    Aplicação                Bot
 ✅ **Vídeo** - CallModal mostra área de vídeo  
 ✅ **Áudio** - Captura do seu microfone  
 ✅ **Controles** - Todos funcionam (mute, video, volume, end)  
-✅ **Timer** - Mostra duração incrementando  
+✅ **Timer** - Mostra duração incrementando
 
 ---
 

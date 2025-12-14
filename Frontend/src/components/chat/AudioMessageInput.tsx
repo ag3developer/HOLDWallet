@@ -15,7 +15,8 @@ export interface AudioMessageInputProps {
 export function AudioMessageInput({ onAudioSend, isDisabled = false }: AudioMessageInputProps) {
   const [isHolding, setIsHolding] = useState(false)
   const isHoldingRef = useRef(false)
-  const { isRecording, recordingTime, startRecording, stopRecording, clearRecording } = useAudioRecorder()
+  const { isRecording, recordingTime, startRecording, stopRecording, clearRecording } =
+    useAudioRecorder()
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60)
@@ -27,15 +28,15 @@ export function AudioMessageInput({ onAudioSend, isDisabled = false }: AudioMess
   useEffect(() => {
     const handleStopRecording = async () => {
       if (!isHoldingRef.current) return
-      
+
       isHoldingRef.current = false
       setIsHolding(false)
-      
+
       console.log('🎙️ Parando gravação e enviando...')
       try {
         const audioBlob = await stopRecording()
         console.log('📦 AudioBlob recebido:', audioBlob?.size, 'bytes')
-        
+
         if (audioBlob && audioBlob.size > 0) {
           console.log('📤 Enviando áudio automaticamente:', audioBlob.size, 'bytes')
           onAudioSend(audioBlob)

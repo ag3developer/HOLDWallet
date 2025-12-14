@@ -78,10 +78,7 @@ class BotServiceClass {
    * Inicia uma chamada com um bot
    * O bot responde após um delay
    */
-  async initiateCallWithBot(
-    botId: string,
-    callType: 'audio' | 'video'
-  ): Promise<boolean> {
+  async initiateCallWithBot(botId: string, callType: 'audio' | 'video'): Promise<boolean> {
     const bot = this.bots.get(botId)
     if (!bot) {
       console.error('Bot não encontrado:', botId)
