@@ -134,9 +134,7 @@ export const Sidebar = () => {
                 alt='Wolknow Logo'
                 className='h-10 w-10 rounded-lg object-contain'
               />
-              <span className='text-lg font-bold text-gray-900 dark:text-white ml-2'>
-                WOLKNOW
-              </span>
+              <span className='text-lg font-bold text-gray-900 dark:text-white ml-2'>WOLKNOW</span>
             </>
           )}
           {!isExpanded && (

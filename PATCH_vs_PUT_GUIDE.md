@@ -1,13 +1,14 @@
 # 🔧 PATCH vs PUT - Qual Usar na API Wolknow?
 
 **Data**: 14 de Dezembro de 2025  
-**Status Atual**: Usando PUT em todo o API  
+**Status Atual**: Usando PUT em todo o API
 
 ---
 
 ## 📚 DIFERENÇA ENTRE PATCH E PUT
 
 ### PUT (Substituição Completa)
+
 ```
 PUT /api/v1/users/me
 {
@@ -17,12 +18,14 @@ PUT /api/v1/users/me
 ```
 
 **Comportamento**:
+
 - Substitui o recurso inteiro
 - Requer todos os campos obrigatórios
 - Se não enviar um campo, pode ser zerado/deletado
 - Segue padrão REST REST-ful
 
 **Exemplo**:
+
 ```json
 // PUT - Substitui tudo
 {
@@ -37,6 +40,7 @@ PUT /api/v1/users/me
 ---
 
 ### PATCH (Atualização Parcial)
+
 ```
 PATCH /api/v1/users/me
 {
@@ -45,12 +49,14 @@ PATCH /api/v1/users/me
 ```
 
 **Comportamento**:
+
 - Atualiza apenas os campos enviados
 - Campos não enviados não são alterados
 - Mais eficiente para atualizações parciais
 - Melhor para APIs modernas (REST Nível 3)
 
 **Exemplo**:
+
 ```json
 // PATCH - Atualiza só o que foi enviado
 {
@@ -63,15 +69,15 @@ PATCH /api/v1/users/me
 
 ## 📊 COMPARAÇÃO TÉCNICA
 
-| Aspecto | PUT | PATCH |
-|---------|-----|-------|
-| **Semantics** | Replace entire | Partial update |
-| **Body** | Complete object | Only changed fields |
-| **Idempotent** | ✅ Sim (sempre mesmo resultado) | ✅ Sim |
-| **Safe** | ❌ Não | ❌ Não |
-| **Caching** | Cacheable | Cacheable |
-| **Browser Support** | ❌ Não | ❌ Não |
-| **Headers** | Content-Type: application/json | Content-Type: application/json |
+| Aspecto             | PUT                             | PATCH                          |
+| ------------------- | ------------------------------- | ------------------------------ |
+| **Semantics**       | Replace entire                  | Partial update                 |
+| **Body**            | Complete object                 | Only changed fields            |
+| **Idempotent**      | ✅ Sim (sempre mesmo resultado) | ✅ Sim                         |
+| **Safe**            | ❌ Não                          | ❌ Não                         |
+| **Caching**         | Cacheable                       | Cacheable                      |
+| **Browser Support** | ❌ Não                          | ❌ Não                         |
+| **Headers**         | Content-Type: application/json  | Content-Type: application/json |
 
 ---
 
@@ -92,6 +98,7 @@ PATCH /api/v1/users/me
 ## 📋 PLANO DE IMPLEMENTAÇÃO
 
 ### Fase 1: Adicionar Suporte a PATCH
+
 Manter PUT funcionando, adicionar PATCH
 
 ```python
@@ -112,6 +119,7 @@ async def partial_update_user(
 ```
 
 ### Fase 2: Deprecar PUT (Opcional)
+
 Manter PUT mas indicar PATCH como preferido
 
 ```python
@@ -131,21 +139,21 @@ async def update_current_user_profile(...):
 ```
 Profile Updates:
   PATCH /api/v1/users/me
-  
+
 Wallet Settings:
   PATCH /api/v1/wallets/{wallet_id}
   PATCH /api/v1/addresses/{address_id}
-  
+
 P2P Orders:
   PATCH /api/v1/p2p/orders/{order_id}
-  
+
 Trading:
   PATCH /api/v1/instant-trade/{trade_id}
   PATCH /api/v1/exchange/{exchange_id}
-  
+
 Chat:
   PATCH /api/v1/chat/messages/{message_id}
-  
+
 Profile:
   PATCH /api/v1/trader-profiles/{profile_id}
 ```
@@ -157,6 +165,7 @@ Profile:
 ### Cenário: Atualizar Username do Usuário
 
 #### Com PUT (Atual)
+
 ```bash
 PUT /api/v1/users/me
 Content-Type: application/json
@@ -172,6 +181,7 @@ Content-Type: application/json
 **Problema**: Precisa enviar email, foto, bio também
 
 #### Com PATCH (Novo)
+
 ```bash
 PATCH /api/v1/users/me
 Content-Type: application/json
@@ -200,7 +210,7 @@ class UserPartialUpdateRequest(BaseModel):
     username: Optional[str] = None
     profile_photo: Optional[str] = None
     bio: Optional[str] = None
-    
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -241,10 +251,10 @@ async def partial_update_user(
     db: Session = Depends(get_db)
 ):
     """Update specific user fields (partial update)."""
-    
+
     # Atualizar apenas os campos fornecidos
     update_data = user_update.model_dump(exclude_unset=True)
-    
+
     for field, value in update_data.items():
         if field == "email" and value != current_user.email:
             # Verificar duplicata
@@ -266,11 +276,11 @@ async def partial_update_user(
             setattr(current_user, field, value)
         else:
             setattr(current_user, field, value)
-    
+
     current_user.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(current_user)
-    
+
     return UserResponse.model_validate(current_user)
 ```
 
@@ -279,6 +289,7 @@ async def partial_update_user(
 ## 🧪 TESTES
 
 ### Test PATCH
+
 ```bash
 # Só atualizar username
 curl -X PATCH http://localhost:8000/api/v1/users/me \
@@ -297,6 +308,7 @@ curl -X PATCH http://localhost:8000/api/v1/users/me \
 ```
 
 ### Test PUT (com deprecation)
+
 ```bash
 # Ainda funciona mas com aviso
 curl -X PUT http://localhost:8000/api/v1/users/me \
@@ -314,6 +326,7 @@ curl -X PUT http://localhost:8000/api/v1/users/me \
 ## 📊 RECOMENDAÇÃO FINAL
 
 ### ✅ Implementar PATCH porque:
+
 1. **Padrão Moderno** - APIs profissionais usam
 2. **Melhor UX** - Usuários enviam menos dados
 3. **Eficiente** - Reduz carga de rede
@@ -321,6 +334,7 @@ curl -X PUT http://localhost:8000/api/v1/users/me \
 5. **Flexível** - Manter PUT deprecado não quebra clientes
 
 ### Timeline:
+
 - **Imediatamente**: Adicionar endpoints PATCH
 - **3 meses**: Deprecar PUT (warning)
 - **6 meses**: Remover PUT (breaking change v2.0)
@@ -330,6 +344,7 @@ curl -X PUT http://localhost:8000/api/v1/users/me \
 ## 📞 PRÓXIMAS AÇÕES
 
 ### Se quer implementar PATCH:
+
 1. [ ] Criar schemas com campos opcionais
 2. [ ] Adicionar endpoints @router.patch
 3. [ ] Testar com curl/Postman
@@ -338,6 +353,7 @@ curl -X PUT http://localhost:8000/api/v1/users/me \
 6. [ ] Notificar clientes
 
 ### Se quer manter só PUT:
+
 - Tudo continua igual
 - Funciona normalmente
 - Apenas menos eficiente que PATCH
@@ -345,4 +361,3 @@ curl -X PUT http://localhost:8000/api/v1/users/me \
 ---
 
 **Recomendação**: 🟢 **Implementar PATCH** - é padrão da indústria!
-

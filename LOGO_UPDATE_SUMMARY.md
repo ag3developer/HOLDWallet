@@ -19,6 +19,7 @@
 ## 🔍 DETALHES DAS MUDANÇAS
 
 ### 1. index.html (5 mudanças)
+
 ```html
 <!-- ANTES -->
 <link rel="icon" href="/images/logos/hw-icon.png" />
@@ -36,6 +37,7 @@
 ```
 
 ### 2. LoginPage.tsx
+
 ```tsx
 <!-- ANTES -->
 <img src="/images/logos/hw-icon.png" alt="HOLD Wallet Logo" />
@@ -45,6 +47,7 @@
 ```
 
 ### 3. RegisterPage.tsx
+
 ```tsx
 <!-- ANTES -->
 <img src="/images/logos/hw-icon.png" alt="HOLD Wallet Logo" />
@@ -54,6 +57,7 @@
 ```
 
 ### 4. Sidebar.tsx (2 mudanças)
+
 ```tsx
 <!-- ANTES -->
 <img src='/images/logos/hw-icon.png' alt='HOLD Wallet Logo' />
@@ -69,18 +73,22 @@
 ## ✨ METADATAS TAMBÉM ATUALIZADAS
 
 ### Títulos
+
 - ❌ "HOLD Wallet - P2P Crypto Trading"
 - ✅ "Wolknow - P2P Crypto Trading"
 
 ### Descrições
+
 - ❌ "HOLD Wallet - Carteira digital P2P..."
 - ✅ "Wolknow - Plataforma P2P de trading..."
 
 ### URL
+
 - ❌ "https://holdwallet.app"
 - ✅ "https://wolknow.com"
 
 ### App Title
+
 - ❌ "HOLD Wallet"
 - ✅ "Wolknow"
 
@@ -91,6 +99,7 @@
 **Local**: `/public/images/logos/wn-icon.png`
 
 **Certifique-se que**:
+
 - ✅ Arquivo existe
 - ✅ É um PNG válido
 - ✅ Tem boa resolução (recomendado 512x512)
@@ -101,11 +110,13 @@
 ## 🚀 PRÓXIMOS PASSOS
 
 ### 1. Verificar o Arquivo de Logo
+
 ```bash
 ls -lh public/images/logos/wn-icon.png
 ```
 
 ### 2. Testar Localmente
+
 ```bash
 npm run dev
 # Verificar se logo aparece em:
@@ -116,6 +127,7 @@ npm run dev
 ```
 
 ### 3. Build e Deploy
+
 ```bash
 npm run build
 # Fazer commit
@@ -125,6 +137,7 @@ git push origin main
 ```
 
 ### 4. Validação em Produção
+
 - [ ] Favicon visível no Vercel
 - [ ] Logo aparece no login
 - [ ] Logo aparece no register
@@ -136,6 +149,7 @@ git push origin main
 ## 🔗 ARQUIVOS NÃO ATUALIZADOS (build gerados)
 
 Estes arquivos foram **IGNORADOS** porque são gerados automaticamente:
+
 - `/Frontend/dist/` - Será regenerado no build
 - `/Frontend/dist/index.html`
 - `/Frontend/dist/assets/index-*.js`
@@ -161,13 +175,13 @@ Estes arquivos foram **IGNORADOS** porque são gerados automaticamente:
 
 ## 📊 RESUMO
 
-| Item | Antes | Depois |
-|------|-------|--------|
-| **Nome da Logo** | hw-icon.png | wn-icon.png |
-| **Nome da App** | HOLD WALLET | WOLKNOW |
-| **Domínio** | holdwallet.app | wolknow.com |
-| **Arquivos Alterados** | 0 | 5 |
-| **Referências Atualizadas** | 0 | 12 |
+| Item                        | Antes          | Depois      |
+| --------------------------- | -------------- | ----------- |
+| **Nome da Logo**            | hw-icon.png    | wn-icon.png |
+| **Nome da App**             | HOLD WALLET    | WOLKNOW     |
+| **Domínio**                 | holdwallet.app | wolknow.com |
+| **Arquivos Alterados**      | 0              | 5           |
+| **Referências Atualizadas** | 0              | 12          |
 
 ---
 
