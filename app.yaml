@@ -1,54 +1,54 @@
 name: holdwallet-backend
 services:
-- name: backend
-  github:
-    repo: ag3developer/HOLDWallet
-    branch: main
-  source_dir: backend
-  build_command: pip install -r requirements.txt
-  run_command: uvicorn app.main:app --host 0.0.0.0 --port 8080
-  http_port: 8080
-  envs:
-  - key: ENVIRONMENT
-    value: production
-  - key: DEBUG
-    value: "false"
-  - key: LOG_LEVEL
-    value: info
-  - key: DATABASE_URL
-    value: sqlite:///./holdwallet.db
-  - key: SECRET_KEY
-    scope: RUN_TIME
-    value: ${SECRET_KEY}
-  - key: JWT_ALGORITHM
-    value: HS256
-  - key: JWT_EXPIRATION_HOURS
-    value: "24"
-  - key: ALLOWED_ORIGINS
-    value: https://hold-wallet-deaj.vercel.app,http://localhost:3000
-  - key: FRONTEND_URL
-    value: https://hold-wallet-deaj.vercel.app
-  - key: TRANSFBANK_ENABLED
-    value: "false"
-  - key: TRANSFBANK_API_URL
-    value: https://api.transfbank.com.br/v1
-  - key: TRANSFBANK_API_KEY
-    value: ""
-  - key: TRANSFBANK_WEBHOOK_SECRET
-    value: ""
-  - key: ETHEREUM_RPC_URL
-    value: https://eth.drpc.org
-  - key: POLYGON_RPC_URL
-    value: https://polygon-rpc.com
-  - key: BSC_RPC_URL
-    value: https://bsc-dataseed1.binance.org
-  - key: SMTP_ENABLED
-    value: "false"
-  - key: SMTP_HOST
-    value: smtp.gmail.com
-  - key: SMTP_PORT
-    value: "587"
-  - key: SMTP_USER
-    value: ""
-  - key: SMTP_PASSWORD
-    value: ""
+  - name: backend
+    github:
+      repo: ag3developer/HOLDWallet
+      branch: main
+    source_dir: backend
+    build_command: pip install -r requirements.txt
+    run_command: uvicorn app.main:app --host 0.0.0.0 --port 8080
+    http_port: 8080
+    envs:
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: LOG_LEVEL
+        value: info
+      - key: DATABASE_URL
+        value: sqlite:///./holdwallet.db
+      - key: SECRET_KEY
+        scope: RUN_TIME
+        value: ${SECRET_KEY}
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: JWT_EXPIRATION_HOURS
+        value: "24"
+      - key: ALLOWED_ORIGINS
+        value: https://hold-wallet-deaj.vercel.app,http://localhost:3000
+      - key: FRONTEND_URL
+        value: https://hold-wallet-deaj.vercel.app
+      - key: TRANSFBANK_ENABLED
+        value: "false"
+      - key: TRANSFBANK_API_URL
+        value: https://api.transfbank.com.br/v1
+      - key: TRANSFBANK_API_KEY
+        value: ""
+      - key: TRANSFBANK_WEBHOOK_SECRET
+        value: ""
+      - key: ETHEREUM_RPC_URL
+        value: https://eth.drpc.org
+      - key: POLYGON_RPC_URL
+        value: https://polygon-rpc.com
+      - key: BSC_RPC_URL
+        value: https://bsc-dataseed1.binance.org
+      - key: SMTP_ENABLED
+        value: "false"
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        value: ""
+      - key: SMTP_PASSWORD
+        value: ""
