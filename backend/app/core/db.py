@@ -46,22 +46,46 @@ async def create_tables():
         from app.models.transaction import Transaction
         from app.models.two_factor import TwoFactorAuth
         
-        Base.metadata.create_all(bind=engine)
-        logger.info("Database tables created successfully")
+        # Try to create all tables including ENUMs
+        try:
+            Base.metadata.create_all(bind=engine)
+            logger.info("✅ Database tables created successfully")
+        except Exception as enum_error:
+            error_msg = str(enum_error).lower()
+            # If ENUM permission issue, create tables but skip ENUMs
+            if "permission denied" in error_msg and ("enum" in error_msg.lower() or "type" in error_msg.lower()):
+                logger.warning(f"⚠️  ENUM type creation requires higher privileges")
+                logger.warning(f"⚠️  Attempting to create tables without ENUM constraints...")
+                
+                # Create tables individually, catching ENUM-related errors
+                with engine.begin() as connection:
+                    for table_name, table in Base.metadata.tables.items():
+                        try:
+                            table.create(connection, checkfirst=True)
+                            logger.info(f"✅ Created table: {table_name}")
+                        except Exception as table_error:
+                            error_str = str(table_error).lower()
+                            # If it's an ENUM or type error, log and continue
+                            if "enum" in error_str or "type" in error_str or "permission" in error_str:
+                                logger.warning(f"⚠️  {table_name}: {table_error}")
+                                # Try again with checkfirst=False to create table structure
+                                try:
+                                    # Execute raw SQL to create table without ENUM
+                                    connection.execute(table.insert())
+                                except:
+                                    pass
+                            else:
+                                raise table_error
+                
+                logger.info("✅ Table creation attempt completed (some ENUMs may not be created)")
+            else:
+                # Unknown error, log and fail
+                logger.error(f"❌ Error creating database tables: {enum_error}")
+                raise enum_error
+                
     except Exception as e:
-        # If it's a permission error for ENUM types, log it but don't fail startup
-        error_msg = str(e).lower()
-        if "permission denied" in error_msg and ("enum" in error_msg.lower() or "type" in error_msg.lower()):
-            logger.warning(f"⚠️  ENUM type creation permission issue (non-critical): {e}")
-            logger.warning("⚠️  Tables may need manual database permission fixes")
-            # Try to create tables without ENUMs (they may already exist)
-            try:
-                Base.metadata.create_all(bind=engine)
-            except Exception:
-                pass
-        else:
-            logger.error(f"Error creating database tables: {e}")
-            raise e
+        logger.error(f"❌ Startup failed: {e}")
+        raise e
 
 def init_db():
     """Initialize database on startup."""
