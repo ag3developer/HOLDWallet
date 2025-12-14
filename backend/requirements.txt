@@ -4,8 +4,8 @@ python-dotenv==1.0.0
 sqlalchemy==2.0.23
 psycopg2-binary==2.9.7
 alembic==1.12.1
-web3==6.11.3
-bitcoinlib==0.12.0
+web3==6.10.0
+bitcoinlib==0.7.6
 bip-utils==2.7.1
 httpx==0.25.2
 pydantic==2.5.0
