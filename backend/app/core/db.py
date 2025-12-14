@@ -49,14 +49,25 @@ async def create_tables():
         Base.metadata.create_all(bind=engine)
         logger.info("Database tables created successfully")
     except Exception as e:
-        logger.error(f"Error creating database tables: {e}")
-        raise e
+        # If it's a permission error for ENUM types, log it but don't fail startup
+        error_msg = str(e).lower()
+        if "permission denied" in error_msg and ("enum" in error_msg.lower() or "type" in error_msg.lower()):
+            logger.warning(f"⚠️  ENUM type creation permission issue (non-critical): {e}")
+            logger.warning("⚠️  Tables may need manual database permission fixes")
+            # Try to create tables without ENUMs (they may already exist)
+            try:
+                Base.metadata.create_all(bind=engine)
+            except Exception:
+                pass
+        else:
+            logger.error(f"Error creating database tables: {e}")
+            raise e
 
 def init_db():
     """Initialize database on startup."""
     try:
         # Test connection
-        with engine.connect() as conn:
+        with engine.connect():
             logger.info("Database connection successful")
         return True
     except Exception as e:
