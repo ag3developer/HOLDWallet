@@ -46,42 +46,43 @@ async def create_tables():
         from app.models.transaction import Transaction
         from app.models.two_factor import TwoFactorAuth
         
-        # Try to create all tables including ENUMs
+        # Reset connection pool first to clear any aborted transactions
+        engine.dispose()
+        
+        # Try to create all tables
         try:
             Base.metadata.create_all(bind=engine)
             logger.info("✅ Database tables created successfully")
-        except Exception as enum_error:
-            error_msg = str(enum_error).lower()
-            # If ENUM permission issue, create tables but skip ENUMs
-            if "permission denied" in error_msg and ("enum" in error_msg.lower() or "type" in error_msg.lower()):
-                logger.warning(f"⚠️  ENUM type creation requires higher privileges")
-                logger.warning(f"⚠️  Attempting to create tables without ENUM constraints...")
+        except Exception as create_error:
+            error_msg = str(create_error).lower()
+            
+            # Check if it's a transaction abort error
+            if "transaction is aborted" in error_msg or "current transaction is aborted" in error_msg:
+                logger.warning("⚠️  Transaction aborted, clearing connection pool and retrying...")
+                # Dispose of all connections to reset state
+                engine.dispose()
                 
-                # Create tables individually, catching ENUM-related errors
-                with engine.begin() as connection:
-                    for table_name, table in Base.metadata.tables.items():
-                        try:
-                            table.create(connection, checkfirst=True)
-                            logger.info(f"✅ Created table: {table_name}")
-                        except Exception as table_error:
-                            error_str = str(table_error).lower()
-                            # If it's an ENUM or type error, log and continue
-                            if "enum" in error_str or "type" in error_str or "permission" in error_str:
-                                logger.warning(f"⚠️  {table_name}: {table_error}")
-                                # Try again with checkfirst=False to create table structure
-                                try:
-                                    # Execute raw SQL to create table without ENUM
-                                    connection.execute(table.insert())
-                                except:
-                                    pass
-                            else:
-                                raise table_error
+                # Wait a moment for connections to clear
+                import asyncio
+                await asyncio.sleep(0.5)
                 
-                logger.info("✅ Table creation attempt completed (some ENUMs may not be created)")
+                # Try again with fresh connection
+                try:
+                    Base.metadata.create_all(bind=engine)
+                    logger.info("✅ Database tables created successfully after reconnect")
+                except Exception as retry_error:
+                    logger.error(f"❌ Still failing after reconnect: {retry_error}")
+                    raise retry_error
+            
+            # If ENUM permission issue
+            elif "permission denied" in error_msg and ("enum" in error_msg.lower() or "type" in error_msg.lower()):
+                logger.warning("⚠️  ENUM type creation requires higher privileges")
+                logger.warning("⚠️  Note: Run on PostgreSQL: ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE ON TYPES TO your_user")
+                raise create_error
             else:
                 # Unknown error, log and fail
-                logger.error(f"❌ Error creating database tables: {enum_error}")
-                raise enum_error
+                logger.error(f"❌ Error creating database tables: {create_error}")
+                raise create_error
                 
     except Exception as e:
         logger.error(f"❌ Startup failed: {e}")
@@ -91,7 +92,9 @@ def init_db():
     """Initialize database on startup."""
     try:
         # Test connection
-        with engine.connect():
+        with engine.connect() as conn:
+            # Reset connection state - commit any pending transaction
+            conn.commit()
             logger.info("Database connection successful")
         return True
     except Exception as e:
