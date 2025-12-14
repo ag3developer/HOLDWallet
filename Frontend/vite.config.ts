@@ -140,6 +140,7 @@ export default defineConfig({
     },
   },
   build: {
+    outDir: 'build',
     target: 'esnext',
     minify: 'esbuild',
     rollupOptions: {
