@@ -229,7 +229,7 @@ export const CreateWalletPage = () => {
   const downloadMnemonicBackup = () => {
     if (!createdWallet?.mnemonic) return
 
-    const content = `HOLD Wallet - Backup da Frase de Recuperação
+    const content = `Wolknow - Backup da Frase de Recuperação
 ====================================
 
 Nome da Carteira: ${createdWallet.name}
@@ -253,7 +253,7 @@ INSTRUÇÕES DE SEGURANÇA:
 - Exclua este arquivo após guardar a frase em local seguro
 
 ====================================
-HOLD Wallet - Sua carteira P2P segura
+Wolknow - Sua plataforma P2P segura
 `
 
     const blob = new Blob([content], { type: 'text/plain' })

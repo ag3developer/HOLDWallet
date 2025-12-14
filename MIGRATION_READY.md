@@ -9,6 +9,7 @@
 ## 📊 MIGRATION OVERVIEW
 
 ### Key Statistics
+
 - **Total Tables**: 27
 - **Total Rows to Migrate**: 49 rows
 - **Tables with Data**: 8
@@ -16,11 +17,12 @@
 - **Estimated Migration Time**: < 5 minutes
 
 ### Critical Users & Data
+
 ```
 ✅ User Found: app@holdwallet.com (username: app)
-✅ Other Users: 
+✅ Other Users:
    - trading@holdinvesting.io
-   - testeapi3@holdwallet.com  
+   - testeapi3@holdwallet.com
    - teste_1765148311@holdwallet.com
 
 Total Users: 4
@@ -30,16 +32,16 @@ Total Users: 4
 
 ## 📋 TABLES WITH DATA (MUST MIGRATE)
 
-| # | Table | Rows | Columns | Priority |
-|---|-------|------|---------|----------|
-| 1 | **addresses** | 32 | 11 | 🔴 CRITICAL |
-| 2 | **p2p_orders** | 5 | 19 | 🔴 CRITICAL |
-| 3 | **users** | 4 | 9 | 🔴 CRITICAL |
-| 4 | **wallet_balances** | 3 | 9 | 🔴 CRITICAL |
-| 5 | **wallets** | 2 | 10 | 🔴 CRITICAL |
-| 6 | **p2p_trades** | 1 | 14 | 🟡 HIGH |
-| 7 | **payment_methods** | 1 | 7 | 🟡 HIGH |
-| 8 | **trader_profiles** | 1 | 23 | 🟡 HIGH |
+| #   | Table               | Rows | Columns | Priority    |
+| --- | ------------------- | ---- | ------- | ----------- |
+| 1   | **addresses**       | 32   | 11      | 🔴 CRITICAL |
+| 2   | **p2p_orders**      | 5    | 19      | 🔴 CRITICAL |
+| 3   | **users**           | 4    | 9       | 🔴 CRITICAL |
+| 4   | **wallet_balances** | 3    | 9       | 🔴 CRITICAL |
+| 5   | **wallets**         | 2    | 10      | 🔴 CRITICAL |
+| 6   | **p2p_trades**      | 1    | 14      | 🟡 HIGH     |
+| 7   | **payment_methods** | 1    | 7       | 🟡 HIGH     |
+| 8   | **trader_profiles** | 1    | 23      | 🟡 HIGH     |
 
 **Subtotal**: 49 rows across 8 tables
 
@@ -48,6 +50,7 @@ Total Users: 4
 ## 🔄 COMPLETE MIGRATION ORDER (27 Tables)
 
 ### Phase 1: Foundation Tables (No Dependencies)
+
 1. balance_history (0)
 2. p2p_orders (5) ⭐
 3. p2p_trades (1) ⭐
@@ -56,6 +59,7 @@ Total Users: 4
 6. wallet_balances (3) ⭐
 
 ### Phase 2: User-Dependent Tables
+
 7. instant_trades (0)
 8. p2p_matches (0)
 9. payment_method_verifications (0)
@@ -67,10 +71,12 @@ Total Users: 4
 15. user_reviews (0)
 
 ### Phase 3: Wallet & Address Tables
+
 16. wallets (2) ⭐
 17. addresses (32) ⭐
 
 ### Phase 4: Complex Dependencies
+
 18. fraud_reports (0)
 19. instant_trade_history (0)
 20. p2p_chat_rooms (0)
@@ -87,6 +93,7 @@ Total Users: 4
 ## 🛠️ GENERATED FILES
 
 ### Analysis & Reports
+
 - ✅ `MIGRATION_ANALYSIS.py` - Database analyzer (UPDATED for /backend/holdwallet.db)
 - ✅ `MIGRATION_REPORT.md` - Detailed analysis with all 27 tables
 - ✅ `MIGRATION_SCRIPT.py` - SQL generator (UPDATED)
@@ -94,6 +101,7 @@ Total Users: 4
 - ✅ `MIGRATION_VALIDATE.py` - Post-migration validator (UPDATED)
 
 ### Documentation
+
 - ✅ `MIGRATION_SUMMARY.txt` - Quick reference
 - ✅ This file: Complete migration guide
 
@@ -102,6 +110,7 @@ Total Users: 4
 ## 🚀 EXECUTION STEPS
 
 ### Step 1: Review Generated SQL
+
 ```bash
 # Check what will be migrated
 head -50 MIGRATION_DATA.sql
@@ -111,6 +120,7 @@ wc -l MIGRATION_DATA.sql
 ```
 
 ### Step 2: Pre-Migration Backups
+
 ```bash
 # Backup local database
 cp backend/holdwallet.db backend/holdwallet_backup_$(date +%Y%m%d_%H%M%S).db
@@ -120,6 +130,7 @@ cp backend/holdwallet.db backend/holdwallet_backup_$(date +%Y%m%d_%H%M%S).db
 ```
 
 ### Step 3: Execute Migration
+
 ```bash
 # Connect and execute (use environment variables or .env file for credentials)
 psql -U holdwallet-db \
@@ -130,11 +141,13 @@ psql -U holdwallet-db \
 ```
 
 Or via connection string from environment:
+
 ```bash
 psql $DATABASE_URL < MIGRATION_DATA.sql
 ```
 
 ### Step 4: Validate Migration
+
 ```bash
 # Run validator
 python3 MIGRATION_VALIDATE.py
@@ -144,6 +157,7 @@ python3 MIGRATION_VALIDATE.py
 ```
 
 ### Step 5: Verify in Application
+
 ```bash
 # Test login with app@holdwallet.com
 # Check wallets and addresses visible
@@ -156,6 +170,7 @@ python3 MIGRATION_VALIDATE.py
 ## 📊 EXPECTED RESULTS AFTER MIGRATION
 
 ### Users Table (Should have 4 rows)
+
 ```
 app@holdwallet.com
 trading@holdinvesting.io
@@ -164,9 +179,11 @@ teste_1765148311@holdwallet.com
 ```
 
 ### Addresses Table (Should have 32 rows)
+
 - All 32 blockchain addresses linked to wallets
 
 ### Other Tables
+
 - wallets: 2 rows
 - wallet_balances: 3 rows
 - p2p_orders: 5 rows
@@ -213,6 +230,7 @@ GROUP BY w.id, w.address;
 ## 🔍 TROUBLESHOOTING
 
 ### If Migration Fails
+
 1. Check error message in terminal output
 2. Verify PostgreSQL is accessible
 3. Ensure credentials are correct
@@ -220,6 +238,7 @@ GROUP BY w.id, w.address;
 5. Rollback and restore backup if needed
 
 ### If Row Count Doesn't Match
+
 1. Run `MIGRATION_VALIDATE.py` for detailed report
 2. Check for duplicate IDs or conflicts
 3. Manually verify critical tables:
@@ -228,6 +247,7 @@ GROUP BY w.id, w.address;
    - addresses
 
 ### If Data Appears Corrupted
+
 1. Restore from backup
 2. Check for encoding/charset issues
 3. Review MIGRATION_DATA.sql for data quality
@@ -248,6 +268,7 @@ GROUP BY w.id, w.address;
 ## 🎯 SUCCESS CRITERIA
 
 ✅ Migration is successful when:
+
 - [ ] No SQL errors during execution
 - [ ] All 49 rows imported
 - [ ] All 8 tables with data have correct row counts
@@ -282,4 +303,3 @@ GROUP BY w.id, w.address;
 **Status**: 🟢 READY FOR EXECUTION  
 **Risk Level**: 🟢 LOW (49 rows, well-documented migration)  
 **Estimated Downtime**: 5 minutes
-

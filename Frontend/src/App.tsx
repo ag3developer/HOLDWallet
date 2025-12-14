@@ -168,8 +168,8 @@ function App() {
   return (
     <ErrorBoundary>
       <Helmet
-        defaultTitle={t('common.appName', 'HOLD Wallet')}
-        titleTemplate={`%s - ${t('common.appName', 'HOLD Wallet')}`}
+        defaultTitle={t('common.appName', 'Wolknow')}
+        titleTemplate={`%s - ${t('common.appName', 'Wolknow')}`}
       >
         <html lang={t('common.language', 'pt-BR')} />
         <meta

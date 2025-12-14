@@ -1,5 +1,5 @@
 /**
- * 📞 HOLD Wallet - WebRTC Service
+ * 📞 Wolknow - WebRTC Service
  * ================================
  * Serviço para gerenciar chamadas de voz e vídeo P2P usando WebRTC
  */

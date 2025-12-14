@@ -1041,7 +1041,7 @@ export const SettingsPage = () => {
               </div>
               <div>
                 <h3 className='text-lg font-semibold text-gray-900 dark:text-white'>
-                  Sobre HOLD Wallet
+                  Sobre Wolknow
                 </h3>
                 <p className='text-sm text-gray-600 dark:text-gray-400'>
                   Informações do aplicativo
@@ -1077,7 +1077,7 @@ export const SettingsPage = () => {
 
             <div className='mt-6 pt-6 border-t border-blue-200 dark:border-blue-800'>
               <p className='text-sm text-gray-600 dark:text-gray-400 mb-4'>
-                🔐 HOLD Wallet é uma carteira descentralizada e de código aberto. Seus fundos estão
+                🔐 Wolknow é uma plataforma descentralizada e de código aberto. Seus fundos estão
                 sempre sob seu controle.
               </p>
               <div className='flex gap-3 flex-wrap'>

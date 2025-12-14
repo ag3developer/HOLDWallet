@@ -186,8 +186,8 @@ export const RegisterPage = () => {
         <div className="text-center">
           <div className="mx-auto h-20 w-20 rounded-2xl bg-white dark:bg-gray-800 shadow-lg flex items-center justify-center mb-6 p-3">
             <img 
-              src="/images/logos/hw-icon.png" 
-              alt="HOLD Wallet Logo" 
+              src="/images/logos/wn-icon.png" 
+              alt="Wolknow Logo" 
               className="h-16 w-16 object-contain"
             />
           </div>
@@ -195,7 +195,7 @@ export const RegisterPage = () => {
             {t('auth.register', 'Criar Conta')}
           </h2>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-            Registre-se na HOLD Wallet e comece a negociar
+            Registre-se na Wolknow e comece a negociar
           </p>
         </div>
 

@@ -39,7 +39,7 @@ export const LoadingScreen = ({
         {/* Loading message */}
         <div className="text-center">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-            HOLD Wallet
+            Wolknow
           </h2>
           <p className="text-sm text-gray-600 dark:text-gray-400">
             {message}

@@ -1,7 +1,7 @@
 {
-  "name": "hold-wallet-frontend",
-  "version": "2.0.0",
-  "description": "HOLD Wallet - P2P Crypto Trading Platform Frontend",
+  "name": "wolknow",
+  "version": "1.0.0",
+  "description": "Wolknow - Peer-to-Peer Trading Platform Frontend",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 3000",

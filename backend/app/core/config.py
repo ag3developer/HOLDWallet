@@ -34,7 +34,14 @@ class Settings(BaseSettings):
     # Environment
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
-    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:3001", "http://localhost:5173"]
+    CORS_ORIGINS: List[str] = [
+        "http://localhost:3000",
+        "http://localhost:3001", 
+        "http://localhost:5173",
+        "https://wolknow.com",
+        "https://www.wolknow.com",
+        "https://api.wolknow.com"
+    ]
     
     # Security
     BCRYPT_ROUNDS: int = 12

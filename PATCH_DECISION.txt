@@ -1,0 +1,93 @@
+# PATCH vs PUT - RESUMO EXECUTIVO
+
+**Pergunta**: Precisamos usar PATCH como v1 no servidor?
+
+**Resposta**: **SIM - é recomendado!** Mas não é obrigatório.
+
+---
+
+## 🎯 DIFERENÇA RÁPIDA
+
+### PUT (Atual)
+```bash
+# Você envia TUDO
+{
+  "email": "novo@email.com",
+  "username": "novo_username",
+  "profile_photo": "...",
+  "bio": "..."
+}
+```
+❌ Ineficiente - envia dados desnecessários
+
+### PATCH (Recomendado)
+```bash
+# Você envia SÓ o que mudou
+{
+  "username": "novo_username"
+}
+```
+✅ Eficiente - envia menos dados
+
+---
+
+## 📊 DECISÃO
+
+| Aspecto | PUT (Atual) | PATCH (Novo) |
+|---------|-----------|------------|
+| **Status** | Funciona | Melhor |
+| **Padrão Indústria** | Antigo | Moderno |
+| **Eficiência** | ⭐⭐ | ⭐⭐⭐⭐⭐ |
+| **Cliente Precisar Enviar Todos os Campos?** | ✅ SIM | ❌ NÃO |
+| **Usado por** | APIs antigas | GitHub, Stripe, Slack |
+
+---
+
+## ✅ RECOMENDAÇÃO
+
+**Implementar PATCH em todos os endpoints de atualização** quando tiver tempo.
+
+**Priority**: 🟡 Medium (não é urgente, mas é bom ter)
+
+---
+
+## 📋 PRÓXIMAS AÇÕES
+
+### Opção 1: Implementar Agora
+```
+Tempo: ~2-3 horas
+Passos:
+1. Criar schemas com campos opcionais
+2. Adicionar @router.patch endpoints
+3. Testar
+4. Deploy
+```
+
+### Opção 2: Deixar Como Está
+```
+Continue usando PUT
+Funciona perfeitamente
+Não quebra nada
+```
+
+### Opção 3: Implementar Depois
+```
+Quando tiver tempo
+Não é urgente
+Backlog para próximas sprints
+```
+
+---
+
+## 🚀 SE DECIDIR IMPLEMENTAR
+
+Comece por aqui (em ordem de importância):
+
+1. **Users** - `/api/v1/users/me` (PATCH)
+2. **Wallets** - `/api/v1/wallets/{id}` (PATCH)
+3. **P2P Orders** - `/api/v1/p2p/orders/{id}` (PATCH)
+4. **Outras** - Conforme necessário
+
+---
+
+**Conclusão**: PATCH é melhor, mas PUT também funciona. Escolha seu tempo! 🎯

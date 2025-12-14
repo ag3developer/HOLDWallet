@@ -24,7 +24,7 @@ logger = get_logger("main")
 async def lifespan(app: FastAPI):
     """Application lifespan events."""
     # Startup
-    logger.info("🚀 Starting HOLD Wallet Backend API...")
+    logger.info("🚀 Starting Wolknow Backend API...")
     
     try:
         # Initialize database
@@ -39,7 +39,7 @@ async def lifespan(app: FastAPI):
         # Initialize cache service
         await cache_service.connect()
         
-        logger.info("🎉 HOLD Wallet Backend started successfully")
+        logger.info("🎉 Wolknow Backend started successfully")
         yield
         
     except Exception as e:
@@ -47,14 +47,14 @@ async def lifespan(app: FastAPI):
         raise
     finally:
         # Shutdown
-        logger.info("👋 Shutting down HOLD Wallet Backend...")
+        logger.info("👋 Shutting down Wolknow Backend...")
         await cache_service.disconnect()
 
 # Create FastAPI app
 app = FastAPI(
-    title="HOLD Wallet API",
-    description="Non-custodial multi-chain digital wallet API",
-    version="0.1.0",
+    title="Wolknow API",
+    description="Peer-to-Peer Trading Platform - P2P Exchange",
+    version="1.0.0",
     lifespan=lifespan,
     docs_url="/docs" if settings.DEBUG else None,
     redoc_url="/redoc" if settings.DEBUG else None,
@@ -151,8 +151,8 @@ app.include_router(reputation.router, prefix="/api/v1", tags=["reputation"])
 async def root():
     """Root endpoint."""
     return {
-        "message": "HOLD Wallet API",
-        "version": "0.1.0",
+        "message": "Wolknow API",
+        "version": "1.0.0",
         "status": "running",
         "environment": settings.ENVIRONMENT,
         "docs": "/docs" if settings.DEBUG else "disabled"

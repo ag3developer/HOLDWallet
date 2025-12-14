@@ -1,5 +1,5 @@
 /**
- * 💬 HOLD Wallet - Chat P2P Service
+ * 💬 Wolknow - Chat P2P Service
  * ==================================
  * Serviço específico para chat em transações P2P
  * com WebSocket, upload de comprovantes e gerenciamento de salas

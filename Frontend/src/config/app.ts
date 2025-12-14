@@ -1,8 +1,8 @@
 // Configurações globais da aplicação
 export const APP_CONFIG = {
-  name: 'HOLD Wallet',
+  name: 'Wolknow',
   version: '1.0.0',
-  description: 'Carteira digital P2P com sistema de chat e reputação',
+  description: 'Plataforma P2P de trading com sistema de chat e reputação',
 
   // URLs da API
   api: {

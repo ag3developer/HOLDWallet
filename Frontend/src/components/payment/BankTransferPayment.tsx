@@ -269,7 +269,7 @@ Referência: ${transferData.reference_code}
       <button
         onClick={() => {
           const text = `
-HOLD Wallet - Instruções de Transferência Bancária
+Wolknow - Instruções de Transferência Bancária
 ================================================
 
 Transferência ID: ${transferData.transfer_id}
