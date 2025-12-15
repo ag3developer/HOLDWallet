@@ -61,8 +61,8 @@ app = FastAPI(
     description="Peer-to-Peer Trading Platform - P2P Exchange",
     version="1.0.0",
     lifespan=lifespan,
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url=None,  # disable default /docs to avoid conflicting behavior under /v1
+    redoc_url=None, # disable default /redoc
     openapi_url="/openapi.json",
 )
 
@@ -80,11 +80,14 @@ class PathRewriteMiddleware(BaseHTTPMiddleware):
     """Reescreve /v1/* para /api/v1/* para compatibilidade com frontend"""
     async def dispatch(self, request: StarletteRequest, call_next):
         # Don't rewrite documentation and spec paths
-        excluded_paths = {"/docs", "/redoc", "/openapi.json"}
-        
-        if request.url.path.startswith("/v1/") and not any(request.url.path.startswith(f"/v1{path}") for path in excluded_paths):
+        excluded_paths = {
+            "/docs", "/redoc", "/openapi.json",
+            "/v1/docs", "/v1/redoc", "/v1/openapi.json"
+        }
+        path = request.url.path
+        if path.startswith("/v1/") and path not in excluded_paths:
             # Reescrever /v1/... para /api/v1/...
-            request.scope["path"] = "/api" + request.url.path
+            request.scope["path"] = "/api" + path
         return await call_next(request)
 
 app.add_middleware(PathRewriteMiddleware)
@@ -175,8 +178,8 @@ async def root():
         "version": "1.0.0",
         "status": "running",
         "environment": settings.ENVIRONMENT,
-        "docs": "/docs",
-        "redoc": "/redoc"
+        "docs": "/v1/docs",  # point to custom docs
+        "redoc": "/v1/redoc"
     }
 
 # Also add a route for /v1 in production since root_path doesn't auto-redirect
@@ -188,8 +191,8 @@ async def root_v1():
         "version": "1.0.0",
         "status": "running",
         "environment": settings.ENVIRONMENT,
-        "docs": "/docs",
-        "redoc": "/redoc"
+        "docs": "/v1/docs",
+        "redoc": "/v1/redoc"
     }
 
 # Serve openapi.json - both at /openapi.json and /v1/openapi.json for Swagger UI compatibility
@@ -232,11 +235,12 @@ async def api_v1_openapi():
         )
     return app.openapi_schema
 
-# Redirect /v1/docs to /docs
+# Custom Swagger UI under /v1/docs that points to /v1/openapi.json
 @app.get("/v1/docs", include_in_schema=False)
 async def v1_docs():
     """Serve Swagger UI at /v1/docs pointing to /v1/openapi.json"""
-    return HTMLResponse("""
+    return HTMLResponse(
+        """
     <!DOCTYPE html>
     <html>
       <head>
@@ -264,7 +268,8 @@ async def v1_docs():
         </script>
       </body>
     </html>
-    """)
+    """
+    )
 
 @app.get("/v1/redoc", include_in_schema=False)
 async def v1_redoc():
