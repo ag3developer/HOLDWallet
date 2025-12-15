@@ -37,80 +37,108 @@ def get_db() -> Generator[Session, None, None]:
         db.close()
 
 async def create_tables():
-    """Create all database tables."""
+    """Create all database tables using Alembic migrations if possible, fallback to SQLAlchemy."""
     try:
-        # Import all models for table creation
-        from app.models.user import User
-        from app.models.wallet import Wallet
-        from app.models.address import Address
-        from app.models.transaction import Transaction
-        from app.models.two_factor import TwoFactorAuth
+        from sqlalchemy import inspect, text
+        import subprocess
+        import os
         
-        # Reset connection pool first to clear any aborted transactions
-        engine.dispose()
-        
-        # Try to create all tables
+        # Import all models first to register them
+        logger.info("📦 Importing all models...")
         try:
-            Base.metadata.create_all(bind=engine)
-            logger.info("✅ Database tables created successfully")
-        except Exception as create_error:
-            error_msg = str(create_error).lower()
+            from app.models.user import User
+            from app.models.wallet import Wallet
+            from app.models.address import Address
+            from app.models.transaction import Transaction
+            from app.models.two_factor import TwoFactorAuth
             
-            # Check if it's a transaction abort error
-            if "transaction is aborted" in error_msg or "current transaction is aborted" in error_msg:
-                logger.warning("⚠️  Transaction aborted, clearing connection pool and retrying...")
-                # Dispose of all connections to reset state
-                engine.dispose()
-                
-                # Wait a moment for connections to clear
-                import asyncio
-                await asyncio.sleep(0.5)
-                
-                # Try again with fresh connection
-                try:
-                    Base.metadata.create_all(bind=engine)
-                    logger.info("✅ Database tables created successfully after reconnect")
-                except Exception as retry_error:
-                    logger.error(f"❌ Still failing after reconnect: {retry_error}")
-                    raise retry_error
+            # Import optional models
+            try:
+                from app.models import p2p, reputation, trader_profile, instant_trade, chat
+                logger.info("   ✅ All models imported successfully")
+            except ImportError as e:
+                logger.warning(f"   ⚠️  Some optional models not available: {e}")
+        except ImportError as e:
+            logger.error(f"   ❌ Failed to import core models: {e}")
+            raise
+        
+        # Check if tables already exist
+        inspector = inspect(engine)
+        existing_tables = inspector.get_table_names()
+        
+        if existing_tables:
+            logger.info(f"✅ Database already has {len(existing_tables)} tables")
+            return
+        
+        logger.info("🔍 No tables found. Attempting to create them...")
+        
+        # Method 1: Try Alembic migrations (best for production)
+        try:
+            logger.info("📝 Attempting to run Alembic migrations...")
+            backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             
-            # If ENUM permission issue - skip ENUM types but create tables
-            elif "permission denied" in error_msg and ("enum" in error_msg.lower() or "type" in error_msg.lower()):
-                logger.warning("⚠️  ENUM type creation requires higher privileges - skipping ENUM creation")
-                logger.warning("⚠️  Tables will be created without ENUM constraints (using VARCHAR instead)")
-                
-                # Try creating tables without ENUM types by skipping the enum creation
-                # This is a workaround for production environments with limited permissions
-                try:
-                    engine.dispose()
-                    # Create tables one by one, skipping ENUM errors
-                    with engine.begin() as connection:
-                        for table_name, table in Base.metadata.tables.items():
-                            try:
-                                # Use raw SQL to create table if SQLAlchemy fails
-                                connection.execute(f"CREATE TABLE IF NOT EXISTS {table_name} (id SERIAL PRIMARY KEY)")
-                                logger.info(f"✅ Created basic table structure for: {table_name}")
-                            except Exception as table_error:
-                                if "already exists" in str(table_error).lower():
-                                    logger.info(f"ℹ️  Table {table_name} already exists")
-                                else:
-                                    logger.warning(f"⚠️  Could not create {table_name}: {table_error}")
-                    
-                    logger.info("✅ Table creation completed (some tables may exist already)")
-                    # Application can still start and work with existing tables
-                except Exception as fallback_error:
-                    logger.error(f"❌ Even fallback table creation failed: {fallback_error}")
-                    # Don't fail startup - let app run with existing tables
-                    logger.warning("⚠️  Continuing startup without creating tables - ensure they exist!")
+            result = subprocess.run(
+                ["python", "-m", "alembic", "upgrade", "head"],
+                cwd=backend_dir,
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
             
+            if result.returncode == 0:
+                logger.info("✅ Alembic migrations executed successfully!")
+                
+                # Verify tables were created
+                inspector = inspect(engine)
+                tables = inspector.get_table_names()
+                if tables:
+                    logger.info(f"✅ {len(tables)} tables created via Alembic")
+                    return
             else:
-                # Unknown error, log and fail
-                logger.error(f"❌ Error creating database tables: {create_error}")
-                raise create_error
+                logger.warning(f"⚠️  Alembic failed: {result.stderr}")
+                logger.info("   Falling back to SQLAlchemy...")
+        except Exception as alembic_error:
+            logger.warning(f"⚠️  Alembic not available: {alembic_error}")
+            logger.info("   Falling back to SQLAlchemy...")
+        
+        # Method 2: SQLAlchemy create_all (fallback)
+        try:
+            logger.info("🔨 Creating tables with SQLAlchemy...")
+            engine.dispose()  # Clear connection pool
+            
+            Base.metadata.create_all(bind=engine)
+            
+            # Verify tables were created
+            inspector = inspect(engine)
+            tables = inspector.get_table_names()
+            
+            if tables:
+                logger.info(f"✅ {len(tables)} tables created successfully!")
+                for table in sorted(tables)[:10]:  # Show first 10
+                    logger.info(f"   - {table}")
+                if len(tables) > 10:
+                    logger.info(f"   ... and {len(tables) - 10} more")
+            else:
+                logger.warning("⚠️  No tables were created!")
+                
+        except Exception as sqlalchemy_error:
+            error_msg = str(sqlalchemy_error).lower()
+            
+            if "permission denied" in error_msg:
+                logger.error("❌ PERMISSION DENIED - Database user cannot create tables!")
+                logger.error("   Solution: Execute migrations from Digital Ocean Console:")
+                logger.error("   cd /workspace/backend && python -m alembic upgrade head")
+                # Don't fail startup - let app try to work with existing tables
+                logger.warning("⚠️  Continuing startup anyway...")
+            else:
+                logger.error(f"❌ Failed to create tables: {sqlalchemy_error}")
+                raise
                 
     except Exception as e:
-        logger.error(f"❌ Startup failed: {e}")
-        raise e
+        logger.error(f"❌ Table creation failed: {e}")
+        # Don't fail the entire application startup
+        logger.warning("⚠️  Application will continue but may not work without tables!")
+        logger.warning("   Please create tables manually or via Alembic migrations")
 
 def init_db():
     """Initialize database on startup."""
