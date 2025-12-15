@@ -79,7 +79,10 @@ app.add_middleware(
 class PathRewriteMiddleware(BaseHTTPMiddleware):
     """Reescreve /v1/* para /api/v1/* para compatibilidade com frontend"""
     async def dispatch(self, request: StarletteRequest, call_next):
-        if request.url.path.startswith("/v1/"):
+        # Don't rewrite documentation and spec paths
+        excluded_paths = {"/docs", "/redoc", "/openapi.json"}
+        
+        if request.url.path.startswith("/v1/") and not any(request.url.path.startswith(f"/v1{path}") for path in excluded_paths):
             # Reescrever /v1/... para /api/v1/...
             request.scope["path"] = "/api" + request.url.path
         return await call_next(request)
