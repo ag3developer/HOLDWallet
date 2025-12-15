@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import uvicorn
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request as StarletteRequest
 
 # Core imports
 from app.core.config import settings
@@ -59,6 +61,17 @@ app = FastAPI(
     docs_url="/docs" if settings.DEBUG else None,
     redoc_url="/redoc" if settings.DEBUG else None,
 )
+
+# Path rewriting middleware for /v1 -> /api/v1 routing (Heroku compatibility)
+class PathRewriteMiddleware(BaseHTTPMiddleware):
+    """Middleware to rewrite /v1 paths to /api/v1 for compatibility."""
+    async def dispatch(self, request: StarletteRequest, call_next):
+        if request.url.path.startswith("/v1/") and not request.url.path.startswith("/v1/docs") and not request.url.path.startswith("/v1/redoc"):
+            # Rewrite /v1/... to /api/v1/...
+            request.scope["path"] = "/api" + request.url.path
+        return await call_next(request)
+
+app.add_middleware(PathRewriteMiddleware)
 
 # Configure CORS
 app.add_middleware(
