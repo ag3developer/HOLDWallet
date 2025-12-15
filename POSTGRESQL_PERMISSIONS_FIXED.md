@@ -11,7 +11,7 @@
 
 ```
 Insufficient database privileges
-The application encountered permission issues when attempting 
+The application encountered permission issues when attempting
 to create database tables and types
 ```
 
@@ -52,6 +52,7 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE ON TYPES TO "holdwallet-db
 ## 📊 Resultado
 
 **Antes:**
+
 ```
 usename      | usesuper | usecreatedb
 -----------  | -------- | -----------
@@ -59,6 +60,7 @@ holdwallet-db| f        | t
 ```
 
 **Depois:**
+
 ```
 usename      | usesuper | usecreatedb
 -----------  | -------- | -----------
@@ -78,6 +80,7 @@ git push origin main
 ```
 
 Isso vai:
+
 - Triggar novo deploy no Vercel
 - Tentar criar tabelas novamente
 - **Agora deve funcionar** ✅
@@ -89,13 +92,15 @@ curl https://api.wolknow.com/health
 ```
 
 Deve retornar:
+
 ```json
-{"status": "healthy", "message": "Wolknow API"}
+{ "status": "healthy", "message": "Wolknow API" }
 ```
 
 ### 3. Se Funcionar
 
 Logs no Vercel devem mostrar:
+
 ```
 ✅ Database connection established
 ✅ Database tables verified
@@ -107,6 +112,7 @@ Logs no Vercel devem mostrar:
 ## 🔐 Detalhes Técnicos
 
 **Banco de Dados:**
+
 - Host: `app-1265fb66-9e7e-4f8c-b1fc-efab8c026006-do-user-22787082-0.l.db.ondigitalocean.com`
 - Port: `25060`
 - User: `holdwallet-db`
@@ -114,6 +120,7 @@ Logs no Vercel devem mostrar:
 - SSL: Required
 
 **Permissões Concedidas:**
+
 - ✅ GRANT ALL ON SCHEMA public
 - ✅ ALTER DEFAULT PRIVILEGES ON TABLES
 - ✅ ALTER DEFAULT PRIVILEGES ON SEQUENCES
@@ -126,10 +133,12 @@ Logs no Vercel devem mostrar:
 O erro ocorria quando a aplicação tentava:
 
 1. **Criar ENUM types** para campos como status, tipo de transação, etc.
+
    - ❌ Antes: Permissão negada
    - ✅ Agora: `GRANT USAGE ON TYPES` permite criar tipos
 
 2. **Acessar schema public**
+
    - ❌ Antes: Permissão negada ou limitada
    - ✅ Agora: `GRANT ALL PRIVILEGES ON SCHEMA public` permite acesso total
 
@@ -151,7 +160,8 @@ O erro ocorria quando a aplicação tentava:
 
 ---
 
-**Próxima ação**: 
+**Próxima ação**:
+
 ```bash
 git push origin main
 ```
