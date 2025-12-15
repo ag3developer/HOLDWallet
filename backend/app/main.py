@@ -53,10 +53,6 @@ async def lifespan(app: FastAPI):
         await cache_service.disconnect()
 
 # Create FastAPI app
-# In production, set root_path for documentation to work correctly through reverse proxy
-is_production = settings.ENVIRONMENT == "production"
-root_path = "/api/v1" if is_production else ""
-
 app = FastAPI(
     title="Wolknow API",
     description="Peer-to-Peer Trading Platform - P2P Exchange",
@@ -65,7 +61,6 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
-    root_path=root_path,
 )
 
 # Configure CORS
