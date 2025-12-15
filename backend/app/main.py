@@ -195,6 +195,20 @@ async def redirect_openapi():
     """Redirect to openapi.json for Swagger UI compatibility."""
     return RedirectResponse(url="/openapi.json")
 
+# Serve openapi.json at /v1/openapi.json for Swagger UI in production
+@app.get("/v1/openapi.json", include_in_schema=False)
+async def v1_openapi():
+    """Serve OpenAPI spec at /v1/openapi.json for Swagger UI in production."""
+    from fastapi.openapi.utils import get_openapi
+    if not app.openapi_schema:
+        app.openapi_schema = get_openapi(
+            title=app.title,
+            version=app.version,
+            description=app.description,
+            routes=app.routes,
+        )
+    return app.openapi_schema
+
 # Main execution
 if __name__ == "__main__":
     uvicorn.run(
