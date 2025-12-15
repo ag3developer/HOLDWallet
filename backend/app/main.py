@@ -209,6 +209,17 @@ async def v1_openapi():
         )
     return app.openapi_schema
 
+# Redirect /v1/docs to /docs
+@app.get("/v1/docs", include_in_schema=False)
+async def v1_docs():
+    """Redirect to /docs for Swagger UI."""
+    return RedirectResponse(url="/docs")
+
+@app.get("/v1/redoc", include_in_schema=False)
+async def v1_redoc():
+    """Redirect to /redoc for ReDoc."""
+    return RedirectResponse(url="/redoc")
+
 # Main execution
 if __name__ == "__main__":
     uvicorn.run(
