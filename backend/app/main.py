@@ -179,6 +179,19 @@ async def root():
         "redoc": "/redoc"
     }
 
+# Also add a route for /v1 in production since root_path doesn't auto-redirect
+@app.get("/v1")
+async def root_v1():
+    """Root endpoint for /v1 path in production."""
+    return {
+        "message": "Wolknow API",
+        "version": "1.0.0",
+        "status": "running",
+        "environment": settings.ENVIRONMENT,
+        "docs": "/docs",
+        "redoc": "/redoc"
+    }
+
 # Main execution
 if __name__ == "__main__":
     uvicorn.run(
