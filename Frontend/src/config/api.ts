@@ -19,17 +19,32 @@ export const apiConfig = {
 
   // User endpoints
   user: {
-    profile: `${API_URL}/user/profile`,
-    update: `${API_URL}/user/profile`,
-    settings: `${API_URL}/user/settings`,
+    profile: `${API_URL}/users/me`,
+    update: `${API_URL}/users/me`,
+    wallets: `${API_URL}/users/me/wallets`,
+    settings: `${API_URL}/users/me/settings`,
   },
 
-  // Wallet endpoints
+  // Wallet endpoints (legacy - usa /wallet)
   wallet: {
-    list: `${API_URL}/wallet/list`,
-    create: `${API_URL}/wallet/create`,
-    balance: `${API_URL}/wallet/balance`,
-    addresses: `${API_URL}/wallet/addresses`,
+    list: `${API_URL}/wallet`, // GET /wallet/ - lista wallets
+    create: `${API_URL}/wallet`, // POST /wallet/ - cria wallet
+    balance: `${API_URL}/wallet`, // GET /wallet/{wallet_id}/balance
+    addresses: `${API_URL}/wallet`, // POST /wallet/{wallet_id}/addresses
+  },
+
+  // HD Wallets endpoints (novo - usa /wallets)
+  wallets: {
+    create: `${API_URL}/wallets/create`, // POST /wallets/create
+    restore: `${API_URL}/wallets/restore`, // POST /wallets/restore
+    list: `${API_URL}/wallets`, // GET /wallets/
+    addresses: `${API_URL}/wallets`, // GET /wallets/{wallet_id}/addresses
+    balances: `${API_URL}/wallets`, // GET /wallets/{wallet_id}/balances
+    mnemonic: `${API_URL}/wallets`, // GET /wallets/{wallet_id}/mnemonic
+    transactions: `${API_URL}/wallets`, // GET /wallets/{wallet_id}/transactions
+    validateAddress: `${API_URL}/wallets/validate-address`, // POST
+    estimateFee: `${API_URL}/wallets/estimate-fee`, // POST
+    send: `${API_URL}/wallets/send`, // POST
   },
 
   // Trading endpoints
@@ -57,7 +72,17 @@ export const apiConfig = {
  * Função helper para fazer requisições com token
  */
 export async function apiCall(endpoint: string, options: RequestInit = {}) {
-  const token = localStorage.getItem('access_token')
+  // Get token from Zustand persist storage (hold-wallet-auth)
+  let token: string | null = null
+  try {
+    const authData = localStorage.getItem('hold-wallet-auth')
+    if (authData) {
+      const parsed = JSON.parse(authData)
+      token = parsed?.state?.token || null
+    }
+  } catch (e) {
+    console.warn('[apiCall] Failed to get token from localStorage:', e)
+  }
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
