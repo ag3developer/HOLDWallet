@@ -192,16 +192,36 @@ async def root_v1():
         "redoc": "/redoc"
     }
 
-# Redirect /api/v1/openapi.json to /openapi.json for Swagger UI compatibility
-@app.get("/api/v1/openapi.json", include_in_schema=False)
-async def redirect_openapi():
-    """Redirect to openapi.json for Swagger UI compatibility."""
-    return RedirectResponse(url="/openapi.json")
+# Serve openapi.json - both at /openapi.json and /v1/openapi.json for Swagger UI compatibility
+@app.get("/openapi.json", include_in_schema=False)
+async def get_openapi_spec():
+    """Serve OpenAPI spec at /openapi.json"""
+    from fastapi.openapi.utils import get_openapi
+    if not app.openapi_schema:
+        app.openapi_schema = get_openapi(
+            title=app.title,
+            version=app.version,
+            description=app.description,
+            routes=app.routes,
+        )
+    return app.openapi_schema
 
-# Serve openapi.json at /v1/openapi.json for Swagger UI in production
 @app.get("/v1/openapi.json", include_in_schema=False)
 async def v1_openapi():
     """Serve OpenAPI spec at /v1/openapi.json for Swagger UI in production."""
+    from fastapi.openapi.utils import get_openapi
+    if not app.openapi_schema:
+        app.openapi_schema = get_openapi(
+            title=app.title,
+            version=app.version,
+            description=app.description,
+            routes=app.routes,
+        )
+    return app.openapi_schema
+
+@app.get("/api/v1/openapi.json", include_in_schema=False)
+async def api_v1_openapi():
+    """Serve OpenAPI spec at /api/v1/openapi.json"""
     from fastapi.openapi.utils import get_openapi
     if not app.openapi_schema:
         app.openapi_schema = get_openapi(
