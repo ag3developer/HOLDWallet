@@ -53,6 +53,11 @@ async def lifespan(app: FastAPI):
         await cache_service.disconnect()
 
 # Create FastAPI app
+# In production, the Digital Ocean reverse proxy rewrites /v1/* to /api/v1/*
+# So we set root_path="/v1" so FastAPI knows it's being accessed via /v1 prefix
+is_production = settings.ENVIRONMENT == "production"
+root_path = "/v1" if is_production else ""
+
 app = FastAPI(
     title="Wolknow API",
     description="Peer-to-Peer Trading Platform - P2P Exchange",
@@ -61,6 +66,7 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
+    root_path=root_path,
 )
 
 # Configure CORS
