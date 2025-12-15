@@ -60,6 +60,7 @@ app = FastAPI(
     lifespan=lifespan,
     docs_url="/docs" if settings.DEBUG else None,
     redoc_url="/redoc" if settings.DEBUG else None,
+    root_path="/api/v1" if settings.ENVIRONMENT == "production" else "",
 )
 
 # Configure CORS
@@ -133,31 +134,31 @@ async def general_exception_handler(request: Request, exc: Exception):
         )
 
 # Include routers
-app.include_router(health.router, prefix="/api/v1/health", tags=["health"])
-app.include_router(auth.router, prefix="/api/v1/auth", tags=["authentication"])
-app.include_router(two_factor.router, prefix="/api/v1", tags=["two-factor"])
-app.include_router(users.router, prefix="/api/v1/users", tags=["users"])
-app.include_router(dashboard.router, prefix="/api/v1", tags=["dashboard"])
-app.include_router(wallet.router, prefix="/api/v1/wallet", tags=["wallets"]) 
-app.include_router(wallets.router, prefix="/api/v1/wallets", tags=["hd-wallets"])
-app.include_router(seed_verification.router, prefix="/api/v1/wallets", tags=["seed-verification"])
-app.include_router(wallet_transactions.router, prefix="/api/v1", tags=["wallet-transactions"])
-app.include_router(blockchain.router, prefix="/api/v1/blockchain", tags=["blockchain"])
-app.include_router(transactions.router, prefix="/api/v1", tags=["transactions"])
-app.include_router(tx.router, prefix="/api/v1/tx", tags=["transactions"])
-app.include_router(prices.router, prefix="/api/v1/prices", tags=["prices"])
-app.include_router(prices_batch_v2.router, prefix="/api/v1/prices", tags=["prices-batch"])
-app.include_router(tokens.router, prefix="/api/v1", tags=["tokens"])
+app.include_router(health.router, prefix="/health", tags=["health"])
+app.include_router(auth.router, prefix="/auth", tags=["authentication"])
+app.include_router(two_factor.router, prefix="", tags=["two-factor"])
+app.include_router(users.router, prefix="/users", tags=["users"])
+app.include_router(dashboard.router, prefix="", tags=["dashboard"])
+app.include_router(wallet.router, prefix="/wallet", tags=["wallets"]) 
+app.include_router(wallets.router, prefix="/wallets", tags=["hd-wallets"])
+app.include_router(seed_verification.router, prefix="/wallets", tags=["seed-verification"])
+app.include_router(wallet_transactions.router, prefix="", tags=["wallet-transactions"])
+app.include_router(blockchain.router, prefix="/blockchain", tags=["blockchain"])
+app.include_router(transactions.router, prefix="", tags=["transactions"])
+app.include_router(tx.router, prefix="/tx", tags=["transactions"])
+app.include_router(prices.router, prefix="/prices", tags=["prices"])
+app.include_router(prices_batch_v2.router, prefix="/prices", tags=["prices-batch"])
+app.include_router(tokens.router, prefix="", tags=["tokens"])
 
 # New monetization routers
-app.include_router(billing.router, prefix="/api/v1", tags=["billing"])
-app.include_router(portfolio.router, prefix="/api/v1", tags=["portfolio"])
-app.include_router(exchange.router, prefix="/api/v1", tags=["exchange"])
-app.include_router(instant_trade.router, prefix="/api/v1", tags=["instant-trade"])
-app.include_router(trader_profiles.router, prefix="/api/v1", tags=["trader-profiles"])
-app.include_router(p2p.router, prefix="/api/v1/p2p", tags=["p2p"])
-app.include_router(chat_enterprise.router, prefix="/api/v1", tags=["chat"])
-app.include_router(reputation.router, prefix="/api/v1", tags=["reputation"])
+app.include_router(billing.router, prefix="", tags=["billing"])
+app.include_router(portfolio.router, prefix="", tags=["portfolio"])
+app.include_router(exchange.router, prefix="", tags=["exchange"])
+app.include_router(instant_trade.router, prefix="", tags=["instant-trade"])
+app.include_router(trader_profiles.router, prefix="", tags=["trader-profiles"])
+app.include_router(p2p.router, prefix="/p2p", tags=["p2p"])
+app.include_router(chat_enterprise.router, prefix="", tags=["chat"])
+app.include_router(reputation.router, prefix="", tags=["reputation"])
 
 # Root endpoint
 @app.get("/")
