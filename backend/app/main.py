@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse
 from contextlib import asynccontextmanager
 import uvicorn
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -235,8 +235,36 @@ async def api_v1_openapi():
 # Redirect /v1/docs to /docs
 @app.get("/v1/docs", include_in_schema=False)
 async def v1_docs():
-    """Redirect to /docs for Swagger UI."""
-    return RedirectResponse(url="/docs")
+    """Serve Swagger UI at /v1/docs pointing to /v1/openapi.json"""
+    return HTMLResponse("""
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>Swagger UI</title>
+        <meta charset="utf-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@3/swagger-ui.css">
+      </head>
+      <body>
+        <div id="swagger-ui"></div>
+        <script src="https://unpkg.com/swagger-ui-dist@3/swagger-ui-bundle.js"></script>
+        <script>
+        window.onload = function() {
+          const ui = SwaggerUIBundle({
+            url: "/v1/openapi.json",
+            dom_id: '#swagger-ui',
+            presets: [
+              SwaggerUIBundle.presets.apis,
+              SwaggerUIBundle.SwaggerUIStandalonePreset
+            ],
+            layout: "BaseLayout"
+          })
+          window.ui = ui
+        }
+        </script>
+      </body>
+    </html>
+    """)
 
 @app.get("/v1/redoc", include_in_schema=False)
 async def v1_redoc():
