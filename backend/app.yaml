@@ -9,8 +9,8 @@ services:
     source_dir: backend/
     http_port: 8080
     routes:
-      - path: /v1
-        rewrite: /api/v1
+      - path: /v1/*
+        rewrite: /api/v1/$REMAINDER
     envs:
       - key: ENVIRONMENT
         value: production
