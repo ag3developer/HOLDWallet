@@ -274,7 +274,7 @@ export const Sidebar = () => {
                         const numericId = user?.id
                           ? String(user.id).replaceAll(/\D/g, '').substring(0, 5)
                           : '00000'
-                        return `HW${numericId}`
+                        return `UID: WN${numericId}`
                       })()}
                     </span>
                   </div>
