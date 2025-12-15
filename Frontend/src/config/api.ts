@@ -10,47 +10,47 @@ export const apiConfig = {
 
   // Auth endpoints
   auth: {
-    login: `${API_URL}/api/v1/auth/login`,
-    signup: `${API_URL}/api/v1/auth/signup`,
-    logout: `${API_URL}/api/v1/auth/logout`,
-    refresh: `${API_URL}/api/v1/auth/refresh`,
-    verify: `${API_URL}/api/v1/auth/verify`,
+    login: `${API_URL}/auth/login`,
+    signup: `${API_URL}/auth/signup`,
+    logout: `${API_URL}/auth/logout`,
+    refresh: `${API_URL}/auth/refresh`,
+    verify: `${API_URL}/auth/verify`,
   },
 
   // User endpoints
   user: {
-    profile: `${API_URL}/api/v1/user/profile`,
-    update: `${API_URL}/api/v1/user/profile`,
-    settings: `${API_URL}/api/v1/user/settings`,
+    profile: `${API_URL}/user/profile`,
+    update: `${API_URL}/user/profile`,
+    settings: `${API_URL}/user/settings`,
   },
 
   // Wallet endpoints
   wallet: {
-    list: `${API_URL}/api/v1/wallet/list`,
-    create: `${API_URL}/api/v1/wallet/create`,
-    balance: `${API_URL}/api/v1/wallet/balance`,
-    addresses: `${API_URL}/api/v1/wallet/addresses`,
+    list: `${API_URL}/wallet/list`,
+    create: `${API_URL}/wallet/create`,
+    balance: `${API_URL}/wallet/balance`,
+    addresses: `${API_URL}/wallet/addresses`,
   },
 
   // Trading endpoints
   trading: {
-    quote: `${API_URL}/api/v1/trading/quote`,
-    createOrder: `${API_URL}/api/v1/trading/create-order`,
-    getOrder: `${API_URL}/api/v1/trading/order`,
-    listOrders: `${API_URL}/api/v1/trading/orders`,
+    quote: `${API_URL}/trading/quote`,
+    createOrder: `${API_URL}/trading/create-order`,
+    getOrder: `${API_URL}/trading/order`,
+    listOrders: `${API_URL}/trading/orders`,
   },
 
   // Payment endpoints
   payment: {
-    methods: `${API_URL}/api/v1/payment/methods`,
+    methods: `${API_URL}/payment/methods`,
     transfbank: {
-      generate: `${API_URL}/api/v1/payment/transfbank/generate`,
-      verify: `${API_URL}/api/v1/payment/transfbank/verify`,
+      generate: `${API_URL}/payment/transfbank/generate`,
+      verify: `${API_URL}/payment/transfbank/verify`,
     },
   },
 
   // Health check
-  health: `${API_URL}/api/v1/health`,
+  health: `${API_URL}/health`,
 }
 
 /**

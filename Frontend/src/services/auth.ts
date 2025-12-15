@@ -55,7 +55,7 @@ class AuthService {
 
   // Change password
   async changePassword(currentPassword: string, newPassword: string): Promise<void> {
-    await apiClient.post(`${apiConfig.baseURL}/api/v1/auth/change-password`, {
+    await apiClient.post(`${apiConfig.baseURL}/auth/change-password`, {
       currentPassword,
       newPassword,
     })
@@ -63,12 +63,12 @@ class AuthService {
 
   // Request password reset
   async forgotPassword(email: string): Promise<void> {
-    await apiClient.post(`${apiConfig.baseURL}/api/v1/auth/forgot-password`, { email })
+    await apiClient.post(`${apiConfig.baseURL}/auth/forgot-password`, { email })
   }
 
   // Reset password with token
   async resetPassword(token: string, newPassword: string): Promise<void> {
-    await apiClient.post(`${apiConfig.baseURL}/api/v1/auth/reset-password`, {
+    await apiClient.post(`${apiConfig.baseURL}/auth/reset-password`, {
       token,
       newPassword,
     })
@@ -81,18 +81,18 @@ class AuthService {
 
   // Resend email verification
   async resendEmailVerification(email: string): Promise<void> {
-    await apiClient.post(`${apiConfig.baseURL}/api/v1/auth/resend-verification`, { email })
+    await apiClient.post(`${apiConfig.baseURL}/auth/resend-verification`, { email })
   }
 
   // Enable 2FA
   async enable2FA(): Promise<{ qr_code: string; backup_codes: string[]; secret: string }> {
-    const response = await apiClient.post(`${apiConfig.baseURL}/api/v1/auth/2fa/setup`)
+    const response = await apiClient.post(`${apiConfig.baseURL}/auth/2fa/setup`)
     return response.data
   }
 
   // Verify 2FA setup
   async verify2FA(code: string): Promise<{ success: boolean; message: string }> {
-    const response = await apiClient.post(`${apiConfig.baseURL}/api/v1/auth/2fa/verify`, {
+    const response = await apiClient.post(`${apiConfig.baseURL}/auth/2fa/verify`, {
       token: code,
     })
     return response.data
@@ -100,7 +100,7 @@ class AuthService {
 
   // Disable 2FA
   async disable2FA(code: string): Promise<{ success: boolean; message: string }> {
-    const response = await apiClient.post(`${apiConfig.baseURL}/api/v1/auth/2fa/disable`, {
+    const response = await apiClient.post(`${apiConfig.baseURL}/auth/2fa/disable`, {
       token: code,
     })
     return response.data
@@ -112,13 +112,13 @@ class AuthService {
     verified: boolean
     has_backup_codes: boolean
   }> {
-    const response = await apiClient.get(`${apiConfig.baseURL}/api/v1/auth/2fa/status`)
+    const response = await apiClient.get(`${apiConfig.baseURL}/auth/2fa/status`)
     return response.data
   }
 
   // Validate 2FA code during login
   async validate2FA(token: string, code: string): Promise<AuthResponse> {
-    const response = await apiClient.post(`${apiConfig.baseURL}/api/v1/auth/2fa/validate`, {
+    const response = await apiClient.post(`${apiConfig.baseURL}/auth/2fa/validate`, {
       token,
       code,
     })
