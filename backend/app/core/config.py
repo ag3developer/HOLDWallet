@@ -40,7 +40,9 @@ class Settings(BaseSettings):
         "http://localhost:5173",
         "https://wolknow.com",
         "https://www.wolknow.com",
-        "https://api.wolknow.com"
+        "https://api.wolknow.com",
+        "https://hold-wallet-deaj.vercel.app",
+        "https://hold-wallet-deaj-70tg82tju-ag-3-developer.vercel.app"
     ]
     
     # Security
