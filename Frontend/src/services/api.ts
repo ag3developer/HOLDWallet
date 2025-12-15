@@ -94,7 +94,20 @@ class ApiClient {
           statusText: error.response?.statusText,
           data: error.response?.data,
           message: error.message,
+          code: error.code,
         })
+
+        // Check for CORS/Network errors
+        if (!error.response) {
+          console.error(
+            '[API] ⚠️ No response received - likely CORS, network, or backend unavailable'
+          )
+          console.error('[API] Error details:', {
+            message: error.message,
+            code: error.code,
+            isNetwork: error.message?.includes('Network') || error.code === 'ERR_NETWORK',
+          })
+        }
 
         const originalRequest = error.config
 
@@ -158,7 +171,7 @@ class ApiClient {
               useAuthStore.getState().setAuthData(parsed.state.user, token)
             }
           } catch (e) {
-            console.warn('[API] Could not restore auth to memory')
+            console.warn('[API] Could not restore auth to memory', e)
           }
           return token
         }
@@ -281,7 +294,24 @@ class ApiClient {
       return apiError
     } else if (error.request) {
       // Request was made but no response received
-      return new Error('Network error: No response from server')
+      const errorMsg = error.message?.toLowerCase() || ''
+
+      // Check for CORS or network issues
+      if (errorMsg.includes('cors') || errorMsg.includes('blocked')) {
+        const corsError = new Error(
+          'CORS Error: The API server rejected the request. Please check if the backend is running and accessible.'
+        )
+        ;(corsError as any).code = 'CORS_ERROR'
+        ;(corsError as any).originalError = error.message
+        return corsError
+      }
+
+      // Generic network error
+      const netError = new Error(
+        'Network error: No response from server. Please check your connection and ensure the API server is running.'
+      )
+      ;(netError as any).originalError = error.message
+      return netError
     } else {
       // Something else happened
       return new Error(`Request error: ${error.message}`)

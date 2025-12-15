@@ -1,0 +1,85 @@
+name: wolknow-backend
+services:
+  - name: backend
+    github:
+      repo: ag3developer/HOLDWallet
+      branch: main
+    build_command: pip install -r backend/requirements.txt
+    run_command: cd backend && uvicorn app.main:app --host 0.0.0.0 --port 8080
+    source_dir: backend/
+    http_port: 8080
+    routes:
+      - path: /v1
+        rewrite: /api/v1
+    envs:
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: LOG_LEVEL
+        value: info
+      - key: DATABASE_URL
+        scope: RUN_TIME
+        value: ${DATABASE_URL}
+      - key: SECRET_KEY
+        value: e9BBxOIPq-nYPOEb3MMZDrqFc2pG6V4rBW_tWOzmR38
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: JWT_EXPIRATION_HOURS
+        value: "24"
+      - key: ALLOWED_ORIGINS
+        value: https://hold-wallet-deaj.vercel.app,https://wolknow.com,http://localhost:3000
+      - key: FRONTEND_URL
+        value: https://hold-wallet-deaj.vercel.app
+      - key: ETHEREUM_RPC_URL
+        value: https://eth.drpc.org
+      - key: POLYGON_RPC_URL
+        value: https://polygon-rpc.com
+      - key: BSC_RPC_URL
+        value: https://bsc-dataseed1.binance.org
+      - key: TRANSFBANK_ENABLED
+        value: "false"
+      - key: TRANSFBANK_API_URL
+        value: https://api.transfbank.com.br/v1
+      - key: TRANSFBANK_API_KEY
+        value: ""
+      - key: TRANSFBANK_WEBHOOK_SECRET
+        value: ""
+      - key: SMTP_ENABLED
+        value: "false"
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        value: ""
+      - key: SMTP_PASSWORD
+        value: ""
+      - key: REDIS_URL
+        value: redis://localhost:6379/0
+      - key: CELERY_BROKER_URL
+        value: redis://localhost:6379/1
+      - key: CELERY_RESULT_BACKEND
+        value: redis://localhost:6379/2
+      - key: COINGECKO_API_KEY
+        value: ""
+      - key: POLYGONSCAN_API_KEY
+        value: ""
+      - key: ETHERSCAN_API_KEY
+        value: ""
+      - key: BSCSCAN_API_KEY
+        value: ""
+      - key: BTC_API_URL
+        value: https://blockstream.info/api
+    health_check:
+      http_path: /health
+      initial_delay_seconds: 10
+      period_seconds: 10
+      timeout_seconds: 5
+      success_threshold: 1
+      failure_threshold: 3
+databases:
+  - name: wolknow-postgres
+    engine: PG
+    version: "12"
+    production: true
