@@ -1,9 +1,14 @@
 from logging.config import fileConfig
+import os
+import sys
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 
 from alembic import context
+
+# Adicionar o diretório do backend ao path
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -14,10 +19,19 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
+# Importar Base e settings corretos
+from app.core.db import Base
+from app.core.config import settings
+
+# Configurar a URL do banco de dados a partir da variável de ambiente
+config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+
 # add your model's MetaData object here
 # for 'autogenerate' support
-from app.db.database import Base
 target_metadata = Base.metadata
+
+# Importar todos os models para que sejam detectados pelo Alembic
+from app.models import user, wallet, balance, p2p, reputation, trader_profile, instant_trade, chat, two_factor
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
