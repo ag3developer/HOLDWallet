@@ -53,17 +53,18 @@ async def lifespan(app: FastAPI):
         await cache_service.disconnect()
 
 # Create FastAPI app
-# In production, Digital Ocean reverse proxy rewrites /v1/* to /api/v1/*
-# The middleware handles path rewriting internally
-# Do NOT set root_path - it causes issues with OpenAPI spec generation
+# Use root_path to handle reverse proxy prefix /v1
+# This prevents 307 redirects that break CORS
+import os
 app = FastAPI(
     title="Wolknow API",
     description="Peer-to-Peer Trading Platform - P2P Exchange",
     version="1.0.0",
     lifespan=lifespan,
-    docs_url="/docs",       # Habilitar Swagger UI padrão em /docs
-    redoc_url="/redoc",     # Habilitar ReDoc em /redoc
-    openapi_url="/openapi.json",
+    root_path=os.getenv("ROOT_PATH", ""),  # Set to /v1 in production
+    docs_url="/docs",       # Swagger UI em /v1/docs
+    redoc_url="/redoc",     # ReDoc em /v1/redoc
+    openapi_url="/openapi.json",  # OpenAPI spec em /v1/openapi.json
 )
 
 # Configure CORS
