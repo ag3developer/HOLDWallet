@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import uvicorn
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request as StarletteRequest
 
 # Core imports
 from app.core.config import settings
@@ -69,6 +71,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Middleware para reescrever /v1/* para /api/v1/*
+class PathRewriteMiddleware(BaseHTTPMiddleware):
+    """Reescreve /v1/* para /api/v1/* para compatibilidade com frontend"""
+    async def dispatch(self, request: StarletteRequest, call_next):
+        if request.url.path.startswith("/v1/"):
+            # Reescrever /v1/... para /api/v1/...
+            request.scope["path"] = "/api" + request.url.path
+        return await call_next(request)
+
+app.add_middleware(PathRewriteMiddleware)
+
 # Exception handlers
 @app.exception_handler(BaseCustomException)
 async def custom_exception_handler(request: Request, exc: BaseCustomException):
@@ -120,7 +133,7 @@ async def general_exception_handler(request: Request, exc: Exception):
         )
 
 # Include routers
-app.include_router(health.router, prefix="/health", tags=["health"])
+app.include_router(health.router, prefix="/api/v1/health", tags=["health"])
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["authentication"])
 app.include_router(two_factor.router, prefix="/api/v1", tags=["two-factor"])
 app.include_router(users.router, prefix="/api/v1/users", tags=["users"])
