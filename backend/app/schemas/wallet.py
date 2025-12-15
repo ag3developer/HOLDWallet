@@ -55,7 +55,7 @@ class WalletUpdate(BaseModel):
 # Response schemas
 class AddressResponse(BaseModel):
     """Response schema for wallet addresses."""
-    id: int
+    id: UUID
     address: str
     network: Optional[str] = None
     address_type: str

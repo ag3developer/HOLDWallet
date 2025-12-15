@@ -18,28 +18,21 @@ from datetime import datetime, timedelta
 import json
 
 from app.db.database import get_db
+from app.core.security import get_current_user
+from app.models.user import User
 
 router = APIRouter(tags=["p2p"])
 
 
 @router.get("/payment-methods")
 async def get_payment_methods(
-    user_id: Optional[int] = Query(None),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get payment methods
-    
-    If user_id is not provided, returns all payment methods for user_id=1 (default test user)
-    This will be replaced with authentication token user_id in production
-    """
-    # TODO: Get user_id from authentication token instead of query param
-    # For now, default to user 1 if not provided
-    if user_id is None:
-        user_id = 1
-    
+    """Get payment methods for the authenticated user"""
     result = db.execute(
         text("SELECT * FROM payment_methods WHERE user_id = :user_id AND is_active = 1 ORDER BY created_at DESC"),
-        {"user_id": user_id}
+        {"user_id": str(current_user.id)}
     )
     methods = result.fetchall()
     
@@ -47,7 +40,7 @@ async def get_payment_methods(
         "success": True,
         "data": [
             {
-                "id": m.id,
+                "id": str(m.id),
                 "type": m.type,
                 "details": parse_json_details(m.details),
                 "is_active": bool(m.is_active),
@@ -83,9 +76,10 @@ def parse_json_details(details):
 @router.post("/payment-methods")
 async def create_payment_method(
     payment_data: Dict[str, Any] = Body(...),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Create a new payment method
+    """Create a new payment method for the authenticated user
     
     Expected body:
     {
@@ -102,10 +96,6 @@ async def create_payment_method(
         payment_type = payment_data.get("type")
         details = payment_data.get("details", {})
         name = payment_data.get("name", "")
-        
-        # TODO: Get user_id from authentication token
-        # For now, using a default user_id (will be replaced with auth)
-        user_id = payment_data.get("user_id", 1)  # Default to user 1 for testing
         
         if not payment_type:
             raise HTTPException(
@@ -146,38 +136,35 @@ async def create_payment_method(
         if name:
             details["name"] = name
         
-        # Insert payment method
+        # Insert payment method with UUID for PostgreSQL
         query = text("""
-            INSERT INTO payment_methods (user_id, type, details, is_active, created_at, updated_at)
-            VALUES (:user_id, :type, :details, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            INSERT INTO payment_methods (id, user_id, type, details, is_active, created_at, updated_at)
+            VALUES (gen_random_uuid(), :user_id, :type, :details, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            RETURNING id
         """)
         
         result = db.execute(
             query,
             {
-                "user_id": user_id,
+                "user_id": str(current_user.id),
                 "type": payment_type,
                 "details": json.dumps(details)
             }
         )
+        method_id = result.fetchone()[0]
         db.commit()
         
-        # Get the created record ID
-        # For SQLite: use result.lastrowid
-        # For PostgreSQL: can use RETURNING clause
-        method_id = result.lastrowid if hasattr(result, 'lastrowid') else None
+        # Get the created record
+        created = db.execute(
+            text("SELECT * FROM payment_methods WHERE id = :id"),
+            {"id": str(method_id)}
+        ).fetchone()
         
-        if method_id:
-            created = db.execute(
-                text("SELECT * FROM payment_methods WHERE id = :id"),
-                {"id": method_id}
-            ).fetchone()
-            
-            if created:
-                return {
+        if created:
+            return {
                     "success": True,
                     "data": {
-                        "id": created.id,
+                        "id": str(created.id),
                         "type": created.type,
                         "details": json.loads(created.details),
                         "is_active": bool(created.is_active),
