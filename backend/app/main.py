@@ -251,7 +251,7 @@ async def v1_docs():
         <script>
         window.onload = function() {
           const ui = SwaggerUIBundle({
-            url: "/v1/openapi.json",
+            url: window.location.origin + "/v1/openapi.json",
             dom_id: '#swagger-ui',
             presets: [
               SwaggerUIBundle.presets.apis,
