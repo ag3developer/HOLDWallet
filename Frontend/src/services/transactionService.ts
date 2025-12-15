@@ -290,7 +290,7 @@ class TransactionService {
    */
   async getTransactionStatus(transactionId: number): Promise<any> {
     try {
-      const response = await this.apiClient.get(`/api/v1/transactions/status/${transactionId}`)
+      const response = await this.apiClient.get(`/transactions/status/${transactionId}`)
       return response.data
     } catch (error: any) {
       const message = error.response?.data?.detail || 'Erro ao verificar status'

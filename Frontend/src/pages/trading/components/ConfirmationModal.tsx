@@ -35,7 +35,7 @@ const PAYMENT_METHODS = [
   { id: 'wallet', name: 'Wallet', label: 'Wallet' },
 ]
 
-const API_BASE = 'http://127.0.0.1:8000/api/v1'
+const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
 
 export function ConfirmationModal({
   isOpen,

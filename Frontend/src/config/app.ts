@@ -1,13 +1,29 @@
 // Configurações globais da aplicação
+// ⚠️ IMPORTANTE: Use variáveis de ambiente (.env.production) para produção
+
+// Log de informações de configuração
+const getEnvironmentInfo = () => {
+  if (import.meta.env.PROD) {
+    console.log('[CONFIG] 🚀 Production Mode Detected')
+    console.log('[CONFIG] API Base URL:', import.meta.env.VITE_API_URL)
+  } else {
+    console.log('[CONFIG] 🔧 Development Mode')
+    console.log('[CONFIG] API Base URL:', import.meta.env.VITE_API_URL)
+  }
+}
+
+getEnvironmentInfo()
+
 export const APP_CONFIG = {
   name: 'Wolknow',
   version: '1.0.0',
   description: 'Plataforma P2P de trading com sistema de chat e reputação',
+  environment: import.meta.env.MODE,
 
-  // URLs da API
+  // URLs da API - CARREGADAS DO .env
   api: {
     baseUrl: import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000',
-    wsUrl: import.meta.env.VITE_WS_URL || 'ws://127.0.0.1:8000',
+    wsUrl: import.meta.env.VITE_WS_URL || 'ws://127.0.0.1:8000/ws',
     endpoints: {
       auth: '', // Auth endpoints are at root level: /auth, /auth/register, etc
       users: '/users',

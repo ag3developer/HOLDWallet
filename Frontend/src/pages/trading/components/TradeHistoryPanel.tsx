@@ -25,7 +25,7 @@ interface TradeHistoryPanelProps {
   readonly isVisible?: boolean
 }
 
-const API_BASE = 'http://127.0.0.1:8000/api/v1'
+const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
 
 const STATUS_COLORS: Record<string, string> = {
   PENDING: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',

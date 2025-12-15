@@ -111,7 +111,7 @@ class PriceService {
 
   /**
    * Buscar preços do backend
-   * Usa apenas o endpoint /api/v1/prices/batch (único endpoint funcional)
+   * Usa apenas o endpoint /prices/batch (único endpoint funcional)
    */
   private static async fetchFromBackend(
     symbols: string[],
@@ -129,8 +129,8 @@ class PriceService {
     })
 
     try {
-      console.log(`[PriceService] Fetching from /api/v1/prices/batch: ${symbolsQuery}`)
-      const response = await client.get('/api/v1/prices/batch', {
+      console.log(`[PriceService] Fetching from /prices/batch: ${symbolsQuery}`)
+      const response = await client.get('/prices/batch', {
         params: {
           symbols: symbolsQuery,
           fiat: currencyCode,

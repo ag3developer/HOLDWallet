@@ -55,7 +55,7 @@ export const CreateOrderPage = () => {
 
         console.log('[CreateOrder] Fetching wallet list...')
         // Get wallets list
-        const response = await fetch('http://127.0.0.1:8000/wallets/', {
+        const response = await fetch(`${API_BASE}/wallets/', {
           headers: { Authorization: `Bearer ${token}` },
         })
 

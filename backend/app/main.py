@@ -61,8 +61,8 @@ app = FastAPI(
     description="Peer-to-Peer Trading Platform - P2P Exchange",
     version="1.0.0",
     lifespan=lifespan,
-    docs_url=None,  # disable default /docs to avoid conflicting behavior under /v1
-    redoc_url=None, # disable default /redoc
+    docs_url="/docs",       # Habilitar Swagger UI padrão em /docs
+    redoc_url="/redoc",     # Habilitar ReDoc em /redoc
     openapi_url="/openapi.json",
 )
 
@@ -75,22 +75,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Middleware para reescrever /v1/* para /api/v1/*
-class PathRewriteMiddleware(BaseHTTPMiddleware):
-    """Reescreve /v1/* para /api/v1/* para compatibilidade com frontend"""
-    async def dispatch(self, request: StarletteRequest, call_next):
-        # Don't rewrite documentation and spec paths
-        excluded_paths = {
-            "/docs", "/redoc", "/openapi.json",
-            "/v1/docs", "/v1/redoc", "/v1/openapi.json"
-        }
-        path = request.url.path
-        if path.startswith("/v1/") and path not in excluded_paths:
-            # Reescrever /v1/... para /api/v1/...
-            request.scope["path"] = "/api" + path
-        return await call_next(request)
-
-app.add_middleware(PathRewriteMiddleware)
+# NÃO precisa mais de middleware de reescrita - rotas diretas agora!
 
 # Exception handlers
 @app.exception_handler(BaseCustomException)
@@ -142,32 +127,32 @@ async def general_exception_handler(request: Request, exc: Exception):
             }
         )
 
-# Include routers
-app.include_router(health.router, prefix="/api/v1/health", tags=["health"])
-app.include_router(auth.router, prefix="/api/v1/auth", tags=["authentication"])
-app.include_router(two_factor.router, prefix="/api/v1", tags=["two-factor"])
-app.include_router(users.router, prefix="/api/v1/users", tags=["users"])
-app.include_router(dashboard.router, prefix="/api/v1", tags=["dashboard"])
-app.include_router(wallet.router, prefix="/api/v1/wallet", tags=["wallets"]) 
-app.include_router(wallets.router, prefix="/api/v1/wallets", tags=["hd-wallets"])
-app.include_router(seed_verification.router, prefix="/api/v1/wallets", tags=["seed-verification"])
-app.include_router(wallet_transactions.router, prefix="/api/v1", tags=["wallet-transactions"])
-app.include_router(blockchain.router, prefix="/api/v1/blockchain", tags=["blockchain"])
-app.include_router(transactions.router, prefix="/api/v1", tags=["transactions"])
-app.include_router(tx.router, prefix="/api/v1/tx", tags=["transactions"])
-app.include_router(prices.router, prefix="/api/v1/prices", tags=["prices"])
-app.include_router(prices_batch_v2.router, prefix="/api/v1/prices", tags=["prices-batch"])
-app.include_router(tokens.router, prefix="/api/v1", tags=["tokens"])
+# Include routers - SEM prefixos /api/v1
+app.include_router(health.router, prefix="/health", tags=["health"])
+app.include_router(auth.router, prefix="/auth", tags=["authentication"])
+app.include_router(two_factor.router, prefix="", tags=["two-factor"])
+app.include_router(users.router, prefix="/users", tags=["users"])
+app.include_router(dashboard.router, prefix="", tags=["dashboard"])
+app.include_router(wallet.router, prefix="/wallet", tags=["wallets"]) 
+app.include_router(wallets.router, prefix="/wallets", tags=["hd-wallets"])
+app.include_router(seed_verification.router, prefix="/wallets", tags=["seed-verification"])
+app.include_router(wallet_transactions.router, prefix="", tags=["wallet-transactions"])
+app.include_router(blockchain.router, prefix="/blockchain", tags=["blockchain"])
+app.include_router(transactions.router, prefix="", tags=["transactions"])
+app.include_router(tx.router, prefix="/tx", tags=["transactions"])
+app.include_router(prices.router, prefix="/prices", tags=["prices"])
+app.include_router(prices_batch_v2.router, prefix="/prices", tags=["prices-batch"])
+app.include_router(tokens.router, prefix="", tags=["tokens"])
 
-# New monetization routers
-app.include_router(billing.router, prefix="/api/v1", tags=["billing"])
-app.include_router(portfolio.router, prefix="/api/v1", tags=["portfolio"])
-app.include_router(exchange.router, prefix="/api/v1", tags=["exchange"])
-app.include_router(instant_trade.router, prefix="/api/v1", tags=["instant-trade"])
-app.include_router(trader_profiles.router, prefix="/api/v1", tags=["trader-profiles"])
-app.include_router(p2p.router, prefix="/api/v1/p2p", tags=["p2p"])
-app.include_router(chat_enterprise.router, prefix="/api/v1", tags=["chat"])
-app.include_router(reputation.router, prefix="/api/v1", tags=["reputation"])
+# New monetization routers - SEM prefixos /api/v1
+app.include_router(billing.router, prefix="", tags=["billing"])
+app.include_router(portfolio.router, prefix="", tags=["portfolio"])
+app.include_router(exchange.router, prefix="", tags=["exchange"])
+app.include_router(instant_trade.router, prefix="", tags=["instant-trade"])
+app.include_router(trader_profiles.router, prefix="", tags=["trader-profiles"])
+app.include_router(p2p.router, prefix="/p2p", tags=["p2p"])
+app.include_router(chat_enterprise.router, prefix="", tags=["chat"])
+app.include_router(reputation.router, prefix="", tags=["reputation"])
 
 # Root endpoint
 @app.get("/")
@@ -178,27 +163,14 @@ async def root():
         "version": "1.0.0",
         "status": "running",
         "environment": settings.ENVIRONMENT,
-        "docs": "/v1/docs",  # point to custom docs
-        "redoc": "/v1/redoc"
+        "docs": "/docs",
+        "redoc": "/redoc"
     }
 
-# Also add a route for /v1 in production since root_path doesn't auto-redirect
-@app.get("/v1")
-async def root_v1():
-    """Root endpoint for /v1 path in production."""
-    return {
-        "message": "Wolknow API",
-        "version": "1.0.0",
-        "status": "running",
-        "environment": settings.ENVIRONMENT,
-        "docs": "/v1/docs",
-        "redoc": "/v1/redoc"
-    }
-
-# Serve openapi.json - both at /openapi.json and /v1/openapi.json for Swagger UI compatibility
+# Serve openapi.json
 @app.get("/openapi.json", include_in_schema=False)
 async def get_openapi_spec():
-    """Serve OpenAPI spec at /openapi.json"""
+    """Serve OpenAPI spec"""
     from fastapi.openapi.utils import get_openapi
     if not app.openapi_schema:
         app.openapi_schema = get_openapi(
@@ -208,73 +180,6 @@ async def get_openapi_spec():
             routes=app.routes,
         )
     return app.openapi_schema
-
-@app.get("/v1/openapi.json", include_in_schema=False)
-async def v1_openapi():
-    """Serve OpenAPI spec at /v1/openapi.json for Swagger UI in production."""
-    from fastapi.openapi.utils import get_openapi
-    if not app.openapi_schema:
-        app.openapi_schema = get_openapi(
-            title=app.title,
-            version=app.version,
-            description=app.description,
-            routes=app.routes,
-        )
-    return app.openapi_schema
-
-@app.get("/api/v1/openapi.json", include_in_schema=False)
-async def api_v1_openapi():
-    """Serve OpenAPI spec at /api/v1/openapi.json"""
-    from fastapi.openapi.utils import get_openapi
-    if not app.openapi_schema:
-        app.openapi_schema = get_openapi(
-            title=app.title,
-            version=app.version,
-            description=app.description,
-            routes=app.routes,
-        )
-    return app.openapi_schema
-
-# Custom Swagger UI under /v1/docs that points to /v1/openapi.json
-@app.get("/v1/docs", include_in_schema=False)
-async def v1_docs():
-    """Serve Swagger UI at /v1/docs pointing to /v1/openapi.json"""
-    return HTMLResponse(
-        """
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <title>Swagger UI</title>
-        <meta charset="utf-8"/>
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@3/swagger-ui.css">
-      </head>
-      <body>
-        <div id="swagger-ui"></div>
-        <script src="https://unpkg.com/swagger-ui-dist@3/swagger-ui-bundle.js"></script>
-        <script>
-        window.onload = function() {
-          const ui = SwaggerUIBundle({
-            url: window.location.origin + "/v1/openapi.json",
-            dom_id: '#swagger-ui',
-            presets: [
-              SwaggerUIBundle.presets.apis,
-              SwaggerUIBundle.SwaggerUIStandalonePreset
-            ],
-            layout: "BaseLayout"
-          })
-          window.ui = ui
-        }
-        </script>
-      </body>
-    </html>
-    """
-    )
-
-@app.get("/v1/redoc", include_in_schema=False)
-async def v1_redoc():
-    """Redirect to /redoc for ReDoc."""
-    return RedirectResponse(url="/redoc")
 
 # Main execution
 if __name__ == "__main__":

@@ -3,7 +3,7 @@
  * Secure communication with backend for seed phrase verification
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 export interface SeedVerificationStartResponse {
   required_positions: number[]

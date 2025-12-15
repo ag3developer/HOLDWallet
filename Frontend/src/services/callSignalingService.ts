@@ -219,7 +219,7 @@ class CallSignalingService {
       console.log('📤 Sending via chat:', signal.type)
 
       // Aqui seria enviado via API do chat
-      // await apiClient.post(`/api/v1/chat/rooms/${chatRoomId}/system-message`, {
+      // await apiClient.post(`/chat/rooms/${chatRoomId}/system-message`, {
       //   content: JSON.stringify(messageContent),
       //   message_type: 'system'
       // })

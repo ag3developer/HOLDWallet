@@ -61,7 +61,7 @@ class TraderProfileService {
   private API_BASE = 'http://127.0.0.1:8000'
 
   async createProfile(data: TraderProfileCreate, token: string): Promise<TraderProfile> {
-    const response = await fetch(`${this.API_BASE}/api/v1/trader-profiles`, {
+    const response = await fetch(`${this.API_BASE}/trader-profiles`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -78,7 +78,7 @@ class TraderProfileService {
   }
 
   async getMyProfile(token: string): Promise<TraderProfile> {
-    const response = await fetch(`${this.API_BASE}/api/v1/trader-profiles/me`, {
+    const response = await fetch(`${this.API_BASE}/trader-profiles/me`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -92,7 +92,7 @@ class TraderProfileService {
   }
 
   async updateProfile(data: TraderProfileUpdate, token: string): Promise<TraderProfile> {
-    const response = await fetch(`${this.API_BASE}/api/v1/trader-profiles/me`, {
+    const response = await fetch(`${this.API_BASE}/trader-profiles/me`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -109,7 +109,7 @@ class TraderProfileService {
   }
 
   async getPublicProfile(profileId: UUID): Promise<TraderProfile> {
-    const response = await fetch(`${this.API_BASE}/api/v1/trader-profiles/${profileId}`)
+    const response = await fetch(`${this.API_BASE}/trader-profiles/${profileId}`)
 
     if (!response.ok) {
       throw new Error(`Failed to fetch trader profile: ${response.statusText}`)
@@ -132,7 +132,7 @@ class TraderProfileService {
     if (options?.order) params.append('order', options.order)
     if (options?.verified_only) params.append('verified_only', 'true')
 
-    const response = await fetch(`${this.API_BASE}/api/v1/trader-profiles?${params.toString()}`)
+    const response = await fetch(`${this.API_BASE}/trader-profiles?${params.toString()}`)
 
     if (!response.ok) {
       throw new Error(`Failed to list traders: ${response.statusText}`)
@@ -143,7 +143,7 @@ class TraderProfileService {
 
   async getTraderStats(profileId: UUID, days: number = 7): Promise<TraderStats[]> {
     const response = await fetch(
-      `${this.API_BASE}/api/v1/trader-profiles/${profileId}/stats?days=${days}`
+      `${this.API_BASE}/trader-profiles/${profileId}/stats?days=${days}`
     )
 
     if (!response.ok) {

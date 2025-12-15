@@ -121,7 +121,7 @@ class ChatP2PService {
     try {
       // URL do WebSocket com autenticação JWT
       const wsBaseUrl = APP_CONFIG.api.wsUrl || 'ws://localhost:8000'
-      const wsUrl = `${wsBaseUrl}/api/v1/chat/ws/${chatRoomId}?token=${encodeURIComponent(token)}`
+      const wsUrl = `${wsBaseUrl}/chat/ws/${chatRoomId}?token=${encodeURIComponent(token)}`
 
       console.log(`🔌 Connecting to P2P Chat WebSocket: ${chatRoomId}`)
       this.ws = new WebSocket(wsUrl)
@@ -358,7 +358,7 @@ class ChatP2PService {
     formData.append('seller_id', sellerId)
 
     const response = await apiClient.post<CreateChatRoomResponse>(
-      `/api/v1/chat/rooms/${matchId}/create`,
+      `/chat/rooms/${matchId}/create`,
       formData
     )
     return response.data
@@ -373,7 +373,7 @@ class ChatP2PService {
     offset: number = 0
   ): Promise<ChatHistoryResponse> {
     const response = await apiClient.get<ChatHistoryResponse>(
-      `/api/v1/chat/rooms/${chatRoomId}/history`,
+      `/chat/rooms/${chatRoomId}/history`,
       {
         params: { limit, offset },
       }
@@ -395,7 +395,7 @@ class ChatP2PService {
     formData.append('message_content', messageContent)
 
     const response = await apiClient.post<{ success: boolean; file: FileUploadResult }>(
-      `/api/v1/chat/rooms/${chatRoomId}/upload`,
+      `/chat/rooms/${chatRoomId}/upload`,
       formData,
       {
         headers: {
@@ -417,7 +417,7 @@ class ChatP2PService {
    * Baixar arquivo
    */
   async downloadFile(fileId: string): Promise<Blob> {
-    const response = await apiClient.get<Blob>(`/api/v1/chat/files/${fileId}/download`, {
+    const response = await apiClient.get<Blob>(`/chat/files/${fileId}/download`, {
       responseType: 'blob',
     })
     return response.data
@@ -432,7 +432,7 @@ class ChatP2PService {
     formData.append('reason', reason)
     evidenceMessages.forEach(msg => formData.append('evidence_messages', msg))
 
-    const response = await apiClient.post(`/api/v1/chat/disputes/create`, formData)
+    const response = await apiClient.post(`/chat/disputes/create`, formData)
     return response.data
   }
 
