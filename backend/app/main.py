@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from contextlib import asynccontextmanager
 import uvicorn
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -53,11 +53,9 @@ async def lifespan(app: FastAPI):
         await cache_service.disconnect()
 
 # Create FastAPI app
-# In production, the Digital Ocean reverse proxy rewrites /v1/* to /api/v1/*
-# So we set root_path="/v1" so FastAPI knows it's being accessed via /v1 prefix
-is_production = settings.ENVIRONMENT == "production"
-root_path = "/v1" if is_production else ""
-
+# In production, Digital Ocean reverse proxy rewrites /v1/* to /api/v1/*
+# The middleware handles path rewriting internally
+# Do NOT set root_path - it causes issues with OpenAPI spec generation
 app = FastAPI(
     title="Wolknow API",
     description="Peer-to-Peer Trading Platform - P2P Exchange",
@@ -66,7 +64,6 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
-    root_path=root_path,
 )
 
 # Configure CORS
@@ -191,6 +188,12 @@ async def root_v1():
         "docs": "/docs",
         "redoc": "/redoc"
     }
+
+# Redirect /api/v1/openapi.json to /openapi.json for Swagger UI compatibility
+@app.get("/api/v1/openapi.json", include_in_schema=False)
+async def redirect_openapi():
+    """Redirect to openapi.json for Swagger UI compatibility."""
+    return RedirectResponse(url="/openapi.json")
 
 # Main execution
 if __name__ == "__main__":
