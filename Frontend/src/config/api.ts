@@ -11,7 +11,7 @@ export const apiConfig = {
   // Auth endpoints
   auth: {
     login: `${API_URL}/auth/login`,
-    signup: `${API_URL}/auth/register`,  // Backend usa /register, não /signup
+    signup: `${API_URL}/auth/register`, // Backend usa /register, não /signup
     logout: `${API_URL}/auth/logout`,
     refresh: `${API_URL}/auth/refresh`,
     verify: `${API_URL}/auth/verify`,
