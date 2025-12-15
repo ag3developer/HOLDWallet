@@ -45,6 +45,11 @@ class InstantTradeService:
         """Get current crypto price from price_aggregator API (ALWAYS real-time, NO fallback)"""
         symbol_upper = symbol.upper()
         
+        # Stablecoins sempre têm preço fixo de $1.00
+        if symbol_upper in ["USDT", "USDC", "DAI", "BUSD"]:
+            logger.info(f"Returning fixed price $1.00 for stablecoin {symbol_upper}")
+            return Decimal("1.00")
+        
         # Always get from price_aggregator API (real-time prices)
         try:
             # Get prices from aggregator (async)

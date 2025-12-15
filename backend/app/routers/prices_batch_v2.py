@@ -68,6 +68,29 @@ async def get_batch_prices(
             force_refresh=refresh
         )
         
+        # Lista de stablecoins que sempre têm preço $1.00
+        STABLECOINS = {"USDT", "USDC", "DAI", "BUSD", "TUSD", "USDP"}
+        
+        # Para stablecoins que falharam, adicionar preço fixo $1.00
+        if fiat.lower() == "usd":
+            missing_symbols = set(symbol_list) - set(price_data.keys())
+            stablecoin_missing = missing_symbols & STABLECOINS
+            
+            if stablecoin_missing:
+                logger.info(f"Adding fixed $1.00 price for stablecoins: {stablecoin_missing}")
+                from app.services.price_aggregator import PriceData
+                
+                for stablecoin in stablecoin_missing:
+                    price_data[stablecoin] = PriceData(
+                        symbol=stablecoin,
+                        price=1.0,
+                        change_24h=0.0,
+                        market_cap=None,
+                        volume_24h=None,
+                        source="fixed",
+                        timestamp=datetime.now(timezone.utc)
+                    )
+        
         if not price_data:
             logger.warning(f"No prices fetched for symbols: {symbol_list}")
             return {
@@ -126,6 +149,24 @@ async def get_single_price(
     """
     try:
         price_data = await price_aggregator.get_single_price(symbol, fiat)
+        
+        # Lista de stablecoins que sempre têm preço $1.00
+        STABLECOINS = {"USDT", "USDC", "DAI", "BUSD", "TUSD", "USDP"}
+        
+        # Se não encontrou preço e é uma stablecoin em USD, retornar $1.00
+        if not price_data and symbol.upper() in STABLECOINS and fiat.lower() == "usd":
+            logger.info(f"Returning fixed $1.00 price for stablecoin {symbol}")
+            from app.services.price_aggregator import PriceData
+            
+            price_data = PriceData(
+                symbol=symbol.upper(),
+                price=1.0,
+                change_24h=0.0,
+                market_cap=None,
+                volume_24h=None,
+                source="fixed",
+                timestamp=datetime.now(timezone.utc)
+            )
         
         if not price_data:
             return {
