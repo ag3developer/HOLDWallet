@@ -56,7 +56,7 @@ export function BankDetailsDisplay({ onProofSubmitted, tradeId }: BankDetailsPro
       }
 
       // Upload to backend
-      const response = await fetch(`${API_BASE}/instant-trade/upload-proof', {
+      const response = await fetch(`${API_BASE}/instant-trade/upload-proof`, {
         method: 'POST',
         body: formData,
         headers: {

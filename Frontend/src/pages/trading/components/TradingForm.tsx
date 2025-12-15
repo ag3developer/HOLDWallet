@@ -38,7 +38,7 @@ interface TradingFormProps {
   readonly convertFromBRL: (value: number) => number
 }
 
-const API_BASE = import.meta.env.VITE_API_URL || `${API_BASE}'
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 // Crypto logos from CoinGecko (free CDN)
 const CRYPTO_LOGOS: Record<string, string> = {
@@ -91,7 +91,7 @@ export function TradingForm({
         }
 
         // Get wallets
-        const walletsResp = await fetch(`${API_BASE}/wallets/', {
+        const walletsResp = await fetch(`${API_BASE}/wallets/`, {
           headers: { Authorization: `Bearer ${token}` },
         })
 
@@ -104,7 +104,7 @@ export function TradingForm({
 
         // Get balances with tokens (USDT, USDC, etc)
         const balanceResp = await fetch(
-          `http://127.0.0.1:8000/wallets/${walletId}/balances?include_tokens=true`,
+          `${API_BASE}/wallets/${walletId}/balances?include_tokens=true`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }

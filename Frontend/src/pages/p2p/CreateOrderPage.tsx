@@ -55,7 +55,7 @@ export const CreateOrderPage = () => {
 
         console.log('[CreateOrder] Fetching wallet list...')
         // Get wallets list
-        const response = await fetch(`${API_BASE}/wallets/', {
+        const response = await fetch(`${API_BASE}/wallets/`, {
           headers: { Authorization: `Bearer ${token}` },
         })
 
