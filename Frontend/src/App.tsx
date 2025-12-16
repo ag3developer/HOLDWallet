@@ -12,6 +12,7 @@ import { useLanguageStore } from '@/stores/useLanguageStore'
 import { Layout } from '@/components/layout/Layout'
 import { LoadingScreen } from '@/components/ui/LoadingScreen'
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary'
+import { PWAUpdateNotification } from '@/components/PWAUpdateNotification'
 
 // Pages
 import { LoginPage } from '@/pages/auth/LoginPage'
@@ -252,6 +253,9 @@ function App() {
           {/* 404 Page */}
           <Route path='*' element={<NotFoundPage />} />
         </Routes>
+
+        {/* PWA Update Notification - Shows when new version is available */}
+        <PWAUpdateNotification />
       </div>
     </ErrorBoundary>
   )
