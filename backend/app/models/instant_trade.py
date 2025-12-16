@@ -10,7 +10,7 @@ Author: HOLD Wallet Team
 
 from sqlalchemy import (
     Column, String, Integer, Boolean, DateTime, ForeignKey, 
-    Text, Numeric, Enum as SQLEnum, Index
+    Text, Numeric, Enum as SQLEnum, Index, func
 )
 from sqlalchemy.orm import relationship
 import uuid
@@ -48,14 +48,31 @@ class PaymentMethod(str, enum.Enum):
 
 
 class InstantTrade(Base):
-    """Modelo para operações OTC instantâneas"""
+    """
+    Modelo para operações OTC instantâneas
+    
+    FLUXO DE COMPRA (usuário compra cripto da plataforma):
+    1. Usuário solicita compra (ex: R$ 100 de USDT)
+    2. Usuário paga via PIX/TED/Cartão
+    3. Admin confirma pagamento (status: PAYMENT_CONFIRMED)
+    4. Sistema deposita crypto na wallet blockchain do usuário
+    5. Registra tx_hash, wallet_address, network
+    6. Status: COMPLETED
+    
+    FLUXO DE VENDA (usuário vende cripto para a plataforma):
+    1. Usuário solicita venda (ex: 10 MATIC)
+    2. Sistema verifica saldo na wallet do usuário
+    3. Usuário confirma venda
+    4. Plataforma processa pagamento fiat (PIX/TED)
+    5. Status: COMPLETED
+    """
     __tablename__ = "instant_trades"
 
     # Primary key
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     
-    # Foreign keys
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    # Foreign keys (String para UUID compatível com PostgreSQL)
+    user_id = Column(String, nullable=False, index=True)
     
     # Tipo de operação
     operation_type = Column(
@@ -100,8 +117,11 @@ class InstantTrade(Base):
     # Reference code (OTC-2025-000123)
     reference_code = Column(String(20), nullable=False, unique=True, index=True)
     
-    # Endereço de destino (para compra) / origem (para venda)
-    wallet_address = Column(String(255), nullable=True)
+    # Blockchain - Wallet info
+    wallet_id = Column(String(36), nullable=True)            # ID da wallet do usuário
+    wallet_address = Column(String(255), nullable=True)       # Endereço blockchain
+    network = Column(String(20), nullable=True)               # 'ethereum', 'polygon', 'base', etc
+    tx_hash = Column(String(255), nullable=True)              # Hash da transação blockchain
     
     # Timing
     expires_at = Column(DateTime, nullable=False, index=True)          # Válido por 15 min
@@ -117,7 +137,13 @@ class InstantTrade(Base):
     error_message = Column(Text, nullable=True)  # Se falhar
     
     # Relationships
-    user = relationship("User", back_populates="instant_trades")
+    # Como user_id é String (UUID) e não ForeignKey, usamos primaryjoin explícito
+    user = relationship(
+        "User", 
+        back_populates="instant_trades",
+        foreign_keys=[user_id],
+        primaryjoin="foreign(InstantTrade.user_id) == cast(User.id, String)"
+    )
     history = relationship(
         "InstantTradeHistory",
         back_populates="trade",

@@ -85,11 +85,11 @@ export function QuoteDisplay({
 
       {/* Quote Breakdown */}
       <div className='space-y-1 mb-2'>
-        {/* Price per Crypto */}
+        {/* Price (Total Value) */}
         <div className='flex justify-between items-center p-1.5 text-xs bg-white dark:bg-gray-800 rounded'>
           <span className='text-gray-600 dark:text-gray-400'>Price</span>
           <span className='font-medium text-gray-900 dark:text-white'>
-            {currencySymbol} {formatValue(quote.crypto_price ?? 0)}
+            {currencySymbol} {formatValue(quote.fiat_amount ?? 0)}
           </span>
         </div>
 

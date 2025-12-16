@@ -8,9 +8,8 @@ import {
   Building2,
   Wallet,
 } from 'lucide-react'
-import axios from 'axios'
 import toast from 'react-hot-toast'
-import { BankDetailsDisplay } from './BankDetailsDisplay'
+import { apiClient } from '@/services/api'
 import { TradeStatusMonitor } from './TradeStatusMonitor'
 
 interface Quote {
@@ -39,12 +38,10 @@ interface ConfirmationPanelProps {
 
 const PAYMENT_METHODS = [
   { id: 'pix', name: 'PIX', icon: Banknote },
+  { id: 'ted', name: 'TED', icon: Building2 },
   { id: 'credit_card', name: 'Credit Card', icon: CreditCard },
-  { id: 'bank_transfer', name: 'Bank Transfer', icon: Building2 },
-  { id: 'wallet', name: 'Wallet', icon: Wallet },
+  { id: 'debit_card', name: 'Debit Card', icon: Wallet },
 ]
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
 
 export function ConfirmationPanel({
   quote,
@@ -58,16 +55,25 @@ export function ConfirmationPanel({
   const [loading, setLoading] = useState(false)
   const [tradeCreated, setTradeCreated] = useState<string | null>(null)
   const [pendingProof, setPendingProof] = useState(false)
+  const [bankDetails, setBankDetails] = useState<any>(null)
 
   const createTrade = async () => {
     setLoading(true)
     try {
-      const response = await axios.post(`${API_BASE}/instant-trade/create`, {
+      const response = await apiClient.post('/instant-trade/create', {
         quote_id: quote.quote_id,
         payment_method: selectedPayment,
       })
 
-      toast.success('Trade created successfully!')
+      // If TED, check for bank details
+      if (selectedPayment === 'ted' && response.data.bank_details) {
+        setBankDetails(response.data.bank_details)
+        toast.success('Trade created! Please transfer to the account below.')
+        setPendingProof(true)
+      } else {
+        toast.success('Trade created successfully!')
+      }
+
       const tradeId = response.data.trade_id || response.data.id
       setTradeCreated(tradeId)
       onSuccess(tradeId)
@@ -375,8 +381,42 @@ export function ConfirmationPanel({
         </div>
 
         {/* Bank Transfer Details - Conditional Display */}
-        {selectedPayment === 'bank_transfer' && (
-          <BankDetailsDisplay tradeId={tradeCreated || undefined} />
+        {selectedPayment === 'ted' && bankDetails && (
+          <div className='bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-3 space-y-2'>
+            <p className='text-xs font-semibold text-blue-900 dark:text-blue-100'>
+              Transfer to this account:
+            </p>
+            <div className='space-y-1 text-xs'>
+              <div className='flex justify-between'>
+                <span className='text-gray-600 dark:text-gray-400'>Bank:</span>
+                <span className='font-medium text-gray-900 dark:text-white'>
+                  {bankDetails.bank_name}
+                </span>
+              </div>
+              <div className='flex justify-between'>
+                <span className='text-gray-600 dark:text-gray-400'>CNPJ:</span>
+                <span className='font-mono text-gray-900 dark:text-white'>{bankDetails.cnpj}</span>
+              </div>
+              <div className='flex justify-between'>
+                <span className='text-gray-600 dark:text-gray-400'>Agency:</span>
+                <span className='font-mono text-gray-900 dark:text-white'>
+                  {bankDetails.agency}
+                </span>
+              </div>
+              <div className='flex justify-between'>
+                <span className='text-gray-600 dark:text-gray-400'>Account:</span>
+                <span className='font-mono text-gray-900 dark:text-white'>
+                  {bankDetails.account_number}
+                </span>
+              </div>
+              <div className='flex justify-between'>
+                <span className='text-gray-600 dark:text-gray-400'>Holder:</span>
+                <span className='font-medium text-gray-900 dark:text-white'>
+                  {bankDetails.account_holder}
+                </span>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Quote ID Info */}

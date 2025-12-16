@@ -3,16 +3,39 @@
  * Mantém as taxas de câmbio e realiza conversões entre moedas
  *
  * ⚠️ PADRÃO: Todos os preços do backend vêm em USD
- * Conversão: USD → BRL usando taxa ~5.0 (1 USD = 5 BRL)
+ * Conversão: USD → BRL usando taxas REAIS do mercado (via API)
  */
+
+import { exchangeRateApi } from './exchange-rate-api'
 
 // Taxas de câmbio em relação a USD (base)
 // 1 USD = X de outra moeda
-const EXCHANGE_RATES: Record<string, number> = {
+// ⚠️ Estas são as taxas INICIAIS, serão atualizadas pela API
+let EXCHANGE_RATES: Record<string, number> = {
   USD: 1, // Base currency
-  BRL: 5, // 1 USD = 5 BRL (aproximadamente)
-  EUR: 0.92, // 1 USD = 0.92 EUR (aproximadamente)
+  BRL: 6, // Será atualizada pela API
+  EUR: 0.92, // Será atualizada pela API
 }
+
+// Flag para controlar se já iniciou o carregamento de taxas
+let ratesInitialized = false
+
+/**
+ * Inicializa as taxas de câmbio buscando da API
+ * Chamado automaticamente na primeira conversão
+ */
+async function initializeRates() {
+  if (ratesInitialized) return
+  ratesInitialized = true
+
+  console.log('[CurrencyConverter] Initializing exchange rates from API...')
+  const realRates = await exchangeRateApi.fetchRealRates()
+  EXCHANGE_RATES = realRates
+  console.log('[CurrencyConverter] Exchange rates updated:', EXCHANGE_RATES)
+}
+
+// Inicializar as taxas imediatamente
+initializeRates()
 
 export const currencyConverterService = {
   /**
@@ -61,10 +84,23 @@ export const currencyConverterService = {
    */
   updateRates: (newRates: Record<string, number>) => {
     Object.assign(EXCHANGE_RATES, newRates)
+    console.log('[CurrencyConverter] Rates manually updated:', EXCHANGE_RATES)
   },
 
   /**
    * Obtém todas as taxas atuais
    */
   getRates: () => ({ ...EXCHANGE_RATES }),
+
+  /**
+   * Força atualização das taxas de câmbio da API
+   * Útil para botão de "Refresh" ou atualização manual
+   */
+  refreshRates: async () => {
+    console.log('[CurrencyConverter] Manually refreshing rates...')
+    const realRates = await exchangeRateApi.forceRefresh()
+    EXCHANGE_RATES = realRates
+    console.log('[CurrencyConverter] Rates refreshed:', EXCHANGE_RATES)
+    return realRates
+  },
 }

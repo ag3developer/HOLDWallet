@@ -2,7 +2,7 @@
 Wallet routes for HD wallet operations with mnemonic support.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict
 from decimal import Decimal
@@ -23,6 +23,7 @@ from app.services.blockchain_service import BlockchainService
 from app.services.transaction_service import transaction_service
 from app.services.blockchain_signer import blockchain_signer
 from app.services.usdt_transaction_service import USDTTransactionService, usdt_transaction_service
+from app.services.user_activity_service import UserActivityService
 from app.services.price_aggregator import PriceData
 from app.config.token_contracts import USDT_CONTRACTS, USDC_CONTRACTS
 from pydantic import BaseModel, Field
@@ -45,6 +46,7 @@ logger = logging.getLogger(__name__)
 @router.post("/create", response_model=WalletWithMnemonic)
 async def create_wallet_with_mnemonic(
     wallet_data: WalletCreate,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -64,6 +66,25 @@ async def create_wallet_with_mnemonic(
             network=wallet_data.network,
             passphrase=wallet_data.passphrase or ""
         )
+        
+        # Log activity
+        try:
+            UserActivityService.log_activity(
+                db=db,
+                user_id=str(current_user.id),
+                activity_type="wallet",
+                description=f"Carteira '{wallet_data.name or 'Nova carteira'}' criada na rede {wallet_data.network}",
+                status="success",
+                extra_data={
+                    "network": wallet_data.network,
+                    "wallet_name": wallet_data.name,
+                    "wallet_id": str(result["wallet"].id)
+                },
+                ip_address=request.client.host if request.client else None,
+                user_agent=request.headers.get("user-agent")
+            )
+        except Exception as log_error:
+            logger.error(f"Failed to log wallet creation activity: {log_error}")
         
         return WalletWithMnemonic(
             id=result["wallet"].id,

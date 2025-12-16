@@ -9,6 +9,8 @@ from app.core.exceptions import NotFoundError, ValidationError, AuthorizationErr
 from app.models.user import User
 from app.models.wallet import Wallet
 from app.schemas.user import UserResponse, UserUpdateRequest, UserWalletsResponse
+from app.schemas.user_activity import UserActivityListResponse
+from app.services.user_activity_service import UserActivityService
 
 router = APIRouter()
 
@@ -202,3 +204,29 @@ async def get_user_statistics(
         "last_login": current_user.last_login,
         "account_created": current_user.created_at
     }
+
+@router.get("/me/activities", response_model=UserActivityListResponse)
+async def get_user_activities(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    limit: int = Query(50, ge=1, le=100, description="Número de atividades a retornar"),
+    offset: int = Query(0, ge=0, description="Offset para paginação"),
+    activity_type: Optional[str] = Query(None, description="Filtrar por tipo de atividade")
+):
+    """
+    Get user activity log.
+    
+    Activity types: login, logout, trade, security, wallet, kyc, withdrawal, deposit
+    """
+    activities, total = UserActivityService.get_user_activities(
+        db=db,
+        user_id=current_user.id,
+        limit=limit,
+        offset=offset,
+        activity_type=activity_type
+    )
+    
+    return UserActivityListResponse(
+        total=total,
+        activities=activities
+    )

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
-import axios from 'axios'
 import { TradingLimitsDisplay } from './TradingLimitsDisplay'
 import { useAuthStore } from '@/stores/useAuthStore'
+import { apiClient } from '@/services/api'
 
 interface CryptoPrice {
   symbol: string
@@ -90,29 +90,18 @@ export function TradingForm({
           return
         }
 
-        // Get wallets
-        const walletsResp = await fetch(`${API_BASE}/wallets/`, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
+        // Get wallets usando apiClient
+        const walletsResp = await apiClient.get('/wallets/')
 
-        if (!walletsResp.ok) throw new Error(`Failed to fetch wallets: ${walletsResp.status}`)
-
-        const wallets = await walletsResp.json()
+        const wallets = walletsResp.data
         if (!wallets?.length) throw new Error('No wallets found')
 
         const walletId = wallets[0].id
 
         // Get balances with tokens (USDT, USDC, etc)
-        const balanceResp = await fetch(
-          `${API_BASE}/wallets/${walletId}/balances?include_tokens=true`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        )
+        const balanceResp = await apiClient.get(`/wallets/${walletId}/balances?include_tokens=true`)
 
-        if (!balanceResp.ok) throw new Error(`Failed to fetch balances: ${balanceResp.status}`)
-
-        const balData = await balanceResp.json()
+        const balData = balanceResp.data
         const mapped = mapBalances(balData.balances)
         setAllBalances(mapped)
       } catch (error) {
@@ -269,10 +258,22 @@ export function TradingForm({
     timeoutRef.current = setTimeout(async () => {
       setLoading(true)
       try {
-        const response = await axios.post(`${API_BASE}/instant-trade/quote`, {
+        // Backend espera valores em USD, então precisamos converter BRL → USD
+        const amountValue = Number(amount)
+        let amountToSend = amountValue
+
+        // Se é BRL, converter para USD (dividir pela cotação)
+        if (currency === 'BRL') {
+          // Buscar cotação USD/BRL (preço do USDT)
+          const usdPrice = cryptoPrices.find(p => p.symbol === 'USDT' || p.symbol === 'USDC')
+          const usdToBrlRate = usdPrice ? usdPrice.price : 5.42
+          amountToSend = amountValue / usdToBrlRate // BRL → USD
+        }
+
+        const response = await apiClient.post('/instant-trade/quote', {
           operation: isBuy ? 'buy' : 'sell',
           symbol: selectedSymbol,
-          [isBuy ? 'fiat_amount' : 'crypto_amount']: Number(amount),
+          [isBuy ? 'fiat_amount' : 'crypto_amount']: amountToSend,
         })
         onQuoteReceived(response.data.quote)
         setLastQuoteTime(Date.now())

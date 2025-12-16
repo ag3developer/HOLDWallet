@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Star,
@@ -13,7 +13,8 @@ import {
   Settings,
   ExternalLink,
 } from 'lucide-react'
-import { traderProfileService, TraderProfile } from '@/services/traderProfileService'
+import { useMyTraderProfile } from '@/hooks/useTraderProfile'
+import { TraderProfile } from '@/services/traderProfileService'
 
 interface UserProfileSectionProps {
   readonly token?: string | null
@@ -29,51 +30,11 @@ export function UserProfileSection({
   showProfileLink = true,
 }: Readonly<UserProfileSectionProps>) {
   const navigate = useNavigate()
-  const [profile, setProfile] = useState<TraderProfile | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      if (!token) {
-        setLoading(false)
-        setError('Usuário não autenticado')
-        return
-      }
+  // Usar o novo hook com cache React Query + localStorage
+  const { data: profile, isLoading: loading, error: queryError } = useMyTraderProfile()
 
-      try {
-        setLoading(true)
-        setError(null)
-        console.log(
-          '[UserProfileSection] Fetching profile with token:',
-          token.substring(0, 20) + '...'
-        )
-        const profileData = await traderProfileService.getMyProfile(token)
-        setProfile(profileData)
-        setError(null)
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Erro ao carregar perfil'
-        console.error(
-          '[UserProfileSection] Error fetching profile:',
-          message,
-          'Token exists:',
-          !!token
-        )
-        setError(message)
-        setProfile(null)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    if (token) {
-      fetchProfile()
-    } else {
-      setLoading(false)
-      setProfile(null)
-      setError(null)
-    }
-  }, [token])
+  const error = queryError ? String(queryError) : null
 
   const getVerificationBadge = (profile: TraderProfile) => {
     switch (profile.verification_level) {
@@ -132,6 +93,7 @@ export function UserProfileSection({
   }
 
   if (!token) {
+    console.log('[UserProfileSection] ❌ No token provided')
     return (
       <div className='bg-gray-50 dark:bg-gray-800 rounded-lg shadow p-4 text-center'>
         <p className='text-sm text-gray-600 dark:text-gray-400'>
@@ -142,23 +104,24 @@ export function UserProfileSection({
   }
 
   if (error || !profile) {
+    console.log('[UserProfileSection] ⚠️ Error or no profile:', { error, profile })
     return (
       <div className='bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4'>
         <div className='flex items-start gap-3'>
           <AlertCircle className='w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5' />
           <div className='flex-1'>
             <p className='text-sm font-medium text-yellow-800 dark:text-yellow-300'>
-              Perfil não configurado
+              {error ? 'Erro ao carregar perfil' : 'Perfil não configurado'}
             </p>
             <p className='text-xs text-yellow-700 dark:text-yellow-400 mt-1'>
-              Complete seu perfil de trader para criar ordens P2P
+              {error ? String(error) : 'Complete seu perfil de trader para criar ordens P2P'}
             </p>
             {onEdit && (
               <button
                 onClick={onEdit}
                 className='mt-3 w-full px-3 py-2 bg-yellow-600 hover:bg-yellow-700 text-white text-xs font-medium rounded-lg transition-colors'
               >
-                Criar Perfil de Trader
+                {error ? 'Tentar Novamente' : 'Criar Perfil de Trader'}
               </button>
             )}
           </div>
@@ -166,6 +129,8 @@ export function UserProfileSection({
       </div>
     )
   }
+
+  console.log('[UserProfileSection] ✅ Profile loaded:', profile)
 
   return (
     <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-4 sticky top-4'>

@@ -6,6 +6,10 @@ class ApiClient {
   private readonly client: AxiosInstance
 
   constructor() {
+    console.log('🌐 [API Client] Initializing with baseURL:', APP_CONFIG.api.baseUrl)
+    console.log('🌐 [API Client] Environment:', import.meta.env.MODE)
+    console.log('🌐 [API Client] VITE_API_URL:', import.meta.env.VITE_API_URL)
+
     this.client = axios.create({
       baseURL: APP_CONFIG.api.baseUrl,
       timeout: 60000, // Aumentado para 60 segundos para operações mais complexas

@@ -33,7 +33,7 @@ class InstantTradeService:
     # Constants
     SPREAD_PERCENTAGE = Decimal("3.00")
     NETWORK_FEE_PERCENTAGE = Decimal("0.25")
-    QUOTE_VALIDITY_SECONDS = 30
+    QUOTE_VALIDITY_SECONDS = 60  # Aumentado de 30 para 60 segundos
     TRADE_EXPIRATION_MINUTES = 15
     MIN_TRADE_AMOUNT_BRL = Decimal("50.00")
     MAX_TRADE_AMOUNT_BRL = Decimal("50000.00")
@@ -78,23 +78,56 @@ class InstantTradeService:
         total = 0
 
         if operation == "buy":
-            # For buy: spread increases price
+            # For buy: usuário PAGA spread + taxa de rede (ambos são revenue da plataforma)
+            fiat_amount = amount  # Input: quanto o usuário quer gastar (total)
+            
+            # Taxa de rede: cobrada do valor total
+            fee = fiat_amount * (self.NETWORK_FEE_PERCENTAGE / 100)
+            
+            # Valor disponível para comprar crypto (após taxa de rede)
+            fiat_after_fee = fiat_amount - fee
+            
+            # Preço OTC: mercado + spread (usuário paga mais caro)
             otc_price = price * (1 + self.SPREAD_PERCENTAGE / 100)
-            fiat_amount = amount  # Input is fiat
-            spread_amount = amount * (self.SPREAD_PERCENTAGE / 100)
-            fee = amount * (self.NETWORK_FEE_PERCENTAGE / 100)
-            crypto_amount = (amount - fee) / otc_price
-            total = amount + spread_amount + fee
+            
+            # Spread: diferença paga pelo usuário
+            market_crypto = fiat_after_fee / price  # Quanto compraria no mercado
+            otc_crypto = fiat_after_fee / otc_price  # Quanto compra com spread
+            spread_amount = (market_crypto - otc_crypto) * price  # Perda em fiat
+            
+            # Crypto recebido: menos devido ao preço OTC mais alto
+            crypto_amount = fiat_after_fee / otc_price
+            
+            # Total: usuário paga o valor que especificou
+            total = fiat_amount
 
         else:  # sell
-            # For sell: spread decreases price
+            # For sell: usuário vende para a plataforma
+            # Plataforma compra ABAIXO do mercado (spread) e cobra taxa
+            crypto_amount = amount  # Input is crypto (quanto o usuário está vendendo)
+            
+            # 1. Valor de mercado (preço justo, sem spreads)
+            market_value = amount * price
+            
+            # 2. Spread: plataforma compra X% mais barato (LUCRO da plataforma)
+            spread_amount = market_value * (self.SPREAD_PERCENTAGE / 100)
+            
+            # 3. Preço OTC: quanto a plataforma efetivamente paga por unidade
             otc_price = price * (1 - self.SPREAD_PERCENTAGE / 100)
-            crypto_amount = amount  # Input is crypto
-            fiat_before_fees = amount * otc_price  # Value in fiat BEFORE fees
-            spread_amount = fiat_before_fees * (self.SPREAD_PERCENTAGE / 100)
-            fee = fiat_before_fees * (self.NETWORK_FEE_PERCENTAGE / 100)
-            fiat_amount = fiat_before_fees  # Fiat amount before fees (for display)
-            total = fiat_before_fees - spread_amount - fee  # Net amount user receives
+            
+            # 4. Valor OTC: quanto a plataforma paga no total (mercado - spread)
+            otc_value = market_value - spread_amount  # ou: amount * otc_price
+            
+            # 5. Taxa de rede: cobrada sobre o valor OTC (LUCRO adicional da plataforma)
+            fee = otc_value * (self.NETWORK_FEE_PERCENTAGE / 100)
+            
+            # 6. Valores para exibição
+            fiat_amount = market_value  # Mostrar valor de mercado para comparação
+            
+            # 7. Total: quanto o usuário efetivamente recebe
+            # = Valor OTC - Taxa de rede
+            # = (Mercado - Spread) - Taxa
+            total = otc_value - fee
 
         # Generate quote ID
         quote_id = f"quote_{uuid.uuid4().hex[:12]}"
@@ -104,7 +137,8 @@ class InstantTradeService:
             "quote_id": quote_id,
             "operation": operation,
             "symbol": symbol_upper,
-            "crypto_price": float(price),
+            "crypto_price": float(price),  # Preço de mercado (sem spread)
+            "otc_price": float(otc_price),  # Preço OTC (com spread aplicado)
             "fiat_amount": float(fiat_amount),
             "crypto_amount": float(crypto_amount),
             "spread_percentage": float(self.SPREAD_PERCENTAGE),

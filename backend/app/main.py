@@ -15,7 +15,7 @@ from app.services.cache_service import cache_service
 from app.services.cache_service import cache_service
 
 # Routers
-from app.routers import auth, users, wallet, wallets, tx, prices, prices_batch, prices_batch_v2, health, blockchain, transactions, billing, portfolio, exchange, p2p, chat_enterprise, reputation, dashboard, two_factor, tokens, wallet_transactions, instant_trade, trader_profiles
+from app.routers import auth, users, wallet, wallets, tx, prices, prices_batch, prices_batch_v2, health, blockchain, transactions, billing, portfolio, exchange, p2p, chat_enterprise, reputation, dashboard, two_factor, tokens, wallet_transactions, instant_trade, trader_profiles, admin_instant_trades
 from app.api.v1.endpoints import seed_verification
 
 # Setup logging
@@ -150,6 +150,7 @@ app.include_router(billing.router, prefix="", tags=["billing"])
 app.include_router(portfolio.router, prefix="", tags=["portfolio"])
 app.include_router(exchange.router, prefix="", tags=["exchange"])
 app.include_router(instant_trade.router, prefix="", tags=["instant-trade"])
+app.include_router(admin_instant_trades.router, prefix="", tags=["admin"])
 app.include_router(trader_profiles.router, prefix="", tags=["trader-profiles"])
 app.include_router(p2p.router, prefix="/p2p", tags=["p2p"])
 app.include_router(chat_enterprise.router, prefix="", tags=["chat"])

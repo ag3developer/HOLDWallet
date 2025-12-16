@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Copy, Check, FileText, Building2 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { APP_CONFIG } from '@/config/app'
 
 interface BankDetailsProps {
   readonly onProofSubmitted?: (proofUrl: string) => void
@@ -56,7 +57,7 @@ export function BankDetailsDisplay({ onProofSubmitted, tradeId }: BankDetailsPro
       }
 
       // Upload to backend
-      const response = await fetch(`${API_BASE}/instant-trade/upload-proof`, {
+      const response = await fetch(`${APP_CONFIG.api.baseUrl}/instant-trade/upload-proof`, {
         method: 'POST',
         body: formData,
         headers: {

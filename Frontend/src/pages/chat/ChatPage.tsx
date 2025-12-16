@@ -43,13 +43,9 @@ import {
 import { chatP2PService, ChatMessageP2P, P2POrder } from '@/services/chatP2P'
 import { authService } from '@/services/auth'
 import { webrtcService } from '@/services/webrtcService'
-import { chatbotService } from '@/services/chatbotService'
 import { CallModal } from '@/components/chat/CallModal'
-import { IncomingCallModal } from '@/components/chat/IncomingCallModal'
-import { BotContactsSection } from '@/components/chat/BotContactsSection'
 import { AudioMessageInput } from '@/components/chat/AudioMessageInput'
 import { AudioMessage } from '@/components/chat/AudioMessage'
-import { useBotCalls } from '@/hooks/useBotCalls'
 import { useMediaCapture } from '@/hooks/useMediaCapture'
 
 // Interface local para dados da ordem com camelCase (mapeamento do P2POrder)
@@ -135,15 +131,6 @@ export const ChatPage = () => {
     return saved !== null ? saved === 'true' : window.innerWidth >= 1024
   })
 
-  // Bot calls hook
-  const {
-    bots,
-    incomingCall,
-    handleInitiateBotCall,
-    handleAcceptIncomingCall,
-    handleRejectIncomingCall,
-  } = useBotCalls()
-
   // Media capture hook
   const {
     localVideoRef: mediaLocalVideoRef,
@@ -156,40 +143,6 @@ export const ChatPage = () => {
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const typingTimeoutRef = useRef<NodeJS.Timeout>()
-
-  // Debug: Log bots e sidebar
-  useEffect(() => {
-    console.log('📱 Debug - Sidebar:', {
-      isSidebarOpen,
-      botsCount: bots.length,
-      shouldRender: isSidebarOpen && bots.length > 0,
-    })
-  }, [isSidebarOpen, bots])
-
-  // Monitorar quando aceita chamada do bot
-  useEffect(() => {
-    // Se incomingCall.isOpen mudou de true para false, significa que foi aceito
-    if (!incomingCall.isOpen && incomingCall.botId && incomingCall.callType) {
-      console.log(`✅ Chamada aceita do bot ${incomingCall.botName}`)
-
-      // Ativar CallModal
-      setIsCallActive(true)
-      setCallType(incomingCall.callType)
-      setCallDuration(0)
-      callDurationRef.current = 0
-
-      // Capturar mídia
-      startMediaCapture(incomingCall.callType).then(() => {
-        console.log('🎥 Mídia capturada após aceitar')
-      })
-    }
-  }, [
-    incomingCall.isOpen,
-    incomingCall.botId,
-    incomingCall.callType,
-    incomingCall.botName,
-    startMediaCapture,
-  ])
 
   // Detectar contexto P2P dos parâmetros da URL
   const urlUserId = searchParams.get('userId')
@@ -315,175 +268,12 @@ export const ChatPage = () => {
     setIsSidebarOpen(!isSidebarOpen)
   }
 
-  const contacts: Contact[] = [
-    {
-      id: 1,
-      name: 'Suporte HOLD',
-      avatar: 'shield',
-      avatarColor: 'from-blue-500 to-blue-700',
-      lastMessage: 'Como posso ajudar com sua carteira?',
-      timestamp: '14:30',
-      unread: 0,
-      isOnline: true,
-      isSupport: true,
-      rating: 5,
-    },
-    {
-      id: 2,
-      name: 'Carlos Silva',
-      avatar: 'user',
-      avatarColor: 'from-green-500 to-green-700',
-      lastMessage: 'A transação foi confirmada!',
-      timestamp: '13:45',
-      unread: 2,
-      isOnline: true,
-    },
-    {
-      id: 3,
-      name: 'Ana Costa',
-      avatar: 'userCheck',
-      avatarColor: 'from-purple-500 to-purple-700',
-      lastMessage: 'Obrigada pela negociação',
-      timestamp: '12:20',
-      unread: 0,
-      isOnline: false,
-    },
-    {
-      id: 4,
-      name: 'Trading Group',
-      avatar: 'trendingUp',
-      avatarColor: 'from-orange-500 to-orange-700',
-      lastMessage: 'Bitcoin subindo!',
-      timestamp: 'Ontem',
-      unread: 5,
-      isOnline: true,
-    },
-    {
-      id: 5,
-      name: 'Maria Santos',
-      avatar: 'building',
-      avatarColor: 'from-pink-500 to-pink-700',
-      lastMessage: 'Vamos fechar esse negócio?',
-      timestamp: 'Ontem',
-      unread: 1,
-      isOnline: false,
-    },
-    // 🤖 Bots para Conversa
-    {
-      id: 101,
-      name: '🤖 Bot Trader',
-      avatar: 'cpu',
-      avatarColor: 'from-red-500 to-orange-600',
-      lastMessage: 'Olá! Sou especialista em negociações de criptos! 📈',
-      timestamp: 'Agora',
-      unread: 0,
-      isOnline: true,
-      isBot: true,
-      botId: 'bot-trader',
-    },
-    {
-      id: 102,
-      name: '🎧 Bot Support',
-      avatar: 'cpu',
-      avatarColor: 'from-blue-500 to-cyan-600',
-      lastMessage: 'Estou aqui para resolver seus problemas! 🎯',
-      timestamp: 'Agora',
-      unread: 0,
-      isOnline: true,
-      isBot: true,
-      botId: 'bot-support',
-    },
-    {
-      id: 103,
-      name: '💼 Bot Manager',
-      avatar: 'cpu',
-      avatarColor: 'from-green-500 to-emerald-600',
-      lastMessage: 'Vou ajudar a otimizar seu portfólio! 💎',
-      timestamp: 'Agora',
-      unread: 0,
-      isOnline: true,
-      isBot: true,
-      botId: 'bot-manager',
-    },
-  ]
+  // TODO: Buscar contatos reais da API
+  // const contacts: Contact[] = await fetchRealContacts()
+  const contacts: Contact[] = []
 
-  const mockMessages: Record<number, Message[]> = {
-    1: [
-      {
-        id: '1',
-        content: 'Olá! Bem-vindo ao suporte da HOLD. Como posso ajudar você hoje?',
-        timestamp: '14:28',
-        isOwn: false,
-        status: 'read',
-      },
-      {
-        id: '2',
-        content: 'Tenho uma dúvida sobre minha carteira Bitcoin',
-        timestamp: '14:29',
-        isOwn: true,
-        status: 'read',
-      },
-      {
-        id: '3',
-        content:
-          'Claro! Vou verificar sua conta. Posso ajudar com qualquer questão sobre carteiras, transações ou segurança.',
-        timestamp: '14:30',
-        isOwn: false,
-        status: 'read',
-      },
-    ],
-    2: [
-      {
-        id: '4',
-        content: 'Oi! A transferência de 0.001 BTC foi processada',
-        timestamp: '13:40',
-        isOwn: false,
-        status: 'read',
-      },
-      {
-        id: '5',
-        content: 'Perfeito! Muito obrigado pela rapidez',
-        timestamp: '13:43',
-        isOwn: true,
-        status: 'delivered',
-      },
-      {
-        id: '6',
-        content: 'A transação foi confirmada!',
-        timestamp: '13:45',
-        isOwn: false,
-        status: 'sent',
-      },
-    ],
-    // 🤖 Mensagens iniciais dos bots
-    101: [
-      {
-        id: 'bot-trader-1',
-        content: 'Olá! 👋 Sou o Bot Trader. Como posso ajudar com suas negociações hoje?',
-        timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-        isOwn: false,
-        status: 'read',
-      },
-    ],
-    102: [
-      {
-        id: 'bot-support-1',
-        content: 'Olá! 🎧 Sou o Bot Support. Como posso ajudar você?',
-        timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-        isOwn: false,
-        status: 'read',
-      },
-    ],
-    103: [
-      {
-        id: 'bot-manager-1',
-        content: 'Olá! 💼 Sou o Bot Manager. Vamos gerenciar seu portfólio?',
-        timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-        isOwn: false,
-        status: 'read',
-      },
-    ],
-  }
+  // TODO: Buscar mensagens reais da API
+  const mockMessages: Record<number, Message[]> = {}
 
   const currentContact = contacts.find(c => c.id === selectedContact)
   let currentMessages: Message[] = mockMessages[selectedContact] || []
@@ -804,28 +594,8 @@ export const ChatPage = () => {
     setMessages(prev => [...prev, userMessage])
     setNewMessage('')
 
-    // Se for um bot, gerar resposta automática
-    if (contact.isBot && contact.botId) {
-      try {
-        const botResponse = await chatbotService.generateBotResponse(contact.botId, newMessage)
-
-        // Simular delay da resposta
-        await new Promise(resolve => setTimeout(resolve, botResponse.delay))
-
-        // Adicionar resposta do bot
-        const botMessage: Message = {
-          id: Date.now().toString(),
-          content: botResponse.message,
-          timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-          isOwn: false,
-          status: 'read',
-        }
-
-        setMessages(prev => [...prev, botMessage])
-      } catch (error) {
-        console.error('❌ Erro ao gerar resposta do bot:', error)
-      }
-    }
+    // TODO: Enviar mensagem real via API
+    // await chatP2PService.sendMessage(chatRoomId, newMessage)
   }
 
   return (
@@ -918,7 +688,18 @@ export const ChatPage = () => {
 
         {/* Lista de Contatos */}
         <div className='flex-1 overflow-y-auto'>
-          {isSidebarOpen ? (
+          {filteredContacts.length === 0 ? (
+            // Mensagem quando não há contatos
+            <div className='flex flex-col items-center justify-center h-full p-8 text-center'>
+              <MessageCircle className='w-16 h-16 text-gray-300 dark:text-gray-600 mb-4' />
+              <h3 className='text-lg font-semibold text-gray-900 dark:text-white mb-2'>
+                Nenhuma conversa ainda
+              </h3>
+              <p className='text-sm text-gray-500 dark:text-gray-400 mb-4'>
+                Comece uma negociação P2P para iniciar uma conversa
+              </p>
+            </div>
+          ) : isSidebarOpen ? (
             // Modo expandido - lista completa
             filteredContacts.map(contact => (
               <div
@@ -1006,11 +787,6 @@ export const ChatPage = () => {
             </div>
           )}
         </div>
-
-        {/* Bot Contacts Section */}
-        {isSidebarOpen && bots.length > 0 && (
-          <BotContactsSection bots={bots} onInitiateCall={handleInitiateBotCall} />
-        )}
       </div>
 
       {/* Área de Chat Principal */}
@@ -1459,79 +1235,27 @@ export const ChatPage = () => {
                 {/* Botão de Áudio com Gravação */}
                 <AudioMessageInput
                   onAudioSend={async audio => {
-                    try {
-                      console.log('📤 Áudio para enviar:', audio.size, 'bytes')
+                    console.log('📤 Áudio para enviar:', audio.size, 'bytes')
 
-                      // Adicionar mensagem localmente
-                      const message: Message = {
-                        id: Date.now().toString(),
-                        content: `[Áudio - ${(audio.size / 1024).toFixed(1)} KB]`,
-                        timestamp: new Date().toLocaleTimeString('pt-BR', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        }),
-                        isOwn: true,
-                        status: 'sent',
-                        type: 'file',
-                        fileType: 'audio',
-                        audioBlob: audio,
-                      }
-                      setMessages(prev => [...prev, message])
-
-                      // Se for um bot, gerar resposta automática
-                      if (currentContact?.isBot && currentContact?.botId) {
-                        const botResponse = await chatbotService.generateBotResponseFromAudio(
-                          currentContact.botId,
-                          audio
-                        )
-
-                        // Simular delay da resposta
-                        await new Promise(resolve => setTimeout(resolve, botResponse.delay))
-
-                        // Adicionar resposta do bot
-                        const botMessage: Message = {
-                          id: Date.now().toString(),
-                          content: botResponse.message,
-                          timestamp: new Date().toLocaleTimeString('pt-BR', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          }),
-                          isOwn: false,
-                          status: 'read',
-                        }
-
-                        setMessages(prev => [...prev, botMessage])
-                        return
-                      }
-
-                      // Debug
-                      console.log('� connectionStatus:', connectionStatus)
-                      console.log('🆔 chatRoomId:', chatRoomId)
-
-                      // Esperar pela conexão do WebSocket (para contatos reais)
-                      let retries = 0
-                      while (connectionStatus !== 'connected' && retries < 5) {
-                        console.log(`⏳ Esperando conexão... (${retries}/5)`)
-                        await new Promise(resolve => setTimeout(resolve, 500))
-                        retries++
-                      }
-
-                      if (connectionStatus !== 'connected') {
-                        console.warn('⚠️ WebSocket não conectado, salvando localmente')
-                        // Salvar localmente se não conseguir conectar
-                        return
-                      }
-
-                      // Enviar para o servidor (contatos reais)
-                      console.log('📤 Enviando áudio para o servidor...')
-                      if (!chatRoomId) throw new Error('chatRoomId não encontrado')
-                      // await chatP2PService.sendAudioMessage(chatRoomId, audio)
-                      console.log('✅ Áudio enviado com sucesso')
-                    } catch (error) {
-                      console.error('❌ Erro ao enviar áudio:', error)
+                    // Adicionar mensagem localmente
+                    const message: Message = {
+                      id: Date.now().toString(),
+                      content: `[Áudio - ${(audio.size / 1024).toFixed(1)} KB]`,
+                      timestamp: new Date().toLocaleTimeString('pt-BR', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      }),
+                      isOwn: true,
+                      status: 'sent',
+                      type: 'file',
+                      fileType: 'audio',
+                      audioBlob: audio,
                     }
+                    setMessages(prev => [...prev, message])
+
+                    // TODO: Enviar áudio via API
+                    // await chatP2PService.sendAudioMessage(chatRoomId, audio)
                   }}
-                  isDisabled={!currentContact}
                 />
 
                 <button
@@ -1562,15 +1286,6 @@ export const ChatPage = () => {
           </div>
         )}
       </div>
-
-      {/* Incoming Call Modal - Bot ou outro usuário */}
-      <IncomingCallModal
-        isOpen={incomingCall.isOpen}
-        callerName={incomingCall.botName}
-        callType={incomingCall.callType}
-        onAccept={handleAcceptIncomingCall}
-        onReject={handleRejectIncomingCall}
-      />
 
       {/* Call Modal */}
       {(() => {

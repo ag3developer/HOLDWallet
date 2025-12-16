@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import Optional
 from decimal import Decimal
+import logging
 
 from app.core.db import get_db
 from app.core.security import get_current_user
@@ -20,6 +21,7 @@ from app.services.instant_trade_service import get_instant_trade_service, Instan
 from app.schemas.instant_trade import QuoteRequest, CreateTradeRequest, TradeStatusResponse
 
 router = APIRouter(prefix="/instant-trade", tags=["Instant Trade OTC"])
+logger = logging.getLogger(__name__)
 
 
 @router.get("/assets")
@@ -135,17 +137,40 @@ async def create_trade(
             payment_method=request.payment_method,
         )
 
-        return {
+        # If payment method is TED, include bank account details
+        response_data = {
             "success": True,
             "trade_id": trade["trade_id"],
             "reference_code": trade["reference_code"],
             "message": "Trade created successfully. You have 15 minutes to complete payment.",
         }
 
+        # Add bank details for manual transfer methods (TED)
+        if request.payment_method == "ted":
+            response_data["bank_details"] = {
+                "bank_code": "001",
+                "bank_name": "Banco do Brasil",
+                "agency": "5271-0",
+                "account_number": "26689-2",
+                "account_holder": "HOLD DIGITAL ASSETS LTDA",
+                "cnpj": "24.275.355/0001-51",
+                "pix_key": "24.275.355/0001-51",
+                "instructions": f"Transfer R$ {trade.get('total_amount', 0):.2f} to the account above and upload proof of payment.",
+            }
+
+        return response_data
+
     except Exception as e:
+        logger.error(f"Error creating trade: {str(e)}")
+        error_detail = str(e)
+        
+        # Add more context to the error message
+        if "Quote not found" in error_detail or "expired" in error_detail:
+            error_detail = "Quote has expired. Please get a new quote and try again within 30 seconds."
+        
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
+            detail=error_detail,
         )
 
 

@@ -297,10 +297,11 @@ async def update_payment_method(
 @router.delete("/payment-methods/{method_id}")
 async def delete_payment_method(
     method_id: int,
-    user_id: int = Query(1, description="User ID (default: 1 for testing)"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Delete a payment method"""
+    user_id = str(current_user.id)  # ✅ UUID
     print(f"[DEBUG] DELETE payment method - method_id: {method_id}, user_id: {user_id}")
     try:
         # Check if exists
@@ -343,10 +344,11 @@ async def delete_payment_method(
 @router.post("/orders")
 async def create_order(
     order_data: Dict[str, Any],
-    user_id: int = Query(1, description="User ID (default: 1 for testing)"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Create a new P2P order"""
+    user_id = str(current_user.id)  # ✅ UUID do usuário autenticado
     print(f"[DEBUG] POST /orders - user_id: {user_id}, data: {order_data}")
     
     try:
@@ -397,7 +399,7 @@ async def create_order(
         # Convert payment methods list to JSON string
         payment_methods_json = json.dumps(payment_methods)
         
-        # Insert order
+        # Insert order - PostgreSQL usa RETURNING id
         query = text("""
             INSERT INTO p2p_orders (
                 user_id, order_type, cryptocurrency, fiat_currency,
@@ -410,6 +412,7 @@ async def create_order(
                 :payment_methods, :time_limit, :terms, :auto_reply,
                 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
             )
+            RETURNING id
         """)
         
         result = db.execute(query, {
@@ -429,8 +432,8 @@ async def create_order(
         })
         db.commit()
         
-        # Get the last inserted order ID
-        order_id_result = db.execute(text("SELECT last_insert_rowid() as id")).fetchone()
+        # ✅ PostgreSQL retorna o ID diretamente com RETURNING
+        order_id_result = result.fetchone()
         order_id = order_id_result.id if order_id_result else None
         
         print(f"[DEBUG] Order created successfully - ID: {order_id}")
@@ -607,10 +610,11 @@ async def get_my_orders(
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
     status: Optional[str] = Query(None, description="Filter by status: active, paused, completed, cancelled"),
-    user_id: int = Query(1, description="User ID (default: 1 for testing)"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get user's own P2P orders"""
+    user_id = str(current_user.id)  # ✅ UUID
     print(f"[DEBUG] GET /my-orders - user_id: {user_id}, page: {page}, status: {status}")
     
     try:
@@ -687,15 +691,40 @@ async def get_my_orders(
 
 @router.get("/orders/{order_id}")
 async def get_order_details(
-    order_id: int,
+    order_id: str,  # ✅ Aceita string
     db: Session = Depends(get_db)
 ):
     """Get details of a specific order"""
     print(f"[DEBUG] GET /orders/{order_id}")
     
     try:
-        query = text("SELECT * FROM p2p_orders WHERE id = :id")
-        result = db.execute(query, {"id": order_id}).fetchone()
+        # Tenta converter para UUID primeiro, depois para int
+        from uuid import UUID
+        order_id_value = None
+        is_uuid = False
+        
+        try:
+            order_uuid = UUID(order_id)
+            order_id_value = order_uuid  # Mantém como UUID object
+            is_uuid = True
+            print(f"[DEBUG] Order ID is UUID: {order_id_value}")
+        except ValueError:
+            try:
+                order_id_value = int(order_id)
+                print(f"[DEBUG] Order ID is integer: {order_id_value}")
+            except ValueError:
+                raise HTTPException(
+                    status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"Invalid order ID format: {order_id}"
+                )
+        
+        # Query diferente dependendo do tipo
+        if is_uuid:
+            query = text("SELECT * FROM p2p_orders WHERE id = CAST(:id AS UUID)")
+        else:
+            query = text("SELECT * FROM p2p_orders WHERE id = :id")
+        
+        result = db.execute(query, {"id": str(order_id_value) if is_uuid else order_id_value}).fetchone()
         
         if not result:
             raise HTTPException(
@@ -708,7 +737,8 @@ async def get_order_details(
         payment_methods_data = []
         
         if payment_method_ids:
-            ids_str = ','.join(str(id) for id in payment_method_ids)
+            # ✅ Adiciona aspas ao redor de cada UUID
+            ids_str = ','.join(f"'{id}'" for id in payment_method_ids)
             pm_query = text(f"SELECT * FROM payment_methods WHERE id IN ({ids_str})")
             pm_results = db.execute(pm_query).fetchall()
             
@@ -828,18 +858,43 @@ async def get_order_details(
 
 @router.put("/orders/{order_id}")
 async def update_order(
-    order_id: int,
+    order_id: str,  # ✅ Aceita string
     update_data: Dict[str, Any],
-    user_id: int = Query(1, description="User ID (default: 1 for testing)"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Update order (e.g., pause/activate, change price)"""
+    user_id = current_user.id  # ✅ Integer
     print(f"[DEBUG] PUT /orders/{order_id} - user_id: {user_id}, data: {update_data}")
     
     try:
+        # Converte order_id para UUID ou int
+        from uuid import UUID
+        order_id_value = None
+        is_uuid = False
+        
+        try:
+            order_uuid = UUID(order_id)
+            order_id_value = order_uuid
+            is_uuid = True
+            print(f"[DEBUG] Order ID is UUID: {order_id_value}")
+        except ValueError:
+            try:
+                order_id_value = int(order_id)
+                print(f"[DEBUG] Order ID is integer: {order_id_value}")
+            except ValueError:
+                raise HTTPException(
+                    status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"Invalid order ID format: {order_id}"
+                )
+        
         # Check if order exists and belongs to user
-        check_query = text("SELECT id FROM p2p_orders WHERE id = :id AND user_id = :user_id")
-        existing = db.execute(check_query, {"id": order_id, "user_id": user_id}).fetchone()
+        if is_uuid:
+            check_query = text("SELECT id FROM p2p_orders WHERE id = CAST(:id AS UUID) AND user_id = :user_id")
+        else:
+            check_query = text("SELECT id FROM p2p_orders WHERE id = :id AND user_id = :user_id")
+        
+        existing = db.execute(check_query, {"id": str(order_id_value) if is_uuid else order_id_value, "user_id": user_id}).fetchone()
         
         if not existing:
             raise HTTPException(
@@ -850,7 +905,7 @@ async def update_order(
         # Build update query dynamically
         allowed_fields = ["status", "price", "min_order_limit", "max_order_limit", "terms", "auto_reply"]
         update_fields = []
-        params = {"id": order_id, "user_id": user_id}
+        params = {"id": str(order_id_value) if is_uuid else order_id_value, "user_id": user_id}
         
         for field in allowed_fields:
             if field in update_data:
@@ -866,16 +921,24 @@ async def update_order(
         # Add updated_at
         update_fields.append("updated_at = CURRENT_TIMESTAMP")
         
-        update_query = text(f"""
-            UPDATE p2p_orders 
-            SET {', '.join(update_fields)}
-            WHERE id = :id AND user_id = :user_id
-        """)
+        # Query diferente dependendo do tipo
+        if is_uuid:
+            update_query = text(f"""
+                UPDATE p2p_orders 
+                SET {', '.join(update_fields)}
+                WHERE id = CAST(:id AS UUID) AND user_id = :user_id
+            """)
+        else:
+            update_query = text(f"""
+                UPDATE p2p_orders 
+                SET {', '.join(update_fields)}
+                WHERE id = :id AND user_id = :user_id
+            """)
         
         db.execute(update_query, params)
         db.commit()
         
-        print(f"[DEBUG] Order {order_id} updated successfully")
+        print(f"[DEBUG] Order {order_id_value} updated successfully")
         
         return {
             "success": True,
@@ -895,17 +958,44 @@ async def update_order(
 
 @router.delete("/orders/{order_id}")
 async def cancel_order(
-    order_id: int,
-    user_id: int = Query(1, description="User ID (default: 1 for testing)"),
+    order_id: str,  # ✅ Aceita string (UUID ou int)
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Cancel an order (sets status to 'cancelled')"""
-    print(f"[DEBUG] DELETE /orders/{order_id} - user_id: {user_id}")
+    user_id = current_user.id  # ✅ Usa ID diretamente (integer)
+    print(f"[DEBUG] DELETE /orders/{order_id} - user_id: {user_id}, type: {type(order_id)}")
     
     try:
+        # Tenta converter para UUID primeiro, depois para int
+        from uuid import UUID
+        order_id_value = None
+        is_uuid = False
+        
+        try:
+            # Tenta UUID primeiro
+            order_uuid = UUID(order_id)
+            order_id_value = order_uuid
+            is_uuid = True
+            print(f"[DEBUG] Order ID is UUID: {order_id_value}")
+        except ValueError:
+            # Tenta int
+            try:
+                order_id_value = int(order_id)
+                print(f"[DEBUG] Order ID is integer: {order_id_value}")
+            except ValueError:
+                raise HTTPException(
+                    status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"Invalid order ID format: {order_id}"
+                )
+        
         # Check if order exists and belongs to user
-        check_query = text("SELECT id, status FROM p2p_orders WHERE id = :id AND user_id = :user_id")
-        existing = db.execute(check_query, {"id": order_id, "user_id": user_id}).fetchone()
+        if is_uuid:
+            check_query = text("SELECT id, status FROM p2p_orders WHERE id = CAST(:id AS UUID) AND user_id = :user_id")
+        else:
+            check_query = text("SELECT id, status FROM p2p_orders WHERE id = :id AND user_id = :user_id")
+        
+        existing = db.execute(check_query, {"id": str(order_id_value) if is_uuid else order_id_value, "user_id": user_id}).fetchone()
         
         if not existing:
             raise HTTPException(
@@ -914,16 +1004,23 @@ async def cancel_order(
             )
         
         # Update status to cancelled
-        update_query = text("""
-            UPDATE p2p_orders 
-            SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP
-            WHERE id = :id AND user_id = :user_id
-        """)
+        if is_uuid:
+            update_query = text("""
+                UPDATE p2p_orders 
+                SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP
+                WHERE id = CAST(:id AS UUID) AND user_id = :user_id
+            """)
+        else:
+            update_query = text("""
+                UPDATE p2p_orders 
+                SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP
+                WHERE id = :id AND user_id = :user_id
+            """)
         
-        db.execute(update_query, {"id": order_id, "user_id": user_id})
+        db.execute(update_query, {"id": str(order_id_value) if is_uuid else order_id_value, "user_id": user_id})
         db.commit()
         
-        print(f"[DEBUG] Order {order_id} cancelled successfully")
+        print(f"[DEBUG] Order {order_id_value} cancelled successfully")
         
         return {
             "success": True,
@@ -1003,7 +1100,7 @@ async def start_trade(
                     detail=f"Seller insufficient balance. Needs {amount} {order.cryptocurrency}"
                 )
         
-        # Insert trade
+        # Insert trade - PostgreSQL usa RETURNING id
         from datetime import datetime, timedelta
         expires_at = datetime.now() + timedelta(minutes=order.time_limit)
         
@@ -1017,9 +1114,10 @@ async def start_trade(
                 :amount, :price, :total_fiat, :payment_method_id, :expires_at,
                 'pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
             )
+            RETURNING id
         """)
         
-        db.execute(trade_query, {
+        result = db.execute(trade_query, {
             "order_id": order_id,
             "buyer_id": buyer_id,
             "seller_id": order.user_id,
@@ -1033,8 +1131,8 @@ async def start_trade(
         })
         db.commit()
         
-        # Get trade ID
-        trade_id_result = db.execute(text("SELECT last_insert_rowid() as id")).fetchone()
+        # ✅ PostgreSQL retorna o ID diretamente com RETURNING
+        trade_id_result = result.fetchone()
         trade_id = trade_id_result.id if trade_id_result else None
         
         print(f"[DEBUG] Trade created - ID: {trade_id}")
@@ -1345,7 +1443,7 @@ async def get_market_stats(
 @router.post("/wallet/deposit")
 async def deposit_balance(
     balance_data: Dict[str, Any],
-    user_id: int = Query(1),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -1356,7 +1454,7 @@ async def deposit_balance(
     2. Testing purpose: manual deposit
     
     Example:
-    POST /wallet/deposit?user_id=123
+    POST /wallet/deposit
     {
         "cryptocurrency": "USDT",
         "amount": 1000,
@@ -1364,6 +1462,7 @@ async def deposit_balance(
         "reason": "Blockchain deposit"
     }
     """
+    user_id = str(current_user.id)  # ✅ UUID
     try:
         cryptocurrency = balance_data.get("cryptocurrency", "BTC").upper()
         amount = float(balance_data.get("amount", 0))
@@ -1515,10 +1614,11 @@ async def get_wallet_balance(
 @router.post("/wallet/freeze")
 async def freeze_balance(
     balance_data: Dict[str, Any],
-    user_id: int = Query(1),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Freeze (lock) balance for P2P trade"""
+    user_id = str(current_user.id)  # ✅ UUID
     try:
         cryptocurrency = balance_data.get("cryptocurrency", "BTC").upper()
         amount = float(balance_data.get("amount", 0))
@@ -1615,10 +1715,11 @@ async def freeze_balance(
 @router.post("/wallet/unfreeze")
 async def unfreeze_balance(
     balance_data: Dict[str, Any],
-    user_id: int = Query(1),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Unfreeze (unlock) balance"""
+    user_id = str(current_user.id)  # ✅ UUID
     try:
         cryptocurrency = balance_data.get("cryptocurrency", "BTC").upper()
         amount = float(balance_data.get("amount", 0))
@@ -1704,13 +1805,14 @@ async def unfreeze_balance(
 
 @router.get("/wallet/history")
 async def get_balance_history(
-    user_id: int = Query(1),
     cryptocurrency: Optional[str] = Query(None),
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get balance change history"""
+    user_id = str(current_user.id)  # ✅ UUID
     try:
         params = {"user_id": user_id}
         where_clause = "user_id = :user_id"

@@ -1,7 +1,6 @@
 import { useQuery, useMutation } from '@tanstack/react-query'
 import axios from 'axios'
-
-const API_BASE = 'http://localhost:8000'
+import { APP_CONFIG } from '@/config/app'
 
 interface WalletBalance {
   cryptocurrency: string
@@ -21,7 +20,7 @@ export const useWalletBalance = (userId: string | undefined, crypto?: string) =>
         ...(crypto && { cryptocurrency: crypto }),
       })
 
-      const { data } = await axios.get(`${API_BASE}/p2p/wallet/balance?${params}`)
+      const { data } = await axios.get(`${APP_CONFIG.api.baseUrl}/p2p/wallet/balance?${params}`)
       return data.data
     },
     enabled: !!userId,
@@ -35,7 +34,9 @@ export const useAllWalletBalances = (userId: string | undefined) => {
     queryFn: async () => {
       if (!userId) return []
 
-      const { data } = await axios.get(`${API_BASE}/p2p/wallet/balance?user_id=${userId}`)
+      const { data } = await axios.get(
+        `${APP_CONFIG.api.baseUrl}/p2p/wallet/balance?user_id=${userId}`
+      )
       return Array.isArray(data.data) ? data.data : [data.data]
     },
     enabled: !!userId,
@@ -47,7 +48,7 @@ export const useDepositBalance = () => {
   return useMutation({
     mutationFn: async (variables: { userId: string; cryptocurrency: string; amount: number }) => {
       const { data } = await axios.post(
-        `${API_BASE}/p2p/wallet/deposit?user_id=${variables.userId}`,
+        `${APP_CONFIG.api.baseUrl}/p2p/wallet/deposit?user_id=${variables.userId}`,
         {
           cryptocurrency: variables.cryptocurrency,
           amount: variables.amount,
@@ -67,7 +68,7 @@ export const useFreezeBalance = () => {
       reason?: string
     }) => {
       const { data } = await axios.post(
-        `${API_BASE}/p2p/wallet/freeze?user_id=${variables.userId}`,
+        `${APP_CONFIG.api.baseUrl}/p2p/wallet/freeze?user_id=${variables.userId}`,
         {
           cryptocurrency: variables.cryptocurrency,
           amount: variables.amount,

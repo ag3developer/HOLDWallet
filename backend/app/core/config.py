@@ -8,6 +8,10 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
+    # JWT Settings (aliases para compatibilidade)
+    JWT_ALGORITHM: Optional[str] = None
+    JWT_EXPIRATION_HOURS: Optional[int] = None
+    
     # Database
     DATABASE_URL: str = "sqlite:///./holdwallet.db"
     
@@ -24,6 +28,10 @@ class Settings(BaseSettings):
     POLYGON_RPC_URL: str = "https://polygon-rpc.com"
     ETHEREUM_RPC_URL: str = "https://eth-mainnet.alchemyapi.io/v2/your-key"
     BSC_RPC_URL: str = "https://bsc-dataseed.binance.org"
+    BASE_RPC_URL: str = "https://mainnet.base.org"
+    
+    # Platform Wallet (para enviar crypto aos usuários)
+    PLATFORM_WALLET_PRIVATE_KEY: Optional[str] = None
     
     # Bitcoin APIs
     BTC_API_URL: str = "https://blockstream.info/api"
@@ -34,6 +42,9 @@ class Settings(BaseSettings):
     # Environment
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
+    LOG_LEVEL: str = "info"
+    
+    # CORS
     CORS_ORIGINS: List[str] = [
         "http://localhost:3000",
         "http://localhost:3001", 
@@ -44,6 +55,13 @@ class Settings(BaseSettings):
         "https://hold-wallet-deaj.vercel.app",
         "https://hold-wallet-deaj-70tg82tju-ag-3-developer.vercel.app"
     ]
+    ALLOWED_ORIGINS: Optional[str] = None  # String com vírgulas, será convertido para lista
+    
+    # Frontend
+    FRONTEND_URL: str = "http://localhost:3000"
+    
+    # API Root Path (para deploy com prefixo /v1)
+    ROOT_PATH: str = ""
     
     # Security
     BCRYPT_ROUNDS: int = 12
@@ -58,5 +76,6 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = True
+        extra = "allow"  # Permitir campos extras do .env
 
 settings = Settings()

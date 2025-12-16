@@ -99,11 +99,11 @@ export function usePrices(symbols: string[], currency: string = 'USD'): UsePrice
   useEffect(() => {
     fetchPrices()
 
-    // Atualizar a cada 5 segundos
+    // Atualizar a cada 30 segundos (reduzido de 5s para melhor performance)
     const interval = setInterval(() => {
       console.log('[usePrices] Auto-refreshing prices...')
       fetchPrices()
-    }, 5000)
+    }, 30000) // 30 segundos
 
     return () => clearInterval(interval)
   }, [fetchPrices])

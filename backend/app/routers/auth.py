@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
@@ -8,6 +8,7 @@ from app.core.security import verify_password, create_access_token, get_current_
 from app.core.exceptions import AuthenticationError, ValidationError
 from app.models.user import User
 from app.schemas.auth import LoginRequest, LoginResponse, RegisterRequest, UserResponse, TokenData
+from app.services.user_activity_service import UserActivityService
 
 router = APIRouter()
 security = HTTPBearer()
@@ -15,6 +16,7 @@ security = HTTPBearer()
 @router.post("/login", response_model=LoginResponse)
 async def login(
     login_data: LoginRequest,
+    request: Request,
     db: Session = Depends(get_db)
 ):
     """
@@ -38,6 +40,19 @@ async def login(
     # Update last login
     user.last_login = datetime.utcnow()
     db.commit()
+    
+    # Log login activity
+    try:
+        UserActivityService.log_login(
+            db=db,
+            user_id=user.id,
+            ip_address=request.client.host if request.client else None,
+            user_agent=request.headers.get("user-agent"),
+            success=True
+        )
+    except Exception as e:
+        # Don't fail login if activity logging fails
+        print(f"Failed to log login activity: {e}")
     
     return LoginResponse(
         access_token=access_token,

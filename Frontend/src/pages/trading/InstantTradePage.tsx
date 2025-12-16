@@ -150,7 +150,6 @@ export function InstantTradePage() {
   const convertFromBRL = (value: number): number => {
     // ⚠️ PADRÃO: Backend retorna preços em USD
     // Esta função converte USD → moeda selecionada (BRL, EUR, etc)
-    // Renomeada para "convertPriceToDisplayCurrency" para ser mais claro
 
     if (!value || typeof value !== 'number' || Number.isNaN(value)) {
       return 0
@@ -161,15 +160,18 @@ export function InstantTradePage() {
       return value
     }
 
-    // Se moeda é BRL, converter USD → BRL
+    // Se moeda é BRL, converter USD → BRL usando cotação real
     if (currency === 'BRL') {
-      const converted = value * 5 // 1 USD = 5 BRL
+      // Buscar cotação real do USD/BRL dos preços carregados
+      const usdPrice = cryptoPrices.find(p => p.symbol === 'USDT' || p.symbol === 'USDC')
+      const usdToBrlRate = usdPrice ? usdPrice.price : 5.42 // Fallback para 5.42 se não encontrar
+      const converted = value * usdToBrlRate
       return Number.isNaN(converted) ? value : converted
     }
 
     // Se moeda é EUR, converter USD → EUR
     if (currency === 'EUR') {
-      const converted = value * 0.92 // 1 USD = 0.92 EUR
+      const converted = value * 0.92 // 1 USD = 0.92 EUR (pode ser atualizado dinamicamente)
       return Number.isNaN(converted) ? value : converted
     }
 
@@ -177,13 +179,9 @@ export function InstantTradePage() {
   }
 
   const handleQuoteReceived = (newQuote: Quote) => {
-    const currentPrice =
-      cryptoPrices.find(p => p.symbol === newQuote.symbol)?.price ?? newQuote.crypto_price
-    const updatedQuote = {
-      ...newQuote,
-      crypto_price: currentPrice,
-    }
-    setQuote(updatedQuote)
+    // Backend já retorna crypto_price correto em USD
+    // NÃO sobrescrever com preços locais que estão em outra moeda!
+    setQuote(newQuote)
   }
 
   const handleConfirmSuccess = (tradeId: string) => {
@@ -194,9 +192,8 @@ export function InstantTradePage() {
   // Update quote if price changed
   useEffect(() => {
     if (quote) {
-      const currentPrice =
-        cryptoPrices.find(p => p.symbol === quote.symbol)?.price ?? quote.crypto_price
-      setQuote(prev => (prev ? { ...prev, crypto_price: currentPrice } : null))
+      // Backend gerencia os preços em USD, não precisamos atualizar aqui
+      // O countdown do quote_id já garante que preços antigos expiram
     }
   }, [cryptoPrices])
 

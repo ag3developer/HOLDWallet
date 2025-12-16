@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Eye, ArrowDownLeft, ArrowUpRight, X } from 'lucide-react'
-import axios from 'axios'
+import { apiClient } from '@/services/api'
 import toast from 'react-hot-toast'
 
 interface Trade {
@@ -24,8 +24,6 @@ interface TradeHistoryPanelProps {
   readonly currencyLocale: string
   readonly isVisible?: boolean
 }
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
 
 const STATUS_COLORS: Record<string, string> = {
   PENDING: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
@@ -66,11 +64,7 @@ export function TradeHistoryPanel({
   const fetchTrades = async () => {
     setLoading(true)
     try {
-      const response = await axios.get(`${API_BASE}/instant-trade/history/my-trades`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
-        },
-      })
+      const response = await apiClient.get('/instant-trade/history/my-trades')
       setTrades(response.data.trades || [])
     } catch (error: any) {
       toast.error('Erro ao carregar histórico de trades')

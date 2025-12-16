@@ -6,15 +6,21 @@ import { usePaymentMethods } from '@/hooks/usePaymentMethods'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { usePrices } from '@/hooks/usePrices'
 import { useWalletBalances } from '@/hooks/useWalletBalances'
+import { useUserWallet } from '@/hooks/useUserWallet'
 import { CryptoIcon } from '@/components/CryptoIcon'
 import { UserProfileSection } from '@/components/trader/UserProfileSection'
+import { ExchangeRateDisplay } from '@/components/ExchangeRateDisplay'
 import { toast } from 'react-hot-toast'
+import { currencyConverterService } from '@/services/currency-converter-service'
 
 export const CreateOrderPage = () => {
   const navigate = useNavigate()
   const createOrderMutation = useCreateP2POrder()
   const { data: paymentMethodsData } = usePaymentMethods()
   const { token } = useAuthStore()
+
+  // Usar o novo hook com cache para wallet
+  const { data: wallet, isLoading: walletLoading } = useUserWallet()
 
   // Form state
   const [orderType, setOrderType] = useState<'buy' | 'sell'>('sell')
@@ -30,7 +36,6 @@ export const CreateOrderPage = () => {
   const [terms, setTerms] = useState('')
   const [autoReply, setAutoReply] = useState('')
   const [allBalances, setAllBalances] = useState<Record<string, number>>({})
-  const [walletId, setWalletId] = useState<string | undefined>(undefined)
   const [balancesLoading, setBalancesLoading] = useState(true)
 
   // Get available cryptos - only those user actually has
@@ -43,47 +48,8 @@ export const CreateOrderPage = () => {
     fiatCurrency
   )
 
-  // Fetch wallet ID first
-  useEffect(() => {
-    const fetchWalletId = async () => {
-      try {
-        if (!token) {
-          console.error('[CreateOrder] No token found')
-          setBalancesLoading(false)
-          return
-        }
-
-        console.log('[CreateOrder] Fetching wallet list...')
-        // Get wallets list
-        const response = await fetch(`${API_BASE}/wallets/`, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch wallets: ${response.status}`)
-        }
-
-        const wallets = await response.json()
-        console.log('[CreateOrder] Wallets fetched:', wallets)
-
-        if (!wallets?.length) {
-          throw new Error('No wallets found')
-        }
-
-        setWalletId(wallets[0].id)
-        console.log('[CreateOrder] Wallet ID set:', wallets[0].id)
-      } catch (error) {
-        console.error('[CreateOrder] Error fetching wallet ID:', error)
-        setWalletId(undefined)
-        setBalancesLoading(false)
-      }
-    }
-
-    fetchWalletId()
-  }, [token])
-
-  // Use the hook to fetch balances
-  const { balances, loading: balancesHookLoading, refreshBalances } = useWalletBalances(walletId)
+  // Use the hook to fetch balances (using wallet ID from useUserWallet)
+  const { balances, loading: balancesHookLoading, refreshBalances } = useWalletBalances(wallet?.id)
 
   // Update balances when they change from hook
   useEffect(() => {
@@ -91,10 +57,10 @@ export const CreateOrderPage = () => {
       '[CreateOrder] Balances updated from hook:',
       balances,
       'Loading:',
-      balancesHookLoading
+      balancesHookLoading || walletLoading
     )
     setAllBalances(balances)
-    setBalancesLoading(balancesHookLoading)
+    setBalancesLoading(balancesHookLoading || walletLoading)
 
     // Auto-select first available coin if not selected yet
     if (!coin && Object.keys(balances).length > 0) {
@@ -104,17 +70,30 @@ export const CreateOrderPage = () => {
         setCoin(firstCoin)
       }
     }
-  }, [balances, balancesHookLoading, coin])
+  }, [balances, balancesHookLoading, walletLoading, coin])
 
   // Update base price from hook when cryptoPrices change
   useEffect(() => {
     if (coin && cryptoPrices?.[coin]?.price) {
-      console.log(`[CreateOrder] Price updated for ${coin}:`, cryptoPrices[coin].price)
-      setBasePrice(cryptoPrices[coin].price)
+      // Preços vêm em USD do backend, precisamos converter para moeda selecionada
+      let priceInUSD = cryptoPrices[coin].price
+      console.log(`[CreateOrder] Price from API for ${coin}: $${priceInUSD} USD`)
+
+      // Converter para a moeda fiat selecionada
+      let convertedPrice = priceInUSD
+      if (fiatCurrency === 'BRL') {
+        convertedPrice = currencyConverterService.convert(priceInUSD, 'USD', 'BRL')
+        console.log(`[CreateOrder] Converted to BRL: R$ ${convertedPrice}`)
+      } else if (fiatCurrency === 'EUR') {
+        convertedPrice = currencyConverterService.convert(priceInUSD, 'USD', 'EUR')
+        console.log(`[CreateOrder] Converted to EUR: € ${convertedPrice}`)
+      }
+
+      setBasePrice(convertedPrice)
     } else {
       setBasePrice(0)
     }
-  }, [cryptoPrices, coin])
+  }, [cryptoPrices, coin, fiatCurrency])
 
   // Calculate final price based on basePrice and margin
   const finalPrice = basePrice > 0 ? basePrice * (1 + priceMargin / 100) : 0
@@ -451,6 +430,11 @@ export const CreateOrderPage = () => {
                     <option value='USD'>Dólar Americano ($)</option>
                     <option value='EUR'>Euro (€)</option>
                   </select>
+
+                  {/* Mostrar taxa de câmbio real */}
+                  <div className='mt-2'>
+                    <ExchangeRateDisplay />
+                  </div>
                 </div>
               </div>
 

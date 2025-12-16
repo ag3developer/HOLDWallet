@@ -112,6 +112,7 @@ class PriceService {
   /**
    * Buscar preços do backend
    * Usa apenas o endpoint /prices/batch (único endpoint funcional)
+   * SEMPRE busca em USD - conversão para outra moeda é feita no frontend
    */
   private static async fetchFromBackend(
     symbols: string[],
@@ -120,7 +121,8 @@ class PriceService {
     if (symbols.length === 0) return {}
 
     const symbolsQuery = symbols.join(',')
-    const currencyCode = currency.toLowerCase()
+    // SEMPRE usar USD - conversão será feita no frontend
+    const currencyCode = 'usd'
 
     const client = axios.create({
       baseURL: APP_CONFIG.api.baseUrl,
@@ -129,7 +131,7 @@ class PriceService {
     })
 
     try {
-      console.log(`[PriceService] Fetching from /prices/batch: ${symbolsQuery}`)
+      console.log(`[PriceService] Fetching from /prices/batch: ${symbolsQuery} (in USD)`)
       const response = await client.get('/prices/batch', {
         params: {
           symbols: symbolsQuery,

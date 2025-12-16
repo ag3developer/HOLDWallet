@@ -1,71 +1,93 @@
 /**
  * API Configuration
  * Centraliza todas as URLs da API para fácil manutenção
+ *
+ * 🔧 AMBIENTES SUPORTADOS:
+ * - Desenvolvimento: localhost:8000 (quando VITE_API_URL não definida)
+ * - Produção: https://api.wolknow.com/v1 (via VITE_API_URL)
+ *
+ * Para desenvolver localmente:
+ * 1. Criar arquivo .env.local na raiz do Frontend/
+ * 2. Adicionar: VITE_API_URL=http://localhost:8000
+ * 3. Rodar: npm run dev
+ *
+ * Para produção (Vercel):
+ * - Definir VITE_API_URL=https://api.wolknow.com/v1 nas variáveis de ambiente
  */
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+// Detecta ambiente automaticamente
+const isDevelopment = import.meta.env.MODE === 'development'
+const API_URL =
+  import.meta.env.VITE_API_URL ||
+  (isDevelopment ? 'http://localhost:8000' : 'https://api.wolknow.com/v1')
+
+console.log('🌍 API Environment:', {
+  mode: import.meta.env.MODE,
+  apiUrl: API_URL,
+  isDevelopment,
+})
 
 export const apiConfig = {
   baseURL: API_URL,
 
-  // Auth endpoints
+  // Auth endpoints (CAMINHOS RELATIVOS - axios adiciona baseURL automaticamente)
   auth: {
-    login: `${API_URL}/auth/login`,
-    signup: `${API_URL}/auth/register`, // Backend usa /register, não /signup
-    logout: `${API_URL}/auth/logout`,
-    refresh: `${API_URL}/auth/refresh`,
-    verify: `${API_URL}/auth/verify`,
+    login: '/auth/login',
+    signup: '/auth/register', // Backend usa /register, não /signup
+    logout: '/auth/logout',
+    refresh: '/auth/refresh',
+    verify: '/auth/verify',
   },
 
   // User endpoints
   user: {
-    profile: `${API_URL}/users/me`,
-    update: `${API_URL}/users/me`,
-    wallets: `${API_URL}/users/me/wallets`,
-    settings: `${API_URL}/users/me/settings`,
+    profile: '/users/me',
+    update: '/users/me',
+    wallets: '/users/me/wallets',
+    settings: '/users/me/settings',
   },
 
   // Wallet endpoints (legacy - usa /wallet)
   wallet: {
-    list: `${API_URL}/wallet`, // GET /wallet/ - lista wallets
-    create: `${API_URL}/wallet`, // POST /wallet/ - cria wallet
-    balance: `${API_URL}/wallet`, // GET /wallet/{wallet_id}/balance
-    addresses: `${API_URL}/wallet`, // POST /wallet/{wallet_id}/addresses
+    list: '/wallet', // GET /wallet/ - lista wallets
+    create: '/wallet', // POST /wallet/ - cria wallet
+    balance: '/wallet', // GET /wallet/{wallet_id}/balance
+    addresses: '/wallet', // POST /wallet/{wallet_id}/addresses
   },
 
   // HD Wallets endpoints (novo - usa /wallets)
   wallets: {
-    create: `${API_URL}/wallets/create`, // POST /wallets/create
-    restore: `${API_URL}/wallets/restore`, // POST /wallets/restore
-    list: `${API_URL}/wallets`, // GET /wallets/
-    addresses: `${API_URL}/wallets`, // GET /wallets/{wallet_id}/addresses
-    balances: `${API_URL}/wallets`, // GET /wallets/{wallet_id}/balances
-    mnemonic: `${API_URL}/wallets`, // GET /wallets/{wallet_id}/mnemonic
-    transactions: `${API_URL}/wallets`, // GET /wallets/{wallet_id}/transactions
-    validateAddress: `${API_URL}/wallets/validate-address`, // POST
-    estimateFee: `${API_URL}/wallets/estimate-fee`, // POST
-    send: `${API_URL}/wallets/send`, // POST
+    create: '/wallets/create', // POST /wallets/create
+    restore: '/wallets/restore', // POST /wallets/restore
+    list: '/wallets', // GET /wallets/
+    addresses: '/wallets', // GET /wallets/{wallet_id}/addresses
+    balances: '/wallets', // GET /wallets/{wallet_id}/balances
+    mnemonic: '/wallets', // GET /wallets/{wallet_id}/mnemonic
+    transactions: '/wallets', // GET /wallets/{wallet_id}/transactions
+    validateAddress: '/wallets/validate-address', // POST
+    estimateFee: '/wallets/estimate-fee', // POST
+    send: '/wallets/send', // POST
   },
 
   // Trading endpoints
   trading: {
-    quote: `${API_URL}/trading/quote`,
-    createOrder: `${API_URL}/trading/create-order`,
-    getOrder: `${API_URL}/trading/order`,
-    listOrders: `${API_URL}/trading/orders`,
+    quote: '/trading/quote',
+    createOrder: '/trading/create-order',
+    getOrder: '/trading/order',
+    listOrders: '/trading/orders',
   },
 
   // Payment endpoints
   payment: {
-    methods: `${API_URL}/payment/methods`,
+    methods: '/payment/methods',
     transfbank: {
-      generate: `${API_URL}/payment/transfbank/generate`,
-      verify: `${API_URL}/payment/transfbank/verify`,
+      generate: '/payment/transfbank/generate',
+      verify: '/payment/transfbank/verify',
     },
   },
 
   // Health check
-  health: `${API_URL}/health`,
+  health: '/health',
 }
 
 /**

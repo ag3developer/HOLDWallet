@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useUpdateProfile } from '@/hooks/useAuth'
+import { useUserActivities } from '@/hooks/useUserActivities'
+import UserActivityService from '@/services/userActivityService'
 import { UserProfileSection } from '@/components/trader/UserProfileSection'
 import {
   User,
@@ -37,6 +39,13 @@ export const ProfilePage = () => {
   const navigate = useNavigate()
   const { user, token } = useAuthStore()
   const updateProfileMutation = useUpdateProfile()
+
+  // ⚠️ Desabilitado até endpoint /users/me/activities ser implementado no backend
+  const { data: activitiesData, isLoading: isLoadingActivities } = useUserActivities({
+    limit: 20,
+    enabled: false, // ✅ Desabilitado temporariamente
+  })
+
   const [isEditing, setIsEditing] = useState(false)
   const [activeTab, setActiveTab] = useState<
     'profile' | 'security' | 'notifications' | 'activity' | 'trader' | 'kyc'
@@ -88,31 +97,6 @@ export const ProfilePage = () => {
     marketingEmails: false,
     weeklyReport: true,
   })
-
-  const recentActivity = [
-    {
-      id: 1,
-      type: 'login',
-      description: 'Login realizado com sucesso',
-      timestamp: '2024-11-25 14:30',
-      ip: '192.168.1.100',
-      device: 'Chrome, Windows',
-    },
-    {
-      id: 2,
-      type: 'trade',
-      description: 'Transação P2P completada - 0.001 BTC',
-      timestamp: '2024-11-25 13:45',
-      status: 'success',
-    },
-    {
-      id: 3,
-      type: 'security',
-      description: 'Senha alterada',
-      timestamp: '2024-11-24 10:20',
-      status: 'success',
-    },
-  ]
 
   const handleSaveProfile = async () => {
     try {
@@ -795,38 +779,55 @@ export const ProfilePage = () => {
             <h3 className='text-lg font-semibold text-gray-900 dark:text-white'>
               Atividade Recente
             </h3>
+            <p className='text-sm text-gray-500 dark:text-gray-400 mt-1'>
+              {activitiesData?.total || 0} atividades registradas
+            </p>
           </div>
           <div className='divide-y divide-gray-200 dark:divide-gray-700'>
-            {recentActivity.map(activity => (
-              <div key={activity.id} className='p-6'>
-                <div className='flex items-start gap-4'>
-                  <div className='w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center'>
-                    {getActivityIcon(activity.type)}
-                  </div>
-                  <div className='flex-1'>
-                    <p className='font-medium text-gray-900 dark:text-white'>
-                      {activity.description}
-                    </p>
-                    <div className='flex items-center gap-4 mt-1 text-sm text-gray-500 dark:text-gray-400'>
-                      <span>{activity.timestamp}</span>
-                      {activity.ip && <span>IP: {activity.ip}</span>}
-                      {activity.device && <span>{activity.device}</span>}
+            {isLoadingActivities ? (
+              <div className='p-6 text-center text-gray-500'>Carregando atividades...</div>
+            ) : activitiesData && activitiesData.activities.length > 0 ? (
+              activitiesData.activities.map(activity => (
+                <div key={activity.id} className='p-6'>
+                  <div className='flex items-start gap-4'>
+                    <div className='w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center'>
+                      {getActivityIcon(activity.activity_type)}
                     </div>
-                  </div>
-                  {activity.status && (
+                    <div className='flex-1'>
+                      <p className='font-medium text-gray-900 dark:text-white'>
+                        {activity.description}
+                      </p>
+                      <div className='flex items-center gap-4 mt-1 text-sm text-gray-500 dark:text-gray-400'>
+                        <span>{UserActivityService.formatTimestamp(activity.timestamp)}</span>
+                        {activity.ip_address && <span>IP: {activity.ip_address}</span>}
+                        {activity.user_agent && (
+                          <span>{UserActivityService.getDeviceInfo(activity)}</span>
+                        )}
+                      </div>
+                    </div>
                     <div
                       className={`px-3 py-1 rounded-full text-xs font-medium ${
                         activity.status === 'success'
                           ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                          : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                          : activity.status === 'failed'
+                            ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                            : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
                       }`}
                     >
-                      {activity.status === 'success' ? 'Sucesso' : 'Falha'}
+                      {activity.status === 'success'
+                        ? 'Sucesso'
+                        : activity.status === 'failed'
+                          ? 'Falha'
+                          : 'Pendente'}
                     </div>
-                  )}
+                  </div>
                 </div>
+              ))
+            ) : (
+              <div className='p-6 text-center text-gray-500'>
+                Nenhuma atividade registrada ainda
               </div>
-            ))}
+            )}
           </div>
         </div>
       )}

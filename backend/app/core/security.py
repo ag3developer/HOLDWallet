@@ -77,3 +77,16 @@ async def get_current_user(
         
     except JWTError:
         raise credentials_exception
+
+
+async def get_current_admin(
+    current_user = Depends(get_current_user)
+):
+    """
+    Verifica se o usuário atual é um administrador.
+    Usa o dependency get_current_user e verifica o flag is_admin.
+    """
+    if not getattr(current_user, 'is_admin', False):
+        raise AuthenticationError("Admin privileges required")
+    
+    return current_user

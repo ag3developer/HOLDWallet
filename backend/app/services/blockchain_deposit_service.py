@@ -1,0 +1,406 @@
+"""
+🚀 HOLD Wallet - Blockchain Deposit Service
+==========================================
+
+Serviço para depositar criptomoedas nas wallets dos usuários após confirmação de pagamento.
+Suporta múltiplas redes: Ethereum, Polygon, Base, etc.
+
+Author: HOLD Wallet Team
+"""
+
+import logging
+from decimal import Decimal
+from typing import Optional, Dict, Any
+from datetime import datetime
+from web3 import Web3
+from eth_account import Account
+from sqlalchemy.orm import Session
+
+from app.models.wallet import Wallet
+from app.models.instant_trade import InstantTrade, TradeStatus
+from app.core.config import settings
+
+logger = logging.getLogger(__name__)
+
+
+class BlockchainDepositService:
+    """Serviço para depositar crypto nas wallets dos usuários"""
+    
+    # Configuração de redes
+    NETWORK_CONFIG = {
+        "ethereum": {
+            "rpc_url": settings.ETHEREUM_RPC_URL,
+            "chain_id": 1,
+            "gas_limit": 21000,
+            "contracts": {
+                "USDT": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+                "USDC": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+            }
+        },
+        "polygon": {
+            "rpc_url": settings.POLYGON_RPC_URL,
+            "chain_id": 137,
+            "gas_limit": 21000,
+            "contracts": {
+                "USDT": "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
+                "USDC": "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
+                "MATIC": None,  # Native token
+            }
+        },
+        "base": {
+            "rpc_url": settings.BASE_RPC_URL,
+            "chain_id": 8453,
+            "gas_limit": 21000,
+            "contracts": {
+                "USDC": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+            }
+        }
+    }
+    
+    # ABI mínima para ERC20
+    ERC20_ABI = [
+        {
+            "constant": False,
+            "inputs": [
+                {"name": "_to", "type": "address"},
+                {"name": "_value", "type": "uint256"}
+            ],
+            "name": "transfer",
+            "outputs": [{"name": "", "type": "bool"}],
+            "type": "function"
+        },
+        {
+            "constant": True,
+            "inputs": [{"name": "_owner", "type": "address"}],
+            "name": "balanceOf",
+            "outputs": [{"name": "balance", "type": "uint256"}],
+            "type": "function"
+        },
+        {
+            "constant": True,
+            "inputs": [],
+            "name": "decimals",
+            "outputs": [{"name": "", "type": "uint8"}],
+            "type": "function"
+        }
+    ]
+    
+    def __init__(self):
+        """Inicializa o serviço"""
+        self.platform_wallet_private_key = settings.PLATFORM_WALLET_PRIVATE_KEY
+        if not self.platform_wallet_private_key:
+            logger.error("❌ PLATFORM_WALLET_PRIVATE_KEY não configurada!")
+    
+    def get_web3(self, network: str) -> Optional[Web3]:
+        """Retorna instância Web3 para a rede especificada"""
+        try:
+            config = self.NETWORK_CONFIG.get(network.lower())
+            if not config:
+                logger.error(f"❌ Rede não suportada: {network}")
+                return None
+            
+            w3 = Web3(Web3.HTTPProvider(config["rpc_url"]))
+            if not w3.is_connected():
+                logger.error(f"❌ Não conectou à rede {network}")
+                return None
+            
+            logger.info(f"✅ Conectado à rede {network}")
+            return w3
+        except Exception as e:
+            logger.error(f"❌ Erro conectando à rede {network}: {str(e)}")
+            return None
+    
+    def get_user_wallet(self, db: Session, user_id: str, network: str) -> Optional[Wallet]:
+        """Busca a wallet do usuário para a rede especificada"""
+        try:
+            wallet = db.query(Wallet).filter(
+                Wallet.user_id == user_id,
+                Wallet.network == network.lower(),
+                Wallet.is_active == True
+            ).first()
+            
+            if not wallet:
+                logger.warning(f"⚠️ Wallet não encontrada para user={user_id}, network={network}")
+                return None
+            
+            return wallet
+        except Exception as e:
+            logger.error(f"❌ Erro buscando wallet: {str(e)}")
+            return None
+    
+    def send_native_token(
+        self,
+        w3: Web3,
+        to_address: str,
+        amount: Decimal,
+        network: str
+    ) -> Optional[str]:
+        """
+        Envia token nativo (ETH, MATIC, etc) para o endereço do usuário
+        
+        Returns:
+            tx_hash se sucesso, None se erro
+        """
+        try:
+            config = self.NETWORK_CONFIG[network.lower()]
+            account = Account.from_key(self.platform_wallet_private_key)
+            
+            # Converte amount para Wei
+            amount_wei = w3.to_wei(float(amount), 'ether')
+            
+            # Busca nonce
+            nonce = w3.eth.get_transaction_count(account.address)
+            
+            # Busca gas price
+            gas_price = w3.eth.gas_price
+            
+            # Cria transação
+            transaction = {
+                'nonce': nonce,
+                'to': Web3.to_checksum_address(to_address),
+                'value': amount_wei,
+                'gas': config["gas_limit"],
+                'gasPrice': gas_price,
+                'chainId': config["chain_id"]
+            }
+            
+            # Assina transação
+            signed_txn = w3.eth.account.sign_transaction(transaction, self.platform_wallet_private_key)
+            
+            # Envia transação
+            tx_hash = w3.eth.send_raw_transaction(signed_txn.raw_transaction)
+            tx_hash_hex = w3.to_hex(tx_hash)
+            
+            logger.info(f"✅ Token nativo enviado! TX: {tx_hash_hex}")
+            return tx_hash_hex
+            
+        except Exception as e:
+            logger.error(f"❌ Erro enviando token nativo: {str(e)}")
+            return None
+    
+    def send_erc20_token(
+        self,
+        w3: Web3,
+        contract_address: str,
+        to_address: str,
+        amount: Decimal,
+        network: str
+    ) -> Optional[str]:
+        """
+        Envia token ERC20 (USDT, USDC, etc) para o endereço do usuário
+        
+        Returns:
+            tx_hash se sucesso, None se erro
+        """
+        try:
+            config = self.NETWORK_CONFIG[network.lower()]
+            account = Account.from_key(self.platform_wallet_private_key)
+            
+            # Cria instância do contrato
+            contract = w3.eth.contract(
+                address=Web3.to_checksum_address(contract_address),
+                abi=self.ERC20_ABI
+            )
+            
+            # Busca decimais do token
+            decimals = contract.functions.decimals().call()
+            
+            # Converte amount considerando decimals
+            amount_units = int(float(amount) * (10 ** decimals))
+            
+            # Busca nonce
+            nonce = w3.eth.get_transaction_count(account.address)
+            
+            # Busca gas price
+            gas_price = w3.eth.gas_price
+            
+            # Cria transação de transfer
+            transaction = contract.functions.transfer(
+                Web3.to_checksum_address(to_address),
+                amount_units
+            ).build_transaction({
+                'nonce': nonce,
+                'gas': 100000,  # Gas limit maior para ERC20
+                'gasPrice': gas_price,
+                'chainId': config["chain_id"]
+            })
+            
+            # Assina transação
+            signed_txn = w3.eth.account.sign_transaction(transaction, self.platform_wallet_private_key)
+            
+            # Envia transação
+            tx_hash = w3.eth.send_raw_transaction(signed_txn.raw_transaction)
+            tx_hash_hex = w3.to_hex(tx_hash)
+            
+            logger.info(f"✅ Token ERC20 enviado! TX: {tx_hash_hex}")
+            return tx_hash_hex
+            
+        except Exception as e:
+            logger.error(f"❌ Erro enviando token ERC20: {str(e)}")
+            return None
+    
+    def deposit_crypto_to_user(
+        self,
+        db: Session,
+        trade: InstantTrade,
+        network: str = "polygon"
+    ) -> Dict[str, Any]:
+        """
+        Deposita criptomoeda na wallet do usuário após confirmação de pagamento
+        
+        Args:
+            db: Sessão do banco
+            trade: InstantTrade com pagamento confirmado
+            network: Rede blockchain (ethereum, polygon, base)
+        
+        Returns:
+            {
+                "success": bool,
+                "tx_hash": str ou None,
+                "wallet_address": str ou None,
+                "network": str,
+                "error": str ou None
+            }
+        """
+        try:
+            logger.info(f"🚀 Iniciando depósito para trade {trade.reference_code}")
+            
+            # 1. Valida status do trade
+            if trade.status != TradeStatus.PAYMENT_CONFIRMED:
+                return {
+                    "success": False,
+                    "tx_hash": None,
+                    "wallet_address": None,
+                    "network": network,
+                    "error": f"Trade não está com pagamento confirmado (status: {trade.status})"
+                }
+            
+            # 2. Busca wallet do usuário
+            wallet = self.get_user_wallet(db, trade.user_id, network)
+            if not wallet:
+                return {
+                    "success": False,
+                    "tx_hash": None,
+                    "wallet_address": None,
+                    "network": network,
+                    "error": f"Wallet não encontrada para network={network}"
+                }
+            
+            # 3. Conecta na rede
+            w3 = self.get_web3(network)
+            if not w3:
+                return {
+                    "success": False,
+                    "tx_hash": None,
+                    "wallet_address": wallet.address,
+                    "network": network,
+                    "error": f"Não foi possível conectar à rede {network}"
+                }
+            
+            # 4. Determina se é token nativo ou ERC20
+            config = self.NETWORK_CONFIG[network.lower()]
+            contract_address = config["contracts"].get(trade.symbol.upper())
+            
+            # 5. Envia a transação
+            tx_hash = None
+            if contract_address is None:
+                # Token nativo (ETH, MATIC)
+                logger.info(f"📤 Enviando {trade.crypto_amount} {trade.symbol} (nativo) para {wallet.address}")
+                tx_hash = self.send_native_token(
+                    w3=w3,
+                    to_address=wallet.address,
+                    amount=trade.crypto_amount,
+                    network=network
+                )
+            else:
+                # Token ERC20 (USDT, USDC)
+                logger.info(f"📤 Enviando {trade.crypto_amount} {trade.symbol} (ERC20) para {wallet.address}")
+                tx_hash = self.send_erc20_token(
+                    w3=w3,
+                    contract_address=contract_address,
+                    to_address=wallet.address,
+                    amount=trade.crypto_amount,
+                    network=network
+                )
+            
+            if not tx_hash:
+                return {
+                    "success": False,
+                    "tx_hash": None,
+                    "wallet_address": wallet.address,
+                    "network": network,
+                    "error": "Falha ao enviar transação blockchain"
+                }
+            
+            # 6. Atualiza o trade com os dados blockchain
+            trade.wallet_id = str(wallet.id)
+            trade.wallet_address = wallet.address
+            trade.network = network
+            trade.tx_hash = tx_hash
+            trade.status = TradeStatus.COMPLETED
+            trade.completed_at = datetime.now()
+            
+            db.commit()
+            db.refresh(trade)
+            
+            logger.info(f"✅ Depósito concluído! TX: {tx_hash}")
+            
+            return {
+                "success": True,
+                "tx_hash": tx_hash,
+                "wallet_address": wallet.address,
+                "network": network,
+                "error": None
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ Erro no depósito: {str(e)}")
+            db.rollback()
+            return {
+                "success": False,
+                "tx_hash": None,
+                "wallet_address": None,
+                "network": network,
+                "error": str(e)
+            }
+    
+    def check_platform_balance(self, network: str, symbol: str) -> Optional[Decimal]:
+        """
+        Verifica saldo da plataforma para garantir que há crypto suficiente
+        
+        Returns:
+            Saldo em Decimal ou None se erro
+        """
+        try:
+            w3 = self.get_web3(network)
+            if not w3:
+                return None
+            
+            account = Account.from_key(self.platform_wallet_private_key)
+            config = self.NETWORK_CONFIG[network.lower()]
+            contract_address = config["contracts"].get(symbol.upper())
+            
+            if contract_address is None:
+                # Token nativo
+                balance_wei = w3.eth.get_balance(account.address)
+                balance = Decimal(str(w3.from_wei(balance_wei, 'ether')))
+            else:
+                # Token ERC20
+                contract = w3.eth.contract(
+                    address=Web3.to_checksum_address(contract_address),
+                    abi=self.ERC20_ABI
+                )
+                decimals = contract.functions.decimals().call()
+                balance_units = contract.functions.balanceOf(account.address).call()
+                balance = Decimal(str(balance_units)) / Decimal(str(10 ** decimals))
+            
+            logger.info(f"💰 Saldo plataforma: {balance} {symbol} ({network})")
+            return balance
+            
+        except Exception as e:
+            logger.error(f"❌ Erro verificando saldo: {str(e)}")
+            return None
+
+
+# Instância singleton
+blockchain_deposit_service = BlockchainDepositService()

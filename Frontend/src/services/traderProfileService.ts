@@ -57,8 +57,14 @@ export interface TraderStats {
   created_at: string
 }
 
+import { APP_CONFIG } from '@/config/app'
+
+// ...existing code...
+
 class TraderProfileService {
-  private API_BASE = 'http://127.0.0.1:8000'
+  private get API_BASE() {
+    return APP_CONFIG.api.baseUrl
+  }
 
   async createProfile(data: TraderProfileCreate, token: string): Promise<TraderProfile> {
     const response = await fetch(`${this.API_BASE}/trader-profiles`, {
@@ -78,17 +84,27 @@ class TraderProfileService {
   }
 
   async getMyProfile(token: string): Promise<TraderProfile> {
+    console.log('[TraderProfileService] 📤 Getting my profile...')
+    console.log('[TraderProfileService] API Base:', this.API_BASE)
+    console.log('[TraderProfileService] Token:', token ? '✅ Present' : '❌ Missing')
+
     const response = await fetch(`${this.API_BASE}/trader-profiles/me`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
     })
 
+    console.log('[TraderProfileService] Response status:', response.status)
+
     if (!response.ok) {
+      const errorText = await response.text()
+      console.error('[TraderProfileService] ❌ Error response:', errorText)
       throw new Error(`Failed to fetch trader profile: ${response.statusText}`)
     }
 
-    return response.json()
+    const data = await response.json()
+    console.log('[TraderProfileService] ✅ Profile data:', data)
+    return data
   }
 
   async updateProfile(data: TraderProfileUpdate, token: string): Promise<TraderProfile> {
@@ -142,9 +158,7 @@ class TraderProfileService {
   }
 
   async getTraderStats(profileId: UUID, days: number = 7): Promise<TraderStats[]> {
-    const response = await fetch(
-      `${this.API_BASE}/trader-profiles/${profileId}/stats?days=${days}`
-    )
+    const response = await fetch(`${this.API_BASE}/trader-profiles/${profileId}/stats?days=${days}`)
 
     if (!response.ok) {
       throw new Error(`Failed to fetch trader stats: ${response.statusText}`)

@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 import { useMyP2POrders, useCancelP2POrder, useToggleOrderStatus } from '@/hooks/useP2POrders'
 import { toast } from 'react-hot-toast'
+import { ConfirmModal } from '@/components/ui/ConfirmModal'
 
 export const MyOrdersPage = () => {
   const navigate = useNavigate()
@@ -31,6 +32,13 @@ export const MyOrdersPage = () => {
   )
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCoin, setSelectedCoin] = useState<string>('all')
+  const [modalState, setModalState] = useState<{
+    isOpen: boolean
+    orderId: string | null
+  }>({
+    isOpen: false,
+    orderId: null,
+  })
 
   // Fetch user's orders
   const { data: ordersData, isLoading, error, refetch } = useMyP2POrders()
@@ -47,10 +55,14 @@ export const MyOrdersPage = () => {
   ]
 
   const handleCancelOrder = async (orderId: string) => {
-    if (!confirm('Tem certeza que deseja cancelar esta ordem?')) return
+    setModalState({ isOpen: true, orderId })
+  }
+
+  const confirmCancelOrder = async () => {
+    if (!modalState.orderId) return
 
     try {
-      await cancelOrderMutation.mutateAsync(orderId)
+      await cancelOrderMutation.mutateAsync(modalState.orderId)
       toast.success('Ordem cancelada com sucesso')
     } catch (error) {
       console.error('Error canceling order:', error)
@@ -456,6 +468,20 @@ export const MyOrdersPage = () => {
           )}
         </div>
       </div>
+
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={modalState.isOpen}
+        onClose={() => setModalState({ isOpen: false, orderId: null })}
+        onConfirm={confirmCancelOrder}
+        title='Cancelar Ordem'
+        message='Tem certeza que deseja cancelar esta ordem? Esta ação não pode ser desfeita.'
+        confirmText='Sim, cancelar'
+        cancelText='Não, manter'
+        type='danger'
+        icon={<Trash2 className='w-6 h-6' />}
+        isLoading={cancelOrderMutation.isPending}
+      />
     </div>
   )
 }

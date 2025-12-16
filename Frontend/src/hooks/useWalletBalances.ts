@@ -8,7 +8,7 @@ export interface WalletBalances {
 
 // Simple in-memory cache for balances
 const balancesCache = new Map<string, { data: WalletBalances; timestamp: number }>()
-const CACHE_TTL = 60000 // 60 seconds
+const CACHE_TTL = 120000 // 120 seconds (2 minutos) - aumentado para melhor performance
 
 export function useWalletBalances(walletId?: string) {
   const [balances, setBalances] = useState<WalletBalances>({})
