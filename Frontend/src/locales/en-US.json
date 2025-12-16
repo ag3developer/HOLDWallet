@@ -1,5 +1,6 @@
 {
   "common": {
+    "language": "Language",
     "loading": "Loading...",
     "error": "Error",
     "success": "Success",
@@ -60,7 +61,9 @@
   },
   "auth": {
     "login": "Login",
+    "loginSubtitle": "Access your WOLK NOW account",
     "register": "Register",
+    "noAccount": "Don't have an account?",
     "forgotPassword": "Forgot Password",
     "resetPassword": "Reset Password",
     "email": "Email",
@@ -72,6 +75,7 @@
     "rememberMe": "Remember Me",
     "loginSuccess": "Login successful",
     "loginError": "Login error",
+    "loggingIn": "Logging in...",
     "registerSuccess": "Account created successfully",
     "registerError": "Registration error",
     "passwordResetSent": "Password reset email sent",
@@ -81,7 +85,63 @@
     "passwordTooShort": "Password must be at least 8 characters",
     "passwordMismatch": "Passwords do not match",
     "emailInvalid": "Invalid email",
-    "phoneRequired": "Phone number is required"
+    "phoneRequired": "Phone number is required",
+    "2fa": "Two-Factor Authentication",
+    "2faSubtitle": "Enter the 6-digit code from your authenticator app",
+    "validating": "Validating...",
+    "validating2FA": "Validating 2FA code...",
+    "verify": "Verify",
+    "backToLogin": "Back to login"
+  },
+  "landing": {
+    "slogan": "Smart & Secure Wallet",
+    "hero": {
+      "badge": "Largest P2P Marketplace in Latin America",
+      "title": "Trade Crypto with",
+      "subtitle": "Security & Intelligence",
+      "description": "The only platform that combines the security of owning your private keys with AI intelligence that protects your investments."
+    },
+    "features": {
+      "security": {
+        "title": "Hybrid Security",
+        "description": "You control your private keys. Your assets, your rules."
+      },
+      "ai": {
+        "title": "Predictive AI",
+        "description": "Smart alerts and portfolio rebalancing suggestions."
+      },
+      "marketplace": {
+        "title": "Largest P2P in LATAM",
+        "description": "Thousands of users trading daily with guaranteed liquidity."
+      },
+      "keys": {
+        "title": "Your Keys, Your Control",
+        "description": "Full access to your private keys. Export and import anytime."
+      },
+      "dashboard": {
+        "title": "Smart Dashboard",
+        "description": "Real-time portfolio visualization with automatic reports."
+      },
+      "fees": {
+        "title": "Transparent Fees",
+        "description": "No hidden fees. Lowest cost per transaction."
+      }
+    },
+    "stats": {
+      "users": "Active Users",
+      "volume": "Monthly Volume",
+      "uptime": "Uptime",
+      "support": "Support"
+    },
+    "trust": "Audited & Certified • Bank-level Security • 24/7 Support in Portuguese"
+  },
+  "validation": {
+    "emailRequired": "Email is required",
+    "emailInvalid": "Invalid email",
+    "passwordRequired": "Password is required",
+    "passwordTooShort": "Password must be at least 6 characters",
+    "2faRequired": "2FA code is required",
+    "2faInvalid": "Invalid 2FA code"
   },
   "dashboard": {
     "title": "Dashboard",

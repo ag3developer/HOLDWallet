@@ -256,159 +256,161 @@ export const LoginPage = () => {
           style={{ animationDelay: '1s' }}
         />
 
-        {/* Floating Crypto Coins with Real Icons - Star Effect */}
-        {[
-          {
-            icon: btcIcon,
-            name: 'BTC',
-            gradient: 'from-orange-400 to-orange-600',
-            glow: 'rgba(251, 146, 60, 0.8)',
-            brightness: 'bright',
-          },
-          {
-            icon: ethIcon,
-            name: 'ETH',
-            gradient: 'from-blue-400 to-purple-600',
-            glow: 'rgba(96, 165, 250, 0.6)',
-            brightness: 'medium',
-          },
-          {
-            icon: usdtIcon,
-            name: 'USDT',
-            gradient: 'from-green-400 to-emerald-600',
-            glow: 'rgba(52, 211, 153, 0.7)',
-            brightness: 'bright',
-          },
-          {
-            icon: bnbIcon,
-            name: 'BNB',
-            gradient: 'from-yellow-400 to-yellow-600',
-            glow: 'rgba(251, 191, 36, 0.5)',
-            brightness: 'dim',
-          },
-        ].map((coin, i) => {
-          const sizeMap = { bright: 18, medium: 14, dim: 10 }
-          const size = sizeMap[coin.brightness as keyof typeof sizeMap]
-          const opacityMap = { bright: '0.4', medium: '0.25', dim: '0.15' }
-          const opacity = opacityMap[coin.brightness as keyof typeof opacityMap]
+        {/* Floating Crypto Coins with Real Icons - Star Effect - Ocultar em mobile */}
+        <div className='hidden md:block'>
+          {[
+            {
+              icon: btcIcon,
+              name: 'BTC',
+              gradient: 'from-orange-400 to-orange-600',
+              glow: 'rgba(251, 146, 60, 0.8)',
+              brightness: 'bright',
+            },
+            {
+              icon: ethIcon,
+              name: 'ETH',
+              gradient: 'from-blue-400 to-purple-600',
+              glow: 'rgba(96, 165, 250, 0.6)',
+              brightness: 'medium',
+            },
+            {
+              icon: usdtIcon,
+              name: 'USDT',
+              gradient: 'from-green-400 to-emerald-600',
+              glow: 'rgba(52, 211, 153, 0.7)',
+              brightness: 'bright',
+            },
+            {
+              icon: bnbIcon,
+              name: 'BNB',
+              gradient: 'from-yellow-400 to-yellow-600',
+              glow: 'rgba(251, 191, 36, 0.5)',
+              brightness: 'dim',
+            },
+          ].map((coin, i) => {
+            const sizeMap = { bright: 18, medium: 14, dim: 10 }
+            const size = sizeMap[coin.brightness as keyof typeof sizeMap]
+            const opacityMap = { bright: '0.4', medium: '0.25', dim: '0.15' }
+            const opacity = opacityMap[coin.brightness as keyof typeof opacityMap]
 
-          return (
-            <div
-              key={`coin-${i}`}
-              className={`absolute rounded-full bg-gradient-to-br ${coin.gradient} backdrop-blur-md border-2 shadow-2xl hover:scale-150 transition-all duration-500 group`}
-              style={{
-                width: `${size * 4}px`,
-                height: `${size * 4}px`,
-                left: `${10 + i * 25}%`,
-                top: `${8 + (i % 2) * 15}%`,
-                animationName:
-                  coin.brightness === 'bright'
-                    ? 'starPulse'
-                    : coin.brightness === 'medium'
-                      ? 'starBlink'
-                      : 'starGlow',
-                animationDuration: `${2 + Math.random() * 3}s`,
-                animationTimingFunction: 'ease-in-out',
-                animationIterationCount: 'infinite',
-                animationDelay: `${Math.random() * 2}s`,
-                borderColor: coin.glow,
-                boxShadow: `0 0 ${size * 2}px ${coin.glow}, 0 0 ${size * 4}px ${coin.glow}, 0 0 ${size * 6}px ${coin.glow}`,
-                opacity: opacity,
-              }}
-            >
-              <div className='w-full h-full flex items-center justify-center p-3 relative'>
-                <img
-                  src={coin.icon}
-                  alt={coin.name}
-                  className='w-full h-full object-contain drop-shadow-2xl group-hover:rotate-12 transition-transform duration-300'
-                  style={{
-                    filter: `drop-shadow(0 0 ${size}px ${coin.glow})`,
-                  }}
-                />
-                {/* Glow effect around the icon */}
-                <div
-                  className='absolute inset-0 rounded-full'
-                  style={{
-                    background: `radial-gradient(circle, ${coin.glow} 0%, transparent 70%)`,
-                    animationName: 'pulse',
-                    animationDuration: '2s',
-                    animationTimingFunction: 'ease-in-out',
-                    animationIterationCount: 'infinite',
-                  }}
-                />
+            return (
+              <div
+                key={`coin-${i}`}
+                className={`absolute rounded-full bg-gradient-to-br ${coin.gradient} backdrop-blur-md border-2 shadow-2xl hover:scale-150 transition-all duration-500 group`}
+                style={{
+                  width: `${size * 4}px`,
+                  height: `${size * 4}px`,
+                  left: `${10 + i * 25}%`,
+                  top: `${8 + (i % 2) * 15}%`,
+                  animationName:
+                    coin.brightness === 'bright'
+                      ? 'starPulse'
+                      : coin.brightness === 'medium'
+                        ? 'starBlink'
+                        : 'starGlow',
+                  animationDuration: `${2 + Math.random() * 3}s`,
+                  animationTimingFunction: 'ease-in-out',
+                  animationIterationCount: 'infinite',
+                  animationDelay: `${Math.random() * 2}s`,
+                  borderColor: coin.glow,
+                  boxShadow: `0 0 ${size * 2}px ${coin.glow}, 0 0 ${size * 4}px ${coin.glow}, 0 0 ${size * 6}px ${coin.glow}`,
+                  opacity: opacity,
+                }}
+              >
+                <div className='w-full h-full flex items-center justify-center p-3 relative'>
+                  <img
+                    src={coin.icon}
+                    alt={coin.name}
+                    className='w-full h-full object-contain drop-shadow-2xl group-hover:rotate-12 transition-transform duration-300'
+                    style={{
+                      filter: `drop-shadow(0 0 ${size}px ${coin.glow})`,
+                    }}
+                  />
+                  {/* Glow effect around the icon */}
+                  <div
+                    className='absolute inset-0 rounded-full'
+                    style={{
+                      background: `radial-gradient(circle, ${coin.glow} 0%, transparent 70%)`,
+                      animationName: 'pulse',
+                      animationDuration: '2s',
+                      animationTimingFunction: 'ease-in-out',
+                      animationIterationCount: 'infinite',
+                    }}
+                  />
+                </div>
               </div>
-            </div>
-          )
-        })}
+            )
+          })}
 
-        {/* Additional smaller floating coins for density - Reduzido para 6 */}
-        {[...Array(6)].map((_, i) => {
-          const coinData = [
-            {
-              icon: solIcon,
-              name: 'SOL',
-              gradient: 'from-purple-400/30 to-pink-600/30',
-              glow: 'rgba(192, 132, 252, 0.2)',
-            },
-            {
-              icon: maticIcon,
-              name: 'MATIC',
-              gradient: 'from-purple-500/30 to-indigo-600/30',
-              glow: 'rgba(139, 92, 246, 0.2)',
-            },
-            {
-              icon: adaIcon,
-              name: 'ADA',
-              gradient: 'from-blue-500/30 to-blue-700/30',
-              glow: 'rgba(59, 130, 246, 0.2)',
-            },
-            {
-              icon: xrpIcon,
-              name: 'XRP',
-              gradient: 'from-gray-400/30 to-gray-600/30',
-              glow: 'rgba(156, 163, 175, 0.15)',
-            },
-            {
-              icon: dogeIcon,
-              name: 'DOGE',
-              gradient: 'from-yellow-300/30 to-yellow-500/30',
-              glow: 'rgba(253, 224, 71, 0.2)',
-            },
-            {
-              icon: dotIcon,
-              name: 'DOT',
-              gradient: 'from-pink-400/30 to-pink-600/30',
-              glow: 'rgba(244, 114, 182, 0.2)',
-            },
-          ]
-          const coin = coinData[i % coinData.length]!
+          {/* Additional smaller floating coins for density - Reduzido para 6 */}
+          {[...Array(6)].map((_, i) => {
+            const coinData = [
+              {
+                icon: solIcon,
+                name: 'SOL',
+                gradient: 'from-purple-400/30 to-pink-600/30',
+                glow: 'rgba(192, 132, 252, 0.2)',
+              },
+              {
+                icon: maticIcon,
+                name: 'MATIC',
+                gradient: 'from-purple-500/30 to-indigo-600/30',
+                glow: 'rgba(139, 92, 246, 0.2)',
+              },
+              {
+                icon: adaIcon,
+                name: 'ADA',
+                gradient: 'from-blue-500/30 to-blue-700/30',
+                glow: 'rgba(59, 130, 246, 0.2)',
+              },
+              {
+                icon: xrpIcon,
+                name: 'XRP',
+                gradient: 'from-gray-400/30 to-gray-600/30',
+                glow: 'rgba(156, 163, 175, 0.15)',
+              },
+              {
+                icon: dogeIcon,
+                name: 'DOGE',
+                gradient: 'from-yellow-300/30 to-yellow-500/30',
+                glow: 'rgba(253, 224, 71, 0.2)',
+              },
+              {
+                icon: dotIcon,
+                name: 'DOT',
+                gradient: 'from-pink-400/30 to-pink-600/30',
+                glow: 'rgba(244, 114, 182, 0.2)',
+              },
+            ]
+            const coin = coinData[i % coinData.length]!
 
-          return (
-            <div
-              key={`small-coin-${i}`}
-              className={`absolute w-8 h-8 rounded-full bg-gradient-to-br ${coin.gradient} backdrop-blur-md border border-white/10 hover:scale-110 transition-transform duration-300`}
-              style={{
-                left: `${15 + i * 15}%`,
-                top: `${70 + (i % 3) * 8}%`,
-                animationName: 'starGlow',
-                animationDuration: `${4 + Math.random() * 4}s`,
-                animationTimingFunction: 'ease-in-out',
-                animationIterationCount: 'infinite',
-                animationDelay: `${Math.random() * 3}s`,
-                boxShadow: `0 4px 15px ${coin.glow}`,
-                opacity: 0.3,
-              }}
-            >
-              <div className='w-full h-full flex items-center justify-center p-1.5'>
-                <img
-                  src={coin.icon}
-                  alt={coin.name}
-                  className='w-full h-full object-contain drop-shadow-lg'
-                />
+            return (
+              <div
+                key={`small-coin-${i}`}
+                className={`absolute w-8 h-8 rounded-full bg-gradient-to-br ${coin.gradient} backdrop-blur-md border border-white/10 hover:scale-110 transition-transform duration-300`}
+                style={{
+                  left: `${15 + i * 15}%`,
+                  top: `${70 + (i % 3) * 8}%`,
+                  animationName: 'starGlow',
+                  animationDuration: `${4 + Math.random() * 4}s`,
+                  animationTimingFunction: 'ease-in-out',
+                  animationIterationCount: 'infinite',
+                  animationDelay: `${Math.random() * 3}s`,
+                  boxShadow: `0 4px 15px ${coin.glow}`,
+                  opacity: 0.3,
+                }}
+              >
+                <div className='w-full h-full flex items-center justify-center p-1.5'>
+                  <img
+                    src={coin.icon}
+                    alt={coin.name}
+                    className='w-full h-full object-contain drop-shadow-lg'
+                  />
+                </div>
               </div>
-            </div>
-          )
-        })}
+            )
+          })}
+        </div>
 
         {/* Animated Grid Lines */}
         <svg className='absolute inset-0 w-full h-full opacity-10'>
@@ -713,9 +715,9 @@ export const LoginPage = () => {
       `}</style>
 
       {/* Header */}
-      <header className='relative z-10 px-6 py-4 flex justify-between items-center'>
-        <div className='flex items-center gap-3'>
-          <div className='w-12 h-12 bg-white/10 backdrop-blur-sm rounded-xl flex items-center justify-center p-2 border border-white/20 hover:scale-110 transition-transform duration-300 shadow-lg shadow-purple-500/20'>
+      <header className='relative z-10 px-4 md:px-6 py-3 md:py-4 flex justify-between items-center'>
+        <div className='flex items-center gap-2 md:gap-3'>
+          <div className='w-10 h-10 md:w-12 md:h-12 bg-white/10 backdrop-blur-sm rounded-xl flex items-center justify-center p-2 border border-white/20 hover:scale-110 transition-transform duration-300 shadow-lg shadow-purple-500/20'>
             <img
               src='/images/logos/wn-icon.png'
               alt='WOLK NOW Logo'
@@ -723,10 +725,11 @@ export const LoginPage = () => {
             />
           </div>
           <div className='text-center'>
-            <h1 className='text-2xl font-bold text-white tracking-tight'>
-              WOLK NOW<sup className='text-sm ml-1 -top-2 relative'>®</sup>
+            <h1 className='text-lg md:text-2xl font-bold text-white tracking-tight'>
+              WOLK NOW
+              <sup className='text-xs md:text-sm ml-0.5 md:ml-1 -top-1 md:-top-2 relative'>®</sup>
             </h1>
-            <p className='text-xs text-purple-300 font-medium'>
+            <p className='text-[10px] md:text-xs text-purple-300 font-medium'>
               {t('landing.slogan', 'Smart & Secure Wallet')}
             </p>
           </div>
@@ -735,27 +738,27 @@ export const LoginPage = () => {
       </header>
 
       {/* Main Content */}
-      <div className='relative z-10 container mx-auto px-6 py-12'>
-        <div className='grid lg:grid-cols-2 gap-12 items-center'>
-          {/* Left Side - Institutional Content */}
-          <div className='space-y-8'>
+      <div className='relative z-10 container mx-auto px-4 md:px-6 py-6 md:py-12'>
+        <div className='grid lg:grid-cols-2 gap-6 md:gap-12 items-center lg:items-start'>
+          {/* Left Side - Institutional Content - Visível em todas as telas */}
+          <div className='space-y-4 md:space-y-8'>
             {/* Hero Section */}
-            <div className='space-y-4' style={{ animation: 'fadeInUp 0.8s ease-out' }}>
-              <div className='inline-flex items-center gap-2 px-4 py-2 bg-purple-500/20 rounded-full border border-purple-500/30 animate-pulse hover:scale-105 transition-transform cursor-default'>
-                <FiCheckCircle className='w-4 h-4 text-purple-300' />
-                <span className='text-sm text-purple-200'>
+            <div className='space-y-3 md:space-y-4' style={{ animation: 'fadeInUp 0.8s ease-out' }}>
+              <div className='inline-flex items-center gap-2 px-3 md:px-4 py-1.5 md:py-2 bg-purple-500/20 rounded-full border border-purple-500/30 animate-pulse hover:scale-105 transition-transform cursor-default'>
+                <FiCheckCircle className='w-3 md:w-4 h-3 md:h-4 text-purple-300' />
+                <span className='text-xs md:text-sm text-purple-200'>
                   {t('landing.hero.badge', 'Largest P2P Marketplace in Latin America')}
                 </span>
               </div>
 
-              <h2 className='text-5xl font-bold text-white leading-tight'>
+              <h2 className='text-2xl md:text-5xl font-bold text-white leading-tight'>
                 {t('landing.hero.title', 'Trade Crypto with')}
                 <span className='block bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 text-transparent bg-clip-text animate-gradient'>
                   {t('landing.hero.subtitle', 'Security & Intelligence')}
                 </span>
               </h2>
 
-              <p className='text-xl text-gray-300'>
+              <p className='text-sm md:text-xl text-gray-300'>
                 {t(
                   'landing.hero.description',
                   'The only platform that combines the security of owning your private keys with AI intelligence that protects your investments.'
@@ -764,11 +767,11 @@ export const LoginPage = () => {
             </div>
 
             {/* Stats */}
-            <div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
+            <div className='grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4'>
               {stats.map((stat, index) => (
                 <div
                   key={index}
-                  className='text-center p-4 bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 hover:border-purple-500/30 hover:scale-105 transition-all duration-300 cursor-default group relative overflow-hidden'
+                  className='text-center p-3 md:p-4 bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 hover:border-purple-500/30 hover:scale-105 transition-all duration-300 cursor-default group relative overflow-hidden'
                   style={{
                     animation: `fadeInUp 0.6s ease-out forwards`,
                     animationDelay: `${index * 0.1}s`,
@@ -779,10 +782,10 @@ export const LoginPage = () => {
                   <div className='absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000' />
 
                   <div className='relative'>
-                    <div className='text-2xl font-bold text-white group-hover:text-purple-300 transition-colors'>
+                    <div className='text-xl md:text-2xl font-bold text-white group-hover:text-purple-300 transition-colors'>
                       {stat.value}
                     </div>
-                    <div className='text-sm text-gray-400 group-hover:text-gray-300 transition-colors'>
+                    <div className='text-xs md:text-sm text-gray-400 group-hover:text-gray-300 transition-colors'>
                       {stat.label}
                     </div>
                   </div>
@@ -791,11 +794,11 @@ export const LoginPage = () => {
             </div>
 
             {/* Features Grid */}
-            <div className='grid md:grid-cols-2 gap-4'>
+            <div className='grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4'>
               {features.map((feature, index) => (
                 <div
                   key={index}
-                  className='p-4 bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 hover:border-purple-500/50 hover:bg-white/10 transition-all duration-300 group relative overflow-hidden'
+                  className='p-3 md:p-4 bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 hover:border-purple-500/50 hover:bg-white/10 transition-all duration-300 group relative overflow-hidden'
                   style={{
                     animation: `fadeInUp 0.6s ease-out forwards`,
                     animationDelay: `${index * 0.1}s`,
@@ -805,15 +808,15 @@ export const LoginPage = () => {
                   {/* Hover Effect Background */}
                   <div className='absolute inset-0 bg-gradient-to-br from-purple-500/0 to-blue-500/0 group-hover:from-purple-500/10 group-hover:to-blue-500/10 transition-all duration-300' />
 
-                  <div className='relative flex items-start gap-3'>
-                    <div className='flex-shrink-0 w-10 h-10 bg-gradient-to-br from-purple-500/20 to-blue-500/20 rounded-lg flex items-center justify-center group-hover:scale-110 group-hover:rotate-6 transition-all duration-300 shadow-lg shadow-purple-500/0 group-hover:shadow-purple-500/30'>
-                      <feature.icon className='w-5 h-5 text-purple-300 group-hover:text-purple-200 transition-colors' />
+                  <div className='relative flex items-start gap-2 md:gap-3'>
+                    <div className='flex-shrink-0 w-8 h-8 md:w-10 md:h-10 bg-gradient-to-br from-purple-500/20 to-blue-500/20 rounded-lg flex items-center justify-center group-hover:scale-110 group-hover:rotate-6 transition-all duration-300 shadow-lg shadow-purple-500/0 group-hover:shadow-purple-500/30'>
+                      <feature.icon className='w-4 h-4 md:w-5 md:h-5 text-purple-300 group-hover:text-purple-200 transition-colors' />
                     </div>
                     <div>
-                      <h3 className='font-semibold text-white mb-1 group-hover:text-purple-200 transition-colors'>
+                      <h3 className='text-sm md:text-base font-semibold text-white mb-0.5 md:mb-1 group-hover:text-purple-200 transition-colors'>
                         {feature.title}
                       </h3>
-                      <p className='text-sm text-gray-400 group-hover:text-gray-300 transition-colors'>
+                      <p className='text-xs md:text-sm text-gray-400 group-hover:text-gray-300 transition-colors'>
                         {feature.description}
                       </p>
                     </div>
@@ -823,9 +826,9 @@ export const LoginPage = () => {
             </div>
 
             {/* Trust Indicators */}
-            <div className='flex items-center gap-6 p-4 bg-green-500/10 backdrop-blur-sm rounded-lg border border-green-500/20'>
-              <FiCheckCircle className='w-6 h-6 text-green-400 flex-shrink-0' />
-              <div className='text-sm text-gray-300'>
+            <div className='flex items-center gap-3 md:gap-6 p-3 md:p-4 bg-green-500/10 backdrop-blur-sm rounded-lg border border-green-500/20'>
+              <FiCheckCircle className='w-5 h-5 md:w-6 md:h-6 text-green-400 flex-shrink-0' />
+              <div className='text-xs md:text-sm text-gray-300'>
                 {t(
                   'landing.trust',
                   'Audited & Certified • Bank-level Security • 24/7 Support in Portuguese'
@@ -836,11 +839,11 @@ export const LoginPage = () => {
 
           {/* Right Side - Login Card */}
           <div
-            className='lg:ml-auto w-full max-w-md'
+            className='w-full max-w-md mx-auto lg:ml-auto'
             style={{ animation: 'cardSlideIn 0.8s ease-out' }}
           >
             {step === 'login' ? (
-              <div className='bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl p-8 hover:shadow-purple-500/20 transition-shadow duration-500 relative overflow-hidden group'>
+              <div className='bg-white/10 backdrop-blur-xl rounded-xl md:rounded-2xl border border-white/20 shadow-2xl p-5 md:p-8 hover:shadow-purple-500/20 transition-shadow duration-500 relative overflow-hidden group'>
                 {/* Animated gradient background on hover */}
                 <div className='absolute inset-0 bg-gradient-to-br from-purple-500/0 via-pink-500/0 to-blue-500/0 group-hover:from-purple-500/5 group-hover:via-pink-500/5 group-hover:to-blue-500/5 transition-all duration-500' />
 
@@ -849,9 +852,9 @@ export const LoginPage = () => {
 
                 <div className='relative'>
                   {/* Card Header */}
-                  <div className='text-center mb-8'>
+                  <div className='text-center mb-6 md:mb-8'>
                     <div
-                      className='mx-auto w-20 h-20 bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-4 p-3 border-2 border-white/20 shadow-2xl shadow-purple-500/30 hover:scale-110 hover:rotate-6 transition-all duration-300 cursor-pointer'
+                      className='mx-auto w-16 h-16 md:w-20 md:h-20 bg-white/10 backdrop-blur-sm rounded-xl md:rounded-2xl flex items-center justify-center mb-3 md:mb-4 p-2 md:p-3 border-2 border-white/20 shadow-2xl shadow-purple-500/30 hover:scale-110 hover:rotate-6 transition-all duration-300 cursor-pointer'
                       style={{ animation: 'glow 2s ease-in-out infinite' }}
                     >
                       <img
@@ -860,20 +863,20 @@ export const LoginPage = () => {
                         className='w-full h-full object-contain drop-shadow-2xl'
                       />
                     </div>
-                    <h3 className='text-2xl font-bold text-white mb-2'>
+                    <h3 className='text-xl md:text-2xl font-bold text-white mb-1 md:mb-2'>
                       {t('auth.login', 'Login')}
                     </h3>
-                    <p className='text-gray-400'>
+                    <p className='text-sm md:text-base text-gray-400'>
                       {t('auth.loginSubtitle', 'Access your WOLK NOW account')}
                     </p>
                   </div>
 
                   {/* Error Message */}
                   {loginMutation.error && (
-                    <div className='mb-6 bg-red-500/10 border border-red-500/20 rounded-lg p-4'>
+                    <div className='mb-4 md:mb-6 bg-red-500/10 border border-red-500/20 rounded-lg p-3 md:p-4'>
                       <div className='flex items-center gap-2'>
-                        <FiShield className='w-4 h-4 text-red-400' />
-                        <p className='text-sm text-red-400'>
+                        <FiShield className='w-3 md:w-4 h-3 md:h-4 text-red-400' />
+                        <p className='text-xs md:text-sm text-red-400'>
                           {loginMutation.error.message || t('auth.loginError', 'Login error')}
                         </p>
                       </div>
@@ -881,10 +884,10 @@ export const LoginPage = () => {
                   )}
 
                   {/* Login Form */}
-                  <form onSubmit={handleSubmit} className='space-y-5'>
+                  <form onSubmit={handleSubmit} className='space-y-4 md:space-y-5'>
                     {/* Email Field */}
                     <div>
-                      <label className='block text-sm font-medium text-gray-300 mb-2'>
+                      <label className='block text-xs md:text-sm font-medium text-gray-300 mb-1.5 md:mb-2'>
                         {t('auth.email', 'Email')}
                       </label>
                       <input
@@ -893,18 +896,18 @@ export const LoginPage = () => {
                         value={formData.email}
                         onChange={handleChange}
                         placeholder='you@example.com'
-                        className={`w-full px-4 py-3 bg-white/5 border ${
+                        className={`w-full px-3 md:px-4 py-2.5 md:py-3 text-sm md:text-base bg-white/5 border ${
                           formErrors.email ? 'border-red-500/50' : 'border-white/10'
                         } rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all`}
                       />
                       {formErrors.email && (
-                        <p className='mt-1 text-sm text-red-400'>{formErrors.email}</p>
+                        <p className='mt-1 text-xs md:text-sm text-red-400'>{formErrors.email}</p>
                       )}
                     </div>
 
                     {/* Password Field */}
                     <div>
-                      <label className='block text-sm font-medium text-gray-300 mb-2'>
+                      <label className='block text-xs md:text-sm font-medium text-gray-300 mb-1.5 md:mb-2'>
                         {t('auth.password', 'Password')}
                       </label>
                       <div className='relative'>
@@ -914,7 +917,7 @@ export const LoginPage = () => {
                           value={formData.password}
                           onChange={handleChange}
                           placeholder='••••••••'
-                          className={`w-full px-4 py-3 pr-12 bg-white/5 border ${
+                          className={`w-full px-3 md:px-4 py-2.5 md:py-3 pr-10 md:pr-12 text-sm md:text-base bg-white/5 border ${
                             formErrors.password ? 'border-red-500/50' : 'border-white/10'
                           } rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all`}
                         />

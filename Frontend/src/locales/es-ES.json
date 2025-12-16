@@ -1,5 +1,6 @@
 {
   "common": {
+    "language": "Idioma",
     "loading": "Cargando...",
     "error": "Error",
     "success": "Éxito",
@@ -68,7 +69,9 @@
   },
   "auth": {
     "login": "Iniciar Sesión",
+    "loginSubtitle": "Accede a tu cuenta WOLK NOW",
     "register": "Registrarse",
+    "noAccount": "¿No tienes cuenta?",
     "forgotPassword": "Olvidé mi Contraseña",
     "resetPassword": "Restablecer Contraseña",
     "email": "Correo Electrónico",
@@ -80,6 +83,7 @@
     "rememberMe": "Recordarme",
     "loginSuccess": "Inicio de sesión exitoso",
     "loginError": "Error en el inicio de sesión",
+    "loggingIn": "Iniciando sesión...",
     "registerSuccess": "Cuenta creada exitosamente",
     "registerError": "Error en el registro",
     "passwordResetSent": "Correo de restablecimiento de contraseña enviado",
@@ -89,7 +93,63 @@
     "passwordTooShort": "La contraseña debe tener al menos 8 caracteres",
     "passwordMismatch": "Las contraseñas no coinciden",
     "emailInvalid": "Correo electrónico inválido",
-    "phoneRequired": "El número de teléfono es obligatorio"
+    "phoneRequired": "El número de teléfono es obligatorio",
+    "2fa": "Autenticación de Dos Factores",
+    "2faSubtitle": "Ingresa el código de 6 dígitos de tu app autenticadora",
+    "validating": "Validando...",
+    "validating2FA": "Validando código 2FA...",
+    "verify": "Verificar",
+    "backToLogin": "Volver al inicio"
+  },
+  "landing": {
+    "slogan": "Cartera Inteligente",
+    "hero": {
+      "badge": "El Mayor Marketplace P2P de América Latina",
+      "title": "Negocia Cripto con",
+      "subtitle": "Seguridad e Inteligencia",
+      "description": "La única plataforma que combina la seguridad de poseer tus claves privadas con inteligencia artificial que protege tus inversiones."
+    },
+    "features": {
+      "security": {
+        "title": "Seguridad Híbrida",
+        "description": "Tú controlas tus claves privadas. Tus activos, tus reglas."
+      },
+      "ai": {
+        "title": "IA Predictiva",
+        "description": "Alertas inteligentes y sugerencias de rebalanceo de cartera."
+      },
+      "marketplace": {
+        "title": "Mayor P2P de LATAM",
+        "description": "Miles de usuarios negociando diariamente con liquidez garantizada."
+      },
+      "keys": {
+        "title": "Tus Claves, Tu Control",
+        "description": "Acceso total a tus claves privadas. Exporta e importa cuando quieras."
+      },
+      "dashboard": {
+        "title": "Dashboard Inteligente",
+        "description": "Visualización de cartera en tiempo real con informes automáticos."
+      },
+      "fees": {
+        "title": "Tarifas Transparentes",
+        "description": "Sin tarifas ocultas. Menor costo por transacción."
+      }
+    },
+    "stats": {
+      "users": "Usuarios Activos",
+      "volume": "Volumen Mensual",
+      "uptime": "Disponibilidad",
+      "support": "Soporte"
+    },
+    "trust": "Auditado y Certificado • Seguridad Bancaria • Soporte 24/7 en Español"
+  },
+  "validation": {
+    "emailRequired": "El correo electrónico es obligatorio",
+    "emailInvalid": "Correo electrónico inválido",
+    "passwordRequired": "La contraseña es obligatoria",
+    "passwordTooShort": "La contraseña debe tener al menos 6 caracteres",
+    "2faRequired": "El código 2FA es obligatorio",
+    "2faInvalid": "Código 2FA inválido"
   },
   "dashboard": {
     "title": "Panel de Control",

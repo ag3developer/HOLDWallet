@@ -2,6 +2,7 @@
   "common": {
     "appName": "Wolknow",
     "appDescription": "Plataforma P2P de trading com sistema de chat e reputação",
+    "language": "Idioma",
     "loading": "Carregando...",
     "error": "Erro",
     "success": "Sucesso",
@@ -70,7 +71,9 @@
   },
   "auth": {
     "login": "Entrar",
+    "loginSubtitle": "Acesse sua conta WOLK NOW",
     "register": "Registrar",
+    "noAccount": "Não tem uma conta?",
     "forgotPassword": "Esqueci a senha",
     "resetPassword": "Redefinir senha",
     "email": "E-mail",
@@ -95,7 +98,63 @@
     "passwordMismatch": "Senhas não coincidem",
     "emailInvalid": "E-mail inválido",
     "usernameInvalid": "Nome de usuário deve ter 3-20 caracteres, apenas letras, números e _",
-    "phoneRequired": "Telefone é obrigatório"
+    "phoneRequired": "Telefone é obrigatório",
+    "2fa": "Autenticação de Dois Fatores",
+    "2faSubtitle": "Digite o código de 6 dígitos do seu app autenticador",
+    "validating": "Validando...",
+    "validating2FA": "Validando código 2FA...",
+    "verify": "Verificar",
+    "backToLogin": "Voltar ao login"
+  },
+  "landing": {
+    "slogan": "Carteira Inteligente",
+    "hero": {
+      "badge": "Maior Marketplace P2P da América Latina",
+      "title": "Negocie Cripto com",
+      "subtitle": "Segurança & Inteligência",
+      "description": "A única plataforma que combina a segurança de possuir suas chaves privadas com inteligência artificial que protege seus investimentos."
+    },
+    "features": {
+      "security": {
+        "title": "Segurança Híbrida",
+        "description": "Você controla suas chaves privadas. Seus ativos, suas regras."
+      },
+      "ai": {
+        "title": "IA Preditiva",
+        "description": "Alertas inteligentes e sugestões de rebalanceamento de portfólio."
+      },
+      "marketplace": {
+        "title": "Maior P2P da LATAM",
+        "description": "Milhares de usuários negociando diariamente com liquidez garantida."
+      },
+      "keys": {
+        "title": "Suas Chaves, Seu Controle",
+        "description": "Acesso total às suas chaves privadas. Exporte e importe quando quiser."
+      },
+      "dashboard": {
+        "title": "Dashboard Inteligente",
+        "description": "Visualização de portfólio em tempo real com relatórios automáticos."
+      },
+      "fees": {
+        "title": "Taxas Transparentes",
+        "description": "Sem taxas ocultas. Menor custo por transação."
+      }
+    },
+    "stats": {
+      "users": "Usuários Ativos",
+      "volume": "Volume Mensal",
+      "uptime": "Disponibilidade",
+      "support": "Suporte"
+    },
+    "trust": "Auditado & Certificado • Segurança Bancária • Suporte 24/7 em Português"
+  },
+  "validation": {
+    "emailRequired": "E-mail é obrigatório",
+    "emailInvalid": "E-mail inválido",
+    "passwordRequired": "Senha é obrigatória",
+    "passwordTooShort": "Senha deve ter pelo menos 6 caracteres",
+    "2faRequired": "Código 2FA é obrigatório",
+    "2faInvalid": "Código 2FA inválido"
   },
   "dashboard": {
     "title": "Painel Principal",
