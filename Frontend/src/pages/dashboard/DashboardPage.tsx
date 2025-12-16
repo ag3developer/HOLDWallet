@@ -98,60 +98,90 @@ export const DashboardPage = () => {
   const walletIds = useMemo(() => apiWallets?.map(w => w.id) || [], [apiWallets])
   const balancesQueries = useMultipleWalletBalances(walletIds)
 
-  // Carregar preferências de rede
+  // Carregar preferências de rede com fallback para Safari
   const networkPreferences = useMemo(() => {
-    const saved = localStorage.getItem('wallet_network_preferences')
-    const defaultPreferences = {
-      bitcoin: true,
-      ethereum: true,
-      polygon: true,
-      bsc: true,
-      tron: true,
-      base: true,
-      solana: true,
-      litecoin: true,
-      dogecoin: true,
-      cardano: true,
-      avalanche: true,
-      polkadot: true,
-      chainlink: true,
-      shiba: true,
-      xrp: true,
+    try {
+      const saved = localStorage.getItem('wallet_network_preferences')
+      const defaultPreferences = {
+        bitcoin: true,
+        ethereum: true,
+        polygon: true,
+        bsc: true,
+        tron: true,
+        base: true,
+        solana: true,
+        litecoin: true,
+        dogecoin: true,
+        cardano: true,
+        avalanche: true,
+        polkadot: true,
+        chainlink: true,
+        shiba: true,
+        xrp: true,
+      }
+      if (!saved) return defaultPreferences
+      
+      const parsed = JSON.parse(saved)
+      return { ...defaultPreferences, ...parsed }
+    } catch (error) {
+      console.error('[DashboardPage] Error loading network preferences:', error)
+      return {
+        bitcoin: true,
+        ethereum: true,
+        polygon: true,
+        bsc: true,
+        tron: true,
+        base: true,
+        solana: true,
+        litecoin: true,
+        dogecoin: true,
+        cardano: true,
+        avalanche: true,
+        polkadot: true,
+        chainlink: true,
+        shiba: true,
+        xrp: true,
+      }
     }
-    return saved ? { ...defaultPreferences, ...JSON.parse(saved) } : defaultPreferences
   }, [])
 
   const showAllNetworks = useMemo(() => {
-    const saved = localStorage.getItem('wallet_show_all_networks')
-    return saved !== null ? saved === 'true' : true
+    try {
+      const saved = localStorage.getItem('wallet_show_all_networks')
+      console.log('[DashboardPage] localStorage wallet_show_all_networks:', saved)
+      const result = saved !== null ? saved === 'true' : true
+      console.log('[DashboardPage] showAllNetworks result:', result)
+      return result
+    } catch (error) {
+      console.error('[DashboardPage] Error loading showAllNetworks:', error)
+      return true // Default to showing all networks
+    }
   }, [])
 
   // Filtrar carteiras por preferências
   const wallets = useMemo(() => {
+    console.log('[DashboardPage] apiWallets:', apiWallets)
+    console.log('[DashboardPage] showAllNetworks:', showAllNetworks)
+    
     if (!apiWallets || !Array.isArray(apiWallets)) {
+      console.log('[DashboardPage] No wallets or not array')
       return []
     }
 
-    if (showAllNetworks) {
-      return apiWallets
+    console.log('[DashboardPage] apiWallets length:', apiWallets.length)
+
+    // Se não houver carteiras da API, retorna vazio
+    if (apiWallets.length === 0) {
+      console.log('[DashboardPage] No wallets from API')
+      return []
     }
 
-    const filtered = apiWallets.filter(wallet => {
-      if (!wallet || !wallet.coin) {
-        return false
-      }
-      const coinKey = wallet.coin.toLowerCase()
-      return networkPreferences[coinKey as keyof typeof networkPreferences]
-    })
+    // SEMPRE mostrar todas as carteiras no Dashboard (não aplicar filtro de rede)
+    // O filtro de rede só deve ser aplicado na página de Wallets
+    console.log('[DashboardPage] Returning all wallets (no filter in Dashboard)')
+    return apiWallets
 
-    if (filtered.length === 0 && apiWallets.length > 0) {
-      return apiWallets
-    }
-
-    return filtered
-  }, [apiWallets, networkPreferences, showAllNetworks])
-
-  // Calcular saldo total (em USD, depois convertemos com formatCurrency)
+  }, [apiWallets, networkPreferences, showAllNetworks])  // Calcular saldo total (em USD, depois convertemos com formatCurrency)
   const totalBalanceUSD = useMemo(() => {
     let total = 0
 
@@ -392,13 +422,19 @@ export const DashboardPage = () => {
                 </div>
 
                 <div className='p-4'>
+                  {(() => {
+                    console.log('[DashboardPage RENDER] wallets:', wallets)
+                    console.log('[DashboardPage RENDER] wallets.length:', wallets?.length)
+                    return null
+                  })()}
                   {!wallets || wallets.length === 0 ? (
                     <div className='text-center py-8'>
                       <div className='w-12 h-12 mx-auto bg-slate-200 dark:bg-slate-700 rounded-full flex items-center justify-center mb-3'>
                         <Wallet className='w-6 h-6 text-slate-400 dark:text-slate-500' />
                       </div>
                       <p className='text-slate-600 dark:text-slate-400 text-sm mb-3'>
-                        Nenhuma carteira criada
+                        Nenhuma carteira criada (apiWallets: {apiWallets?.length || 0}, wallets:{' '}
+                        {wallets?.length || 0})
                       </p>
                       <button
                         onClick={handleCreateWallet}
