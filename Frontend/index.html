@@ -5,6 +5,12 @@
     <link rel="icon" type="image/png" href="/images/logos/wn-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
+    <!-- PWA Cache Busting -->
+    <meta name="app-version" content="2.0.0" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+
     <!-- SEO Meta Tags -->
     <meta
       name="description"
@@ -133,6 +139,43 @@
     </style>
 
     <script>
+      // PWA Cache Clearing - Force update on version mismatch
+      const APP_VERSION = '2.0.0'
+      const STORED_VERSION = localStorage.getItem('app_version')
+
+      if (STORED_VERSION !== APP_VERSION) {
+        console.log('[PWA] New version detected, clearing caches...')
+
+        // Clear all caches
+        if ('caches' in window) {
+          caches.keys().then(names => {
+            names.forEach(name => {
+              console.log('[PWA] Deleting cache:', name)
+              caches.delete(name)
+            })
+          })
+        }
+
+        // Unregister all service workers
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(registrations => {
+            registrations.forEach(registration => {
+              console.log('[PWA] Unregistering service worker')
+              registration.unregister()
+            })
+          })
+        }
+
+        // Update stored version
+        localStorage.setItem('app_version', APP_VERSION)
+
+        // Reload after 1 second
+        setTimeout(() => {
+          console.log('[PWA] Reloading app with new version')
+          window.location.reload()
+        }, 1000)
+      }
+
       // Remove loading screen when React loads
       window.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => {

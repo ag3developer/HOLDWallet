@@ -128,14 +128,14 @@ export const Sidebar = () => {
         {/* Logo / Toggle */}
         <div className='flex items-center justify-between px-3 lg:px-6 py-6 border-b border-gray-200 dark:border-gray-700'>
           {isExpanded && (
-            <>
+            <div className='flex items-center gap-2'>
               <img
                 src='/images/logos/wn-icon.png'
                 alt='Wolknow Logo'
                 className='h-10 w-10 rounded-lg object-contain'
               />
-              <span className='text-lg font-bold text-gray-900 dark:text-white ml-2'>WOLKNOW</span>
-            </>
+              <span className='text-lg font-bold text-gray-900 dark:text-white'>WOLK NOW</span>
+            </div>
           )}
           {!isExpanded && (
             <img

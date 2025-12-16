@@ -8,7 +8,10 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
+      devOptions: {
+        enabled: true,
+      },
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
         name: 'WOLK NOW® - Smart & Secure Wallet',
@@ -66,38 +69,43 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        cleanupOutdatedCaches: true,
+        skipWaiting: true,
+        clientsClaim: true,
         runtimeCaching: [
           {
             urlPattern: ({ request }) => request.destination === 'document',
             handler: 'NetworkFirst',
             options: {
-              cacheName: 'pages',
+              cacheName: 'pages-v2',
               expiration: {
                 maxEntries: 32,
-                maxAgeSeconds: 24 * 60 * 60, // 24 hours
+                maxAgeSeconds: 60 * 60, // 1 hour (reduzido)
               },
+              networkTimeoutSeconds: 5,
             },
           },
           {
             urlPattern: ({ request }) =>
               request.destination === 'script' || request.destination === 'style',
-            handler: 'StaleWhileRevalidate',
+            handler: 'NetworkFirst',
             options: {
-              cacheName: 'static-resources',
+              cacheName: 'static-resources-v2',
               expiration: {
                 maxEntries: 64,
-                maxAgeSeconds: 24 * 60 * 60, // 24 hours
+                maxAgeSeconds: 60 * 60, // 1 hour (reduzido)
               },
+              networkTimeoutSeconds: 5,
             },
           },
           {
             urlPattern: ({ url }) => url.pathname.startsWith('/api/'),
             handler: 'NetworkFirst',
             options: {
-              cacheName: 'api-cache',
+              cacheName: 'api-cache-v2',
               expiration: {
                 maxEntries: 100,
-                maxAgeSeconds: 5 * 60, // 5 minutes
+                maxAgeSeconds: 2 * 60, // 2 minutes (reduzido)
               },
               networkTimeoutSeconds: 10,
             },
