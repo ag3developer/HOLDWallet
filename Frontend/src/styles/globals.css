@@ -15,6 +15,39 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+
+  /* Animation utilities */
+  .animate-fadeIn {
+    animation: fadeIn 0.2s ease-in-out;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Audio Recording Animations */
+  @keyframes pulse {
+    0%,
+    100% {
+      opacity: 1;
+      transform: scaleY(1);
+    }
+    50% {
+      opacity: 0.5;
+      transform: scaleY(0.6);
+    }
+  }
+
+  .animate-audioWave {
+    animation: pulse 0.8s ease-in-out infinite;
+  }
 }
 
 /* Reset e base styles */

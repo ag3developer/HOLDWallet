@@ -148,63 +148,65 @@ export const ProfilePage = () => {
   }
 
   return (
-    <div className='space-y-6'>
+    <div className='space-y-4 md:space-y-6 p-4 md:p-0'>
       {/* Header */}
-      <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4'>
+      <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 md:gap-4'>
         <div>
-          <h1 className='text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3'>
-            <div className='w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center'>
-              <User className='w-6 h-6 text-white' />
+          <h1 className='text-2xl md:text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-2 md:gap-3'>
+            <div className='w-8 h-8 md:w-10 md:h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg md:rounded-xl flex items-center justify-center'>
+              <User className='w-4 h-4 md:w-6 md:h-6 text-white' />
             </div>
             Meu Perfil
           </h1>
-          <p className='text-gray-600 dark:text-gray-300 mt-1'>
+          <p className='text-sm md:text-base text-gray-600 dark:text-gray-300 mt-1'>
             Gerencie suas informações pessoais e configurações
           </p>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className='flex space-x-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg'>
-        {[
-          { id: 'profile', label: 'Perfil', icon: User },
-          { id: 'trader', label: 'Trader', icon: TrendingUp },
-          { id: 'kyc', label: 'Verificação KYC', icon: Lock },
-          { id: 'security', label: 'Segurança', icon: Shield },
-          { id: 'notifications', label: 'Notificações', icon: Bell },
-          { id: 'activity', label: 'Atividade', icon: History },
-        ].map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-md font-medium transition-all ${
-              activeTab === tab.id
-                ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-            }`}
-          >
-            <tab.icon className='w-4 h-4' />
-            <span className='hidden sm:inline'>{tab.label}</span>
-          </button>
-        ))}
+      {/* Tabs - Mobile Scrollable */}
+      <div className='overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0'>
+        <div className='flex space-x-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg min-w-max md:min-w-0'>
+          {[
+            { id: 'profile', label: 'Perfil', icon: User },
+            { id: 'trader', label: 'Trader', icon: TrendingUp },
+            { id: 'kyc', label: 'KYC', icon: Lock },
+            { id: 'security', label: 'Segurança', icon: Shield },
+            { id: 'notifications', label: 'Notificações', icon: Bell },
+            { id: 'activity', label: 'Atividade', icon: History },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`flex items-center justify-center gap-1.5 md:gap-2 py-2 md:py-3 px-3 md:px-4 rounded-md font-medium transition-all text-xs md:text-sm whitespace-nowrap ${
+                activeTab === tab.id
+                  ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              }`}
+            >
+              <tab.icon className='w-3.5 h-3.5 md:w-4 md:h-4 flex-shrink-0' />
+              <span>{tab.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Profile Tab */}
       {activeTab === 'profile' && (
-        <div className='grid grid-cols-1 lg:grid-cols-3 gap-6'>
+        <div className='grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6'>
           {/* Avatar & Basic Info */}
           <div className='lg:col-span-1'>
-            <div className='bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6'>
+            <div className='bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 md:p-6'>
               <div className='text-center'>
                 <div className='relative inline-block'>
-                  <div className='w-32 h-32 mx-auto bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-4xl font-bold text-white mb-4'>
+                  <div className='w-24 h-24 md:w-32 md:h-32 mx-auto bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-2xl md:text-4xl font-bold text-white mb-3 md:mb-4'>
                     {userInfo.name
                       .split(' ')
                       .map(n => n[0])
                       .join('')}
                   </div>
-                  <label className='absolute bottom-2 right-2 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center cursor-pointer hover:bg-blue-700 transition-colors'>
-                    <Camera className='w-4 h-4 text-white' />
+                  <label className='absolute bottom-1 right-1 md:bottom-2 md:right-2 w-7 h-7 md:w-8 md:h-8 bg-blue-600 rounded-full flex items-center justify-center cursor-pointer hover:bg-blue-700 transition-colors'>
+                    <Camera className='w-3.5 h-3.5 md:w-4 md:h-4 text-white' />
                     <input
                       type='file'
                       accept='image/*'
@@ -215,24 +217,24 @@ export const ProfilePage = () => {
                   </label>
                 </div>
 
-                <h2 className='text-xl font-bold text-gray-900 dark:text-white mb-1'>
+                <h2 className='text-lg md:text-xl font-bold text-gray-900 dark:text-white mb-1'>
                   {userInfo.name}
                 </h2>
-                <p className='text-gray-500 dark:text-gray-400 mb-4'>{userInfo.email}</p>
+                <p className='text-sm md:text-base text-gray-500 dark:text-gray-400 mb-3 md:mb-4 break-all'>{userInfo.email}</p>
 
-                <div className='flex items-center justify-center gap-2 mb-4'>
+                <div className='flex items-center justify-center gap-2 mb-3 md:mb-4'>
                   <div className='flex items-center gap-1'>
-                    <Star className='w-4 h-4 text-yellow-500 fill-current' />
-                    <Star className='w-4 h-4 text-yellow-500 fill-current' />
-                    <Star className='w-4 h-4 text-yellow-500 fill-current' />
-                    <Star className='w-4 h-4 text-yellow-500 fill-current' />
-                    <Star className='w-4 h-4 text-gray-300' />
+                    <Star className='w-3.5 h-3.5 md:w-4 md:h-4 text-yellow-500 fill-current' />
+                    <Star className='w-3.5 h-3.5 md:w-4 md:h-4 text-yellow-500 fill-current' />
+                    <Star className='w-3.5 h-3.5 md:w-4 md:h-4 text-yellow-500 fill-current' />
+                    <Star className='w-3.5 h-3.5 md:w-4 md:h-4 text-yellow-500 fill-current' />
+                    <Star className='w-3.5 h-3.5 md:w-4 md:h-4 text-gray-300' />
                   </div>
-                  <span className='text-sm text-gray-600 dark:text-gray-400'>4.8/5</span>
+                  <span className='text-xs md:text-sm text-gray-600 dark:text-gray-400'>4.8/5</span>
                 </div>
 
-                <div className='flex items-center justify-center gap-2 text-sm text-green-600 dark:text-green-400'>
-                  <Check className='w-4 h-4' />
+                <div className='flex items-center justify-center gap-2 text-xs md:text-sm text-green-600 dark:text-green-400'>
+                  <Check className='w-3.5 h-3.5 md:w-4 md:h-4' />
                   Conta Verificada
                 </div>
               </div>
@@ -241,121 +243,121 @@ export const ProfilePage = () => {
 
           {/* Profile Form */}
           <div className='lg:col-span-2'>
-            <div className='bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6'>
-              <div className='flex items-center justify-between mb-6'>
-                <h3 className='text-lg font-semibold text-gray-900 dark:text-white'>
+            <div className='bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 md:p-6'>
+              <div className='flex items-center justify-between mb-4 md:mb-6'>
+                <h3 className='text-base md:text-lg font-semibold text-gray-900 dark:text-white'>
                   Informações Pessoais
                 </h3>
                 <button
                   onClick={() => (isEditing ? handleSaveProfile() : setIsEditing(true))}
-                  className='inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors'
+                  className='inline-flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 text-sm md:text-base bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors'
                 >
                   {isEditing ? (
                     <>
-                      <Save className='w-4 h-4' />
+                      <Save className='w-3.5 h-3.5 md:w-4 md:h-4' />
                       Salvar
                     </>
                   ) : (
                     <>
-                      <Edit3 className='w-4 h-4' />
+                      <Edit3 className='w-3.5 h-3.5 md:w-4 md:h-4' />
                       Editar
                     </>
                   )}
                 </button>
               </div>
 
-              <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
+              <div className='grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6'>
                 <div>
-                  <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                  <label className='block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 md:mb-2'>
                     Nome Completo
                   </label>
                   <div className='relative'>
-                    <User className='absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4' />
+                    <User className='absolute left-2.5 md:left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5 md:w-4 md:h-4' />
                     <input
                       type='text'
                       value={userInfo.name}
                       onChange={e => setUserInfo(prev => ({ ...prev, name: e.target.value }))}
                       disabled={!isEditing}
                       aria-label='Nome completo'
-                      className='w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed'
+                      className='w-full pl-8 md:pl-10 pr-3 md:pr-4 py-2 text-sm md:text-base border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed'
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                  <label className='block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 md:mb-2'>
                     Email
                   </label>
                   <div className='relative'>
-                    <Mail className='absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4' />
+                    <Mail className='absolute left-2.5 md:left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5 md:w-4 md:h-4' />
                     <input
                       type='email'
                       value={userInfo.email}
                       onChange={e => setUserInfo(prev => ({ ...prev, email: e.target.value }))}
                       disabled={!isEditing}
                       aria-label='Endereço de email'
-                      className='w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed'
+                      className='w-full pl-8 md:pl-10 pr-3 md:pr-4 py-2 text-sm md:text-base border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed'
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                  <label className='block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 md:mb-2'>
                     Telefone
                   </label>
                   <div className='relative'>
-                    <Phone className='absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4' />
+                    <Phone className='absolute left-2.5 md:left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5 md:w-4 md:h-4' />
                     <input
                       type='tel'
                       value={userInfo.phone}
                       onChange={e => setUserInfo(prev => ({ ...prev, phone: e.target.value }))}
                       disabled={!isEditing}
                       aria-label='Número de telefone'
-                      className='w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed'
+                      className='w-full pl-8 md:pl-10 pr-3 md:pr-4 py-2 text-sm md:text-base border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed'
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                  <label className='block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 md:mb-2'>
                     Localização
                   </label>
                   <div className='relative'>
-                    <MapPin className='absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4' />
+                    <MapPin className='absolute left-2.5 md:left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5 md:w-4 md:h-4' />
                     <input
                       type='text'
                       value={userInfo.location}
                       onChange={e => setUserInfo(prev => ({ ...prev, location: e.target.value }))}
                       disabled={!isEditing}
                       aria-label='Localização'
-                      className='w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed'
+                      className='w-full pl-8 md:pl-10 pr-3 md:pr-4 py-2 text-sm md:text-base border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed'
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                  <label className='block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 md:mb-2'>
                     Data de Nascimento
                   </label>
                   <div className='relative'>
-                    <Calendar className='absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4' />
+                    <Calendar className='absolute left-2.5 md:left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5 md:w-4 md:h-4' />
                     <input
                       type='date'
                       value={userInfo.birthDate}
                       onChange={e => setUserInfo(prev => ({ ...prev, birthDate: e.target.value }))}
                       disabled={!isEditing}
                       aria-label='Data de nascimento'
-                      className='w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed'
+                      className='w-full pl-8 md:pl-10 pr-3 md:pr-4 py-2 text-sm md:text-base border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed'
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                  <label className='block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 md:mb-2'>
                     Website
                   </label>
                   <div className='relative'>
-                    <Globe className='absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4' />
+                    <Globe className='absolute left-2.5 md:left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5 md:w-4 md:h-4' />
                     <input
                       type='url'
                       value={userInfo.website}
@@ -363,14 +365,14 @@ export const ProfilePage = () => {
                       disabled={!isEditing}
                       aria-label='Website'
                       placeholder='https://exemplo.com'
-                      className='w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed'
+                      className='w-full pl-8 md:pl-10 pr-3 md:pr-4 py-2 text-sm md:text-base border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed'
                     />
                   </div>
                 </div>
               </div>
 
-              <div className='mt-6'>
-                <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+              <div className='mt-4 md:mt-6'>
+                <label className='block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 md:mb-2'>
                   Biografia
                 </label>
                 <textarea
@@ -379,21 +381,21 @@ export const ProfilePage = () => {
                   disabled={!isEditing}
                   rows={4}
                   placeholder='Conte um pouco sobre você e sua experiência com trading...'
-                  className='w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed resize-none'
+                  className='w-full px-3 md:px-4 py-2 text-sm md:text-base border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed resize-none'
                 />
               </div>
 
               {isEditing && (
-                <div className='flex gap-3 mt-6'>
+                <div className='flex gap-2 md:gap-3 mt-4 md:mt-6'>
                   <button
                     onClick={handleSaveProfile}
-                    className='flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors'
+                    className='flex-1 bg-blue-600 text-white py-2 text-sm md:text-base rounded-lg hover:bg-blue-700 transition-colors'
                   >
                     Salvar Alterações
                   </button>
                   <button
                     onClick={() => setIsEditing(false)}
-                    className='px-6 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 py-2 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors'
+                    className='px-4 md:px-6 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 py-2 text-sm md:text-base rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors'
                   >
                     Cancelar
                   </button>
