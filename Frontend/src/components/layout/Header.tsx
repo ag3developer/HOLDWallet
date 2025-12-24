@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { Bell, Sun, Moon, Globe, Search } from 'lucide-react'
 import { useThemeStore } from '@/stores/useThemeStore'
+import { BackendStatusIndicator } from '@/components/ui/BackendStatusIndicator'
 import { useState } from 'react'
 
 export const Header = () => {
@@ -31,6 +32,9 @@ export const Header = () => {
 
         {/* Header actions */}
         <div className='flex items-center gap-4 ml-auto'>
+          {/* Backend Status Indicator */}
+          <BackendStatusIndicator />
+
           {/* Language selector */}
           <div className='relative'>
             <select
