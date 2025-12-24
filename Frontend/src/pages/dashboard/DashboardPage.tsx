@@ -120,7 +120,7 @@ export const DashboardPage = () => {
         xrp: true,
       }
       if (!saved) return defaultPreferences
-      
+
       const parsed = JSON.parse(saved)
       return { ...defaultPreferences, ...parsed }
     } catch (error) {
@@ -162,7 +162,7 @@ export const DashboardPage = () => {
   const wallets = useMemo(() => {
     console.log('[DashboardPage] apiWallets:', apiWallets)
     console.log('[DashboardPage] showAllNetworks:', showAllNetworks)
-    
+
     if (!apiWallets || !Array.isArray(apiWallets)) {
       console.log('[DashboardPage] No wallets or not array')
       return []
@@ -180,8 +180,7 @@ export const DashboardPage = () => {
     // O filtro de rede só deve ser aplicado na página de Wallets
     console.log('[DashboardPage] Returning all wallets (no filter in Dashboard)')
     return apiWallets
-
-  }, [apiWallets, networkPreferences, showAllNetworks])  // Calcular saldo total (em USD, depois convertemos com formatCurrency)
+  }, [apiWallets, networkPreferences, showAllNetworks]) // Calcular saldo total (em USD, depois convertemos com formatCurrency)
   const totalBalanceUSD = useMemo(() => {
     let total = 0
 
