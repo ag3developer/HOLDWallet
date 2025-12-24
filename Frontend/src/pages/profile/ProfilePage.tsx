@@ -220,7 +220,9 @@ export const ProfilePage = () => {
                 <h2 className='text-lg md:text-xl font-bold text-gray-900 dark:text-white mb-1'>
                   {userInfo.name}
                 </h2>
-                <p className='text-sm md:text-base text-gray-500 dark:text-gray-400 mb-3 md:mb-4 break-all'>{userInfo.email}</p>
+                <p className='text-sm md:text-base text-gray-500 dark:text-gray-400 mb-3 md:mb-4 break-all'>
+                  {userInfo.email}
+                </p>
 
                 <div className='flex items-center justify-center gap-2 mb-3 md:mb-4'>
                   <div className='flex items-center gap-1'>
