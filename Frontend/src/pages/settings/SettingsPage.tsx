@@ -367,12 +367,12 @@ export const SettingsPage = () => {
   }
 
   return (
-    <div className='space-y-6'>
-      <div className='flex items-center justify-between'>
-        <h1 className='text-3xl font-bold text-gray-900 dark:text-white'>
+    <div className='space-y-4 md:space-y-6'>
+      <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-2'>
+        <h1 className='text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white'>
           {t('settings.title', 'Configurações')}
         </h1>
-        <p className='text-sm text-gray-500 dark:text-gray-400'>
+        <p className='text-xs md:text-sm text-gray-500 dark:text-gray-400'>
           Gerencie suas preferências e segurança
         </p>
       </div>
@@ -380,60 +380,60 @@ export const SettingsPage = () => {
       {/* Tabs */}
       <div className='bg-white dark:bg-gray-800 rounded-lg shadow'>
         <div className='border-b border-gray-200 dark:border-gray-700'>
-          <nav className='-mb-px flex space-x-8 px-6'>
+          <nav className='-mb-px flex overflow-x-auto space-x-4 md:space-x-8 px-4 md:px-6 scrollbar-hide'>
             {tabs.map(tab => {
               const IconComponent = tab.icon
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                  className={`py-3 md:py-4 px-1 border-b-2 font-medium text-xs md:text-sm whitespace-nowrap flex items-center gap-1 md:gap-2 ${
                     activeTab === tab.id
                       ? 'border-primary-500 text-primary-600 dark:text-primary-400'
                       : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
                   }`}
                 >
-                  <IconComponent className='w-4 h-4 mr-2 inline-block' />
-                  {tab.name}
+                  <IconComponent className='w-3 h-3 md:w-4 md:h-4' />
+                  <span className='hidden sm:inline'>{tab.name}</span>
                 </button>
               )
             })}
           </nav>
         </div>
 
-        <div className='p-6'>
+        <div className='p-4 md:p-6'>
           {/* General Tab */}
           {activeTab === 'general' && (
-            <div className='space-y-6'>
+            <div className='space-y-4 md:space-y-6'>
               <div>
-                <h3 className='text-lg font-medium text-gray-900 dark:text-white mb-4'>
+                <h3 className='text-base md:text-lg font-medium text-gray-900 dark:text-white mb-3 md:mb-4'>
                   Configurações Gerais
                 </h3>
 
-                <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
+                <div className='grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6'>
                   <LanguageDemo />
 
-                  <div className='bg-gray-50 dark:bg-gray-700 rounded-lg p-4'>
+                  <div className='bg-gray-50 dark:bg-gray-700 rounded-lg p-3 md:p-4'>
                     <div className='flex items-center mb-2'>
-                      <Palette className='w-5 h-5 mr-2 text-gray-700 dark:text-gray-300' />
-                      <h4 className='font-medium text-gray-900 dark:text-white'>
+                      <Palette className='w-4 h-4 md:w-5 md:h-5 mr-2 text-gray-700 dark:text-gray-300' />
+                      <h4 className='text-sm md:text-base font-medium text-gray-900 dark:text-white'>
                         Tema da Interface
                       </h4>
                     </div>
-                    <p className='text-sm text-gray-600 dark:text-gray-300 mb-3'>
+                    <p className='text-xs md:text-sm text-gray-600 dark:text-gray-300 mb-3'>
                       Escolha entre modo claro ou escuro
                     </p>
-                    <div className='flex space-x-3'>
-                      <button className='flex items-center px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg'>
-                        <Sun className='w-4 h-4 mr-1' />
+                    <div className='flex flex-col sm:flex-row gap-2 md:gap-3'>
+                      <button className='flex items-center justify-center px-3 py-2 text-xs md:text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg'>
+                        <Sun className='w-3 h-3 md:w-4 md:h-4 mr-1' />
                         Claro
                       </button>
-                      <button className='flex items-center px-3 py-2 text-sm bg-gray-800 text-white border border-gray-600 rounded-lg'>
-                        <Moon className='w-4 h-4 mr-1' />
+                      <button className='flex items-center justify-center px-3 py-2 text-xs md:text-sm bg-gray-800 text-white border border-gray-600 rounded-lg'>
+                        <Moon className='w-3 h-3 md:w-4 md:h-4 mr-1' />
                         Escuro
                       </button>
-                      <button className='flex items-center px-3 py-2 text-sm bg-blue-500 text-white rounded-lg'>
-                        <Palette className='w-4 h-4 mr-1' />
+                      <button className='flex items-center justify-center px-3 py-2 text-xs md:text-sm bg-blue-500 text-white rounded-lg'>
+                        <Palette className='w-3 h-3 md:w-4 md:h-4 mr-1' />
                         Automático
                       </button>
                     </div>
@@ -441,12 +441,14 @@ export const SettingsPage = () => {
                 </div>
               </div>
 
-              <div className='bg-gray-50 dark:bg-gray-700 rounded-lg p-4'>
+              <div className='bg-gray-50 dark:bg-gray-700 rounded-lg p-3 md:p-4'>
                 <div className='flex items-center mb-2'>
-                  <DollarSign className='w-5 h-5 mr-2 text-gray-700 dark:text-gray-300' />
-                  <h4 className='font-medium text-gray-900 dark:text-white'>Moeda Preferencial</h4>
+                  <DollarSign className='w-4 h-4 md:w-5 md:h-5 mr-2 text-gray-700 dark:text-gray-300' />
+                  <h4 className='text-sm md:text-base font-medium text-gray-900 dark:text-white'>
+                    Moeda Preferencial
+                  </h4>
                 </div>
-                <p className='text-sm text-gray-600 dark:text-gray-300 mb-3'>
+                <p className='text-xs md:text-sm text-gray-600 dark:text-gray-300 mb-3'>
                   Moeda usada para exibir valores
                 </p>
                 <label htmlFor='currency-select' className='sr-only'>
@@ -460,7 +462,7 @@ export const SettingsPage = () => {
                     setCurrency(newCurrency)
                     toast.success(`Moeda alterada para ${newCurrency}`)
                   }}
-                  className='block w-48 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 rounded-lg text-gray-900 dark:text-white'
+                  className='block w-full sm:w-48 px-3 py-2 text-sm md:text-base border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 rounded-lg text-gray-900 dark:text-white'
                 >
                   <option value='BRL'>Real Brasileiro (BRL)</option>
                   <option value='USD'>Dólar Americano (USD)</option>
@@ -472,31 +474,31 @@ export const SettingsPage = () => {
 
           {/* Security Tab */}
           {activeTab === 'security' && (
-            <div className='space-y-6'>
+            <div className='space-y-4 md:space-y-6'>
               <div>
-                <h3 className='text-lg font-medium text-gray-900 dark:text-white mb-4'>
+                <h3 className='text-base md:text-lg font-medium text-gray-900 dark:text-white mb-3 md:mb-4'>
                   Configurações de Segurança
                 </h3>
 
                 {/* Account Info */}
-                <div className='bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6'>
-                  <div className='flex items-center'>
-                    <User className='w-6 h-6 mr-3 text-blue-400' />
-                    <div>
-                      <h4 className='font-medium text-blue-900 dark:text-blue-100'>
+                <div className='bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 md:p-4 mb-4 md:mb-6'>
+                  <div className='flex items-start gap-3'>
+                    <User className='w-5 h-5 md:w-6 md:h-6 mt-0.5 text-blue-400 flex-shrink-0' />
+                    <div className='flex-1 min-w-0'>
+                      <h4 className='text-sm md:text-base font-medium text-blue-900 dark:text-blue-100'>
                         Informações da Conta
                       </h4>
-                      <p className='text-sm text-blue-700 dark:text-blue-200'>
+                      <p className='text-xs md:text-sm text-blue-700 dark:text-blue-200 break-words'>
                         {user?.email} • Membro desde{' '}
                         {user?.createdAt
                           ? new Date(user.createdAt).toLocaleDateString('pt-BR')
                           : 'N/A'}
                       </p>
-                      <p className='text-sm text-blue-700 dark:text-blue-200 flex items-center'>
+                      <p className='text-xs md:text-sm text-blue-700 dark:text-blue-200 flex items-center'>
                         Status:{' '}
                         {user?.isVerified ? (
                           <>
-                            <CheckCircle className='w-4 h-4 mr-1 text-green-500' />
+                            <CheckCircle className='w-3 h-3 md:w-4 md:h-4 mr-1 text-green-500' />
                             Verificado
                           </>
                         ) : (
@@ -1453,6 +1455,17 @@ export const SettingsPage = () => {
 
       {/* Toast Notifications */}
       <ToastContainer toasts={toast.toasts} onRemove={toast.removeToast} />
+
+      {/* Custom CSS for hiding scrollbar */}
+      <style>{`
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
     </div>
   )
 }
