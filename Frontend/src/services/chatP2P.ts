@@ -37,19 +37,28 @@ export interface ChatMessageP2P {
 export interface P2POrder {
   id: string
   user_id: string
+  userId?: string // Backend também retorna em camelCase
   type: 'buy' | 'sell'
   cryptocurrency: string
+  coin?: string // Alias do backend
   amount: string
   price: string
   total: string
-  min_amount: string
-  max_amount: string
-  fiat_currency: string
-  payment_methods: string[]
-  time_limit: number
+  min_amount?: string // snake_case fallback
+  max_amount?: string // snake_case fallback
+  minAmount?: string // camelCase do backend
+  maxAmount?: string // camelCase do backend
+  fiat_currency?: string // snake_case fallback
+  fiatCurrency?: string // camelCase do backend
+  payment_methods?: string[] // snake_case fallback
+  paymentMethods?: any[] // camelCase do backend (array de objetos)
+  time_limit?: number // snake_case fallback
+  timeLimit?: number // camelCase do backend
   status: 'pending' | 'active' | 'completed' | 'cancelled' | 'disputed'
-  expires_at?: string
-  trade_id?: string
+  expires_at?: string // snake_case fallback
+  expiresAt?: string // camelCase do backend
+  trade_id?: string // snake_case fallback
+  tradeId?: string // camelCase do backend
   user?: {
     id: string
     name: string
@@ -106,6 +115,7 @@ class ChatP2PService {
    */
   async connectToRoom(chatRoomId: string, token: string): Promise<void> {
     if (this.ws?.readyState === WebSocket.OPEN && this.currentRoomId === chatRoomId) {
+      console.log('✅ [WebSocket] Já conectado à sala:', chatRoomId)
       return // Já conectado à sala
     }
 
@@ -118,52 +128,73 @@ class ChatP2PService {
     this.currentRoomId = chatRoomId
     this.notifyStatus('connecting')
 
-    try {
-      // URL do WebSocket com autenticação JWT
-      const wsBaseUrl = APP_CONFIG.api.wsUrl || 'ws://localhost:8000'
-      const wsUrl = `${wsBaseUrl}/chat/ws/${chatRoomId}?token=${encodeURIComponent(token)}`
+    // URL do WebSocket com autenticação JWT
+    const wsBaseUrl = APP_CONFIG.api.wsUrl || 'ws://localhost:8000'
+    const wsUrl = `${wsBaseUrl}/chat/ws/${chatRoomId}?token=${encodeURIComponent(token)}`
 
-      console.log(`🔌 Connecting to P2P Chat WebSocket: ${chatRoomId}`)
-      this.ws = new WebSocket(wsUrl)
+    console.log(`🔌 [WebSocket] Connecting to: ${wsUrl.substring(0, 100)}...`)
 
-      this.ws.onopen = () => {
-        console.log('✅ P2P Chat WebSocket connected')
-        this.isConnecting = false
-        this.reconnectAttempts = 0
-        this.notifyStatus('connected')
-      }
-
-      this.ws.onmessage = event => {
-        try {
-          const data = JSON.parse(event.data)
-          this.handleMessage(data)
-        } catch (error) {
-          console.error('❌ Failed to parse WebSocket message:', error)
-        }
-      }
-
-      this.ws.onclose = event => {
-        console.log('🔌 P2P Chat WebSocket disconnected', event.code, event.reason)
-        this.isConnecting = false
-        this.notifyStatus('disconnected')
-
-        // Tentar reconectar se não foi fechamento intencional
-        if (event.code !== 1000 && this.currentRoomId) {
-          this.handleReconnect(chatRoomId, token)
-        }
-      }
-
-      this.ws.onerror = error => {
-        console.error('❌ P2P Chat WebSocket error:', error)
+    // ✅ FIX: Criar Promise que aguarda a conexão ou timeout
+    return new Promise((resolve, reject) => {
+      const connectionTimeout = setTimeout(() => {
         this.isConnecting = false
         this.notifyStatus('error')
+        reject(new Error('WebSocket connection timeout (10s)'))
+      }, 10000) // 10 segundos de timeout
+
+      try {
+        this.ws = new WebSocket(wsUrl)
+
+        this.ws.onopen = () => {
+          clearTimeout(connectionTimeout)
+          console.log('✅ [WebSocket] Conectado com sucesso!')
+          this.isConnecting = false
+          this.reconnectAttempts = 0
+          this.notifyStatus('connected')
+          resolve() // ✅ Resolver a Promise quando conectar
+        }
+
+        this.ws.onmessage = event => {
+          try {
+            const data = JSON.parse(event.data)
+            this.handleMessage(data)
+          } catch (error) {
+            console.error('❌ Failed to parse WebSocket message:', error)
+          }
+        }
+
+        this.ws.onclose = event => {
+          clearTimeout(connectionTimeout)
+          console.log('🔌 [WebSocket] Disconnected:', event.code, event.reason)
+          this.isConnecting = false
+          this.notifyStatus('disconnected')
+
+          // Se ainda não conectou, rejeitar a Promise
+          if (event.code !== 1000) {
+            reject(new Error(`WebSocket closed: ${event.code} ${event.reason || 'Unknown'}`))
+          }
+
+          // Tentar reconectar se não foi fechamento intencional
+          if (event.code !== 1000 && this.currentRoomId) {
+            this.handleReconnect(chatRoomId, token)
+          }
+        }
+
+        this.ws.onerror = error => {
+          clearTimeout(connectionTimeout)
+          console.error('❌ [WebSocket] Error:', error)
+          this.isConnecting = false
+          this.notifyStatus('error')
+          reject(new Error('WebSocket connection error'))
+        }
+      } catch (error) {
+        clearTimeout(connectionTimeout)
+        this.isConnecting = false
+        this.notifyStatus('error')
+        console.error('❌ Failed to create WebSocket:', error)
+        reject(error)
       }
-    } catch (error) {
-      this.isConnecting = false
-      this.notifyStatus('error')
-      console.error('❌ Failed to connect to WebSocket:', error)
-      throw error
-    }
+    })
   }
 
   /**
@@ -347,20 +378,26 @@ class ChatP2PService {
 
   /**
    * Criar sala de chat para transação P2P
+   * ✅ ATUALIZADO: Agora usa o novo endpoint que cria match automaticamente
    */
   async createChatRoom(
     matchId: string,
     buyerId: string,
     sellerId: string
   ): Promise<CreateChatRoomResponse> {
-    const formData = new FormData()
-    formData.append('buyer_id', buyerId)
-    formData.append('seller_id', sellerId)
+    console.log('🏗️ [chatP2PService] Criando chat room:', { matchId, buyerId, sellerId })
 
+    // Validação básica
+    if (!matchId) {
+      throw new Error('matchId é obrigatório')
+    }
+
+    // ✅ NOVO: Usar o endpoint que cria match automaticamente a partir do orderId
     const response = await apiClient.post<CreateChatRoomResponse>(
-      `/chat/rooms/${matchId}/create`,
-      formData
+      `/chat/p2p/order/${matchId}/start-chat`
     )
+
+    console.log('✅ [chatP2PService] Chat criado:', response.data)
     return response.data
   }
 
@@ -372,12 +409,9 @@ class ChatP2PService {
     limit: number = 50,
     offset: number = 0
   ): Promise<ChatHistoryResponse> {
-    const response = await apiClient.get<ChatHistoryResponse>(
-      `/chat/rooms/${chatRoomId}/history`,
-      {
-        params: { limit, offset },
-      }
-    )
+    const response = await apiClient.get<ChatHistoryResponse>(`/chat/rooms/${chatRoomId}/history`, {
+      params: { limit, offset },
+    })
     return response.data
   }
 

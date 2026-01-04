@@ -19,6 +19,7 @@ import asyncio
 from app.db.database import get_db
 from app.services.chat_service import chat_service
 from app.models.chat import MessageType
+from app.core.security import get_current_user, verify_token
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/chat", tags=["P2P Chat"])
@@ -35,9 +36,35 @@ async def websocket_endpoint(
     user_id = None
     
     try:
-        # Autenticar usuário pelo token (simplificado para demo)
-        # Em produção, implementar verificação JWT adequada
-        user_id = token  # Assumindo que token contém user_id para demo
+        # ✅ FIX: Decodificar o JWT token para extrair o user_id
+        payload = verify_token(token)
+        if not payload:
+            logger.error("❌ Token JWT inválido ou expirado")
+            await websocket.close(code=4001, reason="Token inválido")
+            return
+        
+        # Extrair user_id do payload do token
+        user_id = payload.get("user_id") or payload.get("sub")
+        if not user_id:
+            logger.error("❌ Token não contém user_id")
+            await websocket.close(code=4002, reason="Token sem user_id")
+            return
+        
+        # Se user_id for um email (sub), precisamos buscar o ID real
+        # Verificar se é um UUID válido
+        import uuid
+        try:
+            uuid.UUID(user_id)
+        except ValueError:
+            # user_id não é UUID, provavelmente é email
+            # Tentar usar o campo user_id do payload
+            user_id = payload.get("user_id")
+            if not user_id:
+                logger.error("❌ Não foi possível extrair user_id do token")
+                await websocket.close(code=4003, reason="user_id não encontrado")
+                return
+        
+        logger.info(f"✅ [WebSocket] Token validado, user_id: {user_id}")
         
         # Conectar WebSocket
         session_id = await chat_service.connect_websocket(
@@ -102,12 +129,13 @@ async def create_chat_room(
     buyer_id: str = Form(...),
     seller_id: str = Form(...),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user = Depends(get_current_user)  # Retorna User object
 ):
     """Criar sala de chat para transação P2P"""
     try:
         # Verificar se usuário é parte da transação
-        if current_user["user_id"] not in [buyer_id, seller_id]:
+        user_id = str(current_user.id)
+        if user_id not in [buyer_id, seller_id]:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="User not authorized for this transaction"
@@ -125,20 +153,157 @@ async def create_chat_room(
         logger.error(f"Failed to create chat room: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@router.post("/p2p/order/{order_id}/start-chat")
+async def start_chat_from_order(
+    order_id: str,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)  # Retorna objeto User, não dict
+):
+    """
+    Iniciar chat P2P a partir de uma ordem.
+    Cria o match e o chat room automaticamente se não existirem.
+    """
+    try:
+        from app.models.p2p import P2POrder, P2PMatch  # Modelo corrigido com UUID e campos certos
+        from app.models.chat import ChatRoom
+        from uuid import UUID
+        from datetime import datetime, timedelta
+        import json as json_lib
+        
+        # current_user é um objeto User, acessar com .id
+        user_id = str(current_user.id)
+        logger.info(f"🔄 [Chat] Iniciando chat para ordem {order_id}, usuário {user_id}")
+        
+        # Buscar a ordem
+        try:
+            order_uuid = UUID(order_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid order ID format")
+        
+        order = db.query(P2POrder).filter(P2POrder.id == order_uuid).first()
+        if not order:
+            raise HTTPException(status_code=404, detail="Order not found")
+        
+        order_owner_id = str(order.user_id)
+        current_user_id = str(user_id)
+        
+        # Verificar se o usuário não é o dono da ordem
+        if order_owner_id == current_user_id:
+            raise HTTPException(
+                status_code=400, 
+                detail="Você não pode conversar consigo mesmo. Aguarde outro usuário interessado."
+            )
+        
+        # Determinar comprador e vendedor baseado no tipo da ordem
+        order_type = order.order_type  # Usar order_type ao invés de type
+        if order_type == "sell":
+            # Dono vende, usuário atual compra
+            seller_id = order_owner_id
+            buyer_id = current_user_id
+        else:
+            # Dono compra, usuário atual vende
+            buyer_id = order_owner_id
+            seller_id = current_user_id
+        
+        logger.info(f"📊 [Chat] buyer_id={buyer_id}, seller_id={seller_id}")
+        
+        # Verificar se já existe um match para esta ordem com este usuário
+        existing_match = db.query(P2PMatch).filter(
+            P2PMatch.buyer_id == UUID(buyer_id),
+            P2PMatch.seller_id == UUID(seller_id),
+            (P2PMatch.buyer_order_id == order_uuid) | (P2PMatch.seller_order_id == order_uuid)
+        ).first()
+        
+        if existing_match:
+            logger.info(f"✅ [Chat] Match existente encontrado: {existing_match.id}")
+            match_id = existing_match.id
+        else:
+            # Criar um novo match
+            logger.info(f"🆕 [Chat] Criando novo match...")
+            
+            # Parsear payment_methods (é JSON string no banco)
+            payment_methods_list = []
+            if order.payment_methods:
+                try:
+                    payment_methods_list = json_lib.loads(order.payment_methods)
+                except:
+                    payment_methods_list = [order.payment_methods]
+            
+            # Calcular total (price * amount)
+            order_price = float(order.price) if order.price else 0
+            order_amount = float(order.total_amount) if order.total_amount else 0
+            order_total = order_price * order_amount
+            
+            new_match = P2PMatch(
+                buyer_order_id=order_uuid,
+                seller_order_id=order_uuid,
+                buyer_id=UUID(buyer_id),
+                seller_id=UUID(seller_id),
+                amount_crypto=order_amount,
+                price_brl=order_price,
+                total_brl=order_total,
+                payment_method=payment_methods_list[0] if payment_methods_list else "pix",
+                status="matched",
+                expires_at=datetime.utcnow() + timedelta(minutes=order.time_limit or 30)
+            )
+            
+            db.add(new_match)
+            db.commit()
+            db.refresh(new_match)
+            match_id = new_match.id
+            logger.info(f"✅ [Chat] Match criado: {match_id}")
+        
+        # Verificar se já existe chat room para este match
+        existing_room = db.query(ChatRoom).filter(ChatRoom.match_id == match_id).first()
+        
+        if existing_room:
+            logger.info(f"✅ [Chat] Chat room existente: {existing_room.id}")
+            return {
+                "success": True,
+                "chat_room": {
+                    "id": str(existing_room.id),
+                    "match_id": str(match_id),
+                    "buyer_id": buyer_id,
+                    "seller_id": seller_id,
+                    "is_active": existing_room.is_active
+                },
+                "message": "Chat room already exists"
+            }
+        
+        # Criar o chat room
+        result = await chat_service.create_chat_room(db, str(match_id), buyer_id, seller_id)
+        
+        logger.info(f"✅ [Chat] Chat room criado com sucesso")
+        
+        return {
+            "success": True,
+            "chat_room": result.get("chat_room"),
+            "message": "Chat started successfully"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ [Chat] Erro ao iniciar chat: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/rooms/{chat_room_id}/upload")
 async def upload_file(
     chat_room_id: str,
     file: UploadFile = File(...),
     message_content: Optional[str] = Form(""),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user = Depends(get_current_user)  # Retorna User object
 ):
     """Upload de arquivo (comprovante de pagamento)"""
     try:
         result = await chat_service.upload_file(
             db,
             chat_room_id,
-            current_user["user_id"],
+            str(current_user.id),
             file,
             message_content
         )
@@ -158,14 +323,14 @@ async def get_chat_history(
     chat_room_id: str,
     limit: int = 50,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user = Depends(get_current_user)  # Retorna objeto User
 ):
     """Obter histórico do chat"""
     try:
         result = await chat_service.get_chat_history(
             db,
             chat_room_id,
-            current_user["user_id"],
+            str(current_user.id),  # Usar .id ao invés de ["user_id"]
             limit
         )
         
@@ -184,14 +349,14 @@ async def create_dispute(
     reason: str = Form(...),
     evidence_messages: List[str] = Form(...),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user = Depends(get_current_user)  # Retorna User object
 ):
     """Criar disputa com taxa (R$ 25) - Fonte de receita"""
     try:
         result = await chat_service.create_dispute_with_fee(
             db,
             match_id,
-            current_user["user_id"],
+            str(current_user.id),
             reason,
             evidence_messages
         )
@@ -210,7 +375,7 @@ async def create_dispute(
 async def download_file(
     file_id: str,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user = Depends(get_current_user)  # Retorna User object
 ):
     """Download de arquivo do chat"""
     try:
@@ -233,12 +398,12 @@ async def send_system_message(
     content: str = Form(...),
     message_type: str = Form("system"),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user = Depends(get_current_user)  # Retorna User object
 ):
     """Enviar mensagem do sistema (admin apenas)"""
     try:
         # Verificar se usuário é admin
-        if not current_user.get("is_admin", False):
+        if not getattr(current_user, 'is_admin', False):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Admin access required"
@@ -263,12 +428,12 @@ async def send_system_message(
 @router.get("/analytics/revenue")
 async def get_chat_revenue_analytics(
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user = Depends(get_current_user)  # Retorna User object
 ):
     """Analytics de receita gerada pelo chat"""
     try:
         # Verificar se usuário é admin
-        if not current_user.get("is_admin", False):
+        if not getattr(current_user, 'is_admin', False):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Admin access required"

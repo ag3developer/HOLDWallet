@@ -361,9 +361,13 @@ class ChatService:
     ):
         """Enviar mensagem do sistema"""
         try:
+            # UUID especial para mensagens do sistema (todos zeros)
+            # Este é um UUID válido que representa "sistema"
+            SYSTEM_UUID = "00000000-0000-0000-0000-000000000000"
+            
             message = ChatMessage(
                 chat_room_id=chat_room_id,
-                sender_id="system",  # ID especial para sistema
+                sender_id=SYSTEM_UUID,  # UUID válido para sistema
                 message_type=message_type,
                 content=content,
                 is_system_message=True
@@ -376,7 +380,7 @@ class ChatService:
             message_data = {
                 "message_id": str(message.id),
                 "chat_room_id": chat_room_id,
-                "sender_id": "system",
+                "sender_id": SYSTEM_UUID,
                 "message_type": message_type.value,
                 "content": content,
                 "created_at": message.created_at.isoformat(),
@@ -496,7 +500,8 @@ class ChatService:
         try:
             # Verificar permissões
             chat_room = db.query(ChatRoom).filter(ChatRoom.id == chat_room_id).first()
-            if not chat_room or user_id not in [chat_room.buyer_id, chat_room.seller_id]:
+            # Converter UUIDs para strings para comparação correta
+            if not chat_room or user_id not in [str(chat_room.buyer_id), str(chat_room.seller_id)]:
                 raise ValidationError("Unauthorized access to chat history")
             
             # Buscar mensagens com paginação

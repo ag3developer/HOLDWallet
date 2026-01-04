@@ -21,25 +21,32 @@ if TYPE_CHECKING:
     from app.models.chat import ChatRoom
 
 class P2POrder(Base):
-    """P2P trading orders"""
+    """P2P trading orders - Modelo sincronizado com banco de produção"""
     __tablename__ = "p2p_orders"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     
-    # Order details
+    # Order details - Nomes conforme banco de produção
     order_type = Column(String(10), nullable=False)  # "buy" or "sell"
-    cryptocurrency = Column(String(10), nullable=False)
-    amount_crypto = Column(Float, nullable=False)
-    price_brl = Column(Float, nullable=False)
-    payment_method = Column(String(50), nullable=False)
+    cryptocurrency = Column(String(20), nullable=False)
+    fiat_currency = Column(String(10), nullable=False, default='BRL')
+    price = Column(Float, nullable=False)  # Price per unit in fiat
+    total_amount = Column(Float, nullable=False)  # Total crypto amount
+    available_amount = Column(Float, nullable=False)  # Available crypto amount
+    min_order_limit = Column(Float, nullable=False)  # Minimum order in fiat
+    max_order_limit = Column(Float, nullable=False)  # Maximum order in fiat
+    time_limit = Column(Integer, default=30)  # Payment time limit in minutes
+    payment_methods = Column(Text)  # JSON array of accepted payment methods
+    terms = Column(Text)  # Order terms and conditions
+    auto_reply = Column(Text)  # Auto-reply message
     
     # Status and timing
     status = Column(String(20), default="active")
+    completed_trades = Column(Integer, default=0)
+    total_volume = Column(Float, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    expires_at = Column(DateTime)
-    completed_at = Column(DateTime)
 
 class P2PMatch(Base):
     """Matched P2P orders"""

@@ -72,6 +72,8 @@ export default defineConfig({
         cleanupOutdatedCaches: true,
         skipWaiting: true,
         clientsClaim: true,
+        // ✅ NOVO: Ignorar URLs externas (localhost:8000, APIs de produção, etc)
+        navigateFallbackDenylist: [/^\/api/, /^http/],
         runtimeCaching: [
           {
             urlPattern: ({ request }) => request.destination === 'document',
@@ -99,7 +101,12 @@ export default defineConfig({
             },
           },
           {
-            urlPattern: ({ url }) => url.pathname.startsWith('/api/'),
+            // ✅ CORRIGIDO: Cachear apenas APIs relativas (não URLs absolutas)
+            urlPattern: ({ url }) => {
+              const isRelativeApi = url.pathname.startsWith('/api/')
+              const isSameOrigin = url.origin === self.location.origin
+              return isRelativeApi && isSameOrigin
+            },
             handler: 'NetworkFirst',
             options: {
               cacheName: 'api-cache-v2',

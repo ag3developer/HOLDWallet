@@ -92,25 +92,37 @@ class ApiClient {
         return response
       },
       async error => {
-        console.error('[API] Response error:', {
-          url: error.config?.url,
-          status: error.response?.status,
-          statusText: error.response?.statusText,
-          data: error.response?.data,
-          message: error.message,
-          code: error.code,
-        })
+        // Apenas log detalhado se não for erro de rede comum
+        const isNetworkError =
+          !error.response && (error.code === 'ERR_NETWORK' || error.message?.includes('Network'))
+
+        if (!isNetworkError) {
+          console.error('[API] Response error:', {
+            url: error.config?.url,
+            status: error.response?.status,
+            statusText: error.response?.statusText,
+            data: error.response?.data,
+            message: error.message,
+            code: error.code,
+          })
+        } else {
+          // Log silencioso para erros de rede (muito comum quando backend está offline)
+          console.warn('[API] ⚠️ Network error:', error.config?.url?.substring(0, 50))
+        }
 
         // Check for CORS/Network errors
         if (!error.response) {
-          console.error(
-            '[API] ⚠️ No response received - likely CORS, network, or backend unavailable'
-          )
-          console.error('[API] Error details:', {
-            message: error.message,
-            code: error.code,
-            isNetwork: error.message?.includes('Network') || error.code === 'ERR_NETWORK',
-          })
+          // Não logar se já logamos acima
+          if (!isNetworkError) {
+            console.error(
+              '[API] ⚠️ No response received - likely CORS, network, or backend unavailable'
+            )
+            console.error('[API] Error details:', {
+              message: error.message,
+              code: error.code,
+              isNetwork: error.message?.includes('Network') || error.code === 'ERR_NETWORK',
+            })
+          }
         }
 
         const originalRequest = error.config

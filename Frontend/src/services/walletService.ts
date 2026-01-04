@@ -221,10 +221,14 @@ class WalletService {
    * Obter endereço de rede específica para carteira multi
    * Busca endereço existente para a rede solicitada
    * Se não existir, gera um novo automaticamente (lazy loading)
+   * Com retry automático e tratamento silencioso de erros de rede
    */
-  async getNetworkAddress(walletId: string, network: string): Promise<string> {
+  async getNetworkAddress(walletId: string, network: string, retries = 2): Promise<string> {
     try {
-      console.log(`[WalletService] 🔍 Fetching ${network} address for wallet ${walletId}`)
+      // Apenas log se for a primeira tentativa
+      if (retries === 2) {
+        console.log(`[WalletService] 🔍 Fetching ${network} address for wallet ${walletId}`)
+      }
 
       const response = await this.apiClient.get<AddressResponse[]>(`/wallets/${walletId}/addresses`)
 
@@ -250,12 +254,30 @@ class WalletService {
           `[WalletService] ✅ Generated new ${network} address: ${newAddress.address.substring(0, 10)}...`
         )
         return newAddress.address
-      } catch (createError) {
-        console.error(`[WalletService] ❌ Failed to generate ${network} address:`, createError)
+      } catch (createError: unknown) {
+        console.warn(
+          `[WalletService] ⚠️ Could not generate ${network} address:`,
+          createError instanceof Error ? createError.message : 'Backend may be offline'
+        )
         return ''
       }
     } catch (error: any) {
-      console.error(`[WalletService] ❌ Error fetching ${network} address:`, error)
+      // Check if it's a network error and we have retries left
+      const isNetworkError = error.code === 'ERR_NETWORK' || error.message?.includes('Network')
+
+      if (isNetworkError && retries > 0) {
+        // Wait a bit before retrying (exponential backoff)
+        const delay = (3 - retries) * 500 // 500ms, 1000ms
+        await new Promise(resolve => setTimeout(resolve, delay))
+        return this.getNetworkAddress(walletId, network, retries - 1)
+      }
+
+      // Apenas log silencioso do erro - não quebrar a UI
+      if (retries === 0) {
+        console.warn(
+          `[WalletService] ⚠️ ${network} address unavailable after retries (backend may be offline)`
+        )
+      }
       return ''
     }
   }

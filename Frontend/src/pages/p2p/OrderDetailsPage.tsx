@@ -73,6 +73,124 @@ export const OrderDetailsPage = () => {
     }).format(value)
   }
 
+  // ✅ Formatar valores de criptomoeda (remove zeros desnecessários)
+  const formatCryptoAmount = (amount: string | number): string => {
+    const num = typeof amount === 'string' ? parseFloat(amount) : amount
+    if (isNaN(num)) return '0'
+
+    // Para valores muito pequenos, usar notação científica
+    if (num < 0.00000001 && num > 0) return num.toExponential(2)
+
+    // Para valores normais, mostrar até 8 casas decimais mas remover zeros desnecessários
+    // Usar replace para remover zeros à direita após o ponto decimal
+    const formatted = num.toLocaleString('pt-BR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 8,
+    })
+
+    // Remover zeros desnecessários no final (mantém pelo menos 2 casas decimais)
+    return formatted.replace(/(\,\d*?[1-9])0+$/, '$1').replace(/\,00$/, '')
+  }
+
+  // ✅ Obter NOME COMERCIAL do anunciante (priorizar nome público/display)
+  const getTraderDisplayName = (): string => {
+    if (!order?.user) return 'Anônimo'
+
+    const orderAny = order as any
+    return (
+      // 🎯 PRIORIDADE 1: Nomes comerciais/públicos
+      orderAny.advertiser?.display_name ||
+      orderAny.advertiser?.business_name ||
+      orderAny.advertiser?.public_name ||
+      orderAny.user?.display_name ||
+      order.user?.name ||
+      orderAny.display_name ||
+      orderAny.business_name ||
+      // 🎯 PRIORIDADE 2: Nomes completos
+      orderAny.advertiser?.name ||
+      orderAny.seller_name ||
+      orderAny.buyer_name ||
+      // 🎯 PRIORIDADE 3: Username (menos prioritário)
+      order.user?.username ||
+      orderAny.advertiser?.username ||
+      // 🎯 FALLBACK
+      'Anônimo'
+    )
+  }
+
+  // Obter ano de cadastro do usuário
+  const getMemberSinceYear = (): string => {
+    if (!order?.user) return new Date().getFullYear().toString()
+
+    const orderAny = order as any
+
+    // Log para debug - ver quais campos estão disponíveis
+    console.log('📅 Campos de data disponíveis:', {
+      'advertiser.created_at': orderAny.advertiser?.created_at,
+      'advertiser.member_since': orderAny.advertiser?.member_since,
+      'user.created_at': orderAny.user?.created_at,
+      'user.member_since': orderAny.user?.member_since,
+      'order.createdAt': order.createdAt,
+    })
+
+    // Tentar obter de várias fontes possíveis
+    const createdAtDate =
+      orderAny.advertiser?.created_at ||
+      orderAny.advertiser?.member_since ||
+      orderAny.user?.created_at ||
+      orderAny.user?.member_since ||
+      order.createdAt ||
+      orderAny.created_at
+
+    if (createdAtDate) {
+      try {
+        const year = new Date(createdAtDate).getFullYear().toString()
+        console.log('✅ Ano de cadastro encontrado:', year, 'de', createdAtDate)
+        return year
+      } catch (error) {
+        console.error('❌ Erro ao parsear data:', error)
+      }
+    }
+
+    // Fallback: ano atual
+    console.warn('⚠️ Nenhuma data de cadastro encontrada, usando ano atual')
+    return new Date().getFullYear().toString()
+  }
+
+  // Obter status online do trader (verifica múltiplas fontes)
+  const getTraderOnlineStatus = (): boolean => {
+    if (!order?.user) return false
+
+    const orderAny = order as any
+
+    // Log para debug - ver quais campos estão disponíveis
+    console.log('🟢 Campos de status online disponíveis:', {
+      'advertiser.is_online': orderAny.advertiser?.is_online,
+      'advertiser.isOnline': orderAny.advertiser?.isOnline,
+      'advertiser.online': orderAny.advertiser?.online,
+      'user.is_online': orderAny.user?.is_online,
+      'user.isOnline': order.user?.isOnline,
+      'user.online': orderAny.user?.online,
+      'order.is_online': orderAny.is_online,
+      'order.online': orderAny.online,
+    })
+
+    // Tentar obter de várias fontes possíveis
+    const isOnline =
+      orderAny.advertiser?.is_online ??
+      orderAny.advertiser?.isOnline ??
+      orderAny.advertiser?.online ??
+      orderAny.user?.is_online ??
+      order.user?.isOnline ??
+      orderAny.user?.online ??
+      orderAny.is_online ??
+      orderAny.online ??
+      false // Default: offline
+
+    console.log('✅ Status online determinado:', isOnline)
+    return isOnline
+  }
+
   const calculateTotal = () => {
     if (!tradeAmount || !order) return 0
     return parseFloat(tradeAmount) * parseFloat(order.price)
@@ -195,7 +313,7 @@ export const OrderDetailsPage = () => {
                       Quantidade Disponível
                     </div>
                     <div className='text-2xl sm:text-3xl font-bold text-blue-600 dark:text-blue-400'>
-                      {order.amount} {order.coin}
+                      {formatCryptoAmount(order.amount)} {order.coin}
                     </div>
                     <div className='text-xs text-gray-500 dark:text-gray-400 mt-1'>
                       ≈ {formatCurrency(parseFloat(order.amount) * parseFloat(order.price))}
@@ -306,9 +424,9 @@ export const OrderDetailsPage = () => {
               <div className='flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6'>
                 <div className='relative flex-shrink-0'>
                   <div className='w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xl sm:text-2xl font-bold text-white shadow-lg'>
-                    {order.user?.username?.charAt(0).toUpperCase() || 'U'}
+                    {getTraderDisplayName().charAt(0).toUpperCase()}
                   </div>
-                  {order.user?.isOnline && (
+                  {getTraderOnlineStatus() && (
                     <div className='absolute -bottom-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-green-500 rounded-full border-2 border-white dark:border-gray-800 flex items-center justify-center'>
                       <div className='w-2 h-2 bg-white rounded-full animate-pulse'></div>
                     </div>
@@ -317,14 +435,14 @@ export const OrderDetailsPage = () => {
                 <div className='flex-1 min-w-0'>
                   <div className='flex items-center gap-2 mb-1'>
                     <h3 className='text-base sm:text-lg font-bold text-gray-900 dark:text-white truncate'>
-                      {order.user?.username || 'Anônimo'}
+                      {getTraderDisplayName()}
                     </h3>
                     {order.user?.verified && (
                       <Shield className='w-3 h-3 sm:w-4 sm:h-4 text-blue-500 flex-shrink-0' />
                     )}
                   </div>
                   <div className='text-xs text-gray-500 dark:text-gray-400'>
-                    {order.user?.isOnline ? 'Online' : 'Offline'}
+                    {getTraderOnlineStatus() ? 'Online' : 'Offline'}
                   </div>
                 </div>
               </div>
@@ -355,7 +473,7 @@ export const OrderDetailsPage = () => {
                 <div className='text-center p-2 sm:p-3 rounded-xl bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800'>
                   <Calendar className='w-3 h-3 sm:w-4 sm:h-4 text-purple-500 mx-auto mb-1' />
                   <div className='text-base sm:text-lg font-bold text-gray-900 dark:text-white'>
-                    2024
+                    {getMemberSinceYear()}
                   </div>
                   <div className='text-xs text-gray-600 dark:text-gray-400'>Membro</div>
                 </div>
@@ -446,7 +564,7 @@ export const OrderDetailsPage = () => {
                     <div className='flex justify-between text-xs sm:text-sm'>
                       <span className='opacity-75'>Você receberá:</span>
                       <span className='font-bold'>
-                        {(parseFloat(tradeAmount) / parseFloat(order.price)).toFixed(8)}{' '}
+                        {formatCryptoAmount(parseFloat(tradeAmount) / parseFloat(order.price))}{' '}
                         {order.coin}
                       </span>
                     </div>

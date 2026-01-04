@@ -27,8 +27,8 @@ i18n
   .init({
     resources,
     fallbackLng: 'pt-BR',
-    debug: import.meta.env.DEV,
-    
+    debug: false, // Desabilitar debug em produção
+
     detection: {
       order: ['localStorage', 'navigator', 'htmlTag'],
       caches: ['localStorage'],
@@ -42,6 +42,11 @@ i18n
 
     react: {
       useSuspense: false,
+      bindI18n: 'languageChanged loaded',
+      bindI18nStore: 'added removed',
+      transEmptyNodeValue: '',
+      transSupportBasicHtmlNodes: true,
+      transKeepBasicHtmlNodesFor: ['br', 'strong', 'i', 'p'],
     },
 
     // Configurações de namespace
@@ -50,7 +55,8 @@ i18n
 
     // Configurações de carregamento
     load: 'languageOnly',
-    preload: ['pt-BR', 'en-US'],
+    preload: ['pt-BR', 'en-US', 'es-ES'],
+    partialBundledLanguages: true,
 
     // Configurações de cache
     updateMissing: false,
@@ -65,6 +71,9 @@ i18n
     pluralSeparator: '_',
     contextSeparator: '_',
 
+    // Garantir que as keys sejam exibidas se não houver tradução
+    missingKeyHandler: false,
+
     // Configurações de parsing
     parseMissingKeyHandler: (key: string) => {
       if (import.meta.env.DEV) {
@@ -75,6 +84,9 @@ i18n
 
     // Configurações específicas para cada idioma
     lng: 'pt-BR',
+
+    // Forçar inicialização síncrona
+    initImmediate: false,
   })
 
 export default i18n

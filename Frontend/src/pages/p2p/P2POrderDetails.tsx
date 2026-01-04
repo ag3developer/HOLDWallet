@@ -73,6 +73,17 @@ const P2POrderDetails: React.FC = () => {
     }
   }
 
+  // Handler para abrir chat com o trader
+  const handleOpenChat = () => {
+    if (!orderData?.user?.id && !orderData?.user_id) {
+      console.error('❌ ID do trader não encontrado')
+      return
+    }
+
+    const traderId = orderData.user?.id || orderData.user_id
+    navigate(`/chat?context=p2p&orderId=${orderId}&userId=${traderId}`)
+  }
+
   if (isLoading) {
     return (
       <div className='min-h-screen flex items-center justify-center'>
@@ -275,7 +286,10 @@ const P2POrderDetails: React.FC = () => {
                 </div>
               </div>
 
-              <button className='w-full mt-6 flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium transition-colors'>
+              <button
+                onClick={handleOpenChat}
+                className='w-full mt-6 flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium transition-colors'
+              >
                 <MessageCircle className='w-4 h-4' />
                 Enviar Mensagem
               </button>

@@ -94,6 +94,34 @@ export const P2PPage = () => {
     }
   }
 
+  // Handler para abrir chat com o trader
+  const handleOpenChat = (order: any) => {
+    const traderId = order.user?.id || order.user_id
+    const orderId = order.id
+
+    console.log('🔍 [P2PPage] handleOpenChat chamado')
+    console.log('📦 [P2PPage] Dados da ordem:', order)
+    console.log('👤 [P2PPage] traderId:', traderId)
+    console.log('🆔 [P2PPage] orderId:', orderId)
+
+    if (!traderId) {
+      console.error('❌ ID do trader não encontrado')
+      alert('❌ Erro: ID do trader não encontrado. Não é possível abrir o chat.')
+      return
+    }
+
+    if (!orderId) {
+      console.error('❌ ID da ordem não encontrado')
+      alert('❌ Erro: ID da ordem não encontrado. Não é possível abrir o chat.')
+      return
+    }
+
+    // Navegar para a página do chat com contexto P2P
+    const chatUrl = `/chat?context=p2p&orderId=${orderId}&userId=${traderId}`
+    console.log('🔗 [P2PPage] Navegando para:', chatUrl)
+    navigate(chatUrl)
+  }
+
   return (
     <div className='space-y-4 md:space-y-6'>
       {/* Header */}
@@ -474,8 +502,9 @@ export const P2PPage = () => {
                         {activeTab === 'buy' ? 'Comprar' : 'Vender'}
                       </button>
                       <button
+                        onClick={() => handleOpenChat(order)}
                         aria-label='Enviar mensagem para o trader'
-                        className='p-2.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors bg-gray-100 dark:bg-gray-600 rounded-lg'
+                        className='p-2.5 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors bg-gray-100 dark:bg-gray-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg'
                       >
                         <MessageCircle className='w-4 h-4' />
                       </button>
@@ -622,8 +651,9 @@ export const P2PPage = () => {
                             {activeTab === 'buy' ? 'Comprar' : 'Vender'}
                           </button>
                           <button
+                            onClick={() => handleOpenChat(order)}
                             aria-label='Enviar mensagem para o trader'
-                            className='p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors'
+                            className='p-2 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors'
                           >
                             <MessageCircle className='w-4 h-4' />
                           </button>

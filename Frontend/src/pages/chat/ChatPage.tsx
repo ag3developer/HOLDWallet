@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import {
   MessageCircle,
   Send,
@@ -39,14 +39,20 @@ import {
   ChevronRight,
   Upload,
   Loader2,
+  ShoppingCart,
+  Wallet,
+  ArrowLeftRight,
 } from 'lucide-react'
 import { chatP2PService, ChatMessageP2P, P2POrder } from '@/services/chatP2P'
+import { ChatP2PValidator } from '@/services/chatP2PValidator'
 import { authService } from '@/services/auth'
 import { webrtcService } from '@/services/webrtcService'
 import { CallModal } from '@/components/chat/CallModal'
 import { AudioMessageInput } from '@/components/chat/AudioMessageInput'
 import { AudioMessage } from '@/components/chat/AudioMessage'
 import { useMediaCapture } from '@/hooks/useMediaCapture'
+import { useAuthStore } from '@/stores/useAuthStore'
+import { useP2PChat } from '@/hooks/chat/useP2PChat'
 
 // Interface local para dados da ordem com camelCase (mapeamento do P2POrder)
 interface P2POrderLocal {
@@ -65,6 +71,14 @@ interface P2POrderLocal {
   status: 'pending' | 'active' | 'completed' | 'cancelled' | 'disputed'
   expiresAt?: string
   tradeId?: string
+  userId?: string // ✅ NOVO: ID do criador da ordem
+  user?: {
+    id: string
+    name: string
+    avatar?: string
+    rating?: number
+    total_trades?: number
+  }
 }
 
 interface Contact {
@@ -95,13 +109,25 @@ interface Message {
 }
 
 export const ChatPage = () => {
-  const [searchParams] = useSearchParams()
+  // ✅ Hook de navegação
+  const navigate = useNavigate()
+
+  // ✅ NOVO: Hook P2P - gerencia toda lógica P2P
+  const {
+    p2pContext,
+    chatRoomId,
+    timeRemaining,
+    isConnecting: p2pIsConnecting,
+    isConnected: p2pIsConnected,
+    connectP2PChat,
+    disconnectP2PChat,
+    urlParams,
+  } = useP2PChat()
+
   const [selectedContact, setSelectedContact] = useState<number>(1)
   const [newMessage, setNewMessage] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
-  const [p2pContext, setP2PContext] = useState<P2POrderLocal | null>(null)
-  const [timeRemaining, setTimeRemaining] = useState<string>('')
-  const [chatRoomId, setChatRoomId] = useState<string | null>(null)
+  const [p2pContact, setP2pContact] = useState<Contact | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [isLoadingMessages, setIsLoadingMessages] = useState(false)
   const [connectionStatus, setConnectionStatus] = useState<
@@ -110,6 +136,9 @@ export const ChatPage = () => {
   const [isTyping, setIsTyping] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<number>(0)
   const [isUploading, setIsUploading] = useState(false)
+
+  // ✅ Pegar token do Zustand store (auth state)
+  const authToken = useAuthStore(state => state.token)
 
   // Estados de chamada
   const [isCallActive, setIsCallActive] = useState(false)
@@ -149,173 +178,211 @@ export const ChatPage = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  // Detectar contexto P2P dos parâmetros da URL
-  const urlUserId = searchParams.get('userId')
-  const urlOrderId = searchParams.get('orderId')
-  const urlContext = searchParams.get('context')
+  // ✅ NOVO: Usar dados do hook ao invés de URL params
+  const { userId: urlUserId, orderId: urlOrderId, context: urlContext } = urlParams
 
-  // Carregar dados da ordem P2P
+  // DEBUG: Log inicial dos parâmetros
+  console.log('🔍 [ChatPage] Parâmetros da URL (do hook):')
+  console.log('   - context:', urlContext)
+  console.log('   - orderId:', urlOrderId)
+  console.log('   - userId:', urlUserId)
+
+  // ✅ REMOVIDO: Lógica de carregar ordem P2P - agora está no hook useP2PChat
+  // O hook já gerencia: loadP2POrder, countdown, connectP2PChat
+
+  // Criar contato P2P quando p2pContext carregar
   useEffect(() => {
-    const loadP2POrder = async () => {
-      if (urlContext === 'p2p' && urlOrderId) {
-        try {
-          // Buscar dados reais da API
-          const orderData = await chatP2PService.getOrder(urlOrderId)
+    if (!p2pContext || !urlUserId) return
 
-          // Mapear dados do backend para formato local
-          setP2PContext({
-            id: orderData.id,
-            orderId: orderData.id,
-            type: orderData.type === 'buy' ? 'buy' : 'sell',
-            coin: orderData.coin,
-            amount: orderData.amount.toString(),
-            price: orderData.price.toString(),
-            total: orderData.total.toString(),
-            minAmount: orderData.min_amount?.toString() || '0',
-            maxAmount: orderData.max_amount?.toString() || '0',
-            fiatCurrency: orderData.fiat_currency || 'BRL',
-            paymentMethods: orderData.payment_methods || ['PIX'],
-            timeLimit: orderData.time_limit || 30,
-            status: orderData.status as any,
-            expiresAt: orderData.expires_at,
-            tradeId: orderData.trade_id,
-          })
+    console.log('👤 Criando contato P2P para:', urlUserId)
 
-          // Selecionar o contato automaticamente
-          if (urlUserId) {
-            setSelectedContact(parseInt(urlUserId))
-          }
-        } catch (error) {
-          console.error('❌ Erro ao carregar ordem P2P:', error)
-          // Fallback: usar dados mock se API falhar
-          setP2PContext({
-            id: urlOrderId,
-            orderId: urlOrderId,
-            type: 'sell',
-            coin: 'BTC',
-            amount: '0.05',
-            price: '460000',
-            total: '23000',
-            minAmount: '1000',
-            maxAmount: '50000',
-            fiatCurrency: 'BRL',
-            paymentMethods: ['PIX', 'Transferência Bancária'],
-            timeLimit: 30,
-            status: 'active',
-            expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
-            tradeId: '123',
-          })
-        }
-      }
+    const traderName = p2pContext.user?.name || `Trader ${urlUserId.substring(0, 8)}`
+
+    const p2pContactData: Contact = {
+      id: 999, // ID fixo para contato P2P
+      name: traderName,
+      avatar: p2pContext.user?.avatar || 'userCheck',
+      avatarColor: 'from-green-500 to-blue-600',
+      lastMessage: `Negociação de ${p2pContext.amount} ${p2pContext.coin}`,
+      timestamp: new Date().toLocaleTimeString('pt-BR', {
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+      unread: 0,
+      isOnline: true, // Default
+      isSupport: false,
+      rating: p2pContext.user?.rating || 0,
     }
-
-    loadP2POrder()
-  }, [urlContext, urlOrderId, urlUserId])
-
-  // Timer countdown
-  useEffect(() => {
-    if (!p2pContext?.expiresAt) return
-
-    const interval = setInterval(() => {
-      const now = new Date().getTime()
-      const expiry = new Date(p2pContext.expiresAt!).getTime()
-      const diff = expiry - now
-
-      if (diff <= 0) {
-        setTimeRemaining('Expirado')
-        clearInterval(interval)
-        return
-      }
-
-      const minutes = Math.floor(diff / 60000)
-      const seconds = Math.floor((diff % 60000) / 1000)
-      setTimeRemaining(`${minutes}:${seconds.toString().padStart(2, '0')}`)
-    }, 1000)
-
-    return () => clearInterval(interval)
-  }, [p2pContext?.expiresAt])
+    console.log('✅ Contato P2P criado:', p2pContactData)
+    setP2pContact(p2pContactData)
+    setSelectedContact(999) // Seleciona o contato P2P
+  }, [p2pContext, urlUserId])
 
   // Salvar estado da sidebar no localStorage
   useEffect(() => {
     localStorage.setItem('chatSidebarOpen', String(isSidebarOpen))
   }, [isSidebarOpen])
 
-  // Conectar ao WebSocket quando selecionado um contato
+  // ✅ NOVO: Sincronizar connectionStatus com estado do hook P2P E WebSocket real
   useEffect(() => {
+    if (!p2pContext?.orderId) {
+      return // Sem contexto P2P, não fazer nada
+    }
+
+    // Registrar listener para status real do WebSocket
+    const unsubscribe = chatP2PService.onStatus(status => {
+      console.log('🔄 [ChatPage] Status do WebSocket mudou:', status)
+      setConnectionStatus(status)
+    })
+
+    // Sincronizar estado inicial
+    if (p2pIsConnected && chatP2PService.isConnected()) {
+      setConnectionStatus('connected')
+      console.log('✅ [ChatPage] connectionStatus sincronizado: connected (WebSocket ativo)')
+    } else if (p2pIsConnecting) {
+      setConnectionStatus('connecting')
+      console.log('⏳ [ChatPage] connectionStatus sincronizado: connecting')
+    }
+
+    return () => {
+      unsubscribe()
+    }
+  }, [p2pIsConnected, p2pIsConnecting, p2pContext?.orderId])
+
+  // ✅ NOVO: Conectar automaticamente quando contexto P2P carregar
+  useEffect(() => {
+    console.log('🔍 [ChatPage] useEffect conexão P2P:', {
+      hasP2pContext: !!p2pContext,
+      orderId: p2pContext?.orderId,
+      hasAuthToken: !!authToken,
+      chatRoomId,
+    })
+
+    if (!p2pContext || !p2pContext.orderId || !authToken) {
+      console.log('⏭️ Aguardando contexto P2P e autenticação...', {
+        p2pContext: !!p2pContext,
+        orderId: p2pContext?.orderId,
+        authToken: authToken ? 'SIM' : 'NÃO',
+      })
+      return
+    }
+
+    if (chatRoomId) {
+      console.log('⏭️ Já conectado ao chat room:', chatRoomId)
+      return
+    }
+
+    console.log('🔌 [ChatPage] Iniciando conexão P2P...')
+    setConnectionStatus('connecting') // ✅ Marcar como conectando
+    connectP2PChat().catch(error => {
+      console.error('❌ [ChatPage] Erro ao conectar P2P:', error)
+      setConnectionStatus('error')
+    })
+  }, [p2pContext, authToken, chatRoomId, connectP2PChat])
+
+  // Conectar ao WebSocket quando selecionado um contato (chat NORMAL, não P2P)
+  // Para P2P, a conexão é feita pelo hook useP2PChat
+  useEffect(() => {
+    // Se tiver contexto P2P, não conectar aqui (já conectou via useP2PChat hook)
+    if (p2pContext?.orderId) {
+      console.log('⏭️ Contexto P2P detectado, pulando conexão normal')
+      return // ✅ Não fazer nada, incluindo NÃO retornar cleanup
+    }
+
+    if (!selectedContact) {
+      console.warn('⚠️ Nenhum contato selecionado')
+      return
+    }
+
+    const token = localStorage.getItem('token')
+    if (!token) {
+      console.warn('⚠️ Sem token')
+      return
+    }
+
+    console.log('🔌 useEffect connectChat disparado com selectedContact:', selectedContact)
+
+    let isActive = true
+    let unsubscribeMessage: (() => void) | null = null
+    let unsubscribeTyping: (() => void) | null = null
+    let unsubscribeStatus: (() => void) | null = null
+
     const connectChat = async () => {
-      console.log('🔌 useEffect connectChat disparado com selectedContact:', selectedContact)
-      if (!selectedContact) {
-        console.warn('⚠️ Nenhum contato selecionado')
-        return
-      }
-
-      const token = localStorage.getItem('token')
-      if (!token) {
-        console.warn('⚠️ Sem token')
-        return
-      }
-
       try {
-        const chatRoomId = `chat_${selectedContact}`
-        console.log('📞 Conectando ao chat:', chatRoomId)
-        setChatRoomId(chatRoomId)
+        const chatRoomIdLocal = `chat_${selectedContact}`
+        console.log('📞 Conectando ao chat:', chatRoomIdLocal)
+        // Note: chatRoomId é gerenciado pelo hook useP2PChat para P2P
+        // Para chat normal, usamos chatRoomIdLocal localmente
         setConnectionStatus('connecting')
 
-        await chatP2PService.connectToRoom(chatRoomId, token)
+        await chatP2PService.connectToRoom(chatRoomIdLocal, token)
+
+        if (!isActive) return // Componente desmontou durante a conexão
+
         console.log('✅ Conectado ao chat')
         setConnectionStatus('connected')
 
-        // ✅ NOVO: Registrar listener para mensagens recebidas
-        const unsubscribeMessage = chatP2PService.onMessage((message: ChatMessageP2P) => {
+        // Registrar listener para mensagens recebidas
+        unsubscribeMessage = chatP2PService.onMessage((message: ChatMessageP2P) => {
           console.log('📨 Mensagem recebida:', message)
 
-          // Converter mensagem do backend para formato local
           const newMessage: Message = {
             id: message.id || Date.now().toString(),
-            content: message.content,
-            timestamp: new Date(message.timestamp).toLocaleTimeString('pt-BR', {
+            content: message.content || '',
+            timestamp: new Date(message.created_at || Date.now()).toLocaleTimeString('pt-BR', {
               hour: '2-digit',
               minute: '2-digit',
             }),
             isOwn: message.sender_id === localStorage.getItem('userId'),
             status: 'read',
-            type: message.message_type === 'audio' ? 'file' : 'text',
-            fileType: message.message_type === 'audio' ? 'audio' : undefined,
+            type:
+              message.message_type === 'image' || message.message_type === 'document'
+                ? 'file'
+                : 'text',
+            fileType:
+              message.message_type === 'image'
+                ? 'image'
+                : message.message_type === 'document'
+                  ? 'document'
+                  : undefined,
             sender_id: message.sender_id,
           }
 
           setMessages(prev => [...prev, newMessage])
         })
 
-        // ✅ NOVO: Registrar listener para typing indicator
-        const unsubscribeTyping = chatP2PService.onTyping(data => {
+        // Registrar listener para typing indicator
+        unsubscribeTyping = chatP2PService.onTyping(data => {
           console.log('⌨️ Typing event:', data)
           if (data.user_id !== localStorage.getItem('userId')) {
             setIsTyping(data.is_typing)
           }
         })
 
-        // ✅ NOVO: Registrar listener para status da conexão
-        const unsubscribeStatus = chatP2PService.onStatus(status => {
+        // Registrar listener para status da conexão
+        unsubscribeStatus = chatP2PService.onStatus(status => {
           console.log('🔄 Status mudou:', status)
           setConnectionStatus(status)
         })
-
-        // Cleanup: remover listeners ao desconectar
-        return () => {
-          unsubscribeMessage()
-          unsubscribeTyping()
-          unsubscribeStatus()
-          chatP2PService.disconnect()
-        }
       } catch (error) {
         console.error('❌ Erro ao conectar ao chat:', error)
-        setConnectionStatus('error')
+        if (isActive) {
+          setConnectionStatus('error')
+        }
       }
     }
 
     connectChat()
-  }, [selectedContact])
+
+    // Cleanup: remover listeners e desconectar (só para chat normal)
+    return () => {
+      isActive = false
+      unsubscribeMessage?.()
+      unsubscribeTyping?.()
+      unsubscribeStatus?.()
+      chatP2PService.disconnect()
+    }
+  }, [selectedContact, p2pContext?.orderId]) // ✅ Usar p2pContext?.orderId ao invés de p2pContext inteiro
 
   // Fechar sidebar em mobile quando selecionar contato
   useEffect(() => {
@@ -389,20 +456,28 @@ Digite "ajuda" ou "menu" para começar!`,
 
       try {
         console.log('📜 Carregando histórico do chat:', chatRoomId)
-        const history = await chatP2PService.getChatHistory(chatRoomId)
+        const historyResponse = await chatP2PService.getChatHistory(chatRoomId)
+
+        // ✅ FIX: Acessar o array de mensagens dentro da resposta
+        const historyMessages = historyResponse.messages || []
 
         // Converter mensagens do backend para formato local
-        const loadedMessages: Message[] = history.map((msg: ChatMessageP2P) => ({
+        const loadedMessages: Message[] = historyMessages.map((msg: ChatMessageP2P) => ({
           id: msg.id || Date.now().toString(),
-          content: msg.content,
-          timestamp: new Date(msg.timestamp).toLocaleTimeString('pt-BR', {
+          content: msg.content || '',
+          timestamp: new Date(msg.created_at).toLocaleTimeString('pt-BR', {
             hour: '2-digit',
             minute: '2-digit',
           }),
           isOwn: msg.sender_id === localStorage.getItem('userId'),
-          status: 'read',
-          type: msg.message_type === 'audio' ? 'file' : 'text',
-          fileType: msg.message_type === 'audio' ? 'audio' : undefined,
+          status: 'read' as const,
+          type: msg.message_type === 'text' || msg.message_type === 'system' ? 'text' : 'file',
+          fileType:
+            msg.message_type === 'image'
+              ? 'image'
+              : msg.message_type === 'document'
+                ? 'document'
+                : undefined,
           sender_id: msg.sender_id,
         }))
 
@@ -435,17 +510,38 @@ Digite "ajuda" ou "menu" para começar!`,
       isBot: true,
       botId: 'agent-wolk-now',
     },
+    // Adiciona contato P2P se existir
+    ...(p2pContact ? [p2pContact] : []),
   ]
+
+  console.log('📋 [ChatPage] Contacts array:', contacts)
+  console.log('🎯 [ChatPage] p2pContact:', p2pContact)
+  console.log('🔢 [ChatPage] selectedContact:', selectedContact)
 
   const currentContact = contacts.find(c => c.id === selectedContact)
   let currentMessages: Message[] = messages || []
+
+  // Formatar valores de criptomoeda (remove zeros desnecessários)
+  const formatCryptoAmount = (amount: string | number): string => {
+    const num = typeof amount === 'string' ? parseFloat(amount) : amount
+    if (isNaN(num)) return '0'
+
+    // Para valores muito pequenos, usar notação científica
+    if (num < 0.00000001) return num.toExponential(2)
+
+    // Para valores normais, mostrar até 8 casas decimais mas remover zeros desnecessários
+    return num.toLocaleString('pt-BR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 8,
+    })
+  }
 
   // Adicionar mensagens do sistema para contexto P2P
   if (p2pContext) {
     const p2pSystemMessages: Message[] = [
       {
         id: '9001',
-        content: `Negociação P2P #${p2pContext.orderId} iniciada! ${p2pContext.type === 'buy' ? 'Compra' : 'Venda'} de ${p2pContext.amount} ${p2pContext.coin} por ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: p2pContext.fiatCurrency }).format(parseFloat(p2pContext.total))}`,
+        content: `Negociação P2P #${p2pContext.orderId} iniciada! ${p2pContext.type === 'buy' ? 'Compra' : 'Venda'} de ${formatCryptoAmount(p2pContext.amount)} ${p2pContext.coin} por ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: p2pContext.fiatCurrency }).format(parseFloat(p2pContext.total))}`,
         timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
         isOwn: false,
         status: 'read',
@@ -486,6 +582,225 @@ Digite "ajuda" ou "menu" para começar!`,
         return <Building {...iconProps} />
       default:
         return <User {...iconProps} />
+    }
+  }
+
+  // Obter ícone e cor da criptomoeda
+  const getCryptoIcon = (coin: string) => {
+    const iconSize = 'w-6 h-6 sm:w-8 sm:h-8'
+
+    switch (coin?.toUpperCase()) {
+      case 'BTC':
+      case 'BITCOIN':
+        return {
+          icon: <Bitcoin className={`${iconSize} text-white`} />,
+          bgColor: 'bg-gradient-to-br from-orange-400 to-orange-600',
+          name: 'Bitcoin',
+          symbol: 'BTC',
+        }
+      case 'USDT':
+      case 'TETHER':
+        return {
+          icon: (
+            <svg className={iconSize} viewBox='0 0 339.43 295.27'>
+              <path
+                fill='#50AF95'
+                d='M62.15,1.45l-61.89,130a2.52,2.52,0,0,0,.54,2.94L167.95,294.56a2.55,2.55,0,0,0,3.53,0L338.63,134.4a2.52,2.52,0,0,0,.54-2.94l-61.89-130A2.5,2.5,0,0,0,275,0H64.45a2.5,2.5,0,0,0-2.3,1.45h0Z'
+              />
+              <path
+                fill='#fff'
+                d='M191.19,144.8v0c-1.2.09-7.4.46-21.23.46-11,0-18.81-.33-21.55-.46v0c-42.51-1.87-74.24-9.27-74.24-18.13s31.73-16.25,74.24-18.15v28.91c2.78.2,10.74.67,21.74.67,13.2,0,19.81-.55,21-.66v-28.9c42.42,1.89,74.08,9.29,74.08,18.13s-31.65,16.24-74.08,18.12Zm0-39.25V79.68h59.2V40.23H89.21V79.68h59.2v25.86c-48.11,2.21-84.29,11.74-84.29,23.16s36.18,20.94,84.29,23.16v82.9h42v-82.93c48-2.21,84.12-11.73,84.12-23.14s-36.09-20.93-84.12-23.15h0Z'
+              />
+            </svg>
+          ),
+          bgColor: 'bg-gradient-to-br from-green-400 to-teal-600',
+          name: 'Tether',
+          symbol: 'USDT',
+        }
+      case 'ETH':
+      case 'ETHEREUM':
+        return {
+          icon: (
+            <svg className={iconSize} viewBox='0 0 256 417' fill='currentColor'>
+              <path
+                fill='#fff'
+                fillOpacity='.6'
+                d='M127.961 0l-2.795 9.5v275.668l2.795 2.79 127.962-75.638z'
+              />
+              <path fill='#fff' d='M127.962 0L0 212.32l127.962 75.639V0z' />
+              <path
+                fill='#fff'
+                fillOpacity='.6'
+                d='M127.961 312.187l-1.575 1.92v98.199l1.575 4.6L256 236.587z'
+              />
+              <path fill='#fff' d='M127.962 416.905v-104.72L0 236.585z' />
+              <path
+                fill='#fff'
+                fillOpacity='.2'
+                d='M127.961 287.958l127.96-75.637-127.96-58.162z'
+              />
+              <path fill='#fff' fillOpacity='.6' d='M0 212.32l127.96 75.638v-133.8z' />
+            </svg>
+          ),
+          bgColor: 'bg-gradient-to-br from-indigo-400 to-purple-700',
+          name: 'Ethereum',
+          symbol: 'ETH',
+        }
+      case 'BNB':
+        return {
+          icon: (
+            <svg className={iconSize} viewBox='0 0 126.61 126.61' fill='#fff'>
+              <path d='M38.73,53.2l-6.31-6.31a1.32,1.32,0,0,0-1.87,0l-6.31,6.3a1.32,1.32,0,0,0,0,1.87l6.31,6.3a1.32,1.32,0,0,0,1.87,0l6.31-6.3A1.32,1.32,0,0,0,38.73,53.2Z' />
+              <path d='M63.3,28.71l6.31,6.3a1.32,1.32,0,0,0,1.87,0l6.3-6.31a1.32,1.32,0,0,0,0-1.87l-6.3-6.31a1.32,1.32,0,0,0-1.87,0l-6.31,6.32A1.32,1.32,0,0,0,63.3,28.71Z' />
+              <path d='M63.3,63.3l6.31,6.31a1.32,1.32,0,0,0,1.87,0l6.3-6.31a1.32,1.32,0,0,0,0-1.87l-6.3-6.3a1.32,1.32,0,0,0-1.87,0l-6.31,6.3A1.32,1.32,0,0,0,63.3,63.3Z' />
+              <path d='M63.3,97.88l6.31,6.31a1.32,1.32,0,0,0,1.87,0l6.3-6.31a1.32,1.32,0,0,0,0-1.87l-6.3-6.31a1.32,1.32,0,0,0-1.87,0l-6.31,6.31A1.32,1.32,0,0,0,63.3,97.88Z' />
+              <path d='M87.88,53.2l-6.31-6.31a1.32,1.32,0,0,0-1.87,0l-6.31,6.3a1.32,1.32,0,0,0,0,1.87l6.31,6.3a1.32,1.32,0,0,0,1.87,0l6.31-6.3A1.32,1.32,0,0,0,87.88,53.2Z' />
+            </svg>
+          ),
+          bgColor: 'bg-gradient-to-br from-yellow-400 to-orange-500',
+          name: 'BNB',
+          symbol: 'BNB',
+        }
+      case 'SOL':
+      case 'SOLANA':
+        return {
+          icon: (
+            <svg className={iconSize} viewBox='0 0 397 311' fill='none'>
+              <path
+                fill='url(#sol1)'
+                d='M64.6 237.9c2.4-2.4 5.7-3.8 9.2-3.8h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1l62.7-62.7z'
+              />
+              <path
+                fill='url(#sol2)'
+                d='M64.6 3.8C67.1 1.4 70.4 0 73.8 0h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1L64.6 3.8z'
+              />
+              <path
+                fill='url(#sol3)'
+                d='M332.1 120.1c-2.4-2.4-5.7-3.8-9.2-3.8H5.5c-5.8 0-8.7 7-4.6 11.1l62.7 62.7c2.4 2.4 5.7 3.8 9.2 3.8h317.4c5.8 0 8.7-7 4.6-11.1l-62.7-62.7z'
+              />
+              <defs>
+                <linearGradient
+                  id='sol1'
+                  x1='360'
+                  y1='11'
+                  x2='141'
+                  y2='311'
+                  gradientUnits='userSpaceOnUse'
+                >
+                  <stop stopColor='#fff' />
+                  <stop offset='1' stopColor='#fff' stopOpacity='.7' />
+                </linearGradient>
+                <linearGradient
+                  id='sol2'
+                  x1='264'
+                  y1='-52'
+                  x2='45'
+                  y2='248'
+                  gradientUnits='userSpaceOnUse'
+                >
+                  <stop stopColor='#fff' />
+                  <stop offset='1' stopColor='#fff' stopOpacity='.7' />
+                </linearGradient>
+                <linearGradient
+                  id='sol3'
+                  x1='312'
+                  y1='-21'
+                  x2='93'
+                  y2='279'
+                  gradientUnits='userSpaceOnUse'
+                >
+                  <stop stopColor='#fff' />
+                  <stop offset='1' stopColor='#fff' stopOpacity='.7' />
+                </linearGradient>
+              </defs>
+            </svg>
+          ),
+          bgColor: 'bg-gradient-to-br from-purple-500 to-blue-600',
+          name: 'Solana',
+          symbol: 'SOL',
+        }
+      case 'USDC':
+        return {
+          icon: (
+            <svg className={iconSize} viewBox='0 0 32 32' fill='none'>
+              <circle cx='16' cy='16' r='16' fill='#2775CA' />
+              <path
+                fill='#fff'
+                d='M20.5 18.2c0-1.8-1.1-2.4-3.2-2.7l-1.5-.2c-1.3-.2-1.6-.6-1.6-1.2 0-.7.5-1.1 1.5-1.1 1.3 0 1.8.4 2 1.3h1.6c-.2-1.5-1.2-2.5-2.8-2.8v-1.5h-1.8v1.4c-1.7.3-2.8 1.4-2.8 2.8 0 1.7 1 2.4 3 2.7l1.6.2c1.2.2 1.6.6 1.6 1.3 0 .9-.7 1.3-1.8 1.3-1.4 0-2-.6-2.1-1.5h-1.6c.2 1.7 1.3 2.6 3 2.9v1.4h1.8v-1.4c1.8-.3 2.9-1.3 2.9-2.9z'
+              />
+            </svg>
+          ),
+          bgColor: 'bg-gradient-to-br from-blue-400 to-blue-600',
+          name: 'USD Coin',
+          symbol: 'USDC',
+        }
+      case 'XRP':
+      case 'RIPPLE':
+        return {
+          icon: (
+            <svg className={iconSize} viewBox='0 0 512 424' fill='#fff'>
+              <path d='M437 0h74L357 152.5c-55.8 55.2-146.2 55.2-202 0L1 0h74l108.5 107.3c33.5 33.1 87.5 33.1 121 0L437 0zm74 424h-74l-132.5-107.3c-33.5-33.1-87.5-33.1-121 0L75 424H1l154-152.5c55.8-55.2 146.2-55.2 202 0L511 424z' />
+            </svg>
+          ),
+          bgColor: 'bg-gradient-to-br from-gray-500 to-gray-700',
+          name: 'Ripple',
+          symbol: 'XRP',
+        }
+      case 'ADA':
+      case 'CARDANO':
+        return {
+          icon: (
+            <svg className={iconSize} viewBox='0 0 256 256' fill='#fff'>
+              <circle cx='128' cy='128' r='8' fill='#fff' />
+              <circle cx='128' cy='96' r='5' fill='#fff' />
+              <circle cx='128' cy='160' r='5' fill='#fff' />
+              <circle cx='100' cy='112' r='5' fill='#fff' />
+              <circle cx='156' cy='112' r='5' fill='#fff' />
+              <circle cx='100' cy='144' r='5' fill='#fff' />
+              <circle cx='156' cy='144' r='5' fill='#fff' />
+              <circle cx='128' cy='64' r='4' fill='#fff' fillOpacity='.6' />
+              <circle cx='128' cy='192' r='4' fill='#fff' fillOpacity='.6' />
+              <circle cx='76' cy='96' r='4' fill='#fff' fillOpacity='.6' />
+              <circle cx='180' cy='96' r='4' fill='#fff' fillOpacity='.6' />
+              <circle cx='76' cy='160' r='4' fill='#fff' fillOpacity='.6' />
+              <circle cx='180' cy='160' r='4' fill='#fff' fillOpacity='.6' />
+            </svg>
+          ),
+          bgColor: 'bg-gradient-to-br from-blue-500 to-blue-700',
+          name: 'Cardano',
+          symbol: 'ADA',
+        }
+      case 'DOGE':
+      case 'DOGECOIN':
+        return {
+          icon: (
+            <span className={`${iconSize} font-bold text-white flex items-center justify-center`}>
+              Ð
+            </span>
+          ),
+          bgColor: 'bg-gradient-to-br from-yellow-400 to-yellow-600',
+          name: 'Dogecoin',
+          symbol: 'DOGE',
+        }
+      case 'MATIC':
+      case 'POLYGON':
+        return {
+          icon: (
+            <svg className={iconSize} viewBox='0 0 38 33' fill='#fff'>
+              <path d='M29 10.2c-.7-.4-1.6-.4-2.4 0L21 13.5l-3.8 2.1-5.5 3.3c-.7.4-1.6.4-2.4 0l-4.3-2.6c-.7-.4-1.2-1.2-1.2-2.1v-5c0-.8.4-1.6 1.2-2.1l4.3-2.5c.7-.4 1.6-.4 2.4 0l4.3 2.6c.7.4 1.2 1.2 1.2 2.1v3.3l3.8-2.2V7c0-.8-.4-1.6-1.2-2.1l-8-4.7c-.7-.4-1.6-.4-2.4 0L1.2 5C.4 5.4 0 6.2 0 7v9.4c0 .8.4 1.6 1.2 2.1l8.1 4.7c.7.4 1.6.4 2.4 0l5.5-3.2 3.8-2.2 5.5-3.2c.7-.4 1.6-.4 2.4 0l4.3 2.5c.7.4 1.2 1.2 1.2 2.1v5c0 .8-.4 1.6-1.2 2.1L29 29.9c-.7.4-1.6.4-2.4 0l-4.3-2.5c-.7-.4-1.2-1.2-1.2-2.1v-3.2l-3.8 2.2v3.3c0 .8.4 1.6 1.2 2.1l8.1 4.7c.7.4 1.6.4 2.4 0l8.1-4.7c.7-.4 1.2-1.2 1.2-2.1V18c0-.8-.4-1.6-1.2-2.1L29 10.2z' />
+            </svg>
+          ),
+          bgColor: 'bg-gradient-to-br from-purple-400 to-purple-700',
+          name: 'Polygon',
+          symbol: 'MATIC',
+        }
+      default:
+        return {
+          icon: <Bitcoin className={`${iconSize} text-white`} />,
+          bgColor: 'bg-gradient-to-br from-gray-400 to-gray-600',
+          name: coin?.toUpperCase() || 'Crypto',
+          symbol: coin?.toUpperCase() || '???',
+        }
     }
   }
 
@@ -536,7 +851,7 @@ Digite "ajuda" ou "menu" para começar!`,
         currency: p2pContext.fiatCurrency,
       }).format(
         parseFloat(p2pContext.total)
-      )}?\n\nAo confirmar, ${p2pContext.amount} ${p2pContext.coin} serão liberados para o comprador.`
+      )}?\n\nAo confirmar, ${formatCryptoAmount(p2pContext.amount)} ${p2pContext.coin} serão liberados para o comprador.`
     )
 
     if (!confirmRelease) return
@@ -547,7 +862,7 @@ Digite "ajuda" ou "menu" para começar!`,
 
       const systemMessage: Message = {
         id: Date.now().toString(),
-        content: `✅ Escrow liberado! ${p2pContext.amount} ${p2pContext.coin} foram transferidos para o comprador.`,
+        content: `✅ Escrow liberado! ${formatCryptoAmount(p2pContext.amount)} ${p2pContext.coin} foram transferidos para o comprador.`,
         timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
         isOwn: true,
         status: 'read',
@@ -780,10 +1095,20 @@ Digite "ajuda" ou "menu" para começar!`,
   }
 
   const handleSendMessage = async () => {
+    console.log('═══════════════════════════════════════')
+    console.log('📤 [handleSendMessage] INÍCIO')
+    console.log('📤 newMessage:', newMessage)
+    console.log('📤 currentContact:', currentContact)
+    console.log('═══════════════════════════════════════')
+
     if (!newMessage.trim()) return
 
     const contact = currentContact
     if (!contact) return
+
+    console.log('✅ [handleSendMessage] Validações passaram')
+    console.log('✅ contact.isBot:', contact.isBot)
+    console.log('✅ p2pContext:', p2pContext)
 
     // Adicionar mensagem do usuário com status 'sending'
     const tempId = Date.now().toString()
@@ -836,7 +1161,35 @@ Digite "ajuda" ou "menu" para começar!`,
           prev.map(msg => (msg.id === tempId ? { ...msg, status: 'read' as const } : msg))
         )
       } else {
-        // ✅ Enviar mensagem real via API
+        // ✅ Enviar mensagem real via REST P2P
+        console.log('📤 [P2P] Tentando enviar mensagem...')
+        console.log('   - connectionStatus:', connectionStatus)
+        console.log('   - chatRoomId:', chatRoomId)
+        console.log('   - p2pContext:', p2pContext)
+        console.log('   - chatP2PService.isConnected():', chatP2PService.isConnected())
+
+        // ✅ Se estiver conectando, aguardar até 3 segundos
+        if (connectionStatus === 'connecting') {
+          console.log('⏳ [P2P] Aguardando conexão...')
+          let attempts = 0
+          const maxAttempts = 15 // 15 x 200ms = 3 segundos
+
+          while (attempts < maxAttempts && !chatP2PService.isConnected()) {
+            await new Promise(resolve => setTimeout(resolve, 200))
+            attempts++
+            console.log(`⏳ [P2P] Tentativa ${attempts}/${maxAttempts}`)
+          }
+        }
+
+        // ✅ Verificar se conectou
+        if (!chatP2PService.isConnected()) {
+          console.error('❌ Chat não conectado!')
+          console.error('   - isConnected():', chatP2PService.isConnected())
+          console.error('   - connectionStatus:', connectionStatus)
+          throw new Error('Chat não conectado. Por favor, aguarde ou recarregue a página.')
+        }
+
+        console.log('✅ Verificação passou! Enviando mensagem...')
         await chatP2PService.sendMessage(messageContent)
 
         // Atualizar status para 'sent'
@@ -849,14 +1202,18 @@ Digite "ajuda" ou "menu" para começar!`,
     } catch (error) {
       console.error('❌ Erro ao enviar mensagem:', error)
 
-      // Marcar mensagem como erro
+      // Marcar mensagem como erro e mostrar mensagem de erro
+      const errorMsg = error instanceof Error ? error.message : 'Erro ao enviar mensagem'
       setMessages(prev =>
         prev.map(msg =>
           msg.id === tempId
-            ? { ...msg, status: 'sent' as const, content: `❌ ${msg.content}` }
+            ? { ...msg, status: 'sent' as const, content: `❌ ${msg.content} (${errorMsg})` }
             : msg
         )
       )
+
+      // Mostrar alerta ao usuário
+      alert(`Erro ao enviar mensagem: ${errorMsg}`)
     }
   }
 
@@ -1335,6 +1692,36 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
                       {currentContact.isSupport && (
                         <Shield className='w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600 flex-shrink-0' />
                       )}
+                      {/* Status de Conexão WebSocket P2P */}
+                      {p2pContext && (
+                        <span
+                          className={`text-[10px] px-1.5 py-0.5 rounded-full flex items-center gap-1 flex-shrink-0 ${
+                            connectionStatus === 'connected'
+                              ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                              : connectionStatus === 'connecting'
+                                ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                                : connectionStatus === 'error'
+                                  ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                  : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-400'
+                          }`}
+                        >
+                          <span
+                            className={`w-1 h-1 rounded-full ${
+                              connectionStatus === 'connected'
+                                ? 'bg-green-600 animate-pulse'
+                                : connectionStatus === 'connecting'
+                                  ? 'bg-yellow-600 animate-spin'
+                                  : connectionStatus === 'error'
+                                    ? 'bg-red-600'
+                                    : 'bg-gray-600'
+                            }`}
+                          ></span>
+                          {connectionStatus === 'connected' && 'Chat OK'}
+                          {connectionStatus === 'connecting' && 'Conectando...'}
+                          {connectionStatus === 'error' && 'Erro'}
+                          {connectionStatus === 'disconnected' && 'Desconectado'}
+                        </span>
+                      )}
                     </h3>
                     <p className='text-xs text-gray-500 dark:text-gray-400 truncate'>
                       {isTyping ? (
@@ -1394,181 +1781,244 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
             </div>
 
             {/* Card de Contexto P2P - Fixo no topo */}
-            {p2pContext && (
-              <div className='bg-gradient-to-r from-blue-500 to-purple-600 p-2 sm:p-4 shadow-lg'>
-                <div className='bg-white/10 backdrop-blur-lg rounded-lg sm:rounded-xl p-3 sm:p-4 border border-white/20'>
-                  <div className='flex flex-col sm:flex-row items-start gap-3 sm:gap-4'>
-                    {/* Header Mobile: Ícone + Título + Status */}
-                    <div className='flex items-center gap-3 w-full sm:w-auto'>
-                      {/* Ícone da Crypto */}
-                      <div className='w-12 h-12 sm:w-14 sm:h-14 rounded-lg sm:rounded-xl bg-orange-500 flex items-center justify-center flex-shrink-0 shadow-lg'>
-                        <Bitcoin className='w-6 h-6 sm:w-8 sm:h-8 text-white' />
-                      </div>
+            {p2pContext &&
+              (() => {
+                const cryptoInfo = getCryptoIcon(p2pContext.coin)
+                return (
+                  <div className='bg-gradient-to-r from-blue-500 to-purple-600 p-2 sm:p-4 shadow-lg'>
+                    <div className='bg-white/10 backdrop-blur-lg rounded-lg sm:rounded-xl p-3 sm:p-4 border border-white/20'>
+                      <div className='flex flex-col sm:flex-row items-start gap-3 sm:gap-4'>
+                        {/* Header Mobile: Ícone + Título + Status */}
+                        <div className='flex items-center gap-3 w-full sm:w-auto'>
+                          {/* Ícone da Crypto - Dinâmico baseado na moeda com nome */}
+                          <div className='flex-shrink-0 flex flex-col items-center'>
+                            <div
+                              className={`w-14 h-14 sm:w-16 sm:h-16 rounded-xl ${cryptoInfo.bgColor} flex items-center justify-center shadow-lg ring-2 ring-white/30`}
+                            >
+                              {cryptoInfo.icon}
+                            </div>
+                            <span className='text-white text-xs font-semibold mt-1 opacity-90'>
+                              {cryptoInfo.symbol}
+                            </span>
+                          </div>
 
-                      {/* Título e Status (mobile) */}
-                      <div className='flex-1 sm:hidden text-white min-w-0'>
-                        <h3 className='font-bold text-sm truncate'>
-                          {p2pContext.type === 'buy' ? 'Comprar' : 'Vender'} {p2pContext.amount}{' '}
-                          {p2pContext.coin}
-                        </h3>
-                        <span
-                          className={`text-xs px-2 py-0.5 rounded-full inline-flex items-center gap-1 mt-1 ${
-                            p2pContext.status === 'active'
-                              ? 'bg-green-500/30'
-                              : p2pContext.status === 'completed'
-                                ? 'bg-blue-500/30'
-                                : p2pContext.status === 'disputed'
-                                  ? 'bg-red-500/30'
-                                  : 'bg-yellow-500/30'
-                          }`}
-                        >
-                          {p2pContext.status === 'active' && (
-                            <>
-                              <CheckCircle2 className='w-3 h-3' /> Ativo
-                            </>
-                          )}
-                          {p2pContext.status === 'completed' && (
-                            <>
-                              <CheckCircle2 className='w-3 h-3' /> Completo
-                            </>
-                          )}
-                          {p2pContext.status === 'disputed' && (
-                            <>
-                              <AlertCircle className='w-3 h-3' /> Disputa
-                            </>
-                          )}
-                          {p2pContext.status === 'pending' && (
-                            <>
-                              <Clock className='w-3 h-3' /> Pendente
-                            </>
-                          )}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Detalhes da Ordem */}
-                    <div className='flex-1 text-white min-w-0 w-full sm:w-auto'>
-                      {/* Título Desktop */}
-                      <div className='hidden sm:flex items-center justify-between mb-2 gap-2'>
-                        <h3 className='font-bold text-lg truncate'>
-                          {p2pContext.type === 'buy' ? 'Comprar' : 'Vender'} {p2pContext.amount}{' '}
-                          {p2pContext.coin}
-                        </h3>
-                        <span
-                          className={`text-xs px-2 py-1 rounded-full flex items-center gap-1 whitespace-nowrap ${
-                            p2pContext.status === 'active'
-                              ? 'bg-green-500/30'
-                              : p2pContext.status === 'completed'
-                                ? 'bg-blue-500/30'
-                                : p2pContext.status === 'disputed'
-                                  ? 'bg-red-500/30'
-                                  : 'bg-yellow-500/30'
-                          }`}
-                        >
-                          {p2pContext.status === 'active' && (
-                            <>
-                              <CheckCircle2 className='w-3 h-3' /> Ativo
-                            </>
-                          )}
-                          {p2pContext.status === 'completed' && (
-                            <>
-                              <CheckCircle2 className='w-3 h-3' /> Completo
-                            </>
-                          )}
-                          {p2pContext.status === 'disputed' && (
-                            <>
-                              <AlertCircle className='w-3 h-3' /> Disputa
-                            </>
-                          )}
-                          {p2pContext.status === 'pending' && (
-                            <>
-                              <Clock className='w-3 h-3' /> Pendente
-                            </>
-                          )}
-                        </span>
-                      </div>
-
-                      {/* Grid de informações - responsivo */}
-                      <div className='grid grid-cols-2 gap-x-3 gap-y-1.5 sm:gap-x-4 sm:gap-y-2 text-xs sm:text-sm mb-2 sm:mb-3'>
-                        <div>
-                          <span className='opacity-75'>Total:</span>
-                          <span className='font-bold ml-1 block sm:inline'>
-                            {new Intl.NumberFormat('pt-BR', {
-                              style: 'currency',
-                              currency: p2pContext.fiatCurrency,
-                              minimumFractionDigits: 0,
-                              maximumFractionDigits: 0,
-                            }).format(parseFloat(p2pContext.total))}
-                          </span>
-                        </div>
-                        <div>
-                          <span className='opacity-75'>Preço:</span>
-                          <span className='font-bold ml-1 truncate block'>
-                            {new Intl.NumberFormat('pt-BR', {
-                              style: 'currency',
-                              currency: p2pContext.fiatCurrency,
-                              minimumFractionDigits: 0,
-                              maximumFractionDigits: 0,
-                            }).format(parseFloat(p2pContext.price))}
-                            /{p2pContext.coin}
-                          </span>
-                        </div>
-                        <div className='col-span-2 sm:col-span-1'>
-                          <span className='opacity-75'>Limites:</span>
-                          <span className='ml-1 truncate block'>
-                            {new Intl.NumberFormat('pt-BR', {
-                              style: 'currency',
-                              currency: p2pContext.fiatCurrency,
-                              minimumFractionDigits: 0,
-                              maximumFractionDigits: 0,
-                            }).format(parseFloat(p2pContext.minAmount))}{' '}
-                            -{' '}
-                            {new Intl.NumberFormat('pt-BR', {
-                              style: 'currency',
-                              currency: p2pContext.fiatCurrency,
-                              minimumFractionDigits: 0,
-                              maximumFractionDigits: 0,
-                            }).format(parseFloat(p2pContext.maxAmount))}
-                          </span>
-                        </div>
-                        <div className='flex items-center gap-1'>
-                          <Timer className='w-3 h-3 opacity-75' />
-                          <span className='opacity-75'>Prazo:</span>
-                          <span className='ml-1'>{p2pContext.timeLimit} min</span>
-                        </div>
-                      </div>
-
-                      {/* Payment methods - responsivo */}
-                      <div className='flex flex-wrap gap-1.5 sm:gap-2 mb-2 sm:mb-0'>
-                        {p2pContext.paymentMethods.map((method: string, idx: number) => (
-                          <span
-                            key={idx}
-                            className='text-xs bg-white/20 px-2 py-1 rounded flex items-center gap-1'
-                          >
-                            {method === 'PIX' ? (
-                              <CreditCard className='w-3 h-3' />
-                            ) : (
-                              <Banknote className='w-3 h-3' />
+                          {/* Título e Status (mobile) */}
+                          <div className='flex-1 sm:hidden text-white min-w-0'>
+                            <h3 className='font-bold text-sm truncate flex items-center gap-1'>
+                              {p2pContext.type === 'buy' ? (
+                                <ShoppingCart className='w-4 h-4' />
+                              ) : (
+                                <Wallet className='w-4 h-4' />
+                              )}
+                              {p2pContext.type === 'buy' ? 'Comprar' : 'Vender'}{' '}
+                              {formatCryptoAmount(p2pContext.amount)} {cryptoInfo.name}
+                            </h3>
+                            {p2pContext.minAmount && p2pContext.maxAmount && (
+                              <div className='text-xs opacity-80 mt-0.5 flex items-center gap-1'>
+                                <ArrowLeftRight className='w-3 h-3' />
+                                Limites:{' '}
+                                {new Intl.NumberFormat('pt-BR', {
+                                  style: 'currency',
+                                  currency: p2pContext.fiatCurrency || 'BRL',
+                                }).format(parseFloat(p2pContext.minAmount) || 0)}{' '}
+                                -{' '}
+                                {new Intl.NumberFormat('pt-BR', {
+                                  style: 'currency',
+                                  currency: p2pContext.fiatCurrency || 'BRL',
+                                }).format(parseFloat(p2pContext.maxAmount) || 0)}
+                              </div>
                             )}
-                            {method}
-                          </span>
-                        ))}
+                            <span
+                              className={`text-xs px-2 py-0.5 rounded-full inline-flex items-center gap-1 mt-1 ${
+                                p2pContext.status === 'active'
+                                  ? 'bg-green-500/30'
+                                  : p2pContext.status === 'completed'
+                                    ? 'bg-blue-500/30'
+                                    : p2pContext.status === 'disputed'
+                                      ? 'bg-red-500/30'
+                                      : 'bg-yellow-500/30'
+                              }`}
+                            >
+                              {p2pContext.status === 'active' && (
+                                <>
+                                  <CheckCircle2 className='w-3 h-3' /> Ativo
+                                </>
+                              )}
+                              {p2pContext.status === 'completed' && (
+                                <>
+                                  <CheckCircle2 className='w-3 h-3' /> Completo
+                                </>
+                              )}
+                              {p2pContext.status === 'disputed' && (
+                                <>
+                                  <AlertCircle className='w-3 h-3' /> Disputa
+                                </>
+                              )}
+                              {p2pContext.status === 'pending' && (
+                                <>
+                                  <Clock className='w-3 h-3' /> Pendente
+                                </>
+                              )}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Detalhes da Ordem */}
+                        <div className='flex-1 text-white min-w-0 w-full sm:w-auto'>
+                          {/* Título Desktop */}
+                          <div className='hidden sm:flex items-center justify-between mb-2 gap-2'>
+                            <h3 className='font-bold text-lg truncate flex items-center gap-2'>
+                              {p2pContext.type === 'buy' ? (
+                                <ShoppingCart className='w-5 h-5' />
+                              ) : (
+                                <Wallet className='w-5 h-5' />
+                              )}
+                              {p2pContext.type === 'buy' ? 'Comprar' : 'Vender'}{' '}
+                              {formatCryptoAmount(p2pContext.amount)} {cryptoInfo.name}
+                            </h3>
+                            <span
+                              className={`text-xs px-2 py-1 rounded-full flex items-center gap-1 whitespace-nowrap ${
+                                p2pContext.status === 'active'
+                                  ? 'bg-green-500/30'
+                                  : p2pContext.status === 'completed'
+                                    ? 'bg-blue-500/30'
+                                    : p2pContext.status === 'disputed'
+                                      ? 'bg-red-500/30'
+                                      : 'bg-yellow-500/30'
+                              }`}
+                            >
+                              {p2pContext.status === 'active' && (
+                                <>
+                                  <CheckCircle2 className='w-3 h-3' /> Ativo
+                                </>
+                              )}
+                              {p2pContext.status === 'completed' && (
+                                <>
+                                  <CheckCircle2 className='w-3 h-3' /> Completo
+                                </>
+                              )}
+                              {p2pContext.status === 'disputed' && (
+                                <>
+                                  <AlertCircle className='w-3 h-3' /> Disputa
+                                </>
+                              )}
+                              {p2pContext.status === 'pending' && (
+                                <>
+                                  <Clock className='w-3 h-3' /> Pendente
+                                </>
+                              )}
+                            </span>
+                          </div>
+
+                          {/* Grid de informações - responsivo */}
+                          <div className='grid grid-cols-2 gap-x-3 gap-y-1.5 sm:gap-x-4 sm:gap-y-2 text-xs sm:text-sm mb-2 sm:mb-3'>
+                            <div>
+                              <span className='opacity-75'>Total:</span>
+                              <span className='font-bold ml-1 block sm:inline'>
+                                {new Intl.NumberFormat('pt-BR', {
+                                  style: 'currency',
+                                  currency: p2pContext.fiatCurrency || 'BRL',
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                }).format(parseFloat(p2pContext.total) || 0)}
+                              </span>
+                            </div>
+                            <div>
+                              <span className='opacity-75'>Preço:</span>
+                              <span className='font-bold ml-1 truncate block'>
+                                {new Intl.NumberFormat('pt-BR', {
+                                  style: 'currency',
+                                  currency: p2pContext.fiatCurrency || 'BRL',
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                }).format(parseFloat(p2pContext.price) || 0)}
+                                /{p2pContext.coin}
+                              </span>
+                            </div>
+                            <div className='col-span-2 sm:col-span-1 flex items-center gap-1'>
+                              <ArrowLeftRight className='w-3 h-3 opacity-75' />
+                              <span className='opacity-75'>Limites:</span>
+                              <span className='ml-1 truncate'>
+                                {p2pContext.minAmount &&
+                                p2pContext.maxAmount &&
+                                !isNaN(parseFloat(p2pContext.minAmount)) &&
+                                !isNaN(parseFloat(p2pContext.maxAmount)) ? (
+                                  <>
+                                    {new Intl.NumberFormat('pt-BR', {
+                                      style: 'currency',
+                                      currency: p2pContext.fiatCurrency || 'BRL',
+                                    }).format(parseFloat(p2pContext.minAmount))}
+                                    {' - '}
+                                    {new Intl.NumberFormat('pt-BR', {
+                                      style: 'currency',
+                                      currency: p2pContext.fiatCurrency || 'BRL',
+                                    }).format(parseFloat(p2pContext.maxAmount))}
+                                  </>
+                                ) : (
+                                  <span className='opacity-60'>Não definido</span>
+                                )}
+                              </span>
+                            </div>
+                            <div className='flex items-center gap-1'>
+                              <Timer className='w-3 h-3 opacity-75' />
+                              <span className='opacity-75'>Prazo:</span>
+                              <span className='ml-1'>
+                                {p2pContext.timeLimit
+                                  ? `${p2pContext.timeLimit} min`
+                                  : 'Não definido'}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Payment methods - responsivo */}
+                          <div className='flex flex-wrap gap-1.5 sm:gap-2 mb-2 sm:mb-0'>
+                            {p2pContext.paymentMethods.map(
+                              (
+                                method: string | { id: string; name: string; type: string },
+                                idx: number
+                              ) => {
+                                // Suporte para string ou objeto
+                                const methodName =
+                                  typeof method === 'string'
+                                    ? method
+                                    : method.name || method.type || 'Unknown'
+                                const methodType =
+                                  typeof method === 'string'
+                                    ? method.toUpperCase()
+                                    : method.type?.toUpperCase() || ''
+
+                                return (
+                                  <span
+                                    key={idx}
+                                    className='text-xs bg-white/20 px-2 py-1 rounded flex items-center gap-1'
+                                  >
+                                    {methodType === 'PIX' ? (
+                                      <CreditCard className='w-3 h-3' />
+                                    ) : (
+                                      <Banknote className='w-3 h-3' />
+                                    )}
+                                    {methodName}
+                                  </span>
+                                )
+                              }
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Botão Ver Detalhes - responsivo */}
+                        <button
+                          onClick={() => navigate(`/p2p/order/${p2pContext.orderId}`)}
+                          className='w-full sm:w-auto px-3 sm:px-4 py-2 bg-white text-blue-600 rounded-lg font-medium hover:bg-gray-100 transition-colors text-xs sm:text-sm flex items-center justify-center gap-2 whitespace-nowrap'
+                        >
+                          <ExternalLink className='w-3 h-3 sm:w-4 sm:h-4' />
+                          <span className='hidden sm:inline'>Ver Detalhes</span>
+                          <span className='sm:hidden'>Detalhes</span>
+                        </button>
                       </div>
                     </div>
-
-                    {/* Botão Ver Detalhes - responsivo */}
-                    <button
-                      onClick={() => window.open(`/p2p/order/${p2pContext.orderId}`, '_blank')}
-                      className='w-full sm:w-auto px-3 sm:px-4 py-2 bg-white text-blue-600 rounded-lg font-medium hover:bg-gray-100 transition-colors text-xs sm:text-sm flex items-center justify-center gap-2 whitespace-nowrap'
-                    >
-                      <ExternalLink className='w-3 h-3 sm:w-4 sm:h-4' />
-                      <span className='hidden sm:inline'>Ver Detalhes</span>
-                      <span className='sm:hidden'>Detalhes</span>
-                    </button>
                   </div>
-                </div>
-              </div>
-            )}
+                )
+              })()}
 
             {/* Timer de Expiração - Se trade ativo */}
             {p2pContext?.status === 'active' && timeRemaining && (

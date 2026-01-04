@@ -23,7 +23,7 @@ export const APP_CONFIG = {
   // URLs da API - CARREGADAS DO .env
   api: {
     baseUrl: import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000',
-    wsUrl: import.meta.env.VITE_WS_URL || 'ws://127.0.0.1:8000/ws',
+    wsUrl: import.meta.env.VITE_WS_URL || 'ws://127.0.0.1:8000', // ✅ REMOVIDO /ws do final
     endpoints: {
       auth: '', // Auth endpoints are at root level: /auth, /auth/register, etc
       users: '/users',
