@@ -24,67 +24,128 @@ import {
   Sparkles,
 } from 'lucide-react'
 
+// Skeleton Components para loading state
+const SkeletonBox = ({ className = '' }: { className?: string }) => (
+  <div className={`animate-pulse bg-slate-200 dark:bg-slate-700 rounded ${className}`} />
+)
+
+const StatCardSkeleton = () => (
+  <div className='bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4'>
+    <div className='flex items-start justify-between mb-2'>
+      <div className='flex-1'>
+        <SkeletonBox className='h-3 w-20 mb-2' />
+        <SkeletonBox className='h-7 w-24 mb-1' />
+        <SkeletonBox className='h-3 w-16' />
+      </div>
+      <SkeletonBox className='w-10 h-10 rounded-lg' />
+    </div>
+    <SkeletonBox className='h-0.5 w-full mt-2' />
+  </div>
+)
+
+const WalletCardSkeleton = () => (
+  <div className='bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden'>
+    <div className='px-5 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between'>
+      <div className='flex items-center gap-2'>
+        <SkeletonBox className='w-8 h-8 rounded-lg' />
+        <div>
+          <SkeletonBox className='h-4 w-24 mb-1' />
+          <SkeletonBox className='h-3 w-32' />
+        </div>
+      </div>
+    </div>
+    <div className='p-4 space-y-3'>
+      <div className='flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg'>
+        <div className='flex items-center gap-3'>
+          <SkeletonBox className='w-10 h-10 rounded-lg' />
+          <div>
+            <SkeletonBox className='h-4 w-20 mb-1' />
+            <SkeletonBox className='h-3 w-16' />
+          </div>
+        </div>
+        <SkeletonBox className='h-5 w-16' />
+      </div>
+      <div className='flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg'>
+        <div className='flex items-center gap-3'>
+          <SkeletonBox className='w-10 h-10 rounded-lg' />
+          <div>
+            <SkeletonBox className='h-4 w-20 mb-1' />
+            <SkeletonBox className='h-3 w-16' />
+          </div>
+        </div>
+        <SkeletonBox className='h-5 w-16' />
+      </div>
+    </div>
+  </div>
+)
+
+const QuickActionsSkeleton = () => (
+  <div className='bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden'>
+    <div className='px-5 py-4 border-b border-slate-200 dark:border-slate-700'>
+      <div className='flex items-center gap-2'>
+        <SkeletonBox className='w-8 h-8 rounded-lg' />
+        <SkeletonBox className='h-4 w-24' />
+      </div>
+    </div>
+    <div className='p-4 space-y-2'>
+      {[1, 2, 3].map(i => (
+        <div
+          key={i}
+          className='flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg'
+        >
+          <SkeletonBox className='w-10 h-10 rounded-lg' />
+          <div className='flex-1'>
+            <SkeletonBox className='h-4 w-24 mb-1' />
+            <SkeletonBox className='h-3 w-32' />
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)
+
+const MarketCardSkeleton = () => (
+  <div className='bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden'>
+    <div className='px-5 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between'>
+      <div className='flex items-center gap-2'>
+        <SkeletonBox className='w-8 h-8 rounded-lg' />
+        <SkeletonBox className='h-4 w-16' />
+      </div>
+      <SkeletonBox className='w-5 h-5 rounded' />
+    </div>
+    <div className='p-4 space-y-3'>
+      {[1, 2, 3, 4, 5].map(i => (
+        <div key={i} className='flex items-center justify-between'>
+          <div className='flex items-center gap-2'>
+            <SkeletonBox className='w-8 h-8 rounded-full' />
+            <SkeletonBox className='h-4 w-16' />
+          </div>
+          <div className='text-right'>
+            <SkeletonBox className='h-4 w-20 mb-1' />
+            <SkeletonBox className='h-3 w-12' />
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)
+
 export const DashboardPage = () => {
   const navigate = useNavigate()
   const { data: user, isLoading: userLoading } = useCurrentUser()
-  const {
-    wallets: apiWallets,
-    isLoading: walletsLoading,
-    error: walletsErrorObj,
-    refreshWallets,
-  } = useWallets()
-  const walletsError = walletsErrorObj ? { message: walletsErrorObj } : null
-  const refetchWallets = refreshWallets
+  const { wallets: apiWallets, isLoading: walletsLoading } = useWallets()
   const { formatCurrency, currency } = useCurrencyStore()
   const [expandedWallets, setExpandedWallets] = useState<Set<string>>(new Set())
 
-  // Debug log para mobile
+  // Debug log para mobile (apenas em desenvolvimento)
   useEffect(() => {
-    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
-    console.log('[DashboardPage] Mount - Auth/Wallet Status:', {
-      userLoading,
-      walletsLoading,
-      hasUser: !!user,
-      hasWallets: !!apiWallets,
-      walletsCount: apiWallets?.length || 0,
-      walletsError: walletsError?.message || null,
-      isMobile: /iPhone|iPad|iPod|Android/i.test(navigator.userAgent),
-      isSafari,
-    })
-  }, [user, apiWallets, userLoading, walletsLoading, walletsError])
-
-  // Auto-retry se não carregar carteiras em mobile/Safari
-  useEffect(() => {
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
-    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
-
-    // Safari e mobile podem precisar de retry devido a hydration mais lenta
-    if ((isMobile || isSafari) && !walletsLoading && !apiWallets?.length && !walletsError) {
-      console.log('[DashboardPage] Safari/Mobile detected, no wallets - scheduling retry...')
-
-      // Primeiro retry rápido (500ms) - talvez só precise de tempo para hydration
-      const timer1 = setTimeout(() => {
-        if (!apiWallets?.length) {
-          console.log('[DashboardPage] Quick retry (500ms)...')
-          refetchWallets()
-        }
-      }, 500)
-
-      // Segundo retry mais longo (2s) - para casos de rede lenta
-      const timer2 = setTimeout(() => {
-        if (!apiWallets?.length) {
-          console.log('[DashboardPage] Second retry (2s)...')
-          refetchWallets()
-        }
-      }, 2000)
-
-      return () => {
-        clearTimeout(timer1)
-        clearTimeout(timer2)
-      }
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[DashboardPage] Wallet Status:', {
+        walletsLoading,
+        walletsCount: apiWallets?.length || 0,
+      })
     }
-    return undefined
-  }, [walletsLoading, apiWallets, walletsError, refetchWallets])
+  }, [apiWallets, walletsLoading])
 
   // Mapear nome da rede para símbolo da criptomoeda
   const getSymbolFromKey = (key: string): string => {
@@ -345,7 +406,14 @@ export const DashboardPage = () => {
         </div>
 
         {/* Stats Grid - 4 colunas compacto */}
-        {!userLoading && !walletsLoading && (
+        {userLoading || walletsLoading ? (
+          <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6'>
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+          </div>
+        ) : (
           <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6'>
             {/* Saldo Total */}
             <div className='group relative bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4 overflow-hidden hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-300'>
@@ -453,7 +521,17 @@ export const DashboardPage = () => {
         )}
 
         {/* Main Content Grid - Layout reorganizado */}
-        {!userLoading && !walletsLoading && (
+        {userLoading || walletsLoading ? (
+          <div className='grid grid-cols-1 lg:grid-cols-3 gap-4'>
+            <div className='lg:col-span-2 space-y-4'>
+              <WalletCardSkeleton />
+              <QuickActionsSkeleton />
+            </div>
+            <div className='space-y-4'>
+              <MarketCardSkeleton />
+            </div>
+          </div>
+        ) : (
           <div className='grid grid-cols-1 lg:grid-cols-3 gap-4'>
             {/* Carteiras + Ações Rápidas - 2 colunas */}
             <div className='lg:col-span-2 space-y-4'>

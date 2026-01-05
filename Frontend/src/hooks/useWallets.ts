@@ -228,10 +228,26 @@ export const useWallets = (): UseWalletsResult => {
     return walletService.getSupportedNetworks()
   }, [])
 
-  // Carregar carteiras quando autenticado - com retry para Safari/iOS
+  // Carregar carteiras quando autenticado - com retry inteligente para Safari/iOS
   useEffect(() => {
     let mounted = true
     mountedRef.current = true
+    let retryCount = 0
+    const maxRetries = 2
+
+    const tryLoadWallets = async () => {
+      if (!mounted || !mountedRef.current) return
+      if (hasLoadedRef.current) return // Já carregou com sucesso
+
+      const state = useAuthStore.getState()
+
+      // Só tentar se autenticado
+      if (!state.isAuthenticated || !state.user) {
+        return
+      }
+
+      await loadWallets()
+    }
 
     const initWallets = async () => {
       const state = useAuthStore.getState()
@@ -246,47 +262,56 @@ export const useWallets = (): UseWalletsResult => {
         isMobile,
       })
 
-      if (state.isAuthenticated && state.user && mounted) {
-        await loadWallets()
-      }
+      await tryLoadWallets()
     }
 
     initWallets()
 
-    // Safari/iOS fix: retry após delays se não carregou
-    const timer1 = setTimeout(() => {
-      if (mountedRef.current && wallets.length === 0) {
-        console.log('[useWallets] ⏰ Retry after 500ms')
-        loadWallets()
-      }
-    }, 500)
+    // Safari/iOS fix: retry APENAS se ainda não carregou e é Safari/mobile
+    const isSafariOrMobile =
+      /^((?!chrome|android).)*safari/i.test(navigator.userAgent) ||
+      /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
 
-    const timer2 = setTimeout(() => {
-      if (mountedRef.current && wallets.length === 0) {
-        console.log('[useWallets] ⏰ Retry after 1500ms')
-        loadWallets()
-      }
-    }, 1500)
+    let timer1: NodeJS.Timeout | null = null
+    let timer2: NodeJS.Timeout | null = null
 
-    // Subscrever a mudanças de auth para recarregar
+    if (isSafariOrMobile) {
+      timer1 = setTimeout(() => {
+        if (mountedRef.current && !hasLoadedRef.current && retryCount < maxRetries) {
+          retryCount++
+          console.log(`[useWallets] ⏰ Safari/Mobile retry ${retryCount}/${maxRetries}`)
+          tryLoadWallets()
+        }
+      }, 800)
+
+      timer2 = setTimeout(() => {
+        if (mountedRef.current && !hasLoadedRef.current && retryCount < maxRetries) {
+          retryCount++
+          console.log(`[useWallets] ⏰ Safari/Mobile retry ${retryCount}/${maxRetries}`)
+          tryLoadWallets()
+        }
+      }, 2000)
+    }
+
+    // Subscrever a mudanças de auth para recarregar (apenas se ainda não carregou)
     const unsubscribe = useAuthStore.subscribe(state => {
       if (
         state._hasHydrated &&
         state.isAuthenticated &&
         state.user &&
         mountedRef.current &&
-        wallets.length === 0
+        !hasLoadedRef.current
       ) {
-        console.log('[useWallets] 🔔 Auth state changed - loading wallets')
-        loadWallets()
+        console.log('[useWallets] 🔔 Auth hydrated - loading wallets')
+        tryLoadWallets()
       }
     })
 
     return () => {
       mounted = false
       mountedRef.current = false
-      clearTimeout(timer1)
-      clearTimeout(timer2)
+      if (timer1) clearTimeout(timer1)
+      if (timer2) clearTimeout(timer2)
       unsubscribe()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
