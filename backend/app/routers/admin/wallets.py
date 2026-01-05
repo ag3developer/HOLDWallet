@@ -717,13 +717,14 @@ async def refresh_wallet_blockchain_balances(
                     
                     # Atualizar ou criar WalletBalance
                     wallet_balance = db.query(WalletBalance).filter(
-                        WalletBalance.user_id == str(wallet.user_id),
+                        WalletBalance.user_id == wallet.user_id,
                         WalletBalance.cryptocurrency == crypto_symbol
                     ).first()
                     
                     if wallet_balance:
                         old_balance = float(wallet_balance.available_balance or 0)
                         wallet_balance.available_balance = new_balance
+                        wallet_balance.total_balance = new_balance + (wallet_balance.locked_balance or 0)
                         wallet_balance.updated_at = datetime.now(timezone.utc)
                         
                         updated_balances.append({
@@ -736,11 +737,11 @@ async def refresh_wallet_blockchain_balances(
                     else:
                         # Criar novo registro de saldo
                         new_wallet_balance = WalletBalance(
-                            user_id=str(wallet.user_id),
-                            wallet_id=str(wallet.id),
+                            user_id=wallet.user_id,
                             cryptocurrency=crypto_symbol,
                             available_balance=new_balance,
                             locked_balance=0,
+                            total_balance=new_balance,
                             created_at=datetime.now(timezone.utc),
                             updated_at=datetime.now(timezone.utc)
                         )
@@ -784,6 +785,138 @@ async def refresh_wallet_blockchain_balances(
     except Exception as e:
         db.rollback()
         logger.error(f"❌ Erro atualizando blockchain balances: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+@router.post("/sync-all-blockchain-balances", response_model=dict)
+async def sync_all_blockchain_balances(
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin)
+):
+    """
+    🔄 Sincroniza saldos de TODAS as carteiras com a blockchain.
+    """
+    from app.models.address import Address
+    from app.services.blockchain_balance_service import blockchain_balance_service
+    
+    try:
+        logger.info("🔄 Iniciando sincronização de saldos blockchain...")
+        
+        # Buscar todas as carteiras
+        wallets = db.query(Wallet).all()
+        logger.info(f"📊 Total de wallets: {len(wallets)}")
+        
+        if not wallets:
+            return {
+                "success": True,
+                "message": "Nenhuma carteira encontrada",
+                "data": {"total_wallets": 0, "total_balances": {}}
+            }
+        
+        skip_networks = ['multi', 'polkadot', 'cardano', 'chainlink', 'shiba', 'xrp']
+        
+        total_updated = 0
+        total_errors = 0
+        all_balances = {}  # {symbol: total_global}
+        wallets_with_balance = set()
+        
+        # Dicionário para acumular saldos por (user_id, symbol)
+        user_balances = {}  # {(user_id, symbol): total_balance}
+        
+        for wallet in wallets:
+            try:
+                addresses = db.query(Address).filter(Address.wallet_id == wallet.id).all()
+                
+                for addr in addresses:
+                    network = str(addr.network).lower() if addr.network else "unknown"
+                    address = str(addr.address)
+                    
+                    if network in skip_networks:
+                        continue
+                    
+                    try:
+                        result = await blockchain_balance_service.get_complete_balance(network, address)
+                        
+                        if result.get("has_balance"):
+                            for bal in result.get("balances", []):
+                                symbol = bal.get("symbol", network.upper())
+                                balance = float(bal.get("balance", 0))
+                                
+                                if balance > 0:
+                                    wallets_with_balance.add(str(wallet.id))
+                                    
+                                    # Acumular no total global
+                                    if symbol not in all_balances:
+                                        all_balances[symbol] = 0
+                                    all_balances[symbol] += balance
+                                    
+                                    # Acumular por (user_id, symbol)
+                                    key = (wallet.user_id, symbol)
+                                    if key not in user_balances:
+                                        user_balances[key] = 0
+                                    user_balances[key] += balance
+                                    
+                    except Exception as e:
+                        logger.debug(f"Erro ao consultar {network}: {e}")
+                        total_errors += 1
+            except Exception as e:
+                logger.error(f"Erro na wallet {wallet.id}: {e}")
+        
+        # Agora salvar os saldos acumulados no banco
+        logger.info(f"📊 Salvando {len(user_balances)} saldos no banco...")
+        
+        for (user_id, symbol), total_balance in user_balances.items():
+            try:
+                existing = db.query(WalletBalance).filter(
+                    WalletBalance.user_id == user_id,
+                    WalletBalance.cryptocurrency == symbol
+                ).first()
+                
+                if existing:
+                    existing.available_balance = total_balance
+                    existing.total_balance = total_balance + float(existing.locked_balance or 0)
+                    existing.updated_at = datetime.now(timezone.utc)
+                    existing.last_updated_reason = "Blockchain sync"
+                    logger.info(f"✅ Atualizado {symbol} para user {str(user_id)[:8]}: {total_balance}")
+                else:
+                    new_bal = WalletBalance(
+                        user_id=user_id,
+                        cryptocurrency=symbol,
+                        available_balance=total_balance,
+                        locked_balance=0.0,
+                        total_balance=total_balance
+                    )
+                    db.add(new_bal)
+                    logger.info(f"✅ Criado {symbol} para user {str(user_id)[:8]}: {total_balance}")
+                
+                total_updated += 1
+            except Exception as db_err:
+                logger.error(f"❌ Erro DB ao salvar {symbol}: {db_err}")
+                total_errors += 1
+        
+        db.commit()
+        logger.info(f"✅ Sincronização: {total_updated} atualizados, {total_errors} erros")
+        logger.info(f"📊 Totais: {all_balances}")
+        
+        return {
+            "success": True,
+            "data": {
+                "total_wallets": len(wallets),
+                "wallets_with_balance": len(wallets_with_balance),
+                "total_updated": total_updated,
+                "total_errors": total_errors,
+                "total_balances": all_balances,
+                "synced_at": datetime.now(timezone.utc).isoformat()
+            }
+        }
+    except Exception as e:
+        db.rollback()
+        logger.error(f"❌ Erro na sincronização: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
