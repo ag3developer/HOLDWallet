@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCurrentUser } from '@/hooks/useAuth'
-import { useWallets, useMultipleWalletBalances } from '@/hooks/useWallet'
+import { useWallets } from '@/hooks/useWallets'
+import { useMultipleWalletBalances } from '@/hooks/useWallet'
 import { useMarketPrices } from '@/hooks/useMarketPrices'
 import { CryptoIcon } from '@/components/CryptoIcon'
 import { useCurrencyStore } from '@/stores/useCurrencyStore'
@@ -26,9 +27,64 @@ import {
 export const DashboardPage = () => {
   const navigate = useNavigate()
   const { data: user, isLoading: userLoading } = useCurrentUser()
-  const { data: apiWallets, isLoading: walletsLoading } = useWallets()
+  const {
+    wallets: apiWallets,
+    isLoading: walletsLoading,
+    error: walletsErrorObj,
+    refreshWallets,
+  } = useWallets()
+  const walletsError = walletsErrorObj ? { message: walletsErrorObj } : null
+  const refetchWallets = refreshWallets
   const { formatCurrency, currency } = useCurrencyStore()
   const [expandedWallets, setExpandedWallets] = useState<Set<string>>(new Set())
+
+  // Debug log para mobile
+  useEffect(() => {
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
+    console.log('[DashboardPage] Mount - Auth/Wallet Status:', {
+      userLoading,
+      walletsLoading,
+      hasUser: !!user,
+      hasWallets: !!apiWallets,
+      walletsCount: apiWallets?.length || 0,
+      walletsError: walletsError?.message || null,
+      isMobile: /iPhone|iPad|iPod|Android/i.test(navigator.userAgent),
+      isSafari,
+    })
+  }, [user, apiWallets, userLoading, walletsLoading, walletsError])
+
+  // Auto-retry se não carregar carteiras em mobile/Safari
+  useEffect(() => {
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
+
+    // Safari e mobile podem precisar de retry devido a hydration mais lenta
+    if ((isMobile || isSafari) && !walletsLoading && !apiWallets?.length && !walletsError) {
+      console.log('[DashboardPage] Safari/Mobile detected, no wallets - scheduling retry...')
+
+      // Primeiro retry rápido (500ms) - talvez só precise de tempo para hydration
+      const timer1 = setTimeout(() => {
+        if (!apiWallets?.length) {
+          console.log('[DashboardPage] Quick retry (500ms)...')
+          refetchWallets()
+        }
+      }, 500)
+
+      // Segundo retry mais longo (2s) - para casos de rede lenta
+      const timer2 = setTimeout(() => {
+        if (!apiWallets?.length) {
+          console.log('[DashboardPage] Second retry (2s)...')
+          refetchWallets()
+        }
+      }, 2000)
+
+      return () => {
+        clearTimeout(timer1)
+        clearTimeout(timer2)
+      }
+    }
+    return undefined
+  }, [walletsLoading, apiWallets, walletsError, refetchWallets])
 
   // Mapear nome da rede para símbolo da criptomoeda
   const getSymbolFromKey = (key: string): string => {
@@ -95,7 +151,7 @@ export const DashboardPage = () => {
   }, [marketPrices])
 
   // Buscar saldos reais
-  const walletIds = useMemo(() => apiWallets?.map(w => w.id) || [], [apiWallets])
+  const walletIds = useMemo(() => apiWallets?.map(w => String(w.id)) || [], [apiWallets])
   const balancesQueries = useMultipleWalletBalances(walletIds)
 
   // Carregar preferências de rede com fallback para Safari
@@ -446,7 +502,8 @@ export const DashboardPage = () => {
                   ) : (
                     <div className='space-y-2'>
                       {wallets.map(wallet => {
-                        const isExpanded = expandedWallets.has(wallet.id)
+                        const walletIdStr = String(wallet.id)
+                        const isExpanded = expandedWallets.has(walletIdStr)
                         const networks = getAvailableNetworks(wallet)
 
                         return (
@@ -455,7 +512,7 @@ export const DashboardPage = () => {
                             className='bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-lg overflow-hidden hover:border-blue-400 dark:hover:border-blue-500 transition-all'
                           >
                             <button
-                              onClick={() => toggleWallet(wallet.id)}
+                              onClick={() => toggleWallet(walletIdStr)}
                               className='w-full flex items-center justify-between p-3 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors'
                             >
                               <div className='flex items-center space-x-3 flex-1'>
@@ -467,14 +524,14 @@ export const DashboardPage = () => {
                                     {wallet.name}
                                   </h4>
                                   <p className='text-xs text-slate-600 dark:text-slate-400'>
-                                    {wallet.type} • {networks.length} redes
+                                    Multi • {networks.length} redes
                                   </p>
                                 </div>
                               </div>
                               <div className='flex items-center space-x-2'>
                                 <div className='text-right'>
                                   {(() => {
-                                    const walletIndex = walletIds.indexOf(wallet.id)
+                                    const walletIndex = walletIds.indexOf(walletIdStr)
                                     const balanceQuery = balancesQueries[walletIndex]
                                     const balanceData = balanceQuery?.data
 
@@ -568,7 +625,7 @@ export const DashboardPage = () => {
                                         </div>
                                         <div className='text-right'>
                                           {(() => {
-                                            const walletIndex = walletIds.indexOf(wallet.id)
+                                            const walletIndex = walletIds.indexOf(walletIdStr)
                                             const balanceQuery = balancesQueries[walletIndex]
                                             const balanceData = balanceQuery?.data
                                             const networkBalance = balanceData?.[network.network]
@@ -639,7 +696,7 @@ export const DashboardPage = () => {
                                   </p>
                                   <div className='grid grid-cols-1 md:grid-cols-2 gap-2'>
                                     {(() => {
-                                      const walletIndex = walletIds.indexOf(wallet.id)
+                                      const walletIndex = walletIds.indexOf(walletIdStr)
                                       const balanceQuery = balancesQueries[walletIndex]
                                       const balanceData = balanceQuery?.data || {}
                                       const tokens: any[] = []

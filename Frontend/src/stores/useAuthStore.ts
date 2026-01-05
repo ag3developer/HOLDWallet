@@ -14,6 +14,9 @@ interface AuthStore extends AuthState {
   updateUser: (user: Partial<User>) => void
   clearError: () => void
   initializeAuth: () => Promise<void>
+  // Hydration state
+  _hasHydrated: boolean
+  setHasHydrated: (value: boolean) => void
 }
 
 export const useAuthStore = create<AuthStore>()(
@@ -25,6 +28,12 @@ export const useAuthStore = create<AuthStore>()(
       isAuthenticated: false,
       isLoading: false,
       error: null,
+      _hasHydrated: false,
+
+      // Set hydration state
+      setHasHydrated: (value: boolean) => {
+        set({ _hasHydrated: value })
+      },
 
       // Login action
       login: async (credentials: LoginRequest) => {
@@ -201,6 +210,17 @@ export const useAuthStore = create<AuthStore>()(
         isAuthenticated: state.isAuthenticated,
       }),
       onRehydrateStorage: () => state => {
+        console.log('[AuthStore] Rehydration completed', {
+          hasToken: !!state?.token,
+          hasUser: !!state?.user,
+          isAuthenticated: state?.isAuthenticated,
+        })
+
+        // Mark as hydrated - IMPORTANT for Safari/iOS
+        if (state) {
+          state.setHasHydrated(true)
+        }
+
         // Verify stored auth state on rehydration
         if (state?.token && state?.user) {
           state.initializeAuth()

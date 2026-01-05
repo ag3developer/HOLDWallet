@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import {
   useQuery,
   useMutation,
@@ -7,6 +8,7 @@ import {
 } from '@tanstack/react-query'
 import { walletService } from '@/services'
 import type { Wallet } from '@/types'
+import { useAuthStore } from '@/stores/useAuthStore'
 
 // Query keys
 export const walletKeys = {
@@ -21,13 +23,97 @@ export const walletKeys = {
   stats: (id: string, period?: string) => [...walletKeys.detail(id), 'stats', period] as const,
 }
 
-// Get all wallets
+// Get all wallets - with retry for mobile browsers
 export function useWallets() {
+  const { token, isAuthenticated, _hasHydrated } = useAuthStore()
+  const [localHydrated, setLocalHydrated] = useState(false)
+
+  // Aguardar hydration do Zustand (importante para Safari/iOS)
+  useEffect(() => {
+    // Verificar se o store já está hidratado
+    const checkHydration = () => {
+      const state = useAuthStore.getState()
+      if (state._hasHydrated || state.token || state.isAuthenticated) {
+        setLocalHydrated(true)
+      }
+    }
+
+    // Verificar imediatamente
+    checkHydration()
+
+    // Verificar novamente após um curto delay (para Safari)
+    const timer = setTimeout(checkHydration, 100)
+    const timer2 = setTimeout(checkHydration, 500)
+
+    // Também subscrever a mudanças
+    const unsubscribe = useAuthStore.subscribe(checkHydration)
+
+    return () => {
+      clearTimeout(timer)
+      clearTimeout(timer2)
+      unsubscribe()
+    }
+  }, [])
+
+  const isReady = _hasHydrated || localHydrated
+
   return useQuery({
     queryKey: walletKeys.list(),
-    queryFn: () => walletService.getWallets(),
+    queryFn: async () => {
+      console.log('[useWallets] Fetching wallets...', {
+        hasToken: !!token,
+        isAuthenticated,
+        isReady,
+        _hasHydrated,
+        isMobile: /iPhone|iPad|iPod|Android/i.test(navigator.userAgent),
+        userAgent: navigator.userAgent.substring(0, 50),
+      })
+
+      // Double check token exists - try multiple sources
+      let currentToken = useAuthStore.getState().token
+
+      // Fallback: tentar pegar do localStorage diretamente (Safari às vezes demora)
+      if (!currentToken) {
+        try {
+          const storageKey = 'wolk-auth' // APP_CONFIG.storage.prefix + auth key
+          const stored = localStorage.getItem(storageKey)
+          if (stored) {
+            const parsed = JSON.parse(stored)
+            currentToken = parsed?.state?.token
+            console.log('[useWallets] Token recovered from localStorage fallback')
+          }
+        } catch (e) {
+          console.warn('[useWallets] localStorage fallback failed:', e)
+        }
+      }
+
+      if (!currentToken) {
+        console.warn('[useWallets] No token available, skipping fetch')
+        return []
+      }
+
+      try {
+        const wallets = await walletService.getWallets()
+        console.log('[useWallets] Wallets loaded:', wallets?.length || 0)
+        return wallets
+      } catch (error: any) {
+        console.error('[useWallets] Error fetching wallets:', error.message)
+        // Retry once if it's a network error (common on mobile)
+        if (error.message?.includes('Network') || error.code === 'ERR_NETWORK') {
+          console.log('[useWallets] Retrying after network error...')
+          await new Promise(resolve => setTimeout(resolve, 1000))
+          return walletService.getWallets()
+        }
+        throw error
+      }
+    },
     staleTime: 30 * 1000, // 30 seconds
+    gcTime: 5 * 60 * 1000, // 5 minutes cache
     placeholderData: [],
+    retry: 2, // Retry 2 times on failure
+    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 5000), // Exponential backoff
+    // Only fetch if authenticated AND hydrated (Safari fix)
+    enabled: (isAuthenticated && !!token) || isReady,
   })
 }
 

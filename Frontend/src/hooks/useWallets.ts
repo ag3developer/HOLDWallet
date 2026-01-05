@@ -31,38 +31,67 @@ export interface UseWalletsResult {
 export const useWallets = (): UseWalletsResult => {
   const [wallets, setWallets] = useState<WalletWithBalance[]>([])
   const [selectedWallet, setSelectedWallet] = useState<WalletWithBalance | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true) // Começar como true para Safari
   const [isCreating, setIsCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const mountedRef = useRef(true)
+  const hasLoadedRef = useRef(false)
 
-  const { isAuthenticated, user } = useAuthStore()
+  const { isAuthenticated, user, _hasHydrated } = useAuthStore()
 
   // Carregar carteiras quando o usuário está autenticado
   const loadWallets = useCallback(async () => {
-    if (!isAuthenticated || !user || !mountedRef.current) return
+    // Verificar se já carregou para evitar duplicatas
+    if (hasLoadedRef.current && wallets.length > 0) {
+      setIsLoading(false)
+      return
+    }
+
+    // Safari/iOS fix: verificar hydration
+    const state = useAuthStore.getState()
+    const isReady = state._hasHydrated || state.isAuthenticated || state.token
+
+    if (!isReady) {
+      console.log('[useWallets] ⏳ Waiting for hydration...')
+      return
+    }
+
+    if (!state.isAuthenticated || !state.user) {
+      console.log('[useWallets] ❌ Not authenticated')
+      setIsLoading(false)
+      return
+    }
+
+    if (!mountedRef.current) return
 
     setIsLoading(true)
     setError(null)
 
     try {
-      console.log('Loading wallets...')
+      console.log('[useWallets] 🔄 Loading wallets...')
       const walletsData = await walletService.getWallets()
-      console.log('Wallets loaded:', walletsData)
+      console.log('[useWallets] ✅ Wallets loaded:', walletsData?.length || 0)
 
-      setWallets(walletsData)
+      if (mountedRef.current) {
+        setWallets(walletsData)
+        hasLoadedRef.current = true
 
-      // Auto-selecionar primeira carteira se nenhuma estiver selecionada
-      if (!selectedWallet && walletsData.length > 0) {
-        setSelectedWallet(walletsData[0] || null)
+        // Auto-selecionar primeira carteira se nenhuma estiver selecionada
+        if (!selectedWallet && walletsData.length > 0) {
+          setSelectedWallet(walletsData[0] || null)
+        }
       }
     } catch (err: any) {
-      console.error('Error loading wallets:', err)
-      setError(err.message || 'Erro ao carregar carteiras')
+      console.error('[useWallets] ❌ Error loading wallets:', err)
+      if (mountedRef.current) {
+        setError(err.message || 'Erro ao carregar carteiras')
+      }
     } finally {
-      setIsLoading(false)
+      if (mountedRef.current) {
+        setIsLoading(false)
+      }
     }
-  }, [isAuthenticated, user, selectedWallet])
+  }, [wallets.length, selectedWallet])
 
   // Criar nova carteira
   const createWallet = useCallback(
@@ -199,26 +228,69 @@ export const useWallets = (): UseWalletsResult => {
     return walletService.getSupportedNetworks()
   }, [])
 
-  // Carregar carteiras apenas uma vez quando o componente montar
+  // Carregar carteiras quando autenticado - com retry para Safari/iOS
   useEffect(() => {
     let mounted = true
     mountedRef.current = true
 
     const initWallets = async () => {
-      if (isAuthenticated && user && mounted) {
+      const state = useAuthStore.getState()
+      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+
+      console.log('[useWallets] Init check:', {
+        isAuthenticated: state.isAuthenticated,
+        hasUser: !!state.user,
+        _hasHydrated: state._hasHydrated,
+        isSafari,
+        isMobile,
+      })
+
+      if (state.isAuthenticated && state.user && mounted) {
         await loadWallets()
       }
     }
 
     initWallets()
 
+    // Safari/iOS fix: retry após delays se não carregou
+    const timer1 = setTimeout(() => {
+      if (mountedRef.current && wallets.length === 0) {
+        console.log('[useWallets] ⏰ Retry after 500ms')
+        loadWallets()
+      }
+    }, 500)
+
+    const timer2 = setTimeout(() => {
+      if (mountedRef.current && wallets.length === 0) {
+        console.log('[useWallets] ⏰ Retry after 1500ms')
+        loadWallets()
+      }
+    }, 1500)
+
+    // Subscrever a mudanças de auth para recarregar
+    const unsubscribe = useAuthStore.subscribe(state => {
+      if (
+        state._hasHydrated &&
+        state.isAuthenticated &&
+        state.user &&
+        mountedRef.current &&
+        wallets.length === 0
+      ) {
+        console.log('[useWallets] 🔔 Auth state changed - loading wallets')
+        loadWallets()
+      }
+    })
+
     return () => {
       mounted = false
       mountedRef.current = false
+      clearTimeout(timer1)
+      clearTimeout(timer2)
+      unsubscribe()
     }
-    // Apenas executar quando autenticação mudar, NÃO quando loadWallets mudar
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, user])
+  }, [isAuthenticated, user, _hasHydrated])
 
   return {
     wallets,
