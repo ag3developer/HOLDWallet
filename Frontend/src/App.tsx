@@ -59,6 +59,7 @@ import {
   AdminFeesPage,
   AdminSystemWalletPage,
   AdminSystemWalletAddressesPage,
+  AdminAnalyticsPage,
 } from '@/pages/admin'
 
 // Protected Route Component (for authenticated users)
@@ -332,6 +333,7 @@ function App() {
               element={<AdminSystemWalletAddressesPage />}
             />
             <Route path='/admin/reports' element={<AdminReportsPage />} />
+            <Route path='/admin/analytics' element={<AdminAnalyticsPage />} />
             <Route path='/admin/settings' element={<AdminSettingsPage />} />
           </Route>
 
