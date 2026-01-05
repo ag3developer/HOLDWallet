@@ -13,7 +13,7 @@ export const authKeys = {
 // Get current user
 export function useCurrentUser() {
   const { token, isAuthenticated } = useAuthStore()
-  
+
   return useQuery({
     queryKey: authKeys.user(),
     queryFn: () => authService.getCurrentUser(token!),
@@ -31,16 +31,27 @@ export function useCurrentUser() {
 export function useLogin() {
   const navigate = useNavigate()
   const { setAuthData } = useAuthStore()
-  
+
   return useMutation({
     mutationFn: (credentials: LoginRequest) => authService.login(credentials),
-    onSuccess: (data) => {
+    onSuccess: data => {
+      console.log('🔐 Login success - User data:', data.user)
+      console.log('🔐 is_admin:', data.user.is_admin)
+
       setAuthData(data.user, data.access_token)
-      navigate('/dashboard')
+
+      // Redirecionar admin para painel administrativo
+      if (data.user.is_admin) {
+        console.log('🛡️ Redirecting to /admin')
+        navigate('/admin')
+      } else {
+        console.log('👤 Redirecting to /dashboard')
+        navigate('/dashboard')
+      }
     },
-    onError: (error) => {
+    onError: error => {
       console.error('Login error:', error)
-    }
+    },
   })
 }
 
@@ -48,10 +59,10 @@ export function useLogin() {
 export function useRegister() {
   const navigate = useNavigate()
   const { setAuthData } = useAuthStore()
-  
+
   return useMutation({
     mutationFn: (userData: RegisterRequest) => authService.register(userData),
-    onSuccess: (data) => {
+    onSuccess: data => {
       setAuthData(data.user, data.access_token)
       navigate('/dashboard')
     },
@@ -63,7 +74,7 @@ export function useLogout() {
   const navigate = useNavigate()
   const { logout } = useAuthStore()
   const queryClient = useQueryClient()
-  
+
   return useMutation({
     mutationFn: () => authService.logout(),
     onSettled: () => {
@@ -78,13 +89,13 @@ export function useLogout() {
 // Update profile mutation
 export function useUpdateProfile() {
   const queryClient = useQueryClient()
-  
+
   return useMutation({
     mutationFn: (userData: Partial<User>) => authService.updateProfile(userData),
-    onSuccess: (updatedUser) => {
+    onSuccess: updatedUser => {
       // Update cached user data
       queryClient.setQueryData(authKeys.user(), updatedUser)
-      
+
       // Update auth store
       const { user, updateUser } = useAuthStore.getState()
       if (user) {
@@ -97,8 +108,13 @@ export function useUpdateProfile() {
 // Change password mutation
 export function useChangePassword() {
   return useMutation({
-    mutationFn: ({ currentPassword, newPassword }: { currentPassword: string; newPassword: string }) =>
-      authService.changePassword(currentPassword, newPassword),
+    mutationFn: ({
+      currentPassword,
+      newPassword,
+    }: {
+      currentPassword: string
+      newPassword: string
+    }) => authService.changePassword(currentPassword, newPassword),
   })
 }
 
@@ -134,7 +150,7 @@ export function useResendEmailVerification() {
 // 2FA hooks
 export function use2FAStatus() {
   const { isAuthenticated } = useAuthStore()
-  
+
   return useQuery({
     queryKey: [...authKeys.all, '2fa-status'],
     queryFn: () => authService.get2FAStatus(),
@@ -151,7 +167,7 @@ export function useEnable2FA() {
 
 export function useVerify2FA() {
   const queryClient = useQueryClient()
-  
+
   return useMutation({
     mutationFn: (code: string) => authService.verify2FA(code),
     onSuccess: () => {
@@ -163,7 +179,7 @@ export function useVerify2FA() {
 
 export function useDisable2FA() {
   const queryClient = useQueryClient()
-  
+
   return useMutation({
     mutationFn: (code: string) => authService.disable2FA(code),
     onSuccess: () => {

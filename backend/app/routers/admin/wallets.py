@@ -1,0 +1,532 @@
+"""
+🛡️ HOLD Wallet - Admin Wallets Router
+======================================
+
+Gestão de carteiras e saldos dos usuários.
+
+Author: HOLD Wallet Team
+"""
+
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlalchemy.orm import Session
+from sqlalchemy import func, desc
+from typing import Optional
+from datetime import datetime, timezone
+from pydantic import BaseModel
+import logging
+
+from app.core.db import get_db
+from app.core.security import get_current_admin
+from app.models.user import User
+from app.models.wallet import Wallet
+from app.models.balance import WalletBalance, BalanceHistory
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(
+    prefix="/wallets",
+    tags=["Admin - Wallets"],
+    dependencies=[Depends(get_current_admin)]
+)
+
+
+# ===== SCHEMAS =====
+
+class BalanceAdjustRequest(BaseModel):
+    user_id: str
+    cryptocurrency: str
+    amount: float
+    reason: str
+    operation: str  # 'add', 'subtract' ou 'set'
+
+
+# ===== ENDPOINTS - WALLETS =====
+
+@router.get("/stats", response_model=dict)
+async def get_wallet_stats(
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin)
+):
+    """
+    Retorna estatísticas gerais de wallets
+    """
+    try:
+        from datetime import timedelta
+        today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        
+        total_wallets = db.query(func.count(Wallet.id)).scalar() or 0
+        
+        # Carteiras criadas hoje
+        wallets_today = db.query(func.count(Wallet.id)).filter(
+            Wallet.created_at >= today
+        ).scalar() or 0
+        
+        # Carteiras com saldo
+        wallets_with_balance = db.query(func.count(func.distinct(WalletBalance.user_id))).filter(
+            WalletBalance.available_balance > 0
+        ).scalar() or 0
+        
+        # Saldos totais por crypto
+        total_btc = db.query(func.sum(WalletBalance.available_balance)).filter(
+            WalletBalance.cryptocurrency == 'BTC'
+        ).scalar() or 0
+        
+        total_eth = db.query(func.sum(WalletBalance.available_balance)).filter(
+            WalletBalance.cryptocurrency == 'ETH'
+        ).scalar() or 0
+        
+        total_usdt = db.query(func.sum(WalletBalance.available_balance)).filter(
+            WalletBalance.cryptocurrency.in_(['USDT', 'USDC'])
+        ).scalar() or 0
+        
+        total_brl = db.query(func.sum(WalletBalance.available_balance)).filter(
+            WalletBalance.cryptocurrency == 'BRL'
+        ).scalar() or 0
+        
+        # Saldos por cryptocurrency para detalhes
+        balances_by_crypto = db.query(
+            WalletBalance.cryptocurrency,
+            func.sum(WalletBalance.available_balance).label('total_available'),
+            func.sum(WalletBalance.locked_balance).label('total_locked'),
+            func.count(WalletBalance.id).label('count')
+        ).group_by(WalletBalance.cryptocurrency).all()
+        
+        crypto_stats = []
+        for b in balances_by_crypto:
+            crypto_stats.append({
+                "cryptocurrency": b.cryptocurrency,
+                "total_available": float(b.total_available or 0),
+                "total_locked": float(b.total_locked or 0),
+                "wallets_count": b.count or 0
+            })
+        
+        return {
+            "success": True,
+            "data": {
+                "total_wallets": total_wallets,
+                "wallets_with_balance": wallets_with_balance,
+                "wallets_today": wallets_today,
+                "total_btc": float(total_btc),
+                "total_eth": float(total_eth),
+                "total_usdt": float(total_usdt),
+                "total_brl": float(total_brl),
+                "balances_by_crypto": crypto_stats
+            }
+        }
+    except Exception as e:
+        logger.error(f"❌ Erro obtendo stats de wallets: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+@router.get("", response_model=dict)
+async def list_wallets(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100),
+    search: Optional[str] = None,
+    network: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin)
+):
+    """
+    Lista todas as wallets criadas com seus endereços blockchain
+    """
+    from app.models.address import Address
+    
+    try:
+        query = db.query(Wallet)
+        
+        if search:
+            # Buscar por username ou email
+            user_ids_match = db.query(User.id).filter(
+                (User.username.ilike(f"%{search}%")) |
+                (User.email.ilike(f"%{search}%"))
+            ).all()
+            user_ids_list = [str(u[0]) for u in user_ids_match]
+            if user_ids_list:
+                query = query.filter(Wallet.user_id.in_(user_ids_list))
+            else:
+                # Se não encontrou usuários, retorna vazio
+                return {
+                    "success": True,
+                    "data": {
+                        "items": [],
+                        "total": 0,
+                        "skip": skip,
+                        "limit": limit
+                    }
+                }
+        
+        if network:
+            query = query.filter(Wallet.network == network)
+        
+        total = query.count()
+        wallets = query.order_by(desc(Wallet.created_at)).offset(skip).limit(limit).all()
+        
+        # Buscar usernames e emails
+        user_ids = [str(w.user_id) for w in wallets]
+        users = db.query(User).filter(User.id.in_(user_ids)).all()
+        user_map = {str(u.id): {"username": u.username, "email": u.email} for u in users}
+        
+        items = []
+        for wallet in wallets:
+            # Buscar TODOS os endereços desta wallet
+            addresses = db.query(Address).filter(
+                Address.wallet_id == wallet.id
+            ).all()
+            
+            # Agrupar endereços por rede
+            addresses_by_network = {}
+            supported_networks = set()
+            
+            for addr in addresses:
+                network_name = addr.network if addr.network else "unknown"
+                supported_networks.add(network_name)
+                
+                if network_name not in addresses_by_network:
+                    addresses_by_network[network_name] = []
+                
+                addresses_by_network[network_name].append({
+                    "id": str(addr.id),
+                    "address": addr.address,
+                    "network": network_name,
+                    "address_type": addr.address_type if hasattr(addr, 'address_type') else "receiving",
+                    "is_active": addr.is_active if hasattr(addr, 'is_active') else True,
+                    "created_at": addr.created_at.isoformat() if addr.created_at else None
+                })
+            
+            # Buscar saldos do usuário (não da wallet)
+            balances = db.query(WalletBalance).filter(
+                WalletBalance.user_id == str(wallet.user_id)
+            ).all()
+            
+            balance_summary = {}
+            total_usd = 0
+            for bal in balances:
+                crypto = bal.cryptocurrency
+                available = float(bal.available_balance) if bal.available_balance else 0
+                locked = float(bal.locked_balance) if bal.locked_balance else 0
+                balance_summary[crypto] = {
+                    "available": available,
+                    "locked": locked,
+                    "total": available + locked
+                }
+            
+            user_info = user_map.get(str(wallet.user_id), {"username": "Unknown", "email": ""})
+            
+            items.append({
+                "id": str(wallet.id),
+                "user_id": str(wallet.user_id),
+                "username": user_info["username"],
+                "email": user_info["email"],
+                "name": wallet.name if hasattr(wallet, 'name') else "Wallet",
+                "network": wallet.network if hasattr(wallet, 'network') else "multi",
+                "is_active": wallet.is_active if hasattr(wallet, 'is_active') else True,
+                "supported_networks": sorted(list(supported_networks)),
+                "total_addresses": len(addresses),
+                "addresses_by_network": addresses_by_network,
+                "balances": balance_summary,
+                "created_at": wallet.created_at.isoformat() if wallet.created_at else None,
+                "updated_at": wallet.updated_at.isoformat() if hasattr(wallet, 'updated_at') and wallet.updated_at else None
+            })
+        
+        return {
+            "success": True,
+            "data": {
+                "items": items,
+                "total": total,
+                "skip": skip,
+                "limit": limit
+            }
+        }
+    except Exception as e:
+        logger.error(f"❌ Erro listando wallets: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+@router.get("/user/{user_id}", response_model=dict)
+async def get_user_wallets(
+    user_id: str,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin)
+):
+    """
+    Retorna todas as wallets e saldos de um usuário
+    """
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuário não encontrado")
+        
+        wallets = db.query(Wallet).filter(Wallet.user_id == user_id).all()
+        
+        wallet_list = []
+        for wallet in wallets:
+            balances = db.query(WalletBalance).filter(
+                WalletBalance.wallet_id == wallet.id
+            ).all()
+            
+            balance_list = []
+            for bal in balances:
+                balance_list.append({
+                    "id": str(bal.id),
+                    "cryptocurrency": bal.cryptocurrency,
+                    "available": float(bal.available_balance or 0),
+                    "locked": float(bal.locked_balance or 0),
+                    "total": float((bal.available_balance or 0) + (bal.locked_balance or 0))
+                })
+            
+            wallet_list.append({
+                "id": str(wallet.id),
+                "network": wallet.network if hasattr(wallet, 'network') else "multi",
+                "balances": balance_list,
+                "created_at": wallet.created_at.isoformat() if wallet.created_at else None
+            })
+        
+        return {
+            "success": True,
+            "data": {
+                "user": {
+                    "id": str(user.id),
+                    "username": user.username,
+                    "email": user.email
+                },
+                "wallets": wallet_list
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Erro obtendo wallets do usuário: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+@router.get("/balances", response_model=dict)
+async def list_all_balances(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100),
+    cryptocurrency: Optional[str] = None,
+    min_balance: Optional[float] = None,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin)
+):
+    """
+    Lista todos os saldos com filtros
+    """
+    try:
+        query = db.query(WalletBalance)
+        
+        if cryptocurrency:
+            query = query.filter(WalletBalance.cryptocurrency == cryptocurrency)
+        
+        if min_balance is not None:
+            query = query.filter(WalletBalance.available_balance >= min_balance)
+        
+        total = query.count()
+        balances = query.order_by(desc(WalletBalance.available_balance)).offset(skip).limit(limit).all()
+        
+        # Buscar usernames pelo user_id do balance
+        user_ids = [str(b.user_id) for b in balances]
+        users = db.query(User).filter(User.id.in_(user_ids)).all()
+        user_map = {str(u.id): u for u in users}
+        
+        items = []
+        for bal in balances:
+            user = user_map.get(str(bal.user_id))
+            
+            items.append({
+                "id": str(bal.id),
+                "user_id": str(bal.user_id),
+                "username": user.username if user else "Unknown",
+                "cryptocurrency": bal.cryptocurrency,
+                "total_balance": float(bal.total_balance if bal.total_balance else 0),
+                "available_balance": float(bal.available_balance if bal.available_balance else 0),
+                "locked_balance": float(bal.locked_balance if bal.locked_balance else 0),
+                "updated_at": bal.updated_at.isoformat() if bal.updated_at else None
+            })
+        
+        return {
+            "success": True,
+            "data": {
+                "items": items,
+                "total": total,
+                "skip": skip,
+                "limit": limit
+            }
+        }
+    except Exception as e:
+        logger.error(f"❌ Erro listando saldos: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+@router.post("/balances/adjust", response_model=dict)
+async def adjust_balance(
+    request: BalanceAdjustRequest,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin)
+):
+    """
+    Ajusta manualmente o saldo de um usuário (com registro de auditoria)
+    """
+    try:
+        # Verificar usuário
+        user = db.query(User).filter(User.id == request.user_id).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuário não encontrado")
+        
+        # Buscar wallet do usuário
+        wallet = db.query(Wallet).filter(Wallet.user_id == request.user_id).first()
+        if not wallet:
+            raise HTTPException(status_code=404, detail="Wallet não encontrada")
+        
+        # Buscar ou criar saldo
+        balance = db.query(WalletBalance).filter(
+            WalletBalance.wallet_id == wallet.id,
+            WalletBalance.cryptocurrency == request.cryptocurrency
+        ).first()
+        
+        if not balance:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Saldo de {request.cryptocurrency} não encontrado"
+            )
+        
+        old_balance = float(balance.available_balance or 0)
+        
+        # Aplicar ajuste
+        if request.operation == 'add':
+            balance.available_balance = (balance.available_balance or 0) + request.amount
+        elif request.operation == 'subtract':
+            if (balance.available_balance or 0) < request.amount:
+                raise HTTPException(status_code=400, detail="Saldo insuficiente")
+            balance.available_balance = (balance.available_balance or 0) - request.amount
+        else:
+            raise HTTPException(status_code=400, detail="Operação inválida")
+        
+        new_balance = float(balance.available_balance)
+        
+        # Registrar no histórico
+        history = BalanceHistory(
+            wallet_balance_id=balance.id,
+            old_balance=old_balance,
+            new_balance=new_balance,
+            change_amount=request.amount if request.operation == 'add' else -request.amount,
+            change_type='admin_adjustment',
+            description=f"Ajuste admin: {request.reason}",
+            performed_by=str(current_admin.id)
+        )
+        db.add(history)
+        
+        db.commit()
+        
+        logger.info(f"✅ Saldo ajustado por {current_admin.email}: {request.user_id} {request.cryptocurrency} {request.operation} {request.amount}")
+        
+        return {
+            "success": True,
+            "message": "Saldo ajustado com sucesso",
+            "data": {
+                "user_id": request.user_id,
+                "cryptocurrency": request.cryptocurrency,
+                "old_balance": old_balance,
+                "new_balance": new_balance,
+                "adjustment": request.amount,
+                "operation": request.operation,
+                "reason": request.reason
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"❌ Erro ajustando saldo: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+@router.get("/balances/history/{user_id}", response_model=dict)
+async def get_balance_history(
+    user_id: str,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100),
+    cryptocurrency: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin)
+):
+    """
+    Retorna histórico de alterações de saldo de um usuário
+    """
+    try:
+        # Buscar wallet do usuário
+        wallet = db.query(Wallet).filter(Wallet.user_id == user_id).first()
+        if not wallet:
+            raise HTTPException(status_code=404, detail="Wallet não encontrada")
+        
+        # Buscar balance IDs
+        balance_query = db.query(WalletBalance).filter(WalletBalance.wallet_id == wallet.id)
+        if cryptocurrency:
+            balance_query = balance_query.filter(WalletBalance.cryptocurrency == cryptocurrency)
+        
+        balance_ids = [str(b.id) for b in balance_query.all()]
+        
+        if not balance_ids:
+            return {
+                "success": True,
+                "data": {
+                    "items": [],
+                    "total": 0,
+                    "skip": skip,
+                    "limit": limit
+                }
+            }
+        
+        # Buscar histórico
+        query = db.query(BalanceHistory).filter(
+            BalanceHistory.wallet_balance_id.in_(balance_ids)
+        )
+        
+        total = query.count()
+        history = query.order_by(desc(BalanceHistory.created_at)).offset(skip).limit(limit).all()
+        
+        items = []
+        for h in history:
+            items.append({
+                "id": str(h.id),
+                "old_balance": float(h.old_balance or 0),
+                "new_balance": float(h.new_balance or 0),
+                "change_amount": float(h.change_amount or 0),
+                "change_type": h.change_type,
+                "description": h.description,
+                "performed_by": h.performed_by,
+                "created_at": h.created_at.isoformat() if h.created_at else None
+            })
+        
+        return {
+            "success": True,
+            "data": {
+                "items": items,
+                "total": total,
+                "skip": skip,
+                "limit": limit
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Erro obtendo histórico: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )

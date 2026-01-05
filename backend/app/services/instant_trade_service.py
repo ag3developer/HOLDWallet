@@ -398,6 +398,59 @@ class InstantTradeService:
         trade.completed_at = datetime.now()  # type: ignore
         self.db.commit()
 
+        # 💰 REGISTRAR TAXAS NA CARTEIRA DO SISTEMA
+        try:
+            from app.services.system_blockchain_wallet_service import system_wallet_service
+            from sqlalchemy import text
+            from app.core.config import settings
+            
+            # Calcular taxas coletadas (spread + network fee)
+            spread_amount = float(trade.spread_amount) if trade.spread_amount else 0.0
+            network_fee = float(trade.network_fee_amount) if trade.network_fee_amount else 0.0
+            total_fees = spread_amount + network_fee
+            
+            if total_fees > 0:
+                # 1. Atualizar carteira contábil (system_wallets)
+                try:
+                    self.db.execute(text("""
+                        UPDATE system_wallets
+                        SET brl_balance = brl_balance + :fee_amount,
+                            total_fees_collected_brl = total_fees_collected_brl + :fee_amount,
+                            updated_at = CURRENT_TIMESTAMP
+                        WHERE id = :wallet_id
+                    """), {"fee_amount": total_fees, "wallet_id": settings.SYSTEM_BLOCKCHAIN_WALLET_ID})
+                    logger.info(f"💰 OTC Fee {total_fees} BRL added to system wallet (contábil)")
+                except Exception as wallet_error:
+                    logger.warning(f"Could not add fee to system wallet: {wallet_error}")
+                
+                # 2. Registrar spread na carteira blockchain
+                if spread_amount > 0:
+                    system_wallet_service.record_fee_collected(
+                        db=self.db,
+                        amount=spread_amount,
+                        cryptocurrency="BRL",
+                        network="ethereum",
+                        trade_id=str(trade.id),
+                        trade_type="otc_spread",
+                        description=f"Spread {trade.spread_percentage}% do trade OTC {trade.reference_code}"
+                    )
+                
+                # 3. Registrar network fee na carteira blockchain
+                if network_fee > 0:
+                    system_wallet_service.record_fee_collected(
+                        db=self.db,
+                        amount=network_fee,
+                        cryptocurrency="BRL",
+                        network="ethereum",
+                        trade_id=str(trade.id),
+                        trade_type="network_fee",
+                        description=f"Taxa de rede {trade.network_fee_percentage}% do trade OTC {trade.reference_code}"
+                    )
+                
+                logger.info(f"✅ OTC Fees recorded: spread={spread_amount}, network={network_fee}, total={total_fees}")
+        except Exception as fee_error:
+            logger.error(f"❌ Error recording OTC fees: {fee_error}")
+
         # Create history record for completion
         history = InstantTradeHistory(
             trade_id=trade.id,

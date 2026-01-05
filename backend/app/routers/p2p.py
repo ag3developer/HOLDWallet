@@ -19,6 +19,7 @@ import json
 
 from app.db.database import get_db
 from app.core.security import get_current_user
+from app.core.config import settings
 from app.models.user import User
 
 router = APIRouter(tags=["p2p"])
@@ -1256,8 +1257,17 @@ async def complete_trade(
     Or if it's a buy order:
     - Buyer: locked_balance -= total_price (the BRL they were paying)
     - Seller: available_balance += total_price (receives the BRL)
+    
+    💰 FEE COLLECTION (0.5% P2P fee):
+    - Fee is deducted from the SELLER side (person receiving payment)
+    - Fee is added to system_wallets
+    - Fee is recorded in fee_history
     """
     print(f"[DEBUG] POST /trades/{trade_id}/complete")
+    
+    # Platform fee configuration (0.5% for P2P trades)
+    P2P_FEE_PERCENTAGE = 0.5  # 0.5%
+    SYSTEM_WALLET_ID = settings.SYSTEM_BLOCKCHAIN_WALLET_ID  # Carteira blockchain do sistema
     
     try:
         # Get trade details
@@ -1286,17 +1296,23 @@ async def complete_trade(
                 detail="Order not found"
             )
         
+        # Calculate platform fee
+        fee_amount_brl = float(trade.total_price) * (P2P_FEE_PERCENTAGE / 100)
+        net_amount_brl = float(trade.total_price) - fee_amount_brl
+        
+        print(f"[DEBUG] Trade {trade_id}: gross={trade.total_price}, fee={fee_amount_brl}, net={net_amount_brl}")
+        
         # RELEASE BALANCE BASED ON ORDER TYPE
         if order.order_type == 'buy':
-            # BUY ORDER: Buyer paid BRL, seller receives BRL
-            # Release buyer's frozen BRL → Seller gets it
+            # BUY ORDER: Buyer paid BRL, seller receives BRL (minus fee)
+            # Release buyer's frozen BRL → Seller gets NET amount
             db.execute(text("""
                 UPDATE wallet_balances
                 SET available_balance = available_balance + :amount,
                     updated_at = CURRENT_TIMESTAMP,
-                    last_updated_reason = 'Trade completed - received payment'
+                    last_updated_reason = 'Trade completed - received payment (net after 0.5% fee)'
                 WHERE user_id = :user_id AND cryptocurrency = 'BRL'
-            """), {"user_id": trade.seller_id, "amount": trade.total_price})
+            """), {"user_id": trade.seller_id, "amount": net_amount_brl})
             
             # Move locked balance to available for seller
             db.execute(text("""
@@ -1308,27 +1324,27 @@ async def complete_trade(
             """), {"user_id": trade.buyer_id, "amount": trade.total_price, "cryptocurrency": 'BRL'})
         else:
             # SELL ORDER: Seller paid crypto, buyer receives crypto
-            # Seller receives BRL payment
+            # Seller receives BRL payment (minus fee)
             seller_brl_balance = db.execute(
                 text("SELECT available_balance FROM wallet_balances WHERE user_id = :user_id AND cryptocurrency = 'BRL'"),
                 {"user_id": trade.seller_id}
             ).fetchone()
             
             if seller_brl_balance:
-                # Update existing BRL balance
+                # Update existing BRL balance - Seller receives NET amount
                 db.execute(text("""
                     UPDATE wallet_balances
                     SET available_balance = available_balance + :amount,
                         updated_at = CURRENT_TIMESTAMP,
-                        last_updated_reason = 'Trade completed - received payment'
+                        last_updated_reason = 'Trade completed - received payment (net after 0.5% fee)'
                     WHERE user_id = :user_id AND cryptocurrency = 'BRL'
-                """), {"user_id": trade.seller_id, "amount": trade.total_price})
+                """), {"user_id": trade.seller_id, "amount": net_amount_brl})
             else:
-                # Create new BRL balance for seller
+                # Create new BRL balance for seller with NET amount
                 db.execute(text("""
                     INSERT INTO wallet_balances (id, user_id, cryptocurrency, available_balance, locked_balance, total_balance, last_updated_reason)
-                    VALUES (lower(hex(randomblob(8))), :user_id, 'BRL', :amount, 0, :amount, 'Trade completed - received payment')
-                """), {"user_id": trade.seller_id, "amount": trade.total_price})
+                    VALUES (gen_random_uuid(), :user_id, 'BRL', :amount, 0, :amount, 'Trade completed - received payment (net after 0.5% fee)')
+                """), {"user_id": trade.seller_id, "amount": net_amount_brl})
             
             # Buyer receives crypto
             buyer_crypto_balance = db.execute(
@@ -1349,7 +1365,7 @@ async def complete_trade(
                 # Create new crypto balance for buyer
                 db.execute(text("""
                     INSERT INTO wallet_balances (id, user_id, cryptocurrency, available_balance, locked_balance, total_balance, last_updated_reason)
-                    VALUES (lower(hex(randomblob(8))), :user_id, :cryptocurrency, :amount, 0, :amount, 'Trade completed - received crypto')
+                    VALUES (gen_random_uuid(), :user_id, :cryptocurrency, :amount, 0, :amount, 'Trade completed - received crypto')
                 """), {"user_id": trade.buyer_id, "amount": trade.amount, "cryptocurrency": trade.cryptocurrency})
             
             # Release seller's locked crypto
@@ -1370,6 +1386,74 @@ async def complete_trade(
                 WHERE user_id = :user_id AND cryptocurrency = 'BRL'
             """), {"user_id": trade.buyer_id, "amount": trade.total_price})
         
+        # 💰 ADD FEE TO SYSTEM WALLET (Contábil)
+        try:
+            db.execute(text("""
+                UPDATE system_wallets
+                SET brl_balance = brl_balance + :fee_amount,
+                    total_fees_collected_brl = total_fees_collected_brl + :fee_amount,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = :wallet_id
+            """), {"fee_amount": fee_amount_brl, "wallet_id": SYSTEM_WALLET_ID})
+            
+            print(f"[DEBUG] Fee {fee_amount_brl} BRL added to system wallet (contábil)")
+        except Exception as fee_wallet_error:
+            print(f"[WARNING] Could not add fee to system wallet (table may not exist): {fee_wallet_error}")
+        
+        # 🔐 REGISTRAR NA CARTEIRA BLOCKCHAIN DO SISTEMA
+        try:
+            from app.services.system_blockchain_wallet_service import system_wallet_service
+            
+            # Registrar taxa na carteira blockchain
+            tx = system_wallet_service.record_fee_collected(
+                db=db,
+                amount=fee_amount_brl,
+                cryptocurrency="BRL",
+                network="ethereum",  # Rede padrão para registro
+                trade_id=str(trade_id),
+                trade_type="p2p_commission",
+                description=f"Taxa 0.5% do trade P2P #{trade_id}"
+            )
+            
+            if tx:
+                print(f"[DEBUG] Fee recorded in blockchain wallet: {tx.tx_hash}")
+            else:
+                print("[WARNING] Could not record fee in blockchain wallet")
+        except Exception as blockchain_error:
+            print(f"[WARNING] Could not record in blockchain wallet: {blockchain_error}")
+        
+        # 📝 RECORD FEE IN HISTORY
+        try:
+            import uuid
+            db.execute(text("""
+                INSERT INTO fee_history (
+                    id, trade_id, trade_type, cryptocurrency, fiat_currency,
+                    gross_amount, fee_percentage, fee_amount, net_amount, fee_amount_brl,
+                    payer_user_id, receiver_user_id, system_wallet_id, status, created_at, updated_at
+                ) VALUES (
+                    :id, :trade_id, 'p2p_commission', :cryptocurrency, :fiat_currency,
+                    :gross_amount, :fee_percentage, :fee_amount, :net_amount, :fee_amount_brl,
+                    :payer_user_id, :receiver_user_id, :system_wallet_id, 'collected', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                )
+            """), {
+                "id": str(uuid.uuid4()),
+                "trade_id": trade_id,
+                "cryptocurrency": trade.cryptocurrency,
+                "fiat_currency": trade.fiat_currency or 'BRL',
+                "gross_amount": float(trade.total_price),
+                "fee_percentage": P2P_FEE_PERCENTAGE,
+                "fee_amount": fee_amount_brl,
+                "net_amount": net_amount_brl,
+                "fee_amount_brl": fee_amount_brl,
+                "payer_user_id": str(trade.seller_id),
+                "receiver_user_id": str(trade.buyer_id),
+                "system_wallet_id": SYSTEM_WALLET_ID
+            })
+            
+            print(f"[DEBUG] Fee history recorded for trade {trade_id}")
+        except Exception as fee_history_error:
+            print(f"[WARNING] Could not record fee history (table may not exist): {fee_history_error}")
+        
         # Update trade status to completed
         db.execute(text("""
             UPDATE p2p_trades
@@ -1379,14 +1463,18 @@ async def complete_trade(
         
         db.commit()
         
-        print(f"[DEBUG] Trade {trade_id} completed successfully")
+        print(f"[DEBUG] Trade {trade_id} completed successfully with fee collection")
         
         return {
             "success": True,
             "data": {
                 "trade_id": str(trade_id),
                 "status": "completed",
-                "message": "Balance released successfully"
+                "gross_amount": str(trade.total_price),
+                "fee_percentage": P2P_FEE_PERCENTAGE,
+                "fee_amount": str(round(fee_amount_brl, 2)),
+                "net_amount": str(round(net_amount_brl, 2)),
+                "message": "Balance released successfully. Platform fee of 0.5% collected."
             }
         }
     except HTTPException:

@@ -10,6 +10,7 @@ import { useLanguageStore } from '@/stores/useLanguageStore'
 
 // Components
 import { Layout } from '@/components/layout/Layout'
+import { AdminLayout } from '@/components/layout/AdminLayout'
 import { LoadingScreen } from '@/components/ui/LoadingScreen'
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary'
 import { PWAUpdateNotification } from '@/components/PWAUpdateNotification'
@@ -43,46 +44,104 @@ import { NetworkComparison } from '@/components/NetworkComparison'
 import { TraderProfileEditPage } from '@/pages/p2p/TraderProfileEditPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 
-// Protected Route Component
+// Admin Pages
+import {
+  AdminDashboardPage,
+  AdminUsersPage,
+  AdminUserDetailPage,
+  AdminUserEditPage,
+  AdminTradesPage,
+  AdminP2PPage,
+  AdminReportsPage,
+  AdminSettingsPage,
+  AdminWalletsPage,
+  AdminTransactionsPage,
+  AdminFeesPage,
+  AdminSystemWalletPage,
+  AdminSystemWalletAddressesPage,
+} from '@/pages/admin'
+
+// Protected Route Component (for authenticated users)
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated, isLoading, user } = useAuthStore()
-
-  console.log(
-    'ProtectedRoute - isAuthenticated:',
-    isAuthenticated,
-    'isLoading:',
-    isLoading,
-    'user:',
-    user
-  )
-
-  if (isLoading) {
-    console.log('ProtectedRoute - Loading, showing loading screen')
-    return <LoadingScreen />
-  }
-
-  if (!isAuthenticated) {
-    console.log('ProtectedRoute - Not authenticated, redirecting to login')
-    return <Navigate to='/login' replace />
-  }
-
-  console.log('ProtectedRoute - Authenticated, rendering protected content')
-  return <>{children}</>
-}
-
-// Public Route Component (redirects to dashboard if authenticated)
-const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, isLoading } = useAuthStore()
 
   if (isLoading) {
     return <LoadingScreen />
   }
 
+  if (!isAuthenticated) {
+    return <Navigate to='/login' replace />
+  }
+
+  return <>{children}</>
+}
+
+// User Route Component (blocks admin users, redirects to /admin)
+const UserRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated, isLoading, user } = useAuthStore()
+
+  if (isLoading) {
+    return <LoadingScreen />
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to='/login' replace />
+  }
+
+  // Admin users should not access user routes
+  if (user?.is_admin) {
+    return <Navigate to='/admin' replace />
+  }
+
+  return <>{children}</>
+}
+
+// Public Route Component (redirects to dashboard if authenticated)
+const PublicRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated, isLoading, user } = useAuthStore()
+
+  if (isLoading) {
+    return <LoadingScreen />
+  }
+
   if (isAuthenticated) {
+    // Redirecionar admin para /admin, usuário comum para /dashboard
+    if (user?.is_admin) {
+      return <Navigate to='/admin' replace />
+    }
     return <Navigate to='/dashboard' replace />
   }
 
   return <>{children}</>
+}
+
+// Admin Route Component (only allows admin users)
+const AdminRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated, isLoading, user } = useAuthStore()
+
+  if (isLoading) {
+    return <LoadingScreen />
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to='/login' replace />
+  }
+
+  if (!user?.is_admin) {
+    return <Navigate to='/dashboard' replace />
+  }
+
+  return <>{children}</>
+}
+
+// Smart redirect component for root path
+const RootRedirect = () => {
+  const { user } = useAuthStore()
+
+  if (user?.is_admin) {
+    return <Navigate to='/admin' replace />
+  }
+  return <Navigate to='/dashboard' replace />
 }
 
 function App() {
@@ -212,17 +271,17 @@ function App() {
             }
           />
 
-          {/* Protected Routes */}
+          {/* User Routes (not accessible by admins) */}
           <Route
             path='/'
             element={
-              <ProtectedRoute>
+              <UserRoute>
                 <Layout />
-              </ProtectedRoute>
+              </UserRoute>
             }
           >
-            {/* Redirect root to dashboard */}
-            <Route index element={<Navigate to='/dashboard' replace />} />
+            {/* Redirect root based on user role */}
+            <Route index element={<RootRedirect />} />
 
             {/* Main app routes */}
             <Route path='dashboard' element={<DashboardPage />} />
@@ -248,6 +307,32 @@ function App() {
             <Route path='institutional' element={<InstitutionalPage />} />
             <Route path='education' element={<EducationPage />} />
             <Route path='settings/*' element={<SettingsPage />} />
+          </Route>
+
+          {/* Admin Routes with Admin Layout */}
+          <Route
+            element={
+              <AdminRoute>
+                <AdminLayout />
+              </AdminRoute>
+            }
+          >
+            <Route path='/admin' element={<AdminDashboardPage />} />
+            <Route path='/admin/users' element={<AdminUsersPage />} />
+            <Route path='/admin/users/:userId' element={<AdminUserDetailPage />} />
+            <Route path='/admin/users/:userId/edit' element={<AdminUserEditPage />} />
+            <Route path='/admin/trades' element={<AdminTradesPage />} />
+            <Route path='/admin/p2p' element={<AdminP2PPage />} />
+            <Route path='/admin/wallets' element={<AdminWalletsPage />} />
+            <Route path='/admin/transactions' element={<AdminTransactionsPage />} />
+            <Route path='/admin/fees' element={<AdminFeesPage />} />
+            <Route path='/admin/system-wallet' element={<AdminSystemWalletPage />} />
+            <Route
+              path='/admin/system-wallet/addresses'
+              element={<AdminSystemWalletAddressesPage />}
+            />
+            <Route path='/admin/reports' element={<AdminReportsPage />} />
+            <Route path='/admin/settings' element={<AdminSettingsPage />} />
           </Route>
 
           {/* 404 Page */}

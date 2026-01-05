@@ -15,6 +15,7 @@ export interface User {
   updatedAt?: string
   last_login?: string | null
   is_active?: boolean
+  is_admin?: boolean
   profile?: UserProfile
 }
 

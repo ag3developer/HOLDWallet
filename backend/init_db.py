@@ -30,6 +30,7 @@ def init_database():
         # Importar todos os models para registrar no Base
         from app.models import user, wallet, address, transaction, two_factor
         from app.models import p2p, reputation, trader_profile, instant_trade, chat
+        from app.models import system_wallet  # Sistema de taxas e carteira do sistema
         
         # Criar todas as tabelas
         Base.metadata.create_all(bind=engine)

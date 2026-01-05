@@ -27,7 +27,8 @@ async def get_current_user_profile(
         username=current_user.username,
         created_at=current_user.created_at,
         last_login=current_user.last_login,
-        is_active=current_user.is_active
+        is_active=current_user.is_active,
+        is_admin=current_user.is_admin
     )
 
 @router.put("/me", response_model=UserResponse)
