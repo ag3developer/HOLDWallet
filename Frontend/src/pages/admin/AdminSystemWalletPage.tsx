@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import {
   EyeIcon,
@@ -61,44 +62,45 @@ interface WalletStatus {
   cached_balances?: Record<string, number>
 }
 
+// Função para buscar status da carteira
+const fetchWalletStatus = async (): Promise<WalletStatus> => {
+  const response = await apiClient.get('/admin/system-blockchain-wallet/status')
+  if (response.data.success) {
+    return response.data.data || { exists: false }
+  }
+  return { exists: false }
+}
+
 export const AdminSystemWalletPage: React.FC = () => {
   const navigate = useNavigate()
   const { user } = useAuthStore()
+
+  // React Query para cache automático
+  const {
+    data: walletStatus,
+    isLoading,
+    refetch,
+  } = useQuery({
+    queryKey: ['admin-system-wallet-status'],
+    queryFn: fetchWalletStatus,
+    staleTime: 60000, // 1 minuto - dados ficam "frescos" por 1 minuto
+    gcTime: 300000, // 5 minutos - mantém em cache por 5 minutos
+  })
 
   const [currentStep, setCurrentStep] = useState<Step>('info')
   const [showMnemonic, setShowMnemonic] = useState(false)
   const [copiedMnemonic, setCopiedMnemonic] = useState(false)
   const [walletData, setWalletData] = useState<SystemWalletData | null>(null)
-  const [walletStatus, setWalletStatus] = useState<WalletStatus | null>(null)
   const [confirmationWords, setConfirmationWords] = useState<{ [key: number]: string }>({})
   const [randomWordIndices, setRandomWordIndices] = useState<number[]>([])
-  const [isLoading, setIsLoading] = useState(true)
   const [isCreating, setIsCreating] = useState(false)
 
-  // Verificar se já existe carteira do sistema
+  // Atualiza o step quando wallet status muda
   useEffect(() => {
-    checkWalletStatus()
-  }, [])
-
-  const checkWalletStatus = async () => {
-    try {
-      setIsLoading(true)
-      const response = await apiClient.get('/admin/system-blockchain-wallet/status')
-      if (response.data.success) {
-        setWalletStatus(response.data.data || { exists: false })
-        if (response.data.data?.exists) {
-          setCurrentStep('success')
-        }
-      } else {
-        setWalletStatus({ exists: false })
-      }
-    } catch (error: any) {
-      console.error('Erro ao verificar status:', error)
-      setWalletStatus({ exists: false })
-    } finally {
-      setIsLoading(false)
+    if (walletStatus?.exists) {
+      setCurrentStep('success')
     }
-  }
+  }, [walletStatus])
 
   // Gerar índices aleatórios para confirmação
   const generateRandomIndices = (mnemonicArray: string[]) => {
@@ -295,7 +297,7 @@ HOLD Wallet - Sistema de Taxas e Comissões
         {walletStatus?.exists && (
           <div className='flex gap-3'>
             <button
-              onClick={() => checkWalletStatus()}
+              onClick={() => refetch()}
               className='flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors'
             >
               <RefreshCwIcon className='w-4 h-4' />
