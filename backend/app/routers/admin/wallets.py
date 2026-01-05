@@ -530,3 +530,261 @@ async def get_balance_history(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
         )
+
+
+@router.get("/{wallet_id}/blockchain-balances", response_model=dict)
+async def get_wallet_blockchain_balances(
+    wallet_id: str,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin)
+):
+    """
+    🔗 Consulta saldos REAIS na blockchain para uma carteira específica.
+    
+    Inclui saldos nativos + tokens (USDT, USDC) em redes EVM.
+    """
+    from app.models.address import Address
+    from app.services.blockchain_balance_service import blockchain_balance_service
+    
+    try:
+        # Buscar a wallet
+        wallet = db.query(Wallet).filter(Wallet.id == wallet_id).first()
+        if not wallet:
+            raise HTTPException(status_code=404, detail="Carteira não encontrada")
+        
+        # Buscar todos os endereços desta wallet
+        addresses = db.query(Address).filter(Address.wallet_id == wallet_id).all()
+        
+        if not addresses:
+            return {
+                "success": True,
+                "data": {
+                    "wallet_id": wallet_id,
+                    "message": "Nenhum endereço encontrado para esta carteira",
+                    "balances": []
+                }
+            }
+        
+        # Redes não suportadas para pular
+        skip_networks = ['multi', 'polkadot', 'cardano', 'chainlink', 'shiba', 'xrp']
+        
+        # Consultar saldos blockchain para cada endereço
+        blockchain_balances = []
+        total_balances = {}
+        
+        for addr in addresses:
+            network = str(addr.network).lower() if addr.network else "unknown"
+            address = str(addr.address)
+            
+            if network in skip_networks:
+                continue
+            
+            logger.info(f"🔍 Consultando saldo completo: {network} - {address[:15]}...")
+            
+            try:
+                # Usar consulta completa (nativo + tokens)
+                result = await blockchain_balance_service.get_complete_balance(network, address)
+                
+                if result.get("has_balance"):
+                    for bal in result.get("balances", []):
+                        symbol = bal.get("symbol", network.upper())
+                        balance = bal.get("balance", 0)
+                        
+                        blockchain_balances.append({
+                            "address_id": str(addr.id),
+                            "address": address,
+                            "network": network,
+                            "balance": balance,
+                            "symbol": symbol,
+                            "type": bal.get("type", "native"),
+                            "contract": bal.get("contract"),
+                            "source": "blockchain",
+                            "queried_at": datetime.now(timezone.utc).isoformat()
+                        })
+                        
+                        # Acumular totais
+                        if symbol not in total_balances:
+                            total_balances[symbol] = 0
+                        total_balances[symbol] += balance
+                else:
+                    # Endereço sem saldo
+                    blockchain_balances.append({
+                        "address_id": str(addr.id),
+                        "address": address,
+                        "network": network,
+                        "balance": 0,
+                        "symbol": blockchain_balance_service._get_native_currency(network),
+                        "type": "native",
+                        "source": "blockchain",
+                        "queried_at": datetime.now(timezone.utc).isoformat()
+                    })
+                    
+            except Exception as e:
+                logger.error(f"❌ Erro consultando saldo {network}: {e}")
+                blockchain_balances.append({
+                    "address_id": str(addr.id),
+                    "address": address,
+                    "network": network,
+                    "balance": None,
+                    "symbol": network.upper(),
+                    "error": str(e),
+                    "source": "error",
+                    "queried_at": datetime.now(timezone.utc).isoformat()
+                })
+        
+        return {
+            "success": True,
+            "data": {
+                "wallet_id": wallet_id,
+                "total_addresses": len(addresses),
+                "queried_addresses": len(blockchain_balances),
+                "total_balances": total_balances,
+                "balances": blockchain_balances
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Erro consultando blockchain balances: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+@router.post("/{wallet_id}/refresh-blockchain-balances", response_model=dict)
+async def refresh_wallet_blockchain_balances(
+    wallet_id: str,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin)
+):
+    """
+    🔄 Atualiza saldos do banco de dados com valores reais da blockchain.
+    
+    Consulta a blockchain e atualiza os saldos internos.
+    """
+    from app.models.address import Address
+    from app.services.blockchain_balance_service import blockchain_balance_service
+    
+    try:
+        # Buscar a wallet
+        wallet = db.query(Wallet).filter(Wallet.id == wallet_id).first()
+        if not wallet:
+            raise HTTPException(status_code=404, detail="Carteira não encontrada")
+        
+        # Buscar todos os endereços desta wallet
+        addresses = db.query(Address).filter(Address.wallet_id == wallet_id).all()
+        
+        if not addresses:
+            return {
+                "success": False,
+                "message": "Nenhum endereço encontrado para esta carteira"
+            }
+        
+        updated_balances = []
+        errors = []
+        
+        for addr in addresses:
+            network = addr.network.lower() if addr.network else "unknown"
+            address = addr.address
+            
+            try:
+                balance_info = await blockchain_balance_service.get_native_balance(network, address)
+                
+                if balance_info and balance_info.get("success"):
+                    new_balance = float(balance_info.get("balance", 0))
+                    
+                    # Mapear network para cryptocurrency
+                    crypto_map = {
+                        "bitcoin": "BTC",
+                        "ethereum": "ETH",
+                        "polygon": "MATIC",
+                        "bsc": "BNB",
+                        "solana": "SOL",
+                        "tron": "TRX",
+                        "litecoin": "LTC",
+                        "dogecoin": "DOGE",
+                        "avalanche": "AVAX",
+                        "cardano": "ADA",
+                        "polkadot": "DOT",
+                        "xrp": "XRP",
+                        "base": "ETH",
+                        "chainlink": "LINK",
+                        "shiba": "SHIB",
+                    }
+                    
+                    crypto_symbol = crypto_map.get(network, network.upper())
+                    
+                    # Atualizar ou criar WalletBalance
+                    wallet_balance = db.query(WalletBalance).filter(
+                        WalletBalance.user_id == str(wallet.user_id),
+                        WalletBalance.cryptocurrency == crypto_symbol
+                    ).first()
+                    
+                    if wallet_balance:
+                        old_balance = float(wallet_balance.available_balance or 0)
+                        wallet_balance.available_balance = new_balance
+                        wallet_balance.updated_at = datetime.now(timezone.utc)
+                        
+                        updated_balances.append({
+                            "network": network,
+                            "cryptocurrency": crypto_symbol,
+                            "old_balance": old_balance,
+                            "new_balance": new_balance,
+                            "change": new_balance - old_balance
+                        })
+                    else:
+                        # Criar novo registro de saldo
+                        new_wallet_balance = WalletBalance(
+                            user_id=str(wallet.user_id),
+                            wallet_id=str(wallet.id),
+                            cryptocurrency=crypto_symbol,
+                            available_balance=new_balance,
+                            locked_balance=0,
+                            created_at=datetime.now(timezone.utc),
+                            updated_at=datetime.now(timezone.utc)
+                        )
+                        db.add(new_wallet_balance)
+                        
+                        updated_balances.append({
+                            "network": network,
+                            "cryptocurrency": crypto_symbol,
+                            "old_balance": 0,
+                            "new_balance": new_balance,
+                            "change": new_balance,
+                            "created": True
+                        })
+                else:
+                    errors.append({
+                        "network": network,
+                        "address": address[:15] + "...",
+                        "error": balance_info.get("error") if balance_info else "Falha na consulta"
+                    })
+            except Exception as e:
+                errors.append({
+                    "network": network,
+                    "address": address[:15] + "...",
+                    "error": str(e)
+                })
+        
+        db.commit()
+        
+        return {
+            "success": True,
+            "data": {
+                "wallet_id": wallet_id,
+                "updated_count": len(updated_balances),
+                "error_count": len(errors),
+                "updated_balances": updated_balances,
+                "errors": errors if errors else None
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"❌ Erro atualizando blockchain balances: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )

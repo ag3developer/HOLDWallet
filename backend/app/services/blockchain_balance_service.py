@@ -117,6 +117,12 @@ class BlockchainBalanceService:
     async def _get_evm_balance(self, network: str, address: str) -> Optional[Dict[str, Any]]:
         """Consulta saldo em redes EVM (Ethereum, Polygon, BSC, etc.)."""
         try:
+            # Tentar primeiro com APIs alternativas (sem rate limit)
+            result = await self._get_evm_balance_alternative(network, address)
+            if result:
+                return result
+            
+            # Fallback para Etherscan API V2
             endpoint = self.API_ENDPOINTS.get(network)
             if not endpoint:
                 return None
@@ -142,19 +148,71 @@ class BlockchainBalanceService:
                 balance = balance_wei / (10 ** decimals)
                 
                 return {
+                    "success": True,
                     "network": network,
                     "address": address,
                     "balance": balance,
                     "balance_raw": balance_wei,
-                    "currency": self._get_native_currency(network),
+                    "symbol": self._get_native_currency(network),
                     "timestamp": datetime.now(timezone.utc).isoformat()
                 }
             else:
                 logger.warning(f"Erro na API {network}: {data.get('message')}")
-                return None
+                return {"success": False, "error": data.get('message', 'Unknown error')}
                 
         except Exception as e:
             logger.error(f"Erro ao consultar EVM {network}: {e}")
+            return {"success": False, "error": str(e)}
+    
+    async def _get_evm_balance_alternative(self, network: str, address: str) -> Optional[Dict[str, Any]]:
+        """Consulta saldo via APIs alternativas (Ankr, Alchemy Public, etc.)."""
+        try:
+            # RPC endpoints públicos
+            rpc_endpoints = {
+                "ethereum": "https://eth.llamarpc.com",
+                "polygon": "https://polygon-rpc.com",
+                "bsc": "https://bsc-dataseed.binance.org",
+                "avalanche": "https://api.avax.network/ext/bc/C/rpc",
+                "base": "https://mainnet.base.org",
+                "arbitrum": "https://arb1.arbitrum.io/rpc",
+                "optimism": "https://mainnet.optimism.io",
+            }
+            
+            rpc_url = rpc_endpoints.get(network)
+            if not rpc_url:
+                return None
+            
+            # JSON-RPC call para eth_getBalance
+            payload = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "eth_getBalance",
+                "params": [address, "latest"]
+            }
+            
+            response = await self.client.post(rpc_url, json=payload)
+            data = response.json()
+            
+            if "result" in data:
+                balance_hex = data["result"]
+                balance_wei = int(balance_hex, 16)
+                decimals = self.DECIMALS.get(network, 18)
+                balance = balance_wei / (10 ** decimals)
+                
+                return {
+                    "success": True,
+                    "network": network,
+                    "address": address,
+                    "balance": balance,
+                    "balance_raw": balance_wei,
+                    "symbol": self._get_native_currency(network),
+                    "source": "rpc",
+                    "timestamp": datetime.now(timezone.utc).isoformat()
+                }
+            
+            return None
+        except Exception as e:
+            logger.debug(f"RPC alternativo falhou para {network}: {e}")
             return None
     
     async def _get_bitcoin_balance(self, address: str) -> Optional[Dict[str, Any]]:
@@ -171,16 +229,17 @@ class BlockchainBalanceService:
             balance_btc = balance_satoshi / 100_000_000
             
             return {
+                "success": True,
                 "network": "bitcoin",
                 "address": address,
                 "balance": balance_btc,
                 "balance_raw": balance_satoshi,
-                "currency": "BTC",
+                "symbol": "BTC",
                 "timestamp": datetime.now(timezone.utc).isoformat()
             }
         except Exception as e:
             logger.error(f"Erro ao consultar Bitcoin: {e}")
-            return None
+            return {"success": False, "error": str(e)}
     
     async def _get_solana_balance(self, address: str) -> Optional[Dict[str, Any]]:
         """Consulta saldo Solana via RPC."""
@@ -203,17 +262,18 @@ class BlockchainBalanceService:
                 balance_sol = balance_lamports / 1_000_000_000
                 
                 return {
+                    "success": True,
                     "network": "solana",
                     "address": address,
                     "balance": balance_sol,
                     "balance_raw": balance_lamports,
-                    "currency": "SOL",
+                    "symbol": "SOL",
                     "timestamp": datetime.now(timezone.utc).isoformat()
                 }
-            return None
+            return {"success": False, "error": "No result from Solana RPC"}
         except Exception as e:
             logger.error(f"Erro ao consultar Solana: {e}")
-            return None
+            return {"success": False, "error": str(e)}
     
     async def _get_tron_balance(self, address: str) -> Optional[Dict[str, Any]]:
         """Consulta saldo Tron via TronGrid."""
@@ -228,17 +288,18 @@ class BlockchainBalanceService:
                 balance_trx = balance_sun / 1_000_000
                 
                 return {
+                    "success": True,
                     "network": "tron",
                     "address": address,
                     "balance": balance_trx,
                     "balance_raw": balance_sun,
-                    "currency": "TRX",
+                    "symbol": "TRX",
                     "timestamp": datetime.now(timezone.utc).isoformat()
                 }
-            return None
+            return {"success": False, "error": "Account not found or empty"}
         except Exception as e:
             logger.error(f"Erro ao consultar Tron: {e}")
-            return None
+            return {"success": False, "error": str(e)}
     
     async def _get_blockcypher_balance(self, network: str, address: str) -> Optional[Dict[str, Any]]:
         """Consulta saldo via BlockCypher (LTC, DOGE)."""
@@ -253,16 +314,17 @@ class BlockchainBalanceService:
             currency_map = {"ltc": "LTC", "doge": "DOGE"}
             
             return {
+                "success": True,
                 "network": network,
                 "address": address,
                 "balance": balance,
                 "balance_raw": balance_satoshi,
-                "currency": currency_map.get(network, network.upper()),
+                "symbol": currency_map.get(network, network.upper()),
                 "timestamp": datetime.now(timezone.utc).isoformat()
             }
         except Exception as e:
             logger.error(f"Erro ao consultar {network}: {e}")
-            return None
+            return {"success": False, "error": str(e)}
     
     async def get_token_balance(
         self, 
@@ -270,53 +332,75 @@ class BlockchainBalanceService:
         address: str, 
         token: str = "usdt"
     ) -> Optional[Dict[str, Any]]:
-        """Consulta saldo de token (USDT, USDC) em redes EVM."""
+        """Consulta saldo de token (USDT, USDC) em redes EVM via RPC."""
         try:
-            if network not in ["ethereum", "polygon", "bsc", "avalanche", "base", "arbitrum"]:
+            supported_networks = ["ethereum", "polygon", "bsc", "avalanche", "base", "arbitrum"]
+            if network not in supported_networks:
                 logger.warning(f"Consulta de token não suportada para {network}")
-                return None
+                return {"success": False, "error": f"Network {network} not supported for token queries"}
             
             contracts = self.USDT_CONTRACTS if token.lower() == "usdt" else self.USDC_CONTRACTS
             contract_address = contracts.get(network)
             
             if not contract_address:
-                return None
+                return {"success": False, "error": f"No {token.upper()} contract for {network}"}
             
-            endpoint = self.API_ENDPOINTS.get(network)
-            api_key = self.API_KEYS.get(f"{network}scan", "")
-            
-            params = {
-                "module": "account",
-                "action": "tokenbalance",
-                "contractaddress": contract_address,
-                "address": address,
-                "tag": "latest",
+            # RPC endpoints
+            rpc_endpoints = {
+                "ethereum": "https://eth.llamarpc.com",
+                "polygon": "https://polygon-rpc.com",
+                "bsc": "https://bsc-dataseed.binance.org",
+                "avalanche": "https://api.avax.network/ext/bc/C/rpc",
+                "base": "https://mainnet.base.org",
+                "arbitrum": "https://arb1.arbitrum.io/rpc",
             }
-            if api_key:
-                params["apikey"] = api_key
             
-            response = await self.client.get(endpoint, params=params)
-            data = response.json()
+            rpc_url = rpc_endpoints.get(network)
+            if not rpc_url:
+                return {"success": False, "error": f"No RPC for {network}"}
             
-            if data.get("status") == "1":
-                balance_raw = int(data.get("result", 0))
-                # USDT/USDC geralmente tem 6 decimais (exceto BSC que tem 18)
-                decimals = 18 if network == "bsc" else 6
+            # balanceOf(address) = 0x70a08231
+            address_padded = address[2:].lower().zfill(64)
+            data = f'0x70a08231{address_padded}'
+            
+            payload = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "eth_call",
+                "params": [
+                    {
+                        "to": contract_address,
+                        "data": data
+                    },
+                    "latest"
+                ]
+            }
+            
+            response = await self.client.post(rpc_url, json=payload)
+            result = response.json()
+            
+            if "result" in result and result["result"] != "0x":
+                balance_hex = result["result"]
+                balance_raw = int(balance_hex, 16)
+                # USDT/USDC geralmente tem 6 decimais (exceto BSC USDT que tem 18)
+                decimals = 18 if (network == "bsc" and token.lower() == "usdt") else 6
                 balance = balance_raw / (10 ** decimals)
                 
                 return {
+                    "success": True,
                     "network": network,
                     "address": address,
                     "balance": balance,
                     "balance_raw": balance_raw,
-                    "currency": token.upper(),
+                    "symbol": token.upper(),
                     "contract": contract_address,
+                    "source": "rpc",
                     "timestamp": datetime.now(timezone.utc).isoformat()
                 }
-            return None
+            return {"success": True, "network": network, "balance": 0, "symbol": token.upper()}
         except Exception as e:
             logger.error(f"Erro ao consultar token {token} em {network}: {e}")
-            return None
+            return {"success": False, "error": str(e)}
     
     async def get_all_balances(self, addresses: Dict[str, str]) -> Dict[str, Any]:
         """
@@ -389,6 +473,65 @@ class BlockchainBalanceService:
             "dogecoin": "DOGE",
         }
         return currencies.get(network, network.upper())
+    
+    async def get_complete_balance(self, network: str, address: str) -> Dict[str, Any]:
+        """
+        Consulta saldo completo de um endereço: nativo + USDT + USDC.
+        
+        Retorna todos os saldos disponíveis para aquele endereço na rede.
+        """
+        results = {
+            "network": network,
+            "address": address,
+            "balances": [],
+            "total_usd_estimate": 0
+        }
+        
+        # Redes EVM que suportam tokens
+        evm_networks = ["ethereum", "polygon", "bsc", "avalanche", "base", "arbitrum"]
+        
+        # 1. Consultar saldo nativo
+        native_result = await self.get_native_balance(network, address)
+        if native_result and native_result.get("success"):
+            balance = native_result.get("balance", 0)
+            if balance > 0:
+                results["balances"].append({
+                    "type": "native",
+                    "symbol": native_result.get("symbol"),
+                    "balance": balance,
+                    "balance_raw": native_result.get("balance_raw", 0)
+                })
+        
+        # 2. Se for rede EVM, consultar tokens USDT e USDC
+        if network in evm_networks:
+            # Consultar USDT
+            usdt_result = await self.get_token_balance(network, address, "usdt")
+            if usdt_result and usdt_result.get("success"):
+                balance = usdt_result.get("balance", 0)
+                if balance > 0:
+                    results["balances"].append({
+                        "type": "token",
+                        "symbol": "USDT",
+                        "balance": balance,
+                        "balance_raw": usdt_result.get("balance_raw", 0),
+                        "contract": usdt_result.get("contract")
+                    })
+            
+            # Consultar USDC
+            usdc_result = await self.get_token_balance(network, address, "usdc")
+            if usdc_result and usdc_result.get("success"):
+                balance = usdc_result.get("balance", 0)
+                if balance > 0:
+                    results["balances"].append({
+                        "type": "token",
+                        "symbol": "USDC",
+                        "balance": balance,
+                        "balance_raw": usdc_result.get("balance_raw", 0),
+                        "contract": usdc_result.get("contract")
+                    })
+        
+        results["has_balance"] = len(results["balances"]) > 0
+        return results
     
     async def close(self):
         """Fecha o cliente HTTP."""
