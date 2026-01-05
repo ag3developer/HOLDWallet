@@ -262,9 +262,17 @@ class WalletService {
         return ''
       }
     } catch (error: any) {
-      // Check if it's a network error and we have retries left
+      // Identificar tipo de erro
       const isNetworkError = error.code === 'ERR_NETWORK' || error.message?.includes('Network')
+      const isTimeoutError = error.code === 'ECONNABORTED' || error.message?.includes('timeout')
+      const isCancelled = error.code === 'ERR_CANCELED'
 
+      // Não logar erros cancelados (navegação do usuário)
+      if (isCancelled) {
+        return ''
+      }
+
+      // Retry apenas para erros de rede (não timeout - muito lento)
       if (isNetworkError && retries > 0) {
         // Wait a bit before retrying (exponential backoff)
         const delay = (3 - retries) * 500 // 500ms, 1000ms
@@ -272,8 +280,10 @@ class WalletService {
         return this.getNetworkAddress(walletId, network, retries - 1)
       }
 
-      // Apenas log silencioso do erro - não quebrar a UI
-      if (retries === 0) {
+      // Log apropriado baseado no tipo de erro
+      if (isTimeoutError) {
+        console.debug(`[WalletService] ⏱️ Timeout getting ${network} address`)
+      } else if (retries === 0) {
         console.warn(
           `[WalletService] ⚠️ ${network} address unavailable after retries (backend may be offline)`
         )

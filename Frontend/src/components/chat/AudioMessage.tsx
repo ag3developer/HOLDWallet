@@ -34,14 +34,25 @@ export function AudioMessage({ audioBlob, isOwn }: AudioMessageProps) {
     return `${mins}:${String(secs).padStart(2, '0')}`
   }
 
-  const handlePlay = () => {
+  const handlePlay = async () => {
     if (audioRef.current) {
       if (isPlaying) {
         audioRef.current.pause()
         setIsPlaying(false)
       } else {
-        audioRef.current.play()
-        setIsPlaying(true)
+        try {
+          // Usar promise para capturar erros de play()
+          await audioRef.current.play()
+          setIsPlaying(true)
+        } catch (error) {
+          // Ignorar AbortError - ocorre quando o elemento é removido durante play()
+          if (error instanceof Error && error.name === 'AbortError') {
+            console.debug('[AudioMessage] Play interrupted - element removed from DOM')
+          } else {
+            console.warn('[AudioMessage] Play error:', error)
+          }
+          setIsPlaying(false)
+        }
       }
     }
   }

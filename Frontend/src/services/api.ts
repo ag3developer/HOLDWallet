@@ -92,11 +92,29 @@ class ApiClient {
         return response
       },
       async error => {
-        // Apenas log detalhado se não for erro de rede comum
+        // Identificar tipo de erro
+        const isTimeoutError = error.code === 'ECONNABORTED' || error.message?.includes('timeout')
         const isNetworkError =
           !error.response && (error.code === 'ERR_NETWORK' || error.message?.includes('Network'))
+        const isCancelled = error.code === 'ERR_CANCELED' || axios.isCancel(error)
 
-        if (!isNetworkError) {
+        // Não logar erros cancelados (navegação do usuário)
+        if (isCancelled) {
+          console.debug('[API] Request cancelled:', error.config?.url?.substring(0, 50))
+          throw error
+        }
+
+        // Log apropriado baseado no tipo de erro
+        if (isTimeoutError) {
+          console.warn(
+            `[API] ⏱️ Timeout (${error.config?.timeout}ms):`,
+            error.config?.url?.substring(0, 60)
+          )
+        } else if (isNetworkError) {
+          // Log silencioso para erros de rede (muito comum quando backend está offline)
+          console.warn('[API] 🌐 Network error:', error.config?.url?.substring(0, 50))
+        } else if (error.response) {
+          // Apenas log detalhado para erros não-comuns com resposta
           console.error('[API] Response error:', {
             url: error.config?.url,
             status: error.response?.status,
@@ -106,23 +124,7 @@ class ApiClient {
             code: error.code,
           })
         } else {
-          // Log silencioso para erros de rede (muito comum quando backend está offline)
-          console.warn('[API] ⚠️ Network error:', error.config?.url?.substring(0, 50))
-        }
-
-        // Check for CORS/Network errors
-        if (!error.response) {
-          // Não logar se já logamos acima
-          if (!isNetworkError) {
-            console.error(
-              '[API] ⚠️ No response received - likely CORS, network, or backend unavailable'
-            )
-            console.error('[API] Error details:', {
-              message: error.message,
-              code: error.code,
-              isNetwork: error.message?.includes('Network') || error.code === 'ERR_NETWORK',
-            })
-          }
+          console.warn('[API] ⚠️ No response - backend may be unavailable')
         }
 
         const originalRequest = error.config

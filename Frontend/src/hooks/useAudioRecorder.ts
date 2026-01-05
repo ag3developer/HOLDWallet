@@ -135,7 +135,9 @@ export function useAudioRecorder(): UseAudioRecorderResult {
       audioElementRef.current ??= new Audio()
 
       audioElementRef.current.src = audioUrl
-      audioElementRef.current.play()
+
+      // Usar promise para capturar erros de play()
+      await audioElementRef.current.play()
 
       console.log('🔊 Reproduzindo áudio gravado...')
 
@@ -145,8 +147,12 @@ export function useAudioRecorder(): UseAudioRecorderResult {
         console.log('🔊 Áudio terminado')
       }
     } catch (error) {
-      console.error('❌ Erro ao reproduzir áudio:', error)
-      alert('❌ Não foi possível reproduzir o áudio')
+      // Ignorar AbortError - ocorre quando o elemento é removido durante play()
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.debug('[AudioRecorder] Play interrupted - element removed from DOM')
+      } else {
+        console.error('❌ Erro ao reproduzir áudio:', error)
+      }
     }
   }, [recordedAudio])
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { walletService } from '../services/walletService'
 
 export interface NetworkAddress {
@@ -18,12 +18,44 @@ const CIRCUIT_BREAKER_DURATION = 30 * 1000 // 30 segundos
 
 /**
  * Hook para buscar endereços de redes específicas de uma carteira multi
- * Com circuit breaker e cache para melhor performance
+ * Com circuit breaker, cache e suporte para rede prioritária
  */
-export const useWalletAddresses = (walletId: string | undefined, networks: string[]) => {
+export const useWalletAddresses = (
+  walletId: string | undefined,
+  networks: string[],
+  priorityNetwork?: string // Rede que será carregada primeiro
+) => {
   const [addresses, setAddresses] = useState<Record<string, string>>({})
   const [isLoading, setIsLoading] = useState(true)
+  const [isPriorityLoaded, setIsPriorityLoaded] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Função para buscar um único endereço
+  const fetchSingleAddress = useCallback(
+    async (network: string): Promise<string> => {
+      if (!walletId) return ''
+
+      // Verificar cache individual
+      const cacheKey = `${walletId}-${network}`
+      const cached = addressCache.get(cacheKey)
+      if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+        return cached.addresses[network] || ''
+      }
+
+      try {
+        const address = await walletService.getNetworkAddress(walletId, network)
+        // Salvar no cache
+        addressCache.set(cacheKey, {
+          addresses: { [network]: address },
+          timestamp: Date.now(),
+        })
+        return address
+      } catch {
+        return ''
+      }
+    },
+    [walletId]
+  )
 
   useEffect(() => {
     if (!walletId || networks.length === 0) {
@@ -41,13 +73,14 @@ export const useWalletAddresses = (walletId: string | undefined, networks: strin
         return
       }
 
-      // Check cache
+      // Check cache completo
       const cacheKey = `${walletId}-${networks.join(',')}`
       const cached = addressCache.get(cacheKey)
       if (cached && now - cached.timestamp < CACHE_DURATION) {
         console.log('[useWalletAddresses] ✅ Using cached addresses')
         setAddresses(cached.addresses)
         setIsLoading(false)
+        setIsPriorityLoaded(true)
         return
       }
 
@@ -55,16 +88,50 @@ export const useWalletAddresses = (walletId: string | undefined, networks: strin
       setError(null)
 
       try {
-        // Buscar endereços com Promise.allSettled para não falhar tudo se uma rede falhar
-        const addressPromises = networks.map(async network => {
+        // PASSO 1: Carregar rede prioritária primeiro (se especificada)
+        if (priorityNetwork && networks.includes(priorityNetwork)) {
+          console.log(`[useWalletAddresses] 🚀 Loading priority network first: ${priorityNetwork}`)
+          const priorityAddress = await fetchSingleAddress(priorityNetwork)
+          if (priorityAddress) {
+            setAddresses(prev => ({ ...prev, [priorityNetwork]: priorityAddress }))
+            setIsPriorityLoaded(true)
+            console.log(
+              `[useWalletAddresses] ✅ Priority network ${priorityNetwork} loaded quickly`
+            )
+          }
+        }
+
+        // PASSO 2: Buscar demais endereços em paralelo (exceto o prioritário já carregado)
+        const remainingNetworks = priorityNetwork
+          ? networks.filter(n => n !== priorityNetwork)
+          : networks
+
+        const addressPromises = remainingNetworks.map(async network => {
           try {
             const address = await walletService.getNetworkAddress(walletId, network)
             return { network, address, success: true }
           } catch (err: unknown) {
-            console.warn(
-              `[useWalletAddresses] ⚠️ Failed to fetch ${network} address:`,
-              err instanceof Error ? err.message : 'Unknown error'
-            )
+            // Identificar tipo de erro para log apropriado
+            const isTimeout =
+              err instanceof Error &&
+              (err.message?.includes('timeout') || (err as any).code === 'ECONNABORTED')
+            const isCancelled =
+              err instanceof Error &&
+              ((err as any).code === 'ERR_CANCELED' || err.name === 'CanceledError')
+
+            // Não logar erros cancelados (navegação do usuário)
+            if (isCancelled) {
+              return { network, address: '', success: false }
+            }
+
+            if (isTimeout) {
+              console.debug(`[useWalletAddresses] ⏱️ Timeout fetching ${network} address`)
+            } else {
+              console.warn(
+                `[useWalletAddresses] ⚠️ Failed to fetch ${network} address:`,
+                err instanceof Error ? err.message : 'Unknown error'
+              )
+            }
             return { network, address: '', success: false }
           }
         })
@@ -93,9 +160,13 @@ export const useWalletAddresses = (walletId: string | undefined, networks: strin
           backendOfflineUntil = Date.now() + CIRCUIT_BREAKER_DURATION
           setError('Unable to connect to backend')
         } else {
-          // Cache os resultados bem-sucedidos
-          addressCache.set(cacheKey, { addresses: addressMap, timestamp: now })
-          setAddresses(addressMap)
+          // Incluir endereço prioritário se já foi carregado
+          setAddresses(prev => {
+            const finalAddresses = { ...prev, ...addressMap }
+            // Cache os resultados completos
+            addressCache.set(cacheKey, { addresses: finalAddresses, timestamp: now })
+            return finalAddresses
+          })
         }
       } catch (err: any) {
         console.error('[useWalletAddresses] ❌ Critical error fetching addresses:', err)
@@ -108,7 +179,7 @@ export const useWalletAddresses = (walletId: string | undefined, networks: strin
     }
 
     fetchAddresses()
-  }, [walletId, networks.join(',')])
+  }, [walletId, networks.join(','), priorityNetwork, fetchSingleAddress])
 
-  return { addresses, isLoading, error }
+  return { addresses, isLoading, isPriorityLoaded, error }
 }

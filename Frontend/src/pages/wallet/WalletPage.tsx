@@ -13,7 +13,6 @@ import {
   TrendingDown,
   Clock,
   AlertCircle,
-  Loader2,
   Settings,
 } from 'lucide-react'
 import { CryptoIcon } from '@/components/CryptoIcon'
@@ -474,20 +473,8 @@ export const WalletPage = () => {
     )
   }, [totalBalanceUSD, walletsWithAddresses.length])
 
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className='flex items-center justify-center min-h-screen'>
-        <div className='text-center'>
-          <Loader2 className='w-12 h-12 text-blue-600 animate-spin mx-auto mb-4' />
-          <p className='text-gray-600 dark:text-gray-400'>Carregando carteiras...</p>
-        </div>
-      </div>
-    )
-  }
-
-  // Error state
-  if (error) {
+  // Error state - apenas se houver erro crítico e nenhum dado
+  if (error && walletsWithAddresses.length === 0) {
     return (
       <div className='flex items-center justify-center min-h-screen'>
         <div className='text-center'>
@@ -505,8 +492,8 @@ export const WalletPage = () => {
     )
   }
 
-  // Empty state
-  if (walletsWithAddresses.length === 0) {
+  // Empty state - apenas após carregamento completo
+  if (!isLoading && walletsWithAddresses.length === 0) {
     return (
       <div className='flex items-center justify-center min-h-screen'>
         <div className='text-center'>
@@ -586,23 +573,33 @@ export const WalletPage = () => {
           </div>
 
           <div className='mb-2'>
-            <span className='text-2xl md:text-3xl lg:text-4xl font-bold'>
-              {showBalances ? formatCurrency(totalBalanceUSD) : '••••••'}
-            </span>
+            {isLoading ? (
+              <div className='h-10 w-48 bg-white bg-opacity-20 rounded-lg animate-pulse'></div>
+            ) : (
+              <span className='text-2xl md:text-3xl lg:text-4xl font-bold'>
+                {showBalances ? formatCurrency(totalBalanceUSD) : '••••••'}
+              </span>
+            )}
           </div>
 
           <div
             className={`flex items-center gap-2 ${portfolioChange24h >= 0 ? 'text-green-200' : 'text-red-200'}`}
           >
-            {portfolioChange24h >= 0 ? (
-              <TrendingUp className='w-3 h-3 md:w-4 md:h-4' />
+            {isLoading ? (
+              <div className='h-4 w-32 bg-white bg-opacity-20 rounded animate-pulse'></div>
             ) : (
-              <TrendingDown className='w-3 h-3 md:w-4 md:h-4' />
+              <>
+                {portfolioChange24h >= 0 ? (
+                  <TrendingUp className='w-3 h-3 md:w-4 md:h-4' />
+                ) : (
+                  <TrendingDown className='w-3 h-3 md:w-4 md:h-4' />
+                )}
+                <span className='text-xs md:text-sm'>
+                  {portfolioChange24h >= 0 ? '+' : ''}
+                  {portfolioChange24h?.toFixed(2)}% (últimas 24h)
+                </span>
+              </>
             )}
-            <span className='text-xs md:text-sm'>
-              {portfolioChange24h >= 0 ? '+' : ''}
-              {portfolioChange24h?.toFixed(2)}% (últimas 24h)
-            </span>
           </div>
         </div>
       </div>
@@ -653,6 +650,33 @@ export const WalletPage = () => {
       {/* Tab Content */}
       {activeTab === 'overview' && (
         <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4'>
+          {/* Skeleton Cards quando carregando */}
+          {isLoading && walletsWithAddresses.length === 0 && (
+            <>
+              {[1, 2, 3, 4, 5, 6].map(i => (
+                <div
+                  key={`skeleton-${i}`}
+                  className='bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-3 md:p-4 animate-pulse'
+                >
+                  <div className='flex items-center justify-between mb-3'>
+                    <div className='flex items-center gap-2'>
+                      <div className='w-8 h-8 md:w-10 md:h-10 bg-gray-200 dark:bg-gray-700 rounded-lg'></div>
+                      <div className='h-4 w-16 bg-gray-200 dark:bg-gray-700 rounded'></div>
+                    </div>
+                  </div>
+                  <div className='space-y-2'>
+                    <div className='h-6 w-24 bg-gray-200 dark:bg-gray-700 rounded'></div>
+                    <div className='flex justify-between'>
+                      <div className='h-4 w-20 bg-gray-200 dark:bg-gray-700 rounded'></div>
+                      <div className='h-4 w-12 bg-gray-200 dark:bg-gray-700 rounded'></div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+
+          {/* Wallet Cards reais */}
           {walletsWithAddresses.map(wallet => (
             <div
               key={wallet.id}

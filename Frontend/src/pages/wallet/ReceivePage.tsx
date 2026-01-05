@@ -117,6 +117,7 @@ export const ReceivePage = () => {
   const balancesQueries = useMultipleWalletBalances(walletIds)
 
   // Buscar endereços de todas as redes (se for carteira multi)
+  // Priorizar a rede selecionada para carregamento mais rápido
   const multiWallet = useMemo(() => apiWallets?.find(w => w.network === 'multi'), [apiWallets])
   const networksList = [
     'bitcoin',
@@ -135,9 +136,10 @@ export const ReceivePage = () => {
     'shiba',
     'xrp',
   ]
-  const { addresses: networkAddresses } = useWalletAddresses(
+  const { addresses: networkAddresses, isPriorityLoaded } = useWalletAddresses(
     multiWallet?.id?.toString(),
-    networksList
+    networksList,
+    selectedNetwork // Rede prioritária - será carregada primeiro
   )
 
   // Debug: Log wallet and address loading
@@ -271,7 +273,18 @@ export const ReceivePage = () => {
     return 'text-xs text-gray-600 dark:text-opacity-80'
   }
 
-  const currentAddress = walletsWithAddresses[selectedWalletIndex]?.address || ''
+  // Obter endereço atual - priorizar endereço direto do networkAddresses para carregamento rápido
+  const currentAddress = useMemo(() => {
+    // Primeiro tentar obter diretamente do cache de endereços (mais rápido)
+    const directAddress = networkAddresses[selectedNetwork]
+    if (directAddress) return directAddress
+
+    // Fallback para endereço da carteira selecionada
+    return walletsWithAddresses[selectedWalletIndex]?.address || ''
+  }, [networkAddresses, selectedNetwork, walletsWithAddresses, selectedWalletIndex])
+
+  // Estado de carregamento do endereço
+  const isAddressLoading = !currentAddress && !isPriorityLoaded
 
   // Gerar lista de tokens dinamicamente a partir das carteiras disponíveis
   const tokenList = useMemo(() => {
@@ -457,27 +470,40 @@ export const ReceivePage = () => {
           {/* QR Code */}
           <div className='flex flex-col items-center justify-center'>
             <p className='text-sm font-medium text-blue-100 mb-4'>Escaneie para enviar</p>
-            {currentAddress ? (
-              <div className='relative'>
-                <div className='bg-white rounded-xl p-4 shadow-lg'>
-                  <QRCodeSVG
-                    value={currentAddress}
-                    size={180}
-                    level='H'
-                    className='w-full h-auto'
-                  />
-                </div>
-                <div className='absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2'>
-                  <div className='bg-white rounded-full p-2 shadow-lg'>
-                    <CryptoIcon symbol={selectedToken} size={44} />
+            {(() => {
+              if (currentAddress) {
+                return (
+                  <div className='relative'>
+                    <div className='bg-white rounded-xl p-4 shadow-lg'>
+                      <QRCodeSVG
+                        value={currentAddress}
+                        size={180}
+                        level='H'
+                        className='w-full h-auto'
+                      />
+                    </div>
+                    <div className='absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2'>
+                      <div className='bg-white rounded-full p-2 shadow-lg'>
+                        <CryptoIcon symbol={selectedToken} size={44} />
+                      </div>
+                    </div>
                   </div>
+                )
+              }
+              if (isAddressLoading) {
+                return (
+                  <div className='w-48 h-48 bg-white bg-opacity-20 rounded-xl flex flex-col items-center justify-center animate-pulse'>
+                    <div className='w-32 h-32 bg-white bg-opacity-30 rounded-lg mb-2'></div>
+                    <p className='text-sm text-blue-100'>Carregando endereço...</p>
+                  </div>
+                )
+              }
+              return (
+                <div className='w-48 h-48 bg-gray-200 rounded-lg flex items-center justify-center'>
+                  <QrCode className='w-12 h-12 text-gray-400' />
                 </div>
-              </div>
-            ) : (
-              <div className='w-48 h-48 bg-gray-200 rounded-lg flex items-center justify-center'>
-                <QrCode className='w-12 h-12 text-gray-400' />
-              </div>
-            )}
+              )
+            })()}
           </div>
 
           {/* Informações */}
@@ -498,13 +524,17 @@ export const ReceivePage = () => {
             <div>
               <p className='text-blue-100 text-xs mb-2 uppercase font-semibold'>Seu Endereço</p>
               <div className='flex items-center gap-2 bg-white bg-opacity-20 rounded-lg p-3 backdrop-blur-sm'>
-                <input
-                  type='text'
-                  value={currentAddress || 'Carregando...'}
-                  readOnly
-                  aria-label={`Endereço para receber ${selectedToken}`}
-                  className='flex-1 bg-transparent text-white text-xs font-mono outline-none placeholder-blue-200 truncate'
-                />
+                {isAddressLoading ? (
+                  <div className='flex-1 h-4 bg-white bg-opacity-30 rounded animate-pulse'></div>
+                ) : (
+                  <input
+                    type='text'
+                    value={currentAddress || 'Endereço não disponível'}
+                    readOnly
+                    aria-label={`Endereço para receber ${selectedToken}`}
+                    className='flex-1 bg-transparent text-white text-xs font-mono outline-none placeholder-blue-200 truncate'
+                  />
+                )}
                 <button
                   onClick={() =>
                     currentAddress && copyToClipboard(currentAddress, 'Endereço copiado!')
