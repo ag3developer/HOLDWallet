@@ -208,7 +208,6 @@ export const AdminWalletsPage: React.FC = () => {
   const [blockchainBalances, setBlockchainBalances] = useState<Record<string, any>>({})
   const [loadingBalances, setLoadingBalances] = useState<Set<string>>(new Set())
   const [syncingBlockchain, setSyncingBlockchain] = useState(false)
-  const [lastSyncTotals, setLastSyncTotals] = useState<Record<string, number> | null>(null)
 
   const limit = 20
 
@@ -302,26 +301,22 @@ export const AdminWalletsPage: React.FC = () => {
       const data = await response.json()
 
       if (data.success) {
-        const totals = data.data?.total_balances || {}
-        setLastSyncTotals(totals)
+        toast.dismiss(loadingToast)
 
-        // Criar lista de saldos para exibir
+        const totals = data.data?.total_balances || {}
         const balancesList = Object.entries(totals)
           .filter(([_, val]) => (val as number) > 0)
           .map(([symbol, val]) => `${symbol}: ${(val as number).toFixed(4)}`)
           .join(', ')
 
-        toast.dismiss(loadingToast)
-
         if (balancesList) {
-          toast.success(`✅ Sincronizado! Totais: ${balancesList}`, { duration: 6000 })
+          toast.success(`✅ Atualizado! ${balancesList}`, { duration: 4000 })
         } else {
-          toast.success('✅ Sincronização concluída - Nenhum saldo encontrado')
+          toast.success('✅ Atualização concluída')
         }
 
-        // Recarregar estatísticas
+        // Recarregar estatísticas do banco de dados
         refetchStats()
-        refetchWallets()
       }
     } catch (error) {
       console.error('Erro ao sincronizar blockchain:', error)
@@ -455,14 +450,6 @@ export const AdminWalletsPage: React.FC = () => {
         </div>
         <div className='flex items-center gap-3'>
           <button
-            onClick={syncAllBlockchainBalances}
-            disabled={syncingBlockchain}
-            className='flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium transition-colors'
-          >
-            <Zap className={`h-4 w-4 ${syncingBlockchain ? 'animate-pulse' : ''}`} />
-            {syncingBlockchain ? 'Sincronizando...' : 'Sincronizar Blockchain'}
-          </button>
-          <button
             onClick={handleRefresh}
             className='flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-white border border-white/10 transition-colors'
           >
@@ -526,67 +513,57 @@ export const AdminWalletsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Saldos por Cryptocurrency do Banco */}
-      {stats?.balances_by_crypto &&
-        stats.balances_by_crypto.filter(b => b.total_available > 0).length > 0 && (
-          <div className='bg-[#111] border border-white/10 rounded-xl p-4'>
-            <div className='flex items-center gap-2 mb-3'>
-              <DollarSign className='h-5 w-5 text-blue-400' />
-              <h3 className='text-white font-medium'>Saldos por Moeda (Banco de Dados)</h3>
-            </div>
-            <div className='grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3'>
-              {stats.balances_by_crypto
-                .filter(b => b.total_available > 0)
-                .sort((a, b) => {
-                  // USDT/USDC primeiro, depois por valor
-                  const isStableA = a.cryptocurrency.includes('USD') ? 1 : 0
-                  const isStableB = b.cryptocurrency.includes('USD') ? 1 : 0
-                  if (isStableA !== isStableB) return isStableB - isStableA
-                  return b.total_available - a.total_available
-                })
-                .map(b => (
-                  <div key={b.cryptocurrency} className='bg-white/5 rounded-lg p-3'>
-                    <div className='text-xs text-gray-400 mb-1'>{b.cryptocurrency}</div>
-                    <div className='text-lg font-bold text-white'>
-                      {b.cryptocurrency.includes('USD') && '$'}
-                      {b.total_available.toLocaleString('en-US', {
-                        minimumFractionDigits: b.cryptocurrency.includes('USD') ? 2 : 4,
-                        maximumFractionDigits: b.cryptocurrency.includes('USD') ? 2 : 6,
-                      })}
-                    </div>
-                    <div className='text-xs text-gray-500'>{b.wallets_count} carteira(s)</div>
-                  </div>
-                ))}
-            </div>
+      {/* Saldos por Cryptocurrency do Banco - SEMPRE VISÍVEL */}
+      <div className='bg-[#111] border border-white/10 rounded-xl p-4'>
+        <div className='flex items-center justify-between mb-3'>
+          <div className='flex items-center gap-2'>
+            <DollarSign className='h-5 w-5 text-blue-400' />
+            <h3 className='text-white font-medium'>Saldos por Moeda</h3>
           </div>
-        )}
-
-      {/* Saldos Blockchain Sincronizados */}
-      {lastSyncTotals && Object.keys(lastSyncTotals).length > 0 && (
-        <div className='bg-gradient-to-r from-green-900/30 to-blue-900/30 border border-green-500/30 rounded-xl p-4'>
-          <div className='flex items-center gap-2 mb-3'>
-            <Zap className='h-5 w-5 text-green-400' />
-            <h3 className='text-white font-medium'>Saldos Blockchain (Tempo Real)</h3>
-          </div>
+          <button
+            onClick={syncAllBlockchainBalances}
+            disabled={syncingBlockchain}
+            className='flex items-center gap-2 px-3 py-1.5 rounded-lg bg-green-600/20 hover:bg-green-600/30 disabled:opacity-50 disabled:cursor-not-allowed text-green-400 text-sm font-medium transition-colors border border-green-500/30'
+          >
+            <Zap className={`h-3.5 w-3.5 ${syncingBlockchain ? 'animate-pulse' : ''}`} />
+            {syncingBlockchain ? 'Atualizando...' : 'Atualizar Saldos'}
+          </button>
+        </div>
+        {stats?.balances_by_crypto &&
+        stats.balances_by_crypto.filter(b => b.total_available > 0).length > 0 ? (
           <div className='grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3'>
-            {Object.entries(lastSyncTotals)
-              .filter(([_, val]) => val > 0)
-              .sort((a, b) => b[1] - a[1])
-              .map(([symbol, balance]) => (
-                <div key={symbol} className='bg-black/30 rounded-lg p-3'>
-                  <div className='text-xs text-gray-400 mb-1'>{symbol}</div>
+            {stats.balances_by_crypto
+              .filter(b => b.total_available > 0)
+              .sort((a, b) => {
+                // USDT/USDC primeiro, depois por valor
+                const isStableA = a.cryptocurrency.includes('USD') ? 1 : 0
+                const isStableB = b.cryptocurrency.includes('USD') ? 1 : 0
+                if (isStableA !== isStableB) return isStableB - isStableA
+                return b.total_available - a.total_available
+              })
+              .map(b => (
+                <div key={b.cryptocurrency} className='bg-white/5 rounded-lg p-3'>
+                  <div className='text-xs text-gray-400 mb-1'>{b.cryptocurrency}</div>
                   <div className='text-lg font-bold text-white'>
-                    {symbol.includes('USD') && '$'}
-                    {balance.toLocaleString('en-US', {
-                      minimumFractionDigits: symbol.includes('USD') ? 2 : 4,
-                      maximumFractionDigits: symbol.includes('USD') ? 2 : 6,
+                    {b.cryptocurrency.includes('USD') && '$'}
+                    {b.total_available.toLocaleString('en-US', {
+                      minimumFractionDigits: b.cryptocurrency.includes('USD') ? 2 : 4,
+                      maximumFractionDigits: b.cryptocurrency.includes('USD') ? 2 : 6,
                     })}
                   </div>
+                  <div className='text-xs text-gray-500'>{b.wallets_count} carteira(s)</div>
                 </div>
               ))}
           </div>
-        </div>
-      )}
+        ) : (
+          <div className='text-center py-6 text-gray-500'>
+            <p>Nenhum saldo encontrado</p>
+            <p className='text-sm mt-1'>
+              Clique em "Atualizar Saldos" para sincronizar com a blockchain
+            </p>
+          </div>
+        )}
+      </div>
 
       {/* Filtros */}
       <div className='bg-[#111] border border-white/10 rounded-xl p-4'>
