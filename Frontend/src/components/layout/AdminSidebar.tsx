@@ -102,7 +102,7 @@ export const AdminSidebar = () => {
           </div>
           <div>
             <h1 className='text-lg font-bold text-white'>Admin Panel</h1>
-            <p className='text-xs text-gray-400'>HOLD Wallet</p>
+            <p className='text-xs text-gray-400'>WOLK NOW</p>
           </div>
         </div>
       </div>
