@@ -292,26 +292,61 @@ async def refresh_balances(
     db: Session = Depends(get_db)
 ):
     """
-    🔄 Atualizar saldos das carteiras consultando as blockchains.
+    🔄 Atualizar saldos das carteiras consultando as blockchains em tempo real.
     
-    TODO: Implementar consulta real às APIs das blockchains.
-    Por enquanto, apenas retorna os saldos em cache.
+    Consulta APIs públicas para obter saldos atualizados:
+    - Ethereum/EVM: Etherscan, Polygonscan, BscScan
+    - Bitcoin: Blockstream API
+    - Solana: Solana RPC
+    - Tron: TronGrid
     """
     try:
-        addresses = system_wallet_service.get_all_addresses(db)
+        from app.services.blockchain_balance_service import blockchain_balance_service
         
-        # TODO: Implementar chamadas reais às APIs:
-        # - Bitcoin: blockchain.info, blockstream.info
-        # - Ethereum/Polygon/BSC: Etherscan, Polygonscan, BscScan
-        # - Tron: TronGrid
-        # - Solana: Solana RPC
+        # Buscar carteira do sistema
+        wallet = db.query(SystemBlockchainWallet).filter(
+            SystemBlockchainWallet.name == "main_fees_wallet",
+            SystemBlockchainWallet.is_active == True
+        ).first()
+        
+        if not wallet:
+            raise HTTPException(
+                status_code=404,
+                detail="Carteira do sistema não encontrada"
+            )
+        
+        # Buscar todos os endereços
+        addresses = db.query(SystemBlockchainAddress).filter(
+            SystemBlockchainAddress.wallet_id == wallet.id,
+            SystemBlockchainAddress.is_active == True
+        ).all()
+        
+        # Criar mapa de endereços por rede
+        address_map = {addr.network: addr.address for addr in addresses}
+        
+        # Consultar saldos em paralelo
+        balances = await blockchain_balance_service.get_all_balances(address_map)
+        
+        # Atualizar saldos no banco
+        updated_count = 0
+        for addr in addresses:
+            if addr.network in balances:
+                balance_data = balances[addr.network]
+                addr.cached_balance = balance_data.get("balance", 0)
+                addr.cached_balance_updated_at = datetime.now()
+                updated_count += 1
+        
+        db.commit()
         
         return {
             "success": True,
-            "message": "Funcionalidade de consulta às blockchains será implementada em breve.",
-            "current_cached_balances": addresses
+            "message": f"Saldos atualizados para {updated_count} endereços",
+            "balances": balances,
+            "updated_at": datetime.now().isoformat()
         }
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Falha ao atualizar saldos: {e}")
         raise HTTPException(
