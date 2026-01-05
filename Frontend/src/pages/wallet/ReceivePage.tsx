@@ -7,6 +7,62 @@ import { useWallets } from '@/hooks/useWallets'
 import { useWalletAddresses } from '@/hooks/useWalletAddresses'
 import { useMultipleWalletBalances } from '@/hooks/useWallet'
 
+// Redes válidas onde cada stablecoin existe
+const STABLECOIN_VALID_NETWORKS: Record<string, string[]> = {
+  USDT: ['polygon', 'ethereum', 'bsc', 'tron', 'avalanche', 'base', 'arbitrum', 'optimism'],
+  USDC: ['polygon', 'ethereum', 'bsc', 'solana', 'avalanche', 'base', 'arbitrum', 'optimism'],
+  DAI: ['polygon', 'ethereum', 'bsc'],
+}
+
+// Rede padrão recomendada para cada token (taxas mais baixas)
+const DEFAULT_NETWORK_FOR_TOKEN: Record<string, string> = {
+  USDT: 'polygon', // Polygon tem taxas mínimas
+  USDC: 'polygon',
+  DAI: 'polygon',
+  BTC: 'bitcoin',
+  ETH: 'ethereum',
+  BNB: 'bsc',
+  MATIC: 'polygon',
+  TRX: 'tron',
+  SOL: 'solana',
+  LTC: 'litecoin',
+  DOGE: 'dogecoin',
+  ADA: 'cardano',
+  AVAX: 'avalanche',
+  DOT: 'polkadot',
+  LINK: 'ethereum', // LINK é um token ERC-20
+  SHIB: 'ethereum', // SHIB é um token ERC-20
+  XRP: 'xrp',
+  BASE: 'base',
+}
+
+// Função para verificar se um token pode existir em uma rede
+const isValidNetworkForToken = (token: string, network: string): boolean => {
+  // Stablecoins têm redes específicas
+  if (STABLECOIN_VALID_NETWORKS[token]) {
+    return STABLECOIN_VALID_NETWORKS[token].includes(network)
+  }
+  // Tokens nativos só existem em suas próprias redes
+  const nativeTokenNetworks: Record<string, string> = {
+    BTC: 'bitcoin',
+    ETH: 'ethereum',
+    BNB: 'bsc',
+    MATIC: 'polygon',
+    TRX: 'tron',
+    SOL: 'solana',
+    LTC: 'litecoin',
+    DOGE: 'dogecoin',
+    ADA: 'cardano',
+    AVAX: 'avalanche',
+    DOT: 'polkadot',
+    XRP: 'xrp',
+    BASE: 'base',
+    LINK: 'ethereum',
+    SHIB: 'ethereum',
+  }
+  return nativeTokenNetworks[token] === network
+}
+
 export const ReceivePage = () => {
   const [selectedToken, setSelectedToken] = useState<string>('USDT')
   const [selectedNetwork, setSelectedNetwork] = useState<string>('polygon')
@@ -153,16 +209,54 @@ export const ReceivePage = () => {
     return expandedWallets.sort((a: any, b: any) => Number(b.balance) - Number(a.balance))
   }, [apiWallets, balancesQueries, networkAddresses])
 
-  // Sincronizar selectedWalletIndex quando carteiras carregam
+  // Inicializar com a rede correta quando as carteiras carregarem
   useEffect(() => {
-    if (walletsWithAddresses.length > 0 && selectedWalletIndex >= walletsWithAddresses.length) {
-      const newIndex = Math.max(
+    if (walletsWithAddresses.length > 0) {
+      // Verificar se a rede atual é válida para o token selecionado
+      const isCurrentNetworkValid = isValidNetworkForToken(selectedToken, selectedNetwork)
+
+      if (isCurrentNetworkValid) {
+        // Apenas atualizar o índice se necessário
+        const walletIndex = Math.max(
+          walletsWithAddresses.findIndex(w => w.network === selectedNetwork),
+          0
+        )
+        if (walletIndex !== selectedWalletIndex) {
+          setSelectedWalletIndex(walletIndex)
+        }
+      } else {
+        // Encontrar rede válida para o token
+        const validNetwork =
+          DEFAULT_NETWORK_FOR_TOKEN[selectedToken] ||
+          STABLECOIN_VALID_NETWORKS[selectedToken]?.[0] ||
+          selectedNetwork
+
+        setSelectedNetwork(validNetwork)
+
+        const walletIndex = Math.max(
+          walletsWithAddresses.findIndex(w => w.network === validNetwork),
+          0
+        )
+        setSelectedWalletIndex(walletIndex)
+        console.log(
+          `[ReceivePage] Auto-correção: ${selectedToken} mudou de ${selectedNetwork} para ${validNetwork}`
+        )
+      }
+    }
+  }, [walletsWithAddresses, selectedToken])
+
+  // Sincronizar selectedWalletIndex quando selectedNetwork muda
+  useEffect(() => {
+    if (walletsWithAddresses.length > 0) {
+      const walletIndex = Math.max(
         walletsWithAddresses.findIndex(w => w.network === selectedNetwork),
         0
       )
-      setSelectedWalletIndex(newIndex)
+      if (walletIndex !== selectedWalletIndex) {
+        setSelectedWalletIndex(walletIndex)
+      }
     }
-  }, [walletsWithAddresses, selectedNetwork])
+  }, [selectedNetwork, walletsWithAddresses])
 
   const copyToClipboard = (text: string, message: string) => {
     navigator.clipboard
@@ -234,12 +328,18 @@ export const ReceivePage = () => {
     return Array.from(uniqueTokens.values())
   }, [walletsWithAddresses, networkPreferences, tokenPreferences])
 
+  // Lista de redes filtrada para mostrar apenas redes válidas para o token selecionado
   const networkList = useMemo(() => {
     const uniqueNetworks = new Map<string, any>()
 
     walletsWithAddresses.forEach(wallet => {
       // Apenas incluir redes que o usuário selecionou nas preferências
       if (networkPreferences[wallet.network as keyof typeof networkPreferences]) {
+        // Filtrar apenas redes válidas para o token selecionado
+        if (!isValidNetworkForToken(selectedToken, wallet.network)) {
+          return // Pular redes inválidas para este token
+        }
+
         if (!uniqueNetworks.has(wallet.network)) {
           const networkInfo: Record<string, { name: string; icon: string; fee: string }> = {
             polygon: { name: 'Polygon', icon: 'MATIC', fee: 'Mínima' },
@@ -282,17 +382,27 @@ export const ReceivePage = () => {
     })
 
     return sortedNetworks
-  }, [walletsWithAddresses, networkPreferences])
+  }, [walletsWithAddresses, networkPreferences, selectedToken])
 
   const handleTokenSelect = (token: any) => {
     setSelectedToken(token.symbol)
-    setSelectedNetwork(token.network)
+
+    // Usar rede padrão recomendada para o token (com taxas mais baixas)
+    const defaultNetwork = DEFAULT_NETWORK_FOR_TOKEN[token.symbol] || token.network
+
+    // Verificar se a rede padrão é válida para este token
+    const validNetwork = isValidNetworkForToken(token.symbol, defaultNetwork)
+      ? defaultNetwork
+      : STABLECOIN_VALID_NETWORKS[token.symbol]?.[0] || token.network
+
+    setSelectedNetwork(validNetwork)
+
     // Encontrar a carteira correta para este token/rede
     const walletIndex = Math.max(
-      walletsWithAddresses.findIndex(w => w.network === token.network),
+      walletsWithAddresses.findIndex(w => w.network === validNetwork),
       0
     )
-    console.log('Token selecionado:', token.symbol, 'Rede:', token.network, 'Index:', walletIndex)
+    console.log('Token selecionado:', token.symbol, 'Rede:', validNetwork, 'Index:', walletIndex)
     console.log('Carteiras disponíveis:', walletsWithAddresses)
     setSelectedWalletIndex(walletIndex)
   }
