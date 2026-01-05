@@ -137,16 +137,6 @@ export const DashboardPage = () => {
   const { formatCurrency, currency } = useCurrencyStore()
   const [expandedWallets, setExpandedWallets] = useState<Set<string>>(new Set())
 
-  // Debug log para mobile (apenas em desenvolvimento)
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[DashboardPage] Wallet Status:', {
-        walletsLoading,
-        walletsCount: apiWallets?.length || 0,
-      })
-    }
-  }, [apiWallets, walletsLoading])
-
   // Mapear nome da rede para símbolo da criptomoeda
   const getSymbolFromKey = (key: string): string => {
     // Verificar se é um token (ex: ethereum_usdt, polygon_usdc)
@@ -555,19 +545,13 @@ export const DashboardPage = () => {
                 </div>
 
                 <div className='p-4'>
-                  {(() => {
-                    console.log('[DashboardPage RENDER] wallets:', wallets)
-                    console.log('[DashboardPage RENDER] wallets.length:', wallets?.length)
-                    return null
-                  })()}
                   {!wallets || wallets.length === 0 ? (
                     <div className='text-center py-8'>
                       <div className='w-12 h-12 mx-auto bg-slate-200 dark:bg-slate-700 rounded-full flex items-center justify-center mb-3'>
                         <Wallet className='w-6 h-6 text-slate-400 dark:text-slate-500' />
                       </div>
                       <p className='text-slate-600 dark:text-slate-400 text-sm mb-3'>
-                        Nenhuma carteira criada (apiWallets: {apiWallets?.length || 0}, wallets:{' '}
-                        {wallets?.length || 0})
+                        Nenhuma carteira encontrada
                       </p>
                       <button
                         onClick={handleCreateWallet}
