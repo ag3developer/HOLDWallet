@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useSearchParams, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import {
   MessageCircle,
   Send,
@@ -10,8 +10,6 @@ import {
   Info,
   Smile,
   Paperclip,
-  Mic,
-  Users,
   UserPlus,
   Settings,
   Check,
@@ -19,7 +17,6 @@ import {
   Clock,
   Shield,
   Star,
-  Archive,
   User,
   Building,
   TrendingUp,
@@ -37,15 +34,13 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
-  Upload,
   Loader2,
   ShoppingCart,
   Wallet,
   ArrowLeftRight,
 } from 'lucide-react'
-import { chatP2PService, ChatMessageP2P, P2POrder } from '@/services/chatP2P'
-import { ChatP2PValidator } from '@/services/chatP2PValidator'
-import { authService } from '@/services/auth'
+import { chatP2PService, ChatMessageP2P } from '@/services/chatP2P'
+import { p2pService } from '@/services/p2p'
 import { webrtcService } from '@/services/webrtcService'
 import { CallModal } from '@/components/chat/CallModal'
 import { AudioMessageInput } from '@/components/chat/AudioMessageInput'
@@ -103,7 +98,7 @@ interface Message {
   isOwn: boolean
   status: 'sent' | 'sending' | 'delivered' | 'read'
   type?: 'text' | 'system' | 'file'
-  fileType?: 'receipt' | 'image' | 'document' | 'audio'
+  fileType?: 'receipt' | 'image' | 'document' | 'audio' | undefined
   sender_id?: string
   audioBlob?: Blob
 }
@@ -121,6 +116,7 @@ export const ChatPage = () => {
     isConnected: p2pIsConnected,
     connectP2PChat,
     disconnectP2PChat,
+    updateP2PStatus,
     urlParams,
   } = useP2PChat()
 
@@ -858,7 +854,8 @@ Digite "ajuda" ou "menu" para começar!`,
 
     try {
       // ✅ Chamar API para liberar escrow
-      await chatP2PService.releaseEscrow(p2pContext.orderId)
+      const tradeId = p2pContext.tradeId || p2pContext.orderId
+      await p2pService.releaseEscrow(tradeId)
 
       const systemMessage: Message = {
         id: Date.now().toString(),
@@ -872,7 +869,7 @@ Digite "ajuda" ou "menu" para começar!`,
       setMessages(prev => [...prev, systemMessage])
 
       // Atualizar status para completed
-      setP2PContext(prev => (prev ? { ...prev, status: 'completed' } : null))
+      updateP2PStatus('completed')
 
       console.log('✅ Escrow liberado para ordem:', p2pContext.orderId)
       alert('✅ Transação concluída com sucesso!')
@@ -951,7 +948,7 @@ Digite "ajuda" ou "menu" para começar!`,
           setMessages(prev => [...prev, systemMessage])
 
           // Atualizar status do contexto P2P
-          setP2PContext(prev => (prev ? { ...prev, status: 'cancelled' } : null))
+          updateP2PStatus('cancelled')
 
           console.log('✅ Transação cancelada para ordem:', p2pContext.orderId)
           alert('❌ Transação cancelada com sucesso.')
@@ -1309,15 +1306,17 @@ Tudo funciona como se fosse um chat real!`
     }
 
     // Resposta padrão
-    const responses = [
+    const responses: string[] = [
       '🤔 Interessante! Você disse: "' + userMessage + '". Como posso ajudar com isso?',
       '✨ Recebi sua mensagem! Digite "ajuda" para ver o que posso fazer por você.',
       '💬 Mensagem recebida! Estou aqui para ajudar. Precisa de algo específico?',
       '👍 Entendi! Se precisar de ajuda, digite "menu" para ver as opções.',
       '🎯 Sua mensagem foi recebida com sucesso! Digite "ajuda" para mais informações.',
-    ]
+    ] as const
 
-    return responses[Math.floor(Math.random() * responses.length)]
+    const randomIndex = Math.floor(Math.random() * responses.length)
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    return responses[randomIndex]!
   }
 
   // ✅ NOVO: Handler para upload de arquivos (comprovantes de pagamento)

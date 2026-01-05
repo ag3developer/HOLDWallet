@@ -45,6 +45,7 @@ interface UseP2PChatReturn {
   // Ações
   connectP2PChat: () => Promise<void>
   disconnectP2PChat: () => void
+  updateP2PStatus: (newStatus: P2POrderLocal['status']) => void
 
   // Dados extraídos da URL
   urlParams: {
@@ -233,6 +234,13 @@ export const useP2PChat = (): UseP2PChatReturn => {
       console.error('❌ [useP2PChat] Erro ao carregar ordem P2P:', error)
     }
   }, [urlOrderId, urlUserId])
+
+  /**
+   * Atualizar o status da ordem P2P
+   */
+  const updateP2PStatus = useCallback((newStatus: P2POrderLocal['status']) => {
+    setP2PContext(prev => (prev ? { ...prev, status: newStatus } : null))
+  }, [])
 
   /**
    * Conectar ao chat P2P - cria sala e inicia polling
@@ -481,6 +489,7 @@ export const useP2PChat = (): UseP2PChatReturn => {
     // Ações
     connectP2PChat,
     disconnectP2PChat,
+    updateP2PStatus,
 
     // URL params
     urlParams: {
