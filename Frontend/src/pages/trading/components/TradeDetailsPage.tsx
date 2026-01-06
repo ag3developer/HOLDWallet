@@ -249,8 +249,17 @@ export function TradeDetailsPage({
     }
   }
 
-  const formatCurrency = (value: number) => {
-    return value.toLocaleString(currencyLocale, {
+  // Formata valor em USD (valores do backend)
+  const formatUSD = (value: number) => {
+    return value.toLocaleString('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    })
+  }
+
+  // Formata valor em BRL (para depósito TED/PIX)
+  const formatBRL = (value: number) => {
+    return value.toLocaleString('pt-BR', {
       style: 'currency',
       currency: 'BRL',
     })
@@ -382,15 +391,15 @@ export function TradeDetailsPage({
 
           <div className='grid grid-cols-2 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700'>
             <div>
-              <p className='text-xs text-gray-500 dark:text-gray-400 mb-1'>Valor em BRL</p>
+              <p className='text-xs text-gray-500 dark:text-gray-400 mb-1'>Valor em USD</p>
               <p className='text-lg font-semibold text-gray-900 dark:text-white'>
-                {formatCurrency(trade.fiat_amount)}
+                {formatUSD(trade.fiat_amount)}
               </p>
             </div>
             <div>
-              <p className='text-xs text-gray-500 dark:text-gray-400 mb-1'>Total com Taxas</p>
+              <p className='text-xs text-gray-500 dark:text-gray-400 mb-1'>Total com Taxas (USD)</p>
               <p className='text-lg font-semibold text-blue-600 dark:text-blue-400'>
-                {formatCurrency(trade.total_amount)}
+                {formatUSD(trade.total_amount)}
               </p>
             </div>
           </div>
@@ -400,14 +409,14 @@ export function TradeDetailsPage({
         <div className='space-y-3'>
           <h3 className='text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2'>
             <FileText className='w-4 h-4' />
-            Detalhes Financeiros
+            Detalhes Financeiros (USD)
           </h3>
           <div className='bg-gray-50 dark:bg-gray-900 rounded-lg divide-y divide-gray-200 dark:divide-gray-700'>
             {trade.crypto_price && (
               <div className='flex justify-between py-3 px-4'>
                 <span className='text-gray-600 dark:text-gray-400'>Preço Unitário</span>
                 <span className='font-medium text-gray-900 dark:text-white'>
-                  {formatCurrency(trade.crypto_price)}
+                  {formatUSD(trade.crypto_price)}
                 </span>
               </div>
             )}
@@ -416,7 +425,7 @@ export function TradeDetailsPage({
                 Spread ({trade.spread_percentage}%)
               </span>
               <span className='font-medium text-gray-900 dark:text-white'>
-                {trade.spread_amount ? formatCurrency(trade.spread_amount) : '-'}
+                {trade.spread_amount ? formatUSD(trade.spread_amount) : '-'}
               </span>
             </div>
             <div className='flex justify-between py-3 px-4'>
@@ -424,7 +433,7 @@ export function TradeDetailsPage({
                 Taxa de Rede ({trade.network_fee_percentage}%)
               </span>
               <span className='font-medium text-gray-900 dark:text-white'>
-                {trade.network_fee_amount ? formatCurrency(trade.network_fee_amount) : '-'}
+                {trade.network_fee_amount ? formatUSD(trade.network_fee_amount) : '-'}
               </span>
             </div>
           </div>
@@ -532,7 +541,9 @@ export function TradeDetailsPage({
                 </p>
                 <div className='flex items-center justify-between'>
                   <span className='text-2xl font-bold text-yellow-800 dark:text-yellow-300'>
-                    {formatCurrency(trade.brl_total_amount ?? trade.total_amount)}
+                    {trade.brl_total_amount
+                      ? formatBRL(trade.brl_total_amount)
+                      : `${formatUSD(trade.total_amount)} (USD)`}
                   </span>
                   <button
                     onClick={() =>
@@ -553,6 +564,11 @@ export function TradeDetailsPage({
                 {trade.usd_to_brl_rate && (
                   <p className='text-xs text-yellow-600 dark:text-yellow-500 mt-1'>
                     Taxa USD/BRL: {trade.usd_to_brl_rate.toFixed(4)}
+                  </p>
+                )}
+                {!trade.brl_total_amount && (
+                  <p className='text-xs text-orange-600 dark:text-orange-400 mt-1'>
+                    ⚠️ Converta para BRL usando a cotação atual do dólar
                   </p>
                 )}
               </div>
