@@ -5,6 +5,26 @@ import toast from 'react-hot-toast'
 import { TradeDetailsPage } from './TradeDetailsPage'
 import { tradeHistoryCache } from '@/services/cache/tradeHistoryCache'
 
+// Crypto logos from CoinGecko (free CDN)
+const CRYPTO_LOGOS: Record<string, string> = {
+  BTC: 'https://assets.coingecko.com/coins/images/1/large/bitcoin.png?1696501400',
+  ETH: 'https://assets.coingecko.com/coins/images/279/large/ethereum.png?1696501628',
+  MATIC: 'https://assets.coingecko.com/coins/images/4713/large/matic-token-icon.png?1696504745',
+  BNB: 'https://assets.coingecko.com/coins/images/825/large/bnb-icon2_2x.png?1696501970',
+  TRX: 'https://assets.coingecko.com/coins/images/1094/large/tron-logo.png?1696502193',
+  BASE: 'https://assets.coingecko.com/coins/images/30617/large/base.jpg?1696519330',
+  USDT: 'https://assets.coingecko.com/coins/images/325/large/Tether.png?1696501661',
+  SOL: 'https://assets.coingecko.com/coins/images/4128/large/solana.png?1696504756',
+  LTC: 'https://assets.coingecko.com/coins/images/2/large/litecoin.png?1696501400',
+  DOGE: 'https://assets.coingecko.com/coins/images/5/large/dogecoin.png?1696501400',
+  ADA: 'https://assets.coingecko.com/coins/images/975/large/cardano.png?1696502090',
+  AVAX: 'https://assets.coingecko.com/coins/images/12559/large/Avalanche_Circle_RedWhite_Trans.png?1696512369',
+  DOT: 'https://assets.coingecko.com/coins/images/12171/large/polkadot.png?1696512008',
+  LINK: 'https://assets.coingecko.com/coins/images/877/large/chainlink-new-logo.png?1696502009',
+  SHIB: 'https://assets.coingecko.com/coins/images/11939/large/shiba.png?1622619446',
+  XRP: 'https://assets.coingecko.com/coins/images/44/large/xrp-symbol-white-128.png?1696501442',
+}
+
 interface Trade {
   id: string
   reference_code: string
@@ -239,30 +259,59 @@ export function TradeHistoryPanel({
               className='w-full p-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-left'
             >
               <div className='flex items-center justify-between gap-2'>
-                {/* Left Info */}
-                <div className='flex-1 min-w-0'>
-                  <div className='flex items-center gap-2 mb-1'>
-                    <div className='flex items-center gap-1'>
+                {/* Left Info - com logo */}
+                <div className='flex items-center gap-3 flex-1 min-w-0'>
+                  {/* Logo da crypto */}
+                  <div className='relative flex-shrink-0'>
+                    {CRYPTO_LOGOS[trade.symbol] ? (
+                      <img
+                        src={CRYPTO_LOGOS[trade.symbol]}
+                        alt={trade.symbol}
+                        className='w-10 h-10 rounded-full'
+                        onError={e => {
+                          // Fallback se imagem não carregar
+                          e.currentTarget.style.display = 'none'
+                        }}
+                      />
+                    ) : (
+                      <div className='w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center'>
+                        <span className='text-xs font-bold text-gray-600 dark:text-gray-400'>
+                          {trade.symbol.slice(0, 2)}
+                        </span>
+                      </div>
+                    )}
+                    {/* Indicador de operação */}
+                    <div
+                      className={`absolute -bottom-0.5 -right-0.5 p-0.5 rounded-full ${
+                        trade.operation === 'buy' ? 'bg-green-500' : 'bg-red-500'
+                      }`}
+                    >
                       {trade.operation === 'buy' ? (
-                        <ArrowDownLeft className='w-4 h-4 text-green-600 dark:text-green-400' />
+                        <ArrowDownLeft className='w-2.5 h-2.5 text-white' />
                       ) : (
-                        <ArrowUpRight className='w-4 h-4 text-red-600 dark:text-red-400' />
+                        <ArrowUpRight className='w-2.5 h-2.5 text-white' />
                       )}
+                    </div>
+                  </div>
+
+                  {/* Info */}
+                  <div className='min-w-0'>
+                    <div className='flex items-center gap-2 mb-0.5'>
                       <span className='text-sm font-bold text-gray-900 dark:text-white'>
                         {trade.symbol}
                       </span>
+                      <span
+                        className={`px-2 py-0.5 rounded text-xs font-medium ${
+                          STATUS_COLORS[trade.status]
+                        }`}
+                      >
+                        {STATUS_LABELS[trade.status]}
+                      </span>
                     </div>
-                    <span
-                      className={`px-2 py-0.5 rounded text-xs font-medium ${
-                        STATUS_COLORS[trade.status]
-                      }`}
-                    >
-                      {STATUS_LABELS[trade.status]}
-                    </span>
+                    <p className='text-xs text-gray-500 dark:text-gray-400 truncate'>
+                      {trade.reference_code} • {formatDate(trade.created_at)}
+                    </p>
                   </div>
-                  <p className='text-xs text-gray-500 dark:text-gray-400'>
-                    {trade.reference_code} • {formatDate(trade.created_at)}
-                  </p>
                 </div>
 
                 {/* Right Value */}

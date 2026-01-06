@@ -30,6 +30,26 @@ import { apiClient } from '@/services/api'
 import { generateHoldPixQRCode, generateHoldPixPayload } from '@/utils/pixQrCode'
 import toast from 'react-hot-toast'
 
+// Crypto logos from CoinGecko (free CDN)
+const CRYPTO_LOGOS: Record<string, string> = {
+  BTC: 'https://assets.coingecko.com/coins/images/1/large/bitcoin.png?1696501400',
+  ETH: 'https://assets.coingecko.com/coins/images/279/large/ethereum.png?1696501628',
+  MATIC: 'https://assets.coingecko.com/coins/images/4713/large/matic-token-icon.png?1696504745',
+  BNB: 'https://assets.coingecko.com/coins/images/825/large/bnb-icon2_2x.png?1696501970',
+  TRX: 'https://assets.coingecko.com/coins/images/1094/large/tron-logo.png?1696502193',
+  BASE: 'https://assets.coingecko.com/coins/images/30617/large/base.jpg?1696519330',
+  USDT: 'https://assets.coingecko.com/coins/images/325/large/Tether.png?1696501661',
+  SOL: 'https://assets.coingecko.com/coins/images/4128/large/solana.png?1696504756',
+  LTC: 'https://assets.coingecko.com/coins/images/2/large/litecoin.png?1696501400',
+  DOGE: 'https://assets.coingecko.com/coins/images/5/large/dogecoin.png?1696501400',
+  ADA: 'https://assets.coingecko.com/coins/images/975/large/cardano.png?1696502090',
+  AVAX: 'https://assets.coingecko.com/coins/images/12559/large/Avalanche_Circle_RedWhite_Trans.png?1696512369',
+  DOT: 'https://assets.coingecko.com/coins/images/12171/large/polkadot.png?1696512008',
+  LINK: 'https://assets.coingecko.com/coins/images/877/large/chainlink-new-logo.png?1696502009',
+  SHIB: 'https://assets.coingecko.com/coins/images/11939/large/shiba.png?1622619446',
+  XRP: 'https://assets.coingecko.com/coins/images/44/large/xrp-symbol-white-128.png?1696501442',
+}
+
 // ============================================================================
 // TIPOS
 // ============================================================================
@@ -536,16 +556,39 @@ export function TradeDetailsPage({
       <div className='p-4 space-y-4'>
         {/* Resumo da Operação */}
         <div className='bg-gray-50 dark:bg-gray-900 rounded-lg p-3'>
-          <div className='flex items-center gap-2 mb-2'>
-            {trade.operation === 'buy' ? (
-              <div className='p-1.5 bg-green-100 dark:bg-green-900/30 rounded-lg'>
-                <ArrowDownLeft className='w-5 h-5 text-green-600 dark:text-green-400' />
+          <div className='flex items-center gap-3 mb-2'>
+            {/* Logo da crypto com indicador de operação */}
+            <div className='relative flex-shrink-0'>
+              {CRYPTO_LOGOS[trade.symbol] ? (
+                <img
+                  src={CRYPTO_LOGOS[trade.symbol]}
+                  alt={trade.symbol}
+                  className='w-12 h-12 rounded-full'
+                  onError={e => {
+                    e.currentTarget.style.display = 'none'
+                  }}
+                />
+              ) : (
+                <div className='w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center'>
+                  <span className='text-sm font-bold text-gray-600 dark:text-gray-400'>
+                    {trade.symbol.slice(0, 2)}
+                  </span>
+                </div>
+              )}
+              {/* Indicador de operação */}
+              <div
+                className={`absolute -bottom-0.5 -right-0.5 p-1 rounded-full ${
+                  trade.operation === 'buy' ? 'bg-green-500' : 'bg-red-500'
+                }`}
+              >
+                {trade.operation === 'buy' ? (
+                  <ArrowDownLeft className='w-3 h-3 text-white' />
+                ) : (
+                  <ArrowUpRight className='w-3 h-3 text-white' />
+                )}
               </div>
-            ) : (
-              <div className='p-1.5 bg-red-100 dark:bg-red-900/30 rounded-lg'>
-                <ArrowUpRight className='w-5 h-5 text-red-600 dark:text-red-400' />
-              </div>
-            )}
+            </div>
+
             <div>
               <p className='text-xs text-gray-600 dark:text-gray-400'>
                 {trade.operation === 'buy' ? 'Compra de' : 'Venda de'}
