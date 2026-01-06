@@ -21,7 +21,6 @@ import {
   CreditCard,
   Building2,
   Wallet,
-  RefreshCw,
   QrCode,
   Timer,
   FileText,
@@ -81,6 +80,8 @@ interface TradeDetailsPageProps {
   readonly onBack: () => void
   readonly currencySymbol?: string
   readonly currencyLocale?: string
+  /** Dados iniciais da trade (evita chamada à API) */
+  readonly initialData?: Partial<TradeDetails> | undefined
 }
 
 // ============================================================================
@@ -151,10 +152,12 @@ export function TradeDetailsPage({
   onBack,
   currencySymbol = 'R$',
   currencyLocale = 'pt-BR',
+  initialData,
 }: TradeDetailsPageProps) {
-  const [trade, setTrade] = useState<TradeDetails | null>(null)
+  // Se tiver dados iniciais, usar diretamente (sem loading)
+  const [trade, setTrade] = useState<TradeDetails | null>(initialData as TradeDetails | null)
   const [bankDetails, setBankDetails] = useState<BankDetails | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!initialData) // Só mostra loading se não tiver dados iniciais
   const [timeRemaining, setTimeRemaining] = useState<string | null>(null)
   const [copiedField, setCopiedField] = useState<string | null>(null)
 
@@ -163,9 +166,15 @@ export function TradeDetailsPage({
   const [pixPayload, setPixPayload] = useState<string | null>(null)
   const [showPixQr, setShowPixQr] = useState(true) // Default to showing QR Code
 
-  // Buscar detalhes da trade
+  // Buscar detalhes da trade (só se não tiver dados iniciais completos)
   useEffect(() => {
-    fetchTradeDetails()
+    // Se já temos dados completos, não precisa buscar
+    if (initialData?.id && initialData?.status) {
+      // Só buscar dados bancários se necessário
+      fetchBankDetailsOnly()
+    } else {
+      fetchTradeDetails()
+    }
   }, [tradeId])
 
   // Timer para expiração
@@ -219,6 +228,39 @@ export function TradeDetailsPage({
 
     generatePixQr()
   }, [trade?.id, trade?.status, trade?.brl_total_amount, trade?.total_amount])
+
+  // Buscar apenas dados bancários (quando já temos dados da trade)
+  const fetchBankDetailsOnly = async () => {
+    if (!trade) return
+
+    // Só buscar para TED/PIX pendentes
+    if (
+      trade.status === 'PENDING' &&
+      ['ted', 'pix'].includes(trade.payment_method?.toLowerCase())
+    ) {
+      // Usar dados bancários padrão imediatamente (sem esperar API)
+      setBankDetails({
+        bank_name: 'Banco do Brasil',
+        bank_code: '001',
+        agency: '5271-0',
+        account: '26689-2',
+        account_type: 'Conta Corrente',
+        holder_name: 'HOLD DIGITAL ASSETS LTDA',
+        holder_document: '24.275.355/0001-51',
+        pix_key: '24.275.355/0001-51',
+      })
+
+      // Tentar buscar da API em background (não bloqueia UI)
+      try {
+        const bankResponse = await apiClient.get(`/instant-trade/${tradeId}/bank-details`)
+        if (bankResponse.data.bank_details || bankResponse.data) {
+          setBankDetails(bankResponse.data.bank_details || bankResponse.data)
+        }
+      } catch {
+        // Manter dados padrão
+      }
+    }
+  }
 
   const fetchTradeDetails = async () => {
     setLoading(true)
@@ -315,8 +357,97 @@ export function TradeDetailsPage({
 
   if (loading) {
     return (
-      <div className='flex items-center justify-center min-h-[400px]'>
-        <RefreshCw className='w-8 h-8 animate-spin text-blue-600' />
+      <div className='bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden'>
+        {/* Header - estrutura real, conteúdo shimmer */}
+        <div className='bg-gradient-to-r from-blue-600 to-purple-600 p-4'>
+          <div className='flex items-center gap-3'>
+            <div className='w-8 h-8 bg-white/20 rounded-lg' />
+            <div className='flex-1'>
+              <div className='h-4 bg-white/20 rounded w-32 mb-2 overflow-hidden relative'>
+                <div className='absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer' />
+              </div>
+              <div className='h-3 bg-white/20 rounded w-24 overflow-hidden relative'>
+                <div className='absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer' />
+              </div>
+            </div>
+            <div className='h-6 bg-white/20 rounded-full w-20 overflow-hidden relative'>
+              <div className='absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer' />
+            </div>
+          </div>
+        </div>
+
+        {/* Content - estrutura real com shimmer interno */}
+        <div className='p-4 space-y-4'>
+          {/* Resumo da Operação */}
+          <div className='bg-gray-50 dark:bg-gray-900 rounded-lg p-3'>
+            <div className='flex items-center gap-2 mb-2'>
+              <div className='w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden relative'>
+                <div className='absolute inset-0 bg-gradient-to-r from-transparent via-gray-100 dark:via-gray-600 to-transparent animate-shimmer' />
+              </div>
+              <div>
+                <div className='h-3 bg-gray-200 dark:bg-gray-700 rounded w-16 mb-1 overflow-hidden relative'>
+                  <div className='absolute inset-0 bg-gradient-to-r from-transparent via-gray-100 dark:via-gray-600 to-transparent animate-shimmer' />
+                </div>
+                <div className='h-5 bg-gray-200 dark:bg-gray-700 rounded w-28 overflow-hidden relative'>
+                  <div className='absolute inset-0 bg-gradient-to-r from-transparent via-gray-100 dark:via-gray-600 to-transparent animate-shimmer' />
+                </div>
+              </div>
+            </div>
+            <div className='grid grid-cols-2 gap-2 pt-2 border-t border-gray-200 dark:border-gray-700'>
+              <div>
+                <div className='h-2 bg-gray-200 dark:bg-gray-700 rounded w-12 mb-1 overflow-hidden relative'>
+                  <div className='absolute inset-0 bg-gradient-to-r from-transparent via-gray-100 dark:via-gray-600 to-transparent animate-shimmer' />
+                </div>
+                <div className='h-4 bg-gray-200 dark:bg-gray-700 rounded w-20 overflow-hidden relative'>
+                  <div className='absolute inset-0 bg-gradient-to-r from-transparent via-gray-100 dark:via-gray-600 to-transparent animate-shimmer' />
+                </div>
+              </div>
+              <div>
+                <div className='h-2 bg-gray-200 dark:bg-gray-700 rounded w-14 mb-1 overflow-hidden relative'>
+                  <div className='absolute inset-0 bg-gradient-to-r from-transparent via-gray-100 dark:via-gray-600 to-transparent animate-shimmer' />
+                </div>
+                <div className='h-4 bg-gray-200 dark:bg-gray-700 rounded w-24 overflow-hidden relative'>
+                  <div className='absolute inset-0 bg-gradient-to-r from-transparent via-gray-100 dark:via-gray-600 to-transparent animate-shimmer' />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Método de Pagamento skeleton */}
+          <div className='flex items-center gap-2 bg-gray-50 dark:bg-gray-900 rounded-lg p-2.5'>
+            <div className='p-1.5 bg-gray-200 dark:bg-gray-700 rounded overflow-hidden relative'>
+              <div className='w-4 h-4' />
+              <div className='absolute inset-0 bg-gradient-to-r from-transparent via-gray-100 dark:via-gray-600 to-transparent animate-shimmer' />
+            </div>
+            <div className='flex-1'>
+              <div className='h-3 bg-gray-200 dark:bg-gray-700 rounded w-20 mb-1 overflow-hidden relative'>
+                <div className='absolute inset-0 bg-gradient-to-r from-transparent via-gray-100 dark:via-gray-600 to-transparent animate-shimmer' />
+              </div>
+              <div className='h-2 bg-gray-200 dark:bg-gray-700 rounded w-28 overflow-hidden relative'>
+                <div className='absolute inset-0 bg-gradient-to-r from-transparent via-gray-100 dark:via-gray-600 to-transparent animate-shimmer' />
+              </div>
+            </div>
+          </div>
+
+          {/* Dados Bancários skeleton */}
+          <div className='bg-gray-50 dark:bg-gray-900 rounded-lg p-3'>
+            <div className='h-3 bg-gray-200 dark:bg-gray-700 rounded w-32 mb-3 overflow-hidden relative'>
+              <div className='absolute inset-0 bg-gradient-to-r from-transparent via-gray-100 dark:via-gray-600 to-transparent animate-shimmer' />
+            </div>
+            <div className='grid grid-cols-2 gap-2'>
+              {[1, 2, 3, 4].map(i => (
+                <div key={i} className='bg-white dark:bg-gray-800 rounded p-2'>
+                  <div className='h-2 bg-gray-200 dark:bg-gray-700 rounded w-10 mb-1 overflow-hidden relative'>
+                    <div className='absolute inset-0 bg-gradient-to-r from-transparent via-gray-100 dark:via-gray-600 to-transparent animate-shimmer' />
+                  </div>
+                  <div className='h-4 bg-gray-200 dark:bg-gray-700 rounded w-16 overflow-hidden relative'>
+                    <div className='absolute inset-0 bg-gradient-to-r from-transparent via-gray-100 dark:via-gray-600 to-transparent animate-shimmer' />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     )
   }

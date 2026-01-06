@@ -4,9 +4,10 @@ import { usePrices } from '@/hooks/usePrices'
 import { TradingForm } from './components/TradingForm'
 import { MarketPricesCarousel } from './components/MarketPricesCarousel'
 import { QuoteDisplay } from './components/QuoteDisplay'
-import { ConfirmationPanel } from './components/ConfirmationPanel'
+import { ConfirmationPanel, TradeData } from './components/ConfirmationPanel'
 import { BenefitsSidebar } from './components/BenefitsSidebar'
 import { TradeHistoryPanel } from './components/TradeHistoryPanel'
+import { TradeDetailsPage } from './components/TradeDetailsPage'
 import { ChevronDown, TrendingUp, Zap, Clock, Globe } from 'lucide-react'
 
 interface Quote {
@@ -90,6 +91,8 @@ export function InstantTradePage() {
   const [quote, setQuote] = useState<Quote | null>(null)
   const [showConfirmation, setShowConfirmation] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
+  const [selectedTradeId, setSelectedTradeId] = useState<string | null>(null) // Nova trade criada
+  const [initialTradeData, setInitialTradeData] = useState<TradeData | null>(null) // Dados iniciais para render rápido
 
   // Update cryptoPrices when hook provides new prices
   useEffect(() => {
@@ -166,9 +169,21 @@ export function InstantTradePage() {
     setQuote(newQuote)
   }
 
-  const handleConfirmSuccess = (tradeId: string) => {
+  const handleConfirmSuccess = (tradeId: string, tradeData?: TradeData) => {
     setShowConfirmation(false)
     setQuote(null)
+    // Armazenar dados da trade para renderização instantânea
+    if (tradeData) {
+      setInitialTradeData(tradeData)
+    }
+    // Redirecionar para a página de detalhes da trade criada
+    setSelectedTradeId(tradeId)
+  }
+
+  // Voltar da página de detalhes para o formulário
+  const handleBackFromDetails = () => {
+    setSelectedTradeId(null)
+    setInitialTradeData(null)
   }
 
   const handleRefreshQuote = () => {
@@ -184,6 +199,25 @@ export function InstantTradePage() {
       // O countdown do quote_id já garante que preços antigos expiram
     }
   }, [cryptoPrices])
+
+  // Se há uma trade selecionada, mostrar página de detalhes
+  if (selectedTradeId) {
+    return (
+      <div className='space-y-6'>
+        {/* Header */}
+        <div>
+          <h1 className='text-3xl font-bold text-gray-900 dark:text-white'>Instant Trade OTC</h1>
+          <p className='text-gray-600 dark:text-gray-400 mt-1'>Detalhes da sua ordem</p>
+        </div>
+
+        <TradeDetailsPage
+          tradeId={selectedTradeId}
+          onBack={handleBackFromDetails}
+          initialData={initialTradeData as unknown as Record<string, unknown> | undefined}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className='space-y-6'>

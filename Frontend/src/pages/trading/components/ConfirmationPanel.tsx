@@ -37,10 +37,26 @@ interface Quote {
   usd_to_brl_rate?: number
 }
 
+export interface TradeData {
+  id: string
+  reference_code?: string
+  operation: 'buy' | 'sell'
+  symbol: string
+  crypto_amount: number
+  fiat_amount: number
+  total_amount: number
+  brl_total_amount?: number
+  usd_to_brl_rate?: number
+  payment_method: string
+  status: string
+  created_at?: string
+  expires_at?: string
+}
+
 interface ConfirmationPanelProps {
   readonly quote: Quote
   readonly onBack: () => void
-  readonly onSuccess: (tradeId: string) => void
+  readonly onSuccess: (tradeId: string, tradeData?: TradeData) => void
   readonly onRefreshQuote?: () => void
 }
 
@@ -127,7 +143,25 @@ export function ConfirmationPanel({
 
       const tradeId = response.data.trade_id || response.data.id
       setTradeCreated(tradeId)
-      onSuccess(tradeId)
+
+      // Construir dados da trade para passar ao componente pai
+      const tradeData: TradeData = {
+        id: tradeId,
+        reference_code: response.data.reference_code,
+        operation: quote.operation,
+        symbol: quote.symbol,
+        crypto_amount: quote.crypto_amount,
+        fiat_amount: quote.fiat_amount,
+        total_amount: quote.total_amount,
+        ...(quote.brl_total_amount !== undefined && { brl_total_amount: quote.brl_total_amount }),
+        ...(quote.usd_to_brl_rate !== undefined && { usd_to_brl_rate: quote.usd_to_brl_rate }),
+        payment_method: selectedPayment,
+        status: 'PENDING',
+        created_at: new Date().toISOString(),
+        ...(response.data.expires_at && { expires_at: response.data.expires_at }),
+      }
+
+      onSuccess(tradeId, tradeData)
     } catch (error: any) {
       // Usar sistema de tratamento de erros enterprise
       const parsedError = parseApiError(error)
@@ -140,7 +174,24 @@ export function ConfirmationPanel({
         toast.success('Trade created! Awaiting payment proof. Please send your receipt.')
         setPendingProof(true)
         setTradeCreated(tradeId)
-        onSuccess(tradeId)
+
+        // Construir dados parciais da trade para o caso de erro 403
+        const partialTradeData: TradeData = {
+          id: tradeId,
+          reference_code: error.response?.data?.reference_code,
+          operation: quote.operation,
+          symbol: quote.symbol,
+          crypto_amount: quote.crypto_amount,
+          fiat_amount: quote.fiat_amount,
+          total_amount: quote.total_amount,
+          ...(quote.brl_total_amount !== undefined && { brl_total_amount: quote.brl_total_amount }),
+          ...(quote.usd_to_brl_rate !== undefined && { usd_to_brl_rate: quote.usd_to_brl_rate }),
+          payment_method: selectedPayment,
+          status: 'PENDING_PROOF',
+          created_at: new Date().toISOString(),
+        }
+
+        onSuccess(tradeId, partialTradeData)
       } else {
         // Mostrar mensagem amigável ao usuário
         toast.error(parsedError.userMessage)
