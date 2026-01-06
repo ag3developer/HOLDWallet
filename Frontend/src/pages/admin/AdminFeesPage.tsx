@@ -7,7 +7,6 @@ import {
   Wallet,
   BarChart3,
   Clock,
-  Users,
   ChevronLeft,
   ChevronRight,
   RefreshCw,
@@ -142,10 +141,10 @@ export default function AdminFeesPage() {
   }
 
   // Format currency
-  const formatBRL = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
+  const formatUSD = (value: number) => {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'BRL',
+      currency: 'USD',
     }).format(value || 0)
   }
 
@@ -212,102 +211,104 @@ export default function AdminFeesPage() {
   )
 
   return (
-    <div className='p-6 space-y-6 bg-gray-900 min-h-screen'>
-      {/* Header */}
-      <div className='flex flex-col md:flex-row md:items-center justify-between gap-4'>
+    <div className='p-4 space-y-4 bg-gray-900 min-h-screen'>
+      {/* Header Compacto */}
+      <div className='flex items-center justify-between gap-2'>
         <div>
-          <h1 className='text-2xl font-bold text-white flex items-center gap-2'>
-            💰 Platform Revenue
+          <h1 className='text-base font-semibold text-white flex items-center gap-2'>
+            <DollarSign className='h-4 w-4 text-green-400' />
+            Platform Revenue
           </h1>
-          <p className='text-gray-400'>Fee collection and revenue analytics</p>
         </div>
-        <div className='flex items-center gap-3'>
+        <div className='flex items-center gap-2'>
           <select
             value={period}
             onChange={e => setPeriod(e.target.value)}
-            className='bg-gray-800 border border-gray-700 text-white rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+            className='bg-gray-800 border border-gray-700 text-white rounded text-xs px-2 py-1'
           >
-            <option value='day'>Last 24 Hours</option>
-            <option value='week'>Last 7 Days</option>
-            <option value='month'>Last 30 Days</option>
-            <option value='year'>Last Year</option>
-            <option value='all'>All Time</option>
+            <option value='day'>24h</option>
+            <option value='week'>7d</option>
+            <option value='month'>30d</option>
+            <option value='year'>1y</option>
+            <option value='all'>All</option>
           </select>
           <button
             onClick={() => refetchSummary()}
-            className='p-2 bg-gray-800 border border-gray-700 rounded-lg hover:bg-gray-700 transition-colors'
+            className='p-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700'
           >
-            <RefreshCw className='h-5 w-5 text-gray-400' />
+            <RefreshCw className='h-4 w-4 text-gray-400' />
           </button>
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4'>
+      {/* Summary Cards - Compactos */}
+      <div className='grid grid-cols-2 lg:grid-cols-4 gap-3'>
         {/* Total Fees */}
-        <div className='bg-gradient-to-br from-green-900/30 to-green-800/20 border border-green-700/30 rounded-xl p-6'>
-          <div className='flex items-center gap-4'>
-            <div className='p-3 bg-green-500/20 rounded-full'>
-              <DollarSign className='h-6 w-6 text-green-400' />
+        <div className='bg-gradient-to-br from-green-900/30 to-green-800/20 border border-green-700/30 rounded-lg p-3'>
+          <div className='flex items-center gap-2'>
+            <div className='p-2 bg-green-500/20 rounded-full'>
+              <DollarSign className='h-4 w-4 text-green-400' />
             </div>
             <div>
-              <p className='text-sm text-gray-400'>Total Fees Collected</p>
+              <p className='text-xs text-gray-400'>Total Fees</p>
               {summaryLoading ? (
-                <Skeleton className='h-8 w-32' />
+                <Skeleton className='h-5 w-20' />
               ) : (
-                <p className='text-2xl font-bold text-white'>{formatBRL(summary.total_fees_brl)}</p>
+                <p className='text-base font-bold text-white'>
+                  {formatUSD(summary.total_fees_brl)}
+                </p>
               )}
             </div>
           </div>
         </div>
 
         {/* Transactions */}
-        <div className='bg-gradient-to-br from-blue-900/30 to-blue-800/20 border border-blue-700/30 rounded-xl p-6'>
-          <div className='flex items-center gap-4'>
-            <div className='p-3 bg-blue-500/20 rounded-full'>
-              <Activity className='h-6 w-6 text-blue-400' />
+        <div className='bg-gradient-to-br from-blue-900/30 to-blue-800/20 border border-blue-700/30 rounded-lg p-3'>
+          <div className='flex items-center gap-2'>
+            <div className='p-2 bg-blue-500/20 rounded-full'>
+              <Activity className='h-4 w-4 text-blue-400' />
             </div>
             <div>
-              <p className='text-sm text-gray-400'>Fee Transactions</p>
+              <p className='text-xs text-gray-400'>Transactions</p>
               {summaryLoading ? (
-                <Skeleton className='h-8 w-20' />
+                <Skeleton className='h-5 w-16' />
               ) : (
-                <p className='text-2xl font-bold text-white'>{summary.total_transactions || 0}</p>
+                <p className='text-base font-bold text-white'>{summary.total_transactions || 0}</p>
               )}
             </div>
           </div>
         </div>
 
         {/* Average Fee */}
-        <div className='bg-gradient-to-br from-purple-900/30 to-purple-800/20 border border-purple-700/30 rounded-xl p-6'>
-          <div className='flex items-center gap-4'>
-            <div className='p-3 bg-purple-500/20 rounded-full'>
-              <TrendingUp className='h-6 w-6 text-purple-400' />
+        <div className='bg-gradient-to-br from-purple-900/30 to-purple-800/20 border border-purple-700/30 rounded-lg p-3'>
+          <div className='flex items-center gap-2'>
+            <div className='p-2 bg-purple-500/20 rounded-full'>
+              <TrendingUp className='h-4 w-4 text-purple-400' />
             </div>
             <div>
-              <p className='text-sm text-gray-400'>Average Fee</p>
+              <p className='text-xs text-gray-400'>Avg Fee</p>
               {summaryLoading ? (
-                <Skeleton className='h-8 w-24' />
+                <Skeleton className='h-5 w-16' />
               ) : (
-                <p className='text-2xl font-bold text-white'>{formatBRL(summary.avg_fee_brl)}</p>
+                <p className='text-base font-bold text-white'>{formatUSD(summary.avg_fee_brl)}</p>
               )}
             </div>
           </div>
         </div>
 
         {/* Volume Processed */}
-        <div className='bg-gradient-to-br from-orange-900/30 to-orange-800/20 border border-orange-700/30 rounded-xl p-6'>
-          <div className='flex items-center gap-4'>
-            <div className='p-3 bg-orange-500/20 rounded-full'>
-              <BarChart3 className='h-6 w-6 text-orange-400' />
+        <div className='bg-gradient-to-br from-orange-900/30 to-orange-800/20 border border-orange-700/30 rounded-lg p-3'>
+          <div className='flex items-center gap-2'>
+            <div className='p-2 bg-orange-500/20 rounded-full'>
+              <BarChart3 className='h-4 w-4 text-orange-400' />
             </div>
             <div>
-              <p className='text-sm text-gray-400'>Volume Processed</p>
+              <p className='text-xs text-gray-400'>Volume</p>
               {summaryLoading ? (
-                <Skeleton className='h-8 w-32' />
+                <Skeleton className='h-5 w-20' />
               ) : (
-                <p className='text-2xl font-bold text-white'>
-                  {formatBRL(summary.total_volume_processed)}
+                <p className='text-base font-bold text-white'>
+                  {formatUSD(summary.total_volume_processed)}
                 </p>
               )}
             </div>
@@ -316,38 +317,38 @@ export default function AdminFeesPage() {
       </div>
 
       {/* System Wallet & Breakdown */}
-      <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
+      <div className='grid grid-cols-1 lg:grid-cols-2 gap-4'>
         {/* System Wallet Balance */}
-        <div className='bg-gray-800/50 border border-gray-700 rounded-xl'>
-          <div className='p-4 border-b border-gray-700'>
-            <h2 className='text-lg font-semibold text-white flex items-center gap-2'>
-              <Wallet className='h-5 w-5 text-yellow-400' />
-              System Wallet Balance
+        <div className='bg-gray-800/50 border border-gray-700 rounded-lg'>
+          <div className='p-3 border-b border-gray-700'>
+            <h2 className='text-sm font-medium text-white flex items-center gap-2'>
+              <Wallet className='h-4 w-4 text-yellow-400' />
+              System Wallet
             </h2>
           </div>
-          <div className='p-4'>
+          <div className='p-3'>
             {walletLoading ? (
-              <div className='space-y-3'>
-                {[1, 2, 3, 4, 5].map(i => (
-                  <Skeleton key={i} className='h-12 w-full' />
+              <div className='space-y-2'>
+                {[1, 2, 3].map(i => (
+                  <Skeleton key={i} className='h-8 w-full' />
                 ))}
               </div>
             ) : systemWallet?.balances ? (
-              <div className='space-y-3'>
+              <div className='space-y-2'>
                 {Object.entries(systemWallet.balances || {}).map(([crypto, balance]) => (
                   <div
                     key={crypto}
-                    className='flex items-center justify-between p-3 bg-gray-900/50 rounded-lg'
+                    className='flex items-center justify-between p-2 bg-gray-900/50 rounded text-sm'
                   >
-                    <div className='flex items-center gap-3'>
-                      <div className='w-8 h-8 bg-gray-700 rounded-full flex items-center justify-center text-xs font-bold text-white'>
+                    <div className='flex items-center gap-2'>
+                      <div className='w-6 h-6 bg-gray-700 rounded-full flex items-center justify-center text-[10px] font-bold text-white'>
                         {crypto.slice(0, 2)}
                       </div>
-                      <span className='font-medium text-white'>{crypto}</span>
+                      <span className='text-white'>{crypto}</span>
                     </div>
-                    <span className='font-mono text-gray-300'>
+                    <span className='font-mono text-gray-300 text-xs'>
                       {crypto === 'BRL'
-                        ? formatBRL(balance as number)
+                        ? formatUSD(balance as number)
                         : formatCrypto(balance as number, crypto)}
                     </span>
                   </div>
@@ -355,10 +356,10 @@ export default function AdminFeesPage() {
 
                 {/* Total Balance in USD */}
                 {systemWallet.total_balance_usd !== undefined && (
-                  <div className='mt-4 pt-4 border-t border-gray-700'>
-                    <div className='flex justify-between items-center'>
-                      <span className='text-gray-400'>Total Balance (USD)</span>
-                      <span className='text-xl font-bold text-blue-400'>
+                  <div className='mt-3 pt-3 border-t border-gray-700'>
+                    <div className='flex justify-between items-center text-sm'>
+                      <span className='text-gray-400'>Total (USD)</span>
+                      <span className='font-bold text-blue-400'>
                         $
                         {systemWallet.total_balance_usd?.toLocaleString('en-US', {
                           minimumFractionDigits: 2,
@@ -370,37 +371,37 @@ export default function AdminFeesPage() {
 
                 {/* Fees Collected Summary */}
                 {systemWallet.fees_collected && (
-                  <div className='mt-4 pt-4 border-t border-gray-700 space-y-2'>
-                    <div className='flex justify-between items-center'>
-                      <span className='text-gray-400'>P2P Commission (0.5%)</span>
-                      <span className='font-mono text-green-400'>
+                  <div className='mt-3 pt-3 border-t border-gray-700 space-y-1.5 text-xs'>
+                    <div className='flex justify-between'>
+                      <span className='text-gray-400'>P2P (0.5%)</span>
+                      <span className='text-green-400'>
                         $
                         {systemWallet.fees_collected.p2p_commission?.toLocaleString('en-US', {
                           minimumFractionDigits: 2,
                         })}
                       </span>
                     </div>
-                    <div className='flex justify-between items-center'>
-                      <span className='text-gray-400'>OTC Spread (3%)</span>
-                      <span className='font-mono text-green-400'>
+                    <div className='flex justify-between'>
+                      <span className='text-gray-400'>OTC (3%)</span>
+                      <span className='text-green-400'>
                         $
                         {systemWallet.fees_collected.otc_spread?.toLocaleString('en-US', {
                           minimumFractionDigits: 2,
                         })}
                       </span>
                     </div>
-                    <div className='flex justify-between items-center'>
-                      <span className='text-gray-400'>Network Fees (0.25%)</span>
-                      <span className='font-mono text-green-400'>
+                    <div className='flex justify-between'>
+                      <span className='text-gray-400'>Network (0.25%)</span>
+                      <span className='text-green-400'>
                         $
                         {systemWallet.fees_collected.network_fee?.toLocaleString('en-US', {
                           minimumFractionDigits: 2,
                         })}
                       </span>
                     </div>
-                    <div className='flex justify-between items-center pt-2 border-t border-gray-600'>
-                      <span className='text-white font-semibold'>Total Fees Collected</span>
-                      <span className='text-xl font-bold text-green-400'>
+                    <div className='flex justify-between pt-1.5 border-t border-gray-600 text-sm'>
+                      <span className='text-white font-medium'>Total Fees</span>
+                      <span className='font-bold text-green-400'>
                         $
                         {systemWallet.fees_collected.total?.toLocaleString('en-US', {
                           minimumFractionDigits: 2,
@@ -410,182 +411,177 @@ export default function AdminFeesPage() {
                   </div>
                 )}
 
-                {/* Legacy total_fees_collected_brl support */}
+                {/* Legacy support */}
                 {!systemWallet.fees_collected &&
                   systemWallet.total_fees_collected_brl !== undefined && (
-                    <div className='mt-4 pt-4 border-t border-gray-700'>
-                      <div className='flex justify-between items-center'>
-                        <span className='text-gray-400'>Total Fees Collected (All Time)</span>
-                        <span className='text-xl font-bold text-green-400'>
-                          {formatBRL(systemWallet.total_fees_collected_brl)}
+                    <div className='mt-3 pt-3 border-t border-gray-700'>
+                      <div className='flex justify-between items-center text-sm'>
+                        <span className='text-gray-400'>Total Fees</span>
+                        <span className='font-bold text-green-400'>
+                          {formatUSD(systemWallet.total_fees_collected_brl)}
                         </span>
                       </div>
                     </div>
                   )}
               </div>
             ) : (
-              <p className='text-gray-400 text-center py-8'>
-                System wallet not found. Run migrations to create it.
-              </p>
+              <p className='text-gray-400 text-center py-6 text-sm'>Wallet not found</p>
             )}
           </div>
         </div>
 
         {/* Fee Breakdown by Type */}
-        <div className='bg-gray-800/50 border border-gray-700 rounded-xl'>
-          <div className='p-4 border-b border-gray-700'>
-            <h2 className='text-lg font-semibold text-white flex items-center gap-2'>
-              <BarChart3 className='h-5 w-5 text-blue-400' />
-              Revenue by Fee Type
+        <div className='bg-gray-800/50 border border-gray-700 rounded-lg'>
+          <div className='p-3 border-b border-gray-700'>
+            <h2 className='text-sm font-medium text-white flex items-center gap-2'>
+              <BarChart3 className='h-4 w-4 text-blue-400' />
+              Revenue by Type
             </h2>
           </div>
-          <div className='p-4'>
+          <div className='p-3'>
             {summaryLoading ? (
-              <div className='space-y-3'>
-                {[1, 2, 3].map(i => (
-                  <Skeleton key={i} className='h-16 w-full' />
+              <div className='space-y-2'>
+                {[1, 2].map(i => (
+                  <Skeleton key={i} className='h-10 w-full' />
                 ))}
               </div>
             ) : breakdown.length > 0 ? (
-              <div className='space-y-3'>
+              <div className='space-y-2'>
                 {breakdown.map((item: any) => (
-                  <div key={item.fee_type} className='p-4 bg-gray-900/50 rounded-lg'>
-                    <div className='flex items-center justify-between mb-2'>
+                  <div key={item.fee_type} className='p-2.5 bg-gray-900/50 rounded'>
+                    <div className='flex items-center justify-between'>
                       <span
-                        className={`px-3 py-1 rounded-full text-sm border ${getFeeTypeBadge(item.fee_type)}`}
+                        className={`px-2 py-1 rounded text-xs border ${getFeeTypeBadge(item.fee_type)}`}
                       >
                         {getFeeTypeLabel(item.fee_type)}
                       </span>
-                      <span className='text-green-400 font-bold'>{formatBRL(item.total_fees)}</span>
+                      <span className='text-green-400 font-bold text-sm'>
+                        {formatUSD(item.total_fees)}
+                      </span>
                     </div>
-                    <div className='flex justify-between text-sm text-gray-400'>
-                      <span>{item.transaction_count} transactions</span>
-                      <span>{item.avg_percentage?.toFixed(2)}% avg rate</span>
+                    <div className='flex justify-between text-xs text-gray-400 mt-1.5'>
+                      <span>{item.transaction_count} txs</span>
+                      <span>{item.avg_percentage?.toFixed(2)}%</span>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className='text-gray-400 text-center py-8'>
-                No fees collected yet in this period.
-              </p>
+              <p className='text-gray-400 text-center py-6 text-sm'>No fees yet</p>
             )}
           </div>
         </div>
       </div>
 
       {/* Daily Revenue Chart */}
-      <div className='bg-gray-800/50 border border-gray-700 rounded-xl'>
-        <div className='p-4 border-b border-gray-700'>
-          <h2 className='text-lg font-semibold text-white flex items-center gap-2'>
-            <Clock className='h-5 w-5 text-purple-400' />
-            Daily Revenue (Last 30 Days)
+      <div className='bg-gray-800/50 border border-gray-700 rounded-lg'>
+        <div className='p-3 border-b border-gray-700'>
+          <h2 className='text-sm font-medium text-white flex items-center gap-2'>
+            <Clock className='h-4 w-4 text-purple-400' />
+            Daily Revenue (30d)
           </h2>
         </div>
-        <div className='p-4'>
+        <div className='p-3'>
           {revenueLoading ? (
-            <Skeleton className='h-48 w-full' />
+            <Skeleton className='h-32 w-full' />
           ) : dailyRevenue.length > 0 ? (
             <div>
               {/* Simple bar chart */}
-              <div className='flex items-end gap-1 h-48 overflow-x-auto pb-4'>
+              <div className='flex items-end gap-1 h-32 overflow-x-auto'>
                 {dailyRevenue.slice(-30).map((day: any, index: number) => {
                   const maxRevenue = Math.max(...dailyRevenue.map((d: any) => d.revenue)) || 1
                   const height = (day.revenue / maxRevenue) * 100
                   return (
                     <div
                       key={day.date || index}
-                      className='flex-1 min-w-[10px] bg-gradient-to-t from-green-600 to-green-400 rounded-t hover:from-green-500 hover:to-green-300 transition-all cursor-pointer group relative'
+                      className='flex-1 min-w-[6px] bg-gradient-to-t from-green-600 to-green-400 rounded-t hover:from-green-500 hover:to-green-300 cursor-pointer group relative'
                       style={{ height: `${Math.max(height, 2)}%` }}
-                      title={`${day.date}: ${formatBRL(day.revenue)}`}
-                    >
-                      <div className='absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap z-10 pointer-events-none'>
-                        {day.date}
-                        <br />
-                        {formatBRL(day.revenue)}
-                      </div>
-                    </div>
+                      title={`${day.date}: ${formatUSD(day.revenue)}`}
+                    ></div>
                   )
                 })}
               </div>
 
               {/* Summary */}
-              <div className='grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 pt-4 border-t border-gray-700'>
+              <div className='grid grid-cols-4 gap-3 mt-3 pt-3 border-t border-gray-700'>
                 <div className='text-center'>
-                  <p className='text-gray-400 text-sm'>Total Revenue</p>
-                  <p className='text-white font-bold'>{formatBRL(revenueTotals.total_revenue)}</p>
+                  <p className='text-gray-400 text-xs'>Revenue</p>
+                  <p className='text-white font-bold text-sm'>
+                    {formatUSD(revenueTotals.total_revenue)}
+                  </p>
                 </div>
                 <div className='text-center'>
-                  <p className='text-gray-400 text-sm'>Total Transactions</p>
-                  <p className='text-white font-bold'>{revenueTotals.total_transactions}</p>
+                  <p className='text-gray-400 text-xs'>Txs</p>
+                  <p className='text-white font-bold text-sm'>{revenueTotals.total_transactions}</p>
                 </div>
                 <div className='text-center'>
-                  <p className='text-gray-400 text-sm'>Total Volume</p>
-                  <p className='text-white font-bold'>{formatBRL(revenueTotals.total_volume)}</p>
+                  <p className='text-gray-400 text-xs'>Volume</p>
+                  <p className='text-white font-bold text-sm'>
+                    {formatUSD(revenueTotals.total_volume)}
+                  </p>
                 </div>
                 <div className='text-center'>
-                  <p className='text-gray-400 text-sm'>Avg Daily</p>
-                  <p className='text-white font-bold'>
-                    {formatBRL(revenueTotals.avg_daily_revenue)}
+                  <p className='text-gray-400 text-xs'>Avg/Day</p>
+                  <p className='text-white font-bold text-sm'>
+                    {formatUSD(revenueTotals.avg_daily_revenue)}
                   </p>
                 </div>
               </div>
             </div>
           ) : (
-            <p className='text-gray-400 text-center py-8'>No revenue data available yet.</p>
+            <p className='text-gray-400 text-center py-6 text-sm'>No revenue data yet</p>
           )}
         </div>
       </div>
 
       {/* Recent Fee History */}
-      <div className='bg-gray-800/50 border border-gray-700 rounded-xl'>
-        <div className='p-4 border-b border-gray-700'>
-          <h2 className='text-lg font-semibold text-white flex items-center gap-2'>
-            <Users className='h-5 w-5 text-orange-400' />
-            Recent Fee Transactions
+      <div className='bg-gray-800/50 border border-gray-700 rounded-lg'>
+        <div className='p-3 border-b border-gray-700'>
+          <h2 className='text-sm font-medium text-white flex items-center gap-2'>
+            <Receipt className='h-4 w-4 text-orange-400' />
+            Recent Fees
           </h2>
         </div>
-        <div className='p-4'>
+        <div className='p-3'>
           {historyLoading ? (
-            <div className='space-y-3'>
-              {[1, 2, 3, 4, 5].map(i => (
-                <Skeleton key={i} className='h-12 w-full' />
+            <div className='space-y-2'>
+              {[1, 2, 3].map(i => (
+                <Skeleton key={i} className='h-8 w-full' />
               ))}
             </div>
           ) : feeHistory.length > 0 ? (
             <div className='overflow-x-auto'>
-              <table className='w-full'>
+              <table className='w-full text-xs'>
                 <thead>
                   <tr className='border-b border-gray-700'>
-                    <th className='text-left py-3 px-4 text-gray-400 font-medium'>Date</th>
-                    <th className='text-left py-3 px-4 text-gray-400 font-medium'>Type</th>
-                    <th className='text-left py-3 px-4 text-gray-400 font-medium'>Trade ID</th>
-                    <th className='text-left py-3 px-4 text-gray-400 font-medium'>Gross Amount</th>
-                    <th className='text-left py-3 px-4 text-gray-400 font-medium'>Fee %</th>
-                    <th className='text-left py-3 px-4 text-gray-400 font-medium'>Fee Amount</th>
-                    <th className='text-left py-3 px-4 text-gray-400 font-medium'>Status</th>
+                    <th className='text-left py-2 px-3 text-gray-400 font-medium'>Date</th>
+                    <th className='text-left py-2 px-3 text-gray-400 font-medium'>Type</th>
+                    <th className='text-left py-2 px-3 text-gray-400 font-medium'>Gross</th>
+                    <th className='text-left py-2 px-3 text-gray-400 font-medium'>Fee %</th>
+                    <th className='text-left py-2 px-3 text-gray-400 font-medium'>Fee Amount</th>
+                    <th className='text-left py-2 px-3 text-gray-400 font-medium'>Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {feeHistory.map((fee: any) => (
                     <tr key={fee.id} className='border-b border-gray-800 hover:bg-gray-800/50'>
-                      <td className='py-3 px-4 text-gray-300'>
+                      <td className='py-2 px-3 text-gray-300'>
                         {new Date(fee.created_at).toLocaleDateString('pt-BR')}
                       </td>
-                      <td className='py-3 px-4'>
+                      <td className='py-2 px-3'>
                         <span
                           className={`px-2 py-1 rounded-full text-xs border ${getFeeTypeBadge(fee.fee_type)}`}
                         >
                           {getFeeTypeLabel(fee.fee_type)}
                         </span>
                       </td>
-                      <td className='py-3 px-4 font-mono text-gray-300'>#{fee.trade_id}</td>
-                      <td className='py-3 px-4 text-gray-300'>{formatBRL(fee.gross_amount)}</td>
-                      <td className='py-3 px-4 text-gray-300'>{fee.fee_percentage?.toFixed(2)}%</td>
-                      <td className='py-3 px-4 text-green-400 font-medium'>
-                        {formatBRL(fee.fee_amount_brl || fee.fee_amount)}
+                      <td className='py-2 px-3 font-mono text-gray-300'>#{fee.trade_id}</td>
+                      <td className='py-2 px-3 text-gray-300'>{formatUSD(fee.gross_amount)}</td>
+                      <td className='py-2 px-3 text-gray-300'>{fee.fee_percentage?.toFixed(2)}%</td>
+                      <td className='py-2 px-3 text-green-400 font-medium'>
+                        {formatUSD(fee.fee_amount_brl || fee.fee_amount)}
                       </td>
-                      <td className='py-3 px-4'>
+                      <td className='py-2 px-3'>
                         <span
                           className={`px-2 py-1 rounded-full text-xs border ${getStatusBadge(fee.status)}`}
                         >
@@ -598,30 +594,32 @@ export default function AdminFeesPage() {
               </table>
             </div>
           ) : (
-            <p className='text-gray-400 text-center py-8'>No fee transactions recorded yet.</p>
+            <p className='text-gray-400 text-center py-6 text-sm'>
+              No fee transactions recorded yet.
+            </p>
           )}
 
           {/* Pagination */}
           {pagination.pages > 1 && (
-            <div className='flex justify-center items-center gap-2 mt-4 pt-4 border-t border-gray-700'>
+            <div className='flex justify-center items-center gap-2 mt-3 pt-3 border-t border-gray-700'>
               <button
                 onClick={() => setHistoryPage(p => Math.max(1, p - 1))}
                 disabled={historyPage === 1}
-                className='p-2 bg-gray-800 rounded-lg disabled:opacity-50 hover:bg-gray-700 transition-colors'
+                className='p-1.5 bg-gray-800 rounded disabled:opacity-50 hover:bg-gray-700 transition-colors'
                 title='Página anterior'
               >
-                <ChevronLeft className='h-5 w-5 text-gray-400' />
+                <ChevronLeft className='h-4 w-4 text-gray-400' />
               </button>
-              <span className='px-4 py-2 text-gray-400'>
+              <span className='px-3 py-1 text-gray-400 text-xs'>
                 Page {historyPage} of {pagination.pages}
               </span>
               <button
                 onClick={() => setHistoryPage(p => Math.min(pagination.pages, p + 1))}
                 disabled={historyPage === pagination.pages}
-                className='p-2 bg-gray-800 rounded-lg disabled:opacity-50 hover:bg-gray-700 transition-colors'
+                className='p-1.5 bg-gray-800 rounded disabled:opacity-50 hover:bg-gray-700 transition-colors'
                 title='Próxima página'
               >
-                <ChevronRight className='h-5 w-5 text-gray-400' />
+                <ChevronRight className='h-4 w-4 text-gray-400' />
               </button>
             </div>
           )}
@@ -629,55 +627,55 @@ export default function AdminFeesPage() {
       </div>
 
       {/* OTC Trade Commissions - Comissões dos Trades */}
-      <div className='bg-gradient-to-r from-purple-900/30 to-blue-900/30 border border-purple-700/30 rounded-xl'>
-        <div className='p-4 border-b border-purple-700/30'>
-          <h2 className='text-lg font-semibold text-white flex items-center gap-2'>
-            <Calculator className='h-5 w-5 text-purple-400' />
+      <div className='bg-gradient-to-r from-purple-900/30 to-blue-900/30 border border-purple-700/30 rounded-lg'>
+        <div className='p-3 border-b border-purple-700/30'>
+          <h2 className='text-sm font-semibold text-white flex items-center gap-2'>
+            <Calculator className='h-4 w-4 text-purple-400' />
             Comissões OTC (Instant Trades)
           </h2>
-          <p className='text-sm text-gray-400 mt-1'>
+          <p className='text-xs text-gray-400 mt-1'>
             Receitas de spread e taxas de rede dos trades OTC
           </p>
         </div>
 
         {/* Summary Cards */}
-        <div className='p-4 grid grid-cols-1 md:grid-cols-4 gap-4'>
-          <div className='bg-purple-900/30 border border-purple-700/30 rounded-lg p-4'>
-            <p className='text-sm text-gray-400'>Spread Total</p>
+        <div className='p-3 grid grid-cols-2 md:grid-cols-4 gap-3'>
+          <div className='bg-purple-900/30 border border-purple-700/30 rounded-lg p-3'>
+            <p className='text-xs text-gray-400'>Spread Total</p>
             {accountingSummaryLoading ? (
-              <Skeleton className='h-8 w-24 mt-1' />
+              <Skeleton className='h-5 w-20 mt-1' />
             ) : (
-              <p className='text-xl font-bold text-purple-400'>
-                {formatBRL(accountingTotals.spread)}
+              <p className='text-base font-bold text-purple-400'>
+                {formatUSD(accountingTotals.spread)}
               </p>
             )}
           </div>
-          <div className='bg-blue-900/30 border border-blue-700/30 rounded-lg p-4'>
-            <p className='text-sm text-gray-400'>Taxa de Rede Total</p>
+          <div className='bg-blue-900/30 border border-blue-700/30 rounded-lg p-3'>
+            <p className='text-xs text-gray-400'>Taxa de Rede</p>
             {accountingSummaryLoading ? (
-              <Skeleton className='h-8 w-24 mt-1' />
+              <Skeleton className='h-5 w-20 mt-1' />
             ) : (
-              <p className='text-xl font-bold text-blue-400'>
-                {formatBRL(accountingTotals.network_fee)}
+              <p className='text-base font-bold text-blue-400'>
+                {formatUSD(accountingTotals.network_fee)}
               </p>
             )}
           </div>
-          <div className='bg-green-900/30 border border-green-700/30 rounded-lg p-4'>
-            <p className='text-sm text-gray-400'>Total de Comissões</p>
+          <div className='bg-green-900/30 border border-green-700/30 rounded-lg p-3'>
+            <p className='text-xs text-gray-400'>Total Comissões</p>
             {accountingSummaryLoading ? (
-              <Skeleton className='h-8 w-24 mt-1' />
+              <Skeleton className='h-5 w-20 mt-1' />
             ) : (
-              <p className='text-xl font-bold text-green-400'>
-                {formatBRL(accountingTotals.grand_total)}
+              <p className='text-base font-bold text-green-400'>
+                {formatUSD(accountingTotals.grand_total)}
               </p>
             )}
           </div>
-          <div className='bg-gray-800/50 border border-gray-700 rounded-lg p-4'>
-            <p className='text-sm text-gray-400'>Trades Contabilizados</p>
+          <div className='bg-gray-800/50 border border-gray-700 rounded-lg p-3'>
+            <p className='text-xs text-gray-400'>Trades</p>
             {accountingSummaryLoading ? (
-              <Skeleton className='h-8 w-16 mt-1' />
+              <Skeleton className='h-5 w-16 mt-1' />
             ) : (
-              <p className='text-xl font-bold text-white'>
+              <p className='text-base font-bold text-white'>
                 {accountingSummary.totals?.unique_trades || 0}
               </p>
             )}
@@ -685,54 +683,54 @@ export default function AdminFeesPage() {
         </div>
 
         {/* Entries Table */}
-        <div className='p-4'>
+        <div className='p-3'>
           {accountingLoading ? (
-            <div className='space-y-3'>
+            <div className='space-y-2'>
               {[1, 2, 3, 4, 5].map(i => (
-                <Skeleton key={i} className='h-12 w-full' />
+                <Skeleton key={i} className='h-8 w-full' />
               ))}
             </div>
           ) : accountingEntries.length > 0 ? (
             <div className='overflow-x-auto'>
-              <table className='w-full'>
+              <table className='w-full text-xs'>
                 <thead>
                   <tr className='border-b border-gray-700'>
-                    <th className='text-left py-3 px-4 text-gray-400 font-medium'>Data</th>
-                    <th className='text-left py-3 px-4 text-gray-400 font-medium'>Tipo</th>
-                    <th className='text-left py-3 px-4 text-gray-400 font-medium'>Referência</th>
-                    <th className='text-left py-3 px-4 text-gray-400 font-medium'>Usuário</th>
-                    <th className='text-left py-3 px-4 text-gray-400 font-medium'>%</th>
-                    <th className='text-left py-3 px-4 text-gray-400 font-medium'>Valor</th>
-                    <th className='text-left py-3 px-4 text-gray-400 font-medium'>Status</th>
-                    <th className='text-left py-3 px-4 text-gray-400 font-medium'>Ação</th>
+                    <th className='text-left py-2 px-3 text-gray-400 font-medium'>Data</th>
+                    <th className='text-left py-2 px-3 text-gray-400 font-medium'>Tipo</th>
+                    <th className='text-left py-2 px-3 text-gray-400 font-medium'>Ref</th>
+                    <th className='text-left py-2 px-3 text-gray-400 font-medium'>Usuário</th>
+                    <th className='text-left py-2 px-3 text-gray-400 font-medium'>%</th>
+                    <th className='text-left py-2 px-3 text-gray-400 font-medium'>Valor</th>
+                    <th className='text-left py-2 px-3 text-gray-400 font-medium'>Status</th>
+                    <th className='text-left py-2 px-3 text-gray-400 font-medium'>Ação</th>
                   </tr>
                 </thead>
                 <tbody>
                   {accountingEntries.map((entry: any) => (
                     <tr key={entry.id} className='border-b border-gray-800 hover:bg-gray-800/50'>
-                      <td className='py-3 px-4 text-gray-300'>
+                      <td className='py-2 px-3 text-gray-300'>
                         {entry.created_at
                           ? new Date(entry.created_at).toLocaleDateString('pt-BR')
                           : '-'}
                       </td>
-                      <td className='py-3 px-4'>
+                      <td className='py-2 px-3'>
                         <span
                           className={`px-2 py-1 rounded-full text-xs border ${getAccountingTypeBadge(entry.entry_type)}`}
                         >
                           {getAccountingTypeLabel(entry.entry_type)}
                         </span>
                       </td>
-                      <td className='py-3 px-4 font-mono text-gray-300'>
+                      <td className='py-2 px-3 font-mono text-gray-300'>
                         {entry.reference_code || '-'}
                       </td>
-                      <td className='py-3 px-4 text-gray-300'>
+                      <td className='py-2 px-3 text-gray-300'>
                         {entry.user_name || entry.user_id?.substring(0, 8) || '-'}
                       </td>
-                      <td className='py-3 px-4 text-gray-300'>{entry.percentage?.toFixed(2)}%</td>
-                      <td className='py-3 px-4 text-green-400 font-medium'>
-                        {formatBRL(entry.amount)}
+                      <td className='py-2 px-3 text-gray-300'>{entry.percentage?.toFixed(2)}%</td>
+                      <td className='py-2 px-3 text-green-400 font-medium'>
+                        {formatUSD(entry.amount)}
                       </td>
-                      <td className='py-3 px-4'>
+                      <td className='py-2 px-3'>
                         <span
                           className={`px-2 py-1 rounded-full text-xs border ${getAccountingStatusBadge(entry.status)}`}
                         >
@@ -743,7 +741,7 @@ export default function AdminFeesPage() {
                               : entry.status}
                         </span>
                       </td>
-                      <td className='py-3 px-4'>
+                      <td className='py-2 px-3'>
                         {entry.trade_id && (
                           <a
                             href={`/admin/trades/${entry.trade_id}`}
@@ -760,10 +758,10 @@ export default function AdminFeesPage() {
               </table>
             </div>
           ) : (
-            <div className='text-center py-8'>
-              <Receipt className='h-12 w-12 text-gray-600 mx-auto mb-4' />
-              <p className='text-gray-400'>Nenhuma comissão registrada ainda.</p>
-              <p className='text-sm text-gray-500 mt-2'>
+            <div className='text-center py-6'>
+              <Receipt className='h-8 w-8 text-gray-600 mx-auto mb-3' />
+              <p className='text-gray-400 text-sm'>Nenhuma comissão registrada ainda.</p>
+              <p className='text-xs text-gray-500 mt-1'>
                 As comissões são registradas quando um trade OTC é enviado para contabilidade.
               </p>
             </div>
@@ -771,25 +769,25 @@ export default function AdminFeesPage() {
 
           {/* Pagination */}
           {accountingPagination.pages > 1 && (
-            <div className='flex justify-center items-center gap-2 mt-4 pt-4 border-t border-gray-700'>
+            <div className='flex justify-center items-center gap-2 mt-3 pt-3 border-t border-gray-700'>
               <button
                 onClick={() => setAccountingPage(p => Math.max(1, p - 1))}
                 disabled={accountingPage === 1}
-                className='p-2 bg-gray-800 rounded-lg disabled:opacity-50 hover:bg-gray-700 transition-colors'
+                className='p-1.5 bg-gray-800 rounded disabled:opacity-50 hover:bg-gray-700 transition-colors'
                 title='Página anterior'
               >
-                <ChevronLeft className='h-5 w-5 text-gray-400' />
+                <ChevronLeft className='h-4 w-4 text-gray-400' />
               </button>
-              <span className='px-4 py-2 text-gray-400'>
+              <span className='px-3 py-1 text-gray-400 text-xs'>
                 Página {accountingPage} de {accountingPagination.pages}
               </span>
               <button
                 onClick={() => setAccountingPage(p => Math.min(accountingPagination.pages, p + 1))}
                 disabled={accountingPage === accountingPagination.pages}
-                className='p-2 bg-gray-800 rounded-lg disabled:opacity-50 hover:bg-gray-700 transition-colors'
+                className='p-1.5 bg-gray-800 rounded disabled:opacity-50 hover:bg-gray-700 transition-colors'
                 title='Próxima página'
               >
-                <ChevronRight className='h-5 w-5 text-gray-400' />
+                <ChevronRight className='h-4 w-4 text-gray-400' />
               </button>
             </div>
           )}
