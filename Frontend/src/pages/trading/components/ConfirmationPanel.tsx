@@ -11,12 +11,17 @@ import {
   AlertTriangle,
   RefreshCw,
   ClipboardList,
+  Plus,
+  ExternalLink,
+  ArrowDownToLine,
 } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { apiClient } from '@/services/api'
 import { parseApiError } from '@/services/errors'
 import { TradeStatusMonitor } from './TradeStatusMonitor'
 import { useCurrencyStore } from '@/stores/useCurrencyStore'
+import { usePaymentMethods } from '@/hooks/usePaymentMethods'
 
 interface Quote {
   quote_id: string
@@ -60,11 +65,12 @@ interface ConfirmationPanelProps {
   readonly onRefreshQuote?: () => void
 }
 
-const PAYMENT_METHODS = [
+// Métodos de pagamento para COMPRA (usuário paga)
+const BUY_PAYMENT_METHODS = [
   { id: 'pix', name: 'PIX', icon: Banknote },
   { id: 'ted', name: 'TED', icon: Building2 },
-  { id: 'credit_card', name: 'Credit Card', icon: CreditCard },
-  { id: 'debit_card', name: 'Debit Card', icon: Wallet },
+  { id: 'credit_card', name: 'Credit', icon: CreditCard },
+  { id: 'debit_card', name: 'Debit', icon: Wallet },
 ]
 
 export function ConfirmationPanel({
@@ -74,13 +80,35 @@ export function ConfirmationPanel({
   onRefreshQuote,
 }: ConfirmationPanelProps) {
   const { formatCurrency } = useCurrencyStore()
+
+  // Buscar métodos de pagamento cadastrados do usuário (para SELL)
+  const { data: userPaymentMethods, isLoading: loadingPaymentMethods } = usePaymentMethods()
+
+  const isBuy = quote.operation === 'buy'
+
+  // Para BUY: método de pagamento (pix, ted, etc)
+  // Para SELL: ID do método de recebimento cadastrado do usuário
   const [selectedPayment, setSelectedPayment] = useState('pix')
+  const [selectedReceivingMethod, setSelectedReceivingMethod] = useState<string | null>(null)
+
   const [loading, setLoading] = useState(false)
   const [tradeCreated, setTradeCreated] = useState<string | null>(null)
   const [pendingProof, setPendingProof] = useState(false)
   const [bankDetails, setBankDetails] = useState<any>(null)
   const [timeLeft, setTimeLeft] = useState(quote.expires_in_seconds || 30)
   const [quoteExpired, setQuoteExpired] = useState(false)
+
+  // Auto-selecionar primeiro método de recebimento quando carregar (para SELL)
+  useEffect(() => {
+    if (!isBuy && userPaymentMethods && userPaymentMethods.length > 0 && !selectedReceivingMethod) {
+      // Priorizar método marcado como principal, senão o primeiro
+      const primaryMethod = userPaymentMethods.find((m: any) => m.is_primary)
+      const methodId = primaryMethod?.id || userPaymentMethods[0]?.id
+      if (methodId) {
+        setSelectedReceivingMethod(methodId)
+      }
+    }
+  }, [userPaymentMethods, isBuy, selectedReceivingMethod])
 
   // Timer countdown for quote expiration
   useEffect(() => {
@@ -101,18 +129,37 @@ export function ConfirmationPanel({
   }, [quote.quote_id, tradeCreated])
 
   const createTrade = async () => {
+    // Validação para SELL: precisa ter método de recebimento selecionado
+    if (!isBuy && !selectedReceivingMethod) {
+      toast.error('Selecione uma conta para receber o pagamento')
+      return
+    }
+
     setLoading(true)
     try {
-      // Preparar dados do request incluindo valores em BRL se disponíveis
+      // Preparar dados do request
       const requestData: {
         quote_id: string
-        payment_method: string
+        payment_method?: string
+        receiving_method_id?: string
         brl_amount?: number
         brl_total_amount?: number
         usd_to_brl_rate?: number
       } = {
         quote_id: quote.quote_id,
-        payment_method: selectedPayment,
+      }
+
+      if (isBuy) {
+        // BUY: usuário escolhe como pagar
+        requestData.payment_method = selectedPayment
+      } else {
+        // SELL: usuário escolhe onde receber
+        requestData.receiving_method_id = selectedReceivingMethod!
+        // Para SELL, o "payment_method" é o tipo do método de recebimento
+        const selectedMethod = userPaymentMethods?.find(
+          (m: any) => m.id === selectedReceivingMethod
+        )
+        requestData.payment_method = selectedMethod?.type || 'pix'
       }
 
       // Se tiver valores em BRL, incluir no request (para TED/PIX)
@@ -132,13 +179,18 @@ export function ConfirmationPanel({
 
       console.log('[ConfirmationPanel] Trade created successfully:', response.data)
 
-      // If TED, check for bank details
-      if (selectedPayment === 'ted' && response.data.bank_details) {
-        setBankDetails(response.data.bank_details)
-        toast.success('Trade created! Please transfer to the account below.')
-        setPendingProof(true)
+      if (isBuy) {
+        // BUY: Mostrar instruções de pagamento
+        if (selectedPayment === 'ted' && response.data.bank_details) {
+          setBankDetails(response.data.bank_details)
+          toast.success('Trade criado! Transfira para a conta abaixo.')
+          setPendingProof(true)
+        } else {
+          toast.success('Trade criado com sucesso!')
+        }
       } else {
-        toast.success('Trade created successfully!')
+        // SELL: Trade criado, aguardando processamento
+        toast.success('Venda confirmada! Aguarde o processamento do pagamento.')
       }
 
       const tradeId = response.data.trade_id || response.data.id
@@ -224,7 +276,7 @@ export function ConfirmationPanel({
     return formatCurrency(value)
   }
 
-  const isBuy = quote.operation === 'buy'
+  // isBuy já declarado no início do componente
 
   if (tradeCreated) {
     return (
@@ -457,37 +509,142 @@ export function ConfirmationPanel({
           </div>
         </div>
 
-        {/* Payment Method Selection */}
-        <div>
-          <div className='text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2'>
-            Payment Method
+        {/* SEÇÃO DIFERENTE PARA BUY vs SELL */}
+        {isBuy ? (
+          /* BUY: Payment Method Selection - Como o usuário vai PAGAR */
+          <div>
+            <div className='text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2'>
+              Método de Pagamento
+            </div>
+            <div className='grid grid-cols-4 gap-2'>
+              {BUY_PAYMENT_METHODS.map(method => {
+                const IconComponent = method.icon
+                return (
+                  <button
+                    key={method.id}
+                    onClick={() => setSelectedPayment(method.id)}
+                    disabled={loading}
+                    className={`p-2 rounded border transition-all disabled:opacity-50 text-center ${
+                      selectedPayment === method.id
+                        ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/30'
+                        : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                    }`}
+                  >
+                    <IconComponent className='w-5 h-5 text-blue-600 dark:text-blue-400 mx-auto mb-1' />
+                    <div className='text-xs font-medium text-gray-700 dark:text-gray-300'>
+                      {method.name}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
           </div>
-          <div className='grid grid-cols-4 gap-2'>
-            {PAYMENT_METHODS.map(method => {
-              const IconComponent = method.icon
-              return (
-                <button
-                  key={method.id}
-                  onClick={() => setSelectedPayment(method.id)}
-                  disabled={loading}
-                  className={`p-2 rounded border transition-all disabled:opacity-50 text-center ${
-                    selectedPayment === method.id
-                      ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/30'
-                      : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
-                  }`}
-                >
-                  <IconComponent className='w-5 h-5 text-blue-600 dark:text-blue-400 mx-auto mb-1' />
-                  <div className='text-xs font-medium text-gray-700 dark:text-gray-300'>
-                    {method.name.split(' ')[0]}
-                  </div>
-                </button>
-              )
-            })}
-          </div>
-        </div>
+        ) : (
+          /* SELL: Receiving Method Selection - Onde o usuário vai RECEBER */
+          <div>
+            <div className='text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2'>
+              <ArrowDownToLine className='w-4 h-4 text-green-600 dark:text-green-400' />
+              Conta para Recebimento
+            </div>
 
-        {/* Bank Transfer Details - Show BEFORE confirming for TED */}
-        {selectedPayment === 'ted' && (
+            {loadingPaymentMethods ? (
+              <div className='flex items-center justify-center p-4'>
+                <Loader className='w-5 h-5 animate-spin text-blue-600' />
+                <span className='ml-2 text-sm text-gray-600 dark:text-gray-400'>
+                  Carregando suas contas...
+                </span>
+              </div>
+            ) : !userPaymentMethods || userPaymentMethods.length === 0 ? (
+              /* Nenhuma conta cadastrada */
+              <div className='bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg p-4'>
+                <div className='flex items-start gap-3'>
+                  <AlertTriangle className='w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5' />
+                  <div className='flex-1'>
+                    <p className='text-sm font-medium text-amber-900 dark:text-amber-100'>
+                      Nenhuma conta cadastrada
+                    </p>
+                    <p className='text-xs text-amber-700 dark:text-amber-300 mt-1'>
+                      Para vender crypto, você precisa cadastrar uma conta bancária ou chave PIX
+                      para receber o pagamento.
+                    </p>
+                    <Link
+                      to='/settings/payment-methods'
+                      className='inline-flex items-center gap-1 mt-3 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium rounded transition-colors'
+                    >
+                      <Plus className='w-3 h-3' />
+                      Cadastrar Conta
+                      <ExternalLink className='w-3 h-3' />
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* Lista de contas cadastradas */
+              <div className='space-y-2'>
+                {userPaymentMethods.map((method: any) => (
+                  <button
+                    key={method.id}
+                    onClick={() => setSelectedReceivingMethod(method.id)}
+                    disabled={loading}
+                    className={`w-full p-3 rounded-lg border transition-all disabled:opacity-50 text-left ${
+                      selectedReceivingMethod === method.id
+                        ? 'border-green-600 bg-green-50 dark:bg-green-900/30'
+                        : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                    }`}
+                  >
+                    <div className='flex items-center gap-3'>
+                      <div
+                        className={`p-2 rounded-full ${
+                          method.type === 'pix'
+                            ? 'bg-green-100 dark:bg-green-900/50'
+                            : 'bg-blue-100 dark:bg-blue-900/50'
+                        }`}
+                      >
+                        {method.type === 'pix' ? (
+                          <Banknote className='w-4 h-4 text-green-600 dark:text-green-400' />
+                        ) : (
+                          <Building2 className='w-4 h-4 text-blue-600 dark:text-blue-400' />
+                        )}
+                      </div>
+                      <div className='flex-1 min-w-0'>
+                        <div className='flex items-center gap-2'>
+                          <span className='text-sm font-medium text-gray-900 dark:text-white'>
+                            {method.type?.toUpperCase()}
+                          </span>
+                          {method.is_primary && (
+                            <span className='px-1.5 py-0.5 text-[10px] font-medium bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded'>
+                              Principal
+                            </span>
+                          )}
+                        </div>
+                        <p className='text-xs text-gray-600 dark:text-gray-400 truncate'>
+                          {method.type === 'pix'
+                            ? method.details?.key_value || method.details?.pix_key || 'Chave PIX'
+                            : `${method.details?.bank_name || 'Banco'} - Ag ${method.details?.agency || '****'} / CC ${method.details?.account_number || '****'}`}
+                        </p>
+                      </div>
+                      {selectedReceivingMethod === method.id && (
+                        <CheckCircle className='w-5 h-5 text-green-600 dark:text-green-400' />
+                      )}
+                    </div>
+                  </button>
+                ))}
+
+                {/* Link para adicionar nova conta */}
+                <Link
+                  to='/settings/payment-methods'
+                  className='flex items-center justify-center gap-2 w-full p-2 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-xs text-gray-600 dark:text-gray-400 hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors'
+                >
+                  <Plus className='w-3 h-3' />
+                  Adicionar outra conta
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Bank Transfer Details - Show BEFORE confirming for TED (only for BUY) */}
+        {isBuy && selectedPayment === 'ted' && (
           <div className='bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg p-3 space-y-2'>
             <p className='text-xs font-semibold text-amber-900 dark:text-amber-100 flex items-center gap-1'>
               <ClipboardList className='w-3 h-3' />
@@ -532,8 +689,8 @@ export function ConfirmationPanel({
           </div>
         )}
 
-        {/* Legacy Bank Transfer Details - After trade created */}
-        {selectedPayment === 'ted' && bankDetails && (
+        {/* Legacy Bank Transfer Details - After trade created (only for BUY) */}
+        {isBuy && selectedPayment === 'ted' && bankDetails && (
           <div className='bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-3 space-y-2'>
             <p className='text-xs font-semibold text-blue-900 dark:text-blue-100'>
               Transfer to this account:
@@ -570,6 +727,64 @@ export function ConfirmationPanel({
             </div>
           </div>
         )}
+
+        {/* SELL: Resumo da conta de recebimento selecionada */}
+        {!isBuy &&
+          selectedReceivingMethod &&
+          userPaymentMethods &&
+          (() => {
+            const selectedMethod = userPaymentMethods.find(
+              (m: any) => m.id === selectedReceivingMethod
+            )
+            if (!selectedMethod) return null
+
+            return (
+              <div className='bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg p-3 space-y-2'>
+                <p className='text-xs font-semibold text-green-900 dark:text-green-100 flex items-center gap-1'>
+                  <CheckCircle className='w-3 h-3' />
+                  Você receberá em:
+                </p>
+                <div className='space-y-1 text-xs'>
+                  <div className='flex justify-between'>
+                    <span className='text-gray-600 dark:text-gray-400'>Tipo:</span>
+                    <span className='font-medium text-gray-900 dark:text-white'>
+                      {selectedMethod.type?.toUpperCase()}
+                    </span>
+                  </div>
+                  {selectedMethod.type === 'pix' ? (
+                    <div className='flex justify-between'>
+                      <span className='text-gray-600 dark:text-gray-400'>Chave:</span>
+                      <span className='font-mono text-gray-900 dark:text-white'>
+                        {selectedMethod.details?.key_value || selectedMethod.details?.pix_key}
+                      </span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className='flex justify-between'>
+                        <span className='text-gray-600 dark:text-gray-400'>Banco:</span>
+                        <span className='font-medium text-gray-900 dark:text-white'>
+                          {selectedMethod.details?.bank_name}
+                        </span>
+                      </div>
+                      <div className='flex justify-between'>
+                        <span className='text-gray-600 dark:text-gray-400'>Agência/Conta:</span>
+                        <span className='font-mono text-gray-900 dark:text-white'>
+                          {selectedMethod.details?.agency} /{' '}
+                          {selectedMethod.details?.account_number}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                  <div className='flex justify-between border-t border-green-200 dark:border-green-700 pt-1 mt-1'>
+                    <span className='text-gray-600 dark:text-gray-400'>Valor a receber:</span>
+                    <span className='font-bold text-green-700 dark:text-green-300'>
+                      {formatValue(quote.total_amount ?? 0)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
 
         {/* Quote ID Info */}
         <div className='bg-gray-50 dark:bg-gray-700 p-3 rounded text-xs'>
@@ -629,38 +844,45 @@ export function ConfirmationPanel({
           </div>
         )}
 
-        {/* Action Buttons - Smaller */}
+        {/* Action Buttons */}
         <div className='flex gap-2 pt-3 border-t border-gray-200 dark:border-gray-700'>
           <button
             onClick={onBack}
             disabled={loading}
             className='px-3 py-1.5 text-xs border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
           >
-            Back
+            Voltar
           </button>
           <button
             onClick={createTrade}
-            disabled={loading || quoteExpired}
+            disabled={loading || quoteExpired || (!isBuy && !selectedReceivingMethod)}
             className={`flex-1 px-3 py-1.5 text-xs rounded disabled:cursor-not-allowed flex items-center justify-center gap-1 transition-colors ${
-              quoteExpired
+              quoteExpired || (!isBuy && !selectedReceivingMethod)
                 ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
-                : 'bg-blue-600 hover:bg-blue-700 text-white disabled:bg-gray-400'
+                : isBuy
+                  ? 'bg-blue-600 hover:bg-blue-700 text-white disabled:bg-gray-400'
+                  : 'bg-green-600 hover:bg-green-700 text-white disabled:bg-gray-400'
             }`}
           >
             {loading ? (
               <>
                 <Loader className='w-3 h-3 animate-spin' />
-                <span>Processing</span>
+                <span>Processando...</span>
               </>
             ) : quoteExpired ? (
               <>
                 <AlertTriangle className='w-3 h-3' />
-                <span>Quote Expired - Get New Quote</span>
+                <span>Cotação Expirada</span>
+              </>
+            ) : !isBuy && !selectedReceivingMethod ? (
+              <>
+                <AlertTriangle className='w-3 h-3' />
+                <span>Selecione uma conta</span>
               </>
             ) : (
               <>
                 <CheckCircle className='w-3 h-3' />
-                <span>Confirm & Continue</span>
+                <span>{isBuy ? 'Confirmar Compra' : 'Confirmar Venda'}</span>
               </>
             )}
           </button>
@@ -670,7 +892,9 @@ export function ConfirmationPanel({
         <div className='bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded p-3 flex items-start gap-2'>
           <CheckCircle className='w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0' />
           <p className='text-xs text-amber-700 dark:text-amber-400'>
-            Quote valid 5 min. Once confirmed, trade cannot be reversed.
+            {isBuy
+              ? 'Cotação válida por 5 min. Após confirmação, a transação não pode ser revertida.'
+              : 'Após confirmar, sua crypto será reservada e o pagamento enviado para a conta selecionada.'}
           </p>
         </div>
       </div>

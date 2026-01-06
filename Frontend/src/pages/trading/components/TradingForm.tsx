@@ -255,6 +255,12 @@ export function TradingForm({
       return
     }
 
+    // 🚫 BLOQUEAR cotação se for SELL e saldo insuficiente
+    if (!isBuy && Number(amount) > walletBalance) {
+      setIsTyping(false)
+      return
+    }
+
     // Set timeout to fetch quote after user stops typing (DEBOUNCE_MS)
     timeoutRef.current = setTimeout(async () => {
       setIsTyping(false) // Parou de digitar
@@ -464,21 +470,32 @@ export function TradingForm({
 
         {/* Insufficient Balance Warning */}
         {!isBuy && amount && Number(amount) > walletBalance && (
-          <div className='flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-700'>
-            <svg
-              className='w-4 h-4 text-red-600 dark:text-red-400 flex-shrink-0'
-              fill='currentColor'
-              viewBox='0 0 20 20'
-            >
-              <path
-                fillRule='evenodd'
-                d='M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z'
-                clipRule='evenodd'
-              />
-            </svg>
-            <span className='text-xs text-red-700 dark:text-red-400'>
-              Insufficient balance. You have {walletBalance.toFixed(8)} {selectedSymbol}
-            </span>
+          <div className='p-3 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-700 space-y-2'>
+            <div className='flex items-center gap-2'>
+              <svg
+                className='w-4 h-4 text-red-600 dark:text-red-400 flex-shrink-0'
+                fill='currentColor'
+                viewBox='0 0 20 20'
+              >
+                <path
+                  fillRule='evenodd'
+                  d='M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z'
+                  clipRule='evenodd'
+                />
+              </svg>
+              <span className='text-xs font-medium text-red-700 dark:text-red-400'>
+                Saldo Insuficiente
+              </span>
+            </div>
+            <div className='text-xs text-red-600 dark:text-red-400'>
+              Você possui apenas{' '}
+              <span className='font-semibold'>
+                {formatBalance(walletBalance)} {selectedSymbol}
+              </span>
+              .
+              <br />
+              Deposite mais {selectedSymbol} ou reduza o valor para continuar.
+            </div>
           </div>
         )}
 
