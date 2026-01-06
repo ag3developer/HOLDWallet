@@ -9,11 +9,32 @@ import {
   Lock,
   Database,
   Info,
+  ShieldCheck,
+  Smartphone,
+  ArrowLeftRight,
+  Building2,
+  BarChart3,
+  Globe,
+  Briefcase,
+  RefreshCw,
+  TrendingUp,
+  Mail,
+  MessageCircle,
+  BookOpen,
+  Activity,
 } from 'lucide-react'
 import toast, { Toaster } from 'react-hot-toast'
 import { seedVerificationService } from '../../services/seed-verification-service'
 import { CryptoIcon } from '../../components/CryptoIcon'
 import { BiometricSettings } from '../../components/security/BiometricSettings'
+import {
+  TwitterIcon,
+  TelegramIcon,
+  DiscordIcon,
+  InstagramIcon,
+  LinkedInIcon,
+  YouTubeIcon,
+} from '../../components/icons/SocialIcons'
 
 // Import dos logos das moedas
 import bitcoinLogo from '../../assets/crypto-icons/btc.svg'
@@ -1041,78 +1062,472 @@ export const SettingsPage = () => {
 
         {/* About Section */}
         {activeTab === 'about' && (
-          <div className='bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-xl border border-blue-200 dark:border-blue-800 p-6'>
-            <div className='flex items-center gap-3 mb-6'>
-              <div className='w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center'>
-                <Info className='w-5 h-5 text-white' />
+          <div className='space-y-6'>
+            {/* Header Card com Logo */}
+            <div className='bg-gradient-to-br from-blue-600 via-blue-700 to-purple-700 rounded-xl p-6 text-white relative overflow-hidden'>
+              {/* Background Pattern */}
+              <div className='absolute inset-0 opacity-10'>
+                <div className='absolute top-0 right-0 w-64 h-64 bg-white rounded-full -translate-y-1/2 translate-x-1/2' />
+                <div className='absolute bottom-0 left-0 w-48 h-48 bg-white rounded-full translate-y-1/2 -translate-x-1/2' />
               </div>
-              <div>
-                <h3 className='text-lg font-semibold text-gray-900 dark:text-white'>
-                  Sobre Wolknow
-                </h3>
-                <p className='text-sm text-gray-600 dark:text-gray-400'>
-                  Informações do aplicativo
-                </p>
-              </div>
-            </div>
 
-            <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
-              <div>
-                <p className='text-sm text-gray-600 dark:text-gray-400'>Versão do Aplicativo</p>
-                <p className='text-lg font-semibold text-gray-900 dark:text-white'>1.0.0</p>
-              </div>
-              <div>
-                <p className='text-sm text-gray-600 dark:text-gray-400'>Última Atualização</p>
-                <p className='text-lg font-semibold text-gray-900 dark:text-white'>
-                  7 de dezembro de 2025
-                </p>
-              </div>
-              <div>
-                <p className='text-sm text-gray-600 dark:text-gray-400'>Redes Suportadas</p>
-                <p className='text-lg font-semibold text-gray-900 dark:text-white'>
-                  15 Blockchains
-                </p>
-              </div>
-              <div>
-                <p className='text-sm text-gray-600 dark:text-gray-400'>Status</p>
-                <div className='flex items-center gap-2 mt-1'>
-                  <div className='w-2 h-2 bg-green-500 rounded-full'></div>
-                  <p className='text-lg font-semibold text-green-600 dark:text-green-400'>Online</p>
+              <div className='relative z-10'>
+                <div className='flex items-center gap-4 mb-6'>
+                  {/* Logo Placeholder - Substitua pela sua logo real */}
+                  <div className='w-20 h-20 bg-white rounded-2xl flex items-center justify-center shadow-lg'>
+                    <svg viewBox='0 0 100 100' className='w-14 h-14'>
+                      <defs>
+                        <linearGradient id='logoGradient' x1='0%' y1='0%' x2='100%' y2='100%'>
+                          <stop offset='0%' stopColor='#3B82F6' />
+                          <stop offset='100%' stopColor='#8B5CF6' />
+                        </linearGradient>
+                      </defs>
+                      <circle cx='50' cy='50' r='45' fill='url(#logoGradient)' />
+                      <text
+                        x='50'
+                        y='65'
+                        textAnchor='middle'
+                        fill='white'
+                        fontSize='40'
+                        fontWeight='bold'
+                        fontFamily='system-ui'
+                      >
+                        W
+                      </text>
+                    </svg>
+                  </div>
+                  <div>
+                    <h2 className='text-3xl font-bold tracking-tight'>Wolk Now</h2>
+                    <p className='text-blue-200 text-sm'>Trading OTC • Desde 2017</p>
+                  </div>
+                </div>
+
+                {/* Tagline */}
+                <div className='bg-white/10 backdrop-blur-sm rounded-lg p-4 mb-4'>
+                  <p className='text-lg font-medium text-white leading-relaxed'>
+                    Mais de <span className='text-yellow-300 font-bold'>9 anos</span> de experiência
+                    em operações OTC para o mercado institucional.
+                  </p>
+                </div>
+
+                {/* Stats */}
+                <div className='grid grid-cols-3 gap-4'>
+                  <div className='text-center'>
+                    <p className='text-3xl font-bold text-white'>9+</p>
+                    <p className='text-xs text-blue-200'>Anos no Mercado</p>
+                  </div>
+                  <div className='text-center'>
+                    <p className='text-3xl font-bold text-white'>R$ 2B+</p>
+                    <p className='text-xs text-blue-200'>Volume Negociado</p>
+                  </div>
+                  <div className='text-center'>
+                    <p className='text-3xl font-bold text-white'>500+</p>
+                    <p className='text-xs text-blue-200'>Clientes Ativos</p>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className='mt-6 pt-6 border-t border-blue-200 dark:border-blue-800'>
-              <p className='text-sm text-gray-600 dark:text-gray-400 mb-4'>
-                🔐 Wolknow é uma plataforma descentralizada e de código aberto. Seus fundos estão
-                sempre sob seu controle.
-              </p>
-              <div className='flex gap-3 flex-wrap'>
-                <button
-                  title='Ler os termos de serviço'
-                  className='px-4 py-2 text-sm text-blue-600 dark:text-blue-400 hover:underline'
-                >
-                  Termos de Serviço
-                </button>
-                <button
-                  title='Ler política de privacidade'
-                  className='px-4 py-2 text-sm text-blue-600 dark:text-blue-400 hover:underline'
-                >
-                  Política de Privacidade
-                </button>
-                <button
-                  title='Visitar repositório GitHub'
-                  className='px-4 py-2 text-sm text-blue-600 dark:text-blue-400 hover:underline'
-                >
-                  GitHub
-                </button>
-                <button
-                  title='Obter suporte'
-                  className='px-4 py-2 text-sm text-blue-600 dark:text-blue-400 hover:underline'
-                >
-                  Suporte
-                </button>
+            {/* Nossa História */}
+            <div className='bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-xl border border-amber-200 dark:border-amber-800 p-6'>
+              <div className='flex items-start gap-4'>
+                <div className='w-12 h-12 bg-amber-100 dark:bg-amber-900/30 rounded-xl flex items-center justify-center flex-shrink-0'>
+                  <TrendingUp className='w-6 h-6 text-amber-600 dark:text-amber-400' />
+                </div>
+                <div>
+                  <h3 className='text-lg font-semibold text-gray-900 dark:text-white mb-3'>
+                    Nossa História
+                  </h3>
+                  <div className='space-y-3 text-sm text-gray-700 dark:text-gray-300 leading-relaxed'>
+                    <p>
+                      A <strong className='text-amber-700 dark:text-amber-400'>Wolk Now</strong>{' '}
+                      nasceu em <strong>2017</strong> com uma missão clara: oferecer operações OTC
+                      (Over-The-Counter) de criptomoedas com a segurança e profissionalismo que o
+                      mercado institucional exige.
+                    </p>
+                    <p>
+                      Durante quase <strong>uma década</strong>, construímos uma reputação sólida
+                      atendendo <strong>empresas, fundos de investimento e family offices</strong>,
+                      movimentando bilhões em operações com total transparência e compliance.
+                    </p>
+                    <p>
+                      Somos uma <strong>wallet descentralizada</strong> que oferece serviços
+                      financeiros através de parceiros regulamentados, garantindo segurança e
+                      conformidade em todas as operações.
+                    </p>
+                    <p className='bg-white dark:bg-gray-800 p-3 rounded-lg border-l-4 border-amber-500'>
+                      <strong className='text-amber-700 dark:text-amber-400'>Novidade 2026:</strong>{' '}
+                      Agora estamos expandindo nosso portfólio para atender também{' '}
+                      <strong>pessoas físicas</strong>, trazendo toda nossa expertise institucional
+                      para investidores individuais.
+                    </p>
+                  </div>
+                </div>
               </div>
+            </div>
+
+            {/* Timeline */}
+            <div className='bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6'>
+              <h3 className='text-lg font-semibold text-gray-900 dark:text-white mb-4'>
+                Nossa Trajetória
+              </h3>
+              <div className='space-y-4'>
+                {[
+                  {
+                    year: '2017',
+                    title: 'Fundação',
+                    desc: 'Início das operações OTC para clientes institucionais',
+                    color: 'bg-blue-500',
+                  },
+                  {
+                    year: '2020',
+                    title: 'Expansão',
+                    desc: 'Primeiro bilhão em volume negociado',
+                    color: 'bg-green-500',
+                  },
+                  {
+                    year: '2022',
+                    title: 'Consolidação',
+                    desc: '500+ empresas atendidas com sucesso',
+                    color: 'bg-purple-500',
+                  },
+                  {
+                    year: '2024',
+                    title: 'Inovação',
+                    desc: 'Lançamento da plataforma digital integrada',
+                    color: 'bg-orange-500',
+                  },
+                  {
+                    year: '2026',
+                    title: 'Nova Era',
+                    desc: 'Abertura para pessoas físicas - Você está aqui!',
+                    color: 'bg-amber-500',
+                  },
+                ].map((item, idx) => (
+                  <div key={item.year} className='flex items-start gap-4'>
+                    <div className='flex flex-col items-center'>
+                      <div
+                        className={`w-10 h-10 ${item.color} rounded-full flex items-center justify-center text-white text-xs font-bold`}
+                      >
+                        {item.year.slice(2)}
+                      </div>
+                      {idx < 4 && <div className='w-0.5 h-8 bg-gray-200 dark:bg-gray-700 mt-2' />}
+                    </div>
+                    <div className='flex-1 pb-4'>
+                      <div className='flex items-center gap-2'>
+                        <span className='text-sm font-bold text-gray-900 dark:text-white'>
+                          {item.year}
+                        </span>
+                        <span className='text-sm font-medium text-gray-600 dark:text-gray-400'>
+                          • {item.title}
+                        </span>
+                      </div>
+                      <p className='text-sm text-gray-500 dark:text-gray-400 mt-1'>{item.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* App Info Grid */}
+            <div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
+              <div className='bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700'>
+                <p className='text-xs text-gray-500 dark:text-gray-400 mb-1'>Versão</p>
+                <p className='text-lg font-bold text-gray-900 dark:text-white'>1.0.0</p>
+                <p className='text-xs text-gray-400 dark:text-gray-500'>Build 2026.01.06</p>
+              </div>
+              <div className='bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700'>
+                <p className='text-xs text-gray-500 dark:text-gray-400 mb-1'>Status</p>
+                <div className='flex items-center gap-2'>
+                  <div className='w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse'></div>
+                  <p className='text-lg font-bold text-green-600 dark:text-green-400'>Online</p>
+                </div>
+                <p className='text-xs text-gray-400 dark:text-gray-500'>Operacional</p>
+              </div>
+              <div className='bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700'>
+                <p className='text-xs text-gray-500 dark:text-gray-400 mb-1'>Redes</p>
+                <p className='text-lg font-bold text-gray-900 dark:text-white'>15+</p>
+                <p className='text-xs text-gray-400 dark:text-gray-500'>Blockchains</p>
+              </div>
+              <div className='bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700'>
+                <p className='text-xs text-gray-500 dark:text-gray-400 mb-1'>Tokens</p>
+                <p className='text-lg font-bold text-gray-900 dark:text-white'>50+</p>
+                <p className='text-xs text-gray-400 dark:text-gray-500'>Suportados</p>
+              </div>
+            </div>
+
+            {/* Features Section */}
+            <div className='bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6'>
+              <h3 className='text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2'>
+                <Check className='w-5 h-5 text-green-500' />
+                Principais Recursos
+              </h3>
+              <div className='grid grid-cols-1 md:grid-cols-2 gap-3'>
+                {[
+                  {
+                    id: '2fa',
+                    Icon: ShieldCheck,
+                    text: 'Autenticação 2FA',
+                    color: 'text-blue-500',
+                  },
+                  {
+                    id: 'crypto',
+                    Icon: Lock,
+                    text: 'Criptografia de ponta a ponta',
+                    color: 'text-green-500',
+                  },
+                  {
+                    id: 'biometric',
+                    Icon: Smartphone,
+                    text: 'Biometria (Face ID / Touch ID)',
+                    color: 'text-purple-500',
+                  },
+                  {
+                    id: 'otc',
+                    Icon: ArrowLeftRight,
+                    text: 'Trading OTC instantâneo',
+                    color: 'text-orange-500',
+                  },
+                  {
+                    id: 'pix',
+                    Icon: Building2,
+                    text: 'PIX e TED integrados',
+                    color: 'text-cyan-500',
+                  },
+                  {
+                    id: 'quotes',
+                    Icon: BarChart3,
+                    text: 'Cotações em tempo real',
+                    color: 'text-indigo-500',
+                  },
+                  {
+                    id: 'multichain',
+                    Icon: Globe,
+                    text: 'Multi-rede (15+ blockchains)',
+                    color: 'text-teal-500',
+                  },
+                  { id: 'p2p', Icon: Briefcase, text: 'P2P Marketplace', color: 'text-amber-500' },
+                  {
+                    id: 'swap',
+                    Icon: RefreshCw,
+                    text: 'Swap entre criptos',
+                    color: 'text-pink-500',
+                  },
+                  {
+                    id: 'history',
+                    Icon: TrendingUp,
+                    text: 'Histórico completo',
+                    color: 'text-emerald-500',
+                  },
+                ].map(feature => (
+                  <div
+                    key={feature.id}
+                    className='flex items-center gap-3 p-2 rounded-lg bg-gray-50 dark:bg-gray-700/50'
+                  >
+                    <feature.Icon className={`w-5 h-5 ${feature.color}`} />
+                    <span className='text-sm text-gray-700 dark:text-gray-300'>{feature.text}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Security & Compliance */}
+            <div className='bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl border border-green-200 dark:border-green-800 p-6'>
+              <h3 className='text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2'>
+                <Shield className='w-5 h-5 text-green-600' />
+                Segurança & Conformidade
+              </h3>
+              <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
+                <div className='text-center p-4 bg-white dark:bg-gray-800 rounded-lg'>
+                  <div className='w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-2'>
+                    <Lock className='w-6 h-6 text-green-600 dark:text-green-400' />
+                  </div>
+                  <p className='text-sm font-medium text-gray-900 dark:text-white'>AES-256</p>
+                  <p className='text-xs text-gray-500 dark:text-gray-400'>Criptografia</p>
+                </div>
+                <div className='text-center p-4 bg-white dark:bg-gray-800 rounded-lg'>
+                  <div className='w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-2'>
+                    <Database className='w-6 h-6 text-blue-600 dark:text-blue-400' />
+                  </div>
+                  <p className='text-sm font-medium text-gray-900 dark:text-white'>LGPD</p>
+                  <p className='text-xs text-gray-500 dark:text-gray-400'>Conformidade</p>
+                </div>
+                <div className='text-center p-4 bg-white dark:bg-gray-800 rounded-lg'>
+                  <div className='w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center mx-auto mb-2'>
+                    <Shield className='w-6 h-6 text-purple-600 dark:text-purple-400' />
+                  </div>
+                  <p className='text-sm font-medium text-gray-900 dark:text-white'>KYC/AML</p>
+                  <p className='text-xs text-gray-500 dark:text-gray-400'>Verificação</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Contact & Support */}
+            <div className='bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6'>
+              <h3 className='text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2'>
+                <Info className='w-5 h-5 text-blue-500' />
+                Contato & Suporte
+              </h3>
+              <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                <a
+                  href='mailto:suporte@wolknow.com'
+                  className='flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors'
+                >
+                  <div className='w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center'>
+                    <Mail className='w-5 h-5 text-blue-600 dark:text-blue-400' />
+                  </div>
+                  <div>
+                    <p className='text-sm font-medium text-gray-900 dark:text-white'>E-mail</p>
+                    <p className='text-xs text-gray-500 dark:text-gray-400'>suporte@wolknow.com</p>
+                  </div>
+                </a>
+                <a
+                  href='https://wa.me/5511999999999'
+                  target='_blank'
+                  rel='noopener noreferrer'
+                  className='flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors'
+                >
+                  <div className='w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center'>
+                    <MessageCircle className='w-5 h-5 text-green-600 dark:text-green-400' />
+                  </div>
+                  <div>
+                    <p className='text-sm font-medium text-gray-900 dark:text-white'>WhatsApp</p>
+                    <p className='text-xs text-gray-500 dark:text-gray-400'>Atendimento 24/7</p>
+                  </div>
+                </a>
+                <a
+                  href='https://help.wolknow.com'
+                  target='_blank'
+                  rel='noopener noreferrer'
+                  className='flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors'
+                >
+                  <div className='w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center'>
+                    <BookOpen className='w-5 h-5 text-purple-600 dark:text-purple-400' />
+                  </div>
+                  <div>
+                    <p className='text-sm font-medium text-gray-900 dark:text-white'>
+                      Central de Ajuda
+                    </p>
+                    <p className='text-xs text-gray-500 dark:text-gray-400'>Tutoriais e FAQs</p>
+                  </div>
+                </a>
+                <a
+                  href='https://status.wolknow.com'
+                  target='_blank'
+                  rel='noopener noreferrer'
+                  className='flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors'
+                >
+                  <div className='w-10 h-10 bg-amber-100 dark:bg-amber-900/30 rounded-lg flex items-center justify-center'>
+                    <Activity className='w-5 h-5 text-amber-600 dark:text-amber-400' />
+                  </div>
+                  <div>
+                    <p className='text-sm font-medium text-gray-900 dark:text-white'>
+                      Status da Plataforma
+                    </p>
+                    <p className='text-xs text-gray-500 dark:text-gray-400'>
+                      Monitoramento em tempo real
+                    </p>
+                  </div>
+                </a>
+              </div>
+            </div>
+
+            {/* Social Media */}
+            <div className='bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6'>
+              <h3 className='text-lg font-semibold text-gray-900 dark:text-white mb-4'>
+                Siga-nos nas Redes Sociais
+              </h3>
+              <div className='flex flex-wrap gap-3'>
+                {[
+                  {
+                    id: 'twitter',
+                    name: 'X (Twitter)',
+                    Icon: TwitterIcon,
+                    url: 'https://twitter.com/wolknow',
+                    color: 'bg-black hover:bg-gray-800',
+                  },
+                  {
+                    id: 'telegram',
+                    name: 'Telegram',
+                    Icon: TelegramIcon,
+                    url: 'https://t.me/wolknow',
+                    color: 'bg-[#26A5E4] hover:bg-[#1d8bc5]',
+                  },
+                  {
+                    id: 'discord',
+                    name: 'Discord',
+                    Icon: DiscordIcon,
+                    url: 'https://discord.gg/wolknow',
+                    color: 'bg-[#5865F2] hover:bg-[#4752c4]',
+                  },
+                  {
+                    id: 'instagram',
+                    name: 'Instagram',
+                    Icon: InstagramIcon,
+                    url: 'https://instagram.com/wolknow',
+                    color:
+                      'bg-gradient-to-r from-[#833AB4] via-[#FD1D1D] to-[#F77737] hover:opacity-90',
+                  },
+                  {
+                    id: 'linkedin',
+                    name: 'LinkedIn',
+                    Icon: LinkedInIcon,
+                    url: 'https://linkedin.com/company/wolknow',
+                    color: 'bg-[#0A66C2] hover:bg-[#084c91]',
+                  },
+                  {
+                    id: 'youtube',
+                    name: 'YouTube',
+                    Icon: YouTubeIcon,
+                    url: 'https://youtube.com/@wolknow',
+                    color: 'bg-[#FF0000] hover:bg-[#cc0000]',
+                  },
+                ].map(social => (
+                  <a
+                    key={social.id}
+                    href={social.url}
+                    target='_blank'
+                    rel='noopener noreferrer'
+                    className={`${social.color} text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-all`}
+                  >
+                    <social.Icon className='w-4 h-4' size={16} />
+                    <span className='text-sm font-medium'>{social.name}</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+
+            {/* Legal Links */}
+            <div className='bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700 p-6'>
+              <h3 className='text-lg font-semibold text-gray-900 dark:text-white mb-4'>
+                Documentos Legais
+              </h3>
+              <div className='grid grid-cols-2 md:grid-cols-4 gap-3'>
+                {[
+                  { id: 'terms', name: 'Termos de Uso', url: '/terms' },
+                  { id: 'privacy', name: 'Política de Privacidade', url: '/privacy' },
+                  { id: 'cookies', name: 'Política de Cookies', url: '/cookies' },
+                  { id: 'aml', name: 'Política AML/KYC', url: '/aml-kyc' },
+                ].map(link => (
+                  <a
+                    key={link.id}
+                    href={link.url}
+                    className='text-sm text-blue-600 dark:text-blue-400 hover:underline p-2 rounded-lg hover:bg-white dark:hover:bg-gray-700 transition-colors'
+                  >
+                    {link.name}
+                  </a>
+                ))}
+              </div>
+            </div>
+
+            {/* Footer Info */}
+            <div className='text-center py-4 border-t border-gray-200 dark:border-gray-700'>
+              <p className='text-sm text-gray-500 dark:text-gray-400'>
+                © 2017-2026 Wolk Now. Todos os direitos reservados.
+              </p>
+              <p className='text-xs text-gray-400 dark:text-gray-500 mt-1'>
+                Wallet descentralizada • Serviços via parceiros regulamentados
+              </p>
             </div>
           </div>
         )}
