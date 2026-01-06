@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { TradingLimitsDisplay } from './TradingLimitsDisplay'
+import { CryptoSelector } from './CryptoSelector'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { apiClient } from '@/services/api'
 import { toUSD } from '@/services/currency'
@@ -42,28 +43,6 @@ interface TradingFormProps {
   readonly onQuoteReceived: (quote: Quote) => void
   readonly currency: string
   readonly convertFromBRL: (value: number) => number
-}
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
-
-// Crypto logos from CoinGecko (free CDN)
-const CRYPTO_LOGOS: Record<string, string> = {
-  BTC: 'https://assets.coingecko.com/coins/images/1/large/bitcoin.png?1696501400',
-  ETH: 'https://assets.coingecko.com/coins/images/279/large/ethereum.png?1696501628',
-  MATIC: 'https://assets.coingecko.com/coins/images/4713/large/matic-token-icon.png?1696504745',
-  BNB: 'https://assets.coingecko.com/coins/images/825/large/bnb-icon2_2x.png?1696501970',
-  TRX: 'https://assets.coingecko.com/coins/images/1094/large/tron-logo.png?1696502193',
-  BASE: 'https://assets.coingecko.com/coins/images/30617/large/base.jpg?1696519330',
-  USDT: 'https://assets.coingecko.com/coins/images/325/large/Tether.png?1696501661',
-  SOL: 'https://assets.coingecko.com/coins/images/4128/large/solana.png?1696504756',
-  LTC: 'https://assets.coingecko.com/coins/images/2/large/litecoin.png?1696501400',
-  DOGE: 'https://assets.coingecko.com/coins/images/5/large/dogecoin.png?1696501400',
-  ADA: 'https://assets.coingecko.com/coins/images/975/large/cardano.png?1696502090',
-  AVAX: 'https://assets.coingecko.com/coins/images/12559/large/Avalanche_Circle_RedWhite_Trans.png?1696512369',
-  DOT: 'https://assets.coingecko.com/coins/images/12171/large/polkadot.png?1696512008',
-  LINK: 'https://assets.coingecko.com/coins/images/877/large/chainlink-new-logo.png?1696502009',
-  SHIB: 'https://assets.coingecko.com/coins/images/11939/large/shiba.png?1622619446',
-  XRP: 'https://assets.coingecko.com/coins/images/44/large/xrp-symbol-white-128.png?1696501442',
 }
 
 export function TradingForm({
@@ -387,58 +366,18 @@ export function TradingForm({
           </button>
         </div>
 
-        {/* Cryptocurrency Selection */}
-        <div>
-          <label
-            htmlFor='crypto-select'
-            className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'
-          >
-            Crypto
-          </label>
-          <div className='relative'>
-            <select
-              id='crypto-select'
-              value={selectedSymbol}
-              onChange={e => {
-                const newSymbol = e.target.value
-                onSymbolChange(newSymbol)
-                setAmount('')
-                // Reset quote timer to force new quote fetch for the new symbol
-                setLastQuoteTime(0)
-              }}
-              className='w-full pl-10 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none'
-            >
-              {cryptoPrices.map(c => (
-                <option key={c.symbol} value={c.symbol}>
-                  {c.symbol} - {c.name}
-                </option>
-              ))}
-            </select>
-            {/* Logo inside the select */}
-            <img
-              src={CRYPTO_LOGOS[selectedSymbol] || ''}
-              alt={selectedSymbol}
-              className='absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full pointer-events-none'
-              onError={e => {
-                e.currentTarget.style.display = 'none'
-              }}
-            />
-            {/* Chevron Icon */}
-            <svg
-              className='absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500 pointer-events-none'
-              fill='none'
-              stroke='currentColor'
-              viewBox='0 0 24 24'
-            >
-              <path
-                strokeLinecap='round'
-                strokeLinejoin='round'
-                strokeWidth={2}
-                d='M19 14l-7 7m0 0l-7-7m7 7V3'
-              />
-            </svg>
-          </div>
-        </div>
+        {/* Cryptocurrency Selection - Professional Selector */}
+        <CryptoSelector
+          cryptoPrices={cryptoPrices}
+          selectedSymbol={selectedSymbol}
+          onSymbolChange={newSymbol => {
+            onSymbolChange(newSymbol)
+            setAmount('')
+            // Reset quote timer to force new quote fetch for the new symbol
+            setLastQuoteTime(0)
+          }}
+          balance={allBalances[selectedSymbol] || 0}
+        />
 
         {/* Amount Input */}
         <div>
