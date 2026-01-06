@@ -51,6 +51,9 @@ import polkadotLogo from '../../assets/crypto-icons/dot.svg'
 import chainlinkLogo from '../../assets/crypto-icons/link.svg'
 import shibaLogo from '../../assets/crypto-icons/sib.svg'
 import xrpLogo from '../../assets/crypto-icons/xrp.svg'
+import usdtLogo from '../../assets/crypto-icons/usdt.svg'
+import usdcLogo from '../../assets/crypto-icons/usdc.svg'
+import baseLogo from '../../assets/crypto-icons/base.png'
 
 interface NetworkPreferences {
   bitcoin: boolean
@@ -723,12 +726,14 @@ export const SettingsPage = () => {
                     name: 'USDT (Tether)',
                     description: 'Disponível em Ethereum, Polygon, BSC, Tron, Base e mais',
                     color: 'from-green-400 to-green-600',
+                    icon: usdtLogo,
                   },
                   {
                     key: 'usdc' as const,
                     name: 'USDC (USD Coin)',
                     description: 'Disponível em Ethereum, Polygon, Arbitrum, Optimism, Base',
                     color: 'from-blue-400 to-blue-600',
+                    icon: usdcLogo,
                   },
                 ].map(token => (
                   <button
@@ -742,26 +747,37 @@ export const SettingsPage = () => {
                         : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white hover:border-gray-300 dark:hover:border-gray-500'
                     }`}
                   >
-                    <div className='text-left'>
-                      <h4 className='font-semibold'>{token.name}</h4>
-                      <p
-                        className={`text-sm mt-1 ${
+                    <div className='flex items-center gap-4'>
+                      <div
+                        className={`w-12 h-12 rounded-full flex items-center justify-center ${
                           tokenPreferences[token.key]
-                            ? 'text-white/90'
-                            : 'text-gray-600 dark:text-gray-400'
+                            ? 'bg-white/20 backdrop-blur-sm'
+                            : 'bg-white dark:bg-gray-600 shadow-md'
                         }`}
                       >
-                        {token.description}
-                      </p>
+                        <img src={token.icon} alt={token.name} className='w-8 h-8' />
+                      </div>
+                      <div className='text-left'>
+                        <h4 className='font-semibold text-lg'>{token.name}</h4>
+                        <p
+                          className={`text-sm mt-0.5 ${
+                            tokenPreferences[token.key]
+                              ? 'text-white/90'
+                              : 'text-gray-600 dark:text-gray-400'
+                          }`}
+                        >
+                          {token.description}
+                        </p>
+                      </div>
                     </div>
                     <div
-                      className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all ${
+                      className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center border-2 transition-all ${
                         tokenPreferences[token.key]
                           ? 'bg-white border-white'
                           : 'border-gray-300 dark:border-gray-500'
                       }`}
                     >
-                      {tokenPreferences[token.key] && <Check className='w-4 h-4 text-green-600' />}
+                      {tokenPreferences[token.key] && <Check className='w-5 h-5 text-green-600' />}
                     </div>
                   </button>
                 ))}
@@ -782,35 +798,69 @@ export const SettingsPage = () => {
                 Padrões de Tokens Suportados
               </h3>
               <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
-                <div className='p-4 bg-gray-50 dark:bg-gray-700 rounded-lg'>
-                  <h4 className='font-medium text-gray-900 dark:text-white mb-2'>ERC-20</h4>
-                  <p className='text-sm text-gray-600 dark:text-gray-400'>
+                <div className='p-4 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-750 rounded-xl border border-gray-200 dark:border-gray-600 hover:shadow-md transition-shadow'>
+                  <div className='flex items-center gap-3 mb-2'>
+                    <div className='w-10 h-10 rounded-full bg-white dark:bg-gray-600 shadow-sm flex items-center justify-center'>
+                      <img src={ethereumLogo} alt='Ethereum' className='w-6 h-6' />
+                    </div>
+                    <h4 className='font-semibold text-gray-900 dark:text-white'>ERC-20</h4>
+                  </div>
+                  <p className='text-sm text-gray-600 dark:text-gray-400 ml-13'>
                     Tokens na rede Ethereum
                   </p>
                 </div>
-                <div className='p-4 bg-gray-50 dark:bg-gray-700 rounded-lg'>
-                  <h4 className='font-medium text-gray-900 dark:text-white mb-2'>BEP-20</h4>
-                  <p className='text-sm text-gray-600 dark:text-gray-400'>
+                <div className='p-4 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-750 rounded-xl border border-gray-200 dark:border-gray-600 hover:shadow-md transition-shadow'>
+                  <div className='flex items-center gap-3 mb-2'>
+                    <div className='w-10 h-10 rounded-full bg-white dark:bg-gray-600 shadow-sm flex items-center justify-center'>
+                      <img src={bnbLogo} alt='BNB' className='w-6 h-6' />
+                    </div>
+                    <h4 className='font-semibold text-gray-900 dark:text-white'>BEP-20</h4>
+                  </div>
+                  <p className='text-sm text-gray-600 dark:text-gray-400 ml-13'>
                     Tokens na BNB Smart Chain
                   </p>
                 </div>
-                <div className='p-4 bg-gray-50 dark:bg-gray-700 rounded-lg'>
-                  <h4 className='font-medium text-gray-900 dark:text-white mb-2'>TRC-20</h4>
-                  <p className='text-sm text-gray-600 dark:text-gray-400'>Tokens na rede Tron</p>
+                <div className='p-4 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-750 rounded-xl border border-gray-200 dark:border-gray-600 hover:shadow-md transition-shadow'>
+                  <div className='flex items-center gap-3 mb-2'>
+                    <div className='w-10 h-10 rounded-full bg-white dark:bg-gray-600 shadow-sm flex items-center justify-center'>
+                      <img src={tronLogo} alt='Tron' className='w-6 h-6' />
+                    </div>
+                    <h4 className='font-semibold text-gray-900 dark:text-white'>TRC-20</h4>
+                  </div>
+                  <p className='text-sm text-gray-600 dark:text-gray-400 ml-13'>
+                    Tokens na rede Tron
+                  </p>
                 </div>
-                <div className='p-4 bg-gray-50 dark:bg-gray-700 rounded-lg'>
-                  <h4 className='font-medium text-gray-900 dark:text-white mb-2'>Polygon (POL)</h4>
-                  <p className='text-sm text-gray-600 dark:text-gray-400'>Tokens na rede Polygon</p>
+                <div className='p-4 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-750 rounded-xl border border-gray-200 dark:border-gray-600 hover:shadow-md transition-shadow'>
+                  <div className='flex items-center gap-3 mb-2'>
+                    <div className='w-10 h-10 rounded-full bg-white dark:bg-gray-600 shadow-sm flex items-center justify-center'>
+                      <img src={polygonLogo} alt='Polygon' className='w-6 h-6' />
+                    </div>
+                    <h4 className='font-semibold text-gray-900 dark:text-white'>Polygon (POL)</h4>
+                  </div>
+                  <p className='text-sm text-gray-600 dark:text-gray-400 ml-13'>
+                    Tokens na rede Polygon
+                  </p>
                 </div>
-                <div className='p-4 bg-gray-50 dark:bg-gray-700 rounded-lg'>
-                  <h4 className='font-medium text-gray-900 dark:text-white mb-2'>Base</h4>
-                  <p className='text-sm text-gray-600 dark:text-gray-400'>
+                <div className='p-4 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-750 rounded-xl border border-gray-200 dark:border-gray-600 hover:shadow-md transition-shadow'>
+                  <div className='flex items-center gap-3 mb-2'>
+                    <div className='w-10 h-10 rounded-full bg-white dark:bg-gray-600 shadow-sm flex items-center justify-center'>
+                      <img src={baseLogo} alt='Base' className='w-6 h-6' />
+                    </div>
+                    <h4 className='font-semibold text-gray-900 dark:text-white'>Base</h4>
+                  </div>
+                  <p className='text-sm text-gray-600 dark:text-gray-400 ml-13'>
                     Tokens na rede Base (L2)
                   </p>
                 </div>
-                <div className='p-4 bg-gray-50 dark:bg-gray-700 rounded-lg'>
-                  <h4 className='font-medium text-gray-900 dark:text-white mb-2'>Bitcoin</h4>
-                  <p className='text-sm text-gray-600 dark:text-gray-400'>BTC nativo</p>
+                <div className='p-4 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-750 rounded-xl border border-gray-200 dark:border-gray-600 hover:shadow-md transition-shadow'>
+                  <div className='flex items-center gap-3 mb-2'>
+                    <div className='w-10 h-10 rounded-full bg-white dark:bg-gray-600 shadow-sm flex items-center justify-center'>
+                      <img src={bitcoinLogo} alt='Bitcoin' className='w-6 h-6' />
+                    </div>
+                    <h4 className='font-semibold text-gray-900 dark:text-white'>Bitcoin</h4>
+                  </div>
+                  <p className='text-sm text-gray-600 dark:text-gray-400 ml-13'>BTC nativo</p>
                 </div>
               </div>
             </div>
