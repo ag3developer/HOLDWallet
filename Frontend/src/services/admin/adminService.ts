@@ -179,8 +179,20 @@ export interface Trade {
   crypto_amount: number
   crypto_price: number
   total_amount: number
+  // Campos BRL para pagamentos TED/PIX
+  brl_amount?: number | null
+  brl_total_amount?: number | null
+  usd_to_brl_rate?: number | null
   payment_method: string
-  status: 'pending' | 'payment_processing' | 'completed' | 'failed' | 'cancelled' | 'expired'
+  status:
+    | 'pending'
+    | 'payment_processing'
+    | 'payment_confirmed'
+    | 'crypto_received'
+    | 'completed'
+    | 'failed'
+    | 'cancelled'
+    | 'expired'
   wallet_address?: string
   network?: string
   tx_hash?: string

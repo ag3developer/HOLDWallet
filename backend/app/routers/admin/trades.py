@@ -123,6 +123,10 @@ async def list_trades(
                 "crypto_amount": float(trade.crypto_amount),
                 "crypto_price": float(trade.crypto_price),
                 "total_amount": float(trade.total_amount),
+                # Campos BRL para pagamentos TED/PIX
+                "brl_amount": float(trade.brl_amount) if trade.brl_amount else None,
+                "brl_total_amount": float(trade.brl_total_amount) if trade.brl_total_amount else None,
+                "usd_to_brl_rate": float(trade.usd_to_brl_rate) if trade.usd_to_brl_rate else None,
                 "payment_method": trade.payment_method.value if hasattr(trade.payment_method, 'value') else trade.payment_method,
                 "status": trade.status.value if hasattr(trade.status, 'value') else trade.status,
                 "created_at": trade.created_at.isoformat(),
@@ -251,6 +255,10 @@ async def get_trade_detail(
                 "network_fee_percentage": float(trade.network_fee_percentage),
                 "network_fee_amount": float(trade.network_fee_amount),
                 "total_amount": float(trade.total_amount),
+                # Campos BRL para pagamentos TED/PIX
+                "brl_amount": float(trade.brl_amount) if trade.brl_amount else None,
+                "brl_total_amount": float(trade.brl_total_amount) if trade.brl_total_amount else None,
+                "usd_to_brl_rate": float(trade.usd_to_brl_rate) if trade.usd_to_brl_rate else None,
                 "payment_method": trade.payment_method.value,
                 "payment_proof_url": trade.payment_proof_url,
                 "status": trade.status.value,

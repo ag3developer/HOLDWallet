@@ -401,7 +401,10 @@ export const AdminTradesPage: React.FC = () => {
                       Preço
                     </th>
                     <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider'>
-                      Total
+                      Total USD
+                    </th>
+                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider'>
+                      Valor BRL
                     </th>
                     <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider'>
                       Status
@@ -459,6 +462,24 @@ export const AdminTradesPage: React.FC = () => {
                         <span className='text-sm font-medium text-gray-900 dark:text-white'>
                           {formatCurrency(trade.total_amount || 0)}
                         </span>
+                      </td>
+                      <td className='px-6 py-4 whitespace-nowrap'>
+                        {trade.brl_total_amount ? (
+                          <div>
+                            <span className='text-sm font-medium text-green-600 dark:text-green-400'>
+                              R${' '}
+                              {trade.brl_total_amount.toLocaleString('pt-BR', {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })}
+                            </span>
+                            <p className='text-[10px] text-gray-400 uppercase'>
+                              {trade.payment_method}
+                            </p>
+                          </div>
+                        ) : (
+                          <span className='text-sm text-gray-400'>-</span>
+                        )}
                       </td>
                       <td className='px-6 py-4 whitespace-nowrap'>
                         <span

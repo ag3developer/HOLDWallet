@@ -30,6 +30,7 @@ import {
   RotateCcw,
   ChevronDown,
   Building2,
+  Banknote,
 } from 'lucide-react'
 import {
   useTrade,
@@ -471,18 +472,68 @@ export const AdminTradeDetailPage: React.FC = () => {
                 </p>
               </div>
               <div className='p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg'>
-                <span className='text-xs text-gray-500 dark:text-gray-400'>Valor Fiat</span>
+                <span className='text-xs text-gray-500 dark:text-gray-400'>Valor Fiat (USD)</span>
                 <p className='text-base font-semibold text-gray-900 dark:text-white'>
                   {formatCurrency(trade.fiat_amount)}
                 </p>
               </div>
               <div className='p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg'>
-                <span className='text-xs text-blue-600 dark:text-blue-400'>Total</span>
+                <span className='text-xs text-blue-600 dark:text-blue-400'>Total USD</span>
                 <p className='text-base font-semibold text-blue-600 dark:text-blue-400'>
                   {formatCurrency(trade.total_amount)}
                 </p>
               </div>
             </div>
+
+            {/* Valores BRL - Apenas se houver */}
+            {trade.brl_total_amount && (
+              <div className='mt-4 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800'>
+                <h3 className='text-sm font-medium text-green-700 dark:text-green-400 mb-3 flex items-center gap-2'>
+                  <Banknote className='w-4 h-4' />
+                  Pagamento em BRL ({trade.payment_method?.toUpperCase()})
+                </h3>
+                <div className='grid grid-cols-2 sm:grid-cols-3 gap-3'>
+                  <div>
+                    <span className='text-xs text-green-600 dark:text-green-400'>
+                      Valor Depositado
+                    </span>
+                    <p className='text-lg font-bold text-green-700 dark:text-green-300'>
+                      R${' '}
+                      {trade.brl_total_amount?.toLocaleString('pt-BR', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </p>
+                  </div>
+                  {trade.brl_amount && (
+                    <div>
+                      <span className='text-xs text-green-600 dark:text-green-400'>Valor Base</span>
+                      <p className='text-base font-semibold text-green-700 dark:text-green-300'>
+                        R${' '}
+                        {trade.brl_amount?.toLocaleString('pt-BR', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </p>
+                    </div>
+                  )}
+                  {trade.usd_to_brl_rate && (
+                    <div>
+                      <span className='text-xs text-green-600 dark:text-green-400'>
+                        Cotação USD/BRL
+                      </span>
+                      <p className='text-base font-semibold text-green-700 dark:text-green-300'>
+                        R${' '}
+                        {trade.usd_to_brl_rate?.toLocaleString('pt-BR', {
+                          minimumFractionDigits: 4,
+                          maximumFractionDigits: 4,
+                        })}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Fees & Spread - Compacto */}
