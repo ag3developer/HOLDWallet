@@ -148,33 +148,15 @@ export function InstantTradePage() {
   }, [priceData]) // IMPORTANTE: Remover 'symbol' da dependência para evitar loops
 
   const convertFromBRL = (value: number): number => {
-    // ⚠️ PADRÃO: Backend retorna preços em USD
-    // Esta função converte USD → moeda selecionada (BRL, EUR, etc)
+    // ⚠️ IMPORTANTE: Os preços já vêm convertidos do PriceService!
+    // O PriceService.parseResponse() já converte USD → currency selecionada
+    // Esta função agora é apenas uma função de passagem para compatibilidade
 
     if (!value || typeof value !== 'number' || Number.isNaN(value)) {
       return 0
     }
 
-    // Se moeda é USD, não converter
-    if (currency === 'USD') {
-      return value
-    }
-
-    // Se moeda é BRL, converter USD → BRL usando cotação real
-    if (currency === 'BRL') {
-      // Buscar cotação real do USD/BRL dos preços carregados
-      const usdPrice = cryptoPrices.find(p => p.symbol === 'USDT' || p.symbol === 'USDC')
-      const usdToBrlRate = usdPrice ? usdPrice.price : 5.42 // Fallback para 5.42 se não encontrar
-      const converted = value * usdToBrlRate
-      return Number.isNaN(converted) ? value : converted
-    }
-
-    // Se moeda é EUR, converter USD → EUR
-    if (currency === 'EUR') {
-      const converted = value * 0.92 // 1 USD = 0.92 EUR (pode ser atualizado dinamicamente)
-      return Number.isNaN(converted) ? value : converted
-    }
-
+    // Retornar valor diretamente - a conversão já foi feita no PriceService
     return value
   }
 
@@ -212,18 +194,12 @@ export function InstantTradePage() {
         cryptoPrices={cryptoPrices}
         selectedSymbol={symbol}
         onSelectSymbol={setSymbol}
-        getCurrencySymbol={getCurrencySymbol}
-        getCurrencyLocale={getCurrencyLocale}
-        convertFromBRL={convertFromBRL}
       />
 
       {/* Main Trading Area */}
       {showConfirmation && quote ? (
         <ConfirmationPanel
           quote={quote}
-          currencySymbol={getCurrencySymbol(currency)}
-          currencyLocale={getCurrencyLocale(currency)}
-          convertFromBRL={convertFromBRL}
           onBack={() => setShowConfirmation(false)}
           onSuccess={handleConfirmSuccess}
         />
@@ -248,13 +224,7 @@ export function InstantTradePage() {
             {/* Middle Column: Quote Display */}
             <div className='lg:col-span-1'>
               {quote ? (
-                <QuoteDisplay
-                  quote={quote}
-                  currencySymbol={getCurrencySymbol(currency)}
-                  currencyLocale={getCurrencyLocale(currency)}
-                  convertFromBRL={convertFromBRL}
-                  onConfirmClick={() => setShowConfirmation(true)}
-                />
+                <QuoteDisplay quote={quote} onConfirmClick={() => setShowConfirmation(true)} />
               ) : (
                 <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-4'>
                   <div className='space-y-3'>
@@ -324,13 +294,7 @@ export function InstantTradePage() {
 
             {/* Quote or Tips */}
             {quote ? (
-              <QuoteDisplay
-                quote={quote}
-                currencySymbol={getCurrencySymbol(currency)}
-                currencyLocale={getCurrencyLocale(currency)}
-                convertFromBRL={convertFromBRL}
-                onConfirmClick={() => setShowConfirmation(true)}
-              />
+              <QuoteDisplay quote={quote} onConfirmClick={() => setShowConfirmation(true)} />
             ) : (
               <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-4'>
                 <div className='space-y-3'>
@@ -390,13 +354,7 @@ export function InstantTradePage() {
 
             {/* Quote or Tips */}
             {quote ? (
-              <QuoteDisplay
-                quote={quote}
-                currencySymbol={getCurrencySymbol(currency)}
-                currencyLocale={getCurrencyLocale(currency)}
-                convertFromBRL={convertFromBRL}
-                onConfirmClick={() => setShowConfirmation(true)}
-              />
+              <QuoteDisplay quote={quote} onConfirmClick={() => setShowConfirmation(true)} />
             ) : (
               <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-4'>
                 <div className='space-y-3'>

@@ -1,6 +1,19 @@
 /**
- * Serviço centralizado de preços
- * Gerencia requisições e cache para evitar rate limiting
+ * 🏦 HOLD Wallet - Price Service (Enterprise Grade)
+ * ==================================================
+ *
+ * Serviço centralizado de preços de criptomoedas.
+ *
+ * 📐 PADRÃO ENTERPRISE:
+ * ─────────────────────
+ * 1. Backend → SEMPRE retorna preços em USD
+ * 2. Conversão → Feita via CurrencyManager centralizado
+ * 3. Cache → Versionado, por moeda, com TTL de 5 min
+ * 4. Rate Limiting → 5 segundos entre requisições iguais
+ * 5. Deduplicação → Requisições em paralelo são mescladas
+ *
+ * @version 2.0.0
+ * @enterprise true
  */
 
 import axios from 'axios'
@@ -164,19 +177,35 @@ class PriceService {
 
   /**
    * Parse resposta do backend
+   *
+   * ⚠️ PADRÃO ENTERPRISE: Retorna preços em USD!
+   * A conversão para moeda do usuário é feita pelo formatCurrency() na exibição.
+   * Isso evita conversão dupla e mantém consistência.
    */
-  private static parseResponse(data: Record<string, any>, currency: string): PriceData {
+  private static parseResponse(data: Record<string, any>, _currency: string): PriceData {
     const result: PriceData = {}
+
+    // ⚠️ NÃO CONVERTER AQUI! Manter em USD.
+    // A conversão é feita pelo formatCurrency() do useCurrencyStore
+    console.log(`[PriceService] Parsing prices (keeping in USD for formatCurrency to convert)`)
 
     for (const [symbol, info] of Object.entries(data)) {
       const symbolUpper = symbol.toUpperCase()
       const infoObj = info as Record<string, any>
 
+      // Preço em USD (sem conversão)
+      const priceUSD = infoObj.price || infoObj.value || 0
+
       result[symbolUpper] = {
-        price: infoObj.price || infoObj.value || 0,
+        price: priceUSD, // Mantém em USD!
         change_24h: infoObj.change_24h || 0,
         high_24h: infoObj.high_24h || 0,
         low_24h: infoObj.low_24h || 0,
+      }
+
+      // Log para debug
+      if (symbolUpper === 'BTC' || symbolUpper === 'USDT') {
+        console.log(`[PriceService] ${symbolUpper}: $${priceUSD} USD (raw)`)
       }
     }
 

@@ -491,7 +491,7 @@ export const DashboardPage = () => {
                       Bitcoin
                     </p>
                     <p className='text-xl font-black text-slate-900 dark:text-white'>
-                      {marketPrices.BTC ? marketPrices.BTC.priceUSD : '$--'}
+                      {marketPrices.BTC?.price ? formatCurrency(marketPrices.BTC.price) : '--'}
                     </p>
                     <p
                       className={`text-xs font-semibold mt-1 ${marketPrices.BTC && marketPrices.BTC.change24h >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
@@ -1022,7 +1022,9 @@ export const DashboardPage = () => {
                         </div>
                         <div className='text-right'>
                           <p className={`text-xs font-bold ${crypto.text}`}>
-                            {marketPrices?.[crypto.symbol]?.priceUSD || '$--'}
+                            {marketPrices?.[crypto.symbol]?.price
+                              ? formatCurrency(marketPrices[crypto.symbol]!.price)
+                              : '--'}
                           </p>
                           <p
                             className={`text-xs font-semibold ${(marketPrices?.[crypto.symbol]?.change24h ?? 0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}

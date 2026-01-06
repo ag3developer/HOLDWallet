@@ -15,9 +15,6 @@ interface MarketPricesCarouselProps {
   cryptoPrices: CryptoPrice[]
   selectedSymbol: string
   onSelectSymbol: (symbol: string) => void
-  getCurrencySymbol: (currency: string) => string
-  getCurrencyLocale: (currency: string) => string
-  convertFromBRL: (amount: number) => number
 }
 
 // Crypto logos from CoinGecko (free CDN)
@@ -46,11 +43,8 @@ export function MarketPricesCarousel({
   cryptoPrices,
   selectedSymbol,
   onSelectSymbol,
-  getCurrencySymbol,
-  getCurrencyLocale,
-  convertFromBRL,
 }: Readonly<MarketPricesCarouselProps>) {
-  const { currency } = useCurrencyStore()
+  const { formatCurrency } = useCurrencyStore()
   const carouselRef = useRef<HTMLDivElement>(null)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(true)
@@ -80,47 +74,6 @@ export function MarketPricesCarousel({
         behavior: 'smooth',
       })
     }
-  }
-
-  const safeConvertFromBRL = (value: number): number => {
-    if (value === null || value === undefined || typeof value !== 'number') {
-      return 0
-    }
-    if (Number.isNaN(value)) {
-      return 0
-    }
-    // IMPORTANTE: Os preços do backend já vêm na moeda solicitada (fiat parameter)
-    // Portanto, NÃO devemos converter! Retornar o valor direto.
-    // A função convertFromBRL era usada quando os preços vinham sempre em BRL,
-    // mas agora o backend retorna na moeda correta.
-    return Number.isFinite(value) ? value : 0
-  }
-
-  // Format price with appropriate decimal places based on value
-  const formatPrice = (price: number): string => {
-    if (price === 0) return '0.00'
-
-    // For very small numbers (< 0.01), show up to 6 decimals (e.g., MATIC: 0.125980)
-    if (price < 0.01) {
-      return price.toLocaleString(getCurrencyLocale(currency), {
-        minimumFractionDigits: 4,
-        maximumFractionDigits: 6,
-      })
-    }
-
-    // For small numbers (0.01 to 1), show up to 4 decimals (e.g., 0.5123)
-    if (price < 1) {
-      return price.toLocaleString(getCurrencyLocale(currency), {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 4,
-      })
-    }
-
-    // For normal numbers (>= 1), show 2 decimals
-    return price.toLocaleString(getCurrencyLocale(currency), {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })
   }
 
   return (
@@ -214,7 +167,7 @@ export function MarketPricesCarousel({
                 </div>
 
                 <p className='text-lg font-bold text-gray-900 dark:text-white mb-1 leading-tight'>
-                  {getCurrencySymbol(currency)} {formatPrice(safeConvertFromBRL(crypto.price))}
+                  {formatCurrency(crypto.price)}
                 </p>
 
                 <div className='grid grid-cols-2 gap-1 pt-1.5 border-t border-gray-200 dark:border-gray-700 text-xs'>
@@ -222,10 +175,7 @@ export function MarketPricesCarousel({
                     <p className='text-gray-600 dark:text-gray-400 text-xs leading-tight'>H</p>
                     <p className='font-medium text-gray-900 dark:text-white text-xs'>
                       {crypto.high24h > 0 ? (
-                        <>
-                          {getCurrencySymbol(currency)}{' '}
-                          {formatPrice(safeConvertFromBRL(crypto.high24h))}
-                        </>
+                        formatCurrency(crypto.high24h)
                       ) : (
                         <span className='text-gray-400'>—</span>
                       )}
@@ -235,10 +185,7 @@ export function MarketPricesCarousel({
                     <p className='text-gray-600 dark:text-gray-400 text-xs leading-tight'>L</p>
                     <p className='font-medium text-gray-900 dark:text-white text-xs'>
                       {crypto.low24h > 0 ? (
-                        <>
-                          {getCurrencySymbol(currency)}{' '}
-                          {formatPrice(safeConvertFromBRL(crypto.low24h))}
-                        </>
+                        formatCurrency(crypto.low24h)
                       ) : (
                         <span className='text-gray-400'>—</span>
                       )}

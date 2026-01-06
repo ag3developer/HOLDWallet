@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Clock, ChevronDown } from 'lucide-react'
+import { useCurrencyStore } from '@/stores/useCurrencyStore'
 
 interface Quote {
   quote_id: string
@@ -18,19 +19,11 @@ interface Quote {
 
 interface QuoteDisplayProps {
   readonly quote: Quote | null
-  readonly currencySymbol: string
-  readonly currencyLocale: string
-  readonly convertFromBRL: (value: number) => number
   readonly onConfirmClick: () => void
 }
 
-export function QuoteDisplay({
-  quote,
-  currencySymbol,
-  currencyLocale,
-  convertFromBRL,
-  onConfirmClick,
-}: QuoteDisplayProps) {
+export function QuoteDisplay({ quote, onConfirmClick }: QuoteDisplayProps) {
+  const { formatCurrency } = useCurrencyStore()
   const [timeLeft, setTimeLeft] = useState(quote?.expires_in_seconds ?? 0)
   const [showDetails, setShowDetails] = useState(false)
 
@@ -53,23 +46,18 @@ export function QuoteDisplay({
 
   if (!quote) return null
 
-  const formatValue = (value: number | undefined) => {
-    // Safe type checking and validation
-    if (value === null || value === undefined || typeof value !== 'number') {
-      return '0.00'
+  // Use formatCurrency from the store - it handles USD→BRL conversion automatically
+  const formatValue = (value: number | undefined): string => {
+    if (
+      value === null ||
+      value === undefined ||
+      typeof value !== 'number' ||
+      Number.isNaN(value) ||
+      !Number.isFinite(value)
+    ) {
+      return formatCurrency(0)
     }
-    if (Number.isNaN(value)) {
-      return '0.00'
-    }
-
-    const converted = convertFromBRL(value)
-    const safeValue = typeof converted === 'number' && !Number.isNaN(converted) ? converted : value
-
-    if (!Number.isFinite(safeValue)) {
-      return '0.00'
-    }
-
-    return safeValue.toLocaleString(currencyLocale, { maximumFractionDigits: 2 })
+    return formatCurrency(value)
   }
 
   return (
@@ -89,7 +77,7 @@ export function QuoteDisplay({
         <div className='flex justify-between items-center p-1.5 text-xs bg-white dark:bg-gray-800 rounded'>
           <span className='text-gray-600 dark:text-gray-400'>Price</span>
           <span className='font-medium text-gray-900 dark:text-white'>
-            {currencySymbol} {formatValue(quote.fiat_amount ?? 0)}
+            {formatValue(quote.fiat_amount ?? 0)}
           </span>
         </div>
 
@@ -99,7 +87,7 @@ export function QuoteDisplay({
             Spread ({(quote.spread_percentage ?? 0).toFixed(2)}%)
           </span>
           <span className='font-medium text-gray-900 dark:text-white'>
-            {currencySymbol} {formatValue(quote.spread_amount ?? 0)}
+            {formatValue(quote.spread_amount ?? 0)}
           </span>
         </div>
 
@@ -109,16 +97,14 @@ export function QuoteDisplay({
             Fee ({(quote.network_fee_percentage ?? 0).toFixed(2)}%)
           </span>
           <span className='font-medium text-gray-900 dark:text-white'>
-            {currencySymbol} {formatValue(quote.network_fee_amount ?? 0)}
+            {formatValue(quote.network_fee_amount ?? 0)}
           </span>
         </div>
 
         {/* Total */}
         <div className='flex justify-between items-center p-1.5 text-xs bg-gradient-to-r from-blue-600 to-blue-700 rounded'>
           <span className='font-semibold text-white'>Total</span>
-          <span className='font-bold text-white'>
-            {currencySymbol} {formatValue(quote.total_amount ?? 0)}
-          </span>
+          <span className='font-bold text-white'>{formatValue(quote.total_amount ?? 0)}</span>
         </div>
       </div>
 
@@ -148,16 +134,14 @@ export function QuoteDisplay({
               <div className='flex justify-between'>
                 <span className='text-gray-600 dark:text-gray-400'>Price per Unit</span>
                 <span className='font-medium text-gray-900 dark:text-white'>
-                  {currencySymbol} {formatValue(quote.crypto_price ?? 0)}
+                  {formatValue(quote.crypto_price ?? 0)}
                 </span>
               </div>
 
               <div className='border-t border-gray-200 dark:border-gray-700 my-1 pt-1'>
                 <div className='flex justify-between mb-1 font-semibold text-gray-900 dark:text-white'>
                   <span>Fiat Value (Before Fees)</span>
-                  <span>
-                    {currencySymbol} {formatValue(quote.fiat_amount ?? 0)}
-                  </span>
+                  <span>{formatValue(quote.fiat_amount ?? 0)}</span>
                 </div>
               </div>
 
@@ -167,7 +151,7 @@ export function QuoteDisplay({
                     Spread ({(quote.spread_percentage ?? 0).toFixed(2)}%)
                   </span>
                   <span className='text-red-600 dark:text-red-400 font-medium'>
-                    -{currencySymbol} {formatValue(quote.spread_amount ?? 0)}
+                    -{formatValue(quote.spread_amount ?? 0)}
                   </span>
                 </div>
 
@@ -176,16 +160,14 @@ export function QuoteDisplay({
                     Network Fee ({(quote.network_fee_percentage ?? 0).toFixed(2)}%)
                   </span>
                   <span className='text-red-600 dark:text-red-400 font-medium'>
-                    -{currencySymbol} {formatValue(quote.network_fee_amount ?? 0)}
+                    -{formatValue(quote.network_fee_amount ?? 0)}
                   </span>
                 </div>
               </div>
 
               <div className='border-t border-gray-200 dark:border-gray-700 pt-1 flex justify-between font-semibold text-green-600 dark:text-green-400'>
                 <span>You Receive</span>
-                <span>
-                  {currencySymbol} {formatValue(quote.total_amount ?? 0)}
-                </span>
+                <span>{formatValue(quote.total_amount ?? 0)}</span>
               </div>
 
               <div className='pt-1 border-t border-gray-200 dark:border-gray-700'>
@@ -205,7 +187,7 @@ export function QuoteDisplay({
               <div className='flex justify-between'>
                 <span className='text-gray-600 dark:text-gray-400'>Fiat Amount</span>
                 <span className='font-medium text-gray-900 dark:text-white'>
-                  {currencySymbol} {formatValue(quote.fiat_amount ?? 0)}
+                  {formatValue(quote.fiat_amount ?? 0)}
                 </span>
               </div>
 
@@ -213,23 +195,21 @@ export function QuoteDisplay({
                 <div className='flex justify-between mb-1'>
                   <span className='text-gray-600 dark:text-gray-400'>Spread Cost</span>
                   <span className='text-red-600 dark:text-red-400 font-medium'>
-                    -{currencySymbol} {formatValue(quote.spread_amount ?? 0)}
+                    -{formatValue(quote.spread_amount ?? 0)}
                   </span>
                 </div>
 
                 <div className='flex justify-between'>
                   <span className='text-gray-600 dark:text-gray-400'>Network Fee</span>
                   <span className='text-red-600 dark:text-red-400 font-medium'>
-                    -{currencySymbol} {formatValue(quote.network_fee_amount ?? 0)}
+                    -{formatValue(quote.network_fee_amount ?? 0)}
                   </span>
                 </div>
               </div>
 
               <div className='border-t border-gray-200 dark:border-gray-700 pt-1 flex justify-between font-semibold text-gray-900 dark:text-white'>
                 <span>Final Amount</span>
-                <span>
-                  {currencySymbol} {formatValue(quote.total_amount ?? 0)}
-                </span>
+                <span>{formatValue(quote.total_amount ?? 0)}</span>
               </div>
 
               <div className='pt-1 border-t border-gray-200 dark:border-gray-700'>

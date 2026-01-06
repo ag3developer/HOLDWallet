@@ -13,22 +13,43 @@ interface PriceCacheEntry {
   [symbol: string]: CachedPrice
 }
 
+interface CacheData {
+  version: number
+  entries: Record<string, PriceCacheEntry>
+}
+
 const CACHE_KEY = 'crypto_prices_cache'
 const CACHE_TTL = 5 * 60 * 1000 // 5 minutos
+const CACHE_VERSION = 3 // v3: Preços agora são sempre em USD (sem conversão no PriceService)
 
 class PriceCache {
   private static getCache(): Record<string, PriceCacheEntry> {
     try {
       const cached = localStorage.getItem(CACHE_KEY)
-      return cached ? JSON.parse(cached) : {}
+      if (!cached) return {}
+
+      const data = JSON.parse(cached)
+
+      // Verificar se é formato antigo (sem version) ou versão desatualizada
+      if (!data.version || data.version < CACHE_VERSION) {
+        console.log('[PriceCache] Cache version outdated, clearing...')
+        localStorage.removeItem(CACHE_KEY)
+        return {}
+      }
+
+      return data.entries || {}
     } catch {
       return {}
     }
   }
 
-  private static setCache(cache: Record<string, PriceCacheEntry>) {
+  private static setCache(entries: Record<string, PriceCacheEntry>) {
     try {
-      localStorage.setItem(CACHE_KEY, JSON.stringify(cache))
+      const data: CacheData = {
+        version: CACHE_VERSION,
+        entries,
+      }
+      localStorage.setItem(CACHE_KEY, JSON.stringify(data))
     } catch (e) {
       console.warn('[PriceCache] Failed to save cache to localStorage:', e)
     }

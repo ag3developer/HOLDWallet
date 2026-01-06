@@ -11,6 +11,7 @@ import {
 import toast from 'react-hot-toast'
 import { apiClient } from '@/services/api'
 import { TradeStatusMonitor } from './TradeStatusMonitor'
+import { useCurrencyStore } from '@/stores/useCurrencyStore'
 
 interface Quote {
   quote_id: string
@@ -29,9 +30,6 @@ interface Quote {
 
 interface ConfirmationPanelProps {
   readonly quote: Quote
-  readonly currencySymbol: string
-  readonly currencyLocale: string
-  readonly convertFromBRL: (value: number) => number
   readonly onBack: () => void
   readonly onSuccess: (tradeId: string) => void
 }
@@ -43,14 +41,8 @@ const PAYMENT_METHODS = [
   { id: 'debit_card', name: 'Debit Card', icon: Wallet },
 ]
 
-export function ConfirmationPanel({
-  quote,
-  currencySymbol,
-  currencyLocale,
-  convertFromBRL,
-  onBack,
-  onSuccess,
-}: ConfirmationPanelProps) {
+export function ConfirmationPanel({ quote, onBack, onSuccess }: ConfirmationPanelProps) {
+  const { formatCurrency } = useCurrencyStore()
   const [selectedPayment, setSelectedPayment] = useState('pix')
   const [loading, setLoading] = useState(false)
   const [tradeCreated, setTradeCreated] = useState<string | null>(null)
@@ -100,22 +92,17 @@ export function ConfirmationPanel({
     }
   }
 
-  const formatValue = (value: number | undefined) => {
-    if (value === null || value === undefined || typeof value !== 'number') {
-      return '0.00'
+  const formatValue = (value: number | undefined): string => {
+    if (
+      value === null ||
+      value === undefined ||
+      typeof value !== 'number' ||
+      Number.isNaN(value) ||
+      !Number.isFinite(value)
+    ) {
+      return formatCurrency(0)
     }
-    if (Number.isNaN(value)) {
-      return '0.00'
-    }
-
-    const converted = convertFromBRL(value)
-    const safeValue = typeof converted === 'number' && !Number.isNaN(converted) ? converted : value
-
-    if (!Number.isFinite(safeValue)) {
-      return '0.00'
-    }
-
-    return safeValue.toLocaleString(currencyLocale, { maximumFractionDigits: 2 })
+    return formatCurrency(value)
   }
 
   const isBuy = quote.operation === 'buy'
@@ -180,7 +167,7 @@ export function ConfirmationPanel({
                 <div className='flex justify-between'>
                   <span className='text-gray-600 dark:text-gray-400'>Amount:</span>
                   <span className='font-medium text-gray-900 dark:text-white'>
-                    {currencySymbol} {formatValue(quote.fiat_amount ?? 0)}
+                    {formatValue(quote.fiat_amount ?? 0)}
                   </span>
                 </div>
                 <div className='flex justify-between'>
@@ -294,7 +281,7 @@ export function ConfirmationPanel({
                   </span>
                   <span className='font-medium text-gray-900 dark:text-white'>
                     {isBuy
-                      ? `${currencySymbol} ${formatValue(quote.fiat_amount ?? 0)}`
+                      ? formatValue(quote.fiat_amount ?? 0)
                       : `${(quote.crypto_amount ?? 0).toFixed(8)} ${quote.symbol}`}
                   </span>
                 </div>
@@ -305,7 +292,7 @@ export function ConfirmationPanel({
                   <span className='font-bold text-blue-600 dark:text-blue-400'>
                     {isBuy
                       ? `${(quote.crypto_amount ?? 0).toFixed(8)} ${quote.symbol}`
-                      : `${currencySymbol} ${formatValue(quote.total_amount ?? 0)}`}
+                      : formatValue(quote.total_amount ?? 0)}
                   </span>
                 </div>
               </div>
@@ -322,7 +309,7 @@ export function ConfirmationPanel({
               <div className='flex justify-between'>
                 <span className='text-gray-600 dark:text-gray-400'>Price:</span>
                 <span className='font-medium text-gray-900 dark:text-white'>
-                  {currencySymbol} {formatValue(quote.crypto_price ?? 0)}
+                  {formatValue(quote.crypto_price ?? 0)}
                 </span>
               </div>
               <div className='flex justify-between'>
@@ -330,7 +317,7 @@ export function ConfirmationPanel({
                   Spread ({quote.spread_percentage ?? 0}%):
                 </span>
                 <span className='font-medium text-gray-900 dark:text-white'>
-                  {currencySymbol} {formatValue(quote.spread_amount ?? 0)}
+                  {formatValue(quote.spread_amount ?? 0)}
                 </span>
               </div>
               <div className='flex justify-between'>
@@ -338,13 +325,13 @@ export function ConfirmationPanel({
                   Fee ({quote.network_fee_percentage ?? 0}%):
                 </span>
                 <span className='font-medium text-gray-900 dark:text-white'>
-                  {currencySymbol} {formatValue(quote.network_fee_amount ?? 0)}
+                  {formatValue(quote.network_fee_amount ?? 0)}
                 </span>
               </div>
               <div className='flex justify-between border-t border-gray-300 dark:border-gray-600 pt-1'>
                 <span className='font-semibold text-gray-900 dark:text-white'>Total:</span>
                 <span className='font-bold text-blue-600 dark:text-blue-400'>
-                  {currencySymbol} {formatValue(quote.total_amount ?? 0)}
+                  {formatValue(quote.total_amount ?? 0)}
                 </span>
               </div>
             </div>
