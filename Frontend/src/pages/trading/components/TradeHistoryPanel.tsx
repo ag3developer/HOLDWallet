@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react'
-import { Eye, ArrowDownLeft, ArrowUpRight, X } from 'lucide-react'
+import React, { useState, useEffect, useCallback } from 'react'
+import { ArrowDownLeft, ArrowUpRight, ChevronRight, RefreshCw } from 'lucide-react'
 import { apiClient } from '@/services/api'
 import toast from 'react-hot-toast'
+import { TradeDetailsPage } from './TradeDetailsPage'
+import { tradeHistoryCache } from '@/services/cache/tradeHistoryCache'
 
 interface Trade {
   id: string
@@ -51,36 +53,61 @@ export function TradeHistoryPanel({
 }: TradeHistoryPanelProps) {
   const [trades, setTrades] = useState<Trade[]>([])
   const [loading, setLoading] = useState(false)
-  const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null)
+  const [selectedTradeId, setSelectedTradeId] = useState<string | null>(null)
   const [filterStatus, setFilterStatus] = useState<string>('ALL')
   const [filterOperation, setFilterOperation] = useState<string>('ALL')
 
-  // Fetch trades on mount and when isVisible changes
+  // Carregar trades do cache na inicialização
   useEffect(() => {
-    if (isVisible) {
-      fetchTrades()
+    const cached = tradeHistoryCache.getTradeHistory()
+    if (cached && cached.trades.length > 0) {
+      console.log('[TradeHistoryPanel] Loading from cache:', cached.trades.length, 'trades')
+      setTrades(cached.trades)
+    }
+  }, [])
+
+  // Fetch trades quando visível (com cache)
+  useEffect(() => {
+    if (isVisible && trades.length === 0) {
+      fetchTrades(false) // Não forçar se já tem dados
     }
   }, [isVisible])
 
-  const fetchTrades = async () => {
+  const fetchTrades = useCallback(async (forceRefresh = false) => {
+    // Verificar cache primeiro (se não for refresh forçado)
+    if (!forceRefresh) {
+      const cached = tradeHistoryCache.getTradeHistory()
+      if (cached && cached.trades.length > 0) {
+        console.log('[TradeHistoryPanel] Using cached data:', cached.trades.length, 'trades')
+        setTrades(cached.trades)
+        return
+      }
+    }
+
     setLoading(true)
     try {
-      console.log('[TradeHistoryPanel] Fetching trades...')
+      console.log('[TradeHistoryPanel] Fetching trades from API...')
       const response = await apiClient.get('/instant-trade/history/my-trades')
-      console.log('[TradeHistoryPanel] Response:', response.data)
       const tradesData = response.data.trades || []
-      console.log('[TradeHistoryPanel] Trades count:', tradesData.length)
-      if (tradesData.length > 0) {
-        console.log('[TradeHistoryPanel] First trade:', tradesData[0])
-      }
+      console.log('[TradeHistoryPanel] Received:', tradesData.length, 'trades')
+
+      // Salvar no cache
+      tradeHistoryCache.setTradeHistory({
+        trades: tradesData,
+        total: response.data.total || tradesData.length,
+        page: response.data.page || 1,
+        per_page: response.data.per_page || 10,
+      })
+
       setTrades(tradesData)
-    } catch (error: any) {
+      console.log('[TradeHistoryPanel] Trades loaded and cached at:', new Date().toISOString())
+    } catch (error: unknown) {
       console.error('[TradeHistoryPanel] Fetch trades error:', error)
       toast.error('Erro ao carregar histórico de trades')
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   const filteredTrades = trades.filter(trade => {
     const statusMatch = filterStatus === 'ALL' || trade.status === filterStatus
@@ -114,6 +141,27 @@ export function TradeHistoryPanel({
     return value.toFixed(8)
   }
 
+  // Função para forçar refresh (ignora cache)
+  const handleForceRefresh = useCallback(() => {
+    tradeHistoryCache.invalidateHistory()
+    fetchTrades()
+  }, [fetchTrades])
+
+  // Se uma trade está selecionada, mostrar a página de detalhes
+  if (selectedTradeId) {
+    return (
+      <TradeDetailsPage
+        tradeId={selectedTradeId}
+        onBack={() => {
+          setSelectedTradeId(null)
+          // Não precisa recarregar - cache mantém os dados
+        }}
+        currencySymbol={currencySymbol}
+        currencyLocale={currencyLocale}
+      />
+    )
+  }
+
   return (
     <div className='bg-white dark:bg-gray-800 rounded-lg shadow'>
       {/* Header */}
@@ -121,10 +169,12 @@ export function TradeHistoryPanel({
         <div className='flex items-center justify-between mb-4'>
           <h2 className='text-lg font-bold text-gray-900 dark:text-white'>Histórico de Trades</h2>
           <button
-            onClick={fetchTrades}
+            onClick={handleForceRefresh}
             disabled={loading}
-            className='px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded disabled:bg-gray-400 transition-colors'
+            className='flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded disabled:bg-gray-400 transition-colors'
+            title='Atualizar histórico'
           >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             {loading ? 'Atualizando...' : 'Atualizar'}
           </button>
         </div>
@@ -183,11 +233,12 @@ export function TradeHistoryPanel({
           </div>
         ) : (
           filteredTrades.map(trade => (
-            <div
+            <button
               key={trade.id}
-              className='p-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors'
+              onClick={() => setSelectedTradeId(trade.id)}
+              className='w-full p-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-left'
             >
-              <div className='flex items-start justify-between gap-2'>
+              <div className='flex items-center justify-between gap-2'>
                 {/* Left Info */}
                 <div className='flex-1 min-w-0'>
                   <div className='flex items-center gap-2 mb-1'>
@@ -202,20 +253,20 @@ export function TradeHistoryPanel({
                       </span>
                     </div>
                     <span
-                      className={`px-2 py-1 rounded text-xs font-medium ${
+                      className={`px-2 py-0.5 rounded text-xs font-medium ${
                         STATUS_COLORS[trade.status]
                       }`}
                     >
                       {STATUS_LABELS[trade.status]}
                     </span>
-                  </div>{' '}
-                  <p className='text-xs text-gray-600 dark:text-gray-400'>
-                    {formatDate(trade.created_at)}
+                  </div>
+                  <p className='text-xs text-gray-500 dark:text-gray-400'>
+                    {trade.reference_code} • {formatDate(trade.created_at)}
                   </p>
                 </div>
 
                 {/* Right Value */}
-                <div className='text-right'>
+                <div className='text-right mr-2'>
                   <p className='text-sm font-bold text-gray-900 dark:text-white'>
                     {trade.operation === 'buy'
                       ? `+${formatCrypto(trade.crypto_amount)} ${trade.symbol}`
@@ -226,132 +277,13 @@ export function TradeHistoryPanel({
                   </p>
                 </div>
 
-                {/* Detail Button */}
-                <button
-                  onClick={() => setSelectedTrade(trade)}
-                  className='p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors ml-2'
-                  title='Ver detalhes'
-                >
-                  <Eye className='w-4 h-4 text-gray-600 dark:text-gray-400' />
-                </button>
+                {/* Arrow */}
+                <ChevronRight className='w-5 h-5 text-gray-400' />
               </div>
-            </div>
+            </button>
           ))
         )}
       </div>
-
-      {/* Detail Modal */}
-      {selectedTrade && (
-        <div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4'>
-          <div className='bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-md w-full max-h-96 overflow-y-auto'>
-            {/* Modal Header */}
-            <div className='p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between sticky top-0 bg-white dark:bg-gray-800'>
-              <h3 className='text-lg font-bold text-gray-900 dark:text-white'>Detalhes da Trade</h3>
-              <button
-                onClick={() => setSelectedTrade(null)}
-                className='text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                title='Fechar'
-                aria-label='Fechar'
-              >
-                <X className='w-5 h-5' />
-              </button>
-            </div>
-
-            {/* Modal Content */}
-            <div className='p-4 space-y-3'>
-              <div className='bg-gray-50 dark:bg-gray-700 p-3 rounded'>
-                <p className='text-xs text-gray-600 dark:text-gray-400'>ID da Trade</p>
-                <p className='text-sm font-mono text-gray-900 dark:text-white break-all'>
-                  {selectedTrade.id}
-                </p>
-              </div>
-
-              <div className='grid grid-cols-2 gap-3'>
-                <div>
-                  <p className='text-xs text-gray-600 dark:text-gray-400'>Operação</p>
-                  <p className='text-sm font-bold text-gray-900 dark:text-white capitalize'>
-                    {selectedTrade.operation === 'buy' ? 'Compra' : 'Venda'}
-                  </p>
-                </div>
-                <div>
-                  <p className='text-xs text-gray-600 dark:text-gray-400'>Criptomoeda</p>
-                  <p className='text-sm font-bold text-gray-900 dark:text-white'>
-                    {selectedTrade.symbol}
-                  </p>
-                </div>
-              </div>
-
-              <div className='grid grid-cols-2 gap-3'>
-                <div>
-                  <p className='text-xs text-gray-600 dark:text-gray-400'>Quantidade</p>
-                  <p className='text-sm font-bold text-gray-900 dark:text-white'>
-                    {formatCrypto(selectedTrade.crypto_amount)} {selectedTrade.symbol}
-                  </p>
-                </div>
-                <div>
-                  <p className='text-xs text-gray-600 dark:text-gray-400'>Valor Pago</p>
-                  <p className='text-sm font-bold text-gray-900 dark:text-white'>
-                    {currencySymbol} {formatValue(selectedTrade.fiat_amount)}
-                  </p>
-                </div>
-              </div>
-
-              <div className='grid grid-cols-2 gap-3'>
-                <div>
-                  <p className='text-xs text-gray-600 dark:text-gray-400'>Spread</p>
-                  <p className='text-sm font-bold text-gray-900 dark:text-white'>
-                    {selectedTrade.spread_percentage.toFixed(2)}%
-                  </p>
-                </div>
-                <div>
-                  <p className='text-xs text-gray-600 dark:text-gray-400'>Taxa Rede</p>
-                  <p className='text-sm font-bold text-gray-900 dark:text-white'>
-                    {selectedTrade.network_fee_percentage.toFixed(2)}%
-                  </p>
-                </div>
-              </div>
-
-              <div className='border-t border-gray-200 dark:border-gray-700 pt-3'>
-                <p className='text-xs text-gray-600 dark:text-gray-400'>Total com Fees</p>
-                <p className='text-lg font-bold text-gray-900 dark:text-white'>
-                  {currencySymbol} {formatValue(selectedTrade.total_amount)}
-                </p>
-              </div>
-
-              <div>
-                <p className='text-xs text-gray-600 dark:text-gray-400'>Método Pagamento</p>
-                <p className='text-sm font-bold text-gray-900 dark:text-white capitalize'>
-                  {selectedTrade.payment_method.replace('_', ' ')}
-                </p>
-              </div>
-
-              <div>
-                <p className='text-xs text-gray-600 dark:text-gray-400'>Status</p>
-                <span
-                  className={`inline-block px-3 py-1 rounded text-sm font-medium ${
-                    STATUS_COLORS[selectedTrade.status]
-                  }`}
-                >
-                  {STATUS_LABELS[selectedTrade.status]}
-                </span>
-              </div>
-
-              <div className='grid grid-cols-2 gap-3 text-xs text-gray-600 dark:text-gray-400'>
-                <div>
-                  <p>Criada em:</p>
-                  <p className='font-mono'>{formatDate(selectedTrade.created_at)}</p>
-                </div>
-                <div>
-                  <p>Atualizada em:</p>
-                  <p className='font-mono'>
-                    {selectedTrade.updated_at ? formatDate(selectedTrade.updated_at) : '-'}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

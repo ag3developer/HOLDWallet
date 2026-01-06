@@ -328,7 +328,7 @@ class InstantTradeService:
         }
 
     def get_trade_status(self, trade_id: str) -> Dict[str, Any]:
-        """Get trade status"""
+        """Get trade status with full details"""
         trade = self.db.query(InstantTrade).filter(InstantTrade.id == trade_id).first()
 
         if not trade:
@@ -337,13 +337,27 @@ class InstantTradeService:
         return {
             "id": trade.id,
             "reference_code": trade.reference_code,
-            "status": trade.status.value,
-            "operation": trade.operation_type,
+            "status": trade.status.value.upper() if hasattr(trade.status, 'value') else str(trade.status).upper(),
+            "operation": trade.operation_type.value if hasattr(trade.operation_type, 'value') else trade.operation_type,
             "symbol": trade.symbol,
+            "name": trade.name,
             "fiat_amount": float(trade.fiat_amount),  # type: ignore
             "crypto_amount": float(trade.crypto_amount),  # type: ignore
+            "crypto_price": float(trade.crypto_price) if trade.crypto_price else None,  # type: ignore
             "total_amount": float(trade.total_amount),  # type: ignore
-            "created_at": trade.created_at.isoformat(),
+            "spread_percentage": float(trade.spread_percentage) if trade.spread_percentage else 3.0,  # type: ignore
+            "spread_amount": float(trade.spread_amount) if trade.spread_amount else None,  # type: ignore
+            "network_fee_percentage": float(trade.network_fee_percentage) if trade.network_fee_percentage else 0.25,  # type: ignore
+            "network_fee_amount": float(trade.network_fee_amount) if trade.network_fee_amount else None,  # type: ignore
+            "payment_method": trade.payment_method.value if hasattr(trade.payment_method, 'value') else trade.payment_method,
+            "created_at": trade.created_at.isoformat() if trade.created_at else None,
+            "updated_at": trade.updated_at.isoformat() if trade.updated_at else None,
+            "expires_at": trade.expires_at.isoformat() if trade.expires_at else None,
+            "payment_confirmed_at": trade.payment_confirmed_at.isoformat() if trade.payment_confirmed_at else None,
+            "completed_at": trade.completed_at.isoformat() if trade.completed_at else None,
+            "wallet_address": trade.wallet_address,
+            "tx_hash": trade.tx_hash,
+            "network": trade.network,
         }
 
     def cancel_trade(self, trade_id: str) -> bool:

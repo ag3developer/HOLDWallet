@@ -17,11 +17,26 @@ import logging
 from app.core.db import get_db
 from app.core.security import get_current_user
 from app.models.user import User
+from app.models.instant_trade import InstantTrade
 from app.services.instant_trade_service import get_instant_trade_service, InstantTradeService
 from app.schemas.instant_trade import QuoteRequest, CreateTradeRequest, TradeStatusResponse
 
 router = APIRouter(prefix="/instant-trade", tags=["Instant Trade OTC"])
 logger = logging.getLogger(__name__)
+
+# ============================================================================
+# HOLD DIGITAL ASSETS - BANK DETAILS
+# ============================================================================
+COMPANY_BANK_DETAILS = {
+    "bank_name": "Banco do Brasil",
+    "bank_code": "001",
+    "agency": "5271-0",
+    "account": "26689-2",
+    "account_type": "Conta Corrente",
+    "holder_name": "HOLD DIGITAL ASSETS LTDA",
+    "cnpj": "24.275.355/0001-51",
+    "pix_key": "24.275.355/0001-51",  # CNPJ as PIX key
+}
 
 
 @router.get("/assets")
@@ -150,13 +165,13 @@ async def create_trade(
         # Add bank details for manual transfer methods (TED)
         if request.payment_method == "ted":
             response_data["bank_details"] = {
-                "bank_code": "001",
-                "bank_name": "Banco do Brasil",
-                "agency": "5271-0",
-                "account_number": "26689-2",
-                "account_holder": "HOLD DIGITAL ASSETS LTDA",
-                "cnpj": "24.275.355/0001-51",
-                "pix_key": "24.275.355/0001-51",
+                "bank_code": COMPANY_BANK_DETAILS["bank_code"],
+                "bank_name": COMPANY_BANK_DETAILS["bank_name"],
+                "agency": COMPANY_BANK_DETAILS["agency"],
+                "account_number": COMPANY_BANK_DETAILS["account"],
+                "account_holder": COMPANY_BANK_DETAILS["holder_name"],
+                "cnpj": COMPANY_BANK_DETAILS["cnpj"],
+                "pix_key": COMPANY_BANK_DETAILS["pix_key"],
                 "instructions": f"Transfer R$ {trade.get('total_amount', 0):.2f} to the account above and upload proof of payment.",
             }
 
@@ -202,6 +217,79 @@ async def get_trade_status(
             "trade": trade,
         }
 
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
+
+@router.get("/{trade_id}/bank-details")
+async def get_bank_details(
+    trade_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Get bank details for payment (TED/PIX).
+    
+    Parameters:
+    - trade_id: Trade ID
+    
+    Returns:
+    - Bank account details for wire transfer
+    - PIX key if applicable
+    """
+    try:
+        service = get_instant_trade_service(db)
+        trade = service.get_trade_status(trade_id)
+        
+        # Verify trade belongs to current user
+        trade_obj = db.query(InstantTrade).filter(InstantTrade.id == trade_id).first()
+        if not trade_obj or str(trade_obj.user_id) != str(current_user.id):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied"
+            )
+        
+        # Only return bank details for pending trades with TED/PIX
+        if trade["status"] != "PENDING":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Bank details only available for pending trades"
+            )
+        
+        payment_method = trade.get("payment_method", "").lower()
+        if payment_method not in ["ted", "pix"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Bank details only available for TED/PIX payments"
+            )
+        
+        # Use company bank details constant
+        bank_details = {
+            "bank_name": COMPANY_BANK_DETAILS["bank_name"],
+            "bank_code": COMPANY_BANK_DETAILS["bank_code"],
+            "agency": COMPANY_BANK_DETAILS["agency"],
+            "account": COMPANY_BANK_DETAILS["account"],
+            "account_type": COMPANY_BANK_DETAILS["account_type"],
+            "holder_name": COMPANY_BANK_DETAILS["holder_name"],
+            "holder_document": COMPANY_BANK_DETAILS["cnpj"],
+        }
+        
+        # Add PIX key for PIX payments
+        if payment_method == "pix":
+            bank_details["pix_key"] = COMPANY_BANK_DETAILS["pix_key"]
+        
+        return {
+            "success": True,
+            "bank_details": bank_details,
+            "reference_code": trade["reference_code"],
+            "amount": trade["total_amount"],
+        }
+
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
