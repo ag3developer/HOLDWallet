@@ -577,8 +577,19 @@ export function TradeDetailsPage({
               <div className='mt-4 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800'>
                 <p className='text-xs text-red-700 dark:text-red-400'>
                   <strong>Importante:</strong> Transfira exatamente o valor indicado. Use o código{' '}
-                  <strong className='font-mono'>{trade.reference_code}</strong> na descrição da
-                  transferência.
+                  <button
+                    onClick={() => copyToClipboard(trade.reference_code, 'reference')}
+                    className='inline-flex items-center gap-1 px-1.5 py-0.5 bg-red-100 dark:bg-red-800/50 rounded font-mono font-bold hover:bg-red-200 dark:hover:bg-red-700 transition-colors'
+                    title='Clique para copiar'
+                  >
+                    {trade.reference_code}
+                    {copiedField === 'reference' ? (
+                      <CheckCircle className='w-3 h-3 text-green-600' />
+                    ) : (
+                      <Copy className='w-3 h-3' />
+                    )}
+                  </button>{' '}
+                  na descrição da transferência.
                 </p>
               </div>
             </div>
