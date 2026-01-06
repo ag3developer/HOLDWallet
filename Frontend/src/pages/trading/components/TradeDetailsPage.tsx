@@ -26,8 +26,10 @@ import {
   Timer,
   FileText,
   Banknote,
+  Smartphone,
 } from 'lucide-react'
 import { apiClient } from '@/services/api'
+import { generateHoldPixQRCode, generateHoldPixPayload } from '@/utils/pixQrCode'
 import toast from 'react-hot-toast'
 
 // ============================================================================
@@ -157,6 +159,11 @@ export function TradeDetailsPage({
   const [timeRemaining, setTimeRemaining] = useState<string | null>(null)
   const [copiedField, setCopiedField] = useState<string | null>(null)
 
+  // PIX QR Code states
+  const [pixQrCode, setPixQrCode] = useState<string | null>(null)
+  const [pixPayload, setPixPayload] = useState<string | null>(null)
+  const [showPixQr, setShowPixQr] = useState(true) // Default to showing QR Code
+
   // Buscar detalhes da trade
   useEffect(() => {
     fetchTradeDetails()
@@ -185,6 +192,34 @@ export function TradeDetailsPage({
     const interval = setInterval(updateTimer, 1000)
     return () => clearInterval(interval)
   }, [trade?.expires_at, trade?.status])
+
+  // Gerar QR Code PIX quando necessário
+  useEffect(() => {
+    const generatePixQr = async () => {
+      // Só gera para trades TED/PIX pendentes
+      if (trade?.status !== 'PENDING') return
+      const method = trade.payment_method?.toLowerCase()
+      if (!method || !['ted', 'pix'].includes(method)) return
+
+      try {
+        // Usar o valor em BRL se disponível, senão converter de USD
+        const amount = trade.brl_total_amount ?? trade.total_amount
+        // Usar apenas o reference_code como txId (sem espaços ou caracteres especiais)
+        const txId = trade.reference_code
+
+        // Gerar QR Code e payload
+        const qrCode = await generateHoldPixQRCode(amount, txId)
+        const payload = generateHoldPixPayload(amount, txId)
+
+        setPixQrCode(qrCode)
+        setPixPayload(payload)
+      } catch (error) {
+        console.error('[TradeDetails] Error generating PIX QR:', error)
+      }
+    }
+
+    generatePixQr()
+  }, [trade?.id, trade?.status, trade?.brl_total_amount, trade?.total_amount])
 
   const fetchTradeDetails = async () => {
     setLoading(true)
@@ -467,132 +502,248 @@ export function TradeDetailsPage({
               <Building2 className='w-4 h-4' />
               Dados para Pagamento
             </h3>
-            <div className='bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-xl p-5 border border-blue-200 dark:border-blue-800'>
-              {/* PIX Key */}
-              {bankDetails.pix_key && trade.payment_method?.toLowerCase() === 'pix' && (
-                <div className='mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg'>
-                  <p className='text-xs text-gray-500 dark:text-gray-400 mb-1'>Chave PIX</p>
+
+            {/* Toggle PIX QR / TED */}
+            {pixQrCode && (
+              <div className='flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1'>
+                <button
+                  onClick={() => setShowPixQr(true)}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                    showPixQr
+                      ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                  }`}
+                >
+                  <Smartphone className='w-4 h-4' />
+                  PIX QR Code
+                </button>
+                <button
+                  onClick={() => setShowPixQr(false)}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                    showPixQr
+                      ? 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                      : 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                  }`}
+                >
+                  <Building2 className='w-4 h-4' />
+                  Dados Bancários
+                </button>
+              </div>
+            )}
+
+            {/* PIX QR Code Section */}
+            {showPixQr && pixQrCode && (
+              <div className='bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl p-5 border border-green-200 dark:border-green-800'>
+                <div className='text-center'>
+                  <p className='text-sm text-gray-600 dark:text-gray-400 mb-4'>
+                    Escaneie o QR Code com o app do seu banco
+                  </p>
+
+                  {/* QR Code Image */}
+                  <div className='inline-block p-4 bg-white rounded-xl shadow-lg'>
+                    <img src={pixQrCode} alt='PIX QR Code' className='w-48 h-48 mx-auto' />
+                  </div>
+
+                  {/* Valor */}
+                  <div className='mt-4 p-3 bg-green-100 dark:bg-green-900/30 rounded-lg'>
+                    <p className='text-xs text-green-700 dark:text-green-400 mb-1'>
+                      Valor a ser pago
+                    </p>
+                    <p className='text-2xl font-bold text-green-800 dark:text-green-300'>
+                      {trade?.brl_total_amount
+                        ? formatBRL(trade.brl_total_amount)
+                        : formatUSD(trade?.total_amount ?? 0)}
+                    </p>
+                  </div>
+
+                  {/* PIX Copia e Cola */}
+                  {pixPayload && (
+                    <div className='mt-4'>
+                      <p className='text-xs text-gray-500 dark:text-gray-400 mb-2'>
+                        Ou copie o código PIX:
+                      </p>
+                      <button
+                        onClick={() => copyToClipboard(pixPayload, 'pixPayload')}
+                        className='w-full flex items-center justify-center gap-2 py-3 px-4 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors'
+                      >
+                        {copiedField === 'pixPayload' ? (
+                          <>
+                            <CheckCircle className='w-5 h-5' />
+                            Copiado!
+                          </>
+                        ) : (
+                          <>
+                            <Copy className='w-5 h-5' />
+                            PIX Copia e Cola
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Chave PIX */}
+                  <div className='mt-4 pt-4 border-t border-green-200 dark:border-green-700'>
+                    <p className='text-xs text-gray-500 dark:text-gray-400'>
+                      Chave PIX (CNPJ):{' '}
+                      <span className='font-mono font-medium'>24.275.355/0001-51</span>
+                    </p>
+                    <p className='text-xs text-gray-500 dark:text-gray-400'>
+                      HOLD DIGITAL ASSETS LTDA
+                    </p>
+                  </div>
+                </div>
+
+                {/* Aviso com código de referência */}
+                <div className='mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800'>
+                  <p className='text-xs text-yellow-700 dark:text-yellow-400'>
+                    <strong>Importante:</strong> Use o código{' '}
+                    <button
+                      onClick={() => copyToClipboard(trade?.reference_code ?? '', 'reference')}
+                      className='inline-flex items-center gap-1 px-1.5 py-0.5 bg-yellow-100 dark:bg-yellow-800/50 rounded font-mono font-bold hover:bg-yellow-200 dark:hover:bg-yellow-700 transition-colors'
+                      title='Clique para copiar'
+                    >
+                      {trade?.reference_code}
+                      {copiedField === 'reference' ? (
+                        <CheckCircle className='w-3 h-3 text-green-600' />
+                      ) : (
+                        <Copy className='w-3 h-3' />
+                      )}
+                    </button>{' '}
+                    na descrição do PIX.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Bank Details Section (TED) */}
+            {(!pixQrCode || !showPixQr) && (
+              <div className='bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-xl p-5 border border-blue-200 dark:border-blue-800'>
+                {/* PIX Key */}
+                {bankDetails.pix_key && trade.payment_method?.toLowerCase() === 'pix' && (
+                  <div className='mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg'>
+                    <p className='text-xs text-gray-500 dark:text-gray-400 mb-1'>Chave PIX</p>
+                    <div className='flex items-center justify-between'>
+                      <span className='font-mono text-lg font-semibold text-gray-900 dark:text-white'>
+                        {bankDetails.pix_key}
+                      </span>
+                      <button
+                        onClick={() => copyToClipboard(bankDetails.pix_key!, 'pix')}
+                        className='p-2 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg transition-colors'
+                      >
+                        {copiedField === 'pix' ? (
+                          <CheckCircle className='w-5 h-5 text-green-600' />
+                        ) : (
+                          <Copy className='w-5 h-5' />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Bank Details Grid */}
+                <div className='grid grid-cols-2 gap-4'>
+                  <BankDetailItem
+                    label='Banco'
+                    value={`${bankDetails.bank_name} (${bankDetails.bank_code})`}
+                    onCopy={() => copyToClipboard(bankDetails.bank_code, 'bank')}
+                    copied={copiedField === 'bank'}
+                  />
+                  <BankDetailItem
+                    label='Agência'
+                    value={bankDetails.agency}
+                    onCopy={() => copyToClipboard(bankDetails.agency, 'agency')}
+                    copied={copiedField === 'agency'}
+                  />
+                  <BankDetailItem
+                    label='Conta'
+                    value={bankDetails.account}
+                    onCopy={() => copyToClipboard(bankDetails.account, 'account')}
+                    copied={copiedField === 'account'}
+                  />
+                  <BankDetailItem
+                    label='Tipo'
+                    value={bankDetails.account_type}
+                    onCopy={() => copyToClipboard(bankDetails.account_type, 'type')}
+                    copied={copiedField === 'type'}
+                  />
+                  <div className='col-span-2'>
+                    <BankDetailItem
+                      label='Titular'
+                      value={bankDetails.holder_name}
+                      onCopy={() => copyToClipboard(bankDetails.holder_name, 'holder')}
+                      copied={copiedField === 'holder'}
+                    />
+                  </div>
+                  <div className='col-span-2'>
+                    <BankDetailItem
+                      label='CNPJ'
+                      value={bankDetails.holder_document}
+                      onCopy={() => copyToClipboard(bankDetails.holder_document, 'doc')}
+                      copied={copiedField === 'doc'}
+                    />
+                  </div>
+                </div>
+
+                {/* Valor a transferir - usar brl_total_amount se disponível */}
+                <div className='mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800'>
+                  <p className='text-xs text-yellow-700 dark:text-yellow-400 mb-1'>
+                    Valor a ser transferido (BRL)
+                  </p>
                   <div className='flex items-center justify-between'>
-                    <span className='font-mono text-lg font-semibold text-gray-900 dark:text-white'>
-                      {bankDetails.pix_key}
+                    <span className='text-2xl font-bold text-yellow-800 dark:text-yellow-300'>
+                      {trade.brl_total_amount
+                        ? formatBRL(trade.brl_total_amount)
+                        : `${formatUSD(trade.total_amount)} (USD)`}
                     </span>
                     <button
-                      onClick={() => copyToClipboard(bankDetails.pix_key!, 'pix')}
-                      className='p-2 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg transition-colors'
+                      onClick={() =>
+                        copyToClipboard(
+                          (trade.brl_total_amount ?? trade.total_amount).toFixed(2),
+                          'amount'
+                        )
+                      }
+                      className='p-2 text-yellow-700 hover:bg-yellow-100 dark:hover:bg-yellow-900/30 rounded-lg transition-colors'
                     >
-                      {copiedField === 'pix' ? (
+                      {copiedField === 'amount' ? (
                         <CheckCircle className='w-5 h-5 text-green-600' />
                       ) : (
                         <Copy className='w-5 h-5' />
                       )}
                     </button>
                   </div>
+                  {trade.usd_to_brl_rate && (
+                    <p className='text-xs text-yellow-600 dark:text-yellow-500 mt-1'>
+                      Taxa USD/BRL: {trade.usd_to_brl_rate.toFixed(4)}
+                    </p>
+                  )}
+                  {!trade.brl_total_amount && (
+                    <p className='text-xs text-orange-600 dark:text-orange-400 mt-1'>
+                      ⚠️ Converta para BRL usando a cotação atual do dólar
+                    </p>
+                  )}
                 </div>
-              )}
 
-              {/* Bank Details Grid */}
-              <div className='grid grid-cols-2 gap-4'>
-                <BankDetailItem
-                  label='Banco'
-                  value={`${bankDetails.bank_name} (${bankDetails.bank_code})`}
-                  onCopy={() => copyToClipboard(bankDetails.bank_code, 'bank')}
-                  copied={copiedField === 'bank'}
-                />
-                <BankDetailItem
-                  label='Agência'
-                  value={bankDetails.agency}
-                  onCopy={() => copyToClipboard(bankDetails.agency, 'agency')}
-                  copied={copiedField === 'agency'}
-                />
-                <BankDetailItem
-                  label='Conta'
-                  value={bankDetails.account}
-                  onCopy={() => copyToClipboard(bankDetails.account, 'account')}
-                  copied={copiedField === 'account'}
-                />
-                <BankDetailItem
-                  label='Tipo'
-                  value={bankDetails.account_type}
-                  onCopy={() => copyToClipboard(bankDetails.account_type, 'type')}
-                  copied={copiedField === 'type'}
-                />
-                <div className='col-span-2'>
-                  <BankDetailItem
-                    label='Titular'
-                    value={bankDetails.holder_name}
-                    onCopy={() => copyToClipboard(bankDetails.holder_name, 'holder')}
-                    copied={copiedField === 'holder'}
-                  />
-                </div>
-                <div className='col-span-2'>
-                  <BankDetailItem
-                    label='CNPJ'
-                    value={bankDetails.holder_document}
-                    onCopy={() => copyToClipboard(bankDetails.holder_document, 'doc')}
-                    copied={copiedField === 'doc'}
-                  />
-                </div>
-              </div>
-
-              {/* Valor a transferir - usar brl_total_amount se disponível */}
-              <div className='mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800'>
-                <p className='text-xs text-yellow-700 dark:text-yellow-400 mb-1'>
-                  Valor a ser transferido (BRL)
-                </p>
-                <div className='flex items-center justify-between'>
-                  <span className='text-2xl font-bold text-yellow-800 dark:text-yellow-300'>
-                    {trade.brl_total_amount
-                      ? formatBRL(trade.brl_total_amount)
-                      : `${formatUSD(trade.total_amount)} (USD)`}
-                  </span>
-                  <button
-                    onClick={() =>
-                      copyToClipboard(
-                        (trade.brl_total_amount ?? trade.total_amount).toFixed(2),
-                        'amount'
-                      )
-                    }
-                    className='p-2 text-yellow-700 hover:bg-yellow-100 dark:hover:bg-yellow-900/30 rounded-lg transition-colors'
-                  >
-                    {copiedField === 'amount' ? (
-                      <CheckCircle className='w-5 h-5 text-green-600' />
-                    ) : (
-                      <Copy className='w-5 h-5' />
-                    )}
-                  </button>
-                </div>
-                {trade.usd_to_brl_rate && (
-                  <p className='text-xs text-yellow-600 dark:text-yellow-500 mt-1'>
-                    Taxa USD/BRL: {trade.usd_to_brl_rate.toFixed(4)}
+                {/* Aviso importante */}
+                <div className='mt-4 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800'>
+                  <p className='text-xs text-red-700 dark:text-red-400'>
+                    <strong>Importante:</strong> Transfira exatamente o valor indicado. Use o código{' '}
+                    <button
+                      onClick={() => copyToClipboard(trade.reference_code, 'reference')}
+                      className='inline-flex items-center gap-1 px-1.5 py-0.5 bg-red-100 dark:bg-red-800/50 rounded font-mono font-bold hover:bg-red-200 dark:hover:bg-red-700 transition-colors'
+                      title='Clique para copiar'
+                    >
+                      {trade.reference_code}
+                      {copiedField === 'reference' ? (
+                        <CheckCircle className='w-3 h-3 text-green-600' />
+                      ) : (
+                        <Copy className='w-3 h-3' />
+                      )}
+                    </button>{' '}
+                    na descrição da transferência.
                   </p>
-                )}
-                {!trade.brl_total_amount && (
-                  <p className='text-xs text-orange-600 dark:text-orange-400 mt-1'>
-                    ⚠️ Converta para BRL usando a cotação atual do dólar
-                  </p>
-                )}
+                </div>
               </div>
-
-              {/* Aviso importante */}
-              <div className='mt-4 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800'>
-                <p className='text-xs text-red-700 dark:text-red-400'>
-                  <strong>Importante:</strong> Transfira exatamente o valor indicado. Use o código{' '}
-                  <button
-                    onClick={() => copyToClipboard(trade.reference_code, 'reference')}
-                    className='inline-flex items-center gap-1 px-1.5 py-0.5 bg-red-100 dark:bg-red-800/50 rounded font-mono font-bold hover:bg-red-200 dark:hover:bg-red-700 transition-colors'
-                    title='Clique para copiar'
-                  >
-                    {trade.reference_code}
-                    {copiedField === 'reference' ? (
-                      <CheckCircle className='w-3 h-3 text-green-600' />
-                    ) : (
-                      <Copy className='w-3 h-3' />
-                    )}
-                  </button>{' '}
-                  na descrição da transferência.
-                </p>
-              </div>
-            </div>
+            )}
           </div>
         )}
 

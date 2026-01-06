@@ -80,12 +80,16 @@ export function TradingForm({
   const [amount, setAmount] = useState('')
   const [loading, setLoading] = useState(false)
   const [lastQuoteTime, setLastQuoteTime] = useState<number>(0)
+  const [lastQuotedAmount, setLastQuotedAmount] = useState<string>('') // Rastrear valor cotado
   const [secondsRemaining, setSecondsRemaining] = useState(0)
   const [walletBalance, setWalletBalance] = useState<number>(0)
   const [allBalances, setAllBalances] = useState<Record<string, number>>({})
+  const [isTyping, setIsTyping] = useState(false) // Indicador de digitação
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const QUOTE_VALIDITY_MS = 60000 // 60 segundos
+  const DEBOUNCE_MS = 1200 // Aumentado para 1.2s para dar mais tempo ao usuário
 
   // Fetch wallet balances on component mount
   useEffect(() => {
@@ -245,23 +249,33 @@ export function TradingForm({
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current)
     }
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current)
+    }
 
-    // If no valid amount, don't fetch
+    // If no valid amount, reset typing state and don't fetch
     if (!amount || Number(amount) <= 0) {
+      setIsTyping(false)
       return
     }
 
-    // Check if we have a recent quote (less than 60 seconds old)
+    // Marcar que usuário está digitando
+    setIsTyping(true)
+
+    // NOVA LÓGICA: Permitir re-cotar se o valor mudou, mesmo com quote válida
     const now = Date.now()
     const timeSinceLastQuote = now - lastQuoteTime
+    const amountChanged = amount !== lastQuotedAmount
 
-    if (timeSinceLastQuote < QUOTE_VALIDITY_MS) {
-      // Quote is still valid, don't fetch again
+    // Se o valor NÃO mudou e a quote ainda é válida, não re-cotar
+    if (!amountChanged && timeSinceLastQuote < QUOTE_VALIDITY_MS) {
+      setIsTyping(false)
       return
     }
 
-    // Set timeout to fetch quote after user stops typing (800ms)
+    // Set timeout to fetch quote after user stops typing (DEBOUNCE_MS)
     timeoutRef.current = setTimeout(async () => {
+      setIsTyping(false) // Parou de digitar
       setLoading(true)
       try {
         // Backend espera valores em USD, então precisamos converter BRL/EUR → USD
@@ -309,6 +323,7 @@ export function TradingForm({
 
         onQuoteReceived(enrichedQuote)
         setLastQuoteTime(Date.now())
+        setLastQuotedAmount(amount) // Salvar o valor que foi cotado
       } catch (error: any) {
         // Usar o novo sistema de tratamento de erros
         const parsedError = parseApiError(error)
@@ -323,14 +338,17 @@ export function TradingForm({
       } finally {
         setLoading(false)
       }
-    }, 800)
+    }, DEBOUNCE_MS) // Usar debounce configurável (1.2s)
 
     return () => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current)
       }
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current)
+      }
     }
-  }, [amount, selectedSymbol, isBuy, onQuoteReceived, lastQuoteTime])
+  }, [amount, selectedSymbol, isBuy, onQuoteReceived, lastQuoteTime, lastQuotedAmount])
 
   return (
     <div className='bg-white dark:bg-gray-800 rounded-lg shadow'>
@@ -341,6 +359,8 @@ export function TradingForm({
             onClick={() => {
               onOperationChange(true)
               setAmount('')
+              setLastQuotedAmount('') // Reset valor cotado
+              setLastQuoteTime(0)
             }}
             className={`flex-1 px-2 py-2 rounded text-sm font-medium transition-colors ${
               isBuy
@@ -354,6 +374,8 @@ export function TradingForm({
             onClick={() => {
               onOperationChange(false)
               setAmount('')
+              setLastQuotedAmount('') // Reset valor cotado
+              setLastQuoteTime(0)
             }}
             className={`flex-1 px-2 py-2 rounded text-sm font-medium transition-colors ${
               isBuy
@@ -464,7 +486,21 @@ export function TradingForm({
         {loading && (
           <div className='flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-700'>
             <div className='animate-spin rounded-full h-3 w-3 border-2 border-blue-600 border-t-transparent' />
-            <span className='text-xs text-blue-700 dark:text-blue-400'>Fetching quote...</span>
+            <span className='text-xs text-blue-700 dark:text-blue-400'>Buscando cotação...</span>
+          </div>
+        )}
+
+        {/* Typing Indicator - Show when user is typing */}
+        {isTyping && !loading && amount && Number(amount) > 0 && (
+          <div className='flex items-center gap-2 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded border border-yellow-200 dark:border-yellow-700'>
+            <div className='flex gap-1'>
+              <span className='w-1.5 h-1.5 bg-yellow-500 rounded-full animate-pulse' />
+              <span className='w-1.5 h-1.5 bg-yellow-500 rounded-full animate-pulse' />
+              <span className='w-1.5 h-1.5 bg-yellow-500 rounded-full animate-pulse' />
+            </div>
+            <span className='text-xs text-yellow-700 dark:text-yellow-400'>
+              Aguardando você terminar de digitar...
+            </span>
           </div>
         )}
 
@@ -485,14 +521,6 @@ export function TradingForm({
             <span className='text-xs text-red-700 dark:text-red-400'>
               Insufficient balance. You have {walletBalance.toFixed(8)} {selectedSymbol}
             </span>
-          </div>
-        )}
-
-        {/* Status Message when loading */}
-        {loading && (
-          <div className='flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-700'>
-            <div className='animate-spin rounded-full h-3 w-3 border-2 border-blue-600 border-t-transparent' />
-            <span className='text-xs text-blue-700 dark:text-blue-400'>Fetching quote...</span>
           </div>
         )}
 
