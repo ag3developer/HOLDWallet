@@ -171,6 +171,12 @@ export function InstantTradePage() {
     setQuote(null)
   }
 
+  const handleRefreshQuote = () => {
+    // Go back to trading form to get a new quote
+    setShowConfirmation(false)
+    setQuote(null)
+  }
+
   // Update quote if price changed
   useEffect(() => {
     if (quote) {
@@ -202,6 +208,7 @@ export function InstantTradePage() {
           quote={quote}
           onBack={() => setShowConfirmation(false)}
           onSuccess={handleConfirmSuccess}
+          onRefreshQuote={handleRefreshQuote}
         />
       ) : (
         <div className='space-y-6'>

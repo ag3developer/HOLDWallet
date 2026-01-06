@@ -297,9 +297,12 @@ export function QuoteDisplay({ quote, onConfirmClick }: QuoteDisplayProps) {
       {/* Confirm Button */}
       <button
         onClick={onConfirmClick}
-        className='w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium py-1.5 rounded transition-colors'
+        disabled={timeLeft <= 0}
+        className={`w-full text-white text-xs font-medium py-1.5 rounded transition-colors ${
+          timeLeft <= 0 ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
+        }`}
       >
-        Confirm & Continue
+        {timeLeft <= 0 ? 'Quote Expired - Get New Quote' : 'Confirm & Continue'}
       </button>
     </div>
   )

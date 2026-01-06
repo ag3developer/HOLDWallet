@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   CheckCircle,
   Loader,
@@ -7,6 +7,10 @@ import {
   CreditCard,
   Building2,
   Wallet,
+  Clock,
+  AlertTriangle,
+  RefreshCw,
+  ClipboardList,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { apiClient } from '@/services/api'
@@ -32,6 +36,7 @@ interface ConfirmationPanelProps {
   readonly quote: Quote
   readonly onBack: () => void
   readonly onSuccess: (tradeId: string) => void
+  readonly onRefreshQuote?: () => void
 }
 
 const PAYMENT_METHODS = [
@@ -41,21 +46,53 @@ const PAYMENT_METHODS = [
   { id: 'debit_card', name: 'Debit Card', icon: Wallet },
 ]
 
-export function ConfirmationPanel({ quote, onBack, onSuccess }: ConfirmationPanelProps) {
+export function ConfirmationPanel({
+  quote,
+  onBack,
+  onSuccess,
+  onRefreshQuote,
+}: ConfirmationPanelProps) {
   const { formatCurrency } = useCurrencyStore()
   const [selectedPayment, setSelectedPayment] = useState('pix')
   const [loading, setLoading] = useState(false)
   const [tradeCreated, setTradeCreated] = useState<string | null>(null)
   const [pendingProof, setPendingProof] = useState(false)
   const [bankDetails, setBankDetails] = useState<any>(null)
+  const [timeLeft, setTimeLeft] = useState(quote.expires_in_seconds || 30)
+  const [quoteExpired, setQuoteExpired] = useState(false)
+
+  // Timer countdown for quote expiration
+  useEffect(() => {
+    if (tradeCreated) return // Don't run timer if trade is already created
+
+    const timer = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          setQuoteExpired(true)
+          clearInterval(timer)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [quote.quote_id, tradeCreated])
 
   const createTrade = async () => {
     setLoading(true)
     try {
+      console.log('[ConfirmationPanel] Creating trade with:', {
+        quote_id: quote.quote_id,
+        payment_method: selectedPayment,
+      })
+
       const response = await apiClient.post('/instant-trade/create', {
         quote_id: quote.quote_id,
         payment_method: selectedPayment,
       })
+
+      console.log('[ConfirmationPanel] Trade created successfully:', response.data)
 
       // If TED, check for bank details
       if (selectedPayment === 'ted' && response.data.bank_details) {
@@ -70,6 +107,8 @@ export function ConfirmationPanel({ quote, onBack, onSuccess }: ConfirmationPane
       setTradeCreated(tradeId)
       onSuccess(tradeId)
     } catch (error: any) {
+      console.error('[ConfirmationPanel] Error creating trade:', error.response?.data)
+
       // Handle 403 Forbidden - trade was created but waiting for proof of payment
       if (error.response?.status === 403) {
         // Extract trade ID from error response (backend should include it)
@@ -83,9 +122,17 @@ export function ConfirmationPanel({ quote, onBack, onSuccess }: ConfirmationPane
         // Call onSuccess to update parent component
         onSuccess(tradeId)
       } else {
-        toast.error(
-          error.response?.data?.detail || error.response?.data?.message || 'Error creating trade'
-        )
+        // Check for quote expired error
+        const errorDetail = error.response?.data?.detail || error.response?.data?.message || ''
+
+        if (
+          errorDetail.toLowerCase().includes('expired') ||
+          errorDetail.toLowerCase().includes('quote')
+        ) {
+          toast.error('Quote expired. Please get a new quote and try again.')
+        } else {
+          toast.error(errorDetail || 'Error creating trade. Please try again.')
+        }
       }
     } finally {
       setLoading(false)
@@ -367,7 +414,53 @@ export function ConfirmationPanel({ quote, onBack, onSuccess }: ConfirmationPane
           </div>
         </div>
 
-        {/* Bank Transfer Details - Conditional Display */}
+        {/* Bank Transfer Details - Show BEFORE confirming for TED */}
+        {selectedPayment === 'ted' && (
+          <div className='bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg p-3 space-y-2'>
+            <p className='text-xs font-semibold text-amber-900 dark:text-amber-100 flex items-center gap-1'>
+              <ClipboardList className='w-3 h-3' />
+              Transfer to this account after confirming:
+            </p>
+            <div className='space-y-1 text-xs'>
+              <div className='flex justify-between'>
+                <span className='text-gray-600 dark:text-gray-400'>Bank:</span>
+                <span className='font-medium text-gray-900 dark:text-white'>
+                  Banco do Brasil (001)
+                </span>
+              </div>
+              <div className='flex justify-between'>
+                <span className='text-gray-600 dark:text-gray-400'>CNPJ:</span>
+                <span className='font-mono text-gray-900 dark:text-white'>24.275.355/0001-51</span>
+              </div>
+              <div className='flex justify-between'>
+                <span className='text-gray-600 dark:text-gray-400'>Agency:</span>
+                <span className='font-mono text-gray-900 dark:text-white'>5271-0</span>
+              </div>
+              <div className='flex justify-between'>
+                <span className='text-gray-600 dark:text-gray-400'>Account:</span>
+                <span className='font-mono text-gray-900 dark:text-white'>26689-2</span>
+              </div>
+              <div className='flex justify-between'>
+                <span className='text-gray-600 dark:text-gray-400'>Holder:</span>
+                <span className='font-medium text-gray-900 dark:text-white'>
+                  HOLD DIGITAL ASSETS LTDA
+                </span>
+              </div>
+              <div className='flex justify-between border-t border-amber-200 dark:border-amber-700 pt-1 mt-1'>
+                <span className='text-gray-600 dark:text-gray-400'>Amount:</span>
+                <span className='font-bold text-amber-700 dark:text-amber-300'>
+                  {formatValue(quote.total_amount ?? quote.fiat_amount ?? 0)}
+                </span>
+              </div>
+            </div>
+            <p className='text-xs text-amber-700 dark:text-amber-300 mt-2 flex items-center gap-1'>
+              <AlertTriangle className='w-3 h-3' />
+              After confirming, you have 15 minutes to complete the transfer and upload the receipt.
+            </p>
+          </div>
+        )}
+
+        {/* Legacy Bank Transfer Details - After trade created */}
         {selectedPayment === 'ted' && bankDetails && (
           <div className='bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-3 space-y-2'>
             <p className='text-xs font-semibold text-blue-900 dark:text-blue-100'>
@@ -414,6 +507,56 @@ export function ConfirmationPanel({ quote, onBack, onSuccess }: ConfirmationPane
           </span>
         </div>
 
+        {/* Quote Expiration Timer */}
+        {!tradeCreated && (
+          <div
+            className={`p-3 rounded text-xs flex items-center justify-between ${
+              quoteExpired
+                ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700'
+                : timeLeft <= 10
+                  ? 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700'
+                  : 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700'
+            }`}
+          >
+            <div className='flex items-center gap-2'>
+              {quoteExpired ? (
+                <>
+                  <AlertTriangle className='w-4 h-4 text-red-600 dark:text-red-400' />
+                  <span className='font-medium text-red-700 dark:text-red-300'>Quote Expired</span>
+                </>
+              ) : (
+                <>
+                  <Clock
+                    className={`w-4 h-4 ${
+                      timeLeft <= 10
+                        ? 'text-amber-600 dark:text-amber-400'
+                        : 'text-green-600 dark:text-green-400'
+                    }`}
+                  />
+                  <span
+                    className={`font-medium ${
+                      timeLeft <= 10
+                        ? 'text-amber-700 dark:text-amber-300'
+                        : 'text-green-700 dark:text-green-300'
+                    }`}
+                  >
+                    Quote valid for: {timeLeft}s
+                  </span>
+                </>
+              )}
+            </div>
+            {quoteExpired && onRefreshQuote && (
+              <button
+                onClick={onRefreshQuote}
+                className='flex items-center gap-1 px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs transition-colors'
+              >
+                <RefreshCw className='w-3 h-3' />
+                New Quote
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Action Buttons - Smaller */}
         <div className='flex gap-2 pt-3 border-t border-gray-200 dark:border-gray-700'>
           <button
@@ -425,13 +568,22 @@ export function ConfirmationPanel({ quote, onBack, onSuccess }: ConfirmationPane
           </button>
           <button
             onClick={createTrade}
-            disabled={loading}
-            className='flex-1 px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-1 transition-colors'
+            disabled={loading || quoteExpired}
+            className={`flex-1 px-3 py-1.5 text-xs rounded disabled:cursor-not-allowed flex items-center justify-center gap-1 transition-colors ${
+              quoteExpired
+                ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                : 'bg-blue-600 hover:bg-blue-700 text-white disabled:bg-gray-400'
+            }`}
           >
             {loading ? (
               <>
                 <Loader className='w-3 h-3 animate-spin' />
                 <span>Processing</span>
+              </>
+            ) : quoteExpired ? (
+              <>
+                <AlertTriangle className='w-3 h-3' />
+                <span>Quote Expired - Get New Quote</span>
               </>
             ) : (
               <>

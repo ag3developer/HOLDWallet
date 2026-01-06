@@ -126,6 +126,8 @@ async def create_trade(
     - Expiration time (15 minutes)
     """
     try:
+        logger.info(f"Creating trade: quote_id={request.quote_id}, payment_method={request.payment_method}, user_id={current_user.id}")
+        
         service = get_instant_trade_service(db)
         
         # Use str(current_user.id) to get the user ID
