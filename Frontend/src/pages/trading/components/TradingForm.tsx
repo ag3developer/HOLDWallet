@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { Calculator } from 'lucide-react'
 import { TradingLimitsDisplay } from './TradingLimitsDisplay'
 import { CryptoSelector } from './CryptoSelector'
+import { CurrencyCalculator } from './CurrencyCalculator'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { apiClient } from '@/services/api'
 import { toUSD } from '@/services/currency'
@@ -64,6 +66,7 @@ export function TradingForm({
   const [walletBalance, setWalletBalance] = useState<number>(0)
   const [allBalances, setAllBalances] = useState<Record<string, number>>({})
   const [isTyping, setIsTyping] = useState(false) // Indicador de digitação
+  const [isCalculatorOpen, setIsCalculatorOpen] = useState(false) // Modal calculadora
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -382,13 +385,29 @@ export function TradingForm({
         {/* Amount Input */}
         <div>
           <div className='flex items-center justify-between mb-2'>
-            <label className='block text-sm font-medium text-gray-700 dark:text-gray-300'>
-              Amount ({isBuy ? currency : selectedSymbol})
-            </label>
+            <div className='flex items-center gap-2'>
+              <label className='block text-sm font-medium text-gray-700 dark:text-gray-300'>
+                Amount ({isBuy ? currency : selectedSymbol})
+              </label>
+              {/* Calculator Button */}
+              {isBuy && (
+                <button
+                  type='button'
+                  onClick={() => setIsCalculatorOpen(true)}
+                  className='p-1 rounded-md bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 
+                           dark:hover:bg-gray-600 transition-colors group'
+                  title='Abrir calculadora de conversão'
+                  aria-label='Abrir calculadora de conversão de moedas'
+                >
+                  <Calculator className='w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400' />
+                </button>
+              )}
+            </div>
             {!isBuy && (
               <div className='flex items-center gap-2'>
                 {walletBalance > 0 ? (
                   <button
+                    type='button'
                     onClick={() => {
                       setAmount(walletBalance.toString())
                       setLastQuoteTime(0)
@@ -499,6 +518,18 @@ export function TradingForm({
             )
           })()}
       </div>
+
+      {/* Currency Calculator Modal */}
+      <CurrencyCalculator
+        isOpen={isCalculatorOpen}
+        onClose={() => setIsCalculatorOpen(false)}
+        initialCurrency={currency}
+        onSelectAmount={(value, _selectedCurrency) => {
+          // Usar o valor selecionado diretamente no campo
+          setAmount(value.toFixed(2))
+          setLastQuoteTime(0) // Forçar nova cotação
+        }}
+      />
     </div>
   )
 }
