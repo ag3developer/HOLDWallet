@@ -19,7 +19,12 @@ else:
         settings.DATABASE_URL,
         echo=settings.DEBUG,
         pool_pre_ping=True,
-        pool_recycle=3600
+        pool_recycle=3600,
+        pool_timeout=10,  # Wait max 10 seconds for connection from pool
+        connect_args={
+            "connect_timeout": 10,  # Connection timeout in seconds
+            "options": "-c statement_timeout=30000"  # 30 second query timeout
+        }
     )
 
 # Create SessionLocal class

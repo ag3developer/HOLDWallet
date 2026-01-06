@@ -49,7 +49,7 @@ class QuoteResponse(BaseModel):
     expires_in_seconds: int = Field(default=30, description="Cotação válida por N segundos")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "quote_id": "quote_123456",
                 "operation": "buy",
@@ -78,7 +78,7 @@ class CreateTradeRequest(BaseModel):
     usd_to_brl_rate: Optional[Decimal] = Field(None, description="Taxa USD/BRL usada na conversão")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "quote_id": "quote_123456",
                 "payment_method": "pix",
@@ -116,7 +116,7 @@ class TradeStatusResponse(BaseModel):
     created_at: datetime
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "trade_id": "trade_uuid_123",
                 "reference_code": "OTC-2025-000123",
@@ -149,7 +149,7 @@ class TradeListResponse(BaseModel):
     completed_at: Optional[datetime] = None
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "trade_id": "trade_uuid_123",
                 "reference_code": "OTC-2025-000123",
@@ -171,7 +171,7 @@ class TradeHistoryResponse(BaseModel):
     current_status: str
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "status_changes": [
                     {

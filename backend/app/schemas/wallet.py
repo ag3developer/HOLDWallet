@@ -87,7 +87,7 @@ class WalletWithMnemonic(WalletResponse):
     
     class Config:
         from_attributes = True
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "id": "d01af195-b535-4dcb-9eab-f0ae58910a1d",
                 "name": "My Bitcoin Wallet", 

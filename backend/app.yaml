@@ -1,6 +1,8 @@
 name: wolknow-backend
 services:
   - name: backend
+    environment:
+      python_version: "3.11"
     github:
       repo: ag3developer/HOLDWallet
       branch: main
@@ -72,11 +74,11 @@ services:
         value: https://blockstream.info/api
     health_check:
       http_path: /health
-      initial_delay_seconds: 10
-      period_seconds: 10
-      timeout_seconds: 5
+      initial_delay_seconds: 60
+      period_seconds: 15
+      timeout_seconds: 10
       success_threshold: 1
-      failure_threshold: 3
+      failure_threshold: 5
 databases:
   - name: wolknow-postgres
     engine: PG

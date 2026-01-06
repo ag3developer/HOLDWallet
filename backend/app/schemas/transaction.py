@@ -16,7 +16,7 @@ class TransactionCreateRequest(BaseModel):
     token_address: Optional[str] = Field(None, description="Endereço do token (para ERC-20/BEP-20)")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "from_address": "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
                 "to_address": "1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2",
