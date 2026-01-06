@@ -20,6 +20,7 @@ from app.core.db import get_db
 from app.core.security import get_current_admin
 from app.models.user import User
 from app.models.instant_trade import InstantTrade, TradeStatus, InstantTradeHistory
+from app.models.accounting import AccountingEntry  # Enums não são mais usados
 
 logger = logging.getLogger(__name__)
 
@@ -214,6 +215,10 @@ async def get_trade_detail(
                 detail=f"Trade {trade_id} não encontrado"
             )
         
+        # Buscar username do usuário
+        user = db.query(User).filter(User.id == trade.user_id).first()
+        username = user.username if user else "Unknown"
+        
         # Buscar histórico
         history = db.query(InstantTradeHistory).filter(
             InstantTradeHistory.trade_id == trade_id
@@ -234,6 +239,7 @@ async def get_trade_detail(
                 "id": trade.id,
                 "reference_code": trade.reference_code,
                 "user_id": trade.user_id,
+                "username": username,
                 "operation_type": trade.operation_type.value,
                 "symbol": trade.symbol,
                 "name": trade.name,
@@ -324,6 +330,524 @@ async def cancel_trade(
     except Exception as e:
         db.rollback()
         logger.error(f"❌ Erro cancelando trade: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+# ===== NOVAS AÇÕES DE ADMIN =====
+
+class UpdateStatusRequest(BaseModel):
+    status: str
+    reason: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class ConfirmPaymentRequest(BaseModel):
+    network: Optional[str] = "polygon"
+    notes: Optional[str] = None
+
+
+class AccountingEntry(BaseModel):
+    trade_id: str
+    reference_code: str
+    type: str  # 'platform_fee', 'network_fee', 'spread'
+    amount: float
+    currency: str
+    description: str
+    created_at: datetime
+
+
+@router.patch("/{trade_id}/status", response_model=dict)
+async def update_trade_status(
+    trade_id: str,
+    request: UpdateStatusRequest,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin)
+):
+    """
+    Atualiza o status de um trade manualmente
+    Notifica o usuário sobre a mudança
+    """
+    try:
+        trade = db.query(InstantTrade).filter(
+            InstantTrade.id == trade_id
+        ).first()
+        
+        if not trade:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Trade {trade_id} não encontrado"
+            )
+        
+        # Validar novo status
+        try:
+            new_status = TradeStatus(request.status)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Status inválido: {request.status}"
+            )
+        
+        old_status = trade.status
+        trade.status = new_status
+        
+        # Atualizar timestamps conforme o status
+        if new_status == TradeStatus.COMPLETED:
+            trade.completed_at = datetime.now(timezone.utc)
+        elif new_status == TradeStatus.PAYMENT_CONFIRMED:
+            trade.payment_confirmed_at = datetime.now(timezone.utc)
+        
+        # Registrar histórico
+        history = InstantTradeHistory(
+            trade_id=trade.id,
+            old_status=old_status,
+            new_status=new_status,
+            reason=f"Status alterado por admin {current_admin.email}: {request.reason or 'Sem motivo informado'}",
+            history_details=request.notes
+        )
+        db.add(history)
+        db.commit()
+        db.refresh(trade)
+        
+        logger.info(f"📝 Admin {current_admin.email} alterou status do trade {trade.reference_code}: {old_status.value} -> {new_status.value}")
+        
+        # TODO: Notificar usuário via websocket/push
+        
+        # Retornar trade atualizado
+        history_items = []
+        for h in trade.history:
+            history_items.append({
+                "old_status": h.old_status.value if h.old_status else None,
+                "new_status": h.new_status.value if h.new_status else None,
+                "reason": h.reason,
+                "created_at": h.created_at.isoformat()
+            })
+        
+        return {
+            "success": True,
+            "message": f"Status alterado para {new_status.value}",
+            "trade": {
+                "id": trade.id,
+                "reference_code": trade.reference_code,
+                "status": trade.status.value,
+                "updated_at": trade.updated_at.isoformat() if trade.updated_at else None,
+                "history": history_items
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"❌ Erro atualizando status: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+@router.post("/{trade_id}/confirm-payment", response_model=dict)
+async def confirm_payment_and_deposit(
+    trade_id: str,
+    request: ConfirmPaymentRequest,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin)
+):
+    """
+    Confirma pagamento e dispara depósito blockchain automaticamente
+    """
+    from app.services.blockchain_deposit_service import blockchain_deposit_service
+    
+    try:
+        trade = db.query(InstantTrade).filter(
+            InstantTrade.id == trade_id
+        ).first()
+        
+        if not trade:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Trade {trade_id} não encontrado"
+            )
+        
+        # Validar status
+        if trade.status not in [TradeStatus.PENDING, TradeStatus.PAYMENT_PROCESSING]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Trade com status {trade.status.value} não pode ter pagamento confirmado"
+            )
+        
+        # Atualizar para PAYMENT_CONFIRMED
+        old_status = trade.status
+        trade.status = TradeStatus.PAYMENT_CONFIRMED
+        trade.payment_confirmed_at = datetime.now(timezone.utc)
+        
+        # Registrar histórico
+        history = InstantTradeHistory(
+            trade_id=trade.id,
+            old_status=old_status,
+            new_status=TradeStatus.PAYMENT_CONFIRMED,
+            reason=f"Pagamento confirmado por admin {current_admin.email}",
+            history_details=request.notes
+        )
+        db.add(history)
+        db.commit()
+        
+        logger.info(f"✅ Pagamento confirmado para trade {trade.reference_code}")
+        
+        # Disparar depósito blockchain
+        network = request.network or "polygon"
+        deposit_result = blockchain_deposit_service.deposit_crypto_to_user(
+            db=db,
+            trade=trade,
+            network=network
+        )
+        
+        if deposit_result["success"]:
+            # Registrar histórico de conclusão
+            history = InstantTradeHistory(
+                trade_id=trade.id,
+                old_status=TradeStatus.PAYMENT_CONFIRMED,
+                new_status=TradeStatus.COMPLETED,
+                reason=f"Crypto depositada por admin {current_admin.email}",
+                history_details=f"TX: {deposit_result['tx_hash']}"
+            )
+            db.add(history)
+            db.commit()
+            
+            return {
+                "success": True,
+                "message": "Pagamento confirmado e crypto depositada!",
+                "trade_id": trade.id,
+                "tx_hash": deposit_result.get("tx_hash"),
+                "wallet_address": deposit_result.get("wallet_address"),
+                "network": network,
+                "status": TradeStatus.COMPLETED.value
+            }
+        else:
+            return {
+                "success": False,
+                "message": "Pagamento confirmado mas depósito falhou",
+                "trade_id": trade.id,
+                "tx_hash": None,
+                "wallet_address": deposit_result.get("wallet_address"),
+                "network": network,
+                "status": TradeStatus.PAYMENT_CONFIRMED.value,
+                "error": deposit_result.get("error")
+            }
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"❌ Erro confirmando pagamento: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+@router.post("/{trade_id}/retry-deposit", response_model=dict)
+async def retry_trade_deposit(
+    trade_id: str,
+    network: Optional[str] = "polygon",
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin)
+):
+    """
+    Retry manual de depósito para trades que falharam
+    """
+    from app.services.blockchain_deposit_service import blockchain_deposit_service
+    
+    try:
+        trade = db.query(InstantTrade).filter(
+            InstantTrade.id == trade_id
+        ).first()
+        
+        if not trade:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Trade {trade_id} não encontrado"
+            )
+        
+        # Permite retry em PAYMENT_CONFIRMED ou FAILED
+        if trade.status not in [TradeStatus.PAYMENT_CONFIRMED, TradeStatus.FAILED]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Trade com status {trade.status.value} não pode fazer retry de depósito"
+            )
+        
+        # Se estiver FAILED, volta para PAYMENT_CONFIRMED
+        if trade.status == TradeStatus.FAILED:
+            trade.status = TradeStatus.PAYMENT_CONFIRMED
+            trade.error_message = None
+            db.commit()
+        
+        # Tenta depósito novamente
+        deposit_result = blockchain_deposit_service.deposit_crypto_to_user(
+            db=db,
+            trade=trade,
+            network=network or "polygon"
+        )
+        
+        if deposit_result["success"]:
+            logger.info(f"✅ Retry de depósito OK para {trade.reference_code}! TX: {deposit_result['tx_hash']}")
+            return {
+                "success": True,
+                "message": "Depósito concluído com sucesso",
+                "tx_hash": deposit_result["tx_hash"]
+            }
+        else:
+            logger.error(f"❌ Retry de depósito falhou: {deposit_result['error']}")
+            return {
+                "success": False,
+                "message": "Depósito falhou novamente",
+                "error": deposit_result["error"]
+            }
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Erro no retry: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+@router.post("/{trade_id}/send-to-accounting", response_model=dict)
+async def send_to_accounting(
+    trade_id: str,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin)
+):
+    """
+    Envia as comissões do trade para o sistema de contabilidade
+    Registra: spread, taxa de rede, e total de fees no banco de dados
+    """
+    try:
+        trade = db.query(InstantTrade).filter(
+            InstantTrade.id == trade_id
+        ).first()
+        
+        if not trade:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Trade {trade_id} não encontrado"
+            )
+        
+        # Só pode enviar para contabilidade trades completados
+        if trade.status != TradeStatus.COMPLETED:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Apenas trades concluídos podem ser enviados para contabilidade"
+            )
+        
+        # Verificar se já foi enviado para contabilidade
+        existing_entries = db.query(AccountingEntry).filter(
+            AccountingEntry.trade_id == trade_id
+        ).count()
+        
+        if existing_entries > 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Este trade já foi enviado para contabilidade"
+            )
+        
+        # Criar entradas contábeis no banco
+        entries_created = []
+        now = datetime.now(timezone.utc)
+        
+        # Spread
+        if trade.spread_amount and float(trade.spread_amount) > 0:
+            spread_entry = AccountingEntry(
+                trade_id=trade.id,
+                reference_code=trade.reference_code,
+                entry_type="spread",
+                amount=trade.spread_amount,
+                currency="BRL",
+                percentage=trade.spread_percentage,
+                base_amount=trade.fiat_amount,
+                description=f"Spread de {trade.spread_percentage}% do trade {trade.reference_code}",
+                status="processed",
+                user_id=trade.user_id,
+                created_by=current_admin.email,
+                created_at=now
+            )
+            db.add(spread_entry)
+            entries_created.append({
+                "type": "spread",
+                "amount": float(trade.spread_amount),
+                "percentage": float(trade.spread_percentage) if trade.spread_percentage else 0
+            })
+        
+        # Taxa de rede
+        if trade.network_fee_amount and float(trade.network_fee_amount) > 0:
+            network_entry = AccountingEntry(
+                trade_id=trade.id,
+                reference_code=trade.reference_code,
+                entry_type="network_fee",
+                amount=trade.network_fee_amount,
+                currency="BRL",
+                percentage=trade.network_fee_percentage,
+                base_amount=trade.fiat_amount,
+                description=f"Taxa de rede de {trade.network_fee_percentage}% do trade {trade.reference_code}",
+                status="processed",
+                user_id=trade.user_id,
+                created_by=current_admin.email,
+                created_at=now
+            )
+            db.add(network_entry)
+            entries_created.append({
+                "type": "network_fee",
+                "amount": float(trade.network_fee_amount),
+                "percentage": float(trade.network_fee_percentage) if trade.network_fee_percentage else 0
+            })
+        
+        # Total de fees da plataforma (resumo)
+        total_fees = float(trade.spread_amount or 0) + float(trade.network_fee_amount or 0)
+        if total_fees > 0:
+            total_entry = AccountingEntry(
+                trade_id=trade.id,
+                reference_code=trade.reference_code,
+                entry_type="platform_fee",
+                amount=total_fees,
+                currency="BRL",
+                base_amount=trade.fiat_amount,
+                description=f"Total de comissões da plataforma do trade {trade.reference_code}",
+                status="processed",
+                user_id=trade.user_id,
+                created_by=current_admin.email,
+                created_at=now
+            )
+            db.add(total_entry)
+            entries_created.append({
+                "type": "platform_fee",
+                "amount": total_fees
+            })
+        
+        logger.info(f"📊 Admin {current_admin.email} salvou {len(entries_created)} entradas contábeis do trade {trade.reference_code}")
+        
+        # Registrar no histórico do trade
+        history = InstantTradeHistory(
+            trade_id=trade.id,
+            old_status=trade.status,
+            new_status=trade.status,
+            reason=f"Comissões enviadas para contabilidade por {current_admin.email}",
+            history_details=f"Total de fees: R$ {total_fees:.2f}"
+        )
+        db.add(history)
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": f"Enviado para contabilidade! {len(entries_created)} registros criados.",
+            "entries": entries_created,
+            "total_fees": total_fees
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"❌ Erro enviando para contabilidade: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+
+@router.get("/{trade_id}/accounting", response_model=dict)
+async def get_trade_accounting_entries(
+    trade_id: str,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin)
+):
+    """
+    Retorna as entradas contábeis de um trade do banco de dados
+    """
+    try:
+        trade = db.query(InstantTrade).filter(
+            InstantTrade.id == trade_id
+        ).first()
+        
+        if not trade:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Trade {trade_id} não encontrado"
+            )
+        
+        # Buscar entradas do banco de dados
+        db_entries = db.query(AccountingEntry).filter(
+            AccountingEntry.trade_id == trade_id
+        ).order_by(AccountingEntry.created_at.desc()).all()
+        
+        # Se existem entradas no banco, retornar elas
+        if db_entries:
+            entries = []
+            for entry in db_entries:
+                entries.append({
+                    "id": entry.id,
+                    "trade_id": entry.trade_id,
+                    "reference_code": entry.reference_code,
+                    "type": entry.entry_type.value if entry.entry_type else None,
+                    "amount": float(entry.amount) if entry.amount else 0,
+                    "currency": entry.currency,
+                    "percentage": float(entry.percentage) if entry.percentage else None,
+                    "description": entry.description,
+                    "status": entry.status.value if entry.status else None,
+                    "created_by": entry.created_by,
+                    "created_at": entry.created_at.isoformat() if entry.created_at else None
+                })
+            
+            return {
+                "success": True,
+                "data": entries,
+                "saved_to_db": True
+            }
+        
+        # Se não existe no banco, calcular os valores esperados (preview)
+        entries = []
+        
+        if trade.spread_amount and float(trade.spread_amount) > 0:
+            entries.append({
+                "trade_id": trade.id,
+                "reference_code": trade.reference_code,
+                "type": "spread",
+                "amount": float(trade.spread_amount),
+                "currency": "BRL",
+                "percentage": float(trade.spread_percentage) if trade.spread_percentage else None,
+                "description": f"Spread ({trade.spread_percentage}%)",
+                "status": "pending",
+                "created_at": trade.created_at.isoformat() if trade.created_at else None
+            })
+        
+        if trade.network_fee_amount and float(trade.network_fee_amount) > 0:
+            entries.append({
+                "trade_id": trade.id,
+                "reference_code": trade.reference_code,
+                "type": "network_fee",
+                "amount": float(trade.network_fee_amount),
+                "currency": "BRL",
+                "percentage": float(trade.network_fee_percentage) if trade.network_fee_percentage else None,
+                "description": f"Taxa de rede ({trade.network_fee_percentage}%)",
+                "status": "pending",
+                "created_at": trade.created_at.isoformat() if trade.created_at else None
+            })
+        
+        return {
+            "success": True,
+            "data": entries,
+            "saved_to_db": False,
+            "message": "Entradas ainda não enviadas para contabilidade"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Erro buscando entradas contábeis: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)

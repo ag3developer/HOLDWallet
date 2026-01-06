@@ -11,6 +11,9 @@ import {
   ChevronLeft,
   ChevronRight,
   RefreshCw,
+  Receipt,
+  Calculator,
+  ExternalLink,
 } from 'lucide-react'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
@@ -61,9 +64,18 @@ const fetchSystemWallet = async () => {
   return authFetch('/admin/fees/system-wallet')
 }
 
+const fetchAccountingEntries = async (page: number) => {
+  return authFetch(`/admin/fees/accounting-entries?page=${page}&limit=10`)
+}
+
+const fetchAccountingSummary = async (period: string) => {
+  return authFetch(`/admin/fees/accounting-summary?period=${period}`)
+}
+
 export default function AdminFeesPage() {
   const [period, setPeriod] = React.useState('month')
   const [historyPage, setHistoryPage] = React.useState(1)
+  const [accountingPage, setAccountingPage] = React.useState(1)
 
   // Queries
   const {
@@ -94,6 +106,19 @@ export default function AdminFeesPage() {
     staleTime: 60000,
   })
 
+  // Queries para comissões OTC (accounting_entries)
+  const { data: accountingData, isLoading: accountingLoading } = useQuery({
+    queryKey: ['admin-accounting-entries', accountingPage],
+    queryFn: () => fetchAccountingEntries(accountingPage),
+    staleTime: 60000,
+  })
+
+  const { data: accountingSummaryData, isLoading: accountingSummaryLoading } = useQuery({
+    queryKey: ['admin-accounting-summary', period],
+    queryFn: () => fetchAccountingSummary(period),
+    staleTime: 60000,
+  })
+
   const summary = summaryData?.data?.summary || {}
   const breakdown = summaryData?.data?.breakdown_by_type || []
   const systemWallet = walletData?.data || null
@@ -101,6 +126,20 @@ export default function AdminFeesPage() {
   const dailyRevenue = revenueData?.data?.daily_data || []
   const revenueTotals = revenueData?.data?.totals || {}
   const pagination = historyData?.pagination || { page: 1, pages: 1, total: 0 }
+
+  // Dados das comissões OTC
+  const accountingEntries = accountingData?.data || []
+  const accountingTotals = accountingData?.totals || {
+    spread: 0,
+    network_fee: 0,
+    platform_fee: 0,
+    grand_total: 0,
+  }
+  const accountingPagination = accountingData?.pagination || { page: 1, pages: 1, total: 0 }
+  const accountingSummary = accountingSummaryData?.data || {
+    breakdown: [],
+    totals: { grand_total: 0, total_entries: 0, unique_trades: 0 },
+  }
 
   // Format currency
   const formatBRL = (value: number) => {
@@ -139,6 +178,32 @@ export default function AdminFeesPage() {
     if (status === 'collected') return 'bg-green-500/20 text-green-400 border-green-500/30'
     if (status === 'pending') return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
     return 'bg-red-500/20 text-red-400 border-red-500/30'
+  }
+
+  // Helpers para accounting entries
+  const getAccountingTypeBadge = (type: string) => {
+    const colors: Record<string, string> = {
+      spread: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+      network_fee: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+      platform_fee: 'bg-green-500/20 text-green-400 border-green-500/30',
+    }
+    return colors[type] || 'bg-gray-500/20 text-gray-400 border-gray-500/30'
+  }
+
+  const getAccountingTypeLabel = (type: string) => {
+    const labels: Record<string, string> = {
+      spread: 'Spread',
+      network_fee: 'Taxa de Rede',
+      platform_fee: 'Total Plataforma',
+    }
+    return labels[type] || type
+  }
+
+  const getAccountingStatusBadge = (status: string) => {
+    if (status === 'processed') return 'bg-green-500/20 text-green-400 border-green-500/30'
+    if (status === 'pending') return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+    if (status === 'sent_to_erp') return 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+    return 'bg-gray-500/20 text-gray-400 border-gray-500/30'
   }
 
   // Loading skeleton
@@ -543,6 +608,7 @@ export default function AdminFeesPage() {
                 onClick={() => setHistoryPage(p => Math.max(1, p - 1))}
                 disabled={historyPage === 1}
                 className='p-2 bg-gray-800 rounded-lg disabled:opacity-50 hover:bg-gray-700 transition-colors'
+                title='Página anterior'
               >
                 <ChevronLeft className='h-5 w-5 text-gray-400' />
               </button>
@@ -553,6 +619,175 @@ export default function AdminFeesPage() {
                 onClick={() => setHistoryPage(p => Math.min(pagination.pages, p + 1))}
                 disabled={historyPage === pagination.pages}
                 className='p-2 bg-gray-800 rounded-lg disabled:opacity-50 hover:bg-gray-700 transition-colors'
+                title='Próxima página'
+              >
+                <ChevronRight className='h-5 w-5 text-gray-400' />
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* OTC Trade Commissions - Comissões dos Trades */}
+      <div className='bg-gradient-to-r from-purple-900/30 to-blue-900/30 border border-purple-700/30 rounded-xl'>
+        <div className='p-4 border-b border-purple-700/30'>
+          <h2 className='text-lg font-semibold text-white flex items-center gap-2'>
+            <Calculator className='h-5 w-5 text-purple-400' />
+            Comissões OTC (Instant Trades)
+          </h2>
+          <p className='text-sm text-gray-400 mt-1'>
+            Receitas de spread e taxas de rede dos trades OTC
+          </p>
+        </div>
+
+        {/* Summary Cards */}
+        <div className='p-4 grid grid-cols-1 md:grid-cols-4 gap-4'>
+          <div className='bg-purple-900/30 border border-purple-700/30 rounded-lg p-4'>
+            <p className='text-sm text-gray-400'>Spread Total</p>
+            {accountingSummaryLoading ? (
+              <Skeleton className='h-8 w-24 mt-1' />
+            ) : (
+              <p className='text-xl font-bold text-purple-400'>
+                {formatBRL(accountingTotals.spread)}
+              </p>
+            )}
+          </div>
+          <div className='bg-blue-900/30 border border-blue-700/30 rounded-lg p-4'>
+            <p className='text-sm text-gray-400'>Taxa de Rede Total</p>
+            {accountingSummaryLoading ? (
+              <Skeleton className='h-8 w-24 mt-1' />
+            ) : (
+              <p className='text-xl font-bold text-blue-400'>
+                {formatBRL(accountingTotals.network_fee)}
+              </p>
+            )}
+          </div>
+          <div className='bg-green-900/30 border border-green-700/30 rounded-lg p-4'>
+            <p className='text-sm text-gray-400'>Total de Comissões</p>
+            {accountingSummaryLoading ? (
+              <Skeleton className='h-8 w-24 mt-1' />
+            ) : (
+              <p className='text-xl font-bold text-green-400'>
+                {formatBRL(accountingTotals.grand_total)}
+              </p>
+            )}
+          </div>
+          <div className='bg-gray-800/50 border border-gray-700 rounded-lg p-4'>
+            <p className='text-sm text-gray-400'>Trades Contabilizados</p>
+            {accountingSummaryLoading ? (
+              <Skeleton className='h-8 w-16 mt-1' />
+            ) : (
+              <p className='text-xl font-bold text-white'>
+                {accountingSummary.totals?.unique_trades || 0}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Entries Table */}
+        <div className='p-4'>
+          {accountingLoading ? (
+            <div className='space-y-3'>
+              {[1, 2, 3, 4, 5].map(i => (
+                <Skeleton key={i} className='h-12 w-full' />
+              ))}
+            </div>
+          ) : accountingEntries.length > 0 ? (
+            <div className='overflow-x-auto'>
+              <table className='w-full'>
+                <thead>
+                  <tr className='border-b border-gray-700'>
+                    <th className='text-left py-3 px-4 text-gray-400 font-medium'>Data</th>
+                    <th className='text-left py-3 px-4 text-gray-400 font-medium'>Tipo</th>
+                    <th className='text-left py-3 px-4 text-gray-400 font-medium'>Referência</th>
+                    <th className='text-left py-3 px-4 text-gray-400 font-medium'>Usuário</th>
+                    <th className='text-left py-3 px-4 text-gray-400 font-medium'>%</th>
+                    <th className='text-left py-3 px-4 text-gray-400 font-medium'>Valor</th>
+                    <th className='text-left py-3 px-4 text-gray-400 font-medium'>Status</th>
+                    <th className='text-left py-3 px-4 text-gray-400 font-medium'>Ação</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {accountingEntries.map((entry: any) => (
+                    <tr key={entry.id} className='border-b border-gray-800 hover:bg-gray-800/50'>
+                      <td className='py-3 px-4 text-gray-300'>
+                        {entry.created_at
+                          ? new Date(entry.created_at).toLocaleDateString('pt-BR')
+                          : '-'}
+                      </td>
+                      <td className='py-3 px-4'>
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs border ${getAccountingTypeBadge(entry.entry_type)}`}
+                        >
+                          {getAccountingTypeLabel(entry.entry_type)}
+                        </span>
+                      </td>
+                      <td className='py-3 px-4 font-mono text-gray-300'>
+                        {entry.reference_code || '-'}
+                      </td>
+                      <td className='py-3 px-4 text-gray-300'>
+                        {entry.user_name || entry.user_id?.substring(0, 8) || '-'}
+                      </td>
+                      <td className='py-3 px-4 text-gray-300'>{entry.percentage?.toFixed(2)}%</td>
+                      <td className='py-3 px-4 text-green-400 font-medium'>
+                        {formatBRL(entry.amount)}
+                      </td>
+                      <td className='py-3 px-4'>
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs border ${getAccountingStatusBadge(entry.status)}`}
+                        >
+                          {entry.status === 'processed'
+                            ? 'Processado'
+                            : entry.status === 'pending'
+                              ? 'Pendente'
+                              : entry.status}
+                        </span>
+                      </td>
+                      <td className='py-3 px-4'>
+                        {entry.trade_id && (
+                          <a
+                            href={`/admin/trades/${entry.trade_id}`}
+                            className='text-blue-400 hover:text-blue-300 flex items-center gap-1'
+                            title='Ver trade'
+                          >
+                            <ExternalLink className='h-4 w-4' />
+                          </a>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className='text-center py-8'>
+              <Receipt className='h-12 w-12 text-gray-600 mx-auto mb-4' />
+              <p className='text-gray-400'>Nenhuma comissão registrada ainda.</p>
+              <p className='text-sm text-gray-500 mt-2'>
+                As comissões são registradas quando um trade OTC é enviado para contabilidade.
+              </p>
+            </div>
+          )}
+
+          {/* Pagination */}
+          {accountingPagination.pages > 1 && (
+            <div className='flex justify-center items-center gap-2 mt-4 pt-4 border-t border-gray-700'>
+              <button
+                onClick={() => setAccountingPage(p => Math.max(1, p - 1))}
+                disabled={accountingPage === 1}
+                className='p-2 bg-gray-800 rounded-lg disabled:opacity-50 hover:bg-gray-700 transition-colors'
+                title='Página anterior'
+              >
+                <ChevronLeft className='h-5 w-5 text-gray-400' />
+              </button>
+              <span className='px-4 py-2 text-gray-400'>
+                Página {accountingPage} de {accountingPagination.pages}
+              </span>
+              <button
+                onClick={() => setAccountingPage(p => Math.min(accountingPagination.pages, p + 1))}
+                disabled={accountingPage === accountingPagination.pages}
+                className='p-2 bg-gray-800 rounded-lg disabled:opacity-50 hover:bg-gray-700 transition-colors'
+                title='Próxima página'
               >
                 <ChevronRight className='h-5 w-5 text-gray-400' />
               </button>

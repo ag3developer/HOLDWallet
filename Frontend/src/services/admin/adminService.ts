@@ -260,6 +260,86 @@ export const cancelTrade = async (
   return response.data
 }
 
+// Trade Actions - Ações administrativas para trades OTC
+export interface UpdateTradeStatusRequest {
+  status:
+    | 'pending'
+    | 'payment_processing'
+    | 'payment_confirmed'
+    | 'completed'
+    | 'failed'
+    | 'cancelled'
+    | 'expired'
+  reason?: string
+  notes?: string
+}
+
+export interface ConfirmPaymentRequest {
+  network?: string
+  notes?: string
+}
+
+export interface ConfirmPaymentResponse {
+  success: boolean
+  message: string
+  trade_id: string
+  tx_hash?: string
+  wallet_address?: string
+  network: string
+  status: string
+  error?: string
+}
+
+export interface AccountingEntry {
+  trade_id: string
+  reference_code: string
+  type: 'platform_fee' | 'network_fee' | 'spread'
+  amount: number
+  currency: string
+  description: string
+  created_at: string
+}
+
+export const updateTradeStatus = async (
+  tradeId: string,
+  data: UpdateTradeStatusRequest
+): Promise<{ success: boolean; message: string; trade: TradeDetail }> => {
+  const response = await adminApi.patch(`/trades/${tradeId}/status`, data)
+  return response.data
+}
+
+export const confirmTradePayment = async (
+  tradeId: string,
+  data: ConfirmPaymentRequest = {}
+): Promise<ConfirmPaymentResponse> => {
+  const response = await adminApi.post(`/trades/${tradeId}/confirm-payment`, data)
+  return response.data
+}
+
+export const retryTradeDeposit = async (
+  tradeId: string,
+  network?: string
+): Promise<{ success: boolean; message: string; tx_hash?: string; error?: string }> => {
+  const response = await adminApi.post(`/trades/${tradeId}/retry-deposit`, null, {
+    params: { network },
+  })
+  return response.data
+}
+
+export const sendToAccounting = async (
+  tradeId: string
+): Promise<{ success: boolean; message: string; entries: AccountingEntry[] }> => {
+  const response = await adminApi.post(`/trades/${tradeId}/send-to-accounting`)
+  return response.data
+}
+
+export const getTradeAccountingEntries = async (
+  tradeId: string
+): Promise<{ success: boolean; data: AccountingEntry[] }> => {
+  const response = await adminApi.get(`/trades/${tradeId}/accounting`)
+  return response.data
+}
+
 // ============================================
 // P2P Management
 // ============================================

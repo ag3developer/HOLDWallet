@@ -51,6 +51,7 @@ import {
   AdminUserDetailPage,
   AdminUserEditPage,
   AdminTradesPage,
+  AdminTradeDetailPage,
   AdminP2PPage,
   AdminReportsPage,
   AdminSettingsPage,
@@ -323,6 +324,7 @@ function App() {
             <Route path='/admin/users/:userId' element={<AdminUserDetailPage />} />
             <Route path='/admin/users/:userId/edit' element={<AdminUserEditPage />} />
             <Route path='/admin/trades' element={<AdminTradesPage />} />
+            <Route path='/admin/trades/:tradeId' element={<AdminTradeDetailPage />} />
             <Route path='/admin/p2p' element={<AdminP2PPage />} />
             <Route path='/admin/wallets' element={<AdminWalletsPage />} />
             <Route path='/admin/transactions' element={<AdminTransactionsPage />} />

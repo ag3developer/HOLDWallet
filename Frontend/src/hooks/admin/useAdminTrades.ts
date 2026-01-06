@@ -12,7 +12,14 @@ import {
   getTradeStats,
   getTradeById,
   cancelTrade,
+  updateTradeStatus,
+  confirmTradePayment,
+  retryTradeDeposit,
+  sendToAccounting,
+  getTradeAccountingEntries,
   type TradeListParams,
+  type UpdateTradeStatusRequest,
+  type ConfirmPaymentRequest,
 } from '@/services/admin/adminService'
 
 // Query Keys para cache
@@ -92,5 +99,87 @@ export function useCancelTrade() {
       queryClient.invalidateQueries({ queryKey: adminTradesKeys.lists() })
       queryClient.invalidateQueries({ queryKey: adminTradesKeys.stats() })
     },
+  })
+}
+
+/**
+ * Hook para atualizar status de um trade
+ */
+export function useUpdateTradeStatus() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ tradeId, data }: { tradeId: string; data: UpdateTradeStatusRequest }) =>
+      updateTradeStatus(tradeId, data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: adminTradesKeys.detail(variables.tradeId) })
+      queryClient.invalidateQueries({ queryKey: adminTradesKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: adminTradesKeys.stats() })
+    },
+  })
+}
+
+/**
+ * Hook para confirmar pagamento e iniciar depósito
+ */
+export function useConfirmTradePayment() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ tradeId, data }: { tradeId: string; data?: ConfirmPaymentRequest }) =>
+      confirmTradePayment(tradeId, data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: adminTradesKeys.detail(variables.tradeId) })
+      queryClient.invalidateQueries({ queryKey: adminTradesKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: adminTradesKeys.stats() })
+    },
+  })
+}
+
+/**
+ * Hook para retry de depósito
+ */
+export function useRetryTradeDeposit() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ tradeId, network }: { tradeId: string; network?: string }) =>
+      retryTradeDeposit(tradeId, network),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: adminTradesKeys.detail(variables.tradeId) })
+      queryClient.invalidateQueries({ queryKey: adminTradesKeys.lists() })
+    },
+  })
+}
+
+/**
+ * Hook para enviar para contabilidade
+ */
+export function useSendToAccounting() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (tradeId: string) => sendToAccounting(tradeId),
+    onSuccess: (_, tradeId) => {
+      queryClient.invalidateQueries({ queryKey: adminTradesKeys.detail(tradeId) })
+    },
+  })
+}
+
+/**
+ * Hook para buscar entradas contábeis de um trade
+ */
+export function useTradeAccountingEntries(tradeId: string) {
+  return useQuery({
+    queryKey: [...adminTradesKeys.detail(tradeId), 'accounting'],
+    queryFn: async () => {
+      const response = await getTradeAccountingEntries(tradeId)
+      if (response.success) {
+        return response.data
+      }
+      throw new Error('Erro ao buscar entradas contábeis')
+    },
+    enabled: !!tradeId,
+    staleTime: 60 * 1000, // 1 minuto
   })
 }

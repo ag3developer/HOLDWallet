@@ -574,3 +574,268 @@ async def get_system_wallet_balance(db: Session = Depends(get_db)):
             "data": None,
             "note": f"Error retrieving system wallet: {str(e)}"
         }
+
+
+@router.get("/accounting-entries")
+async def get_accounting_entries(
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
+    entry_type: Optional[str] = Query(None, description="Filter by entry type: spread, network_fee, platform_fee"),
+    status: Optional[str] = Query(None, description="Filter by status: pending, processed, sent_to_erp"),
+    start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
+    db: Session = Depends(get_db)
+):
+    """
+    Get accounting entries from OTC trades (spread, network fees, platform fees)
+    These are the commissions recorded from instant trades
+    """
+    try:
+        # Build query conditions
+        conditions = []
+        params = {}
+        
+        if entry_type:
+            conditions.append("entry_type = :entry_type")
+            params["entry_type"] = entry_type
+        
+        if status:
+            conditions.append("status = :status")
+            params["status"] = status
+        
+        if start_date:
+            conditions.append("created_at >= :start_date")
+            params["start_date"] = start_date
+        
+        if end_date:
+            conditions.append("created_at <= :end_date")
+            params["end_date"] = end_date + " 23:59:59"
+        
+        where_clause = ""
+        if conditions:
+            where_clause = "WHERE " + " AND ".join(conditions)
+        
+        # Count total
+        count_query = text(f"""
+            SELECT COUNT(*) as total FROM accounting_entries {where_clause}
+        """)
+        total_result = db.execute(count_query, params).fetchone()
+        total = total_result.total if total_result else 0
+        
+        # Get paginated data
+        offset = (page - 1) * limit
+        params["limit"] = limit
+        params["offset"] = offset
+        
+        data_query = text(f"""
+            SELECT 
+                ae.id,
+                ae.trade_id,
+                ae.reference_code,
+                ae.entry_type,
+                ae.amount,
+                ae.currency,
+                ae.percentage,
+                ae.base_amount,
+                ae.description,
+                ae.status,
+                ae.user_id,
+                ae.created_by,
+                ae.created_at,
+                ae.updated_at,
+                it.symbol as trade_symbol,
+                it.operation_type as trade_operation,
+                u.username as user_name
+            FROM accounting_entries ae
+            LEFT JOIN instant_trades it ON ae.trade_id = it.id
+            LEFT JOIN users u ON ae.user_id = CAST(u.id AS VARCHAR)
+            {where_clause}
+            ORDER BY ae.created_at DESC
+            LIMIT :limit OFFSET :offset
+        """)
+        
+        results = db.execute(data_query, params).fetchall()
+        
+        entries = []
+        for row in results:
+            entries.append({
+                "id": row.id,
+                "trade_id": row.trade_id,
+                "reference_code": row.reference_code,
+                "entry_type": row.entry_type,
+                "amount": float(row.amount) if row.amount else 0,
+                "currency": row.currency,
+                "percentage": float(row.percentage) if row.percentage else None,
+                "base_amount": float(row.base_amount) if row.base_amount else None,
+                "description": row.description,
+                "status": row.status,
+                "user_id": row.user_id,
+                "user_name": row.user_name,
+                "created_by": row.created_by,
+                "created_at": row.created_at.isoformat() if row.created_at else None,
+                "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+                "trade_symbol": row.trade_symbol,
+                "trade_operation": row.trade_operation
+            })
+        
+        # Calculate totals
+        totals_query = text(f"""
+            SELECT 
+                entry_type,
+                SUM(amount) as total_amount,
+                COUNT(*) as count
+            FROM accounting_entries
+            {where_clause}
+            GROUP BY entry_type
+        """)
+        
+        totals_result = db.execute(totals_query, {k: v for k, v in params.items() if k not in ['limit', 'offset']}).fetchall()
+        
+        totals = {
+            "spread": 0,
+            "network_fee": 0,
+            "platform_fee": 0,
+            "grand_total": 0
+        }
+        
+        for row in totals_result:
+            if row.entry_type == "spread":
+                totals["spread"] = float(row.total_amount or 0)
+            elif row.entry_type == "network_fee":
+                totals["network_fee"] = float(row.total_amount or 0)
+            elif row.entry_type == "platform_fee":
+                totals["platform_fee"] = float(row.total_amount or 0)
+        
+        totals["grand_total"] = totals["spread"] + totals["network_fee"]
+        
+        return {
+            "success": True,
+            "data": entries,
+            "totals": totals,
+            "pagination": {
+                "page": page,
+                "limit": limit,
+                "total": total,
+                "pages": (total + limit - 1) // limit
+            }
+        }
+        
+    except Exception as e:
+        print(f"[ERROR] Failed to get accounting entries: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return {
+            "success": True,
+            "data": [],
+            "totals": {
+                "spread": 0,
+                "network_fee": 0,
+                "platform_fee": 0,
+                "grand_total": 0
+            },
+            "pagination": {
+                "page": 1,
+                "limit": limit,
+                "total": 0,
+                "pages": 0
+            },
+            "note": f"Error or table not found: {str(e)}"
+        }
+
+
+@router.get("/accounting-summary")
+async def get_accounting_summary(
+    period: str = Query("month", description="Period: day, week, month, year, all"),
+    db: Session = Depends(get_db)
+):
+    """
+    Get summary of accounting entries (OTC commissions)
+    """
+    try:
+        # Calculate date filter
+        date_filter = ""
+        params = {}
+        
+        if period != "all":
+            if period == "day":
+                start_date = datetime.now() - timedelta(days=1)
+            elif period == "week":
+                start_date = datetime.now() - timedelta(weeks=1)
+            elif period == "month":
+                start_date = datetime.now() - timedelta(days=30)
+            elif period == "year":
+                start_date = datetime.now() - timedelta(days=365)
+            else:
+                start_date = datetime.now() - timedelta(days=30)
+            
+            date_filter = "WHERE created_at >= :start_date"
+            params["start_date"] = start_date.strftime("%Y-%m-%d %H:%M:%S")
+        
+        # Get totals by type
+        query = text(f"""
+            SELECT 
+                entry_type,
+                SUM(amount) as total_amount,
+                COUNT(*) as count,
+                AVG(percentage) as avg_percentage
+            FROM accounting_entries
+            {date_filter}
+            GROUP BY entry_type
+        """)
+        
+        results = db.execute(query, params).fetchall()
+        
+        breakdown = []
+        grand_total = 0
+        total_entries = 0
+        
+        for row in results:
+            amount = float(row.total_amount or 0)
+            breakdown.append({
+                "entry_type": row.entry_type,
+                "total_amount": amount,
+                "count": row.count,
+                "avg_percentage": float(row.avg_percentage or 0)
+            })
+            # Não somar platform_fee pois é o resumo dos outros
+            if row.entry_type != "platform_fee":
+                grand_total += amount
+            total_entries += row.count
+        
+        # Count unique trades
+        trades_query = text(f"""
+            SELECT COUNT(DISTINCT trade_id) as unique_trades
+            FROM accounting_entries
+            {date_filter}
+        """)
+        trades_result = db.execute(trades_query, params).fetchone()
+        unique_trades = trades_result.unique_trades if trades_result else 0
+        
+        return {
+            "success": True,
+            "data": {
+                "period": period,
+                "breakdown": breakdown,
+                "totals": {
+                    "grand_total": grand_total,
+                    "total_entries": total_entries,
+                    "unique_trades": unique_trades
+                }
+            }
+        }
+        
+    except Exception as e:
+        print(f"[ERROR] Failed to get accounting summary: {str(e)}")
+        return {
+            "success": True,
+            "data": {
+                "period": period,
+                "breakdown": [],
+                "totals": {
+                    "grand_total": 0,
+                    "total_entries": 0,
+                    "unique_trades": 0
+                }
+            },
+            "note": f"Error or table not found: {str(e)}"
+        }

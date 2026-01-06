@@ -11,6 +11,8 @@ from .system_blockchain_wallet import (
     SystemBlockchainAddress, 
     SystemWalletTransaction
 )
+from .instant_trade import InstantTrade, InstantTradeHistory, TradeStatus, TradeOperationType
+from .accounting import AccountingEntry, AccountingReport, AccountingEntryType, AccountingEntryStatus
 
 # Import P2P models to ensure tables are created
 from . import p2p
@@ -18,6 +20,8 @@ from . import chat
 from . import reputation
 from . import system_wallet
 from . import system_blockchain_wallet
+from . import instant_trade
+from . import accounting
 
 __all__ = [
     # Base
@@ -49,6 +53,18 @@ __all__ = [
     "SystemBlockchainAddress",
     "SystemWalletTransaction",
     
+    # Instant Trade OTC
+    "InstantTrade",
+    "InstantTradeHistory",
+    "TradeStatus",
+    "TradeOperationType",
+    
+    # Accounting
+    "AccountingEntry",
+    "AccountingReport",
+    "AccountingEntryType",
+    "AccountingEntryStatus",
+    
     # Modules for table creation
-    "p2p", "chat", "reputation", "system_wallet", "system_blockchain_wallet"
+    "p2p", "chat", "reputation", "system_wallet", "system_blockchain_wallet", "instant_trade", "accounting"
 ]

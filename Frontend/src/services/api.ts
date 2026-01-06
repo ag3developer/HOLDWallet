@@ -212,6 +212,12 @@ class ApiClient {
   private extractTokenFromData(data: string | null): string | null {
     if (!data) return null
 
+    // Check if data is already a JWT token (starts with 'eyJ')
+    if (data.startsWith('eyJ') && data.split('.').length === 3) {
+      console.log('[API] ✅ Data is already a JWT token')
+      return data
+    }
+
     try {
       const parsed = JSON.parse(data)
       // Handle Zustand persist: { state: { token: '...' } }
@@ -222,8 +228,20 @@ class ApiClient {
       if (parsed.token && typeof parsed.token === 'string') {
         return parsed.token
       }
+      // Handle access_token format: { access_token: '...' }
+      if (parsed.access_token && typeof parsed.access_token === 'string') {
+        return parsed.access_token
+      }
       return null
     } catch (e) {
+      // If JSON.parse fails and data looks like a token, return it
+      if (typeof data === 'string' && data.length > 20) {
+        console.log('[API] ℹ️ Data is not JSON, checking if it could be a token')
+        // Check if it might be a raw token string
+        if (data.startsWith('eyJ')) {
+          return data
+        }
+      }
       console.warn('[API] Failed to parse token data:', e)
       return null
     }
