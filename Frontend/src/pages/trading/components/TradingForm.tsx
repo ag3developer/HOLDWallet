@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { TradingLimitsDisplay } from './TradingLimitsDisplay'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { apiClient } from '@/services/api'
+import { toUSD } from '@/services/currency'
 
 interface CryptoPrice {
   symbol: string
@@ -258,16 +259,17 @@ export function TradingForm({
     timeoutRef.current = setTimeout(async () => {
       setLoading(true)
       try {
-        // Backend espera valores em USD, então precisamos converter BRL → USD
+        // Backend espera valores em USD, então precisamos converter BRL/EUR → USD
         const amountValue = Number(amount)
         let amountToSend = amountValue
 
-        // Se é BRL, converter para USD (dividir pela cotação)
-        if (currency === 'BRL') {
-          // Buscar cotação USD/BRL (preço do USDT)
-          const usdPrice = cryptoPrices.find(p => p.symbol === 'USDT' || p.symbol === 'USDC')
-          const usdToBrlRate = usdPrice ? usdPrice.price : 5.42
-          amountToSend = amountValue / usdToBrlRate // BRL → USD
+        // Se NÃO é USD, converter para USD usando CurrencyManager
+        if (currency !== 'USD') {
+          // Usar CurrencyManager para conversão real (BRL→USD ou EUR→USD)
+          amountToSend = toUSD(amountValue, currency as 'BRL' | 'EUR')
+          console.log(
+            `[TradingForm] Converting ${amountValue} ${currency} → ${amountToSend.toFixed(2)} USD`
+          )
         }
 
         const response = await apiClient.post('/instant-trade/quote', {
