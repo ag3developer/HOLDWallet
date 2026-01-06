@@ -148,10 +148,19 @@ async def create_trade(
         # Use str(current_user.id) to get the user ID
         user_id_str = str(current_user.id)
         
+        # Converter valores BRL para Decimal se fornecidos
+        from decimal import Decimal
+        brl_amount = Decimal(str(request.brl_amount)) if request.brl_amount else None
+        brl_total_amount = Decimal(str(request.brl_total_amount)) if request.brl_total_amount else None
+        usd_to_brl_rate = Decimal(str(request.usd_to_brl_rate)) if request.usd_to_brl_rate else None
+        
         trade = service.create_trade_from_quote(
             user_id=user_id_str,
             quote_id=request.quote_id,
             payment_method=request.payment_method,
+            brl_amount=brl_amount,
+            brl_total_amount=brl_total_amount,
+            usd_to_brl_rate=usd_to_brl_rate,
         )
 
         # If payment method is TED, include bank account details
@@ -164,6 +173,8 @@ async def create_trade(
 
         # Add bank details for manual transfer methods (TED)
         if request.payment_method == "ted":
+            # Usar brl_total_amount se disponível, senão usar total_amount
+            amount_to_transfer = brl_total_amount if brl_total_amount else trade.get('total_amount', 0)
             response_data["bank_details"] = {
                 "bank_code": COMPANY_BANK_DETAILS["bank_code"],
                 "bank_name": COMPANY_BANK_DETAILS["bank_name"],
@@ -172,7 +183,7 @@ async def create_trade(
                 "account_holder": COMPANY_BANK_DETAILS["holder_name"],
                 "cnpj": COMPANY_BANK_DETAILS["cnpj"],
                 "pix_key": COMPANY_BANK_DETAILS["pix_key"],
-                "instructions": f"Transfer R$ {trade.get('total_amount', 0):.2f} to the account above and upload proof of payment.",
+                "instructions": f"Transfer R$ {float(amount_to_transfer):.2f} to the account above and upload proof of payment.",
             }
 
         return response_data
@@ -281,11 +292,16 @@ async def get_bank_details(
         if payment_method == "pix":
             bank_details["pix_key"] = COMPANY_BANK_DETAILS["pix_key"]
         
+        # Usar brl_total_amount se disponível, senão total_amount
+        amount_to_pay = trade.get("brl_total_amount") or trade["total_amount"]
+        
         return {
             "success": True,
             "bank_details": bank_details,
             "reference_code": trade["reference_code"],
-            "amount": trade["total_amount"],
+            "amount": amount_to_pay,
+            "brl_total_amount": trade.get("brl_total_amount"),
+            "total_amount_usd": trade["total_amount"],
         }
 
     except HTTPException:

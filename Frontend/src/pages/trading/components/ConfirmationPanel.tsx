@@ -31,6 +31,10 @@ interface Quote {
   network_fee_amount: number
   total_amount: number
   expires_in_seconds: number
+  // Valores em BRL (para TED/PIX)
+  brl_amount?: number
+  brl_total_amount?: number
+  usd_to_brl_rate?: number
 }
 
 interface ConfirmationPanelProps {
@@ -83,15 +87,32 @@ export function ConfirmationPanel({
   const createTrade = async () => {
     setLoading(true)
     try {
-      console.log('[ConfirmationPanel] Creating trade with:', {
+      // Preparar dados do request incluindo valores em BRL se disponíveis
+      const requestData: {
+        quote_id: string
+        payment_method: string
+        brl_amount?: number
+        brl_total_amount?: number
+        usd_to_brl_rate?: number
+      } = {
         quote_id: quote.quote_id,
         payment_method: selectedPayment,
-      })
+      }
 
-      const response = await apiClient.post('/instant-trade/create', {
-        quote_id: quote.quote_id,
-        payment_method: selectedPayment,
-      })
+      // Se tiver valores em BRL, incluir no request (para TED/PIX)
+      if (quote.brl_amount) {
+        requestData.brl_amount = quote.brl_amount
+      }
+      if (quote.brl_total_amount) {
+        requestData.brl_total_amount = quote.brl_total_amount
+      }
+      if (quote.usd_to_brl_rate) {
+        requestData.usd_to_brl_rate = quote.usd_to_brl_rate
+      }
+
+      console.log('[ConfirmationPanel] Creating trade with:', requestData)
+
+      const response = await apiClient.post('/instant-trade/create', requestData)
 
       console.log('[ConfirmationPanel] Trade created successfully:', response.data)
 

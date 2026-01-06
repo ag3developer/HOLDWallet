@@ -72,11 +72,19 @@ class CreateTradeRequest(BaseModel):
     quote_id: str = Field(..., description="ID da cotação (obrigatório)")
     payment_method: Literal["pix", "ted", "credit_card", "debit_card", "paypal"] = Field(..., description="Método de pagamento")
     
+    # Valores em BRL para pagamentos TED/PIX (enviados pelo frontend)
+    brl_amount: Optional[Decimal] = Field(None, description="Valor original digitado em BRL")
+    brl_total_amount: Optional[Decimal] = Field(None, description="Total a pagar em BRL (com taxas)")
+    usd_to_brl_rate: Optional[Decimal] = Field(None, description="Taxa USD/BRL usada na conversão")
+    
     class Config:
         schema_extra = {
             "example": {
                 "quote_id": "quote_123456",
-                "payment_method": "pix"
+                "payment_method": "pix",
+                "brl_amount": "1200.00",
+                "brl_total_amount": "1238.90",
+                "usd_to_brl_rate": "5.60"
             }
         }
 
@@ -91,6 +99,12 @@ class TradeStatusResponse(BaseModel):
     fiat_amount: Decimal
     crypto_amount: Decimal
     total_amount: Decimal
+    
+    # Valores em BRL para TED/PIX
+    brl_amount: Optional[Decimal] = Field(None, description="Valor original em BRL")
+    brl_total_amount: Optional[Decimal] = Field(None, description="Total a pagar em BRL")
+    usd_to_brl_rate: Optional[Decimal] = Field(None, description="Taxa USD/BRL")
+    
     payment_method: str
     expires_at: datetime
     payment_confirmed_at: Optional[datetime] = None

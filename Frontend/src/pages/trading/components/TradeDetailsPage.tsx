@@ -43,6 +43,10 @@ interface TradeDetails {
   crypto_amount: number
   fiat_amount: number
   total_amount: number
+  // Valores em BRL para TED/PIX
+  brl_amount?: number
+  brl_total_amount?: number
+  usd_to_brl_rate?: number
   crypto_price?: number
   spread_percentage: number
   spread_amount?: number
@@ -188,6 +192,19 @@ export function TradeDetailsPage({
       // Buscar detalhes da trade
       const response = await apiClient.get(`/instant-trade/${tradeId}`)
       const tradeData = response.data.trade || response.data
+
+      // DEBUG: Log dos dados recebidos
+      console.log('[TradeDetails] Raw API response:', response.data)
+      console.log('[TradeDetails] Trade data:', tradeData)
+      console.log(
+        '[TradeDetails] Key amounts - fiat:',
+        tradeData.fiat_amount,
+        'total:',
+        tradeData.total_amount,
+        'crypto:',
+        tradeData.crypto_amount
+      )
+
       setTrade(tradeData)
 
       // Se for TED/PIX e estiver pendente, buscar dados bancários
@@ -200,16 +217,16 @@ export function TradeDetailsPage({
           setBankDetails(bankResponse.data.bank_details || bankResponse.data)
         } catch (bankError) {
           console.log('[TradeDetails] Bank details not available:', bankError)
-          // Usar dados bancários padrão da HOLD
+          // Usar dados bancários padrão da HOLD Digital Assets
           setBankDetails({
-            bank_name: 'Banco Inter',
-            bank_code: '077',
-            agency: '0001',
-            account: '12345678-9',
+            bank_name: 'Banco do Brasil',
+            bank_code: '001',
+            agency: '5271-0',
+            account: '26689-2',
             account_type: 'Conta Corrente',
-            holder_name: 'HOLD WALLET LTDA',
-            holder_document: '00.000.000/0001-00',
-            pix_key: 'pix@holdwallet.com.br',
+            holder_name: 'HOLD DIGITAL ASSETS LTDA',
+            holder_document: '24.275.355/0001-51',
+            pix_key: '24.275.355/0001-51',
           })
         }
       }
@@ -508,17 +525,22 @@ export function TradeDetailsPage({
                 </div>
               </div>
 
-              {/* Valor a transferir */}
+              {/* Valor a transferir - usar brl_total_amount se disponível */}
               <div className='mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800'>
                 <p className='text-xs text-yellow-700 dark:text-yellow-400 mb-1'>
-                  Valor a ser transferido
+                  Valor a ser transferido (BRL)
                 </p>
                 <div className='flex items-center justify-between'>
                   <span className='text-2xl font-bold text-yellow-800 dark:text-yellow-300'>
-                    {formatCurrency(trade.total_amount)}
+                    {formatCurrency(trade.brl_total_amount ?? trade.total_amount)}
                   </span>
                   <button
-                    onClick={() => copyToClipboard(trade.total_amount.toFixed(2), 'amount')}
+                    onClick={() =>
+                      copyToClipboard(
+                        (trade.brl_total_amount ?? trade.total_amount).toFixed(2),
+                        'amount'
+                      )
+                    }
                     className='p-2 text-yellow-700 hover:bg-yellow-100 dark:hover:bg-yellow-900/30 rounded-lg transition-colors'
                   >
                     {copiedField === 'amount' ? (
@@ -528,6 +550,11 @@ export function TradeDetailsPage({
                     )}
                   </button>
                 </div>
+                {trade.usd_to_brl_rate && (
+                  <p className='text-xs text-yellow-600 dark:text-yellow-500 mt-1'>
+                    Taxa USD/BRL: {trade.usd_to_brl_rate.toFixed(4)}
+                  </p>
+                )}
               </div>
 
               {/* Aviso importante */}

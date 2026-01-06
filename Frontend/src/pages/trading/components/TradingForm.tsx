@@ -27,6 +27,10 @@ interface Quote {
   network_fee_amount: number
   total_amount: number
   expires_in_seconds: number
+  // Valores em BRL para TED/PIX
+  brl_amount?: number
+  brl_total_amount?: number
+  usd_to_brl_rate?: number
 }
 
 interface TradingFormProps {
@@ -263,13 +267,20 @@ export function TradingForm({
         // Backend espera valores em USD, então precisamos converter BRL/EUR → USD
         const amountValue = Number(amount)
         let amountToSend = amountValue
+        let originalBrlAmount: number | undefined
+        let usdToBrlRate: number | undefined
 
         // Se NÃO é USD, converter para USD usando CurrencyManager
         if (currency !== 'USD') {
+          // Guardar o valor original em BRL para enviar junto com o trade
+          if (currency === 'BRL') {
+            originalBrlAmount = amountValue
+            usdToBrlRate = amountValue / toUSD(amountValue, 'BRL')
+          }
           // Usar CurrencyManager para conversão real (BRL→USD ou EUR→USD)
           amountToSend = toUSD(amountValue, currency as 'BRL' | 'EUR')
           console.log(
-            `[TradingForm] Converting ${amountValue} ${currency} → ${amountToSend.toFixed(2)} USD`
+            `[TradingForm] Converting ${amountValue} ${currency} → ${amountToSend.toFixed(2)} USD (rate: ${usdToBrlRate?.toFixed(4)})`
           )
         }
 
@@ -278,7 +289,25 @@ export function TradingForm({
           symbol: selectedSymbol,
           [isBuy ? 'fiat_amount' : 'crypto_amount']: amountToSend,
         })
-        onQuoteReceived(response.data.quote)
+
+        // Enriquecer a quote com valores em BRL para TED/PIX
+        const enrichedQuote: Quote = {
+          ...response.data.quote,
+        }
+
+        // Se o usuário digitou em BRL, adicionar esses valores à quote
+        if (currency === 'BRL' && originalBrlAmount && usdToBrlRate) {
+          enrichedQuote.brl_amount = originalBrlAmount
+          // Calcular total em BRL (com spread e taxas)
+          const totalUSD = response.data.quote.total_amount
+          enrichedQuote.brl_total_amount = totalUSD * usdToBrlRate
+          enrichedQuote.usd_to_brl_rate = usdToBrlRate
+          console.log(
+            `[TradingForm] BRL values: amount=${originalBrlAmount}, total=${enrichedQuote.brl_total_amount.toFixed(2)}, rate=${usdToBrlRate.toFixed(4)}`
+          )
+        }
+
+        onQuoteReceived(enrichedQuote)
         setLastQuoteTime(Date.now())
       } catch (error: any) {
         // Usar o novo sistema de tratamento de erros

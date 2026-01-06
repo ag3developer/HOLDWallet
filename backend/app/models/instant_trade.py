@@ -86,16 +86,21 @@ class InstantTrade(Base):
     name = Column(String(50), nullable=False)    # 'Bitcoin', 'Ethereum', etc
     
     # Valores (em precisão decimal)
-    fiat_amount = Column(Numeric(18, 2), nullable=False)           # Valor em BRL
+    fiat_amount = Column(Numeric(18, 2), nullable=False)           # Valor em USD
     crypto_amount = Column(Numeric(28, 18), nullable=False)        # Quantidade de crypto
-    crypto_price = Column(Numeric(18, 2), nullable=False)          # Preço no momento
+    crypto_price = Column(Numeric(18, 2), nullable=False)          # Preço no momento (USD)
     
     # Taxas e spreads
     spread_percentage = Column(Numeric(5, 2), nullable=False, default=3.00)      # 3%
     spread_amount = Column(Numeric(18, 2), nullable=False)                       # Valor spread
     network_fee_percentage = Column(Numeric(5, 2), nullable=False, default=0.25) # 0.25%
     network_fee_amount = Column(Numeric(18, 2), nullable=False)                  # Valor fee
-    total_amount = Column(Numeric(18, 2), nullable=False)                        # Total com taxas
+    total_amount = Column(Numeric(18, 2), nullable=False)                        # Total com taxas (USD)
+    
+    # Valor em BRL para pagamento TED/PIX
+    brl_amount = Column(Numeric(18, 2), nullable=True)             # Valor original em BRL
+    brl_total_amount = Column(Numeric(18, 2), nullable=True)       # Total a pagar em BRL (TED/PIX)
+    usd_to_brl_rate = Column(Numeric(10, 4), nullable=True)        # Taxa USD/BRL no momento
     
     # Pagamento
     payment_method = Column(

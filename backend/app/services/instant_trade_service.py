@@ -206,7 +206,15 @@ class InstantTradeService:
         
         return quote
 
-    def create_trade_from_quote(self, user_id: str, quote_id: str, payment_method: str) -> Dict[str, Any]:
+    def create_trade_from_quote(
+        self, 
+        user_id: str, 
+        quote_id: str, 
+        payment_method: str,
+        brl_amount: Optional[Decimal] = None,
+        brl_total_amount: Optional[Decimal] = None,
+        usd_to_brl_rate: Optional[Decimal] = None
+    ) -> Dict[str, Any]:
         """Create trade from a cached quote"""
         # Get the quote from cache
         quote = self.get_cached_quote(quote_id)
@@ -235,6 +243,10 @@ class InstantTradeService:
             network_fee_percentage=Decimal(str(quote["network_fee_percentage"])),
             network_fee_amount=Decimal(str(quote["network_fee_amount"])),
             total_amount=Decimal(str(quote["total_amount"])),
+            # Valores em BRL para TED/PIX
+            brl_amount=brl_amount,
+            brl_total_amount=brl_total_amount,
+            usd_to_brl_rate=usd_to_brl_rate,
             payment_method=payment_method,
             status=TradeStatus.PENDING,
             reference_code=reference_code,
@@ -345,6 +357,10 @@ class InstantTradeService:
             "crypto_amount": float(trade.crypto_amount),  # type: ignore
             "crypto_price": float(trade.crypto_price) if trade.crypto_price else None,  # type: ignore
             "total_amount": float(trade.total_amount),  # type: ignore
+            # Valores em BRL para TED/PIX
+            "brl_amount": float(trade.brl_amount) if trade.brl_amount else None,  # type: ignore
+            "brl_total_amount": float(trade.brl_total_amount) if trade.brl_total_amount else None,  # type: ignore
+            "usd_to_brl_rate": float(trade.usd_to_brl_rate) if trade.usd_to_brl_rate else None,  # type: ignore
             "spread_percentage": float(trade.spread_percentage) if trade.spread_percentage else 3.0,  # type: ignore
             "spread_amount": float(trade.spread_amount) if trade.spread_amount else None,  # type: ignore
             "network_fee_percentage": float(trade.network_fee_percentage) if trade.network_fee_percentage else 0.25,  # type: ignore
