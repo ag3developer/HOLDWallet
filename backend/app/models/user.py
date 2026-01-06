@@ -37,6 +37,7 @@ class User(Base):
     wallets = relationship("Wallet", back_populates="user")
     transactions = relationship("Transaction", back_populates="user")
     two_factor_auth = relationship("TwoFactorAuth", back_populates="user", uselist=False)
+    webauthn_credentials = relationship("WebAuthnCredential", back_populates="user")
     instant_trades = relationship(
         "InstantTrade", 
         back_populates="user",

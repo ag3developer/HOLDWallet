@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   Send,
   Loader2,
@@ -10,6 +10,8 @@ import {
   Turtle,
   Zap,
   Rocket,
+  Fingerprint,
+  Shield,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { CryptoIcon } from '@/components/CryptoIcon'
@@ -18,6 +20,7 @@ import { useMultipleWalletBalances } from '@/hooks/useWallet'
 import { useWalletAddresses } from '@/hooks/useWalletAddresses'
 import { QRCodeScanner } from '@/components/QRCodeScanner'
 import { transactionService } from '@/services/transactionService'
+import { webAuthnService } from '@/services/webauthn'
 
 export const SendPage = () => {
   // Estados principais
@@ -37,6 +40,27 @@ export const SendPage = () => {
   const [show2FADialog, setShow2FADialog] = useState(false)
   const [twoFAToken, setTwoFAToken] = useState<string>('')
   const [pendingTransaction, setPendingTransaction] = useState<any>(null)
+  const [authMethod, setAuthMethod] = useState<'biometric' | '2fa'>('biometric')
+  const [biometricAvailable, setBiometricAvailable] = useState(false)
+  const [biometricLoading, setBiometricLoading] = useState(false)
+
+  // Check if biometric is available on mount
+  useEffect(() => {
+    const checkBiometric = async () => {
+      try {
+        const supported = webAuthnService.isSupported()
+        if (supported) {
+          // Check if user has registered biometric credentials
+          const status = await webAuthnService.getStatus()
+          setBiometricAvailable(status.has_biometric && status.credentials.length > 0)
+        }
+      } catch (error) {
+        console.log('Biometric not available:', error)
+        setBiometricAvailable(false)
+      }
+    }
+    checkBiometric()
+  }, [])
 
   // Dados da API
   const { wallets: apiWallets } = useWallets()
@@ -510,6 +534,53 @@ export const SendPage = () => {
     }
   }
 
+  // Handler for biometric authentication
+  const handleBiometricAuth = async () => {
+    if (!pendingTransaction) {
+      toast.error('Nenhuma transação pendente')
+      return
+    }
+
+    try {
+      setBiometricLoading(true)
+      console.log('🔐 Autenticando com biometria...')
+
+      const success = await webAuthnService.authenticate()
+
+      if (success) {
+        console.log('✅ Biometria verificada!')
+
+        // Send transaction with biometric token
+        const result = await transactionService.sendTransaction(
+          {
+            ...pendingTransaction,
+          },
+          undefined,
+          'biometric_verified' // Token especial para biometria
+        )
+
+        console.log('✅ Transação concluída:', result)
+        setTxHash(result.txHash)
+        setShowSuccess(true)
+        toast.success('Transação enviada com sucesso!')
+
+        // Limpar estado
+        setShow2FADialog(false)
+        setTwoFAToken('')
+        setPendingTransaction(null)
+      } else {
+        toast.error('Falha na autenticação biométrica')
+        setAuthMethod('2fa')
+      }
+    } catch (err: any) {
+      console.error('❌ Erro na biometria:', err)
+      toast.error('Biometria falhou. Use o código 2FA.')
+      setAuthMethod('2fa')
+    } finally {
+      setBiometricLoading(false)
+    }
+  }
+
   const handleCancel2FA = () => {
     setShow2FADialog(false)
     setTwoFAToken('')
@@ -863,19 +934,51 @@ export const SendPage = () => {
         <div className='fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4'>
           <div className='bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full'>
             <div className='flex items-center gap-2 mb-2'>
-              <CheckCircle className='w-5 h-5 text-blue-500' />
+              <Shield className='w-5 h-5 text-blue-500' />
               <h3 className='text-lg font-semibold text-gray-900 dark:text-white'>
-                Autenticação de Dois Fatores
+                Autenticação de Segurança
               </h3>
             </div>
             <p className='text-sm text-gray-600 dark:text-gray-400 mb-4'>
-              Digite o código de 6 dígitos do seu aplicativo Authy ou Google Authenticator
+              {biometricAvailable
+                ? 'Use biometria ou código 2FA para confirmar a transação'
+                : 'Digite o código de 6 dígitos do seu aplicativo autenticador'}
             </p>
 
             {error && (
               <div className='bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 mb-4 flex gap-2'>
                 <AlertCircle className='w-5 h-5 text-red-500 flex-shrink-0 mt-0.5' />
                 <p className='text-red-800 dark:text-red-200 text-sm'>{error}</p>
+              </div>
+            )}
+
+            {/* Auth Method Selection - Show if biometric available */}
+            {biometricAvailable && (
+              <div className='flex gap-2 mb-4'>
+                <button
+                  type='button'
+                  onClick={() => setAuthMethod('biometric')}
+                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 transition-all ${
+                    authMethod === 'biometric'
+                      ? 'border-blue-500 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'
+                      : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-blue-300'
+                  }`}
+                >
+                  <Fingerprint className='w-4 h-4' />
+                  <span className='text-sm font-medium'>Biometria</span>
+                </button>
+                <button
+                  type='button'
+                  onClick={() => setAuthMethod('2fa')}
+                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 transition-all ${
+                    authMethod === '2fa'
+                      ? 'border-blue-500 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'
+                      : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-blue-300'
+                  }`}
+                >
+                  <Shield className='w-4 h-4' />
+                  <span className='text-sm font-medium'>Código 2FA</span>
+                </button>
               </div>
             )}
 
@@ -917,45 +1020,71 @@ export const SendPage = () => {
               </div>
             )}
 
-            <div className='mb-6'>
-              <label className='block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2'>
-                Código 2FA
-              </label>
-              <input
-                type='text'
-                placeholder='000000'
-                value={twoFAToken}
-                onChange={e => setTwoFAToken(e.target.value.replace(/\D/g, '').slice(0, 8))}
-                maxLength={8}
-                className='w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-gray-900 dark:text-white text-sm font-mono text-center text-2xl tracking-widest'
-              />
-              <p className='text-xs text-gray-500 dark:text-gray-400 mt-1'>
-                {twoFAToken.length}/6 dígitos
-              </p>
-            </div>
+            {/* Biometric Auth Section */}
+            {authMethod === 'biometric' && biometricAvailable ? (
+              <div className='text-center py-6 mb-4'>
+                <div className='w-16 h-16 mx-auto bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mb-4'>
+                  <Fingerprint className='w-8 h-8 text-blue-600 dark:text-blue-400' />
+                </div>
+                <p className='text-sm text-gray-600 dark:text-gray-400 mb-2'>
+                  Clique no botão abaixo para autenticar
+                </p>
+                <p className='text-xs text-green-600 dark:text-green-400'>
+                  Face ID / Touch ID disponível
+                </p>
+              </div>
+            ) : (
+              /* 2FA Code Input */
+              <div className='mb-6'>
+                <label className='block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2'>
+                  Código 2FA
+                </label>
+                <input
+                  type='text'
+                  placeholder='000000'
+                  value={twoFAToken}
+                  onChange={e => setTwoFAToken(e.target.value.replaceAll(/\D/g, '').slice(0, 8))}
+                  maxLength={8}
+                  className='w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-gray-900 dark:text-white text-sm font-mono text-center text-2xl tracking-widest'
+                />
+                <p className='text-xs text-gray-500 dark:text-gray-400 mt-1'>
+                  {twoFAToken.length}/6 dígitos
+                </p>
+              </div>
+            )}
 
             <div className='flex gap-3'>
               <button
                 onClick={handleCancel2FA}
-                disabled={loading}
+                disabled={loading || biometricLoading}
                 className='flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 text-gray-900 dark:text-white rounded-lg transition-colors text-sm font-medium'
               >
                 Cancelar
               </button>
               <button
-                onClick={handleSubmit2FA}
-                disabled={loading || twoFAToken.length < 6}
+                onClick={
+                  authMethod === 'biometric' && biometricAvailable
+                    ? handleBiometricAuth
+                    : handleSubmit2FA
+                }
+                disabled={
+                  loading || biometricLoading || (authMethod === '2fa' && twoFAToken.length < 6)
+                }
                 className='flex-1 px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors text-sm font-medium flex items-center justify-center gap-2'
               >
-                {loading ? (
+                {loading || biometricLoading ? (
                   <>
                     <Loader2 className='w-4 h-4 animate-spin' />
-                    Verificando...
+                    {biometricLoading ? 'Autenticando...' : 'Enviando...'}
                   </>
                 ) : (
                   <>
-                    <Send className='w-4 h-4' />
-                    Enviar
+                    {authMethod === 'biometric' && biometricAvailable ? (
+                      <Fingerprint className='w-4 h-4' />
+                    ) : (
+                      <Send className='w-4 h-4' />
+                    )}
+                    {authMethod === 'biometric' && biometricAvailable ? 'Autenticar' : 'Enviar'}
                   </>
                 )}
               </button>

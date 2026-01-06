@@ -25,7 +25,9 @@ class TwoFactorService:
     """Serviço para gerenciar 2FA com TOTP"""
     
     def __init__(self):
-        self.issuer_name = "HOLDWallet"
+        self.issuer_name = "WolkNow"
+        # URL da logo para apps que suportam (como Authy)
+        self.logo_url = "https://hold-wallet-deaj.vercel.app/logo.png"
     
     def generate_secret(self) -> str:
         """Gera um novo secret TOTP"""

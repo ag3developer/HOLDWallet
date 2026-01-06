@@ -33,3 +33,4 @@ aioredis==2.0.1
 pillow==10.1.0
 python-magic==0.4.27
 aiohttp==3.9.1
+webauthn>=2.0.0

@@ -6,6 +6,9 @@ import { resolve } from 'path'
 // Versão do app - incrementar a cada deploy
 const APP_VERSION = new Date().toISOString()
 
+// Detectar se está em desenvolvimento
+const isDev = process.env.NODE_ENV !== 'production'
+
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
@@ -13,7 +16,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate', // ✅ MUDANÇA: Auto-atualiza sem prompt
       devOptions: {
-        enabled: true,
+        enabled: false, // ✅ Desabilitado em dev para evitar erros - PWA só em produção
       },
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
@@ -137,7 +140,6 @@ export default defineConfig({
             handler: 'NetworkOnly', // ✅ APIs sempre da rede
             options: {
               cacheName: 'api-cache-v3',
-              networkTimeoutSeconds: 15,
             },
           },
         ],

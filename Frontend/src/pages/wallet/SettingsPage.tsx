@@ -13,6 +13,7 @@ import {
 import toast, { Toaster } from 'react-hot-toast'
 import { seedVerificationService } from '../../services/seed-verification-service'
 import { CryptoIcon } from '../../components/CryptoIcon'
+import { BiometricSettings } from '../../components/security/BiometricSettings'
 
 // Import dos logos das moedas
 import bitcoinLogo from '../../assets/crypto-icons/btc.svg'
@@ -797,76 +798,82 @@ export const SettingsPage = () => {
 
         {/* Security Section */}
         {activeTab === 'security' && (
-          <div className='bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6'>
-            <div className='flex items-center gap-3 mb-6'>
-              <div className='w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center'>
-                <Shield className='w-5 h-5 text-blue-600' />
-              </div>
-              <div>
-                <h3 className='text-lg font-semibold text-gray-900 dark:text-white'>
-                  Segurança da Carteira
-                </h3>
-                <p className='text-sm text-gray-600 dark:text-gray-400'>
-                  Configurações específicas de segurança da carteira
-                </p>
-              </div>
-            </div>
+          <div className='space-y-6'>
+            {/* Biometric Authentication */}
+            <BiometricSettings />
 
-            <div className='space-y-4'>
-              {/* Lock Timeout */}
-              <div className='flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg'>
-                <div className='flex items-center gap-3'>
-                  <Lock className='w-5 h-5 text-purple-600' />
-                  <div>
-                    <h4 className='font-medium text-gray-900 dark:text-white'>
-                      Tempo de Bloqueio Automático
-                    </h4>
-                    <p className='text-sm text-gray-600 dark:text-gray-400'>
-                      Bloqueie a carteira após inatividade
-                    </p>
-                  </div>
+            {/* Other Security Settings */}
+            <div className='bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6'>
+              <div className='flex items-center gap-3 mb-6'>
+                <div className='w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center'>
+                  <Shield className='w-5 h-5 text-blue-600' />
                 </div>
-                <select
-                  title='Selecione o tempo de bloqueio'
-                  value={lockTimeout}
-                  onChange={e => handleLockTimeoutChange(e.target.value)}
-                  className='px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 rounded-lg text-gray-900 dark:text-white'
-                >
-                  <option>5 minutos</option>
-                  <option>10 minutos</option>
-                  <option>15 minutos</option>
-                  <option>30 minutos</option>
-                  <option>1 hora</option>
-                  <option>Nunca</option>
-                </select>
+                <div>
+                  <h3 className='text-lg font-semibold text-gray-900 dark:text-white'>
+                    Segurança da Carteira
+                  </h3>
+                  <p className='text-sm text-gray-600 dark:text-gray-400'>
+                    Configurações específicas de segurança da carteira
+                  </p>
+                </div>
               </div>
 
-              {/* Require Password for Transactions */}
-              <div className='flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg'>
-                <div className='flex items-center gap-3'>
-                  <Lock className='w-5 h-5 text-orange-600' />
-                  <div>
-                    <h4 className='font-medium text-gray-900 dark:text-white'>
-                      Confirmar com Senha
-                    </h4>
-                    <p className='text-sm text-gray-600 dark:text-gray-400'>
-                      Solicitar senha para transações acima de um valor
-                    </p>
+              <div className='space-y-4'>
+                {/* Lock Timeout */}
+                <div className='flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg'>
+                  <div className='flex items-center gap-3'>
+                    <Lock className='w-5 h-5 text-purple-600' />
+                    <div>
+                      <h4 className='font-medium text-gray-900 dark:text-white'>
+                        Tempo de Bloqueio Automático
+                      </h4>
+                      <p className='text-sm text-gray-600 dark:text-gray-400'>
+                        Bloqueie a carteira após inatividade
+                      </p>
+                    </div>
                   </div>
+                  <select
+                    title='Selecione o tempo de bloqueio'
+                    value={lockTimeout}
+                    onChange={e => handleLockTimeoutChange(e.target.value)}
+                    className='px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 rounded-lg text-gray-900 dark:text-white'
+                  >
+                    <option>5 minutos</option>
+                    <option>10 minutos</option>
+                    <option>15 minutos</option>
+                    <option>30 minutos</option>
+                    <option>1 hora</option>
+                    <option>Nunca</option>
+                  </select>
                 </div>
-                <button
-                  title='Ativar confirmação por senha para transações'
-                  onClick={handleToggleRequirePassword}
-                  className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${
-                    requirePassword ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
-                      requirePassword ? 'translate-x-7' : 'translate-x-1'
+
+                {/* Require Password for Transactions */}
+                <div className='flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg'>
+                  <div className='flex items-center gap-3'>
+                    <Lock className='w-5 h-5 text-orange-600' />
+                    <div>
+                      <h4 className='font-medium text-gray-900 dark:text-white'>
+                        Confirmar com Senha
+                      </h4>
+                      <p className='text-sm text-gray-600 dark:text-gray-400'>
+                        Solicitar senha para transações acima de um valor
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    title='Ativar confirmação por senha para transações'
+                    onClick={handleToggleRequirePassword}
+                    className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${
+                      requirePassword ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
                     }`}
-                  />
-                </button>
+                  >
+                    <span
+                      className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
+                        requirePassword ? 'translate-x-7' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
               </div>
             </div>
 

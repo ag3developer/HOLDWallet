@@ -98,8 +98,16 @@ export function usePWAUpdate() {
   }, [])
 
   // Setup do Service Worker
+  // NOTA: O VitePWA com registerType: 'autoUpdate' já registra o SW automaticamente
+  // Este hook apenas monitora atualizações e oferece funções auxiliares
+  // Em desenvolvimento, o SW está desabilitado para evitar problemas
   useEffect(() => {
-    if (!('serviceWorker' in navigator)) return
+    // Verificar se Service Worker é suportado e se não estamos em desenvolvimento
+    const isDev = import.meta.env.DEV
+    if (!('serviceWorker' in navigator) || isDev) {
+      if (isDev) console.log('[PWA] Service Worker desabilitado em desenvolvimento')
+      return
+    }
 
     // Verificar se há nova versão
     if (checkVersion()) {
@@ -108,25 +116,25 @@ export function usePWAUpdate() {
       return () => clearTimeout(timer)
     }
 
-    // Registrar SW
     let intervalId: ReturnType<typeof setInterval>
 
     const initSW = async () => {
       try {
-        const reg = await navigator.serviceWorker.register('/sw.js')
-        console.log('[PWA] SW registrado:', reg.scope)
+        // Aguardar o SW já registrado pelo VitePWA (não registrar manualmente)
+        const registration = await navigator.serviceWorker.ready
+        console.log('[PWA] SW pronto:', registration.scope)
 
         // Verificar atualizações a cada 5 minutos
         intervalId = setInterval(
           () => {
-            reg.update().catch(console.error)
+            registration.update().catch(console.error)
           },
           5 * 60 * 1000
         )
 
         // Escutar novas versões
-        reg.addEventListener('updatefound', () => {
-          const newWorker = reg.installing
+        registration.addEventListener('updatefound', () => {
+          const newWorker = registration.installing
           if (!newWorker) return
 
           newWorker.addEventListener('statechange', () => {
@@ -138,8 +146,7 @@ export function usePWAUpdate() {
           })
         })
       } catch (error) {
-        console.error('[PWA] Erro no registro:', error)
-        await clearAllCaches()
+        console.error('[PWA] Erro ao aguardar SW:', error)
       }
     }
 
@@ -157,10 +164,13 @@ export function usePWAUpdate() {
       if (intervalId) clearInterval(intervalId)
       navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange)
     }
-  }, [checkVersion, forceUpdate, clearAllCaches])
+  }, [checkVersion, forceUpdate])
 
   // Verificar ao voltar para a aba
   useEffect(() => {
+    // Não executar em desenvolvimento
+    if (import.meta.env.DEV) return
+
     const onVisibilityChange = async () => {
       if (document.visibilityState !== 'visible') return
 
