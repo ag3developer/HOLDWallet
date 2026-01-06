@@ -413,12 +413,12 @@ export const AdminTradeDetailPage: React.FC = () => {
                 </span>
               </div>
               <div className='flex items-center gap-2 text-[10px] text-gray-500 dark:text-gray-400'>
-                <span>{trade.reference_code}</span>
                 <button
-                  onClick={() => copyToClipboard(trade.id, 'ID')}
-                  className='hover:text-blue-600'
-                  title='Copiar ID'
+                  onClick={() => copyToClipboard(trade.reference_code, 'Código de referência')}
+                  className='flex items-center gap-1 hover:text-blue-600 font-mono'
+                  title='Copiar código de referência'
                 >
+                  {trade.reference_code}
                   <Copy className='w-2.5 h-2.5' />
                 </button>
               </div>
@@ -531,6 +531,21 @@ export const AdminTradeDetailPage: React.FC = () => {
                       </p>
                     </div>
                   )}
+                </div>
+                {/* Instrução de transferência com código copiável */}
+                <div className='mt-3 p-3 bg-green-100 dark:bg-green-900/40 rounded-lg'>
+                  <p className='text-xs text-green-700 dark:text-green-300'>
+                    <strong>Importante:</strong> Transfira exatamente o valor indicado. Use o código{' '}
+                    <button
+                      onClick={() => copyToClipboard(trade.reference_code, 'Código de referência')}
+                      className='inline-flex items-center gap-1 px-1.5 py-0.5 bg-green-200 dark:bg-green-800 rounded font-mono font-bold hover:bg-green-300 dark:hover:bg-green-700 transition-colors'
+                      title='Clique para copiar'
+                    >
+                      {trade.reference_code}
+                      <Copy className='w-3 h-3' />
+                    </button>{' '}
+                    na descrição da transferência.
+                  </p>
                 </div>
               </div>
             )}
