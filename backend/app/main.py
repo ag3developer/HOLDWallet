@@ -29,18 +29,28 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("🚀 Starting Wolknow Backend API...")
     
+    db_connected = False
     try:
-        # Initialize database
-        if init_db():
-            logger.info("✅ Database connection established")
-            await create_tables()
-            logger.info("✅ Database tables verified")
-        else:
-            logger.error("❌ Database connection failed")
-            raise Exception("Database initialization failed")
+        # Initialize database (non-blocking for health checks)
+        try:
+            if init_db():
+                logger.info("✅ Database connection established")
+                await create_tables()
+                logger.info("✅ Database tables verified")
+                db_connected = True
+            else:
+                logger.warning("⚠️ Database connection failed - app will start but some features may not work")
+        except Exception as db_error:
+            logger.warning(f"⚠️ Database initialization failed: {db_error} - app will start but some features may not work")
+        
+        # Store db status in app state
+        app.state.db_connected = db_connected
         
         # Initialize cache service
-        await cache_service.connect()
+        try:
+            await cache_service.connect()
+        except Exception as cache_error:
+            logger.warning(f"⚠️ Cache service failed to connect: {cache_error}")
         
         logger.info("🎉 Wolknow Backend started successfully")
         yield
