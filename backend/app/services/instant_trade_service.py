@@ -133,10 +133,34 @@ class InstantTradeService:
         quote_id = f"quote_{uuid.uuid4().hex[:12]}"
         expires_at = datetime.now() + timedelta(seconds=self.QUOTE_VALIDITY_SECONDS)
 
+        # Mapeamento de símbolos para nomes
+        CRYPTO_NAMES = {
+            "BTC": "Bitcoin",
+            "ETH": "Ethereum",
+            "USDT": "Tether USD",
+            "USDC": "USD Coin",
+            "MATIC": "Polygon",
+            "POL": "Polygon",
+            "BNB": "Binance Coin",
+            "SOL": "Solana",
+            "XRP": "Ripple",
+            "ADA": "Cardano",
+            "DOGE": "Dogecoin",
+            "DOT": "Polkadot",
+            "AVAX": "Avalanche",
+            "LINK": "Chainlink",
+            "LTC": "Litecoin",
+            "UNI": "Uniswap",
+            "SHIB": "Shiba Inu",
+        }
+
+        crypto_name = CRYPTO_NAMES.get(symbol_upper, symbol_upper)
+
         quote_data = {
             "quote_id": quote_id,
             "operation": operation,
             "symbol": symbol_upper,
+            "name": crypto_name,
             "crypto_price": float(price),  # Preço de mercado (sem spread)
             "otc_price": float(otc_price),  # Preço OTC (com spread aplicado)
             "fiat_amount": float(fiat_amount),
@@ -189,6 +213,7 @@ class InstantTradeService:
         
         operation = quote["operation"]
         symbol = quote["symbol"]
+        name = quote.get("name", symbol)  # Fallback para symbol se name não existir
         fiat_amount = Decimal(str(quote["fiat_amount"]))
         crypto_amount = Decimal(str(quote["crypto_amount"]))
         
@@ -201,6 +226,7 @@ class InstantTradeService:
             user_id=user_id,
             operation_type=operation,
             symbol=symbol,
+            name=name,
             fiat_amount=fiat_amount,
             crypto_amount=crypto_amount,
             crypto_price=Decimal(str(quote["crypto_price"])),

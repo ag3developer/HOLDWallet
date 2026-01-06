@@ -36,10 +36,10 @@ DEFAULT_SETTINGS = {
         "p2p_fee_percentage": 0.5
     },
     "limits": {
-        "daily_limit_brl": 50000.0,
-        "transaction_limit_brl": 10000.0,
+        "daily_limit_brl": 3000000.0,  # R$ 3.000.000 (~$500k USD)
+        "transaction_limit_brl": 500000.0,  # R$ 500.000 por transação
         "p2p_min_order_brl": 50.0,
-        "p2p_max_order_brl": 100000.0
+        "p2p_max_order_brl": 500000.0
     },
     "payment_methods": {
         "pix": True,

@@ -1,8 +1,8 @@
 // Trading Limits Configuration (in USD)
 export const TRADING_LIMITS = {
   MIN_AMOUNT: 1.0, // Mínimo $1.00 USD
-  PF_DAILY_LIMIT: 10000, // Pessoa Física: $10.000 USD/dia
-  PJ_DAILY_LIMIT: 100000, // PJ: $100.000 USD/dia
+  PF_DAILY_LIMIT: 500000, // Pessoa Física: $500.000 USD/dia
+  PJ_DAILY_LIMIT: 1000000, // PJ: $1.000.000 USD/dia
 }
 
 export type AccountType = 'PF' | 'PJ'

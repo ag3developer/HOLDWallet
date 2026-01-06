@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { apiClient } from '@/services/api'
+import { parseApiError } from '@/services/errors'
 import { TradeStatusMonitor } from './TradeStatusMonitor'
 import { useCurrencyStore } from '@/stores/useCurrencyStore'
 
@@ -107,31 +108,30 @@ export function ConfirmationPanel({
       setTradeCreated(tradeId)
       onSuccess(tradeId)
     } catch (error: any) {
-      console.error('[ConfirmationPanel] Error creating trade:', error.response?.data)
+      // Usar sistema de tratamento de erros enterprise
+      const parsedError = parseApiError(error)
 
       // Handle 403 Forbidden - trade was created but waiting for proof of payment
       if (error.response?.status === 403) {
-        // Extract trade ID from error response (backend should include it)
         const tradeId =
           error.response?.data?.trade_id || error.response?.data?.id || `pending_${Date.now()}`
 
         toast.success('Trade created! Awaiting payment proof. Please send your receipt.')
         setPendingProof(true)
         setTradeCreated(tradeId)
-
-        // Call onSuccess to update parent component
         onSuccess(tradeId)
       } else {
-        // Check for quote expired error
-        const errorDetail = error.response?.data?.detail || error.response?.data?.message || ''
+        // Mostrar mensagem amigável ao usuário
+        toast.error(parsedError.userMessage)
 
-        if (
-          errorDetail.toLowerCase().includes('expired') ||
-          errorDetail.toLowerCase().includes('quote')
-        ) {
-          toast.error('Quote expired. Please get a new quote and try again.')
-        } else {
-          toast.error(errorDetail || 'Error creating trade. Please try again.')
+        // Log estruturado apenas em desenvolvimento
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[ConfirmationPanel] Trade error:', {
+            category: parsedError.category,
+            message: parsedError.technicalMessage,
+            code: parsedError.code,
+            isRetryable: parsedError.isRetryable,
+          })
         }
       }
     } finally {

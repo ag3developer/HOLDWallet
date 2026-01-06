@@ -3,6 +3,7 @@ import { TradingLimitsDisplay } from './TradingLimitsDisplay'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { apiClient } from '@/services/api'
 import { toUSD } from '@/services/currency'
+import { parseApiError } from '@/services/errors'
 
 interface CryptoPrice {
   symbol: string
@@ -280,8 +281,16 @@ export function TradingForm({
         onQuoteReceived(response.data.quote)
         setLastQuoteTime(Date.now())
       } catch (error: any) {
-        // Silently fail for auto-quote - user will see preview
-        console.error('Auto-quote error:', error.response?.data?.message)
+        // Usar o novo sistema de tratamento de erros
+        const parsedError = parseApiError(error)
+
+        // Auto-quote silencioso - apenas log em dev
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[TradingForm] Auto-quote:', parsedError.userMessage)
+        }
+
+        // Não mostrar toast para auto-quote (é silencioso)
+        // O usuário verá o preview e pode clicar em "Get Quote" manualmente
       } finally {
         setLoading(false)
       }
