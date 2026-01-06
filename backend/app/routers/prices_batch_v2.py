@@ -108,6 +108,8 @@ async def get_batch_prices(
                 "symbol": price.symbol,
                 "price": price.price,
                 "change_24h": price.change_24h,
+                "high_24h": price.high_24h,
+                "low_24h": price.low_24h,
                 "market_cap": price.market_cap,
                 "volume_24h": price.volume_24h,
                 "source": price.source,

@@ -5,6 +5,9 @@
 
 interface CachedPrice {
   price: number
+  change_24h: number
+  high_24h: number
+  low_24h: number
   timestamp: number
   currency: string
 }
@@ -20,7 +23,7 @@ interface CacheData {
 
 const CACHE_KEY = 'crypto_prices_cache'
 const CACHE_TTL = 5 * 60 * 1000 // 5 minutos
-const CACHE_VERSION = 3 // v3: Preços agora são sempre em USD (sem conversão no PriceService)
+const CACHE_VERSION = 5 // v5: Limpeza do cache com preços zerados
 
 class PriceCache {
   private static getCache(): Record<string, PriceCacheEntry> {
@@ -89,9 +92,23 @@ class PriceCache {
   }
 
   /**
-   * Cachear preço
+   * Cachear preço com dados completos
+   * ⚠️ NÃO cacheia preços zerados para evitar dados inválidos
    */
-  static setPrice(symbol: string, price: number, currency: string = 'USD') {
+  static setPrice(
+    symbol: string,
+    price: number,
+    currency: string = 'USD',
+    change_24h: number = 0,
+    high_24h: number = 0,
+    low_24h: number = 0
+  ) {
+    // Não cachear preços zerados ou inválidos
+    if (!price || price <= 0) {
+      console.log(`[PriceCache] Skipping cache for ${symbol} - invalid price: ${price}`)
+      return
+    }
+
     const cache = this.getCache()
     const currencyKey = currency.toUpperCase()
     const symbolUpper = symbol.toUpperCase()
@@ -100,20 +117,38 @@ class PriceCache {
 
     cache[currencyKey][symbolUpper] = {
       price,
+      change_24h,
+      high_24h,
+      low_24h,
       timestamp: Date.now(),
       currency: currencyKey,
     }
 
     this.setCache(cache)
-    console.log(`[PriceCache] Cached ${symbolUpper} = ${price} ${currencyKey}`)
+    console.log(
+      `[PriceCache] Cached ${symbolUpper} = ${price} ${currencyKey} (change: ${change_24h.toFixed(2)}%)`
+    )
   }
 
   /**
-   * Cachear múltiplos preços
+   * Cachear múltiplos preços com dados completos
    */
-  static setPrices(prices: Record<string, number>, currency: string = 'USD') {
-    for (const [symbol, price] of Object.entries(prices)) {
-      this.setPrice(symbol, price, currency)
+  static setPrices(
+    prices: Record<
+      string,
+      { price: number; change_24h?: number; high_24h?: number; low_24h?: number }
+    >,
+    currency: string = 'USD'
+  ) {
+    for (const [symbol, data] of Object.entries(prices)) {
+      this.setPrice(
+        symbol,
+        data.price,
+        currency,
+        data.change_24h || 0,
+        data.high_24h || 0,
+        data.low_24h || 0
+      )
     }
   }
 

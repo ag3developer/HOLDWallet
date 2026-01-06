@@ -1,24 +1,22 @@
 /**
- * 🏦 HOLD Wallet - Price Service (Enterprise Grade)
+ * 🏦 HOLD Wallet - Price Service (Real-Time Trading)
  * ==================================================
  *
  * Serviço centralizado de preços de criptomoedas.
  *
- * 📐 PADRÃO ENTERPRISE:
- * ─────────────────────
+ * 📐 PADRÃO TRADING EM TEMPO REAL:
+ * ─────────────────────────────────
  * 1. Backend → SEMPRE retorna preços em USD
  * 2. Conversão → Feita via CurrencyManager centralizado
- * 3. Cache → Versionado, por moeda, com TTL de 5 min
- * 4. Rate Limiting → 5 segundos entre requisições iguais
- * 5. Deduplicação → Requisições em paralelo são mescladas
+ * 3. ⚠️ SEM CACHE → Preços sempre frescos para evitar prejuízos
+ * 4. Deduplicação → Requisições em paralelo são mescladas
  *
- * @version 2.0.0
+ * @version 3.0.0 - Removido cache para trading em tempo real
  * @enterprise true
  */
 
 import axios from 'axios'
 import { APP_CONFIG } from '@/config/app'
-import PriceCache from './price-cache'
 
 interface PriceData {
   [symbol: string]: {
@@ -30,13 +28,13 @@ interface PriceData {
 }
 
 class PriceService {
+  // Apenas deduplicação de requisições em paralelo (sem cache!)
   private static readonly requestQueue: Map<string, Promise<PriceData>> = new Map()
-  private static readonly lastRequestTime: Map<string, number> = new Map()
-  private static readonly MIN_REQUEST_INTERVAL = 5000 // 5 segundos entre requisições para o mesmo símbolo
 
   /**
    * Buscar preço com deduplicação de requisições
    * Se já existe uma requisição em andamento para o mesmo símbolo, retorna a promise existente
+   * ⚠️ SEM CACHE - Sempre busca do backend
    */
   static async getPrice(
     symbol: string,
@@ -46,35 +44,16 @@ class PriceService {
     const currencyUpper = currency.toUpperCase()
     const cacheKey = `${symbolUpper}_${currencyUpper}`
 
-    // Tentar cache primeiro
-    const cached = PriceCache.getPrice(symbolUpper, currency)
-    if (cached) {
-      console.log(`[PriceService] Cache hit for ${symbolUpper}:`, cached.price)
-      return { price: cached.price, change_24h: 0 }
-    }
-
-    // Verificar se já há requisição em andamento
+    // Verificar se já há requisição em andamento (deduplicação)
     if (this.requestQueue.has(cacheKey)) {
       console.log(`[PriceService] Request in progress for ${symbolUpper}, waiting...`)
       const result = await this.requestQueue.get(cacheKey)!
       return result?.[symbolUpper] || { price: 0 }
     }
 
-    // Verificar intervalo mínimo entre requisições
-    const lastTime = this.lastRequestTime.get(cacheKey) || 0
-    if (Date.now() - lastTime < this.MIN_REQUEST_INTERVAL) {
-      console.log(
-        `[PriceService] Rate limit: waiting ${this.MIN_REQUEST_INTERVAL}ms between requests`
-      )
-      await new Promise(resolve =>
-        setTimeout(resolve, this.MIN_REQUEST_INTERVAL - (Date.now() - lastTime))
-      )
-    }
-
     // Criar nova requisição
     const requestPromise = this.fetchFromBackend([symbolUpper], currency).then(data => {
       this.requestQueue.delete(cacheKey)
-      this.lastRequestTime.set(cacheKey, Date.now())
       return data
     })
 
@@ -91,35 +70,33 @@ class PriceService {
 
   /**
    * Buscar múltiplos preços em uma única requisição
+   * ⚠️ SEM CACHE - Sempre busca do backend para preços em tempo real
    */
   static async getPrices(symbols: string[], currency: string = 'USD'): Promise<PriceData> {
     const symbolsUpper = symbols.map(s => s.toUpperCase())
+    const batchKey = `batch_${symbolsUpper.join(',')}_${currency}`
 
-    // Separar em cached e não-cached
-    const cached: PriceData = {}
-    const needsFetch: string[] = []
-
-    for (const symbol of symbolsUpper) {
-      const cachedPrice = PriceCache.getPrice(symbol, currency)
-      if (cachedPrice) {
-        cached[symbol] = { price: cachedPrice.price }
-      } else {
-        needsFetch.push(symbol)
-      }
+    // Deduplicação: se já há requisição em andamento para os mesmos símbolos, aguardar
+    if (this.requestQueue.has(batchKey)) {
+      console.log(`[PriceService] Batch request in progress, waiting...`)
+      return this.requestQueue.get(batchKey)!
     }
 
-    // Se todos estão em cache, retornar imediatamente
-    if (needsFetch.length === 0) {
-      console.log('[PriceService] All prices in cache, returning immediately')
-      return cached
+    // Criar nova requisição
+    console.log(`[PriceService] 🔄 Fetching LIVE prices for ${symbolsUpper.length} symbols`)
+    const requestPromise = this.fetchFromBackend(symbolsUpper, currency).then(data => {
+      this.requestQueue.delete(batchKey)
+      return data
+    })
+
+    this.requestQueue.set(batchKey, requestPromise)
+
+    try {
+      return await requestPromise
+    } catch (error) {
+      this.requestQueue.delete(batchKey)
+      throw error
     }
-
-    // Se precisa buscar, fazer requisição para os símbolos faltando
-    console.log(`[PriceService] Fetching ${needsFetch.length} prices from backend`)
-    const fetched = await this.fetchFromBackend(needsFetch, currency)
-
-    // Combinar cached + fetched
-    return { ...cached, ...fetched }
   }
 
   /**
@@ -129,7 +106,7 @@ class PriceService {
    */
   private static async fetchFromBackend(
     symbols: string[],
-    currency: string = 'USD'
+    _currency: string = 'USD'
   ): Promise<PriceData> {
     if (symbols.length === 0) return {}
 
@@ -154,22 +131,21 @@ class PriceService {
 
       const data = response.data
       if (data.prices && typeof data.prices === 'object') {
-        const result = this.parseResponse(data.prices, currency)
-        console.log('[PriceService] Prices fetched successfully:', result)
-        this.cacheResults(result, currency)
+        const result = this.parseResponse(data.prices)
+        console.log('[PriceService] ✅ Live prices fetched:', Object.keys(result).length, 'symbols')
         return result
       }
 
-      console.warn('[PriceService] Response has no prices:', data)
+      console.warn('[PriceService] ⚠️ Response has no prices:', data)
       return {}
     } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
         console.error(
-          `[PriceService] Failed to fetch prices (${error.response?.status}):`,
+          `[PriceService] ❌ Failed to fetch prices (${error.response?.status}):`,
           error.message
         )
       } else {
-        console.error('[PriceService] Failed to fetch prices:', error)
+        console.error('[PriceService] ❌ Failed to fetch prices:', error)
       }
       return {}
     }
@@ -178,16 +154,12 @@ class PriceService {
   /**
    * Parse resposta do backend
    *
-   * ⚠️ PADRÃO ENTERPRISE: Retorna preços em USD!
+   * ⚠️ PADRÃO TRADING: Retorna preços em USD!
    * A conversão para moeda do usuário é feita pelo formatCurrency() na exibição.
    * Isso evita conversão dupla e mantém consistência.
    */
-  private static parseResponse(data: Record<string, any>, _currency: string): PriceData {
+  private static parseResponse(data: Record<string, any>): PriceData {
     const result: PriceData = {}
-
-    // ⚠️ NÃO CONVERTER AQUI! Manter em USD.
-    // A conversão é feita pelo formatCurrency() do useCurrencyStore
-    console.log(`[PriceService] Parsing prices (keeping in USD for formatCurrency to convert)`)
 
     for (const [symbol, info] of Object.entries(data)) {
       const symbolUpper = symbol.toUpperCase()
@@ -202,41 +174,24 @@ class PriceService {
         high_24h: infoObj.high_24h || 0,
         low_24h: infoObj.low_24h || 0,
       }
-
-      // Log para debug
-      if (symbolUpper === 'BTC' || symbolUpper === 'USDT') {
-        console.log(`[PriceService] ${symbolUpper}: $${priceUSD} USD (raw)`)
-      }
     }
 
     return result
   }
 
   /**
-   * Cachear resultados
+   * Limpar requisições em andamento (útil para testes)
    */
-  private static cacheResults(data: PriceData, currency: string) {
-    for (const [symbol, priceData] of Object.entries(data)) {
-      PriceCache.setPrice(symbol, priceData.price, currency)
-    }
-  }
-
-  /**
-   * Limpar cache (útil para testes)
-   */
-  static clearCache() {
-    PriceCache.clear()
+  static clearPendingRequests() {
     this.requestQueue.clear()
-    this.lastRequestTime.clear()
   }
 
   /**
-   * Obter status
+   * Obter status do serviço
    */
   static getStatus() {
     return {
-      queuedRequests: this.requestQueue.size,
-      lastRequests: Array.from(this.lastRequestTime.entries()),
+      pendingRequests: this.requestQueue.size,
     }
   }
 }

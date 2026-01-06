@@ -21,6 +21,8 @@ class PriceData:
     change_24h: float
     market_cap: Optional[float] = None
     volume_24h: Optional[float] = None
+    high_24h: Optional[float] = None
+    low_24h: Optional[float] = None
     source: str = "coingecko"
     timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     
@@ -102,12 +104,31 @@ class CoinGeckoSource(PriceSource):
                     price = coin_data.get(currency.lower(), 0)
                     
                     if price > 0:
+                        change_24h = coin_data.get(f"{currency.lower()}_24h_change", 0) or 0
+                        
+                        # Estimar high_24h e low_24h a partir da variação
+                        # Se a variação é positiva, o preço subiu - então low era menor
+                        # Se negativa, o preço caiu - então high era maior
+                        variation_factor = abs(change_24h) / 100
+                        estimated_high = price * (1 + variation_factor * 0.5)
+                        estimated_low = price * (1 - variation_factor * 0.5)
+                        
+                        # Garantir que high >= price >= low
+                        if change_24h >= 0:
+                            estimated_low = price / (1 + change_24h / 100) if change_24h > 0 else price * 0.98
+                            estimated_high = price * 1.02
+                        else:
+                            estimated_high = price / (1 + change_24h / 100)  # change_24h é negativo
+                            estimated_low = price * 0.98
+                        
                         prices[symbol] = PriceData(
                             symbol=symbol,
                             price=float(price),
-                            change_24h=coin_data.get(f"{currency.lower()}_24h_change", 0),
+                            change_24h=change_24h,
                             market_cap=coin_data.get(f"{currency.lower()}_market_cap"),
                             volume_24h=coin_data.get(f"{currency.lower()}_24h_vol"),
+                            high_24h=round(estimated_high, 6),
+                            low_24h=round(estimated_low, 6),
                             source="coingecko",
                             timestamp=datetime.now(timezone.utc)
                         )
@@ -156,8 +177,8 @@ class BinanceSource(PriceSource):
                         continue
                     
                     try:
-                        # Fetch ticker
-                        url = f"https://api.binance.com/api/v3/ticker/24hr"
+                        # Fetch ticker - Binance tem high/low nativamente!
+                        url = "https://api.binance.com/api/v3/ticker/24hr"
                         params = {"symbol": pair}
                         response = await client.get(url, params=params)
                         response.raise_for_status()
@@ -167,6 +188,8 @@ class BinanceSource(PriceSource):
                             symbol=symbol.upper(),
                             price=float(data.get("lastPrice", 0)),
                             change_24h=float(data.get("priceChangePercent", 0)),
+                            high_24h=float(data.get("highPrice", 0)),
+                            low_24h=float(data.get("lowPrice", 0)),
                             volume_24h=float(data.get("quoteAssetVolume", 0)),
                             source="binance",
                             timestamp=datetime.now(timezone.utc)
@@ -185,7 +208,7 @@ class BinanceSource(PriceSource):
 
 
 class PriceCache:
-    """Simple in-memory price cache"""
+    """Simple in-memory price cache for rate limiting external APIs"""
     
     def __init__(self):
         self.cache: Dict[str, Dict[str, PriceData]] = {}
@@ -201,8 +224,8 @@ class PriceCache:
         async with self.lock:
             self.cache[currency.lower()] = prices
     
-    async def is_stale(self, currency: str, max_age_seconds: int = 300) -> bool:
-        """Check if cache is stale"""
+    async def is_stale(self, currency: str, max_age_seconds: int = 30) -> bool:
+        """Check if cache is stale - default 30s for real-time trading"""
         prices = await self.get(currency)
         if not prices:
             return True
@@ -223,7 +246,7 @@ class PriceAggregator:
             BinanceSource(),
         ]
         self.cache = PriceCache()
-        self.cache_ttl = 300  # 5 minutes
+        self.cache_ttl = 30  # 30 segundos para trading em tempo real
     
     async def get_prices(
         self,

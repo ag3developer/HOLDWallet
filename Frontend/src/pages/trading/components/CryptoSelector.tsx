@@ -199,25 +199,30 @@ export function CryptoSelector({
 
         {/* Price & Change */}
         <div className='flex items-center gap-4'>
-          {selectedCrypto && (
+          {selectedCrypto && selectedCrypto.price > 0 && (
             <div className='hidden sm:flex flex-col items-end'>
               <span className='font-semibold text-gray-900 dark:text-white'>
                 ${formatPrice(selectedCrypto.price)}
               </span>
-              <span
-                className={`text-xs font-medium flex items-center gap-0.5 ${
-                  selectedCrypto.change24h >= 0
-                    ? 'text-green-600 dark:text-green-400'
-                    : 'text-red-600 dark:text-red-400'
-                }`}
-              >
-                {selectedCrypto.change24h >= 0 ? (
-                  <TrendingUp className='w-3 h-3' />
-                ) : (
-                  <TrendingDown className='w-3 h-3' />
-                )}
-                {formatChange(selectedCrypto.change24h)}
-              </span>
+              {/* Só mostrar variação se tiver dados válidos */}
+              {selectedCrypto.change24h === 0 ? (
+                <span className='text-xs text-gray-400'>24h</span>
+              ) : (
+                <span
+                  className={`text-xs font-medium flex items-center gap-0.5 ${
+                    selectedCrypto.change24h >= 0
+                      ? 'text-green-600 dark:text-green-400'
+                      : 'text-red-600 dark:text-red-400'
+                  }`}
+                >
+                  {selectedCrypto.change24h >= 0 ? (
+                    <TrendingUp className='w-3 h-3' />
+                  ) : (
+                    <TrendingDown className='w-3 h-3' />
+                  )}
+                  {formatChange(selectedCrypto.change24h)}
+                </span>
+              )}
             </div>
           )}
 
