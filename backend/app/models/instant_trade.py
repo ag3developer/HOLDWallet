@@ -31,7 +31,8 @@ class TradeStatus(str, enum.Enum):
     """Status da operação OTC"""
     PENDING = "pending"                          # Aguardando confirmação
     PAYMENT_PROCESSING = "payment_processing"    # Processando pagamento
-    PAYMENT_CONFIRMED = "payment_confirmed"      # Pagamento confirmado
+    PAYMENT_CONFIRMED = "payment_confirmed"      # Pagamento confirmado (BUY)
+    CRYPTO_RECEIVED = "crypto_received"          # Crypto recebida (SELL) - aguardando PIX
     COMPLETED = "completed"                      # Operação concluída
     EXPIRED = "expired"                          # Expirou (15 min)
     CANCELLED = "cancelled"                      # Cancelada pelo usuário

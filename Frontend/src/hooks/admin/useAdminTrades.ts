@@ -17,9 +17,12 @@ import {
   retryTradeDeposit,
   sendToAccounting,
   getTradeAccountingEntries,
+  processSellTrade,
+  completeSellTrade,
   type TradeListParams,
   type UpdateTradeStatusRequest,
   type ConfirmPaymentRequest,
+  type ProcessSellRequest,
 } from '@/services/admin/adminService'
 
 // Query Keys para cache
@@ -181,5 +184,38 @@ export function useTradeAccountingEntries(tradeId: string) {
     },
     enabled: !!tradeId,
     staleTime: 60 * 1000, // 1 minuto
+  })
+}
+
+/**
+ * Hook para processar venda (retirar crypto do usuário)
+ */
+export function useProcessSellTrade() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ tradeId, data }: { tradeId: string; data?: ProcessSellRequest }) =>
+      processSellTrade(tradeId, data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: adminTradesKeys.detail(variables.tradeId) })
+      queryClient.invalidateQueries({ queryKey: adminTradesKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: adminTradesKeys.stats() })
+    },
+  })
+}
+
+/**
+ * Hook para finalizar venda (após enviar PIX/TED ao usuário)
+ */
+export function useCompleteSellTrade() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (tradeId: string) => completeSellTrade(tradeId),
+    onSuccess: (_, tradeId) => {
+      queryClient.invalidateQueries({ queryKey: adminTradesKeys.detail(tradeId) })
+      queryClient.invalidateQueries({ queryKey: adminTradesKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: adminTradesKeys.stats() })
+    },
   })
 }

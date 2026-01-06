@@ -17,7 +17,7 @@ import logging
 from app.core.db import get_db
 from app.core.security import get_current_admin
 from app.models.user import User
-from app.models.tx import Transaction
+from app.models.transaction import Transaction
 
 logger = logging.getLogger(__name__)
 

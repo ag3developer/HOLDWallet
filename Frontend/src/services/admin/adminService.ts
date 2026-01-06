@@ -341,6 +341,49 @@ export const getTradeAccountingEntries = async (
 }
 
 // ============================================
+// SELL Trade Processing (VENDA)
+// ============================================
+
+export interface ProcessSellRequest {
+  network?: string
+  notes?: string
+}
+
+export interface ProcessSellResponse {
+  success: boolean
+  message: string
+  trade_id: string
+  tx_hash?: string
+  from_address?: string
+  to_address?: string
+  network: string
+  status: string
+  error?: string
+  next_step?: string
+}
+
+export const processSellTrade = async (
+  tradeId: string,
+  data: ProcessSellRequest = {}
+): Promise<ProcessSellResponse> => {
+  const response = await adminApi.post(`/trades/${tradeId}/process-sell`, data)
+  return response.data
+}
+
+export const completeSellTrade = async (
+  tradeId: string
+): Promise<{
+  success: boolean
+  message: string
+  trade_id: string
+  status: string
+  completed_at?: string
+}> => {
+  const response = await adminApi.post(`/trades/${tradeId}/complete-sell`)
+  return response.data
+}
+
+// ============================================
 // P2P Management
 // ============================================
 

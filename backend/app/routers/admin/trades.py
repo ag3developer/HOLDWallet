@@ -852,3 +852,214 @@ async def get_trade_accounting_entries(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
         )
+
+
+# ===== ENDPOINT PARA PROCESSAR VENDAS (SELL) =====
+
+class ProcessSellRequest(BaseModel):
+    """Request para processar venda (retirar crypto do usuário)"""
+    network: str = "polygon"  # ethereum, polygon, base
+    notes: Optional[str] = None
+
+
+@router.post("/{trade_id}/process-sell", response_model=dict)
+async def process_sell_trade(
+    trade_id: str,
+    request: ProcessSellRequest,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin)
+):
+    """
+    Processa uma operação de VENDA (SELL) - Retira crypto do usuário para a plataforma.
+    
+    FLUXO DE VENDA:
+    1. Admin verifica que usuário quer vender (status: PENDING)
+    2. Admin clica "Processar Venda"
+    3. Sistema:
+       - Busca chave privada CUSTODIAL do usuário (criptografada)
+       - Descriptografa a chave
+       - Transfere crypto: User Wallet → Platform Wallet
+       - Registra tx_hash
+       - Status: CRYPTO_RECEIVED
+    4. Admin então processa pagamento PIX/TED para o usuário
+    5. Admin marca como COMPLETED
+    
+    IMPORTANTE: Este endpoint usa a chave privada CUSTODIAL do usuário
+    que está armazenada criptografada no banco de dados.
+    """
+    from app.services.blockchain_withdraw_service import blockchain_withdraw_service
+    
+    try:
+        trade = db.query(InstantTrade).filter(
+            InstantTrade.id == trade_id
+        ).first()
+        
+        if not trade:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Trade {trade_id} não encontrado"
+            )
+        
+        # Validar que é uma operação de VENDA
+        if trade.operation_type.value != "sell":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Este trade não é uma operação de VENDA"
+            )
+        
+        # Validar status
+        if trade.status not in [TradeStatus.PENDING, TradeStatus.PAYMENT_PROCESSING]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Trade com status {trade.status.value} não pode ser processado. Deve estar PENDING ou PAYMENT_PROCESSING."
+            )
+        
+        logger.info(f"🔄 Admin {current_admin.email} processando VENDA {trade.reference_code}")
+        
+        # Atualizar para PAYMENT_PROCESSING
+        old_status = trade.status
+        trade.status = TradeStatus.PAYMENT_PROCESSING
+        db.commit()
+        
+        # Executar withdraw (transferência do usuário para plataforma)
+        network = request.network or "polygon"
+        withdraw_result = blockchain_withdraw_service.withdraw_crypto_from_user(
+            db=db,
+            trade=trade,
+            network=network
+        )
+        
+        if withdraw_result["success"]:
+            # Withdraw OK - crypto recebida
+            logger.info(f"✅ Crypto recebida do usuário! TX: {withdraw_result['tx_hash']}")
+            
+            # Registrar histórico
+            history = InstantTradeHistory(
+                trade_id=trade.id,
+                old_status=old_status,
+                new_status=TradeStatus.CRYPTO_RECEIVED,
+                reason=f"Crypto retirada do usuário por admin {current_admin.email}",
+                history_details=f"TX: {withdraw_result['tx_hash']}, Network: {network}"
+            )
+            db.add(history)
+            db.commit()
+            
+            return {
+                "success": True,
+                "message": "Crypto recebida com sucesso! Agora processe o pagamento BRL para o usuário.",
+                "trade_id": trade.id,
+                "tx_hash": withdraw_result["tx_hash"],
+                "from_address": withdraw_result["from_address"],
+                "to_address": withdraw_result["to_address"],
+                "network": withdraw_result["network"],
+                "status": TradeStatus.CRYPTO_RECEIVED.value,
+                "next_step": "Processar PIX/TED para o usuário e marcar como COMPLETED"
+            }
+        else:
+            # Withdraw falhou
+            logger.error(f"❌ Withdraw falhou: {withdraw_result['error']}")
+            
+            # Reverter status
+            trade.status = old_status
+            trade.error_message = withdraw_result["error"]
+            db.commit()
+            
+            return {
+                "success": False,
+                "message": "Falha ao retirar crypto do usuário",
+                "trade_id": trade.id,
+                "tx_hash": None,
+                "from_address": withdraw_result.get("from_address"),
+                "to_address": withdraw_result.get("to_address"),
+                "network": network,
+                "status": old_status.value,
+                "error": withdraw_result["error"]
+            }
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"❌ Erro processando venda: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+@router.post("/{trade_id}/complete-sell", response_model=dict)
+async def complete_sell_trade(
+    trade_id: str,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin)
+):
+    """
+    Finaliza uma operação de VENDA após o pagamento BRL ser enviado ao usuário.
+    
+    Só pode ser chamado após:
+    1. Admin processou a venda (process-sell) - crypto foi retirada do usuário
+    2. Admin enviou PIX/TED para o usuário
+    3. Admin confirma que pagamento foi feito
+    
+    Status: CRYPTO_RECEIVED → COMPLETED
+    """
+    try:
+        trade = db.query(InstantTrade).filter(
+            InstantTrade.id == trade_id
+        ).first()
+        
+        if not trade:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Trade {trade_id} não encontrado"
+            )
+        
+        # Validar que é uma operação de VENDA
+        if trade.operation_type.value != "sell":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Este trade não é uma operação de VENDA"
+            )
+        
+        # Validar status
+        if trade.status != TradeStatus.CRYPTO_RECEIVED:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Trade com status {trade.status.value} não pode ser finalizado. Deve estar CRYPTO_RECEIVED (crypto já recebida)."
+            )
+        
+        logger.info(f"✅ Admin {current_admin.email} finalizando VENDA {trade.reference_code}")
+        
+        # Atualizar para COMPLETED
+        old_status = trade.status
+        trade.status = TradeStatus.COMPLETED
+        trade.completed_at = datetime.now(timezone.utc)
+        
+        # Registrar histórico
+        history = InstantTradeHistory(
+            trade_id=trade.id,
+            old_status=old_status,
+            new_status=TradeStatus.COMPLETED,
+            reason=f"Venda finalizada por admin {current_admin.email} - Pagamento BRL enviado ao usuário",
+            history_details=f"Trade completo em {datetime.now(timezone.utc).isoformat()}"
+        )
+        db.add(history)
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": f"Trade {trade.reference_code} finalizado com sucesso!",
+            "trade_id": trade.id,
+            "status": TradeStatus.COMPLETED.value,
+            "completed_at": trade.completed_at.isoformat() if trade.completed_at else None
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"❌ Erro finalizando venda: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )

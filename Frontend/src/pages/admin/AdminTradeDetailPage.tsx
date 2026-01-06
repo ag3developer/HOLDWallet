@@ -38,6 +38,8 @@ import {
   useRetryTradeDeposit,
   useSendToAccounting,
   useUpdateTradeStatus,
+  useProcessSellTrade,
+  useCompleteSellTrade,
 } from '@/hooks/admin/useAdminTrades'
 import { toast } from 'react-hot-toast'
 
@@ -56,6 +58,8 @@ export const AdminTradeDetailPage: React.FC = () => {
   const retryDepositMutation = useRetryTradeDeposit()
   const sendToAccountingMutation = useSendToAccounting()
   const updateStatusMutation = useUpdateTradeStatus()
+  const processSellMutation = useProcessSellTrade()
+  const completeSellMutation = useCompleteSellTrade()
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('pt-BR', {
@@ -106,6 +110,10 @@ export const AdminTradeDetailPage: React.FC = () => {
         return 'Pendente'
       case 'payment_processing':
         return 'Processando Pagamento'
+      case 'payment_confirmed':
+        return 'Pagamento Confirmado'
+      case 'crypto_received':
+        return 'Crypto Recebida'
       case 'cancelled':
         return 'Cancelado'
       case 'expired':
@@ -134,6 +142,18 @@ export const AdminTradeDetailPage: React.FC = () => {
 
   const canSendToAccounting = (status: string) => {
     return status?.toLowerCase() === 'completed'
+  }
+
+  // SELL: Pode processar venda (retirar crypto do usuário)
+  const canProcessSell = (status: string, operationType: string) => {
+    const s = status?.toLowerCase()
+    return operationType === 'sell' && (s === 'pending' || s === 'payment_processing')
+  }
+
+  // SELL: Pode finalizar venda (após enviar PIX/TED)
+  const canCompleteSell = (status: string, operationType: string) => {
+    const s = status?.toLowerCase()
+    return operationType === 'sell' && s === 'crypto_received'
   }
 
   const handleCancelTrade = async () => {
@@ -222,6 +242,63 @@ export const AdminTradeDetailPage: React.FC = () => {
     } catch (err: any) {
       console.error('Erro ao enviar para contabilidade:', err)
       toast.error(err.response?.data?.detail || 'Erro ao enviar para contabilidade')
+    }
+  }
+
+  // Handler para processar VENDA (retirar crypto do usuário)
+  const handleProcessSell = async () => {
+    if (!trade || !tradeId) return
+
+    if (
+      !confirm(
+        `⚠️ ATENÇÃO: Processar venda do trade ${trade.reference_code}?\n\nIsso irá RETIRAR ${trade.crypto_amount} ${trade.symbol} da carteira do usuário para a carteira da plataforma.\n\nApós confirmar, você precisará enviar PIX/TED ao usuário.`
+      )
+    ) {
+      return
+    }
+
+    try {
+      const result = await processSellMutation.mutateAsync({
+        tradeId,
+        data: { network: selectedNetwork },
+      })
+
+      if (result.success) {
+        toast.success(
+          `Crypto recebida! TX: ${result.tx_hash || 'Processando...'}\n\nAgora envie o PIX/TED ao usuário.`
+        )
+      } else {
+        toast.error(result.error || 'Erro ao processar venda')
+      }
+    } catch (err: any) {
+      console.error('Erro ao processar venda:', err)
+      toast.error(err.response?.data?.detail || 'Erro ao processar venda')
+    }
+  }
+
+  // Handler para finalizar VENDA (após enviar PIX/TED)
+  const handleCompleteSell = async () => {
+    if (!trade || !tradeId) return
+
+    if (
+      !confirm(
+        `✅ Confirmar que o pagamento BRL foi enviado ao usuário?\n\nTrade: ${trade.reference_code}\nValor: ${formatCurrency(trade.fiat_amount)}\n\nIsso irá finalizar o trade como COMPLETED.`
+      )
+    ) {
+      return
+    }
+
+    try {
+      const result = await completeSellMutation.mutateAsync(tradeId)
+
+      if (result.success) {
+        toast.success(`Trade ${trade.reference_code} finalizado com sucesso!`)
+      } else {
+        toast.error('Erro ao finalizar venda')
+      }
+    } catch (err: any) {
+      console.error('Erro ao finalizar venda:', err)
+      toast.error(err.response?.data?.detail || 'Erro ao finalizar venda')
     }
   }
 
@@ -518,6 +595,40 @@ export const AdminTradeDetailPage: React.FC = () => {
                     <Building2 className='w-4 h-4' />
                   )}
                   Contabilidade
+                </button>
+              )}
+
+              {/* ===== AÇÕES DE VENDA (SELL) ===== */}
+
+              {/* Processar Venda - Retirar crypto do usuário */}
+              {canProcessSell(trade.status, trade.operation_type) && (
+                <button
+                  onClick={handleProcessSell}
+                  disabled={processSellMutation.isPending}
+                  className='flex items-center gap-1.5 px-3 py-1.5 text-sm bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50'
+                >
+                  {processSellMutation.isPending ? (
+                    <RefreshCw className='w-4 h-4 animate-spin' />
+                  ) : (
+                    <TrendingDown className='w-4 h-4' />
+                  )}
+                  Processar Venda
+                </button>
+              )}
+
+              {/* Finalizar Venda - Após enviar PIX/TED */}
+              {canCompleteSell(trade.status, trade.operation_type) && (
+                <button
+                  onClick={handleCompleteSell}
+                  disabled={completeSellMutation.isPending}
+                  className='flex items-center gap-1.5 px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50'
+                >
+                  {completeSellMutation.isPending ? (
+                    <RefreshCw className='w-4 h-4 animate-spin' />
+                  ) : (
+                    <CheckCircle className='w-4 h-4' />
+                  )}
+                  Finalizar Venda
                 </button>
               )}
 

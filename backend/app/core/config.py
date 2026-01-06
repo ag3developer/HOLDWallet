@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     
     # Platform Wallet (para enviar crypto aos usuários)
     PLATFORM_WALLET_PRIVATE_KEY: Optional[str] = None
+    PLATFORM_WALLET_ADDRESS: Optional[str] = None  # Endereço da carteira da plataforma (destino de vendas)
     
     # System Blockchain Wallet (para receber taxas e comissões)
     SYSTEM_BLOCKCHAIN_WALLET_ID: str = "545473df-0dd4-4bfa-a43f-06721a43af63"
