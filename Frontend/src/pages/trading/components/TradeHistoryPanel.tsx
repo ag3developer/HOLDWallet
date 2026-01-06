@@ -135,20 +135,6 @@ export function TradeHistoryPanel({
     return statusMatch && operationMatch
   })
 
-  const formatDate = (dateString: string) => {
-    try {
-      return new Date(dateString).toLocaleDateString(currencyLocale, {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    } catch {
-      return dateString
-    }
-  }
-
   const formatValue = (value: number) => {
     try {
       return value.toLocaleString(currencyLocale, { maximumFractionDigits: 2 })
@@ -184,27 +170,29 @@ export function TradeHistoryPanel({
 
   return (
     <div className='bg-white dark:bg-gray-800 rounded-lg shadow'>
-      {/* Header */}
-      <div className='p-4 border-b border-gray-200 dark:border-gray-700'>
-        <div className='flex items-center justify-between mb-4'>
-          <h2 className='text-lg font-bold text-gray-900 dark:text-white'>Histórico de Trades</h2>
+      {/* Header - compacto */}
+      <div className='px-3 py-2 sm:p-4 border-b border-gray-200 dark:border-gray-700'>
+        <div className='flex items-center justify-between mb-2 sm:mb-3'>
+          <h2 className='text-sm sm:text-base font-bold text-gray-900 dark:text-white'>
+            Histórico de Trades
+          </h2>
           <button
             onClick={handleForceRefresh}
             disabled={loading}
-            className='flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded disabled:bg-gray-400 transition-colors'
+            className='flex items-center gap-1.5 px-2 py-1.5 sm:px-3 sm:py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm rounded disabled:bg-gray-400 transition-colors'
             title='Atualizar histórico'
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            {loading ? 'Atualizando...' : 'Atualizar'}
+            <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${loading ? 'animate-spin' : ''}`} />
+            <span className='hidden sm:inline'>{loading ? 'Atualizando...' : 'Atualizar'}</span>
           </button>
         </div>
 
-        {/* Filters */}
-        <div className='grid grid-cols-2 gap-3'>
+        {/* Filters - mais compactos */}
+        <div className='grid grid-cols-2 gap-2'>
           <div>
             <label
               htmlFor='status-filter'
-              className='block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1'
+              className='block text-[10px] sm:text-xs font-medium text-gray-700 dark:text-gray-300 mb-0.5'
             >
               Status
             </label>
@@ -212,7 +200,7 @@ export function TradeHistoryPanel({
               id='status-filter'
               value={filterStatus}
               onChange={e => setFilterStatus(e.target.value)}
-              className='w-full px-2 py-2 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white'
+              className='w-full px-2 py-1.5 text-[11px] sm:text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white'
             >
               <option value='ALL'>Todos</option>
               <option value='PENDING'>Aguardando</option>
@@ -225,7 +213,7 @@ export function TradeHistoryPanel({
           <div>
             <label
               htmlFor='operation-filter'
-              className='block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1'
+              className='block text-[10px] sm:text-xs font-medium text-gray-700 dark:text-gray-300 mb-0.5'
             >
               Operação
             </label>
@@ -233,7 +221,7 @@ export function TradeHistoryPanel({
               id='operation-filter'
               value={filterOperation}
               onChange={e => setFilterOperation(e.target.value)}
-              className='w-full px-2 py-2 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white'
+              className='w-full px-2 py-1.5 text-[11px] sm:text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white'
             >
               <option value='ALL'>Todas</option>
               <option value='buy'>Compra</option>
@@ -243,11 +231,11 @@ export function TradeHistoryPanel({
         </div>
       </div>
 
-      {/* Trades List */}
-      <div className='divide-y divide-gray-200 dark:divide-gray-700 max-h-96 overflow-y-auto'>
+      {/* Trades List - altura ajustada */}
+      <div className='divide-y divide-gray-100 dark:divide-gray-700/50 max-h-80 sm:max-h-96 overflow-y-auto'>
         {filteredTrades.length === 0 ? (
-          <div className='p-8 text-center'>
-            <p className='text-gray-600 dark:text-gray-400'>
+          <div className='p-6 text-center'>
+            <p className='text-xs sm:text-sm text-gray-500 dark:text-gray-400'>
               {trades.length === 0 ? 'Nenhuma trade realizada' : 'Nenhuma trade encontrada'}
             </p>
           </div>
@@ -256,78 +244,73 @@ export function TradeHistoryPanel({
             <button
               key={trade.id}
               onClick={() => setSelectedTradeId(trade.id)}
-              className='w-full p-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-left'
+              className='w-full px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors text-left'
             >
-              <div className='flex items-center justify-between gap-2'>
-                {/* Left Info - com logo */}
-                <div className='flex items-center gap-3 flex-1 min-w-0'>
-                  {/* Logo da crypto */}
-                  <div className='relative flex-shrink-0'>
-                    {CRYPTO_LOGOS[trade.symbol] ? (
-                      <img
-                        src={CRYPTO_LOGOS[trade.symbol]}
-                        alt={trade.symbol}
-                        className='w-10 h-10 rounded-full'
-                        onError={e => {
-                          // Fallback se imagem não carregar
-                          e.currentTarget.style.display = 'none'
-                        }}
-                      />
+              <div className='flex items-center gap-2'>
+                {/* Logo da crypto - menor no mobile */}
+                <div className='relative flex-shrink-0'>
+                  {CRYPTO_LOGOS[trade.symbol] ? (
+                    <img
+                      src={CRYPTO_LOGOS[trade.symbol]}
+                      alt={trade.symbol}
+                      className='w-8 h-8 sm:w-9 sm:h-9 rounded-full'
+                      onError={e => {
+                        e.currentTarget.style.display = 'none'
+                      }}
+                    />
+                  ) : (
+                    <div className='w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center'>
+                      <span className='text-[10px] font-bold text-gray-600 dark:text-gray-400'>
+                        {trade.symbol.slice(0, 2)}
+                      </span>
+                    </div>
+                  )}
+                  {/* Indicador de operação - menor */}
+                  <div
+                    className={`absolute -bottom-0.5 -right-0.5 p-0.5 rounded-full ${
+                      trade.operation === 'buy' ? 'bg-green-500' : 'bg-red-500'
+                    }`}
+                  >
+                    {trade.operation === 'buy' ? (
+                      <ArrowDownLeft className='w-2 h-2 text-white' />
                     ) : (
-                      <div className='w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center'>
-                        <span className='text-xs font-bold text-gray-600 dark:text-gray-400'>
-                          {trade.symbol.slice(0, 2)}
-                        </span>
-                      </div>
+                      <ArrowUpRight className='w-2 h-2 text-white' />
                     )}
-                    {/* Indicador de operação */}
-                    <div
-                      className={`absolute -bottom-0.5 -right-0.5 p-0.5 rounded-full ${
-                        trade.operation === 'buy' ? 'bg-green-500' : 'bg-red-500'
-                      }`}
-                    >
-                      {trade.operation === 'buy' ? (
-                        <ArrowDownLeft className='w-2.5 h-2.5 text-white' />
-                      ) : (
-                        <ArrowUpRight className='w-2.5 h-2.5 text-white' />
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Info */}
-                  <div className='min-w-0'>
-                    <div className='flex items-center gap-2 mb-0.5'>
-                      <span className='text-sm font-bold text-gray-900 dark:text-white'>
-                        {trade.symbol}
-                      </span>
-                      <span
-                        className={`px-2 py-0.5 rounded text-xs font-medium ${
-                          STATUS_COLORS[trade.status]
-                        }`}
-                      >
-                        {STATUS_LABELS[trade.status]}
-                      </span>
-                    </div>
-                    <p className='text-xs text-gray-500 dark:text-gray-400 truncate'>
-                      {trade.reference_code} • {formatDate(trade.created_at)}
-                    </p>
                   </div>
                 </div>
 
-                {/* Right Value */}
-                <div className='text-right mr-2'>
-                  <p className='text-sm font-bold text-gray-900 dark:text-white'>
-                    {trade.operation === 'buy'
-                      ? `+${formatCrypto(trade.crypto_amount)} ${trade.symbol}`
-                      : `-${formatCrypto(trade.crypto_amount)} ${trade.symbol}`}
+                {/* Info central - mais compacto */}
+                <div className='flex-1 min-w-0'>
+                  <div className='flex items-center gap-1.5'>
+                    <span className='text-xs sm:text-sm font-semibold text-gray-900 dark:text-white'>
+                      {trade.symbol}
+                    </span>
+                    <span
+                      className={`px-1.5 py-0.5 rounded text-[10px] sm:text-xs font-medium leading-none ${
+                        STATUS_COLORS[trade.status]
+                      }`}
+                    >
+                      {STATUS_LABELS[trade.status]}
+                    </span>
+                  </div>
+                  <p className='text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 truncate'>
+                    {trade.reference_code}
                   </p>
-                  <p className='text-xs text-gray-600 dark:text-gray-400'>
+                </div>
+
+                {/* Valor à direita - compacto */}
+                <div className='text-right flex-shrink-0'>
+                  <p className='text-xs sm:text-sm font-semibold text-gray-900 dark:text-white'>
+                    {trade.operation === 'buy' ? '+' : '-'}
+                    {formatCrypto(trade.crypto_amount)} {trade.symbol}
+                  </p>
+                  <p className='text-[10px] sm:text-xs text-gray-500 dark:text-gray-400'>
                     {currencySymbol} {formatValue(trade.total_amount)}
                   </p>
                 </div>
 
-                {/* Arrow */}
-                <ChevronRight className='w-5 h-5 text-gray-400' />
+                {/* Seta - menor */}
+                <ChevronRight className='w-4 h-4 text-gray-400 flex-shrink-0' />
               </div>
             </button>
           ))
