@@ -8,6 +8,9 @@ import { useAuthStore } from '@/stores/useAuthStore'
 import { useThemeStore } from '@/stores/useThemeStore'
 import { useLanguageStore } from '@/stores/useLanguageStore'
 
+// Hooks
+import { usePWAUpdate } from '@/hooks/usePWAUpdate'
+
 // Components
 import { Layout } from '@/components/layout/Layout'
 import { AdminLayout } from '@/components/layout/AdminLayout'
@@ -152,6 +155,9 @@ function App() {
   const { theme, initializeTheme } = useThemeStore()
   const { language } = useLanguageStore()
 
+  // PWA Update - gerencia atualizações automáticas
+  usePWAUpdate()
+
   // Initialize app on mount
   useEffect(() => {
     const initializeApp = async () => {
@@ -175,10 +181,7 @@ function App() {
         // Initialize authentication
         await initializeAuth()
 
-        // Register service worker for PWA
-        if ('serviceWorker' in navigator && import.meta.env.PROD) {
-          navigator.serviceWorker.register('/sw.js')
-        }
+        // Service Worker gerenciado pelo hook usePWAUpdate
 
         // Setup online/offline detection
         const handleOnline = () => {
@@ -189,16 +192,17 @@ function App() {
           console.log('App is offline')
         }
 
-        window.addEventListener('online', handleOnline)
-        window.addEventListener('offline', handleOffline)
+        globalThis.addEventListener('online', handleOnline)
+        globalThis.addEventListener('offline', handleOffline)
 
         // Return cleanup function
         return () => {
-          window.removeEventListener('online', handleOnline)
-          window.removeEventListener('offline', handleOffline)
+          globalThis.removeEventListener('online', handleOnline)
+          globalThis.removeEventListener('offline', handleOffline)
         }
       } catch (error) {
         console.error('Failed to initialize app:', error)
+        return undefined
       }
     }
 
@@ -207,7 +211,7 @@ function App() {
     // Cleanup on unmount
     return () => {
       if (cleanup && typeof cleanup === 'object' && 'then' in cleanup) {
-        cleanup.then(cleanupFn => {
+        void cleanup.then(cleanupFn => {
           if (typeof cleanupFn === 'function') {
             cleanupFn()
           }

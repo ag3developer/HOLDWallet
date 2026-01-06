@@ -3,12 +3,15 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { resolve } from 'path'
 
+// Versão do app - incrementar a cada deploy
+const APP_VERSION = new Date().toISOString()
+
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'prompt',
+      registerType: 'autoUpdate', // ✅ MUDANÇA: Auto-atualiza sem prompt
       devOptions: {
         enabled: true,
       },
@@ -22,7 +25,7 @@ export default defineConfig({
         display: 'standalone',
         orientation: 'portrait',
         scope: '/',
-        start_url: '/',
+        start_url: '/?v=' + APP_VERSION, // ✅ Versão na URL para forçar atualização
         icons: [
           {
             src: 'pwa-192x192.png',
@@ -68,36 +71,60 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         cleanupOutdatedCaches: true,
         skipWaiting: true,
         clientsClaim: true,
+        // ✅ Força atualização imediata
+        sourcemap: false,
         // ✅ NOVO: Ignorar URLs externas (localhost:8000, APIs de produção, etc)
         navigateFallbackDenylist: [/^\/api/, /^http/],
         runtimeCaching: [
           {
+            // HTML - sempre buscar da rede primeiro
             urlPattern: ({ request }) => request.destination === 'document',
             handler: 'NetworkFirst',
             options: {
-              cacheName: 'pages-v2',
+              cacheName: 'pages-v3',
               expiration: {
-                maxEntries: 32,
-                maxAgeSeconds: 60 * 60, // 1 hour (reduzido)
+                maxEntries: 16,
+                maxAgeSeconds: 60 * 30, // 30 minutos
               },
-              networkTimeoutSeconds: 5,
+              networkTimeoutSeconds: 3, // Timeout rápido
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
             },
           },
           {
+            // JS/CSS - rede primeiro, cache como fallback
             urlPattern: ({ request }) =>
               request.destination === 'script' || request.destination === 'style',
-            handler: 'NetworkFirst',
+            handler: 'StaleWhileRevalidate', // ✅ Usa cache, mas atualiza em background
             options: {
-              cacheName: 'static-resources-v2',
+              cacheName: 'static-resources-v3',
               expiration: {
                 maxEntries: 64,
-                maxAgeSeconds: 60 * 60, // 1 hour (reduzido)
+                maxAgeSeconds: 60 * 60 * 24, // 24 horas
               },
-              networkTimeoutSeconds: 5,
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
+          },
+          {
+            // Imagens - cache first (raramente mudam)
+            urlPattern: ({ request }) => request.destination === 'image',
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'images-v3',
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 * 24 * 7, // 7 dias
+              },
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
             },
           },
           {
@@ -107,14 +134,10 @@ export default defineConfig({
               const isSameOrigin = url.origin === self.location.origin
               return isRelativeApi && isSameOrigin
             },
-            handler: 'NetworkFirst',
+            handler: 'NetworkOnly', // ✅ APIs sempre da rede
             options: {
-              cacheName: 'api-cache-v2',
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 2 * 60, // 2 minutes (reduzido)
-              },
-              networkTimeoutSeconds: 10,
+              cacheName: 'api-cache-v3',
+              networkTimeoutSeconds: 15,
             },
           },
         ],
@@ -186,5 +209,7 @@ export default defineConfig({
   },
   define: {
     global: 'globalThis',
+    // Versão do app disponível em runtime
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify(APP_VERSION),
   },
 })
