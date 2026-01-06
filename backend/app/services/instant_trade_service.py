@@ -530,19 +530,30 @@ class InstantTradeService:
         query = self.db.query(InstantTrade).filter(InstantTrade.user_id == user_id)
         total = query.count()
 
-        trades = query.offset((page - 1) * per_page).limit(per_page).all()
+        # Order by created_at descending (most recent first)
+        trades = query.order_by(InstantTrade.created_at.desc()).offset((page - 1) * per_page).limit(per_page).all()
+        
+        print(f"[get_user_trades] Found {len(trades)} trades for user {user_id}")
+        for t in trades:
+            print(f"[get_user_trades] Trade {t.id}: status={t.status}, operation={t.operation_type}")
 
         return {
             "trades": [
                 {
                     "id": t.id,
                     "reference_code": t.reference_code,
-                    "operation": t.operation_type,
+                    "operation": t.operation_type.value if hasattr(t.operation_type, 'value') else t.operation_type,
                     "symbol": t.symbol,
+                    "name": t.name,
                     "fiat_amount": float(t.fiat_amount),  # type: ignore
                     "crypto_amount": float(t.crypto_amount),  # type: ignore
-                    "status": t.status.value,
-                    "created_at": t.created_at.isoformat(),
+                    "total_amount": float(t.total_amount) if t.total_amount else float(t.fiat_amount),  # type: ignore
+                    "spread_percentage": float(t.spread_percentage) if t.spread_percentage else 3.0,  # type: ignore
+                    "network_fee_percentage": float(t.network_fee_percentage) if t.network_fee_percentage else 0.25,  # type: ignore
+                    "payment_method": t.payment_method.value if hasattr(t.payment_method, 'value') else t.payment_method,
+                    "status": t.status.value.upper() if hasattr(t.status, 'value') else str(t.status).upper(),
+                    "created_at": t.created_at.isoformat() if t.created_at else None,
+                    "updated_at": t.updated_at.isoformat() if t.updated_at else None,
                 }
                 for t in trades
             ],

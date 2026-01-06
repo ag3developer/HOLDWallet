@@ -268,19 +268,27 @@ async def get_trade_history(
         service = get_instant_trade_service(db)
         
         user_id_str = str(current_user.id)
+        logger.info(f"[my-trades] Fetching trades for user: {user_id_str}")
         
         history = service.get_user_trades(
             user_id=user_id_str,
             page=page,
             per_page=per_page,
         )
+        
+        logger.info(f"[my-trades] Found {len(history.get('trades', []))} trades for user {user_id_str}")
 
+        # Return trades directly at root level for frontend compatibility
         return {
             "success": True,
-            "data": history,
+            "trades": history.get("trades", []),
+            "total": history.get("total", 0),
+            "page": history.get("page", page),
+            "per_page": history.get("per_page", per_page),
         }
 
     except Exception as e:
+        logger.error(f"[my-trades] Error fetching trades: {e}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),

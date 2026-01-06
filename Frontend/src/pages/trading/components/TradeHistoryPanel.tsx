@@ -5,9 +5,10 @@ import toast from 'react-hot-toast'
 
 interface Trade {
   id: string
-  quote_id: string
+  reference_code: string
   operation: 'buy' | 'sell'
   symbol: string
+  name?: string
   crypto_amount: number
   fiat_amount: number
   total_amount: number
@@ -16,7 +17,7 @@ interface Trade {
   payment_method: string
   status: 'PENDING' | 'PAYMENT_CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'EXPIRED' | 'FAILED'
   created_at: string
-  updated_at: string
+  updated_at?: string
 }
 
 interface TradeHistoryPanelProps {
@@ -64,11 +65,18 @@ export function TradeHistoryPanel({
   const fetchTrades = async () => {
     setLoading(true)
     try {
+      console.log('[TradeHistoryPanel] Fetching trades...')
       const response = await apiClient.get('/instant-trade/history/my-trades')
-      setTrades(response.data.trades || [])
+      console.log('[TradeHistoryPanel] Response:', response.data)
+      const tradesData = response.data.trades || []
+      console.log('[TradeHistoryPanel] Trades count:', tradesData.length)
+      if (tradesData.length > 0) {
+        console.log('[TradeHistoryPanel] First trade:', tradesData[0])
+      }
+      setTrades(tradesData)
     } catch (error: any) {
+      console.error('[TradeHistoryPanel] Fetch trades error:', error)
       toast.error('Erro ao carregar histórico de trades')
-      console.error('Fetch trades error:', error)
     } finally {
       setLoading(false)
     }
@@ -335,7 +343,9 @@ export function TradeHistoryPanel({
                 </div>
                 <div>
                   <p>Atualizada em:</p>
-                  <p className='font-mono'>{formatDate(selectedTrade.updated_at)}</p>
+                  <p className='font-mono'>
+                    {selectedTrade.updated_at ? formatDate(selectedTrade.updated_at) : '-'}
+                  </p>
                 </div>
               </div>
             </div>
