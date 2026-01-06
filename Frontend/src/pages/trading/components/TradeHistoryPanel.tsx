@@ -34,6 +34,10 @@ interface Trade {
   crypto_amount: number
   fiat_amount: number
   total_amount: number
+  // Valores em BRL (se disponíveis)
+  brl_amount?: number
+  brl_total_amount?: number
+  usd_to_brl_rate?: number
   spread_percentage: number
   network_fee_percentage: number
   payment_method: string
@@ -135,12 +139,21 @@ export function TradeHistoryPanel({
     return statusMatch && operationMatch
   })
 
-  const formatValue = (value: number) => {
-    try {
-      return value.toLocaleString(currencyLocale, { maximumFractionDigits: 2 })
-    } catch {
-      return value.toFixed(2)
+  // Formata valor - mostra BRL se disponível, senão USD original do backend
+  const formatTradeValue = (trade: Trade) => {
+    // Se já temos o valor em BRL do backend, mostrar em BRL
+    if (trade.brl_total_amount) {
+      return trade.brl_total_amount.toLocaleString('pt-BR', {
+        style: 'currency',
+        currency: 'BRL',
+      })
     }
+
+    // Senão, mostrar valor original em USD (sem conversão fake)
+    return trade.total_amount.toLocaleString('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    })
   }
 
   const formatCrypto = (value: number) => {
@@ -305,7 +318,7 @@ export function TradeHistoryPanel({
                     {formatCrypto(trade.crypto_amount)} {trade.symbol}
                   </p>
                   <p className='text-[10px] sm:text-xs text-gray-500 dark:text-gray-400'>
-                    {currencySymbol} {formatValue(trade.total_amount)}
+                    {formatTradeValue(trade)}
                   </p>
                 </div>
 
