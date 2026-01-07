@@ -424,3 +424,171 @@ async def add_missing_networks(
             status_code=500,
             detail=f"Falha ao adicionar redes: {str(e)}"
         )
+
+
+@router.get("/export-private-key/{network}")
+async def export_private_key(
+    network: str,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    🔐 Exportar chave privada para uma rede específica.
+    
+    ⚠️ ATENÇÃO: Esta é uma operação sensível!
+    Use apenas para configurar PLATFORM_WALLET_PRIVATE_KEY no .env
+    
+    Networks suportadas: polygon, ethereum, base, bsc, etc.
+    
+    Após exportar:
+    1. Copie a private_key
+    2. Adicione ao .env: PLATFORM_WALLET_PRIVATE_KEY=<key>
+    3. Reinicie o backend
+    """
+    try:
+        from app.services.crypto_service import CryptoService
+        
+        crypto_service = CryptoService()
+        
+        # Buscar carteira do sistema
+        wallet = db.query(SystemBlockchainWallet).filter(
+            SystemBlockchainWallet.name == "main_fees_wallet",
+            SystemBlockchainWallet.is_active == True
+        ).first()
+        
+        if not wallet:
+            raise HTTPException(
+                status_code=404,
+                detail="Carteira do sistema não encontrada. Crie primeiro usando POST /create"
+            )
+        
+        # Buscar endereço da rede especificada
+        address = db.query(SystemBlockchainAddress).filter(
+            SystemBlockchainAddress.wallet_id == wallet.id,
+            SystemBlockchainAddress.network == network.lower(),
+            SystemBlockchainAddress.is_active == True
+        ).first()
+        
+        if not address:
+            # Tentar buscar endereço EVM (polygon, ethereum, etc compartilham a mesma key)
+            evm_networks = ['polygon', 'ethereum', 'base', 'bsc', 'avalanche', 'multi']
+            if network.lower() in evm_networks:
+                address = db.query(SystemBlockchainAddress).filter(
+                    SystemBlockchainAddress.wallet_id == wallet.id,
+                    SystemBlockchainAddress.network.in_(evm_networks),
+                    SystemBlockchainAddress.is_active == True
+                ).first()
+        
+        if not address:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Endereço não encontrado para rede: {network}. "
+                        f"Redes disponíveis: polygon, ethereum, base, bsc, multi"
+            )
+        
+        # Descriptografar private key
+        encrypted_pk = str(address.encrypted_private_key)
+        private_key = crypto_service.decrypt_data(encrypted_pk)
+        
+        # Formatar para mostrar
+        if not private_key.startswith("0x"):
+            private_key = f"0x{private_key}"
+        
+        wallet_address = str(address.address)
+        
+        logger.warning(f"⚠️ Admin {current_user.email} exportou private key da rede {network}")
+        
+        return {
+            "success": True,
+            "warning": "⚠️ GUARDE ESTA CHAVE COM SEGURANÇA! Adicione ao .env como PLATFORM_WALLET_PRIVATE_KEY",
+            "network": network,
+            "address": wallet_address,
+            "private_key": private_key,
+            "instructions": [
+                "1. Copie a private_key acima",
+                "2. Abra o arquivo backend/.env",
+                "3. Adicione: PLATFORM_WALLET_PRIVATE_KEY=" + private_key[:10] + "...",
+                "4. Também adicione: PLATFORM_WALLET_ADDRESS=" + address.address,
+                "5. Salve o arquivo e reinicie o backend",
+                "6. A mesma chave funciona para todas as redes EVM (Polygon, Ethereum, Base, BSC)"
+            ]
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Falha ao exportar private key: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Falha ao exportar private key: {str(e)}"
+        )
+
+
+@router.get("/balance/{network}")
+async def get_network_balance(
+    network: str,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    💰 Consultar saldo real da carteira do sistema em uma rede específica.
+    
+    Consulta a blockchain em tempo real para obter o saldo atual.
+    Inclui saldo de tokens USDT/USDC se disponível.
+    """
+    try:
+        from app.services.blockchain_balance_service import blockchain_balance_service
+        
+        # Buscar endereço do sistema para a rede
+        address = db.query(SystemBlockchainAddress).join(
+            SystemBlockchainWallet
+        ).filter(
+            SystemBlockchainWallet.name == "main_fees_wallet",
+            SystemBlockchainWallet.is_active == True,
+            SystemBlockchainAddress.network == network.lower(),
+            SystemBlockchainAddress.is_active == True
+        ).first()
+        
+        if not address:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Endereço não encontrado para rede: {network}"
+            )
+        
+        addr_str = str(address.address)
+        
+        # Consultar saldo nativo
+        native_balance = await blockchain_balance_service.get_native_balance(network, addr_str)
+        
+        # Consultar saldo USDT
+        usdt_balance = await blockchain_balance_service.get_token_balance(network, addr_str, "usdt")
+        
+        # Consultar saldo USDC
+        usdc_balance = await blockchain_balance_service.get_token_balance(network, addr_str, "usdc")
+        
+        # Obter timestamp de última atualização
+        last_update = None
+        if address.cached_balance_updated_at is not None:
+            last_update = address.cached_balance_updated_at.isoformat()
+        
+        return {
+            "success": True,
+            "network": network,
+            "address": addr_str,
+            "balances": {
+                "native": native_balance,
+                "usdt": usdt_balance,
+                "usdc": usdc_balance
+            },
+            "cached_balance": address.cached_balance,
+            "last_cached_update": last_update
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Falha ao consultar saldo: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Falha ao consultar saldo: {str(e)}"
+        )

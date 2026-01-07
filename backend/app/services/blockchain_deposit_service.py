@@ -114,14 +114,17 @@ class BlockchainDepositService:
     def get_user_wallet(self, db: Session, user_id: str, network: str) -> Optional[Address]:
         """Busca o endereço da wallet do usuário para a rede especificada"""
         try:
+            from sqlalchemy import func
+            
             # Busca o endereço diretamente na tabela addresses
             # Faz join com wallets para garantir que pertence ao usuário e está ativa
+            # Usa LOWER() para busca case-insensitive
             address = db.query(Address).join(
                 Wallet, Address.wallet_id == Wallet.id
             ).filter(
                 Wallet.user_id == user_id,
                 Wallet.is_active == True,
-                Address.network == network.lower(),
+                func.lower(Address.network) == network.lower(),
                 Address.is_active == True
             ).first()
             
@@ -130,17 +133,17 @@ class BlockchainDepositService:
                 return address
             
             # Se não encontrou na rede específica, tenta buscar em qualquer rede EVM
-            # Redes EVM compartilham o mesmo endereço
-            evm_networks = ['ethereum', 'polygon', 'base', 'bsc', 'arbitrum', 'optimism']
+            # Redes EVM compartilham o mesmo endereço (MultiWallet)
+            evm_networks = ['ethereum', 'polygon', 'base', 'bsc', 'arbitrum', 'optimism', 'multi']
             if network.lower() in evm_networks:
-                logger.info(f"⚠️ Endereço não encontrado para {network}, buscando em outras redes EVM...")
+                logger.info(f"⚠️ Endereço não encontrado para {network}, buscando em outras redes EVM/MULTI...")
                 
                 address = db.query(Address).join(
                     Wallet, Address.wallet_id == Wallet.id
                 ).filter(
                     Wallet.user_id == user_id,
                     Wallet.is_active == True,
-                    Address.network.in_(evm_networks),
+                    func.lower(Address.network).in_(evm_networks),
                     Address.is_active == True
                 ).first()
                 
@@ -211,16 +214,26 @@ class BlockchainDepositService:
         to_address: str,
         amount: Decimal,
         network: str
-    ) -> Optional[str]:
+    ) -> tuple:
         """
         Envia token ERC20 (USDT, USDC, etc) para o endereço do usuário
         
         Returns:
-            tx_hash se sucesso, None se erro
+            tuple: (tx_hash, error_message) - tx_hash se sucesso, error_message se erro
         """
         try:
             config = self.NETWORK_CONFIG[network.lower()]
             account = Account.from_key(self.platform_wallet_private_key)
+            
+            # Verificar saldo de gas (MATIC para Polygon, ETH para Ethereum, etc.)
+            gas_balance = w3.eth.get_balance(account.address)
+            gas_balance_native = w3.from_wei(gas_balance, 'ether')
+            logger.info(f"💰 Saldo gas da plataforma: {gas_balance_native} ({network})")
+            
+            if gas_balance < w3.to_wei(0.001, 'ether'):  # Mínimo 0.001 para gas
+                error_msg = f"Saldo insuficiente para gas! Saldo: {gas_balance_native} - Envie MATIC para a System Wallet"
+                logger.error(f"❌ {error_msg}")
+                return (None, error_msg)
             
             # Cria instância do contrato
             contract = w3.eth.contract(
@@ -233,6 +246,16 @@ class BlockchainDepositService:
             
             # Converte amount considerando decimals
             amount_units = int(float(amount) * (10 ** decimals))
+            
+            # Verificar saldo do token
+            token_balance = contract.functions.balanceOf(account.address).call()
+            token_balance_decimal = Decimal(str(token_balance)) / Decimal(str(10 ** decimals))
+            logger.info(f"💰 Saldo token da plataforma: {token_balance_decimal} USDT ({network})")
+            
+            if token_balance < amount_units:
+                error_msg = f"Saldo USDT insuficiente! Necessário: {amount}, Disponível: {token_balance_decimal}"
+                logger.error(f"❌ {error_msg}")
+                return (None, error_msg)
             
             # Busca nonce
             nonce = w3.eth.get_transaction_count(account.address)
@@ -259,11 +282,21 @@ class BlockchainDepositService:
             tx_hash_hex = w3.to_hex(tx_hash)
             
             logger.info(f"✅ Token ERC20 enviado! TX: {tx_hash_hex}")
-            return tx_hash_hex
+            return (tx_hash_hex, None)
             
         except Exception as e:
-            logger.error(f"❌ Erro enviando token ERC20: {str(e)}")
-            return None
+            error_msg = str(e)
+            logger.error(f"❌ Erro enviando token ERC20: {error_msg}")
+            
+            # Mensagens de erro mais amigáveis
+            if "insufficient funds" in error_msg.lower():
+                error_msg = "Saldo insuficiente para gas (MATIC). Deposite MATIC na System Wallet."
+            elif "execution reverted" in error_msg.lower():
+                error_msg = "Transação revertida. Verifique o saldo de USDT na System Wallet."
+            elif "nonce too low" in error_msg.lower():
+                error_msg = "Erro de nonce. Tente novamente em alguns segundos."
+            
+            return (None, error_msg)
     
     def deposit_crypto_to_user(
         self,
@@ -318,7 +351,7 @@ class BlockchainDepositService:
                 return {
                     "success": False,
                     "tx_hash": None,
-                    "wallet_address": user_address.address,
+                    "wallet_address": str(user_address.address),
                     "network": network,
                     "error": f"Não foi possível conectar à rede {network}"
                 }
@@ -329,23 +362,27 @@ class BlockchainDepositService:
             
             # 5. Envia a transação
             tx_hash = None
+            error_msg = None
+            
             if contract_address is None:
                 # Token nativo (ETH, MATIC)
                 logger.info(f"📤 Enviando {trade.crypto_amount} {trade.symbol} (nativo) para {user_address.address}")
                 tx_hash = self.send_native_token(
                     w3=w3,
-                    to_address=user_address.address,
-                    amount=trade.crypto_amount,
+                    to_address=str(user_address.address),
+                    amount=Decimal(str(trade.crypto_amount)),
                     network=network
                 )
+                if not tx_hash:
+                    error_msg = "Falha ao enviar token nativo. Verifique o saldo de gas."
             else:
                 # Token ERC20 (USDT, USDC)
                 logger.info(f"📤 Enviando {trade.crypto_amount} {trade.symbol} (ERC20) para {user_address.address}")
-                tx_hash = self.send_erc20_token(
+                tx_hash, error_msg = self.send_erc20_token(
                     w3=w3,
                     contract_address=contract_address,
-                    to_address=user_address.address,
-                    amount=trade.crypto_amount,
+                    to_address=str(user_address.address),
+                    amount=Decimal(str(trade.crypto_amount)),
                     network=network
                 )
             
@@ -353,16 +390,16 @@ class BlockchainDepositService:
                 return {
                     "success": False,
                     "tx_hash": None,
-                    "wallet_address": user_address.address,
+                    "wallet_address": str(user_address.address),
                     "network": network,
-                    "error": "Falha ao enviar transação blockchain"
+                    "error": error_msg or "Falha ao enviar transação blockchain"
                 }
             
             # 6. Atualiza o trade com os dados blockchain
             trade.wallet_id = str(user_address.wallet_id)
-            trade.wallet_address = user_address.address
+            trade.wallet_address = str(user_address.address)
             trade.network = network
-            trade.tx_hash = tx_hash
+            trade.tx_hash = str(tx_hash)
             trade.status = TradeStatus.COMPLETED
             trade.completed_at = datetime.now()
             
@@ -373,8 +410,8 @@ class BlockchainDepositService:
             
             return {
                 "success": True,
-                "tx_hash": tx_hash,
-                "wallet_address": user_address.address,
+                "tx_hash": str(tx_hash),
+                "wallet_address": str(user_address.address),
                 "network": network,
                 "error": None
             }

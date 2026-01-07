@@ -62,6 +62,14 @@ interface WalletStatus {
   cached_balances?: Record<string, number>
 }
 
+interface ExportKeyData {
+  success: boolean
+  private_key?: string
+  address?: string
+  network?: string
+  instructions?: string[]
+}
+
 // Função para buscar status da carteira
 const fetchWalletStatus = async (): Promise<WalletStatus> => {
   const response = await apiClient.get('/admin/system-blockchain-wallet/status')
@@ -69,6 +77,14 @@ const fetchWalletStatus = async (): Promise<WalletStatus> => {
     return response.data.data || { exists: false }
   }
   return { exists: false }
+}
+
+// Função para exportar private key
+const exportPrivateKey = async (network: string): Promise<ExportKeyData> => {
+  const response = await apiClient.get(
+    `/admin/system-blockchain-wallet/export-private-key/${network}`
+  )
+  return response.data
 }
 
 export const AdminSystemWalletPage: React.FC = () => {
@@ -94,6 +110,13 @@ export const AdminSystemWalletPage: React.FC = () => {
   const [confirmationWords, setConfirmationWords] = useState<{ [key: number]: string }>({})
   const [randomWordIndices, setRandomWordIndices] = useState<number[]>([])
   const [isCreating, setIsCreating] = useState(false)
+
+  // Estado para modal de exportação de private key
+  const [showExportModal, setShowExportModal] = useState(false)
+  const [exportKeyData, setExportKeyData] = useState<ExportKeyData | null>(null)
+  const [isExporting, setIsExporting] = useState(false)
+  const [showPrivateKey, setShowPrivateKey] = useState(false)
+  const [copiedPrivateKey, setCopiedPrivateKey] = useState(false)
 
   // Atualiza o step quando wallet status muda
   useEffect(() => {
@@ -211,6 +234,43 @@ HOLD Wallet - Sistema de Taxas e Comissões
     URL.revokeObjectURL(url)
 
     toast.success('Backup baixado! Guarde em local seguro.')
+  }
+
+  // Exportar private key para configurar no .env
+  const handleExportPrivateKey = async () => {
+    try {
+      setIsExporting(true)
+      setShowPrivateKey(false)
+      setCopiedPrivateKey(false)
+
+      const result = await exportPrivateKey('polygon')
+
+      if (result.success) {
+        setExportKeyData(result)
+        setShowExportModal(true)
+      } else {
+        toast.error('Erro ao exportar chave privada')
+      }
+    } catch (error: any) {
+      console.error('Erro ao exportar private key:', error)
+      toast.error(error.response?.data?.detail || 'Erro ao exportar chave privada')
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  // Copiar private key
+  const copyPrivateKey = async () => {
+    if (!exportKeyData?.private_key) return
+
+    try {
+      await navigator.clipboard.writeText(exportKeyData.private_key)
+      setCopiedPrivateKey(true)
+      toast.success('Private key copiada!')
+      setTimeout(() => setCopiedPrivateKey(false), 2000)
+    } catch {
+      toast.error('Não foi possível copiar')
+    }
   }
 
   // Validar confirmação
@@ -583,6 +643,23 @@ HOLD Wallet - Sistema de Taxas e Comissões
                     </div>
                     <ExternalLinkIcon className='w-4 h-4 ml-auto' />
                   </button>
+
+                  <button
+                    onClick={handleExportPrivateKey}
+                    disabled={isExporting}
+                    className='w-full flex items-center gap-3 p-4 bg-amber-600 hover:bg-amber-700 text-white rounded-xl transition-colors disabled:opacity-50'
+                  >
+                    {isExporting ? (
+                      <RefreshCwIcon className='w-5 h-5 animate-spin' />
+                    ) : (
+                      <KeyIcon className='w-5 h-5' />
+                    )}
+                    <div className='text-left'>
+                      <div className='font-semibold'>Exportar Private Key</div>
+                      <div className='text-xs text-amber-200'>Para configurar .env</div>
+                    </div>
+                    <ExternalLinkIcon className='w-4 h-4 ml-auto' />
+                  </button>
                 </div>
               </div>
 
@@ -934,6 +1011,149 @@ HOLD Wallet - Sistema de Taxas e Comissões
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Modal: Exportar Private Key */}
+      {showExportModal && exportKeyData && (
+        <div className='fixed inset-0 z-50 flex items-center justify-center'>
+          {/* Backdrop */}
+          <div
+            className='absolute inset-0 bg-black/70 backdrop-blur-sm'
+            onClick={() => setShowExportModal(false)}
+          />
+
+          {/* Modal */}
+          <div className='relative w-full max-w-xl mx-4 bg-gray-800 rounded-2xl shadow-2xl border border-gray-700 max-h-[90vh] overflow-hidden flex flex-col'>
+            {/* Header */}
+            <div className='px-6 py-4 border-b border-gray-700'>
+              <div className='flex items-center gap-3'>
+                <div className='p-2 bg-amber-500/20 rounded-lg'>
+                  <KeyIcon className='w-6 h-6 text-amber-500' />
+                </div>
+                <div>
+                  <h3 className='text-lg font-bold text-white'>Exportar Private Key</h3>
+                  <p className='text-sm text-gray-400'>
+                    Para configurar PLATFORM_WALLET_PRIVATE_KEY
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className='p-6 space-y-4 overflow-y-auto flex-1'>
+              {/* Warning */}
+              <div className='bg-red-900/30 border border-red-800 rounded-lg p-4'>
+                <div className='flex gap-3'>
+                  <AlertTriangleIcon className='w-5 h-5 text-red-400 flex-shrink-0 mt-0.5' />
+                  <div className='text-sm text-red-200'>
+                    <strong>⚠️ ATENÇÃO:</strong> Esta chave privada dá acesso total aos fundos da
+                    carteira do sistema. Guarde com segurança máxima!
+                  </div>
+                </div>
+              </div>
+
+              {/* Address */}
+              <div className='bg-gray-700/50 rounded-lg p-4 overflow-hidden'>
+                <div className='text-xs text-gray-400 mb-1'>Endereço (Polygon/EVM)</div>
+                <div className='flex items-start gap-2'>
+                  <code className='text-sm text-white font-mono break-all flex-1 min-w-0'>
+                    {exportKeyData.address}
+                  </code>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(exportKeyData.address || '')
+                      toast.success('Endereço copiado!')
+                    }}
+                    className='p-1.5 hover:bg-gray-600 rounded transition-colors flex-shrink-0'
+                    title='Copiar endereço'
+                    aria-label='Copiar endereço'
+                  >
+                    <CopyIcon className='w-4 h-4 text-gray-400' />
+                  </button>
+                </div>
+              </div>
+
+              {/* Private Key */}
+              <div className='bg-gray-700/50 rounded-lg p-4 overflow-hidden'>
+                <div className='flex items-center justify-between mb-2'>
+                  <div className='text-xs text-gray-400'>Private Key</div>
+                  <button
+                    onClick={() => setShowPrivateKey(!showPrivateKey)}
+                    className='text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1'
+                  >
+                    {showPrivateKey ? (
+                      <>
+                        <EyeOffIcon className='w-4 h-4' />
+                        Ocultar
+                      </>
+                    ) : (
+                      <>
+                        <EyeIcon className='w-4 h-4' />
+                        Mostrar
+                      </>
+                    )}
+                  </button>
+                </div>
+                <div className='flex items-start gap-2'>
+                  <code className='text-sm text-white font-mono break-all flex-1 min-w-0'>
+                    {showPrivateKey
+                      ? exportKeyData.private_key
+                      : '••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••'}
+                  </code>
+                  <button
+                    onClick={copyPrivateKey}
+                    className='p-1.5 hover:bg-gray-600 rounded transition-colors flex-shrink-0'
+                    title='Copiar'
+                  >
+                    {copiedPrivateKey ? (
+                      <CheckIcon className='w-4 h-4 text-green-400' />
+                    ) : (
+                      <CopyIcon className='w-4 h-4 text-gray-400' />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Instructions */}
+              <div className='bg-blue-900/30 border border-blue-800 rounded-lg p-4 overflow-hidden'>
+                <div className='text-sm font-semibold text-blue-200 mb-2'>📋 Instruções:</div>
+                <ol className='text-sm text-blue-100 space-y-2 list-decimal list-inside'>
+                  {exportKeyData.instructions?.map((instruction, idx) => (
+                    <li key={idx} className='break-all leading-relaxed'>
+                      <span className='break-all'>{instruction}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className='px-6 py-4 border-t border-gray-700 flex justify-end gap-3'>
+              <button
+                onClick={() => setShowExportModal(false)}
+                className='px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors'
+              >
+                Fechar
+              </button>
+              <button
+                onClick={copyPrivateKey}
+                className='px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors flex items-center gap-2'
+              >
+                {copiedPrivateKey ? (
+                  <>
+                    <CheckIcon className='w-4 h-4' />
+                    Copiado!
+                  </>
+                ) : (
+                  <>
+                    <CopyIcon className='w-4 h-4' />
+                    Copiar Private Key
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
