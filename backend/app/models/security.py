@@ -174,3 +174,25 @@ class AuditLog(Base):
     
     # Relationships
     user = relationship("User", back_populates="audit_logs")
+
+
+class BiometricToken(Base):
+    """Tokens biométricos temporários para autorização de transações"""
+    __tablename__ = "biometric_tokens"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    token = Column(String(100), unique=True, nullable=False, index=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    
+    # Expiração
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    
+    # Status
+    is_used = Column(Boolean, default=False)
+    used_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    
+    # Relationships
+    user = relationship("User")

@@ -9,7 +9,7 @@ import base64
 import secrets
 from typing import Optional, Dict, Any, List
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timezone
 
 from webauthn import (
     generate_registration_options,
@@ -31,6 +31,7 @@ from app.models.user import User
 from app.models.webauthn import WebAuthnCredential
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.core.db import SessionLocal
 
 logger = get_logger(__name__)
 
@@ -52,43 +53,144 @@ class WebAuthnService:
         # Cache de challenges (em produção usar Redis)
         self._challenges: Dict[str, bytes] = {}
         
-        # Cache de tokens biométricos para transações (em produção usar Redis)
+        # Cache de tokens biométricos como fallback (produção usa banco de dados)
         self._biometric_tokens: Dict[str, Dict[str, Any]] = {}
     
-    def store_biometric_token(self, user_id: int, token: str, expires_at: datetime) -> None:
-        """Armazena um token biométrico temporário para autorização de transações"""
-        self._biometric_tokens[token] = {
-            "user_id": user_id,
-            "expires_at": expires_at
-        }
-        logger.info(f"Biometric token stored for user {user_id}")
+    def store_biometric_token(self, user_id, token: str, expires_at: datetime) -> None:
+        """
+        Armazena um token biométrico no banco de dados para autorização de transações.
+        
+        SEGURANÇA:
+        - Invalida TODOS os tokens anteriores do usuário (previne replay attacks)
+        - Cada novo token substitui os anteriores
+        - Token é single-use (marcado como usado após verificação)
+        - Token tem expiração curta (geralmente 5 minutos)
+        """
+        try:
+            from app.models.security import BiometricToken
+            
+            db = SessionLocal()
+            try:
+                # SEGURANÇA: Invalidar TODOS os tokens anteriores do usuário
+                # Isso garante que apenas o token mais recente seja válido
+                try:
+                    deleted_count = db.query(BiometricToken).filter(
+                        BiometricToken.user_id == str(user_id)
+                    ).delete()
+                    if deleted_count > 0:
+                        logger.info(f"Invalidated {deleted_count} previous tokens for user {user_id}")
+                except Exception:
+                    pass  # Table might not exist
+                
+                # Criar novo token (único válido para este usuário)
+                biometric_token = BiometricToken(
+                    token=token,
+                    user_id=str(user_id),
+                    expires_at=expires_at
+                )
+                db.add(biometric_token)
+                db.commit()
+                logger.info(f"Biometric token stored in DB for user {user_id} (expires: {expires_at})")
+            except Exception as db_error:
+                logger.warning(f"Failed to store in DB (using memory): {db_error}")
+                # Fallback to memory cache - também invalida tokens antigos
+                self._invalidate_user_tokens_memory(user_id)
+                self._biometric_tokens[token] = {
+                    "user_id": str(user_id),
+                    "expires_at": expires_at
+                }
+                logger.info(f"Biometric token stored in memory (fallback) for user {user_id}")
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"Error storing biometric token: {e}")
+            # Fallback to memory cache
+            self._invalidate_user_tokens_memory(user_id)
+            self._biometric_tokens[token] = {
+                "user_id": str(user_id),
+                "expires_at": expires_at
+            }
+            logger.info(f"Biometric token stored in memory (fallback) for user {user_id}")
     
-    def verify_biometric_token(self, user_id: int, token: str) -> bool:
-        """Verifica se um token biométrico é válido para o usuário"""
+    def _invalidate_user_tokens_memory(self, user_id) -> int:
+        """Remove todos os tokens em memória do usuário (SEGURANÇA)"""
+        tokens_to_remove = [
+            token for token, data in self._biometric_tokens.items()
+            if str(data.get("user_id")) == str(user_id)
+        ]
+        for token in tokens_to_remove:
+            del self._biometric_tokens[token]
+        return len(tokens_to_remove)
+    
+    def verify_biometric_token(self, user_id, token: str) -> bool:
+        """Verifica se um token biométrico é válido para o usuário (usando banco de dados)"""
         if not token or not token.startswith("bio_"):
             return False
+        
+        try:
+            from app.models.security import BiometricToken
             
+            db = SessionLocal()
+            try:
+                # Buscar token no banco
+                token_record = db.query(BiometricToken).filter(
+                    BiometricToken.token == token,
+                    BiometricToken.is_used == False
+                ).first()
+                
+                if not token_record:
+                    logger.warning(f"Biometric token not found in DB: {token[:20]}...")
+                    # Try memory fallback
+                    return self._verify_biometric_token_memory(user_id, token)
+                
+                # Verificar se pertence ao usuário
+                if str(token_record.user_id) != str(user_id):
+                    logger.warning(f"Biometric token user mismatch: expected {user_id}, got {token_record.user_id}")
+                    return False
+                
+                # Verificar expiração
+                if datetime.now(timezone.utc) > token_record.expires_at:
+                    # Remover token expirado
+                    db.delete(token_record)
+                    db.commit()
+                    logger.warning(f"Biometric token expired for user {user_id}")
+                    return False
+                
+                # Token válido - marcar como usado
+                token_record.is_used = True
+                token_record.used_at = datetime.now(timezone.utc)
+                db.commit()
+                
+                logger.info(f"Biometric token verified and consumed from DB for user {user_id}")
+                return True
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"Error verifying biometric token in DB: {e}")
+            # Fallback to memory
+            return self._verify_biometric_token_memory(user_id, token)
+    
+    def _verify_biometric_token_memory(self, user_id, token: str) -> bool:
+        """Fallback: Verifica token em memória"""
         token_data = self._biometric_tokens.get(token)
         if not token_data:
-            logger.warning(f"Biometric token not found: {token[:20]}...")
+            logger.warning(f"Biometric token not found in memory: {token[:20]}...")
             return False
         
         # Verificar se pertence ao usuário
-        if token_data["user_id"] != user_id:
-            logger.warning(f"Biometric token user mismatch: expected {user_id}, got {token_data['user_id']}")
+        if str(token_data["user_id"]) != str(user_id):
+            logger.warning(f"Biometric token user mismatch in memory")
             return False
         
         # Verificar expiração
-        from datetime import datetime, timezone
         if datetime.now(timezone.utc) > token_data["expires_at"]:
-            # Remover token expirado
             del self._biometric_tokens[token]
-            logger.warning(f"Biometric token expired for user {user_id}")
+            logger.warning(f"Biometric token expired in memory for user {user_id}")
             return False
         
         # Token válido - remover após uso (single-use)
         del self._biometric_tokens[token]
-        logger.info(f"Biometric token verified and consumed for user {user_id}")
+        logger.info(f"Biometric token verified and consumed from memory for user {user_id}")
         return True
     
     def generate_registration_options_for_user(
