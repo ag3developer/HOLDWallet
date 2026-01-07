@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { Download, AlertCircle, QrCode, Copy } from 'lucide-react'
+import { Download, AlertCircle, QrCode, Copy, Shield, Sparkles, Share2 } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import toast from 'react-hot-toast'
 import { CryptoIcon } from '@/components/CryptoIcon'
@@ -435,8 +435,10 @@ export const ReceivePage = () => {
   if (walletsWithAddresses.length === 0) {
     return (
       <div className='text-center py-12'>
-        <QrCode className='w-12 h-12 text-gray-400 mx-auto mb-3' />
-        <p className='text-gray-500 dark:text-gray-400'>Nenhuma carteira disponível</p>
+        <div className='w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4'>
+          <QrCode className='w-10 h-10 text-gray-400' />
+        </div>
+        <p className='text-gray-500 dark:text-gray-400 text-lg'>Nenhuma carteira disponível</p>
       </div>
     )
   }
@@ -452,202 +454,194 @@ export const ReceivePage = () => {
     todasAsCarteiras: walletsWithAddresses,
   })
 
+  // Share address functionality
+  const shareAddress = async () => {
+    if (!currentAddress) return
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: `Receber ${selectedToken}`,
+          text: `Meu endereço ${selectedToken} (${selectedNetwork.toUpperCase()}): ${currentAddress}`,
+        })
+      } else {
+        copyToClipboard(currentAddress, 'Endereço copiado!')
+      }
+    } catch (err) {
+      copyToClipboard(currentAddress, 'Endereço copiado!')
+    }
+  }
+
   return (
-    <div className='space-y-4'>
-      {/* Header */}
-      <div className='mb-4'>
-        <h2 className='text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2'>
-          <div className='w-10 h-10 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl flex items-center justify-center'>
-            <Download className='w-5 h-5 text-white' />
-          </div>
-          Receber Criptomoeda
-        </h2>
+    <div className='space-y-3'>
+      {/* Header Compacto */}
+      <div className='flex items-center gap-3'>
+        <div className='w-10 h-10 bg-gradient-to-br from-green-400 to-emerald-600 rounded-xl flex items-center justify-center shadow-md'>
+          <Download className='w-5 h-5 text-white' />
+        </div>
+        <div>
+          <h2 className='text-lg font-bold text-gray-900 dark:text-white'>Receber</h2>
+          <p className='text-xs text-gray-500 dark:text-gray-400'>
+            Receba crypto de qualquer lugar
+          </p>
+        </div>
       </div>
 
-      {/* Card Principal - QR + Dados */}
-      <div className='bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl shadow-lg p-6 text-white'>
-        <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
-          {/* QR Code */}
-          <div className='flex flex-col items-center justify-center'>
-            <p className='text-sm font-medium text-blue-100 mb-4'>Escaneie para enviar</p>
-            {(() => {
-              if (currentAddress) {
-                return (
-                  <div className='relative'>
-                    <div className='bg-white rounded-xl p-4 shadow-lg'>
-                      <QRCodeSVG
-                        value={currentAddress}
-                        size={180}
-                        level='H'
-                        className='w-full h-auto'
-                      />
-                    </div>
-                    <div className='absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2'>
-                      <div className='bg-white rounded-full p-2 shadow-lg'>
-                        <CryptoIcon symbol={selectedToken} size={44} />
-                      </div>
-                    </div>
-                  </div>
-                )
-              }
-              if (isAddressLoading) {
-                return (
-                  <div className='w-48 h-48 bg-white bg-opacity-20 rounded-xl flex flex-col items-center justify-center animate-pulse'>
-                    <div className='w-32 h-32 bg-white bg-opacity-30 rounded-lg mb-2'></div>
-                    <p className='text-sm text-blue-100'>Carregando endereço...</p>
-                  </div>
-                )
-              }
-              return (
-                <div className='w-48 h-48 bg-gray-200 rounded-lg flex items-center justify-center'>
-                  <QrCode className='w-12 h-12 text-gray-400' />
-                </div>
-              )
-            })()}
-          </div>
+      {/* Main Content - Layout Horizontal no Desktop */}
+      <div className='grid grid-cols-1 lg:grid-cols-12 gap-3'>
+        {/* QR Code Card - Compacto */}
+        <div className='lg:col-span-5 relative bg-gradient-to-br from-green-500 via-emerald-500 to-teal-600 rounded-xl shadow-lg p-4 text-white overflow-hidden'>
+          <div className='absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2' />
 
-          {/* Informações */}
-          <div className='flex flex-col justify-center space-y-4'>
-            {/* Token Recebendo */}
-            <div>
-              <p className='text-blue-100 text-xs mb-1 uppercase font-semibold'>Recebendo</p>
-              <div className='flex items-center gap-3'>
-                <CryptoIcon symbol={selectedToken} size={32} />
-                <div>
-                  <p className='text-3xl font-bold'>{selectedToken}</p>
-                  <p className='text-xs text-blue-200'>via {selectedNetwork.toUpperCase()}</p>
+          <div className='relative z-10 flex flex-col sm:flex-row lg:flex-col items-center gap-4'>
+            {/* QR Code */}
+            <div className='flex flex-col items-center'>
+              {currentAddress ? (
+                <div className='relative'>
+                  <div className='bg-white rounded-xl p-3 shadow-lg'>
+                    <QRCodeSVG value={currentAddress} size={120} level='H' />
+                  </div>
+                  <div className='absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2'>
+                    <div className='bg-white rounded-full p-1.5 shadow ring-2 ring-green-500/30'>
+                      <CryptoIcon symbol={selectedToken} size={28} />
+                    </div>
+                  </div>
                 </div>
-              </div>
+              ) : isAddressLoading ? (
+                <div className='w-32 h-32 bg-white/20 rounded-xl flex items-center justify-center animate-pulse'>
+                  <p className='text-xs text-green-100'>Carregando...</p>
+                </div>
+              ) : (
+                <div className='w-32 h-32 bg-white/20 rounded-xl flex items-center justify-center'>
+                  <QrCode className='w-8 h-8 text-white/60' />
+                </div>
+              )}
             </div>
 
-            {/* Endereço */}
-            <div>
-              <p className='text-blue-100 text-xs mb-2 uppercase font-semibold'>Seu Endereço</p>
-              <div className='flex items-center gap-2 bg-white bg-opacity-20 rounded-lg p-3 backdrop-blur-sm'>
-                {isAddressLoading ? (
-                  <div className='flex-1 h-4 bg-white bg-opacity-30 rounded animate-pulse'></div>
-                ) : (
-                  <input
-                    type='text'
-                    value={currentAddress || 'Endereço não disponível'}
-                    readOnly
-                    aria-label={`Endereço para receber ${selectedToken}`}
-                    className='flex-1 bg-transparent text-white text-xs font-mono outline-none placeholder-blue-200 truncate'
-                  />
-                )}
+            {/* Info */}
+            <div className='flex-1 text-center sm:text-left lg:text-center w-full'>
+              <div className='flex items-center justify-center sm:justify-start lg:justify-center gap-2 mb-2'>
+                <CryptoIcon symbol={selectedToken} size={24} />
+                <span className='text-xl font-bold'>{selectedToken}</span>
+                <span className='text-xs bg-white/20 px-2 py-0.5 rounded-full'>
+                  {selectedNetwork.toUpperCase()}
+                </span>
+              </div>
+
+              {/* Address */}
+              <div className='bg-white/15 rounded-lg p-2 mb-3'>
+                <p className='text-xs font-mono truncate'>{currentAddress || 'Carregando...'}</p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className='flex gap-2'>
                 <button
                   onClick={() =>
                     currentAddress && copyToClipboard(currentAddress, 'Endereço copiado!')
                   }
-                  className='p-2 bg-white bg-opacity-30 hover:bg-opacity-40 rounded-lg transition-all flex-shrink-0'
-                  aria-label='Copiar endereço'
+                  disabled={!currentAddress}
+                  className='flex-1 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-xs font-medium flex items-center justify-center gap-1 disabled:opacity-50'
                 >
-                  <Copy className='w-4 h-4' />
+                  <Copy className='w-3 h-3' />
+                  Copiar
+                </button>
+                <button
+                  onClick={shareAddress}
+                  disabled={!currentAddress}
+                  className='flex-1 py-2 bg-white hover:bg-white/90 text-green-600 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 disabled:opacity-50'
+                >
+                  <Share2 className='w-3 h-3' />
+                  Compartilhar
                 </button>
               </div>
             </div>
+          </div>
+        </div>
 
-            {/* Badge de Rede */}
-            <div className='pt-2 border-t border-white border-opacity-20'>
-              <span className='inline-block px-3 py-1 bg-white bg-opacity-20 rounded-full text-xs font-medium'>
-                {selectedNetwork === 'ethereum' && 'ERC-20'}
-                {selectedNetwork === 'bsc' && 'BEP-20'}
-                {selectedNetwork === 'polygon' && 'Polygon'}
-                {selectedNetwork === 'tron' && 'TRC-20'}
-                {selectedNetwork === 'base' && 'Base L2'}
-                {selectedNetwork === 'bitcoin' && 'BTC Native'}
-              </span>
+        {/* Selectors - Lado a Lado */}
+        <div className='lg:col-span-7 grid grid-cols-1 md:grid-cols-2 gap-3'>
+          {/* Token Selector */}
+          <div className='bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-100 dark:border-gray-700'>
+            <div className='px-3 py-2 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50'>
+              <h3 className='text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1.5'>
+                <Sparkles className='w-3 h-3 text-blue-500' />
+                Token ({tokenList.length})
+              </h3>
+            </div>
+            <div className='p-2'>
+              <div className='grid grid-cols-4 gap-1.5 max-h-36 overflow-y-auto'>
+                {tokenList.map(token => (
+                  <button
+                    key={token.symbol}
+                    onClick={() => handleTokenSelect(token)}
+                    className={`flex flex-col items-center gap-1 p-2 rounded-lg border transition-all ${
+                      selectedToken === token.symbol
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                        : 'border-gray-100 dark:border-gray-700 hover:border-blue-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                    }`}
+                  >
+                    <CryptoIcon symbol={token.symbol} size={20} />
+                    <span className='text-xs font-semibold text-gray-900 dark:text-white'>
+                      {token.symbol}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Network Selector */}
+          <div className='bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-100 dark:border-gray-700'>
+            <div className='px-3 py-2 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50'>
+              <h3 className='text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1.5'>
+                <Shield className='w-3 h-3 text-green-500' />
+                Rede ({networkList.length})
+              </h3>
+            </div>
+            <div className='p-2'>
+              <div className='space-y-1 max-h-36 overflow-y-auto'>
+                {networkList.map(({ network, name, icon, fee }) => (
+                  <button
+                    key={network}
+                    onClick={() => handleNetworkSelect(network)}
+                    className={`w-full flex items-center justify-between gap-2 p-2 rounded-lg border transition-all text-left ${
+                      selectedNetwork === network
+                        ? 'border-green-500 bg-green-50 dark:bg-green-900/30'
+                        : 'border-gray-100 dark:border-gray-700 hover:border-green-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                    }`}
+                  >
+                    <div className='flex items-center gap-2 min-w-0'>
+                      <CryptoIcon symbol={icon} size={18} />
+                      <p className='text-xs font-medium text-gray-900 dark:text-white truncate'>
+                        {name}
+                      </p>
+                    </div>
+                    <span
+                      className={`text-xs font-medium px-1.5 py-0.5 rounded ${
+                        fee === 'Mínima'
+                          ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                          : fee === 'Baixa'
+                            ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                            : fee === 'Alta'
+                              ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
+                              : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                      }`}
+                    >
+                      {fee}
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Seletores Compactos */}
-      <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-        {/* Token Selector */}
-        <div className='bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4'>
-          <div className='text-xs font-bold text-gray-700 dark:text-gray-300 mb-3 block uppercase tracking-wider'>
-            Selecionar Token ({tokenList.length})
-          </div>
-          <div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-96 overflow-y-auto'>
-            {tokenList.map(token => (
-              <button
-                key={token.symbol}
-                onClick={() => handleTokenSelect(token)}
-                className={`flex flex-col items-center gap-1 p-2 rounded-lg border-2 transition-all text-center ${
-                  selectedToken === token.symbol
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
-                    : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600'
-                }`}
-              >
-                <CryptoIcon symbol={token.symbol} size={20} />
-                <span className='text-xs font-bold text-gray-900 dark:text-white'>
-                  {token.symbol}
-                </span>
-                <span className='text-xs text-gray-500 dark:text-gray-400 truncate'>
-                  {token.name}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Network Selector */}
-        <div className='bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4'>
-          <div className='text-xs font-bold text-gray-700 dark:text-gray-300 mb-3 block uppercase tracking-wider'>
-            Rede Blockchain ({networkList.length})
-          </div>
-          <div className='space-y-2 max-h-96 overflow-y-auto'>
-            {networkList.map(({ network, name, icon, fee }) => (
-              <button
-                key={network}
-                onClick={() => handleNetworkSelect(network)}
-                className={`w-full flex items-center justify-between gap-2 p-2 rounded-lg border-2 transition-all text-left ${
-                  selectedNetwork === network
-                    ? 'border-green-500 bg-green-50 dark:bg-green-900/30'
-                    : 'border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-600'
-                }`}
-              >
-                <div className='flex items-center gap-2 min-w-0'>
-                  <CryptoIcon symbol={icon} size={16} />
-                  <div className='min-w-0'>
-                    <p className='text-xs font-bold text-gray-900 dark:text-white truncate'>
-                      {name}
-                    </p>
-                    <p className={getFeeColor(fee)}>{fee}</p>
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Alerta Crítico */}
-      <div className='bg-red-50 dark:bg-red-900/20 border-l-4 border-red-600 dark:border-red-500 rounded-lg p-4'>
-        <div className='flex items-start gap-3'>
-          <AlertCircle className='w-5 h-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0' />
-          <div>
-            <h3 className='text-sm font-bold text-red-900 dark:text-red-100 mb-2'>
-              ⚠️ ATENÇÃO CRÍTICA!
-            </h3>
-            <ul className='text-xs text-red-800 dark:text-red-200 space-y-1.5'>
-              <li>
-                • <strong>Rede errada = perda total!</strong> Confirme que o remetente envia pela
-                rede {selectedNetwork.toUpperCase()}
-              </li>
-              <li>
-                • <strong>Verifique endereço:</strong> Confira cada caractere antes de compartilhar
-              </li>
-              <li>
-                • <strong>Nunca compartilhe:</strong> suas chaves privadas com ninguém
-              </li>
-              <li>
-                • <strong>Teste pequeno:</strong> Peça transferência de $1 como teste para quantias
-                grandes
-              </li>
-            </ul>
-          </div>
+      {/* Alert Compacto */}
+      <div className='bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-2.5 flex gap-2'>
+        <AlertCircle className='w-4 h-4 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5' />
+        <div className='text-xs text-red-800 dark:text-red-200'>
+          <strong>Atenção:</strong> Confirme a rede <strong>{selectedNetwork.toUpperCase()}</strong>{' '}
+          antes de receber. Rede errada = perda total!
         </div>
       </div>
     </div>

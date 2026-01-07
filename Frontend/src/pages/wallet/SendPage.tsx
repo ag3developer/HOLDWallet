@@ -12,6 +12,9 @@ import {
   Rocket,
   Fingerprint,
   Shield,
+  ExternalLink,
+  ArrowRight,
+  Info,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { CryptoIcon } from '@/components/CryptoIcon'
@@ -708,117 +711,110 @@ export const SendPage = () => {
 
   if (showSuccess) {
     return (
-      <div className='space-y-6 py-6'>
-        {/* Success Header */}
-        <div className='text-center'>
-          <div className='flex justify-center mb-4'>
-            <div className='w-20 h-20 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center'>
-              <CheckCircle className='w-10 h-10 text-green-500' />
+      <div className='space-y-3'>
+        {/* Success Header - Compacto */}
+        <div className='text-center py-4'>
+          <div className='flex justify-center mb-3'>
+            <div className='w-16 h-16 bg-gradient-to-br from-green-400 to-emerald-600 rounded-full flex items-center justify-center shadow-lg shadow-green-500/30'>
+              <CheckCircle className='w-8 h-8 text-white' />
             </div>
           </div>
-          <h3 className='text-2xl font-bold text-gray-900 dark:text-white'>Enviado com Sucesso!</h3>
-          <p className='text-gray-500 dark:text-gray-400 text-sm mt-1'>
-            Sua transação foi enviada para a blockchain
+          <h3 className='text-xl font-bold text-gray-900 dark:text-white mb-1'>
+            Enviado com Sucesso!
+          </h3>
+          <p className='text-sm text-gray-500 dark:text-gray-400'>
+            Transação enviada para a blockchain
           </p>
         </div>
 
-        {/* Transaction ID for Support */}
-        {sentTransaction && (
-          <div className='bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4'>
-            <div className='flex items-center justify-between'>
-              <div>
-                <p className='text-xs text-blue-600 dark:text-blue-400 font-medium'>
-                  ID da Transação (Suporte)
-                </p>
-                <p className='text-2xl font-bold text-blue-700 dark:text-blue-300 font-mono'>
-                  #{sentTransaction.transactionId}
-                </p>
-              </div>
-              <button
-                onClick={() => copyToClipboard(sentTransaction.transactionId)}
-                className='p-2 hover:bg-blue-100 dark:hover:bg-blue-800 rounded-lg transition-colors'
-                title='Copiar ID'
-              >
-                <Copy className='w-5 h-5 text-blue-600 dark:text-blue-400' />
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Transaction Details */}
-        <div className='bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden'>
-          <div className='p-4 border-b border-gray-200 dark:border-gray-700'>
-            <h4 className='font-semibold text-gray-900 dark:text-white'>Detalhes da Transação</h4>
-          </div>
-
-          <div className='divide-y divide-gray-200 dark:divide-gray-700'>
-            {/* Amount */}
-            <div className='p-4 flex items-center justify-between'>
-              <span className='text-sm text-gray-500 dark:text-gray-400'>Valor Enviado</span>
-              <div className='flex items-center gap-2'>
-                <CryptoIcon symbol={sentTransaction?.token || selectedToken} size={20} />
-                <span className='font-semibold text-gray-900 dark:text-white'>
-                  {sentTransaction?.amount || amount} {sentTransaction?.token || selectedToken}
-                </span>
+        {/* Transaction ID + Details em Grid */}
+        <div className='grid grid-cols-1 lg:grid-cols-3 gap-3'>
+          {/* Transaction ID */}
+          {sentTransaction && (
+            <div className='bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 border border-blue-200 dark:border-blue-800 rounded-xl p-3'>
+              <div className='flex items-center justify-between'>
+                <div>
+                  <p className='text-xs text-blue-600 dark:text-blue-400 font-medium'>
+                    ID (Suporte)
+                  </p>
+                  <p className='text-xl font-bold text-blue-700 dark:text-blue-300 font-mono'>
+                    #{sentTransaction.transactionId}
+                  </p>
+                </div>
+                <button
+                  onClick={() => copyToClipboard(sentTransaction.transactionId)}
+                  className='p-2 bg-blue-100 dark:bg-blue-800 hover:bg-blue-200 dark:hover:bg-blue-700 rounded-lg'
+                  title='Copiar'
+                >
+                  <Copy className='w-4 h-4 text-blue-600 dark:text-blue-400' />
+                </button>
               </div>
             </div>
+          )}
 
-            {/* Network */}
-            <div className='p-4 flex items-center justify-between'>
-              <span className='text-sm text-gray-500 dark:text-gray-400'>Rede</span>
-              <span className='font-medium text-gray-900 dark:text-white'>
-                {getNetworkDisplayName(sentTransaction?.network || selectedNetwork)}
+          {/* Amount Card */}
+          <div className='bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-3'>
+            <p className='text-xs text-gray-500 dark:text-gray-400 mb-1'>Valor Enviado</p>
+            <div className='flex items-center gap-2'>
+              <CryptoIcon symbol={sentTransaction?.token || selectedToken} size={20} />
+              <span className='text-lg font-bold text-gray-900 dark:text-white'>
+                {sentTransaction?.amount || amount} {sentTransaction?.token || selectedToken}
               </span>
             </div>
+          </div>
 
-            {/* From Address */}
-            <div className='p-4'>
-              <div className='flex items-center justify-between mb-1'>
-                <span className='text-sm text-gray-500 dark:text-gray-400'>De (Sua Carteira)</span>
-                <button
-                  onClick={() => copyToClipboard(sentTransaction?.fromAddress || '')}
-                  className='p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors'
-                  title='Copiar endereço'
-                >
-                  <Copy className='w-4 h-4 text-gray-400' />
-                </button>
-              </div>
-              <p className='font-mono text-xs text-gray-700 dark:text-gray-300 break-all'>
-                {sentTransaction?.fromAddress || 'N/A'}
-              </p>
+          {/* Network Card */}
+          <div className='bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-3'>
+            <p className='text-xs text-gray-500 dark:text-gray-400 mb-1'>Rede</p>
+            <span className='px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full text-sm font-semibold'>
+              {getNetworkDisplayName(sentTransaction?.network || selectedNetwork)}
+            </span>
+          </div>
+        </div>
+
+        {/* Addresses Row */}
+        <div className='grid grid-cols-1 lg:grid-cols-2 gap-3'>
+          {/* From */}
+          <div className='bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-3'>
+            <div className='flex items-center justify-between mb-1'>
+              <span className='text-xs text-gray-500 dark:text-gray-400'>De (Sua Carteira)</span>
+              <button
+                onClick={() => copyToClipboard(sentTransaction?.fromAddress || '')}
+                className='p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded'
+                title='Copiar'
+              >
+                <Copy className='w-3 h-3 text-gray-400' />
+              </button>
             </div>
-
-            {/* To Address */}
-            <div className='p-4'>
-              <div className='flex items-center justify-between mb-1'>
-                <span className='text-sm text-gray-500 dark:text-gray-400'>Para (Destino)</span>
-                <button
-                  onClick={() => copyToClipboard(sentTransaction?.toAddress || toAddress)}
-                  className='p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors'
-                  title='Copiar endereço'
-                >
-                  <Copy className='w-4 h-4 text-gray-400' />
-                </button>
-              </div>
-              <p className='font-mono text-xs text-gray-700 dark:text-gray-300 break-all'>
-                {sentTransaction?.toAddress || toAddress}
-              </p>
+            <p className='font-mono text-xs text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700/50 p-2 rounded truncate'>
+              {sentTransaction?.fromAddress || 'N/A'}
+            </p>
+          </div>
+          {/* To */}
+          <div className='bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-3'>
+            <div className='flex items-center justify-between mb-1'>
+              <span className='text-xs text-gray-500 dark:text-gray-400'>Para (Destino)</span>
+              <button
+                onClick={() => copyToClipboard(sentTransaction?.toAddress || toAddress)}
+                className='p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded'
+                title='Copiar'
+              >
+                <Copy className='w-3 h-3 text-gray-400' />
+              </button>
             </div>
+            <p className='font-mono text-xs text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700/50 p-2 rounded truncate'>
+              {sentTransaction?.toAddress || toAddress}
+            </p>
+          </div>
+        </div>
 
-            {/* Fee (if available) */}
-            {sentTransaction?.fee && (
-              <div className='p-4 flex items-center justify-between'>
-                <span className='text-sm text-gray-500 dark:text-gray-400'>Taxa de Rede</span>
-                <span className='font-medium text-gray-900 dark:text-white'>
-                  ~${sentTransaction.fee}
-                </span>
-              </div>
-            )}
-
-            {/* Timestamp */}
-            <div className='p-4 flex items-center justify-between'>
-              <span className='text-sm text-gray-500 dark:text-gray-400'>Data/Hora</span>
-              <span className='font-medium text-gray-900 dark:text-white'>
+        {/* Hash + Meta Row */}
+        <div className='bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-3'>
+          <div className='flex items-center justify-between mb-1'>
+            <span className='text-xs text-gray-500 dark:text-gray-400'>Hash da Transação</span>
+            <div className='flex items-center gap-3 text-xs text-gray-500'>
+              {sentTransaction?.fee && <span>Taxa: ~${sentTransaction.fee}</span>}
+              <span>
                 {sentTransaction?.timestamp.toLocaleString('pt-BR', {
                   day: '2-digit',
                   month: '2-digit',
@@ -827,45 +823,38 @@ export const SendPage = () => {
                   minute: '2-digit',
                 })}
               </span>
-            </div>
-
-            {/* Transaction Hash */}
-            <div className='p-4'>
-              <div className='flex items-center justify-between mb-1'>
-                <span className='text-sm text-gray-500 dark:text-gray-400'>Hash da Transação</span>
-                <button
-                  onClick={() => copyToClipboard(txHash)}
-                  className='p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors'
-                  title='Copiar hash'
-                >
-                  <Copy className='w-4 h-4 text-gray-400' />
-                </button>
-              </div>
-              <p className='font-mono text-xs text-gray-700 dark:text-gray-300 break-all'>
-                {txHash}
-              </p>
+              <button
+                onClick={() => copyToClipboard(txHash)}
+                className='p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded'
+                title='Copiar'
+              >
+                <Copy className='w-3 h-3 text-gray-400' />
+              </button>
             </div>
           </div>
+          <p className='font-mono text-xs text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700/50 p-2 rounded break-all'>
+            {txHash}
+          </p>
         </div>
 
-        {/* Explorer Link */}
-        {txHash && getExplorerUrl(sentTransaction?.network || selectedNetwork, txHash) && (
-          <a
-            href={getExplorerUrl(sentTransaction?.network || selectedNetwork, txHash)}
-            target='_blank'
-            rel='noopener noreferrer'
-            className='block w-full text-center py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-xl transition-colors'
-          >
-            🔍 Ver no Explorer
-          </a>
-        )}
-
-        {/* Action Buttons */}
-        <div className='flex gap-3 pt-2'>
+        {/* Action Buttons Row */}
+        <div className='flex gap-3'>
+          {txHash && getExplorerUrl(sentTransaction?.network || selectedNetwork, txHash) && (
+            <a
+              href={getExplorerUrl(sentTransaction?.network || selectedNetwork, txHash)}
+              target='_blank'
+              rel='noopener noreferrer'
+              className='flex-1 flex items-center justify-center gap-2 py-2.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg text-sm'
+            >
+              <ExternalLink className='w-4 h-4' />
+              Ver no Explorer
+            </a>
+          )}
           <button
             onClick={resetForm}
-            className='flex-1 px-4 py-4 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold rounded-xl transition-all shadow-lg'
+            className='flex-1 py-2.5 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold rounded-lg text-sm flex items-center justify-center gap-2'
           >
+            <Send className='w-4 h-4' />
             Nova Transação
           </button>
         </div>
@@ -874,261 +863,283 @@ export const SendPage = () => {
   }
 
   return (
-    <div className='space-y-4 py-6'>
-      {/* Header */}
-      <div className='mb-6'>
-        <h2 className='text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2'>
-          <div className='w-10 h-10 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-xl flex items-center justify-center'>
-            <Send className='w-5 h-5 text-white' />
-          </div>
-          Enviar
-        </h2>
+    <div className='space-y-3'>
+      {/* Header Compacto */}
+      <div className='flex items-center gap-3'>
+        <div className='w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-xl flex items-center justify-center shadow-md'>
+          <Send className='w-5 h-5 text-white' />
+        </div>
+        <div>
+          <h2 className='text-lg font-bold text-gray-900 dark:text-white'>Enviar</h2>
+          <p className='text-xs text-gray-500 dark:text-gray-400'>Transfira crypto com segurança</p>
+        </div>
       </div>
 
       {/* Error Alert */}
       {error && (
-        <div className='bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 flex gap-2'>
-          <AlertCircle className='w-5 h-5 text-red-500 flex-shrink-0 mt-0.5' />
-          <p className='text-red-800 dark:text-red-200 text-sm'>{error}</p>
+        <div className='bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-2.5 flex gap-2'>
+          <AlertCircle className='w-4 h-4 text-red-500 flex-shrink-0 mt-0.5' />
+          <p className='text-red-800 dark:text-red-200 text-xs'>{error}</p>
         </div>
       )}
 
-      {/* Form */}
-      <div className='space-y-4'>
-        {/* Token Selection */}
-        <div>
-          <label className='block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2'>
-            Moeda
-          </label>
-          <div className='relative'>
-            <button
-              onClick={() => setShowTokenDropdown(!showTokenDropdown)}
-              className='w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg flex items-center justify-between hover:border-blue-500 transition-colors'
-            >
-              <div className='flex items-center gap-2'>
-                <CryptoIcon symbol={selectedToken} size={24} />
-                <div className='text-left'>
-                  <p className='font-semibold text-gray-900 dark:text-white text-sm'>
-                    {selectedToken}
-                  </p>
-                  <p className='text-xs text-gray-500 dark:text-gray-400'>
-                    {getSelectedTokenData()?.balance.toFixed(4)}
-                  </p>
-                </div>
-              </div>
-              <ChevronDown className='w-4 h-4 text-gray-600 dark:text-gray-400' />
-            </button>
-
-            {showTokenDropdown && (
-              <div className='absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto'>
-                {tokenList.map(token => (
-                  <button
-                    key={token.symbol}
-                    onClick={() => handleTokenSelect(token)}
-                    className='w-full px-3 py-2 flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-left border-b border-gray-200 dark:border-gray-700 last:border-b-0'
-                  >
-                    <CryptoIcon symbol={token.symbol} size={24} />
-                    <div className='flex-1'>
-                      <p className='font-semibold text-gray-900 dark:text-white text-sm'>
-                        {token.symbol}
+      {/* Main Form Card - Compacto */}
+      <div className='bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-100 dark:border-gray-700'>
+        <div className='p-4 space-y-3'>
+          {/* Token + Network em Row no Desktop */}
+          <div className='grid grid-cols-1 lg:grid-cols-2 gap-3'>
+            {/* Token Selection */}
+            <div>
+              <label className='block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1'>
+                Moeda
+              </label>
+              <div className='relative'>
+                <button
+                  onClick={() => setShowTokenDropdown(!showTokenDropdown)}
+                  className='w-full px-3 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg flex items-center justify-between hover:border-blue-400 transition-all'
+                >
+                  <div className='flex items-center gap-2'>
+                    <CryptoIcon symbol={selectedToken} size={24} />
+                    <div className='text-left'>
+                      <p className='font-semibold text-sm text-gray-900 dark:text-white'>
+                        {selectedToken}
                       </p>
-                      <p className='text-xs text-gray-500 dark:text-gray-400'>{token.name}</p>
+                      <p className='text-xs text-gray-500 dark:text-gray-400'>
+                        Saldo: {getSelectedTokenData()?.balance.toFixed(4)}
+                      </p>
                     </div>
-                    <p className='text-xs font-semibold text-gray-900 dark:text-white'>
-                      {token.balance.toFixed(4)}
-                    </p>
-                  </button>
-                ))}
+                  </div>
+                  <ChevronDown
+                    className={`w-4 h-4 text-gray-400 transition-transform ${showTokenDropdown ? 'rotate-180' : ''}`}
+                  />
+                </button>
+
+                {showTokenDropdown && (
+                  <div className='absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl z-20 max-h-48 overflow-y-auto'>
+                    {tokenList.map(token => (
+                      <button
+                        key={token.symbol}
+                        onClick={() => handleTokenSelect(token)}
+                        className={`w-full px-3 py-2 flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors border-b border-gray-100 dark:border-gray-700 last:border-b-0 ${selectedToken === token.symbol ? 'bg-blue-50 dark:bg-blue-900/30' : ''}`}
+                      >
+                        <CryptoIcon symbol={token.symbol} size={20} />
+                        <div className='flex-1 text-left'>
+                          <p className='font-medium text-sm text-gray-900 dark:text-white'>
+                            {token.symbol}
+                          </p>
+                        </div>
+                        <p className='text-xs font-medium text-gray-600 dark:text-gray-400'>
+                          {token.balance.toFixed(4)}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
+            </div>
+
+            {/* Network Selection */}
+            <div>
+              <label className='block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1'>
+                Rede
+              </label>
+              <div className='relative'>
+                <button
+                  onClick={() => setShowNetworkDropdown(!showNetworkDropdown)}
+                  className='w-full px-3 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg flex items-center justify-between hover:border-blue-400 transition-all'
+                >
+                  <div className='flex items-center gap-2'>
+                    <CryptoIcon symbol={getSelectedNetworkData()?.symbol || 'CRYPTO'} size={20} />
+                    <p className='font-semibold text-sm text-gray-900 dark:text-white'>
+                      {getSelectedNetworkData()?.name}
+                    </p>
+                  </div>
+                  <ChevronDown
+                    className={`w-4 h-4 text-gray-400 transition-transform ${showNetworkDropdown ? 'rotate-180' : ''}`}
+                  />
+                </button>
+
+                {showNetworkDropdown && (
+                  <div className='absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl z-20 max-h-48 overflow-y-auto'>
+                    {networkList.map(network => (
+                      <button
+                        key={network.network}
+                        onClick={() => handleNetworkSelect(network.network)}
+                        className={`w-full px-3 py-2 flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors border-b border-gray-100 dark:border-gray-700 last:border-b-0 ${selectedNetwork === network.network ? 'bg-green-50 dark:bg-green-900/30' : ''}`}
+                      >
+                        <CryptoIcon symbol={network.symbol} size={20} />
+                        <p className='font-medium text-sm text-gray-900 dark:text-white flex-1 text-left'>
+                          {network.name}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Address Input */}
+          <div>
+            <label className='block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1'>
+              Endereço de Destino
+            </label>
+            <div className='flex gap-2'>
+              <div className='flex-1 relative'>
+                <input
+                  type='text'
+                  placeholder='Cole o endereço (0x...)'
+                  value={toAddress}
+                  onChange={e => setToAddress(e.target.value)}
+                  className={`w-full px-3 py-2 bg-gray-50 dark:bg-gray-700/50 border rounded-lg focus:ring-2 focus:border-transparent outline-none text-gray-900 dark:text-white text-sm pr-10 ${getAddressInputStyle()}`}
+                />
+                {toAddress.trim() !== '' && (
+                  <div className='absolute right-3 top-1/2 -translate-y-1/2'>
+                    {isValidEthereumAddress(toAddress) ? (
+                      <CheckCircle className='w-4 h-4 text-green-500' />
+                    ) : (
+                      <AlertCircle className='w-4 h-4 text-red-500' />
+                    )}
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => setShowQRScanner(true)}
+                className='px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg'
+                title='Escanear QR'
+              >
+                <QrCode className='w-4 h-4 text-gray-600 dark:text-gray-400' />
+              </button>
+            </div>
+            {toAddress.trim() !== '' && !isValidEthereumAddress(toAddress) && (
+              <p className='text-xs text-red-600 dark:text-red-400 mt-1 flex items-center gap-1'>
+                <AlertCircle className='w-3 h-3' />
+                Endereço inválido
+              </p>
             )}
           </div>
-        </div>
 
-        {/* Network Selection */}
-        <div>
-          <label className='block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2'>
-            Rede
-          </label>
-          <div className='relative'>
-            <button
-              onClick={() => setShowNetworkDropdown(!showNetworkDropdown)}
-              className='w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg flex items-center justify-between hover:border-blue-500 transition-colors'
-            >
-              <div className='flex items-center gap-2'>
-                <CryptoIcon symbol={getSelectedNetworkData()?.symbol || 'CRYPTO'} size={24} />
-                <p className='font-semibold text-gray-900 dark:text-white text-sm'>
-                  {getSelectedNetworkData()?.name}
-                </p>
+          {/* Amount + Fee Speed em Row */}
+          <div className='grid grid-cols-1 lg:grid-cols-2 gap-3'>
+            {/* Amount Input */}
+            <div>
+              <div className='flex items-center justify-between mb-1'>
+                <label className='block text-xs font-semibold text-gray-700 dark:text-gray-300'>
+                  Valor
+                </label>
+                <button
+                  onClick={() => {
+                    const balance = getSelectedTokenData()?.balance || 0
+                    setAmount(balance.toString())
+                  }}
+                  className='text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200 text-blue-700 dark:text-blue-300 rounded font-semibold'
+                >
+                  MAX
+                </button>
               </div>
-              <ChevronDown className='w-4 h-4 text-gray-600 dark:text-gray-400' />
-            </button>
-
-            {showNetworkDropdown && (
-              <div className='absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto'>
-                {networkList.map(network => (
-                  <button
-                    key={network.network}
-                    onClick={() => handleNetworkSelect(network.network)}
-                    className='w-full px-3 py-2 flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-left border-b border-gray-200 dark:border-gray-700 last:border-b-0'
-                  >
-                    <CryptoIcon symbol={network.symbol} size={24} />
-                    <p className='font-semibold text-gray-900 dark:text-white text-sm flex-1'>
-                      {network.name}
-                    </p>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Address */}
-        <div>
-          <label className='block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2'>
-            Endereço
-          </label>
-          <div className='flex gap-2'>
-            <div className='flex-1 relative'>
               <input
-                type='text'
-                placeholder='Cole o endereço (0x...)'
-                value={toAddress}
-                onChange={e => setToAddress(e.target.value)}
-                className={`w-full px-3 py-2 bg-white dark:bg-gray-800 border rounded-lg focus:ring-2 focus:border-transparent outline-none text-gray-900 dark:text-white text-sm transition-all ${getAddressInputStyle()}`}
+                type='number'
+                placeholder='0.00'
+                value={amount}
+                onChange={e => setAmount(e.target.value)}
+                step='0.01'
+                min='0'
+                className='w-full px-3 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-gray-900 dark:text-white text-sm font-semibold'
               />
-              {toAddress.trim() !== '' && (
-                <div className='absolute right-3 top-1/2 -translate-y-1/2'>
-                  {isValidEthereumAddress(toAddress) ? (
-                    <CheckCircle className='w-5 h-5 text-green-500' />
-                  ) : (
-                    <AlertCircle className='w-5 h-5 text-red-500' />
-                  )}
-                </div>
+              {amount && (
+                <p className='text-xs text-gray-500 dark:text-gray-400 mt-1'>
+                  ≈ $
+                  {(
+                    (Number(amount) * (getSelectedTokenData()?.balanceUSD || 0)) /
+                    (getSelectedTokenData()?.balance || 1)
+                  ).toFixed(2)}{' '}
+                  USD
+                </p>
               )}
             </div>
-            <button
-              onClick={() => setShowQRScanner(true)}
-              className='px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors'
-              title='Escanear QR'
-            >
-              <QrCode className='w-5 h-5 text-gray-600 dark:text-gray-400' />
-            </button>
-          </div>
-          {toAddress.trim() !== '' && !isValidEthereumAddress(toAddress) && (
-            <p className='text-xs text-red-600 dark:text-red-400 mt-1 flex items-center gap-1'>
-              <AlertCircle className='w-3 h-3' />
-              Endereço inválido. Use um endereço Ethereum válido (0x...)
-            </p>
-          )}
-          {toAddress.trim() !== '' && isValidEthereumAddress(toAddress) && (
-            <p className='text-xs text-green-600 dark:text-green-400 mt-1 flex items-center gap-1'>
-              <CheckCircle className='w-3 h-3' />
-              Endereço válido
-            </p>
-          )}
-        </div>
 
-        {/* Amount */}
-        <div>
-          <div className='flex items-center justify-between mb-2'>
-            <label className='block text-xs font-semibold text-gray-700 dark:text-gray-300'>
-              Valor
+            {/* Fee Speed Selection - Compacto */}
+            <div>
+              <label className='block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1'>
+                Velocidade
+              </label>
+              <div className='grid grid-cols-3 gap-1.5'>
+                {(
+                  [
+                    { id: 'slow', icon: Turtle, label: 'Lento', color: 'yellow' },
+                    { id: 'standard', icon: Zap, label: 'Padrão', color: 'blue' },
+                    { id: 'fast', icon: Rocket, label: 'Rápido', color: 'orange' },
+                  ] as const
+                ).map(speed => (
+                  <button
+                    key={speed.id}
+                    onClick={() => setSelectedFeeSpeed(speed.id)}
+                    className={`p-2 rounded-lg border transition-all text-center ${
+                      selectedFeeSpeed === speed.id
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                        : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    <speed.icon
+                      className={`w-4 h-4 mx-auto ${
+                        speed.color === 'yellow'
+                          ? 'text-yellow-600'
+                          : speed.color === 'blue'
+                            ? 'text-blue-600'
+                            : 'text-orange-600'
+                      }`}
+                    />
+                    <p className='text-xs text-gray-700 dark:text-gray-300 mt-0.5'>{speed.label}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Memo - Opcional */}
+          <div>
+            <label className='block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1'>
+              Memo (Opcional)
             </label>
-            <button
-              onClick={() => {
-                const balance = getSelectedTokenData()?.balance || 0
-                setAmount(balance.toString())
-              }}
-              className='text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded transition-colors font-semibold'
-            >
-              MAX
-            </button>
-          </div>
-          <input
-            type='number'
-            placeholder='0.00'
-            value={amount}
-            onChange={e => setAmount(e.target.value)}
-            step='0.01'
-            min='0'
-            className='w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-gray-900 dark:text-white text-sm'
-          />
-          {amount && (
-            <p className='text-xs text-gray-600 dark:text-gray-400 mt-1'>
-              ≈ $
-              {(
-                (Number(amount) * (getSelectedTokenData()?.balanceUSD || 0)) /
-                (getSelectedTokenData()?.balance || 1)
-              ).toFixed(2)}
-            </p>
-          )}
-        </div>
-
-        {/* Fee Speed */}
-        <div>
-          <label className='block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2'>
-            Velocidade
-          </label>
-          <div className='grid grid-cols-3 gap-2'>
-            {(['slow', 'standard', 'fast'] as const).map(speed => (
-              <button
-                key={speed}
-                onClick={() => setSelectedFeeSpeed(speed)}
-                className={`p-2 rounded-lg border-2 transition-all text-center ${
-                  selectedFeeSpeed === speed
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                    : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
-                }`}
-              >
-                {speed === 'slow' && (
-                  <Turtle className='w-5 h-5 mx-auto text-yellow-600 dark:text-yellow-400' />
-                )}
-                {speed === 'standard' && (
-                  <Zap className='w-5 h-5 mx-auto text-blue-600 dark:text-blue-400' />
-                )}
-                {speed === 'fast' && (
-                  <Rocket className='w-5 h-5 mx-auto text-orange-600 dark:text-orange-400' />
-                )}
-                <p className='text-xs text-gray-600 dark:text-gray-400 mt-1'>
-                  {speed === 'slow' ? '5-10min' : speed === 'standard' ? '2-5min' : '<1min'}
-                </p>
-              </button>
-            ))}
+            <input
+              type='text'
+              placeholder='Nota...'
+              value={memo}
+              onChange={e => setMemo(e.target.value)}
+              className='w-full px-3 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-gray-900 dark:text-white text-sm'
+            />
           </div>
         </div>
 
-        {/* Memo */}
-        <div>
-          <label className='block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2'>
-            Memo (Opcional)
-          </label>
-          <input
-            type='text'
-            placeholder='Nota...'
-            value={memo}
-            onChange={e => setMemo(e.target.value)}
-            className='w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-gray-900 dark:text-white text-sm'
-          />
+        {/* Submit Button */}
+        <div className='p-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-100 dark:border-gray-700'>
+          <button
+            onClick={handleSend}
+            disabled={loading || !toAddress || !amount}
+            className='w-full py-2.5 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-all shadow-md flex items-center justify-center gap-2 text-sm'
+          >
+            {loading ? (
+              <>
+                <Loader2 className='w-4 h-4 animate-spin' />
+                Preparando...
+              </>
+            ) : (
+              <>
+                <Send className='w-4 h-4' />
+                Enviar {selectedToken}
+                <ArrowRight className='w-4 h-4' />
+              </>
+            )}
+          </button>
         </div>
+      </div>
 
-        {/* Submit */}
-        <button
-          onClick={handleSend}
-          disabled={loading || !toAddress || !amount}
-          className='w-full py-3 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-all flex items-center justify-center gap-2'
-        >
-          {loading ? (
-            <>
-              <Loader2 className='w-5 h-5 animate-spin' />
-              Enviando...
-            </>
-          ) : (
-            <>
-              <Send className='w-5 h-5' />
-              Enviar
-            </>
-          )}
-        </button>
+      {/* Info Card - Compacto */}
+      <div className='bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-2.5 flex gap-2'>
+        <Info className='w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5' />
+        <p className='text-xs text-blue-700 dark:text-blue-300'>
+          <strong>Dica:</strong> Verifique o endereço duas vezes. Transações são irreversíveis.
+        </p>
       </div>
 
       {/* QR Scanner Modal */}

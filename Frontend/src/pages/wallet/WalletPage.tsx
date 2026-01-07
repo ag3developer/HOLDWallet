@@ -14,6 +14,15 @@ import {
   Clock,
   AlertCircle,
   Settings,
+  Shield,
+  Zap,
+  Activity,
+  BarChart3,
+  ArrowUpRight,
+  ArrowDownRight,
+  Sparkles,
+  Globe,
+  Lock,
 } from 'lucide-react'
 import { CryptoIcon } from '@/components/CryptoIcon'
 import { SendPage } from '@/pages/wallet/SendPage'
@@ -517,248 +526,558 @@ export const WalletPage = () => {
   }
 
   return (
-    <div className='space-y-4 md:space-y-6'>
+    <div className='space-y-4'>
       {/* Toast Container */}
       <Toaster />
 
-      {/* Header */}
-      <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 md:gap-4'>
-        <div>
-          <h1 className='text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-2 md:gap-3'>
-            <div className='w-8 h-8 md:w-10 md:h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg md:rounded-xl flex items-center justify-center'>
-              <Wallet className='w-5 h-5 md:w-6 md:h-6 text-white' />
+      {/* Clean Header - Compacto */}
+      <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3'>
+        <div className='flex items-center gap-3'>
+          <div className='w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-md'>
+            <Wallet className='w-5 h-5 text-white' />
+          </div>
+          <div>
+            <div className='flex items-center gap-2'>
+              <h1 className='text-xl font-bold text-gray-900 dark:text-white'>Carteiras</h1>
+              <div className='flex items-center gap-1 px-2 py-0.5 bg-green-100 dark:bg-green-900/30 rounded-full'>
+                <span className='w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse' />
+                <span className='text-[10px] font-medium text-green-700 dark:text-green-400'>
+                  Live
+                </span>
+              </div>
             </div>
-            Carteiras
-          </h1>
-          <p className='text-sm md:text-base text-gray-600 dark:text-gray-300 mt-1'>
-            Gerencie suas criptomoedas e moedas tradicionais
-          </p>
+            <p className='text-gray-500 dark:text-gray-400 text-xs'>Gerencie suas criptomoedas</p>
+          </div>
         </div>
 
-        <div className='flex flex-col sm:flex-row gap-2 md:gap-3'>
-          <Link
-            to='/wallet/settings'
-            className='inline-flex items-center justify-center px-3 md:px-4 py-2 text-sm md:text-base bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors'
-          >
-            <Settings className='w-4 h-4 mr-2' />
-            Configurações
-          </Link>
-          <Link
-            to='/wallet/create'
-            className='inline-flex items-center justify-center px-3 md:px-4 py-2 text-sm md:text-base bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all'
-          >
-            <Plus className='w-4 h-4 mr-2' />
-            <span className='hidden sm:inline'>Criar Carteira Principal</span>
-            <span className='sm:hidden'>Nova Carteira</span>
-          </Link>
+        {/* Stats Pills - Compacto */}
+        <div className='flex gap-2'>
+          <div className='flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm'>
+            <BarChart3 className='w-3.5 h-3.5 text-blue-500' />
+            <span className='text-xs font-bold text-gray-900 dark:text-white'>
+              {walletsWithAddresses.length} ativos
+            </span>
+          </div>
+          <div className='flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm'>
+            <Activity className='w-3.5 h-3.5 text-purple-500' />
+            <span
+              className={`text-xs font-bold ${portfolioChange24h >= 0 ? 'text-green-600' : 'text-red-600'}`}
+            >
+              {portfolioChange24h >= 0 ? '+' : ''}
+              {portfolioChange24h?.toFixed(2)}% 24h
+            </span>
+          </div>
         </div>
       </div>
 
-      {/* Total Balance Card */}
-      <div className='bg-gradient-to-br from-blue-600 via-purple-600 to-blue-800 rounded-xl md:rounded-2xl p-4 md:p-6 lg:p-8 text-white relative overflow-hidden'>
-        <div className='absolute top-0 right-0 w-48 h-48 md:w-64 md:h-64 bg-white opacity-10 rounded-full -mr-24 md:-mr-32 -mt-24 md:-mt-32'></div>
+      {/* Total Balance Card - Compacto */}
+      <div className='bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-700 rounded-xl p-4 md:p-5 text-white relative overflow-hidden shadow-lg'>
+        {/* Decorative elements */}
+        <div className='absolute top-0 right-0 w-40 h-40 bg-white opacity-5 rounded-full -mr-20 -mt-20'></div>
+        <div className='absolute bottom-0 left-0 w-32 h-32 bg-white opacity-5 rounded-full -ml-16 -mb-16'></div>
+
         <div className='relative'>
-          <div className='flex items-center justify-between mb-3 md:mb-4'>
-            <h2 className='text-base md:text-lg lg:text-xl font-semibold'>Saldo Total</h2>
+          <div className='flex items-center justify-between mb-3'>
+            <div className='flex items-center gap-2'>
+              <div className='p-2 bg-white/20 rounded-lg backdrop-blur-sm'>
+                <Wallet className='w-5 h-5' />
+              </div>
+              <div>
+                <h2 className='text-sm font-semibold opacity-90'>Saldo Total</h2>
+                <p className='text-[10px] opacity-70'>Atualizado em tempo real</p>
+              </div>
+            </div>
             <button
               onClick={() => setShowBalances(!showBalances)}
-              className='p-1.5 md:p-2 rounded-lg bg-white bg-opacity-20 hover:bg-opacity-30 transition-all'
+              className='p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all backdrop-blur-sm'
             >
-              {showBalances ? (
-                <Eye className='w-4 h-4 md:w-5 md:h-5' />
-              ) : (
-                <EyeOff className='w-4 h-4 md:w-5 md:h-5' />
-              )}
+              {showBalances ? <Eye className='w-4 h-4' /> : <EyeOff className='w-4 h-4' />}
             </button>
           </div>
 
           <div className='mb-2'>
             {isLoading ? (
-              <div className='h-10 w-48 bg-white bg-opacity-20 rounded-lg animate-pulse'></div>
+              <div className='h-9 w-48 bg-white/20 rounded-lg animate-pulse'></div>
             ) : (
-              <span className='text-2xl md:text-3xl lg:text-4xl font-bold'>
+              <span className='text-3xl md:text-4xl font-bold tracking-tight'>
                 {showBalances ? formatCurrency(totalBalanceUSD) : '••••••'}
               </span>
             )}
           </div>
 
-          <div
-            className={`flex items-center gap-2 ${portfolioChange24h >= 0 ? 'text-green-200' : 'text-red-200'}`}
-          >
-            {isLoading ? (
-              <div className='h-4 w-32 bg-white bg-opacity-20 rounded animate-pulse'></div>
-            ) : (
-              <>
-                {portfolioChange24h >= 0 ? (
-                  <TrendingUp className='w-3 h-3 md:w-4 md:h-4' />
-                ) : (
-                  <TrendingDown className='w-3 h-3 md:w-4 md:h-4' />
-                )}
-                <span className='text-xs md:text-sm'>
-                  {portfolioChange24h >= 0 ? '+' : ''}
-                  {portfolioChange24h?.toFixed(2)}% (últimas 24h)
-                </span>
-              </>
-            )}
+          <div className='flex items-center gap-3'>
+            <div
+              className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs ${
+                portfolioChange24h >= 0 ? 'bg-green-500/20' : 'bg-red-500/20'
+              }`}
+            >
+              {portfolioChange24h >= 0 ? (
+                <ArrowUpRight className='w-3 h-3' />
+              ) : (
+                <ArrowDownRight className='w-3 h-3' />
+              )}
+              <span className='font-semibold'>
+                {portfolioChange24h >= 0 ? '+' : ''}
+                {portfolioChange24h?.toFixed(2)}%
+              </span>
+              <span className='opacity-70'>24h</span>
+            </div>
+            <div className='flex items-center gap-1 text-[10px] opacity-70'>
+              <Shield className='w-3 h-3' />
+              <span>Protegido</span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Navigation Tabs */}
-      <div className='space-y-3'>
+      {/* Quick Actions Bar - Compacto */}
+      <div className='grid grid-cols-4 gap-2'>
+        <button
+          onClick={() => setActiveTab('send')}
+          className='flex flex-col items-center gap-1.5 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-md transition-all group'
+        >
+          <div className='p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg group-hover:scale-110 transition-transform'>
+            <Send className='w-4 h-4 text-blue-600 dark:text-blue-400' />
+          </div>
+          <span className='text-[10px] font-medium text-gray-700 dark:text-gray-300'>Enviar</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('receive')}
+          className='flex flex-col items-center gap-1.5 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-700 hover:shadow-md transition-all group'
+        >
+          <div className='p-2 bg-green-100 dark:bg-green-900/30 rounded-lg group-hover:scale-110 transition-transform'>
+            <Download className='w-4 h-4 text-green-600 dark:text-green-400' />
+          </div>
+          <span className='text-[10px] font-medium text-gray-700 dark:text-gray-300'>Receber</span>
+        </button>
+        <Link
+          to='/instant-trade'
+          className='flex flex-col items-center gap-1.5 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-700 hover:shadow-md transition-all group'
+        >
+          <div className='p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg group-hover:scale-110 transition-transform'>
+            <Zap className='w-4 h-4 text-purple-600 dark:text-purple-400' />
+          </div>
+          <span className='text-[10px] font-medium text-gray-700 dark:text-gray-300'>Trade</span>
+        </Link>
+        <Link
+          to='/wallet/settings'
+          className='flex flex-col items-center gap-1.5 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-500 hover:shadow-md transition-all group'
+        >
+          <div className='p-2 bg-gray-100 dark:bg-gray-700 rounded-lg group-hover:scale-110 transition-transform'>
+            <Settings className='w-4 h-4 text-gray-600 dark:text-gray-400' />
+          </div>
+          <span className='text-[10px] font-medium text-gray-700 dark:text-gray-300'>Config</span>
+        </Link>
+      </div>
+
+      {/* Main Content Area */}
+      <div className='hidden lg:grid lg:grid-cols-3 gap-4'>
+        {/* Left Column: Wallet List + Tabs */}
+        <div className='lg:col-span-2 space-y-4'>
+          {/* Settings Info Badge */}
+          {!showAllNetworks && (
+            <div className='bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-2 flex items-center justify-between'>
+              <div className='flex items-center gap-2'>
+                <Settings className='w-3.5 h-3.5 text-blue-600 dark:text-blue-400' />
+                <span className='text-xs text-blue-800 dark:text-blue-200'>
+                  Modo customizado ativo
+                </span>
+              </div>
+              <Link
+                to='/wallet/settings'
+                className='text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium'
+              >
+                Alterar
+              </Link>
+            </div>
+          )}
+
+          {/* Navigation Tabs */}
+          <div className='bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-100 dark:border-gray-700 overflow-hidden'>
+            <div className='flex border-b border-gray-200 dark:border-gray-700'>
+              {[
+                { id: 'overview', label: 'Geral', icon: Wallet },
+                { id: 'transactions', label: 'Transações', icon: Clock },
+                { id: 'send', label: 'Enviar', icon: Send },
+                { id: 'receive', label: 'Receber', icon: Download },
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-3 px-3 text-sm font-medium transition-all ${
+                    activeTab === tab.id
+                      ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 bg-blue-50/50 dark:bg-blue-900/20'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                  }`}
+                >
+                  <tab.icon className='w-4 h-4' />
+                  <span className='hidden sm:inline'>{tab.label}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Tab Content */}
+            <div className='p-4'>
+              {activeTab === 'overview' && (
+                <div className='grid grid-cols-2 sm:grid-cols-3 gap-3'>
+                  {isLoading && walletsWithAddresses.length === 0 && (
+                    <>
+                      {[1, 2, 3, 4, 5, 6].map(i => (
+                        <div
+                          key={`skeleton-${i}`}
+                          className='bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 animate-pulse'
+                        >
+                          <div className='flex items-center gap-2 mb-2'>
+                            <div className='w-8 h-8 bg-gray-200 dark:bg-gray-600 rounded-lg'></div>
+                            <div className='h-3 w-12 bg-gray-200 dark:bg-gray-600 rounded'></div>
+                          </div>
+                          <div className='h-4 w-20 bg-gray-200 dark:bg-gray-600 rounded mb-1'></div>
+                          <div className='h-3 w-16 bg-gray-200 dark:bg-gray-600 rounded'></div>
+                        </div>
+                      ))}
+                    </>
+                  )}
+
+                  {walletsWithAddresses.map(wallet => (
+                    <div
+                      key={wallet.id}
+                      className='group bg-gradient-to-br from-gray-50 to-white dark:from-gray-800 dark:to-gray-800/50 rounded-lg p-3 border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-md transition-all cursor-pointer'
+                    >
+                      <div className='flex items-center justify-between mb-2'>
+                        <div className='flex items-center gap-2'>
+                          <div className='w-8 h-8 bg-white dark:bg-gray-700 rounded-lg flex items-center justify-center shadow-sm p-1'>
+                            <CryptoIcon symbol={wallet.symbol} size={24} />
+                          </div>
+                          <div>
+                            <span className='font-semibold text-sm text-gray-900 dark:text-white'>
+                              {wallet.symbol}
+                            </span>
+                            <p className='text-[10px] text-gray-500 dark:text-gray-400 capitalize'>
+                              {wallet.network}
+                            </p>
+                          </div>
+                        </div>
+                        <div className='flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity'>
+                          <button
+                            onClick={() => setActiveTab('send')}
+                            title='Enviar'
+                            className='p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors rounded hover:bg-blue-50 dark:hover:bg-blue-900/30'
+                          >
+                            <Send className='w-3.5 h-3.5' />
+                          </button>
+                          <button
+                            onClick={() => setActiveTab('receive')}
+                            title='Receber'
+                            className='p-1 text-gray-400 hover:text-green-600 dark:hover:text-green-400 transition-colors rounded hover:bg-green-50 dark:hover:bg-green-900/30'
+                          >
+                            <Download className='w-3.5 h-3.5' />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className='space-y-0.5'>
+                        <div className='flex items-baseline gap-1'>
+                          <span className='text-base font-bold text-gray-900 dark:text-white'>
+                            {showBalances
+                              ? wallet.balance.toFixed(wallet.symbol === 'BRL' ? 2 : 4)
+                              : '••••'}
+                          </span>
+                          <span className='text-[10px] text-gray-400'>{wallet.symbol}</span>
+                        </div>
+                        <div className='flex items-center justify-between'>
+                          <span className='text-xs text-gray-500 dark:text-gray-400'>
+                            {showBalances ? formatCurrency(wallet.balanceUSD) : '••••'}
+                          </span>
+                          {(() => {
+                            const change24h = priceChanges24h[wallet.symbol] ?? 0
+                            return (
+                              <div
+                                className={`flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                                  change24h >= 0
+                                    ? 'text-green-700 bg-green-100 dark:text-green-400 dark:bg-green-900/30'
+                                    : 'text-red-700 bg-red-100 dark:text-red-400 dark:bg-red-900/30'
+                                }`}
+                              >
+                                {change24h >= 0 ? (
+                                  <TrendingUp className='w-2.5 h-2.5' />
+                                ) : (
+                                  <TrendingDown className='w-2.5 h-2.5' />
+                                )}
+                                {Math.abs(change24h).toFixed(1)}%
+                              </div>
+                            )
+                          })()}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Add New Wallet Card */}
+                  <Link
+                    to='/wallet/create'
+                    className='flex flex-col items-center justify-center gap-2 p-4 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg border-2 border-dashed border-blue-200 dark:border-blue-800 hover:border-blue-400 dark:hover:border-blue-600 transition-all group'
+                  >
+                    <div className='p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg group-hover:scale-110 transition-transform'>
+                      <Plus className='w-5 h-5 text-blue-600 dark:text-blue-400' />
+                    </div>
+                    <span className='text-xs font-medium text-blue-700 dark:text-blue-300'>
+                      Nova Carteira
+                    </span>
+                  </Link>
+                </div>
+              )}
+
+              {activeTab === 'transactions' && <TransactionsPage />}
+              {activeTab === 'send' && <SendPage />}
+              {activeTab === 'receive' && <ReceivePage />}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Benefits Sidebar - Compacto */}
+        <div className='lg:col-span-1 space-y-4'>
+          {/* Quick Info Card */}
+          <div className='bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-100 dark:border-gray-700 p-4'>
+            <div className='flex items-center gap-2 mb-3'>
+              <div className='p-1.5 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg'>
+                <Sparkles className='w-4 h-4 text-white' />
+              </div>
+              <div>
+                <h3 className='font-bold text-sm text-gray-900 dark:text-white'>Dicas</h3>
+                <p className='text-[10px] text-gray-500 dark:text-gray-400'>Segurança e recursos</p>
+              </div>
+            </div>
+
+            <div className='space-y-2'>
+              <div className='p-2 bg-gradient-to-r from-green-50 to-transparent dark:from-green-900/20 rounded-lg border-l-2 border-green-500'>
+                <div className='flex items-center gap-2'>
+                  <Shield className='w-3.5 h-3.5 text-green-600 dark:text-green-400' />
+                  <div>
+                    <p className='font-semibold text-xs text-gray-900 dark:text-white'>
+                      100% Seguro
+                    </p>
+                    <p className='text-[10px] text-gray-600 dark:text-gray-400'>
+                      Suas chaves, suas moedas
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className='p-2 bg-gradient-to-r from-blue-50 to-transparent dark:from-blue-900/20 rounded-lg border-l-2 border-blue-500'>
+                <div className='flex items-center gap-2'>
+                  <Globe className='w-3.5 h-3.5 text-blue-600 dark:text-blue-400' />
+                  <div>
+                    <p className='font-semibold text-xs text-gray-900 dark:text-white'>
+                      Multi-Rede
+                    </p>
+                    <p className='text-[10px] text-gray-600 dark:text-gray-400'>15+ blockchains</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className='p-2 bg-gradient-to-r from-purple-50 to-transparent dark:from-purple-900/20 rounded-lg border-l-2 border-purple-500'>
+                <div className='flex items-center gap-2'>
+                  <Zap className='w-3.5 h-3.5 text-purple-600 dark:text-purple-400' />
+                  <div>
+                    <p className='font-semibold text-xs text-gray-900 dark:text-white'>
+                      Trade Instantâneo
+                    </p>
+                    <p className='text-[10px] text-gray-600 dark:text-gray-400'>
+                      Melhores taxas OTC
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className='p-2 bg-gradient-to-r from-amber-50 to-transparent dark:from-amber-900/20 rounded-lg border-l-2 border-amber-500'>
+                <div className='flex items-center gap-2'>
+                  <Lock className='w-3.5 h-3.5 text-amber-600 dark:text-amber-400' />
+                  <div>
+                    <p className='font-semibold text-xs text-gray-900 dark:text-white'>
+                      Biometria 2FA
+                    </p>
+                    <p className='text-[10px] text-gray-600 dark:text-gray-400'>
+                      Face ID / Touch ID
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Security Badge */}
+            <div className='mt-3 pt-3 border-t border-gray-100 dark:border-gray-700'>
+              <div className='flex items-center justify-center gap-1.5 text-[10px] text-gray-500 dark:text-gray-400'>
+                <Shield className='w-3 h-3 text-green-500' />
+                <span>Transações criptografadas</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Market Overview Mini */}
+          <div className='bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-100 dark:border-gray-700 p-4'>
+            <div className='flex items-center justify-between mb-3'>
+              <h3 className='font-bold text-sm text-gray-900 dark:text-white'>Mercado</h3>
+              <Link
+                to='/instant-trade'
+                className='text-[10px] text-blue-600 dark:text-blue-400 hover:underline font-medium'
+              >
+                Ver mais
+              </Link>
+            </div>
+            <div className='space-y-2'>
+              {['BTC', 'ETH', 'USDT'].map(symbol => {
+                const price = marketPrices[symbol]?.price || 0
+                const change = priceChanges24h[symbol] || 0
+                return (
+                  <div key={symbol} className='flex items-center justify-between'>
+                    <div className='flex items-center gap-2'>
+                      <CryptoIcon symbol={symbol} size={20} />
+                      <span className='font-medium text-xs text-gray-900 dark:text-white'>
+                        {symbol}
+                      </span>
+                    </div>
+                    <div className='text-right'>
+                      <p className='text-xs font-semibold text-gray-900 dark:text-white'>
+                        {formatCurrency(price)}
+                      </p>
+                      <p
+                        className={`text-[10px] ${change >= 0 ? 'text-green-600' : 'text-red-600'}`}
+                      >
+                        {change >= 0 ? '+' : ''}
+                        {change.toFixed(2)}%
+                      </p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile/Tablet Layout */}
+      <div className='lg:hidden space-y-3'>
         {/* Settings Info Badge */}
         {!showAllNetworks && (
-          <div className='bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-2 md:p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2'>
+          <div className='bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-2 flex items-center justify-between gap-2'>
             <div className='flex items-center gap-2'>
-              <Settings className='w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0' />
-              <span className='text-xs md:text-sm text-blue-800 dark:text-blue-200'>
-                Modo customizado ativo - Mostrando apenas redes selecionadas
-              </span>
+              <Settings className='w-3.5 h-3.5 text-blue-600 dark:text-blue-400 flex-shrink-0' />
+              <span className='text-[10px] text-blue-800 dark:text-blue-200'>Modo customizado</span>
             </div>
             <Link
               to='/wallet/settings'
-              className='text-xs md:text-sm text-blue-600 dark:text-blue-400 hover:underline whitespace-nowrap'
+              className='text-[10px] text-blue-600 dark:text-blue-400 hover:underline'
             >
               Alterar
             </Link>
           </div>
         )}
 
-        <div className='flex space-x-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg overflow-x-auto scrollbar-hide'>
+        {/* Tabs Mobile - Compacto */}
+        <div className='flex space-x-0.5 bg-gray-100 dark:bg-gray-800 p-0.5 rounded-lg overflow-x-auto scrollbar-hide'>
           {[
-            { id: 'overview', label: 'Visão Geral', icon: Wallet },
-            { id: 'transactions', label: 'Transações', icon: Clock },
+            { id: 'overview', label: 'Geral', icon: Wallet },
+            { id: 'transactions', label: 'Histórico', icon: Clock },
             { id: 'send', label: 'Enviar', icon: Send },
             { id: 'receive', label: 'Receber', icon: Download },
           ].map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`flex-1 flex items-center justify-center gap-1.5 md:gap-2 py-2 md:py-3 px-2 md:px-4 rounded-md text-sm md:text-base font-medium transition-all whitespace-nowrap ${
+              className={`flex-1 flex items-center justify-center gap-1 py-2 px-2 rounded-md text-xs font-medium transition-all whitespace-nowrap ${
                 activeTab === tab.id
                   ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
                   : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
               }`}
             >
-              <tab.icon className='w-3 h-3 md:w-4 md:h-4' />
-              <span className='hidden sm:inline'>{tab.label}</span>
+              <tab.icon className='w-3.5 h-3.5' />
+              <span>{tab.label}</span>
             </button>
           ))}
         </div>
-      </div>
 
-      {/* Tab Content */}
-      {activeTab === 'overview' && (
-        <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4'>
-          {/* Skeleton Cards quando carregando */}
-          {isLoading && walletsWithAddresses.length === 0 && (
-            <>
-              {[1, 2, 3, 4, 5, 6].map(i => (
-                <div
-                  key={`skeleton-${i}`}
-                  className='bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-3 md:p-4 animate-pulse'
-                >
-                  <div className='flex items-center justify-between mb-3'>
-                    <div className='flex items-center gap-2'>
-                      <div className='w-8 h-8 md:w-10 md:h-10 bg-gray-200 dark:bg-gray-700 rounded-lg'></div>
-                      <div className='h-4 w-16 bg-gray-200 dark:bg-gray-700 rounded'></div>
+        {/* Tab Content Mobile */}
+        {activeTab === 'overview' && (
+          <div className='grid grid-cols-2 gap-2'>
+            {isLoading && walletsWithAddresses.length === 0 && (
+              <>
+                {[1, 2, 3, 4].map(i => (
+                  <div
+                    key={`skeleton-mobile-${i}`}
+                    className='bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 animate-pulse'
+                  >
+                    <div className='flex items-center gap-2 mb-2'>
+                      <div className='w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-lg'></div>
+                      <div className='h-3 w-12 bg-gray-200 dark:bg-gray-700 rounded'></div>
+                    </div>
+                    <div className='h-4 w-20 bg-gray-200 dark:bg-gray-700 rounded'></div>
+                  </div>
+                ))}
+              </>
+            )}
+
+            {walletsWithAddresses.map(wallet => (
+              <div
+                key={wallet.id}
+                className='bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-2.5 hover:shadow-md transition-shadow'
+              >
+                <div className='flex items-center justify-between mb-1.5'>
+                  <div className='flex items-center gap-1.5'>
+                    <div className='w-7 h-7 bg-gray-50 dark:bg-gray-700 rounded-lg flex items-center justify-center p-1'>
+                      <CryptoIcon symbol={wallet.symbol} size={20} />
+                    </div>
+                    <div>
+                      <span className='font-semibold text-xs text-gray-900 dark:text-white'>
+                        {wallet.symbol}
+                      </span>
+                      <p className='text-[9px] text-gray-500 dark:text-gray-400 capitalize'>
+                        {wallet.network}
+                      </p>
                     </div>
                   </div>
-                  <div className='space-y-2'>
-                    <div className='h-6 w-24 bg-gray-200 dark:bg-gray-700 rounded'></div>
-                    <div className='flex justify-between'>
-                      <div className='h-4 w-20 bg-gray-200 dark:bg-gray-700 rounded'></div>
-                      <div className='h-4 w-12 bg-gray-200 dark:bg-gray-700 rounded'></div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </>
-          )}
-
-          {/* Wallet Cards reais */}
-          {walletsWithAddresses.map(wallet => (
-            <div
-              key={wallet.id}
-              className='bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-3 md:p-4 hover:shadow-md transition-shadow group'
-            >
-              {/* Header compacto */}
-              <div className='flex items-center justify-between mb-2 md:mb-3'>
-                <div className='flex items-center gap-2'>
-                  <div className='w-8 h-8 md:w-10 md:h-10 bg-gray-50 dark:bg-gray-700 rounded-lg flex items-center justify-center p-1 md:p-1.5'>
-                    <CryptoIcon symbol={wallet.symbol} size={32} />
-                  </div>
-                  <span className='text-sm md:text-base font-semibold text-gray-900 dark:text-white'>
-                    {wallet.symbol}
-                  </span>
-                </div>
-                <div className='flex gap-0.5 md:gap-1 opacity-0 group-hover:opacity-100 transition-opacity'>
-                  <button
-                    onClick={() => setActiveTab('send')}
-                    aria-label='Enviar criptomoeda'
-                    className='p-1 md:p-1.5 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors'
-                  >
-                    <Send className='w-3 h-3 md:w-3.5 md:h-3.5' />
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('receive')}
-                    aria-label='Receber criptomoeda'
-                    className='p-1 md:p-1.5 text-gray-400 hover:text-green-600 dark:hover:text-green-400 transition-colors'
-                  >
-                    <Download className='w-3 h-3 md:w-3.5 md:h-3.5' />
-                  </button>
-                </div>
-              </div>
-
-              {/* Saldo e variação */}
-              <div className='space-y-1.5 md:space-y-2'>
-                <div className='flex items-baseline gap-1'>
-                  <span className='text-base md:text-lg lg:text-xl font-bold text-gray-900 dark:text-white'>
-                    {showBalances
-                      ? (() => {
-                          const decimals = wallet.symbol === 'BRL' ? 2 : 6
-                          return wallet.balance.toFixed(decimals)
-                        })()
-                      : '••••'}
-                  </span>
-                  <span className='text-xs text-gray-400 dark:text-gray-500'>{wallet.symbol}</span>
-                </div>
-                <div className='flex items-center justify-between'>
-                  <span className='text-xs md:text-sm text-gray-500 dark:text-gray-400'>
-                    {showBalances ? formatCurrency(wallet.balanceUSD) : '••••'}
-                  </span>
                   {(() => {
                     const change24h = priceChanges24h[wallet.symbol] ?? 0
                     return (
                       <div
-                        className={`flex items-center gap-0.5 text-xs font-semibold ${
-                          change24h >= 0 ? 'text-green-600' : 'text-red-600'
+                        className={`flex items-center gap-0.5 text-[9px] font-semibold px-1 py-0.5 rounded-full ${
+                          change24h >= 0
+                            ? 'text-green-700 bg-green-100 dark:text-green-400 dark:bg-green-900/30'
+                            : 'text-red-700 bg-red-100 dark:text-red-400 dark:bg-red-900/30'
                         }`}
                       >
                         {change24h >= 0 ? (
-                          <TrendingUp className='w-3 h-3' />
+                          <TrendingUp className='w-2 h-2' />
                         ) : (
-                          <TrendingDown className='w-3 h-3' />
+                          <TrendingDown className='w-2 h-2' />
                         )}
-                        <span>
-                          {change24h >= 0 ? '+' : ''}
-                          {Math.abs(change24h).toFixed(2)}%
-                        </span>
+                        {Math.abs(change24h).toFixed(1)}%
                       </div>
                     )
                   })()}
                 </div>
+
+                <div className='space-y-0'>
+                  <div className='flex items-baseline gap-0.5'>
+                    <span className='text-sm font-bold text-gray-900 dark:text-white'>
+                      {showBalances
+                        ? wallet.balance.toFixed(wallet.symbol === 'BRL' ? 2 : 4)
+                        : '••••'}
+                    </span>
+                    <span className='text-[9px] text-gray-400'>{wallet.symbol}</span>
+                  </div>
+                  <span className='text-[10px] text-gray-500 dark:text-gray-400'>
+                    {showBalances ? formatCurrency(wallet.balanceUSD) : '••••'}
+                  </span>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
 
-      {activeTab === 'transactions' && <TransactionsPage />}
-
-      {activeTab === 'send' && <SendPage />}
-
-      {activeTab === 'receive' && <ReceivePage />}
+        {activeTab === 'transactions' && <TransactionsPage />}
+        {activeTab === 'send' && <SendPage />}
+        {activeTab === 'receive' && <ReceivePage />}
+      </div>
 
       {/* Custom CSS for hiding scrollbar */}
       <style>{`

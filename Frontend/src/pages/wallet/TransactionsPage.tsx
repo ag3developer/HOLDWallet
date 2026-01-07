@@ -287,7 +287,6 @@ const TransactionRow = ({
       time: date.toLocaleTimeString('pt-BR', {
         hour: '2-digit',
         minute: '2-digit',
-        second: '2-digit',
       }),
       full: date.toLocaleString('pt-BR'),
     }
@@ -298,7 +297,7 @@ const TransactionRow = ({
     const names: Record<string, string> = {
       polygon: 'Polygon',
       ethereum: 'Ethereum',
-      bsc: 'BNB Smart Chain',
+      bsc: 'BSC',
       base: 'Base',
       bitcoin: 'Bitcoin',
       tron: 'TRON',
@@ -311,35 +310,35 @@ const TransactionRow = ({
   const txId = generateTxId(tx.hash)
 
   return (
-    <div className='border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden hover:border-blue-300 dark:hover:border-blue-700 transition-all'>
+    <div className='border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden hover:border-blue-300 dark:hover:border-blue-700 transition-all'>
       {/* Row Principal - Clicável para expandir */}
       <button
         type='button'
         onClick={() => setIsExpanded(!isExpanded)}
-        className='w-full grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-3 p-3 sm:p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors items-center cursor-pointer text-left'
+        className='w-full grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 p-2.5 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors items-center cursor-pointer text-left'
       >
         {/* Data + Hora */}
-        <div className='text-xs sm:text-sm'>
+        <div className='text-xs'>
           <div className='text-gray-900 dark:text-white font-medium'>{dateTime.date}</div>
-          <div className='text-gray-500 dark:text-gray-400 text-xs'>{dateTime.time}</div>
+          <div className='text-gray-500 dark:text-gray-400 text-[10px]'>{dateTime.time}</div>
         </div>
 
         {/* Tipo + Moeda */}
-        <div className='flex items-center gap-2'>
+        <div className='flex items-center gap-1.5'>
           <div
-            className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${
+            className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${
               isReceive ? 'bg-green-100 dark:bg-green-900/30' : 'bg-blue-100 dark:bg-blue-900/30'
             }`}
           >
             {isReceive ? (
-              <ArrowDownLeft className='w-4 h-4 text-green-600 dark:text-green-400' />
+              <ArrowDownLeft className='w-3.5 h-3.5 text-green-600 dark:text-green-400' />
             ) : (
-              <ArrowUpRight className='w-4 h-4 text-blue-600 dark:text-blue-400' />
+              <ArrowUpRight className='w-3.5 h-3.5 text-blue-600 dark:text-blue-400' />
             )}
           </div>
-          <div className='flex items-center gap-1.5'>
-            <CryptoIcon symbol={tx.token_symbol || tx.network.toUpperCase()} size={22} />
-            <span className='text-sm font-semibold text-gray-900 dark:text-white'>
+          <div className='flex items-center gap-1'>
+            <CryptoIcon symbol={tx.token_symbol || tx.network.toUpperCase()} size={18} />
+            <span className='text-xs font-semibold text-gray-900 dark:text-white'>
               {tx.token_symbol || tx.network.toUpperCase()}
             </span>
           </div>
@@ -347,7 +346,7 @@ const TransactionRow = ({
 
         {/* Valor */}
         <div
-          className={`text-sm font-bold text-right ${
+          className={`text-xs font-bold text-right ${
             isReceive ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-white'
           }`}
         >
@@ -359,185 +358,185 @@ const TransactionRow = ({
         <div className='hidden sm:block'>{getStatusBadge(tx.status)}</div>
 
         {/* Rede */}
-        <div className='hidden md:block text-xs text-gray-600 dark:text-gray-400 text-center'>
+        <div className='hidden md:block text-[10px] text-gray-600 dark:text-gray-400 text-center'>
           {tx.network}
         </div>
 
         {/* Ações */}
-        <div className='flex justify-end gap-1'>
+        <div className='flex justify-end gap-0.5'>
           <button
             onClick={e => {
               e.stopPropagation()
               copyToClipboard(tx.hash)
             }}
-            className='p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors'
+            className='p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors'
             title='Copiar hash'
           >
-            <Copy className='w-3.5 h-3.5 text-gray-500 dark:text-gray-400' />
+            <Copy className='w-3 h-3 text-gray-500 dark:text-gray-400' />
           </button>
           <button
             onClick={e => {
               e.stopPropagation()
               openExplorer(tx.hash, tx.network)
             }}
-            className='p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors'
+            className='p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors'
             title='Abrir no explorer'
           >
-            <ExternalLink className='w-3.5 h-3.5 text-gray-500 dark:text-gray-400' />
+            <ExternalLink className='w-3 h-3 text-gray-500 dark:text-gray-400' />
           </button>
-          <div className={`p-1.5 transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
-            <ChevronDown className='w-3.5 h-3.5 text-gray-400' />
+          <div className={`p-1 transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
+            <ChevronDown className='w-3 h-3 text-gray-400' />
           </div>
         </div>
       </button>
 
-      {/* Detalhes Expandidos */}
+      {/* Detalhes Expandidos - Compacto */}
       {isExpanded && (
-        <div className='bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 p-4 space-y-4'>
+        <div className='bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 p-3 space-y-2'>
           {/* ID da Transação (Suporte) */}
-          <div className='flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 rounded-lg px-4 py-3'>
+          <div className='flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 rounded-lg px-3 py-2'>
             <div>
-              <p className='text-xs text-blue-600 dark:text-blue-400 font-medium'>ID (Suporte)</p>
-              <p className='text-lg font-bold text-blue-700 dark:text-blue-300 font-mono'>
+              <p className='text-[10px] text-blue-600 dark:text-blue-400 font-medium'>
+                ID (Suporte)
+              </p>
+              <p className='text-sm font-bold text-blue-700 dark:text-blue-300 font-mono'>
                 #{txId}
               </p>
             </div>
             <button
               onClick={() => copyToClipboard(txId)}
-              className='p-2 hover:bg-blue-100 dark:hover:bg-blue-800 rounded-lg transition-colors'
+              className='p-1.5 hover:bg-blue-100 dark:hover:bg-blue-800 rounded transition-colors'
               title='Copiar ID'
             >
-              <Copy className='w-4 h-4 text-blue-600 dark:text-blue-400' />
+              <Copy className='w-3.5 h-3.5 text-blue-600 dark:text-blue-400' />
             </button>
           </div>
 
-          {/* Grid de detalhes */}
-          <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
+          {/* Grid de detalhes - Compacto */}
+          <div className='grid grid-cols-2 sm:grid-cols-3 gap-2'>
             {/* Tipo */}
-            <div className='bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700'>
-              <p className='text-xs text-gray-500 dark:text-gray-400 mb-1'>Tipo</p>
+            <div className='bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-200 dark:border-gray-700'>
+              <p className='text-[10px] text-gray-500 dark:text-gray-400 mb-0.5'>Tipo</p>
               <div
-                className={`flex items-center gap-2 font-semibold ${isReceive ? 'text-green-600' : 'text-blue-600'}`}
+                className={`flex items-center gap-1 text-xs font-semibold ${isReceive ? 'text-green-600' : 'text-blue-600'}`}
               >
                 {isReceive ? (
-                  <ArrowDownLeft className='w-4 h-4' />
+                  <ArrowDownLeft className='w-3 h-3' />
                 ) : (
-                  <ArrowUpRight className='w-4 h-4' />
+                  <ArrowUpRight className='w-3 h-3' />
                 )}
                 {isReceive ? 'Recebido' : 'Enviado'}
               </div>
             </div>
 
             {/* Rede */}
-            <div className='bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700'>
-              <p className='text-xs text-gray-500 dark:text-gray-400 mb-1'>Rede</p>
-              <p className='font-semibold text-gray-900 dark:text-white'>
+            <div className='bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-200 dark:border-gray-700'>
+              <p className='text-[10px] text-gray-500 dark:text-gray-400 mb-0.5'>Rede</p>
+              <p className='text-xs font-semibold text-gray-900 dark:text-white'>
                 {getNetworkName(tx.network)}
               </p>
             </div>
 
             {/* Valor */}
-            <div className='bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700'>
-              <p className='text-xs text-gray-500 dark:text-gray-400 mb-1'>Valor</p>
-              <div className='flex items-center gap-2'>
-                <CryptoIcon symbol={tx.token_symbol || tx.network.toUpperCase()} size={20} />
+            <div className='bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-200 dark:border-gray-700'>
+              <p className='text-[10px] text-gray-500 dark:text-gray-400 mb-0.5'>Valor</p>
+              <div className='flex items-center gap-1'>
+                <CryptoIcon symbol={tx.token_symbol || tx.network.toUpperCase()} size={14} />
                 <p
-                  className={`font-bold ${isReceive ? 'text-green-600' : 'text-gray-900 dark:text-white'}`}
+                  className={`text-xs font-bold ${isReceive ? 'text-green-600' : 'text-gray-900 dark:text-white'}`}
                 >
                   {isReceive ? '+' : '-'}
-                  {amount.toFixed(6)} {tx.token_symbol || tx.network.toUpperCase()}
+                  {amount.toFixed(4)}
                 </p>
               </div>
             </div>
 
             {/* Taxa */}
-            <div className='bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700'>
-              <p className='text-xs text-gray-500 dark:text-gray-400 mb-1'>Taxa de Rede</p>
-              <p className='font-semibold text-gray-900 dark:text-white'>
-                {tx.fee ? `${tx.fee} ${tx.network.toUpperCase()}` : 'N/A'}
+            <div className='bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-200 dark:border-gray-700'>
+              <p className='text-[10px] text-gray-500 dark:text-gray-400 mb-0.5'>Taxa</p>
+              <p className='text-xs font-semibold text-gray-900 dark:text-white'>
+                {tx.fee ? `${tx.fee}` : 'N/A'}
               </p>
             </div>
 
-            {/* Data/Hora Completa */}
-            <div className='bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700'>
-              <p className='text-xs text-gray-500 dark:text-gray-400 mb-1'>Data/Hora</p>
-              <p className='font-semibold text-gray-900 dark:text-white'>{dateTime.full}</p>
+            {/* Data/Hora */}
+            <div className='bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-200 dark:border-gray-700'>
+              <p className='text-[10px] text-gray-500 dark:text-gray-400 mb-0.5'>Data/Hora</p>
+              <p className='text-xs font-semibold text-gray-900 dark:text-white'>{dateTime.full}</p>
             </div>
 
             {/* Status */}
-            <div className='bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700'>
-              <p className='text-xs text-gray-500 dark:text-gray-400 mb-1'>Status</p>
-              <div className='flex items-center gap-2'>{getStatusBadge(tx.status)}</div>
+            <div className='bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-200 dark:border-gray-700'>
+              <p className='text-[10px] text-gray-500 dark:text-gray-400 mb-0.5'>Status</p>
+              <div className='flex items-center gap-1'>{getStatusBadge(tx.status)}</div>
             </div>
           </div>
 
-          {/* Endereços */}
-          <div className='space-y-3'>
+          {/* Endereços - Compacto */}
+          <div className='grid grid-cols-1 sm:grid-cols-2 gap-2'>
             {/* De */}
-            <div className='bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700'>
-              <div className='flex items-center justify-between mb-1'>
-                <p className='text-xs text-gray-500 dark:text-gray-400'>De (Origem)</p>
+            <div className='bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-200 dark:border-gray-700'>
+              <div className='flex items-center justify-between mb-0.5'>
+                <p className='text-[10px] text-gray-500 dark:text-gray-400'>De</p>
                 <button
                   onClick={() => copyToClipboard(tx.from_address)}
-                  className='p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors'
-                  title='Copiar'
+                  className='p-0.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors'
                 >
-                  <Copy className='w-3.5 h-3.5 text-gray-400' />
+                  <Copy className='w-2.5 h-2.5 text-gray-400' />
                 </button>
               </div>
-              <p className='font-mono text-xs text-gray-900 dark:text-white break-all'>
+              <p className='font-mono text-[10px] text-gray-900 dark:text-white truncate'>
                 {tx.from_address}
               </p>
             </div>
 
             {/* Para */}
-            <div className='bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700'>
-              <div className='flex items-center justify-between mb-1'>
-                <p className='text-xs text-gray-500 dark:text-gray-400'>Para (Destino)</p>
+            <div className='bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-200 dark:border-gray-700'>
+              <div className='flex items-center justify-between mb-0.5'>
+                <p className='text-[10px] text-gray-500 dark:text-gray-400'>Para</p>
                 <button
                   onClick={() => copyToClipboard(tx.to_address)}
-                  className='p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors'
-                  title='Copiar'
+                  className='p-0.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors'
                 >
-                  <Copy className='w-3.5 h-3.5 text-gray-400' />
+                  <Copy className='w-2.5 h-2.5 text-gray-400' />
                 </button>
               </div>
-              <p className='font-mono text-xs text-gray-900 dark:text-white break-all'>
+              <p className='font-mono text-[10px] text-gray-900 dark:text-white truncate'>
                 {tx.to_address}
               </p>
             </div>
+          </div>
 
-            {/* Hash */}
-            <div className='bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700'>
-              <div className='flex items-center justify-between mb-1'>
-                <p className='text-xs text-gray-500 dark:text-gray-400'>Hash da Transação</p>
-                <div className='flex gap-1'>
-                  <button
-                    onClick={() => copyToClipboard(tx.hash)}
-                    className='p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors'
-                    title='Copiar'
-                  >
-                    <Copy className='w-3.5 h-3.5 text-gray-400' />
-                  </button>
-                  <button
-                    onClick={() => openExplorer(tx.hash, tx.network)}
-                    className='p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors'
-                    title='Abrir no Explorer'
-                  >
-                    <ExternalLink className='w-3.5 h-3.5 text-gray-400' />
-                  </button>
-                </div>
+          {/* Hash */}
+          <div className='bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-200 dark:border-gray-700'>
+            <div className='flex items-center justify-between mb-0.5'>
+              <p className='text-[10px] text-gray-500 dark:text-gray-400'>Hash</p>
+              <div className='flex gap-0.5'>
+                <button
+                  onClick={() => copyToClipboard(tx.hash)}
+                  className='p-0.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors'
+                >
+                  <Copy className='w-2.5 h-2.5 text-gray-400' />
+                </button>
+                <button
+                  onClick={() => openExplorer(tx.hash, tx.network)}
+                  className='p-0.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors'
+                >
+                  <ExternalLink className='w-2.5 h-2.5 text-gray-400' />
+                </button>
               </div>
-              <p className='font-mono text-xs text-gray-900 dark:text-white break-all'>{tx.hash}</p>
             </div>
+            <p className='font-mono text-[10px] text-gray-900 dark:text-white break-all'>
+              {tx.hash}
+            </p>
           </div>
 
           {/* Botão Explorer */}
           <button
             onClick={() => openExplorer(tx.hash, tx.network)}
-            className='w-full py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg transition-colors flex items-center justify-center gap-2'
+            className='w-full py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg transition-colors flex items-center justify-center gap-1.5 text-xs'
           >
-            <ExternalLink className='w-4 h-4' />
+            <ExternalLink className='w-3.5 h-3.5' />
             Ver no Explorer ({getNetworkName(tx.network)})
           </button>
         </div>
@@ -755,24 +754,27 @@ export const TransactionsPage = () => {
   )
 
   return (
-    <div className='space-y-4 sm:space-y-6'>
-      {/* Header e Ações */}
-      <div className='flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4'>
-        <div>
-          <h1 className='text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white'>
-            Transações
-          </h1>
-          <p className='text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1'>
-            Total: {filteredTransactions.length} transações
-          </p>
+    <div className='space-y-3'>
+      {/* Header e Ações - Compacto */}
+      <div className='flex items-center justify-between gap-2'>
+        <div className='flex items-center gap-2'>
+          <div className='w-8 h-8 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg flex items-center justify-center'>
+            <Clock className='w-4 h-4 text-white' />
+          </div>
+          <div>
+            <h1 className='text-lg font-bold text-gray-900 dark:text-white'>Transações</h1>
+            <p className='text-[10px] text-gray-600 dark:text-gray-400'>
+              {filteredTransactions.length} transações
+            </p>
+          </div>
         </div>
-        <div className='flex gap-2 w-full sm:w-auto'>
+        <div className='flex gap-1.5'>
           <button
             onClick={() => refreshTransactions()}
             disabled={isLoading}
-            className='flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white rounded-lg transition-colors text-sm'
+            className='flex items-center justify-center gap-1.5 px-2.5 py-1.5 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white rounded-lg transition-colors text-xs'
           >
-            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
             <span className='hidden sm:inline'>Atualizar</span>
           </button>
 
@@ -780,32 +782,32 @@ export const TransactionsPage = () => {
           <div className='relative'>
             <button
               onClick={() => setShowReportMenu(!showReportMenu)}
-              className='flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors text-sm'
+              className='flex items-center justify-center gap-1.5 px-2.5 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors text-xs'
             >
-              <Download className='w-4 h-4' />
+              <Download className='w-3.5 h-3.5' />
               <span className='hidden sm:inline'>Relatório</span>
             </button>
             {showReportMenu && (
-              <div className='absolute right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-lg z-10 min-w-[140px]'>
+              <div className='absolute right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-lg z-10 min-w-[120px]'>
                 <button
                   onClick={() => downloadReport('csv')}
-                  className='block w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm text-gray-900 dark:text-white flex items-center gap-2'
+                  className='block w-full text-left px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 text-xs text-gray-900 dark:text-white flex items-center gap-1.5'
                 >
-                  <FileText className='w-4 h-4' />
+                  <FileText className='w-3.5 h-3.5' />
                   CSV
                 </button>
                 <button
                   onClick={() => downloadReport('json')}
-                  className='block w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm text-gray-900 dark:text-white border-t border-gray-300 dark:border-gray-700 flex items-center gap-2'
+                  className='block w-full text-left px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 text-xs text-gray-900 dark:text-white border-t border-gray-300 dark:border-gray-700 flex items-center gap-1.5'
                 >
-                  <FileJson className='w-4 h-4' />
+                  <FileJson className='w-3.5 h-3.5' />
                   JSON
                 </button>
                 <button
                   onClick={() => downloadReport('pdf')}
-                  className='block w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm text-gray-900 dark:text-white border-t border-gray-300 dark:border-gray-700 flex items-center gap-2'
+                  className='block w-full text-left px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 text-xs text-gray-900 dark:text-white border-t border-gray-300 dark:border-gray-700 flex items-center gap-1.5'
                 >
-                  <File className='w-4 h-4' />
+                  <File className='w-3.5 h-3.5' />
                   PDF
                 </button>
               </div>
@@ -814,41 +816,41 @@ export const TransactionsPage = () => {
         </div>
       </div>
 
-      {/* Search Bar */}
+      {/* Search Bar - Compacto */}
       <div className='relative'>
-        <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400' />
+        <Search className='absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400' />
         <input
           type='text'
           placeholder='Buscar hash ou endereço...'
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
-          className='w-full pl-10 pr-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+          className='w-full pl-8 pr-3 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
         />
       </div>
 
-      {/* Filters */}
-      <div className='space-y-3'>
+      {/* Filters - Compacto */}
+      <div className='space-y-2'>
         <button
           onClick={() => setShowFilters(!showFilters)}
-          className='flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-sm'
+          className='flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-xs'
         >
-          <Filter className='w-4 h-4' />
+          <Filter className='w-3.5 h-3.5' />
           Filtros
           <ChevronDown
-            className={`w-4 h-4 transition-transform ${showFilters ? 'rotate-180' : ''}`}
+            className={`w-3.5 h-3.5 transition-transform ${showFilters ? 'rotate-180' : ''}`}
           />
         </button>
 
         {showFilters && (
-          <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg'>
+          <div className='grid grid-cols-2 sm:grid-cols-4 gap-2 p-2.5 bg-gray-50 dark:bg-gray-800/50 rounded-lg'>
             {/* Tipo */}
             <select
               title='Filtrar por tipo'
               value={typeFilter}
               onChange={e => setTypeFilter(e.target.value as TransactionType)}
-              className='px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm'
+              className='px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs'
             >
-              <option value='all'>Todos os tipos</option>
+              <option value='all'>Todos tipos</option>
               <option value='send'>Enviados</option>
               <option value='receive'>Recebidos</option>
               <option value='pending'>Pendentes</option>
@@ -859,9 +861,9 @@ export const TransactionsPage = () => {
               title='Filtrar por rede'
               value={networkFilter}
               onChange={e => setNetworkFilter(e.target.value)}
-              className='px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm'
+              className='px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs'
             >
-              <option value='all'>Todas as redes</option>
+              <option value='all'>Todas redes</option>
               {uniqueNetworks.map(network => (
                 <option key={network} value={network}>
                   {network.charAt(0).toUpperCase() + network.slice(1)}
@@ -877,13 +879,13 @@ export const TransactionsPage = () => {
                 setDateRange(e.target.value as DateRange)
                 setCurrentPage(1)
               }}
-              className='px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm'
+              className='px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs'
             >
-              <option value='all'>Todos os períodos</option>
-              <option value='7d'>Últimos 7 dias</option>
-              <option value='30d'>Últimos 30 dias</option>
-              <option value='90d'>Últimos 90 dias</option>
-              <option value='custom'>Período customizado</option>
+              <option value='all'>Todos períodos</option>
+              <option value='7d'>7 dias</option>
+              <option value='30d'>30 dias</option>
+              <option value='90d'>90 dias</option>
+              <option value='custom'>Customizado</option>
             </select>
 
             {/* Ordenação */}
@@ -891,7 +893,7 @@ export const TransactionsPage = () => {
               title='Ordenar por'
               value={sortType}
               onChange={e => setSortType(e.target.value as SortType)}
-              className='px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm'
+              className='px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs'
             >
               <option value='recent'>Mais recente</option>
               <option value='oldest'>Mais antigo</option>
@@ -910,7 +912,7 @@ export const TransactionsPage = () => {
                   setCustomStartDate(e.target.value)
                   setCurrentPage(1)
                 }}
-                className='px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm'
+                className='px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs'
               />
             )}
 
@@ -925,7 +927,7 @@ export const TransactionsPage = () => {
                   setCustomEndDate(e.target.value)
                   setCurrentPage(1)
                 }}
-                className='px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm'
+                className='px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-xs'
               />
             )}
           </div>
@@ -934,25 +936,25 @@ export const TransactionsPage = () => {
 
       {/* Error state */}
       {error && (
-        <div className='p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg'>
-          <p className='text-red-800 dark:text-red-400 text-sm'>{error}</p>
+        <div className='p-2.5 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg'>
+          <p className='text-red-800 dark:text-red-400 text-xs'>{error}</p>
         </div>
       )}
 
       {/* Loading state */}
       {isLoading && (
-        <div className='flex items-center justify-center py-12'>
-          <Loader2 className='w-8 h-8 animate-spin text-blue-500' />
+        <div className='flex items-center justify-center py-8'>
+          <Loader2 className='w-6 h-6 animate-spin text-blue-500' />
         </div>
       )}
 
       {/* Empty state */}
       {!isLoading && filteredTransactions.length === 0 && (
-        <div className='text-center py-12'>
-          <AlertCircle className='w-12 h-12 text-gray-400 mx-auto mb-3' />
-          <p className='text-gray-500 dark:text-gray-400 text-sm'>
+        <div className='text-center py-8'>
+          <AlertCircle className='w-10 h-10 text-gray-400 mx-auto mb-2' />
+          <p className='text-gray-500 dark:text-gray-400 text-xs'>
             {searchTerm || typeFilter !== 'all' || networkFilter !== 'all' || dateRange !== 'all'
-              ? 'Nenhuma transação encontrada com esses filtros'
+              ? 'Nenhuma transação encontrada'
               : 'Nenhuma transação ainda'}
           </p>
         </div>
@@ -960,7 +962,7 @@ export const TransactionsPage = () => {
 
       {/* Transactions List */}
       {!isLoading && paginatedTransactions.length > 0 && (
-        <div className='space-y-2 sm:space-y-3'>
+        <div className='space-y-2'>
           {paginatedTransactions.map(tx => (
             <TransactionRow
               key={tx.id}
@@ -973,19 +975,19 @@ export const TransactionsPage = () => {
         </div>
       )}
 
-      {/* Paginação */}
+      {/* Paginação - Compacta */}
       {!isLoading && filteredTransactions.length > ITEMS_PER_PAGE && (
-        <div className='flex flex-wrap items-center justify-between gap-3 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg'>
-          <p className='text-xs sm:text-sm text-gray-600 dark:text-gray-400'>
-            Página {currentPage} de {totalPages} • {filteredTransactions.length} transações
+        <div className='flex flex-wrap items-center justify-between gap-2 p-2.5 bg-gray-50 dark:bg-gray-800/50 rounded-lg'>
+          <p className='text-[10px] text-gray-600 dark:text-gray-400'>
+            Pág {currentPage}/{totalPages} • {filteredTransactions.length} total
           </p>
-          <div className='flex gap-2'>
+          <div className='flex gap-1'>
             <button
               onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
               disabled={currentPage === 1}
-              className='px-3 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
+              className='px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
             >
-              ← Anterior
+              ←
             </button>
             {Array.from({ length: totalPages }).map((_, i) => {
               const page = i + 1
@@ -994,7 +996,7 @@ export const TransactionsPage = () => {
               if (!isVisible && i !== 1 && i !== totalPages - 2) return null
               if (i === 1 && currentPage > 3)
                 return (
-                  <span key='dots-start' className='px-2 py-1'>
+                  <span key='dots-start' className='px-1 py-1 text-xs'>
                     ...
                   </span>
                 )
@@ -1005,7 +1007,7 @@ export const TransactionsPage = () => {
                     setCurrentPage(page)
                     window.scrollTo({ top: 0, behavior: 'smooth' })
                   }}
-                  className={`px-3 py-1 rounded text-sm transition-colors ${
+                  className={`px-2 py-1 rounded text-xs transition-colors ${
                     currentPage === page
                       ? 'bg-blue-500 text-white'
                       : 'border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'
@@ -1016,14 +1018,14 @@ export const TransactionsPage = () => {
               )
             })}
             {totalPages > 3 && currentPage < totalPages - 2 && (
-              <span className='px-2 py-1'>...</span>
+              <span className='px-1 py-1 text-xs'>...</span>
             )}
             <button
               onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
               disabled={currentPage === totalPages}
-              className='px-3 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
+              className='px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
             >
-              Próximo →
+              →
             </button>
           </div>
         </div>
@@ -1031,7 +1033,7 @@ export const TransactionsPage = () => {
 
       {/* Last update info */}
       {!isLoading && filteredTransactions.length > 0 && (
-        <p className='text-xs text-gray-500 dark:text-gray-400 text-center'>
+        <p className='text-[10px] text-gray-500 dark:text-gray-400 text-center'>
           Atualizado em {new Date().toLocaleTimeString('pt-BR')}
         </p>
       )}
