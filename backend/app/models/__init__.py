@@ -13,6 +13,7 @@ from .system_blockchain_wallet import (
 )
 from .instant_trade import InstantTrade, InstantTradeHistory, TradeStatus, TradeOperationType
 from .accounting import AccountingEntry, AccountingReport, AccountingEntryType, AccountingEntryStatus
+from .platform_settings import PlatformSettings
 
 # Import P2P models to ensure tables are created
 from . import p2p
@@ -22,6 +23,7 @@ from . import system_wallet
 from . import system_blockchain_wallet
 from . import instant_trade
 from . import accounting
+from . import platform_settings
 
 __all__ = [
     # Base

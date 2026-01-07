@@ -13,9 +13,10 @@ from app.core.db import create_tables, init_db
 from app.core.exceptions import BaseCustomException
 from app.services.cache_service import cache_service
 from app.services.cache_service import cache_service
+from app.services.platform_settings_service import platform_settings_service
 
 # Routers
-from app.routers import auth, users, wallet, wallets, tx, prices, prices_batch, prices_batch_v2, health, blockchain, transactions, billing, portfolio, exchange, p2p, chat, chat_enterprise, reputation, dashboard, two_factor, tokens, wallet_transactions, instant_trade, trader_profiles, admin_instant_trades, webauthn
+from app.routers import auth, users, wallet, wallets, tx, prices, prices_batch, prices_batch_v2, health, blockchain, transactions, billing, portfolio, exchange, p2p, chat, chat_enterprise, reputation, dashboard, two_factor, tokens, wallet_transactions, instant_trade, trader_profiles, admin_instant_trades, webauthn, public_settings
 from app.routers.admin import admin_router
 from app.api.v1.endpoints import seed_verification
 
@@ -38,6 +39,18 @@ async def lifespan(app: FastAPI):
                 await create_tables()
                 logger.info("✅ Database tables verified")
                 db_connected = True
+                
+                # Initialize platform settings defaults
+                try:
+                    from app.core.db import SessionLocal
+                    db_session = SessionLocal()
+                    try:
+                        platform_settings_service.initialize_defaults(db_session)
+                        logger.info("✅ Platform settings initialized")
+                    finally:
+                        db_session.close()
+                except Exception as settings_error:
+                    logger.warning(f"⚠️ Platform settings init failed: {settings_error}")
             else:
                 logger.warning("⚠️ Database connection failed - app will start but some features may not work")
         except Exception as db_error:
@@ -169,6 +182,7 @@ app.include_router(p2p.router, prefix="/p2p", tags=["p2p"])
 app.include_router(chat.router, prefix="", tags=["chat-p2p"])  # Router de chat P2P
 app.include_router(chat_enterprise.router, prefix="", tags=["chat"])
 app.include_router(reputation.router, prefix="", tags=["reputation"])
+app.include_router(public_settings.router, prefix="/public", tags=["public-settings"])
 
 # Root endpoint
 @app.get("/")

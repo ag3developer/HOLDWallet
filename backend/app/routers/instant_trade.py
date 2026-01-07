@@ -503,21 +503,27 @@ async def get_trade_audit_log(
 
 
 @router.get("/fees")
-async def get_fees():
+async def get_fees(db: Session = Depends(get_db)):
     """
-    Get OTC fee structure.
+    Get OTC fee structure from database configuration.
     
     Returns:
-    - Spread: 3%
-    - Network Fee: 0.25%
-    - Total: 3.25%
+    - Spread: configurável via admin
+    - Network Fee: configurável via admin
+    - Total: soma das taxas
     """
+    from app.services.platform_settings_service import platform_settings_service
+    
+    spread = platform_settings_service.get(db, "otc_spread_percentage", 3.0)
+    network_fee = platform_settings_service.get(db, "network_fee_percentage", 0.25)
+    total = spread + network_fee
+    
     return {
         "success": True,
         "fees": {
-            "spread": "3.00%",
-            "network_fee": "0.25%",
-            "total": "3.25%",
+            "spread": f"{spread:.2f}%",
+            "network_fee": f"{network_fee:.2f}%",
+            "total": f"{total:.2f}%",
         },
         "limits": {
             "min": "R$ 50,00",

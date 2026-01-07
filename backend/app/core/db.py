@@ -60,6 +60,7 @@ async def create_tables():
             # Import optional models
             try:
                 from app.models import p2p, reputation, trader_profile, instant_trade, chat
+                from app.models.platform_settings import PlatformSettings  # Settings model
                 logger.info("   ✅ All models imported successfully")
             except ImportError as e:
                 logger.warning(f"   ⚠️  Some optional models not available: {e}")

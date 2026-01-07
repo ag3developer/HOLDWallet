@@ -21,6 +21,7 @@ from app.db.database import get_db
 from app.core.security import get_current_user
 from app.core.config import settings
 from app.models.user import User
+from app.services.platform_settings_service import platform_settings_service
 
 router = APIRouter(tags=["p2p"])
 
@@ -1265,8 +1266,8 @@ async def complete_trade(
     """
     print(f"[DEBUG] POST /trades/{trade_id}/complete")
     
-    # Platform fee configuration (0.5% for P2P trades)
-    P2P_FEE_PERCENTAGE = 0.5  # 0.5%
+    # Platform fee configuration - agora usa configuração do banco de dados
+    P2P_FEE_PERCENTAGE = platform_settings_service.get(db, "p2p_fee_percentage", 0.5)
     SYSTEM_WALLET_ID = settings.SYSTEM_BLOCKCHAIN_WALLET_ID  # Carteira blockchain do sistema
     
     try:

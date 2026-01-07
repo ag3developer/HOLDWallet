@@ -19,6 +19,7 @@ import asyncio
 from app.models.instant_trade import InstantTrade, InstantTradeHistory, TradeStatus, PaymentMethod
 from app.core.exceptions import ValidationError
 from app.services.price_aggregator import price_aggregator
+from app.services.platform_settings_service import platform_settings_service
 
 logger = logging.getLogger(__name__)
 
@@ -30,9 +31,9 @@ _quote_cache: Dict[str, Dict[str, Any]] = {}
 class InstantTradeService:
     """Service for OTC trading operations"""
 
-    # Constants
-    SPREAD_PERCENTAGE = Decimal("3.00")
-    NETWORK_FEE_PERCENTAGE = Decimal("0.25")
+    # Default Constants (usados como fallback se o banco não tiver)
+    DEFAULT_SPREAD_PERCENTAGE = Decimal("3.00")
+    DEFAULT_NETWORK_FEE_PERCENTAGE = Decimal("0.25")
     QUOTE_VALIDITY_SECONDS = 60  # Aumentado de 30 para 60 segundos
     TRADE_EXPIRATION_MINUTES = 15
     MIN_TRADE_AMOUNT_BRL = Decimal("50.00")
@@ -40,6 +41,28 @@ class InstantTradeService:
 
     def __init__(self, db: Session):
         self.db = db
+    
+    @property
+    def SPREAD_PERCENTAGE(self) -> Decimal:
+        """Obtém spread OTC das configurações do banco de dados"""
+        try:
+            spread = platform_settings_service.get(self.db, "otc_spread_percentage", None)
+            if spread is not None:
+                return Decimal(str(spread))
+        except Exception as e:
+            logger.warning(f"⚠️ Erro ao buscar otc_spread_percentage: {e}")
+        return self.DEFAULT_SPREAD_PERCENTAGE
+    
+    @property
+    def NETWORK_FEE_PERCENTAGE(self) -> Decimal:
+        """Obtém taxa de rede das configurações do banco de dados"""
+        try:
+            fee = platform_settings_service.get(self.db, "network_fee_percentage", None)
+            if fee is not None:
+                return Decimal(str(fee))
+        except Exception as e:
+            logger.warning(f"⚠️ Erro ao buscar network_fee_percentage: {e}")
+        return self.DEFAULT_NETWORK_FEE_PERCENTAGE
 
     async def get_current_price(self, symbol: str) -> Decimal:
         """Get current crypto price from price_aggregator API (ALWAYS real-time, NO fallback)"""
