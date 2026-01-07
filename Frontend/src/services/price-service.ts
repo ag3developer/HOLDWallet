@@ -103,6 +103,7 @@ class PriceService {
    * Buscar preços do backend
    * Usa apenas o endpoint /prices/batch (único endpoint funcional)
    * SEMPRE busca em USD - conversão para outra moeda é feita no frontend
+   * ⚠️ SEM FALLBACK - Retorna erro se backend indisponível para evitar preços incorretos
    */
   private static async fetchFromBackend(
     symbols: string[],
@@ -116,7 +117,7 @@ class PriceService {
 
     const client = axios.create({
       baseURL: APP_CONFIG.api.baseUrl,
-      timeout: 10000,
+      timeout: 20000, // 20s timeout - maior tolerância
       headers: { 'Content-Type': 'application/json' },
     })
 
@@ -147,6 +148,7 @@ class PriceService {
       } else {
         console.error('[PriceService] ❌ Failed to fetch prices:', error)
       }
+      // ⚠️ SEM FALLBACK - Retorna vazio para evitar preços incorretos em trading
       return {}
     }
   }

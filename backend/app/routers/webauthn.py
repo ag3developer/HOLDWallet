@@ -167,7 +167,8 @@ async def verify_authentication(
     db: Session = Depends(get_db)
 ):
     """
-    Verifica autenticação biométrica para autorizar ações sensíveis
+    Verifica autenticação biométrica para autorizar ações sensíveis.
+    Retorna um token temporário que pode ser usado como alternativa ao 2FA.
     """
     try:
         success = webauthn_service.verify_authentication(
@@ -177,9 +178,23 @@ async def verify_authentication(
         )
         
         if success:
+            # Gerar token temporário para uso em transações
+            import secrets
+            from datetime import datetime, timedelta, timezone
+            
+            biometric_token = f"bio_{secrets.token_urlsafe(32)}"
+            expires_at = datetime.now(timezone.utc) + timedelta(minutes=5)
+            
+            # Armazenar token no cache do serviço
+            webauthn_service.store_biometric_token(current_user.id, biometric_token, expires_at)
+            
+            logger.info(f"Biometric token generated for user {current_user.id}")
+            
             return {
                 "success": True,
-                "message": "Autenticação biométrica bem sucedida!"
+                "message": "Autenticação biométrica bem sucedida!",
+                "biometric_token": biometric_token,
+                "expires_in": 300  # 5 minutos em segundos
             }
         else:
             raise HTTPException(

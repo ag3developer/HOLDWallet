@@ -390,10 +390,13 @@ export const SendConfirmationModal: React.FC<SendConfirmationModalProps> = ({
                 if (requires2FA && authMethod === 'biometric' && biometricAvailable) {
                   try {
                     setShowBiometricModal(true)
-                    const success = await webAuthnService.authenticate()
-                    if (success) {
-                      console.log('[SendModal] Biometric auth success')
-                      onConfirm(selectedFeeLevel, 'biometric_verified')
+                    const biometricToken = await webAuthnService.authenticate()
+                    if (biometricToken) {
+                      console.log(
+                        '[SendModal] Biometric auth success, token:',
+                        biometricToken.substring(0, 20) + '...'
+                      )
+                      onConfirm(selectedFeeLevel, biometricToken)
                     } else {
                       console.error('[SendModal] Biometric auth failed')
                       setAuthMethod('2fa')
@@ -445,9 +448,9 @@ export const SendConfirmationModal: React.FC<SendConfirmationModalProps> = ({
           setShowBiometricModal(false)
           setAuthMethod('2fa')
         }}
-        onSuccess={() => {
+        onSuccess={biometricToken => {
           setShowBiometricModal(false)
-          onConfirm(selectedFeeLevel, 'biometric_verified')
+          onConfirm(selectedFeeLevel, biometricToken || 'biometric_verified')
         }}
         onFallback={() => {
           setShowBiometricModal(false)

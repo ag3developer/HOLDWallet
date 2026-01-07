@@ -110,8 +110,9 @@ class WebAuthnService {
 
   /**
    * Verifica autenticação biométrica para autorizar ações sensíveis
+   * Retorna um token biométrico que pode ser usado como alternativa ao 2FA
    */
-  async authenticate(): Promise<boolean> {
+  async authenticate(): Promise<string | null> {
     // 1. Obter opções do servidor
     const options = await this.getAuthenticationOptions()
 
@@ -130,12 +131,18 @@ class WebAuthnService {
     // 4. Preparar resposta para o servidor
     const credentialResponse = this.prepareAuthenticationResponse(credential)
 
-    // 5. Verificar no servidor
+    // 5. Verificar no servidor e obter token biométrico
     const response = await apiClient.post(`${this.baseUrl}/authenticate/verify`, {
       credential: credentialResponse,
     })
 
-    return response.data.success
+    if (response.data.success && response.data.biometric_token) {
+      console.log('🔐 Biometric token received')
+      return response.data.biometric_token
+    }
+
+    // Fallback para boolean (compatibilidade)
+    return response.data.success ? 'biometric_verified_legacy' : null
   }
 
   /**

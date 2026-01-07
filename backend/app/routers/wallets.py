@@ -726,7 +726,7 @@ class SendTransactionRequest(BaseModel):
     mode: str = Field(default="custodial", description="Signing mode: 'custodial' or 'non-custodial'")
     note: Optional[str] = Field(None, description="Optional transaction note")
     password: Optional[str] = Field(None, description="Wallet password if required")
-    two_factor_token: Optional[str] = Field(None, description="2FA token (required if 2FA enabled)", min_length=6, max_length=8)
+    two_factor_token: Optional[str] = Field(None, description="2FA token or biometric token (required if 2FA enabled)", min_length=6, max_length=64)
     token_symbol: Optional[str] = Field(None, description="Token symbol (e.g., USDT, USDC)")
     token_address: Optional[str] = Field(None, description="Token contract address")
 
@@ -874,15 +874,17 @@ async def send_transaction(
     **🔐 TWO-FACTOR AUTHENTICATION:**
     - If 2FA is enabled, you MUST provide `two_factor_token`
     - This adds an extra layer of security for transactions
+    - Biometric tokens (starting with 'bio_') are also accepted as alternative to 2FA
     
     Set `mode: "non-custodial"` to prepare transaction for external signing.
     """
     try:
-        # 🔐 VERIFY 2FA (if enabled)
+        # 🔐 VERIFY 2FA OR BIOMETRIC (if enabled)
         from app.services.two_factor_service import two_factor_service
+        from app.services.webauthn_service import webauthn_service
         from app.models.two_factor import TwoFactorAuth
         
-        logger.info(f"🔍 Checking 2FA for user {current_user.id}")
+        logger.info(f"🔍 Checking 2FA/Biometric for user {current_user.id}")
         
         two_fa = db.query(TwoFactorAuth).filter(
             TwoFactorAuth.user_id == current_user.id,
@@ -895,29 +897,47 @@ async def send_transaction(
             logger.info(f"⚠️  2FA is ENABLED for user {current_user.id}")
             # 2FA is enabled - token is required
             if not request.two_factor_token:
-                logger.warning("No 2FA token provided")
+                logger.warning("No 2FA/biometric token provided")
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
-                    detail="2FA token required. Please provide your authenticator code."
+                    detail="2FA token required. Please provide your authenticator code or use biometric authentication."
                 )
             
-            logger.info(f"✓ 2FA token provided: {request.two_factor_token}")
-            # Verify 2FA token
-            is_valid = await two_factor_service.verify_2fa_for_action(
-                db,
-                current_user,
-                request.two_factor_token
-            )
+            logger.info(f"✓ Token provided: {request.two_factor_token[:20]}...")
             
-            logger.info(f"2FA validation result: {is_valid}")
-            if not is_valid:
-                logger.error("Invalid 2FA token")
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid 2FA token"
+            # Check if it's a biometric token
+            if request.two_factor_token.startswith("bio_"):
+                logger.info("🔐 Verifying biometric token...")
+                is_valid = webauthn_service.verify_biometric_token(
+                    current_user.id,
+                    request.two_factor_token
                 )
-            
-            logger.info(f"✅ 2FA verified for transaction from user {current_user.id}")
+                if is_valid:
+                    logger.info(f"✅ Biometric token verified for transaction from user {current_user.id}")
+                else:
+                    logger.error("Invalid or expired biometric token")
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="Invalid or expired biometric token. Please authenticate again."
+                    )
+            else:
+                # Verify 2FA token (TOTP or backup code)
+                logger.info("🔐 Verifying 2FA token...")
+                is_valid = await two_factor_service.verify_2fa_for_action(
+                    db,
+                    current_user,
+                    request.two_factor_token
+                )
+                
+                logger.info(f"2FA validation result: {is_valid}")
+                if not is_valid:
+                    logger.error("Invalid 2FA token")
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="Invalid 2FA token"
+                    )
+                
+                logger.info(f"✅ 2FA verified for transaction from user {current_user.id}")
         else:
             logger.info(f"✓ 2FA is NOT enabled for user {current_user.id}, proceeding without 2FA check")
         

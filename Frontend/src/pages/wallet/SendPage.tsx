@@ -545,10 +545,10 @@ export const SendPage = () => {
       setBiometricLoading(true)
       console.log('🔐 Autenticando com biometria...')
 
-      const success = await webAuthnService.authenticate()
+      const biometricToken = await webAuthnService.authenticate()
 
-      if (success) {
-        console.log('✅ Biometria verificada!')
+      if (biometricToken) {
+        console.log('✅ Biometria verificada! Token:', biometricToken.substring(0, 20) + '...')
 
         // Send transaction with biometric token
         const result = await transactionService.sendTransaction(
@@ -556,7 +556,7 @@ export const SendPage = () => {
             ...pendingTransaction,
           },
           undefined,
-          'biometric_verified' // Token especial para biometria
+          biometricToken // Token biométrico real do servidor
         )
 
         console.log('✅ Transação concluída:', result)

@@ -51,6 +51,45 @@ class WebAuthnService:
         
         # Cache de challenges (em produção usar Redis)
         self._challenges: Dict[str, bytes] = {}
+        
+        # Cache de tokens biométricos para transações (em produção usar Redis)
+        self._biometric_tokens: Dict[str, Dict[str, Any]] = {}
+    
+    def store_biometric_token(self, user_id: int, token: str, expires_at: datetime) -> None:
+        """Armazena um token biométrico temporário para autorização de transações"""
+        self._biometric_tokens[token] = {
+            "user_id": user_id,
+            "expires_at": expires_at
+        }
+        logger.info(f"Biometric token stored for user {user_id}")
+    
+    def verify_biometric_token(self, user_id: int, token: str) -> bool:
+        """Verifica se um token biométrico é válido para o usuário"""
+        if not token or not token.startswith("bio_"):
+            return False
+            
+        token_data = self._biometric_tokens.get(token)
+        if not token_data:
+            logger.warning(f"Biometric token not found: {token[:20]}...")
+            return False
+        
+        # Verificar se pertence ao usuário
+        if token_data["user_id"] != user_id:
+            logger.warning(f"Biometric token user mismatch: expected {user_id}, got {token_data['user_id']}")
+            return False
+        
+        # Verificar expiração
+        from datetime import datetime, timezone
+        if datetime.now(timezone.utc) > token_data["expires_at"]:
+            # Remover token expirado
+            del self._biometric_tokens[token]
+            logger.warning(f"Biometric token expired for user {user_id}")
+            return False
+        
+        # Token válido - remover após uso (single-use)
+        del self._biometric_tokens[token]
+        logger.info(f"Biometric token verified and consumed for user {user_id}")
+        return True
     
     def generate_registration_options_for_user(
         self, 

@@ -10,7 +10,7 @@ import { webAuthnService } from '@/services/webauthn'
 interface BiometricConfirmationProps {
   isOpen: boolean
   onClose: () => void
-  onSuccess: () => void
+  onSuccess: (biometricToken?: string) => void
   onFallback?: () => void // Fallback para 2FA
   title?: string
   description?: string
@@ -73,13 +73,13 @@ export const BiometricConfirmation = ({
     setError(null)
 
     try {
-      const success = await webAuthnService.authenticate()
+      const biometricToken = await webAuthnService.authenticate()
 
-      if (success) {
+      if (biometricToken) {
         setSuccess(true)
         // Pequeno delay para mostrar o sucesso
         setTimeout(() => {
-          onSuccess()
+          onSuccess(biometricToken)
         }, 500)
       } else {
         setError('Falha na autenticação')

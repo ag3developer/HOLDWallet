@@ -35,7 +35,7 @@ class PriceData:
 class PriceSource:
     """Base class for price sources"""
     
-    def __init__(self, timeout: float = 10.0):
+    def __init__(self, timeout: float = 15.0):  # Aumentado para 15s
         self.timeout = timeout
     
     async def fetch_prices(
@@ -246,7 +246,7 @@ class PriceAggregator:
             BinanceSource(),
         ]
         self.cache = PriceCache()
-        self.cache_ttl = 30  # 30 segundos para trading em tempo real
+        self.cache_ttl = 60  # 60 segundos - evita rate limiting e timeouts
     
     async def get_prices(
         self,
