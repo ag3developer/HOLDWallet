@@ -154,25 +154,52 @@ export function CurrencyCalculator({
     return () => globalThis.removeEventListener('keydown', handleEsc)
   }, [isOpen, onClose])
 
-  // Prevent body scroll when modal is open (Safari fix)
-  // Also calculate real viewport height for Safari webapp
+  // Prevent body scroll when modal is open (Safari/iOS fix)
+  // Calculate real viewport height for Safari webapp
   const [viewportHeight, setViewportHeight] = useState('100vh')
+  const [isIOS, setIsIOS] = useState(false)
+
+  useEffect(() => {
+    // Detect iOS (including iPad with iOS 13+)
+    const userAgent = navigator.userAgent.toLowerCase()
+    const iOS =
+      /iphone|ipad|ipod/.test(userAgent) ||
+      (navigator.maxTouchPoints > 1 && /macintosh/.test(userAgent))
+    setIsIOS(iOS)
+  }, [])
 
   useEffect(() => {
     if (isOpen) {
       // Calculate real viewport height (Safari webapp fix)
       const updateHeight = () => {
-        const vh = globalThis.innerHeight
+        // Use visualViewport for more accurate height on iOS
+        const vh = globalThis.visualViewport?.height || globalThis.innerHeight
         setViewportHeight(`${vh}px`)
       }
+
+      // Initial update
       updateHeight()
+
+      // Small delay to ensure iOS has settled
+      const initialTimer = setTimeout(updateHeight, 100)
 
       // Update on resize/orientation change
       globalThis.addEventListener('resize', updateHeight)
       globalThis.addEventListener('orientationchange', updateHeight)
+      globalThis.visualViewport?.addEventListener('resize', updateHeight)
 
-      // Lock body scroll
+      // Lock body scroll - iOS specific handling
       const scrollY = globalThis.scrollY
+      const originalStyles = {
+        overflow: document.body.style.overflow,
+        position: document.body.style.position,
+        top: document.body.style.top,
+        left: document.body.style.left,
+        right: document.body.style.right,
+        width: document.body.style.width,
+        height: document.body.style.height,
+      }
+
       document.body.style.overflow = 'hidden'
       document.body.style.position = 'fixed'
       document.body.style.top = `-${scrollY}px`
@@ -180,20 +207,30 @@ export function CurrencyCalculator({
       document.body.style.right = '0'
       document.body.style.width = '100%'
 
+      // iOS specific: also set height
+      if (isIOS) {
+        document.body.style.height = '100%'
+      }
+
       return () => {
+        clearTimeout(initialTimer)
         globalThis.removeEventListener('resize', updateHeight)
         globalThis.removeEventListener('orientationchange', updateHeight)
-        document.body.style.overflow = ''
-        document.body.style.position = ''
-        document.body.style.top = ''
-        document.body.style.left = ''
-        document.body.style.right = ''
-        document.body.style.width = ''
+        globalThis.visualViewport?.removeEventListener('resize', updateHeight)
+
+        document.body.style.overflow = originalStyles.overflow
+        document.body.style.position = originalStyles.position
+        document.body.style.top = originalStyles.top
+        document.body.style.left = originalStyles.left
+        document.body.style.right = originalStyles.right
+        document.body.style.width = originalStyles.width
+        document.body.style.height = originalStyles.height
+
         globalThis.scrollTo(0, scrollY)
       }
     }
     return undefined
-  }, [isOpen])
+  }, [isOpen, isIOS])
 
   if (!isOpen) return null
 
@@ -208,14 +245,18 @@ export function CurrencyCalculator({
         aria-label='Fechar calculadora'
         className='fixed inset-0 bg-black/60 backdrop-blur-sm z-[9998] transition-opacity cursor-default border-0'
         onClick={onClose}
-        style={{ height: viewportHeight }}
-      />
-
-      {/* Modal - Full screen on mobile, centered on desktop */}
-      <div
-        className='fixed inset-0 z-[9999] flex items-end sm:items-center justify-center sm:p-4 pointer-events-none'
         style={{
           height: viewportHeight,
+          minHeight: viewportHeight,
+        }}
+      />
+
+      {/* Modal - Bottom sheet on mobile (iOS), centered on desktop */}
+      <div
+        className='fixed inset-x-0 bottom-0 sm:inset-0 z-[9999] flex items-end sm:items-center justify-center sm:p-4 pointer-events-none'
+        style={{
+          height: isIOS ? 'auto' : viewportHeight,
+          maxHeight: viewportHeight,
         }}
       >
         <dialog
@@ -227,10 +268,13 @@ export function CurrencyCalculator({
                      transform transition-all 
                      animate-in slide-in-from-bottom sm:zoom-in-95 duration-300
                      m-0 p-0 border-0
-                     overflow-hidden
                      flex flex-col'
           style={{
-            maxHeight: `calc(${viewportHeight} - 20px)`,
+            maxHeight: isIOS ? `calc(${viewportHeight} - 40px)` : `calc(${viewportHeight} - 20px)`,
+            height: isIOS ? 'auto' : undefined,
+            minHeight: isIOS ? '70vh' : undefined,
+            overflowY: 'auto',
+            WebkitOverflowScrolling: 'touch',
           }}
         >
           {/* Header - Sticky */}
@@ -264,8 +308,15 @@ export function CurrencyCalculator({
             </button>
           </div>
 
-          {/* Content - Scrollable on mobile */}
-          <div className='p-4 space-y-4 overflow-y-auto flex-1'>
+          {/* Content - Scrollable on mobile with iOS optimizations */}
+          <div
+            className='p-4 space-y-4 flex-1'
+            style={{
+              overflowY: 'auto',
+              WebkitOverflowScrolling: 'touch',
+              overscrollBehavior: 'contain',
+            }}
+          >
             {/* From Currency */}
             <div className='space-y-2'>
               <span className='text-sm font-medium text-gray-700 dark:text-gray-300'>De</span>
