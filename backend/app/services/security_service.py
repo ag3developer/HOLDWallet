@@ -8,12 +8,41 @@ from datetime import datetime, timedelta, timezone
 import logging
 import secrets
 import hashlib
+import httpx
 from user_agents import parse as parse_user_agent
 
 from app.models.security import LoginAttempt, BlockedIP, SecurityAlert, UserSession, AuditLog
 from app.models.user import User
 
 logger = logging.getLogger(__name__)
+
+
+def get_ip_geolocation(ip_address: str) -> Dict[str, Optional[str]]:
+    """
+    Obtém geolocalização de um IP usando API gratuita
+    Returns: {"country": "Brasil", "city": "São Paulo", "country_code": "BR"}
+    """
+    result = {"country": None, "city": None, "country_code": None}
+    
+    # Skip for local IPs
+    if ip_address in ["127.0.0.1", "localhost", "::1", "unknown"] or ip_address.startswith("192.168.") or ip_address.startswith("10."):
+        result["country"] = "Local"
+        result["city"] = "Local Network"
+        return result
+    
+    try:
+        # Use ip-api.com (free, 45 requests/min)
+        response = httpx.get(f"http://ip-api.com/json/{ip_address}?fields=status,country,countryCode,city", timeout=3.0)
+        if response.status_code == 200:
+            data = response.json()
+            if data.get("status") == "success":
+                result["country"] = data.get("country")
+                result["city"] = data.get("city")
+                result["country_code"] = data.get("countryCode")
+    except Exception as e:
+        logger.debug(f"Failed to get geolocation for {ip_address}: {e}")
+    
+    return result
 
 
 class SecurityService:
@@ -35,9 +64,10 @@ class SecurityService:
         Registra uma tentativa de login
         """
         try:
-            # Parse user agent for geolocation (simplified)
-            country = None
-            city = None
+            # Get geolocation
+            geo = get_ip_geolocation(ip_address)
+            country = geo.get("country")
+            city = geo.get("city")
             
             attempt = LoginAttempt(
                 email=email,
@@ -288,16 +318,26 @@ class SecurityService:
             # Parse user agent
             device_type = "unknown"
             browser = "unknown"
-            os = "unknown"
+            os_info = "unknown"
             
             if user_agent:
                 try:
                     ua = parse_user_agent(user_agent)
-                    device_type = "mobile" if ua.is_mobile else ("tablet" if ua.is_tablet else "desktop")
+                    if ua.is_mobile:
+                        device_type = "mobile"
+                    elif ua.is_tablet:
+                        device_type = "tablet"
+                    else:
+                        device_type = "desktop"
                     browser = f"{ua.browser.family} {ua.browser.version_string}"
-                    os = f"{ua.os.family} {ua.os.version_string}"
-                except:
+                    os_info = f"{ua.os.family} {ua.os.version_string}"
+                except Exception:
                     pass
+            
+            # Get geolocation
+            geo = get_ip_geolocation(ip_address)
+            country = geo.get("country")
+            city = geo.get("city")
             
             session = UserSession(
                 session_token=session_token,
@@ -306,7 +346,9 @@ class SecurityService:
                 user_agent=user_agent,
                 device_type=device_type,
                 browser=browser,
-                os=os,
+                os=os_info,
+                country=country,
+                city=city,
                 is_active=True,
                 expires_at=datetime.now(timezone.utc) + timedelta(hours=expires_hours)
             )
@@ -314,6 +356,8 @@ class SecurityService:
             db.add(session)
             db.commit()
             db.refresh(session)
+            
+            logger.info(f"Session created for user {user_id} from {ip_address} ({city}, {country})")
             
             return session
             

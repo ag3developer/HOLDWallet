@@ -278,6 +278,7 @@ async def get_active_sessions(
             )
         
         # Fallback: simulate with active users if no session data
+        # Try to get login attempt data for more info
         active_users = db.query(User).filter(
             User.is_active == True
         ).order_by(desc(User.updated_at)).offset(offset).limit(limit).all()
@@ -286,17 +287,50 @@ async def get_active_sessions(
         
         sessions = []
         for i, user in enumerate(active_users):
+            # Try to get last successful login for this user
+            last_login = db.query(LoginAttempt).filter(
+                LoginAttempt.email == user.email,
+                LoginAttempt.success == True
+            ).order_by(desc(LoginAttempt.created_at)).first()
+            
+            ip_address = "Unknown"
+            device = "Unknown"
+            browser = "Unknown"
+            location = None
+            last_activity = user.last_login or now
+            
+            if last_login:
+                ip_address = str(last_login.ip_address) if last_login.ip_address else "Unknown"
+                if last_login.city and last_login.country:
+                    location = f"{last_login.city}, {last_login.country}"
+                last_activity = last_login.created_at or now
+                
+                # Try to parse user agent for device info
+                if last_login.user_agent:
+                    try:
+                        from user_agents import parse as parse_ua
+                        ua = parse_ua(last_login.user_agent)
+                        if ua.is_mobile:
+                            device = "Mobile"
+                        elif ua.is_tablet:
+                            device = "Tablet"
+                        else:
+                            device = "Desktop"
+                        browser = f"{ua.browser.family}"
+                    except Exception:
+                        pass
+            
             sessions.append(ActiveSessionRecord(
                 id=f"session_{user.id}_{i}",
-                user_id=0,  # Will be set from actual session
+                user_id=0,
                 user_email=str(user.email),
                 user_name=str(user.username) if user.username else str(user.email),
-                ip_address="Unknown",
-                device="Unknown",
-                browser="Unknown",
-                location=None,
-                started_at=now,
-                last_activity=now,
+                ip_address=ip_address,
+                device=device,
+                browser=browser,
+                location=location,
+                started_at=last_activity,
+                last_activity=last_activity,
                 is_current=False
             ))
         
@@ -422,8 +456,22 @@ async def force_logout_session(
 ):
     """Force logout a specific session"""
     try:
-        # Try to find and invalidate the session
-        session = db.query(UserSession).filter(UserSession.id == int(session_id)).first()
+        # Check if this is a simulated session ID (starts with "session_")
+        if session_id.startswith("session_"):
+            # This is a fallback simulated session - no real session to invalidate
+            logger.info(f"Admin {current_admin.email} attempted to logout simulated session {session_id}")
+            return ActionResponse(
+                success=True,
+                message=f"Session {session_id} has been terminated (simulated)"
+            )
+        
+        # Try to parse as integer for real sessions
+        try:
+            session_int_id = int(session_id)
+            session = db.query(UserSession).filter(UserSession.id == session_int_id).first()
+        except ValueError:
+            # If it's not an integer and not a simulated session, try by session_token
+            session = db.query(UserSession).filter(UserSession.session_token == session_id).first()
         
         if session:
             session.is_active = False
