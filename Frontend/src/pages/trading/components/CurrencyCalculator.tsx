@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Calculator, ArrowUpDown, Info, DollarSign, CircleDollarSign, Euro } from 'lucide-react'
 import { toUSD, fromUSD } from '@/services/currency'
+import { useQuery } from '@tanstack/react-query'
+import { apiClient } from '@/services/api'
 
 interface CurrencyCalculatorProps {
   readonly isOpen: boolean
@@ -25,8 +27,8 @@ const CURRENCIES: CurrencyInfo[] = [
   { code: 'EUR', symbol: '€', name: 'Euro', icon: 'eur' },
 ]
 
-// Taxas aproximadas do sistema (spread + network fee)
-const SYSTEM_FEE_PERCENT = 2.5 // 2.5% total estimado
+// Taxas padrão (fallback se API não responder)
+const DEFAULT_SYSTEM_FEE_PERCENT = 3.25 // 3% spread + 0.25% network
 
 // Default currency info para evitar undefined
 const DEFAULT_CURRENCY: CurrencyInfo = {
@@ -60,6 +62,27 @@ export function CurrencyCalculator({
   const [toCurrency, setToCurrency] = useState<Currency>(initialCurrency === 'USD' ? 'BRL' : 'USD')
   const [amount, setAmount] = useState<string>('')
   const [includeFees, setIncludeFees] = useState(false)
+
+  // Buscar taxas da API (público, não precisa de auth)
+  const { data: feesData } = useQuery({
+    queryKey: ['instant-trade-fees'],
+    queryFn: async () => {
+      try {
+        const { data } = await apiClient.get('/instant-trade/fees')
+        return data
+      } catch {
+        return null
+      }
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutos
+    gcTime: 10 * 60 * 1000, // 10 minutos
+    retry: 1,
+  })
+
+  // Taxa total do sistema (spread + network fee) - dinâmica da API
+  const SYSTEM_FEE_PERCENT = feesData?.fees?.total
+    ? Number.parseFloat(feesData.fees.total.replace('%', ''))
+    : DEFAULT_SYSTEM_FEE_PERCENT
 
   // Reset quando abre o modal
   useEffect(() => {
@@ -99,7 +122,7 @@ export function CurrencyCalculator({
 
       return result
     },
-    [includeFees]
+    [includeFees, SYSTEM_FEE_PERCENT]
   )
 
   // Valor convertido
