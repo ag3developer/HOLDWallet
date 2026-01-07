@@ -486,9 +486,42 @@ async def export_private_key(
                         f"Redes disponíveis: polygon, ethereum, base, bsc, multi"
             )
         
-        # Descriptografar private key
-        encrypted_pk = str(address.encrypted_private_key)
-        private_key = crypto_service.decrypt_data(encrypted_pk)
+        # Verificar se encrypted_private_key existe (pode ser None ou string vazia)
+        encrypted_pk_value = address.encrypted_private_key
+        has_encrypted_pk = encrypted_pk_value is not None and str(encrypted_pk_value).strip() not in ['', 'None']
+        
+        if not has_encrypted_pk:
+            # Tentar derivar a private key do mnemonic da carteira
+            logger.info(f"Private key não encontrada para {network}, derivando do mnemonic...")
+            
+            # Descriptografar mnemonic
+            mnemonic_value = wallet.encrypted_mnemonic
+            if mnemonic_value is None or str(mnemonic_value).strip() in ['', 'None']:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Mnemonic da carteira não encontrado. A carteira precisa ser recriada."
+                )
+            
+            mnemonic = crypto_service.decrypt_data(str(mnemonic_value))
+            
+            # Derivar a private key para EVM
+            from eth_account import Account
+            Account.enable_unaudited_hdwallet_features()
+            
+            # Derivar usando BIP44 path para Ethereum/EVM
+            account = Account.from_mnemonic(mnemonic, account_path="m/44'/60'/0'/0/0")
+            private_key = account.key.hex()
+            
+            # Atualizar o registro com a private key criptografada
+            encrypted_pk = crypto_service.encrypt_data(private_key)
+            address.encrypted_private_key = encrypted_pk  # type: ignore
+            db.commit()
+            
+            logger.info(f"Private key derivada e salva para {network}")
+        else:
+            # Descriptografar private key existente
+            encrypted_pk = str(encrypted_pk_value)
+            private_key = crypto_service.decrypt_data(encrypted_pk)
         
         # Formatar para mostrar
         if not private_key.startswith("0x"):

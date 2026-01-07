@@ -171,6 +171,11 @@ class BlockchainDepositService:
             tx_hash se sucesso, None se erro
         """
         try:
+            # Verificar se private key está configurada
+            if not self.platform_wallet_private_key:
+                logger.error("❌ PLATFORM_WALLET_PRIVATE_KEY não configurada no .env!")
+                return None
+            
             config = self.NETWORK_CONFIG[network.lower()]
             account = Account.from_key(self.platform_wallet_private_key)
             
@@ -222,6 +227,12 @@ class BlockchainDepositService:
             tuple: (tx_hash, error_message) - tx_hash se sucesso, error_message se erro
         """
         try:
+            # Verificar se private key está configurada
+            if not self.platform_wallet_private_key:
+                error_msg = "PLATFORM_WALLET_PRIVATE_KEY não configurada no .env! Acesse /admin/system-wallet e exporte a private key."
+                logger.error(f"❌ {error_msg}")
+                return (None, error_msg)
+            
             config = self.NETWORK_CONFIG[network.lower()]
             account = Account.from_key(self.platform_wallet_private_key)
             
