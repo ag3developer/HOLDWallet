@@ -9,7 +9,7 @@ bitcoinlib==0.7.6
 bip-utils==2.7.1
 httpx==0.25.2
 pydantic==2.5.0
-email-validator==2.1.0
+email-validator==2.2.0
 python-multipart==0.0.6
 pydantic-settings==2.0.3
 passlib[bcrypt]==1.7.4
