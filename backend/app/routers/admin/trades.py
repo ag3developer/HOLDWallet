@@ -357,7 +357,8 @@ class ConfirmPaymentRequest(BaseModel):
     notes: Optional[str] = None
 
 
-class AccountingEntry(BaseModel):
+class AccountingEntryResponse(BaseModel):
+    """Schema de resposta para entradas contábeis (não confundir com o modelo SQLAlchemy)"""
     trade_id: str
     reference_code: str
     type: str  # 'platform_fee', 'network_fee', 'spread'

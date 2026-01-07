@@ -17,6 +17,7 @@ from eth_account import Account
 from sqlalchemy.orm import Session
 
 from app.models.wallet import Wallet
+from app.models.address import Address
 from app.models.instant_trade import InstantTrade, TradeStatus
 from app.core.config import settings
 
@@ -110,22 +111,47 @@ class BlockchainDepositService:
             logger.error(f"❌ Erro conectando à rede {network}: {str(e)}")
             return None
     
-    def get_user_wallet(self, db: Session, user_id: str, network: str) -> Optional[Wallet]:
-        """Busca a wallet do usuário para a rede especificada"""
+    def get_user_wallet(self, db: Session, user_id: str, network: str) -> Optional[Address]:
+        """Busca o endereço da wallet do usuário para a rede especificada"""
         try:
-            wallet = db.query(Wallet).filter(
+            # Busca o endereço diretamente na tabela addresses
+            # Faz join com wallets para garantir que pertence ao usuário e está ativa
+            address = db.query(Address).join(
+                Wallet, Address.wallet_id == Wallet.id
+            ).filter(
                 Wallet.user_id == user_id,
-                Wallet.network == network.lower(),
-                Wallet.is_active == True
+                Wallet.is_active == True,
+                Address.network == network.lower(),
+                Address.is_active == True
             ).first()
             
-            if not wallet:
-                logger.warning(f"⚠️ Wallet não encontrada para user={user_id}, network={network}")
-                return None
+            if address:
+                logger.info(f"✅ Endereço encontrado para user={user_id}, network={network}: {address.address}")
+                return address
             
-            return wallet
+            # Se não encontrou na rede específica, tenta buscar em qualquer rede EVM
+            # Redes EVM compartilham o mesmo endereço
+            evm_networks = ['ethereum', 'polygon', 'base', 'bsc', 'arbitrum', 'optimism']
+            if network.lower() in evm_networks:
+                logger.info(f"⚠️ Endereço não encontrado para {network}, buscando em outras redes EVM...")
+                
+                address = db.query(Address).join(
+                    Wallet, Address.wallet_id == Wallet.id
+                ).filter(
+                    Wallet.user_id == user_id,
+                    Wallet.is_active == True,
+                    Address.network.in_(evm_networks),
+                    Address.is_active == True
+                ).first()
+                
+                if address:
+                    logger.info(f"✅ Endereço EVM encontrado (rede {address.network}): {address.address}")
+                    return address
+            
+            logger.warning(f"⚠️ Nenhum endereço encontrado para user={user_id}, network={network}")
+            return None
         except Exception as e:
-            logger.error(f"❌ Erro buscando wallet: {str(e)}")
+            logger.error(f"❌ Erro buscando endereço: {str(e)}")
             return None
     
     def send_native_token(
@@ -275,9 +301,9 @@ class BlockchainDepositService:
                     "error": f"Trade não está com pagamento confirmado (status: {trade.status})"
                 }
             
-            # 2. Busca wallet do usuário
-            wallet = self.get_user_wallet(db, trade.user_id, network)
-            if not wallet:
+            # 2. Busca endereço do usuário
+            user_address = self.get_user_wallet(db, trade.user_id, network)
+            if not user_address:
                 return {
                     "success": False,
                     "tx_hash": None,
@@ -292,7 +318,7 @@ class BlockchainDepositService:
                 return {
                     "success": False,
                     "tx_hash": None,
-                    "wallet_address": wallet.address,
+                    "wallet_address": user_address.address,
                     "network": network,
                     "error": f"Não foi possível conectar à rede {network}"
                 }
@@ -305,20 +331,20 @@ class BlockchainDepositService:
             tx_hash = None
             if contract_address is None:
                 # Token nativo (ETH, MATIC)
-                logger.info(f"📤 Enviando {trade.crypto_amount} {trade.symbol} (nativo) para {wallet.address}")
+                logger.info(f"📤 Enviando {trade.crypto_amount} {trade.symbol} (nativo) para {user_address.address}")
                 tx_hash = self.send_native_token(
                     w3=w3,
-                    to_address=wallet.address,
+                    to_address=user_address.address,
                     amount=trade.crypto_amount,
                     network=network
                 )
             else:
                 # Token ERC20 (USDT, USDC)
-                logger.info(f"📤 Enviando {trade.crypto_amount} {trade.symbol} (ERC20) para {wallet.address}")
+                logger.info(f"📤 Enviando {trade.crypto_amount} {trade.symbol} (ERC20) para {user_address.address}")
                 tx_hash = self.send_erc20_token(
                     w3=w3,
                     contract_address=contract_address,
-                    to_address=wallet.address,
+                    to_address=user_address.address,
                     amount=trade.crypto_amount,
                     network=network
                 )
@@ -327,14 +353,14 @@ class BlockchainDepositService:
                 return {
                     "success": False,
                     "tx_hash": None,
-                    "wallet_address": wallet.address,
+                    "wallet_address": user_address.address,
                     "network": network,
                     "error": "Falha ao enviar transação blockchain"
                 }
             
             # 6. Atualiza o trade com os dados blockchain
-            trade.wallet_id = str(wallet.id)
-            trade.wallet_address = wallet.address
+            trade.wallet_id = str(user_address.wallet_id)
+            trade.wallet_address = user_address.address
             trade.network = network
             trade.tx_hash = tx_hash
             trade.status = TradeStatus.COMPLETED
@@ -348,7 +374,7 @@ class BlockchainDepositService:
             return {
                 "success": True,
                 "tx_hash": tx_hash,
-                "wallet_address": wallet.address,
+                "wallet_address": user_address.address,
                 "network": network,
                 "error": None
             }
