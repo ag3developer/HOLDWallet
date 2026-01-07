@@ -172,16 +172,28 @@ const mockRecentActivity: RecentActivity[] = [
 ]
 
 // Fetch dashboard data
-const fetchDashboardData = async (): Promise<DashboardStats> => {
+const fetchDashboardData = async (): Promise<
+  DashboardStats & { recent_activity?: RecentActivity[] }
+> => {
   try {
+    console.log('🔄 Fetching dashboard data...')
     const { data } = await apiClient.get('/admin/dashboard/summary')
+    console.log('📊 Dashboard API response:', data)
+
     // Verifica se os dados retornados têm a estrutura esperada
     if (data?.data && data.data.trades && data.data.users && data.data.financial) {
-      return data.data
+      console.log('✅ Using real data from API')
+      return {
+        ...data.data,
+        recent_activity: data.data.recent_activity || [],
+      }
     }
+
     // Se a estrutura não for válida, retorna mock
+    console.warn('⚠️ API response structure invalid, using mock data. Response:', data)
     return mockDashboardStats
-  } catch {
+  } catch (error) {
+    console.error('❌ Error fetching dashboard:', error)
     return mockDashboardStats
   }
 }
@@ -649,9 +661,14 @@ export const AdminDashboardPage: React.FC = () => {
             </button>
           </div>
           <div className='space-y-3'>
-            {mockRecentActivity.map(activity => {
-              const iconMap = {
+            {/* Use real data if available, otherwise mock */}
+            {((stats as any).recent_activity?.length > 0
+              ? (stats as any).recent_activity
+              : mockRecentActivity
+            ).map((activity: RecentActivity) => {
+              const iconMap: Record<string, React.ComponentType<any>> = {
                 trade_completed: CheckCircle,
+                trade: TrendingUp,
                 user_registered: Users,
                 trade_pending: Clock,
                 dispute_opened: AlertTriangle,
@@ -663,8 +680,28 @@ export const AdminDashboardPage: React.FC = () => {
                 info: 'text-blue-500 bg-blue-100 dark:bg-blue-900/30',
                 error: 'text-red-500 bg-red-100 dark:bg-red-900/30',
               }
-              const Icon = iconMap[activity.type]
-              const colorClass = colorMap[activity.status]
+              const Icon = iconMap[activity.type] || Activity
+              const colorClass = colorMap[activity.status as keyof typeof colorMap] || colorMap.info
+
+              // Format time if it's an ISO string
+              const formatTime = (time: string) => {
+                if (!time) return '-'
+                try {
+                  const date = new Date(time)
+                  const now = new Date()
+                  const diffMs = now.getTime() - date.getTime()
+                  const diffMins = Math.floor(diffMs / 60000)
+                  const diffHours = Math.floor(diffMs / 3600000)
+                  const diffDays = Math.floor(diffMs / 86400000)
+
+                  if (diffMins < 60) return `${diffMins} min atrás`
+                  if (diffHours < 24) return `${diffHours}h atrás`
+                  if (diffDays < 7) return `${diffDays}d atrás`
+                  return date.toLocaleDateString('pt-BR')
+                } catch {
+                  return time
+                }
+              }
 
               return (
                 <div
@@ -680,7 +717,9 @@ export const AdminDashboardPage: React.FC = () => {
                     </p>
                     <p className='text-xs text-gray-500 truncate'>{activity.description}</p>
                   </div>
-                  <span className='text-xs text-gray-400 whitespace-nowrap'>{activity.time}</span>
+                  <span className='text-xs text-gray-400 whitespace-nowrap'>
+                    {formatTime(activity.time)}
+                  </span>
                 </div>
               )
             })}

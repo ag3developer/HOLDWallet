@@ -41,7 +41,8 @@ class User(Base):
     instant_trades = relationship(
         "InstantTrade", 
         back_populates="user",
-        primaryjoin="cast(User.id, String) == foreign(InstantTrade.user_id)"
+        foreign_keys="[InstantTrade.user_id]",
+        primaryjoin="foreign(InstantTrade.user_id) == cast(User.id, String)"
     )
     
     def __repr__(self):
