@@ -225,6 +225,7 @@ export default function AdminFeesPage() {
             value={period}
             onChange={e => setPeriod(e.target.value)}
             className='bg-gray-800 border border-gray-700 text-white rounded text-xs px-2 py-1'
+            title='Período'
           >
             <option value='day'>24h</option>
             <option value='week'>7d</option>
@@ -235,6 +236,7 @@ export default function AdminFeesPage() {
           <button
             onClick={() => refetchSummary()}
             className='p-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700'
+            title='Atualizar'
           >
             <RefreshCw className='h-4 w-4 text-gray-400' />
           </button>
@@ -317,177 +319,141 @@ export default function AdminFeesPage() {
       </div>
 
       {/* System Wallet & Breakdown */}
-      <div className='grid grid-cols-1 lg:grid-cols-2 gap-4'>
-        {/* System Wallet Balance */}
-        <div className='bg-gray-800/50 border border-gray-700 rounded-lg'>
-          <div className='p-3 border-b border-gray-700'>
-            <h2 className='text-sm font-medium text-white flex items-center gap-2'>
-              <Wallet className='h-4 w-4 text-yellow-400' />
+      <div className='grid grid-cols-1 lg:grid-cols-3 gap-3'>
+        {/* System Wallet Balance - Compacto */}
+        <div className='lg:col-span-2 bg-gray-800/50 border border-gray-700 rounded-lg'>
+          <div className='p-2 border-b border-gray-700 flex items-center justify-between'>
+            <h2 className='text-xs font-medium text-white flex items-center gap-1.5'>
+              <Wallet className='h-3.5 w-3.5 text-yellow-400' />
               System Wallet
             </h2>
+            {systemWallet?.total_stables > 0 && (
+              <span className='text-xs text-green-400 font-medium'>
+                Stables: ${systemWallet.total_stables?.toFixed(2)}
+              </span>
+            )}
           </div>
-          <div className='p-3'>
+          <div className='p-2'>
             {walletLoading ? (
-              <div className='space-y-2'>
-                {[1, 2, 3].map(i => (
-                  <Skeleton key={i} className='h-8 w-full' />
+              <div className='grid grid-cols-4 gap-1.5'>
+                {[1, 2, 3, 4].map(i => (
+                  <Skeleton key={i} className='h-8' />
                 ))}
               </div>
             ) : systemWallet?.balances ? (
-              <div className='space-y-2'>
-                {Object.entries(systemWallet.balances || {}).map(([crypto, balance]) => (
-                  <div
-                    key={crypto}
-                    className='flex items-center justify-between p-2 bg-gray-900/50 rounded text-sm'
-                  >
-                    <div className='flex items-center gap-2'>
-                      <div className='w-6 h-6 bg-gray-700 rounded-full flex items-center justify-center text-[10px] font-bold text-white'>
-                        {crypto.slice(0, 2)}
+              <div className='grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-1.5'>
+                {Object.entries(systemWallet.balances || {})
+                  .filter(([_, balance]) => (balance as number) > 0)
+                  .sort((a, b) => (b[1] as number) - (a[1] as number))
+                  .map(([crypto, balance]) => {
+                    const logoMap: Record<string, string> = {
+                      USDT: 'https://cryptologos.cc/logos/tether-usdt-logo.png',
+                      USDC: 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png',
+                      POLYGON: 'https://cryptologos.cc/logos/polygon-matic-logo.png',
+                      ETHEREUM: 'https://cryptologos.cc/logos/ethereum-eth-logo.png',
+                      BSC: 'https://cryptologos.cc/logos/bnb-bnb-logo.png',
+                      BITCOIN: 'https://cryptologos.cc/logos/bitcoin-btc-logo.png',
+                      SOLANA: 'https://cryptologos.cc/logos/solana-sol-logo.png',
+                    }
+                    return (
+                      <div
+                        key={crypto}
+                        className='flex items-center gap-1.5 p-1.5 bg-gray-900/50 rounded border border-gray-700/50'
+                      >
+                        {logoMap[crypto] ? (
+                          <img src={logoMap[crypto]} alt={crypto} className='w-4 h-4' />
+                        ) : (
+                          <div className='w-4 h-4 bg-gray-600 rounded-full flex items-center justify-center text-[8px] font-bold'>
+                            {crypto.slice(0, 2)}
+                          </div>
+                        )}
+                        <div className='flex flex-col'>
+                          <span className='text-[10px] text-gray-400'>{crypto}</span>
+                          <span className='text-xs font-medium text-white'>
+                            {crypto.includes('USD') ? '$' : ''}
+                            {(balance as number).toFixed(crypto.includes('USD') ? 2 : 4)}
+                          </span>
+                        </div>
                       </div>
-                      <span className='text-white'>{crypto}</span>
-                    </div>
-                    <span className='font-mono text-gray-300 text-xs'>
-                      {crypto === 'BRL'
-                        ? formatUSD(balance as number)
-                        : formatCrypto(balance as number, crypto)}
-                    </span>
-                  </div>
-                ))}
-
-                {/* Total Balance in USD */}
-                {systemWallet.total_balance_usd !== undefined && (
-                  <div className='mt-3 pt-3 border-t border-gray-700'>
-                    <div className='flex justify-between items-center text-sm'>
-                      <span className='text-gray-400'>Total (USD)</span>
-                      <span className='font-bold text-blue-400'>
-                        $
-                        {systemWallet.total_balance_usd?.toLocaleString('en-US', {
-                          minimumFractionDigits: 2,
-                        })}
-                      </span>
-                    </div>
-                  </div>
+                    )
+                  })}
+                {Object.values(systemWallet.balances || {}).every(b => (b as number) === 0) && (
+                  <p className='col-span-full text-gray-500 text-xs text-center py-2'>
+                    Sem saldos ainda
+                  </p>
                 )}
-
-                {/* Fees Collected Summary */}
-                {systemWallet.fees_collected && (
-                  <div className='mt-3 pt-3 border-t border-gray-700 space-y-1.5 text-xs'>
-                    <div className='flex justify-between'>
-                      <span className='text-gray-400'>P2P (0.5%)</span>
-                      <span className='text-green-400'>
-                        $
-                        {systemWallet.fees_collected.p2p_commission?.toLocaleString('en-US', {
-                          minimumFractionDigits: 2,
-                        })}
-                      </span>
-                    </div>
-                    <div className='flex justify-between'>
-                      <span className='text-gray-400'>OTC (3%)</span>
-                      <span className='text-green-400'>
-                        $
-                        {systemWallet.fees_collected.otc_spread?.toLocaleString('en-US', {
-                          minimumFractionDigits: 2,
-                        })}
-                      </span>
-                    </div>
-                    <div className='flex justify-between'>
-                      <span className='text-gray-400'>Network (0.25%)</span>
-                      <span className='text-green-400'>
-                        $
-                        {systemWallet.fees_collected.network_fee?.toLocaleString('en-US', {
-                          minimumFractionDigits: 2,
-                        })}
-                      </span>
-                    </div>
-                    <div className='flex justify-between pt-1.5 border-t border-gray-600 text-sm'>
-                      <span className='text-white font-medium'>Total Fees</span>
-                      <span className='font-bold text-green-400'>
-                        $
-                        {systemWallet.fees_collected.total?.toLocaleString('en-US', {
-                          minimumFractionDigits: 2,
-                        })}
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                {/* Legacy support */}
-                {!systemWallet.fees_collected &&
-                  systemWallet.total_fees_collected_brl !== undefined && (
-                    <div className='mt-3 pt-3 border-t border-gray-700'>
-                      <div className='flex justify-between items-center text-sm'>
-                        <span className='text-gray-400'>Total Fees</span>
-                        <span className='font-bold text-green-400'>
-                          {formatUSD(systemWallet.total_fees_collected_brl)}
-                        </span>
-                      </div>
-                    </div>
-                  )}
               </div>
             ) : (
-              <p className='text-gray-400 text-center py-6 text-sm'>Wallet not found</p>
+              <p className='text-gray-400 text-center py-3 text-xs'>Wallet not found</p>
             )}
           </div>
         </div>
 
-        {/* Fee Breakdown by Type */}
+        {/* Fee Breakdown by Type - Compacto */}
         <div className='bg-gray-800/50 border border-gray-700 rounded-lg'>
-          <div className='p-3 border-b border-gray-700'>
-            <h2 className='text-sm font-medium text-white flex items-center gap-2'>
-              <BarChart3 className='h-4 w-4 text-blue-400' />
+          <div className='p-2 border-b border-gray-700'>
+            <h2 className='text-xs font-medium text-white flex items-center gap-1.5'>
+              <BarChart3 className='h-3.5 w-3.5 text-blue-400' />
               Revenue by Type
             </h2>
           </div>
-          <div className='p-3'>
+          <div className='p-2'>
             {summaryLoading ? (
-              <div className='space-y-2'>
+              <div className='space-y-1.5'>
                 {[1, 2].map(i => (
-                  <Skeleton key={i} className='h-10 w-full' />
+                  <Skeleton key={i} className='h-8' />
                 ))}
               </div>
             ) : breakdown.length > 0 ? (
-              <div className='space-y-2'>
+              <div className='space-y-1.5'>
                 {breakdown.map((item: any) => (
-                  <div key={item.fee_type} className='p-2.5 bg-gray-900/50 rounded'>
-                    <div className='flex items-center justify-between'>
+                  <div
+                    key={item.fee_type}
+                    className='flex items-center justify-between p-2 bg-gray-900/50 rounded'
+                  >
+                    <div className='flex items-center gap-2'>
                       <span
-                        className={`px-2 py-1 rounded text-xs border ${getFeeTypeBadge(item.fee_type)}`}
+                        className={`px-1.5 py-0.5 rounded text-[10px] border ${getFeeTypeBadge(item.fee_type)}`}
                       >
                         {getFeeTypeLabel(item.fee_type)}
                       </span>
-                      <span className='text-green-400 font-bold text-sm'>
-                        {formatUSD(item.total_fees)}
+                      <span className='text-[10px] text-gray-500'>
+                        {item.transaction_count} txs
                       </span>
                     </div>
-                    <div className='flex justify-between text-xs text-gray-400 mt-1.5'>
-                      <span>{item.transaction_count} txs</span>
-                      <span>{item.avg_percentage?.toFixed(2)}%</span>
+                    <div className='text-right'>
+                      <span className='text-green-400 font-bold text-xs'>
+                        {formatUSD(item.total_fees)}
+                      </span>
+                      <span className='text-[10px] text-gray-500 ml-1.5'>
+                        {item.avg_percentage?.toFixed(2)}%
+                      </span>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className='text-gray-400 text-center py-6 text-sm'>No fees yet</p>
+              <p className='text-gray-400 text-center py-3 text-xs'>No fees yet</p>
             )}
           </div>
         </div>
       </div>
 
-      {/* Daily Revenue Chart */}
+      {/* Daily Revenue Chart - Mais compacto */}
       <div className='bg-gray-800/50 border border-gray-700 rounded-lg'>
-        <div className='p-3 border-b border-gray-700'>
-          <h2 className='text-sm font-medium text-white flex items-center gap-2'>
-            <Clock className='h-4 w-4 text-purple-400' />
+        <div className='p-2 border-b border-gray-700'>
+          <h2 className='text-xs font-medium text-white flex items-center gap-1.5'>
+            <Clock className='h-3.5 w-3.5 text-purple-400' />
             Daily Revenue (30d)
           </h2>
         </div>
-        <div className='p-3'>
+        <div className='p-2'>
           {revenueLoading ? (
-            <Skeleton className='h-32 w-full' />
+            <Skeleton className='h-20 w-full' />
           ) : dailyRevenue.length > 0 ? (
             <div>
               {/* Simple bar chart */}
-              <div className='flex items-end gap-1 h-32 overflow-x-auto'>
+              <div className='flex items-end gap-0.5 h-20 overflow-x-auto'>
                 {dailyRevenue.slice(-30).map((day: any, index: number) => {
                   const maxRevenue = Math.max(...dailyRevenue.map((d: any) => d.revenue)) || 1
                   const height = (day.revenue / maxRevenue) * 100
@@ -521,69 +487,64 @@ export default function AdminFeesPage() {
                   </p>
                 </div>
                 <div className='text-center'>
-                  <p className='text-gray-400 text-xs'>Avg/Day</p>
-                  <p className='text-white font-bold text-sm'>
+                  <p className='text-gray-400 text-[10px]'>Avg/Day</p>
+                  <p className='text-white font-bold text-xs'>
                     {formatUSD(revenueTotals.avg_daily_revenue)}
                   </p>
                 </div>
               </div>
             </div>
           ) : (
-            <p className='text-gray-400 text-center py-6 text-sm'>No revenue data yet</p>
+            <p className='text-gray-400 text-center py-3 text-xs'>No revenue data yet</p>
           )}
         </div>
       </div>
 
-      {/* Recent Fee History */}
+      {/* Recent Fee History - Compacto */}
       <div className='bg-gray-800/50 border border-gray-700 rounded-lg'>
-        <div className='p-3 border-b border-gray-700'>
-          <h2 className='text-sm font-medium text-white flex items-center gap-2'>
-            <Receipt className='h-4 w-4 text-orange-400' />
+        <div className='p-2 border-b border-gray-700'>
+          <h2 className='text-xs font-medium text-white flex items-center gap-1.5'>
+            <Receipt className='h-3.5 w-3.5 text-orange-400' />
             Recent Fees
           </h2>
         </div>
-        <div className='p-3'>
+        <div className='p-2'>
           {historyLoading ? (
-            <div className='space-y-2'>
+            <div className='space-y-1'>
               {[1, 2, 3].map(i => (
-                <Skeleton key={i} className='h-8 w-full' />
+                <Skeleton key={i} className='h-6' />
               ))}
             </div>
           ) : feeHistory.length > 0 ? (
             <div className='overflow-x-auto'>
-              <table className='w-full text-xs'>
+              <table className='w-full text-[11px]'>
                 <thead>
                   <tr className='border-b border-gray-700'>
-                    <th className='text-left py-2 px-3 text-gray-400 font-medium'>Date</th>
-                    <th className='text-left py-2 px-3 text-gray-400 font-medium'>Type</th>
-                    <th className='text-left py-2 px-3 text-gray-400 font-medium'>Gross</th>
-                    <th className='text-left py-2 px-3 text-gray-400 font-medium'>Fee %</th>
-                    <th className='text-left py-2 px-3 text-gray-400 font-medium'>Fee Amount</th>
-                    <th className='text-left py-2 px-3 text-gray-400 font-medium'>Status</th>
+                    <th className='text-left py-1.5 px-2 text-gray-400 font-medium'>Date</th>
+                    <th className='text-left py-1.5 px-2 text-gray-400 font-medium'>Type</th>
+                    <th className='text-right py-1.5 px-2 text-gray-400 font-medium'>Fee</th>
+                    <th className='text-left py-1.5 px-2 text-gray-400 font-medium'>Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {feeHistory.map((fee: any) => (
-                    <tr key={fee.id} className='border-b border-gray-800 hover:bg-gray-800/50'>
-                      <td className='py-2 px-3 text-gray-300'>
+                  {feeHistory.slice(0, 5).map((fee: any) => (
+                    <tr key={fee.id} className='border-b border-gray-800/50 hover:bg-gray-800/30'>
+                      <td className='py-1.5 px-2 text-gray-400'>
                         {new Date(fee.created_at).toLocaleDateString('pt-BR')}
                       </td>
-                      <td className='py-2 px-3'>
+                      <td className='py-1.5 px-2'>
                         <span
-                          className={`px-2 py-1 rounded-full text-xs border ${getFeeTypeBadge(fee.fee_type)}`}
+                          className={`px-1 py-0.5 rounded text-[10px] border ${getFeeTypeBadge(fee.fee_type)}`}
                         >
                           {getFeeTypeLabel(fee.fee_type)}
                         </span>
                       </td>
-                      <td className='py-2 px-3 font-mono text-gray-300'>#{fee.trade_id}</td>
-                      <td className='py-2 px-3 text-gray-300'>{formatUSD(fee.gross_amount)}</td>
-                      <td className='py-2 px-3 text-gray-300'>{fee.fee_percentage?.toFixed(2)}%</td>
-                      <td className='py-2 px-3 text-green-400 font-medium'>
+                      <td className='py-1.5 px-2 text-green-400 font-medium text-right'>
                         {formatUSD(fee.fee_amount_brl || fee.fee_amount)}
                       </td>
-                      <td className='py-2 px-3'>
+                      <td className='py-1.5 px-2'>
                         <span
-                          className={`px-2 py-1 rounded-full text-xs border ${getStatusBadge(fee.status)}`}
+                          className={`px-1 py-0.5 rounded text-[10px] border ${getStatusBadge(fee.status)}`}
                         >
                           {fee.status}
                         </span>
@@ -594,86 +555,83 @@ export default function AdminFeesPage() {
               </table>
             </div>
           ) : (
-            <p className='text-gray-400 text-center py-6 text-sm'>
+            <p className='text-gray-400 text-center py-3 text-xs'>
               No fee transactions recorded yet.
             </p>
           )}
 
           {/* Pagination */}
           {pagination.pages > 1 && (
-            <div className='flex justify-center items-center gap-2 mt-3 pt-3 border-t border-gray-700'>
+            <div className='flex justify-center items-center gap-2 mt-2 pt-2 border-t border-gray-700'>
               <button
                 onClick={() => setHistoryPage(p => Math.max(1, p - 1))}
                 disabled={historyPage === 1}
-                className='p-1.5 bg-gray-800 rounded disabled:opacity-50 hover:bg-gray-700 transition-colors'
+                className='p-1 bg-gray-800 rounded disabled:opacity-50 hover:bg-gray-700'
                 title='Página anterior'
               >
-                <ChevronLeft className='h-4 w-4 text-gray-400' />
+                <ChevronLeft className='h-3 w-3 text-gray-400' />
               </button>
-              <span className='px-3 py-1 text-gray-400 text-xs'>
-                Page {historyPage} of {pagination.pages}
+              <span className='text-gray-400 text-[10px]'>
+                {historyPage}/{pagination.pages}
               </span>
               <button
                 onClick={() => setHistoryPage(p => Math.min(pagination.pages, p + 1))}
                 disabled={historyPage === pagination.pages}
-                className='p-1.5 bg-gray-800 rounded disabled:opacity-50 hover:bg-gray-700 transition-colors'
+                className='p-1 bg-gray-800 rounded disabled:opacity-50 hover:bg-gray-700'
                 title='Próxima página'
               >
-                <ChevronRight className='h-4 w-4 text-gray-400' />
+                <ChevronRight className='h-3 w-3 text-gray-400' />
               </button>
             </div>
           )}
         </div>
       </div>
 
-      {/* OTC Trade Commissions - Comissões dos Trades */}
-      <div className='bg-gradient-to-r from-purple-900/30 to-blue-900/30 border border-purple-700/30 rounded-lg'>
-        <div className='p-3 border-b border-purple-700/30'>
-          <h2 className='text-sm font-semibold text-white flex items-center gap-2'>
-            <Calculator className='h-4 w-4 text-purple-400' />
+      {/* OTC Trade Commissions - Mais compacto */}
+      <div className='bg-gradient-to-r from-purple-900/20 to-blue-900/20 border border-purple-700/30 rounded-lg'>
+        <div className='p-2 border-b border-purple-700/30'>
+          <h2 className='text-xs font-semibold text-white flex items-center gap-1.5'>
+            <Calculator className='h-3.5 w-3.5 text-purple-400' />
             Comissões OTC (Instant Trades)
           </h2>
-          <p className='text-xs text-gray-400 mt-1'>
-            Receitas de spread e taxas de rede dos trades OTC
-          </p>
         </div>
 
-        {/* Summary Cards */}
-        <div className='p-3 grid grid-cols-2 md:grid-cols-4 gap-3'>
-          <div className='bg-purple-900/30 border border-purple-700/30 rounded-lg p-3'>
-            <p className='text-xs text-gray-400'>Spread Total</p>
+        {/* Summary Cards - Grid compacto */}
+        <div className='p-2 grid grid-cols-4 gap-2'>
+          <div className='bg-purple-900/20 border border-purple-700/20 rounded p-2'>
+            <p className='text-[10px] text-gray-400'>Spread</p>
             {accountingSummaryLoading ? (
-              <Skeleton className='h-5 w-20 mt-1' />
+              <Skeleton className='h-4 w-16 mt-0.5' />
             ) : (
               <p className='text-base font-bold text-purple-400'>
                 {formatUSD(accountingTotals.spread)}
               </p>
             )}
           </div>
-          <div className='bg-blue-900/30 border border-blue-700/30 rounded-lg p-3'>
-            <p className='text-xs text-gray-400'>Taxa de Rede</p>
+          <div className='bg-blue-900/20 border border-blue-700/20 rounded p-2'>
+            <p className='text-[10px] text-gray-400'>Taxa de Rede</p>
             {accountingSummaryLoading ? (
-              <Skeleton className='h-5 w-20 mt-1' />
+              <Skeleton className='h-4 w-16 mt-0.5' />
             ) : (
               <p className='text-base font-bold text-blue-400'>
                 {formatUSD(accountingTotals.network_fee)}
               </p>
             )}
           </div>
-          <div className='bg-green-900/30 border border-green-700/30 rounded-lg p-3'>
-            <p className='text-xs text-gray-400'>Total Comissões</p>
+          <div className='bg-green-900/20 border border-green-700/20 rounded p-2'>
+            <p className='text-[10px] text-gray-400'>Total Comissões</p>
             {accountingSummaryLoading ? (
-              <Skeleton className='h-5 w-20 mt-1' />
+              <Skeleton className='h-4 w-16 mt-0.5' />
             ) : (
               <p className='text-base font-bold text-green-400'>
                 {formatUSD(accountingTotals.grand_total)}
               </p>
             )}
           </div>
-          <div className='bg-gray-800/50 border border-gray-700 rounded-lg p-3'>
-            <p className='text-xs text-gray-400'>Trades</p>
+          <div className='bg-gray-800/30 border border-gray-700/30 rounded p-2'>
+            <p className='text-[10px] text-gray-400'>Trades</p>
             {accountingSummaryLoading ? (
-              <Skeleton className='h-5 w-16 mt-1' />
+              <Skeleton className='h-4 w-12 mt-0.5' />
             ) : (
               <p className='text-base font-bold text-white'>
                 {accountingSummary.totals?.unique_trades || 0}
@@ -682,73 +640,73 @@ export default function AdminFeesPage() {
           </div>
         </div>
 
-        {/* Entries Table */}
-        <div className='p-3'>
+        {/* Entries Table - Compacto */}
+        <div className='p-2'>
           {accountingLoading ? (
-            <div className='space-y-2'>
-              {[1, 2, 3, 4, 5].map(i => (
-                <Skeleton key={i} className='h-8 w-full' />
+            <div className='space-y-1'>
+              {[1, 2, 3].map(i => (
+                <Skeleton key={i} className='h-6 w-full' />
               ))}
             </div>
           ) : accountingEntries.length > 0 ? (
             <div className='overflow-x-auto'>
-              <table className='w-full text-xs'>
+              <table className='w-full text-[11px]'>
                 <thead>
-                  <tr className='border-b border-gray-700'>
-                    <th className='text-left py-2 px-3 text-gray-400 font-medium'>Data</th>
-                    <th className='text-left py-2 px-3 text-gray-400 font-medium'>Tipo</th>
-                    <th className='text-left py-2 px-3 text-gray-400 font-medium'>Ref</th>
-                    <th className='text-left py-2 px-3 text-gray-400 font-medium'>Usuário</th>
-                    <th className='text-left py-2 px-3 text-gray-400 font-medium'>%</th>
-                    <th className='text-left py-2 px-3 text-gray-400 font-medium'>Valor</th>
-                    <th className='text-left py-2 px-3 text-gray-400 font-medium'>Status</th>
-                    <th className='text-left py-2 px-3 text-gray-400 font-medium'>Ação</th>
+                  <tr className='border-b border-gray-700/50'>
+                    <th className='text-left py-1 px-2 text-gray-500 font-medium'>Data</th>
+                    <th className='text-left py-1 px-2 text-gray-500 font-medium'>Tipo</th>
+                    <th className='text-left py-1 px-2 text-gray-500 font-medium'>Ref</th>
+                    <th className='text-left py-1 px-2 text-gray-500 font-medium'>Usuário</th>
+                    <th className='text-left py-1 px-2 text-gray-500 font-medium'>%</th>
+                    <th className='text-left py-1 px-2 text-gray-500 font-medium'>Valor</th>
+                    <th className='text-left py-1 px-2 text-gray-500 font-medium'>Status</th>
+                    <th className='text-left py-1 px-2 text-gray-500 font-medium'>Ação</th>
                   </tr>
                 </thead>
                 <tbody>
                   {accountingEntries.map((entry: any) => (
-                    <tr key={entry.id} className='border-b border-gray-800 hover:bg-gray-800/50'>
-                      <td className='py-2 px-3 text-gray-300'>
+                    <tr key={entry.id} className='border-b border-gray-800/50 hover:bg-gray-800/30'>
+                      <td className='py-1 px-2 text-gray-400'>
                         {entry.created_at
                           ? new Date(entry.created_at).toLocaleDateString('pt-BR')
                           : '-'}
                       </td>
-                      <td className='py-2 px-3'>
+                      <td className='py-1 px-2'>
                         <span
-                          className={`px-2 py-1 rounded-full text-xs border ${getAccountingTypeBadge(entry.entry_type)}`}
+                          className={`px-1.5 py-0.5 rounded text-[10px] border ${getAccountingTypeBadge(entry.entry_type)}`}
                         >
                           {getAccountingTypeLabel(entry.entry_type)}
                         </span>
                       </td>
-                      <td className='py-2 px-3 font-mono text-gray-300'>
+                      <td className='py-1 px-2 font-mono text-gray-400 text-[10px]'>
                         {entry.reference_code || '-'}
                       </td>
-                      <td className='py-2 px-3 text-gray-300'>
+                      <td className='py-1 px-2 text-gray-400'>
                         {entry.user_name || entry.user_id?.substring(0, 8) || '-'}
                       </td>
-                      <td className='py-2 px-3 text-gray-300'>{entry.percentage?.toFixed(2)}%</td>
-                      <td className='py-2 px-3 text-green-400 font-medium'>
+                      <td className='py-1 px-2 text-gray-400'>{entry.percentage?.toFixed(1)}%</td>
+                      <td className='py-1 px-2 text-green-400 font-medium'>
                         {formatUSD(entry.amount)}
                       </td>
-                      <td className='py-2 px-3'>
+                      <td className='py-1 px-2'>
                         <span
-                          className={`px-2 py-1 rounded-full text-xs border ${getAccountingStatusBadge(entry.status)}`}
+                          className={`px-1.5 py-0.5 rounded text-[10px] border ${getAccountingStatusBadge(entry.status)}`}
                         >
                           {entry.status === 'processed'
-                            ? 'Processado'
+                            ? 'OK'
                             : entry.status === 'pending'
-                              ? 'Pendente'
+                              ? 'Pend.'
                               : entry.status}
                         </span>
                       </td>
-                      <td className='py-2 px-3'>
+                      <td className='py-1 px-2'>
                         {entry.trade_id && (
                           <a
                             href={`/admin/trades/${entry.trade_id}`}
-                            className='text-blue-400 hover:text-blue-300 flex items-center gap-1'
+                            className='text-blue-400 hover:text-blue-300'
                             title='Ver trade'
                           >
-                            <ExternalLink className='h-4 w-4' />
+                            <ExternalLink className='h-3 w-3' />
                           </a>
                         )}
                       </td>
@@ -758,36 +716,33 @@ export default function AdminFeesPage() {
               </table>
             </div>
           ) : (
-            <div className='text-center py-6'>
-              <Receipt className='h-8 w-8 text-gray-600 mx-auto mb-3' />
-              <p className='text-gray-400 text-sm'>Nenhuma comissão registrada ainda.</p>
-              <p className='text-xs text-gray-500 mt-1'>
-                As comissões são registradas quando um trade OTC é enviado para contabilidade.
-              </p>
+            <div className='text-center py-4'>
+              <Receipt className='h-6 w-6 text-gray-600 mx-auto mb-2' />
+              <p className='text-gray-400 text-xs'>Nenhuma comissão registrada.</p>
             </div>
           )}
 
           {/* Pagination */}
           {accountingPagination.pages > 1 && (
-            <div className='flex justify-center items-center gap-2 mt-3 pt-3 border-t border-gray-700'>
+            <div className='flex justify-center items-center gap-1 mt-2 pt-2 border-t border-gray-700/50'>
               <button
                 onClick={() => setAccountingPage(p => Math.max(1, p - 1))}
                 disabled={accountingPage === 1}
-                className='p-1.5 bg-gray-800 rounded disabled:opacity-50 hover:bg-gray-700 transition-colors'
+                className='p-1 bg-gray-800/50 rounded disabled:opacity-50 hover:bg-gray-700 transition-colors'
                 title='Página anterior'
               >
-                <ChevronLeft className='h-4 w-4 text-gray-400' />
+                <ChevronLeft className='h-3 w-3 text-gray-400' />
               </button>
-              <span className='px-3 py-1 text-gray-400 text-xs'>
-                Página {accountingPage} de {accountingPagination.pages}
+              <span className='px-2 text-gray-500 text-[10px]'>
+                {accountingPage}/{accountingPagination.pages}
               </span>
               <button
                 onClick={() => setAccountingPage(p => Math.min(accountingPagination.pages, p + 1))}
                 disabled={accountingPage === accountingPagination.pages}
-                className='p-1.5 bg-gray-800 rounded disabled:opacity-50 hover:bg-gray-700 transition-colors'
+                className='p-1 bg-gray-800/50 rounded disabled:opacity-50 hover:bg-gray-700 transition-colors'
                 title='Próxima página'
               >
-                <ChevronRight className='h-4 w-4 text-gray-400' />
+                <ChevronRight className='h-3 w-3 text-gray-400' />
               </button>
             </div>
           )}

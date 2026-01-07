@@ -117,6 +117,26 @@ export const AdminSystemWalletPage: React.FC = () => {
   const [isExporting, setIsExporting] = useState(false)
   const [showPrivateKey, setShowPrivateKey] = useState(false)
   const [copiedPrivateKey, setCopiedPrivateKey] = useState(false)
+  const [isRefreshingBalances, setIsRefreshingBalances] = useState(false)
+
+  // Função para atualizar saldos da blockchain
+  const handleRefreshBalances = async () => {
+    try {
+      setIsRefreshingBalances(true)
+      const response = await apiClient.post('/admin/system-blockchain-wallet/refresh-balances')
+      if (response.data.success) {
+        toast.success('Saldos atualizados com sucesso!')
+        refetch() // Recarrega os dados
+      } else {
+        throw new Error(response.data.message || 'Erro ao atualizar saldos')
+      }
+    } catch (error: any) {
+      console.error('Erro ao atualizar saldos:', error)
+      toast.error(error.response?.data?.detail || error.message || 'Erro ao atualizar saldos')
+    } finally {
+      setIsRefreshingBalances(false)
+    }
+  }
 
   // Atualiza o step quando wallet status muda
   useEffect(() => {
@@ -383,72 +403,124 @@ HOLD Wallet - Sistema de Taxas e Comissões
           {/* Stats Cards */}
           <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4'>
             {/* Card: Redes Ativas */}
-            <div className='bg-gradient-to-br from-blue-900/30 to-blue-800/20 border border-blue-700/30 rounded-xl p-5'>
-              <div className='flex items-center gap-3'>
-                <div className='p-3 bg-blue-500/20 rounded-lg'>
-                  <NetworkIcon className='w-6 h-6 text-blue-400' />
+            <div className='bg-gradient-to-br from-blue-900/30 to-blue-800/20 border border-blue-700/30 rounded-xl p-4 hover:border-blue-600/50 transition-all'>
+              <div className='flex items-center justify-between'>
+                <div className='p-2.5 bg-blue-500/20 rounded-lg'>
+                  <NetworkIcon className='w-5 h-5 text-blue-400' />
                 </div>
-                <div>
-                  <p className='text-sm text-gray-400'>Redes Ativas</p>
-                  <p className='text-2xl font-bold text-white'>
-                    {walletStatus.networks_count || 16}
-                  </p>
-                </div>
+                <p className='text-2xl font-bold text-white'>{walletStatus.networks_count || 16}</p>
               </div>
-              <p className='text-xs text-gray-500 mt-3'>Blockchains configuradas</p>
+              <p className='text-sm text-gray-400 mt-3'>Redes Ativas</p>
+              <p className='text-xs text-gray-500'>Blockchains configuradas</p>
             </div>
 
-            {/* Card: Total USDT */}
-            <div className='bg-gradient-to-br from-green-900/30 to-green-800/20 border border-green-700/30 rounded-xl p-5'>
-              <div className='flex items-center gap-3'>
-                <div className='p-3 bg-green-500/20 rounded-lg'>
-                  <DollarSignIcon className='w-6 h-6 text-green-400' />
+            {/* Card: Total Stablecoins */}
+            <div className='bg-gradient-to-br from-green-900/30 to-green-800/20 border border-green-700/30 rounded-xl p-4 hover:border-green-600/50 transition-all'>
+              <div className='flex items-center justify-between'>
+                <p className='text-sm text-gray-400'>Stablecoins</p>
+                <p className='text-xl font-bold text-green-400'>
+                  $
+                  {(
+                    (walletStatus.cached_balances?.USDT || 0) +
+                    (walletStatus.cached_balances?.USDC || 0)
+                  ).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+              </div>
+              <div className='flex items-center gap-4 mt-3'>
+                <div className='flex items-center gap-2 bg-black/20 px-2 py-1 rounded-lg'>
+                  <img
+                    src='https://cryptologos.cc/logos/tether-usdt-logo.png'
+                    alt='USDT'
+                    className='w-4 h-4'
+                  />
+                  <span className='text-xs text-gray-300 font-medium'>
+                    ${(walletStatus.cached_balances?.USDT || 0).toFixed(2)}
+                  </span>
                 </div>
-                <div>
-                  <p className='text-sm text-gray-400'>Total USDT</p>
-                  <p className='text-2xl font-bold text-white'>
-                    $
-                    {(walletStatus.cached_balances?.USDT || 0).toLocaleString('en-US', {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
-                  </p>
+                <div className='flex items-center gap-2 bg-black/20 px-2 py-1 rounded-lg'>
+                  <img
+                    src='https://cryptologos.cc/logos/usd-coin-usdc-logo.png'
+                    alt='USDC'
+                    className='w-4 h-4'
+                  />
+                  <span className='text-xs text-gray-300 font-medium'>
+                    ${(walletStatus.cached_balances?.USDC || 0).toFixed(2)}
+                  </span>
                 </div>
               </div>
-              <p className='text-xs text-gray-500 mt-3'>Em stablecoins</p>
             </div>
 
-            {/* Card: ETH + MATIC */}
-            <div className='bg-gradient-to-br from-purple-900/30 to-purple-800/20 border border-purple-700/30 rounded-xl p-5'>
-              <div className='flex items-center gap-3'>
-                <div className='p-3 bg-purple-500/20 rounded-lg'>
-                  <CoinsIcon className='w-6 h-6 text-purple-400' />
-                </div>
-                <div>
-                  <p className='text-sm text-gray-400'>ETH + MATIC</p>
-                  <p className='text-2xl font-bold text-white'>
+            {/* Card: Gas Fees (Nativos) */}
+            <div className='bg-gradient-to-br from-purple-900/30 to-purple-800/20 border border-purple-700/30 rounded-xl p-4 hover:border-purple-600/50 transition-all'>
+              <p className='text-sm text-gray-400 mb-3'>Gas Fees</p>
+              <div className='space-y-2'>
+                <div className='flex items-center justify-between bg-black/20 px-2 py-1.5 rounded-lg'>
+                  <div className='flex items-center gap-2'>
+                    <img
+                      src='https://cryptologos.cc/logos/ethereum-eth-logo.png'
+                      alt='ETH'
+                      className='w-4 h-4'
+                    />
+                    <span className='text-xs text-gray-400'>ETH</span>
+                  </div>
+                  <span className='text-xs text-white font-medium'>
                     {(
-                      (walletStatus.cached_balances?.ETH || 0) +
-                      (walletStatus.cached_balances?.MATIC || 0)
+                      walletStatus.cached_balances?.ETHEREUM ||
+                      walletStatus.cached_balances?.ETH ||
+                      0
                     ).toFixed(4)}
-                  </p>
+                  </span>
+                </div>
+                <div className='flex items-center justify-between bg-black/20 px-2 py-1.5 rounded-lg'>
+                  <div className='flex items-center gap-2'>
+                    <img
+                      src='https://cryptologos.cc/logos/polygon-matic-logo.png'
+                      alt='MATIC'
+                      className='w-4 h-4'
+                    />
+                    <span className='text-xs text-gray-400'>MATIC</span>
+                  </div>
+                  <span className='text-xs text-white font-medium'>
+                    {(
+                      walletStatus.cached_balances?.POLYGON ||
+                      walletStatus.cached_balances?.MATIC ||
+                      0
+                    ).toFixed(4)}
+                  </span>
+                </div>
+                <div className='flex items-center justify-between bg-black/20 px-2 py-1.5 rounded-lg'>
+                  <div className='flex items-center gap-2'>
+                    <img
+                      src='https://cryptologos.cc/logos/bnb-bnb-logo.png'
+                      alt='BNB'
+                      className='w-4 h-4'
+                    />
+                    <span className='text-xs text-gray-400'>BNB</span>
+                  </div>
+                  <span className='text-xs text-white font-medium'>
+                    {(
+                      walletStatus.cached_balances?.BSC ||
+                      walletStatus.cached_balances?.BNB ||
+                      0
+                    ).toFixed(4)}
+                  </span>
                 </div>
               </div>
-              <p className='text-xs text-gray-500 mt-3'>Para gas fees</p>
             </div>
 
             {/* Card: Status */}
-            <div className='bg-gradient-to-br from-orange-900/30 to-orange-800/20 border border-orange-700/30 rounded-xl p-5'>
-              <div className='flex items-center gap-3'>
-                <div className='p-3 bg-orange-500/20 rounded-lg'>
-                  <ActivityIcon className='w-6 h-6 text-orange-400' />
+            <div className='bg-gradient-to-br from-emerald-900/30 to-emerald-800/20 border border-emerald-700/30 rounded-xl p-4 hover:border-emerald-600/50 transition-all'>
+              <div className='flex items-center justify-between'>
+                <div className='p-2.5 bg-emerald-500/20 rounded-lg'>
+                  <ActivityIcon className='w-5 h-5 text-emerald-400' />
                 </div>
-                <div>
-                  <p className='text-sm text-gray-400'>Status</p>
-                  <p className='text-2xl font-bold text-green-400'>Ativa</p>
+                <div className='flex items-center gap-2'>
+                  <span className='w-2 h-2 bg-emerald-500 rounded-full animate-pulse' />
+                  <span className='text-lg font-bold text-emerald-400'>Ativa</span>
                 </div>
               </div>
-              <p className='text-xs text-gray-500 mt-3'>100% operacional</p>
+              <p className='text-sm text-gray-400 mt-3'>Status do Sistema</p>
+              <p className='text-xs text-emerald-500/80'>100% operacional</p>
             </div>
           </div>
 
@@ -543,21 +615,53 @@ HOLD Wallet - Sistema de Taxas e Comissões
                           if (isStableA !== isStableB) return isStableB - isStableA
                           return b[1] - a[1]
                         })
-                        .map(([symbol, balance]) => (
-                          <div
-                            key={symbol}
-                            className='bg-gray-700/50 rounded-lg p-3 border border-gray-600/50'
-                          >
-                            <div className='text-xs text-gray-500 mb-1'>{symbol}</div>
-                            <div className='text-lg font-bold text-white'>
-                              {symbol.includes('USD') && '$'}
-                              {balance.toLocaleString('en-US', {
-                                minimumFractionDigits: symbol.includes('USD') ? 2 : 4,
-                                maximumFractionDigits: symbol.includes('USD') ? 2 : 6,
-                              })}
+                        .map(([symbol, balance]) => {
+                          const logoMap: Record<string, string> = {
+                            USDT: 'https://cryptologos.cc/logos/tether-usdt-logo.png',
+                            USDC: 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png',
+                            DAI: 'https://cryptologos.cc/logos/multi-collateral-dai-dai-logo.png',
+                            ETH: 'https://cryptologos.cc/logos/ethereum-eth-logo.png',
+                            ETHEREUM: 'https://cryptologos.cc/logos/ethereum-eth-logo.png',
+                            MATIC: 'https://cryptologos.cc/logos/polygon-matic-logo.png',
+                            POLYGON: 'https://cryptologos.cc/logos/polygon-matic-logo.png',
+                            BNB: 'https://cryptologos.cc/logos/bnb-bnb-logo.png',
+                            BSC: 'https://cryptologos.cc/logos/bnb-bnb-logo.png',
+                            BTC: 'https://cryptologos.cc/logos/bitcoin-btc-logo.png',
+                            BITCOIN: 'https://cryptologos.cc/logos/bitcoin-btc-logo.png',
+                            SOL: 'https://cryptologos.cc/logos/solana-sol-logo.png',
+                            SOLANA: 'https://cryptologos.cc/logos/solana-sol-logo.png',
+                            AVAX: 'https://cryptologos.cc/logos/avalanche-avax-logo.png',
+                            AVALANCHE: 'https://cryptologos.cc/logos/avalanche-avax-logo.png',
+                            TRX: 'https://cryptologos.cc/logos/tron-trx-logo.png',
+                            TRON: 'https://cryptologos.cc/logos/tron-trx-logo.png',
+                            LTC: 'https://cryptologos.cc/logos/litecoin-ltc-logo.png',
+                            LITECOIN: 'https://cryptologos.cc/logos/litecoin-ltc-logo.png',
+                            DOGE: 'https://cryptologos.cc/logos/dogecoin-doge-logo.png',
+                            DOGECOIN: 'https://cryptologos.cc/logos/dogecoin-doge-logo.png',
+                            XRP: 'https://cryptologos.cc/logos/xrp-xrp-logo.png',
+                            BASE: 'https://cryptologos.cc/logos/ethereum-eth-logo.png',
+                            ARBITRUM: 'https://cryptologos.cc/logos/arbitrum-arb-logo.png',
+                          }
+                          const logo = logoMap[symbol.toUpperCase()]
+                          return (
+                            <div
+                              key={symbol}
+                              className='bg-gray-700/50 rounded-lg p-3 border border-gray-600/50 hover:border-gray-500/50 transition-all'
+                            >
+                              <div className='flex items-center gap-2 mb-1'>
+                                {logo && <img src={logo} alt={symbol} className='w-5 h-5' />}
+                                <span className='text-xs text-gray-400'>{symbol}</span>
+                              </div>
+                              <div className='text-lg font-bold text-white'>
+                                {symbol.includes('USD') && '$'}
+                                {balance.toLocaleString('en-US', {
+                                  minimumFractionDigits: symbol.includes('USD') ? 2 : 4,
+                                  maximumFractionDigits: symbol.includes('USD') ? 2 : 4,
+                                })}
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          )
+                        })}
                     </div>
                   </div>
                 )}
@@ -633,15 +737,18 @@ HOLD Wallet - Sistema de Taxas e Comissões
                   </button>
 
                   <button
-                    onClick={() => navigate('/admin/wallets')}
-                    className='w-full flex items-center gap-3 p-4 bg-purple-600 hover:bg-purple-700 text-white rounded-xl transition-colors'
+                    onClick={handleRefreshBalances}
+                    disabled={isRefreshingBalances}
+                    className='w-full flex items-center gap-3 p-4 bg-purple-600 hover:bg-purple-700 text-white rounded-xl transition-colors disabled:opacity-50'
                   >
-                    <RefreshCwIcon className='w-5 h-5' />
+                    <RefreshCwIcon
+                      className={`w-5 h-5 ${isRefreshingBalances ? 'animate-spin' : ''}`}
+                    />
                     <div className='text-left'>
                       <div className='font-semibold'>Sincronizar Saldos</div>
                       <div className='text-xs text-purple-200'>Atualizar blockchain</div>
                     </div>
-                    <ExternalLinkIcon className='w-4 h-4 ml-auto' />
+                    {!isRefreshingBalances && <ExternalLinkIcon className='w-4 h-4 ml-auto' />}
                   </button>
 
                   <button

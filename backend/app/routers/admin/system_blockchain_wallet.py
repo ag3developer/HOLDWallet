@@ -227,6 +227,7 @@ async def get_wallet_status(
     📊 Status geral da carteira do sistema.
     
     Retorna informações sobre a carteira e saldos agregados.
+    Inclui saldos de tokens ERC-20 (USDT, USDC, DAI).
     """
     try:
         wallet = db.query(SystemBlockchainWallet).filter(
@@ -255,13 +256,28 @@ async def get_wallet_status(
             SystemBlockchainAddress.wallet_id == wallet.id
         ).count()
         
-        # Somar saldos por crypto
+        # Somar saldos por crypto (nativos)
         balances = {}
+        total_usdt = 0.0
+        total_usdc = 0.0
+        total_dai = 0.0
+        
         for addr in addresses:
             crypto = addr.network.upper()
             if crypto not in balances:
                 balances[crypto] = 0.0
             balances[crypto] += addr.cached_balance or 0.0
+            
+            # Somar tokens ERC-20
+            total_usdt += addr.cached_usdt_balance or 0.0
+            total_usdc += addr.cached_usdc_balance or 0.0
+            total_dai += addr.cached_dai_balance or 0.0
+        
+        # Adicionar totais de stablecoins ao dict de saldos
+        balances["USDT"] = total_usdt
+        balances["USDC"] = total_usdc
+        if total_dai > 0:
+            balances["DAI"] = total_dai
         
         return {
             "success": True,
@@ -295,10 +311,8 @@ async def refresh_balances(
     🔄 Atualizar saldos das carteiras consultando as blockchains em tempo real.
     
     Consulta APIs públicas para obter saldos atualizados:
-    - Ethereum/EVM: Etherscan, Polygonscan, BscScan
-    - Bitcoin: Blockstream API
-    - Solana: Solana RPC
-    - Tron: TronGrid
+    - Saldos nativos (ETH, MATIC, BNB, etc.)
+    - Tokens ERC-20: USDT, USDC, DAI
     """
     try:
         from app.services.blockchain_balance_service import blockchain_balance_service
@@ -321,27 +335,79 @@ async def refresh_balances(
             SystemBlockchainAddress.is_active == True
         ).all()
         
-        # Criar mapa de endereços por rede
-        address_map = {addr.network: addr.address for addr in addresses}
+        # Redes EVM que suportam tokens
+        evm_networks = ["ethereum", "polygon", "bsc", "avalanche", "base", "arbitrum"]
         
-        # Consultar saldos em paralelo
+        # Criar mapa de endereços por rede (incluindo tokens)
+        address_map = {}
+        for addr in addresses:
+            # Adicionar rede nativa
+            address_map[addr.network] = addr.address
+            
+            # Se for EVM, adicionar consultas para USDT e USDC
+            if addr.network in evm_networks:
+                address_map[f"{addr.network}_usdt"] = addr.address
+                address_map[f"{addr.network}_usdc"] = addr.address
+        
+        # Consultar saldos em paralelo (nativos + tokens)
         balances = await blockchain_balance_service.get_all_balances(address_map)
         
-        # Atualizar saldos no banco
-        updated_count = 0
+        # Consolidar saldos por endereço
+        consolidated_balances = {}
         for addr in addresses:
-            if addr.network in balances:
-                balance_data = balances[addr.network]
-                addr.cached_balance = balance_data.get("balance", 0)
-                addr.cached_balance_updated_at = datetime.now()
-                updated_count += 1
+            network = addr.network
+            native_balance = 0
+            usdt_balance = 0
+            usdc_balance = 0
+            
+            # Saldo nativo
+            if network in balances:
+                native_data = balances[network]
+                native_balance = native_data.get("balance", 0) if native_data.get("success") else 0
+            
+            # Saldos de tokens (apenas EVM)
+            if network in evm_networks:
+                usdt_key = f"{network}_usdt"
+                usdc_key = f"{network}_usdc"
+                
+                if usdt_key in balances:
+                    usdt_data = balances[usdt_key]
+                    usdt_balance = usdt_data.get("balance", 0) if usdt_data.get("success") else 0
+                
+                if usdc_key in balances:
+                    usdc_data = balances[usdc_key]
+                    usdc_balance = usdc_data.get("balance", 0) if usdc_data.get("success") else 0
+            
+            # Atualizar no banco (saldos nativo e tokens)
+            addr.cached_balance = native_balance
+            addr.cached_usdt_balance = usdt_balance
+            addr.cached_usdc_balance = usdc_balance
+            addr.cached_balance_updated_at = datetime.now()
+            
+            # Guardar para resposta
+            consolidated_balances[network] = {
+                "native": native_balance,
+                "native_symbol": balances.get(network, {}).get("symbol", network.upper()),
+                "usdt": usdt_balance,
+                "usdc": usdc_balance,
+                "total_stables_usd": usdt_balance + usdc_balance
+            }
         
         db.commit()
         
+        # Calcular totais para a resposta
+        total_usdt = sum(b.get("usdt", 0) for b in consolidated_balances.values())
+        total_usdc = sum(b.get("usdc", 0) for b in consolidated_balances.values())
+        
         return {
             "success": True,
-            "message": f"Saldos atualizados para {updated_count} endereços",
-            "balances": balances,
+            "message": f"Saldos atualizados para {len(addresses)} endereços",
+            "balances_by_network": consolidated_balances,
+            "totals": {
+                "USDT": total_usdt,
+                "USDC": total_usdc,
+                "total_stables": total_usdt + total_usdc
+            },
             "updated_at": datetime.now().isoformat()
         }
         

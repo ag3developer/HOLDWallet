@@ -103,9 +103,14 @@ class SystemBlockchainAddress(Base):
     derivation_path = Column(String(100), nullable=True)  # m/44'/60'/0'/0/0
     
     # Saldos (cache, atualizado periodicamente)
-    cached_balance = Column(Float, default=0.0)
+    cached_balance = Column(Float, default=0.0)  # Saldo nativo (ETH, MATIC, BNB, etc.)
     cached_balance_usd = Column(Float, default=0.0)  # Valor em USD
     cached_balance_updated_at = Column(DateTime, nullable=True)
+    
+    # Saldos de tokens ERC-20 (cache)
+    cached_usdt_balance = Column(Float, default=0.0)  # USDT na rede
+    cached_usdc_balance = Column(Float, default=0.0)  # USDC na rede
+    cached_dai_balance = Column(Float, default=0.0)   # DAI na rede
     
     # Status
     is_active = Column(Boolean, default=True, nullable=False)

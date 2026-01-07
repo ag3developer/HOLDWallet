@@ -26,12 +26,7 @@ async def get_fee_summary(
 ):
     """
     Get summary of all fees collected by the platform
-    
-    Returns:
-    - Total fees collected (BRL)
-    - Breakdown by fee type (p2p_commission, otc_spread, network_fee)
-    - Number of fee transactions
-    - Average fee per transaction
+    Uses accounting_entries for OTC fees and fee_history for P2P fees
     """
     try:
         # Calculate date filter
@@ -48,82 +43,73 @@ async def get_fee_summary(
             elif period == "year":
                 start_date = datetime.now() - timedelta(days=365)
             else:
-                start_date = datetime.now() - timedelta(days=30)  # Default to month
+                start_date = datetime.now() - timedelta(days=30)
             
             date_filter = "WHERE created_at >= :start_date"
             params["start_date"] = start_date.strftime("%Y-%m-%d %H:%M:%S")
         
-        # Get total fees summary
-        summary_query = text(f"""
+        # Get OTC fees from accounting_entries (real data)
+        otc_query = text(f"""
             SELECT 
-                COALESCE(SUM(fee_amount_brl), 0) as total_fees_brl,
+                COALESCE(SUM(amount), 0) as total_fees,
                 COALESCE(COUNT(*), 0) as total_transactions,
-                COALESCE(AVG(fee_amount_brl), 0) as avg_fee_brl,
-                COALESCE(SUM(gross_amount), 0) as total_volume_processed
-            FROM fee_history
+                COALESCE(AVG(amount), 0) as avg_fee
+            FROM accounting_entries
             {date_filter}
         """)
+        otc_summary = db.execute(otc_query, params).fetchone()
         
-        summary = db.execute(summary_query, params).fetchone()
-        
-        # Get breakdown by fee type
+        # Get breakdown by entry type from accounting_entries
         breakdown_query = text(f"""
             SELECT 
-                trade_type,
-                COALESCE(SUM(fee_amount_brl), 0) as total_fees,
+                entry_type as fee_type,
+                COALESCE(SUM(amount), 0) as total_fees,
                 COALESCE(COUNT(*), 0) as transaction_count,
-                COALESCE(AVG(fee_percentage), 0) as avg_percentage
-            FROM fee_history
+                COALESCE(AVG(percentage), 0) as avg_percentage
+            FROM accounting_entries
             {date_filter}
-            GROUP BY trade_type
+            GROUP BY entry_type
             ORDER BY total_fees DESC
         """)
-        
         breakdown_results = db.execute(breakdown_query, params).fetchall()
         
         breakdown = [
             {
-                "fee_type": row.trade_type,
-                "total_fees": float(row.total_fees),
+                "fee_type": row.fee_type,
+                "total_fees": round(float(row.total_fees), 2),
                 "transaction_count": int(row.transaction_count),
-                "avg_percentage": float(row.avg_percentage)
+                "avg_percentage": round(float(row.avg_percentage), 2)
             }
             for row in breakdown_results
         ]
         
-        # Get system wallet balance
-        wallet_query = text("SELECT * FROM system_wallets WHERE id = 'main-system-wallet'")
-        wallet = db.execute(wallet_query).fetchone()
-        
-        system_wallet_balance = {}
-        if wallet:
-            system_wallet_balance = {
-                "brl_balance": float(wallet.brl_balance or 0),
-                "btc_balance": float(wallet.btc_balance or 0),
-                "eth_balance": float(wallet.eth_balance or 0),
-                "usdt_balance": float(wallet.usdt_balance or 0),
-                "usdc_balance": float(wallet.usdc_balance or 0),
-                "sol_balance": float(wallet.sol_balance or 0),
-                "total_fees_collected_brl": float(wallet.total_fees_collected_brl or 0)
-            }
+        # Get instant trades volume (completed trades)
+        volume_query = text(f"""
+            SELECT COALESCE(SUM(brl_amount), 0) as total_volume
+            FROM instant_trades
+            WHERE status = 'COMPLETED'
+            {date_filter.replace('WHERE', 'AND') if date_filter else ''}
+        """)
+        volume_result = db.execute(volume_query, params).fetchone()
+        total_volume = float(volume_result.total_volume) if volume_result else 0
         
         return {
             "success": True,
             "data": {
                 "period": period,
                 "summary": {
-                    "total_fees_brl": float(summary.total_fees_brl) if summary else 0,
-                    "total_transactions": int(summary.total_transactions) if summary else 0,
-                    "avg_fee_brl": round(float(summary.avg_fee_brl), 2) if summary else 0,
-                    "total_volume_processed": float(summary.total_volume_processed) if summary else 0
+                    "total_fees_brl": round(float(otc_summary.total_fees), 2) if otc_summary else 0,
+                    "total_transactions": int(otc_summary.total_transactions) if otc_summary else 0,
+                    "avg_fee_brl": round(float(otc_summary.avg_fee), 2) if otc_summary else 0,
+                    "total_volume_processed": round(total_volume, 2)
                 },
-                "breakdown_by_type": breakdown,
-                "system_wallet": system_wallet_balance
+                "breakdown_by_type": breakdown
             }
         }
     except Exception as e:
         print(f"[ERROR] Failed to get fee summary: {str(e)}")
-        # Return empty data if tables don't exist yet
+        import traceback
+        traceback.print_exc()
         return {
             "success": True,
             "data": {
@@ -135,8 +121,7 @@ async def get_fee_summary(
                     "total_volume_processed": 0
                 },
                 "breakdown_by_type": [],
-                "system_wallet": {},
-                "note": "Fee tables may not exist yet. Run migrations to create them."
+                "note": f"Error: {str(e)}"
             }
         }
 
@@ -153,18 +138,15 @@ async def get_fee_history(
 ):
     """
     Get detailed fee history with pagination and filters
+    Uses accounting_entries for OTC fees (real data)
     """
     try:
         conditions = []
         params = {}
         
         if fee_type:
-            conditions.append("trade_type = :fee_type")
+            conditions.append("entry_type = :fee_type")
             params["fee_type"] = fee_type
-        
-        if cryptocurrency:
-            conditions.append("cryptocurrency = :cryptocurrency")
-            params["cryptocurrency"] = cryptocurrency.upper()
         
         if start_date:
             conditions.append("created_at >= :start_date")
@@ -177,20 +159,34 @@ async def get_fee_history(
         where_clause = "WHERE " + " AND ".join(conditions) if conditions else ""
         offset = (page - 1) * limit
         
-        # Get total count
-        count_query = text(f"SELECT COUNT(*) as total FROM fee_history {where_clause}")
-        total = db.execute(count_query, params).fetchone().total
+        # Get total count from accounting_entries
+        count_query = text(f"SELECT COUNT(*) as total FROM accounting_entries {where_clause}")
+        count_result = db.execute(count_query, params).fetchone()
+        total = count_result.total if count_result else 0
         
-        # Get fee history
+        # Get fee history from accounting_entries with trade info
         history_query = text(f"""
             SELECT 
-                fh.*,
-                pt.cryptocurrency as trade_crypto,
-                pt.amount as trade_amount
-            FROM fee_history fh
-            LEFT JOIN p2p_trades pt ON fh.trade_id = pt.id
+                ae.id,
+                ae.trade_id,
+                ae.entry_type as fee_type,
+                ae.amount,
+                ae.currency,
+                ae.percentage,
+                ae.base_amount,
+                ae.description,
+                ae.status,
+                ae.user_id,
+                ae.created_at,
+                it.symbol as cryptocurrency,
+                it.operation_type,
+                it.brl_amount as gross_amount,
+                u.email as user_email
+            FROM accounting_entries ae
+            LEFT JOIN instant_trades it ON ae.trade_id = it.id
+            LEFT JOIN users u ON ae.user_id::uuid = u.id
             {where_clause}
-            ORDER BY fh.created_at DESC
+            ORDER BY ae.created_at DESC
             LIMIT :limit OFFSET :offset
         """)
         
@@ -201,19 +197,21 @@ async def get_fee_history(
         
         fees = [
             {
-                "id": row.id,
-                "trade_id": row.trade_id,
-                "fee_type": row.trade_type,
-                "cryptocurrency": row.cryptocurrency,
-                "fiat_currency": row.fiat_currency,
-                "gross_amount": float(row.gross_amount),
-                "fee_percentage": float(row.fee_percentage),
-                "fee_amount": float(row.fee_amount),
-                "net_amount": float(row.net_amount),
-                "fee_amount_brl": float(row.fee_amount_brl) if row.fee_amount_brl else None,
-                "payer_user_id": row.payer_user_id,
-                "status": row.status,
-                "created_at": str(row.created_at)
+                "id": str(row.id),
+                "trade_id": str(row.trade_id) if row.trade_id else None,
+                "fee_type": row.fee_type,
+                "cryptocurrency": row.cryptocurrency or "USDT",
+                "fiat_currency": "BRL",
+                "gross_amount": float(row.gross_amount) if row.gross_amount else 0,
+                "fee_percentage": float(row.percentage) if row.percentage else 0,
+                "fee_amount": float(row.amount) if row.amount else 0,
+                "net_amount": float(row.base_amount) if row.base_amount else 0,
+                "fee_amount_brl": float(row.amount) if row.amount else 0,
+                "payer_user_id": str(row.user_id) if row.user_id else None,
+                "user_email": row.user_email,
+                "status": row.status or "collected",
+                "description": row.description,
+                "created_at": str(row.created_at) if row.created_at else None
             }
             for row in results
         ]
@@ -230,6 +228,8 @@ async def get_fee_history(
         }
     except Exception as e:
         print(f"[ERROR] Failed to get fee history: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return {
             "success": True,
             "data": [],
@@ -239,7 +239,7 @@ async def get_fee_history(
                 "total": 0,
                 "pages": 0
             },
-            "note": "Fee tables may not exist yet."
+            "note": f"Error: {str(e)}"
         }
 
 
@@ -250,29 +250,43 @@ async def get_daily_revenue(
 ):
     """
     Get daily revenue chart data for the last N days
+    Uses accounting_entries for OTC fees
     """
     try:
+        start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+        
+        # Get daily revenue from accounting_entries
         query = text("""
             SELECT 
                 DATE(created_at) as date,
-                COALESCE(SUM(fee_amount_brl), 0) as daily_revenue,
-                COALESCE(COUNT(*), 0) as transaction_count,
-                COALESCE(SUM(gross_amount), 0) as daily_volume
-            FROM fee_history
+                COALESCE(SUM(amount), 0) as daily_revenue,
+                COALESCE(COUNT(*), 0) as transaction_count
+            FROM accounting_entries
             WHERE created_at >= :start_date
             GROUP BY DATE(created_at)
             ORDER BY date DESC
         """)
         
-        start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
         results = db.execute(query, {"start_date": start_date}).fetchall()
+        
+        # Get daily trade volume from instant_trades
+        volume_query = text("""
+            SELECT 
+                DATE(created_at) as date,
+                COALESCE(SUM(brl_amount), 0) as daily_volume
+            FROM instant_trades
+            WHERE created_at >= :start_date AND status = 'COMPLETED'
+            GROUP BY DATE(created_at)
+        """)
+        volume_results = db.execute(volume_query, {"start_date": start_date}).fetchall()
+        volume_map = {str(row.date): float(row.daily_volume) for row in volume_results}
         
         daily_data = [
             {
                 "date": str(row.date),
-                "revenue": float(row.daily_revenue),
+                "revenue": round(float(row.daily_revenue), 2),
                 "transactions": int(row.transaction_count),
-                "volume": float(row.daily_volume)
+                "volume": round(volume_map.get(str(row.date), 0), 2)
             }
             for row in results
         ]
@@ -309,7 +323,7 @@ async def get_daily_revenue(
                 },
                 "period_days": days
             },
-            "note": "Fee tables may not exist yet."
+            "note": f"Error: {str(e)}"
         }
 
 
@@ -446,123 +460,82 @@ async def get_system_wallet_balance(db: Session = Depends(get_db)):
     Get the current balance of the system blockchain wallet with ALL 16 supported currencies
     """
     try:
-        from app.core.config import settings
-        
-        # Get the system blockchain wallet
+        # Get the main system blockchain wallet
         wallet_query = text("""
             SELECT id, name, description, is_active, created_at, updated_at
             FROM system_blockchain_wallets 
-            WHERE id = :wallet_id
+            WHERE name = 'main_fees_wallet' AND is_active = true
+            LIMIT 1
         """)
-        wallet = db.execute(wallet_query, {"wallet_id": settings.SYSTEM_BLOCKCHAIN_WALLET_ID}).fetchone()
+        wallet = db.execute(wallet_query).fetchone()
         
         if not wallet:
             return {
                 "success": True,
                 "data": None,
-                "message": "System blockchain wallet not found. Please create it first."
+                "message": "Wallet not found"
             }
         
-        # Get all addresses with balances for all 16 networks
+        wallet_id = str(wallet.id)
+        
+        # Get all addresses with balances for all networks
         addresses_query = text("""
-            SELECT network, address, cached_balance, cached_balance_usd, last_balance_check
+            SELECT network, address, cached_balance, cached_balance_usd, 
+                   cached_usdt_balance, cached_usdc_balance, cached_balance_updated_at
             FROM system_blockchain_addresses 
-            WHERE wallet_id = :wallet_id
+            WHERE wallet_id = :wallet_id AND is_active = true
             ORDER BY network
         """)
-        addresses = db.execute(addresses_query, {"wallet_id": settings.SYSTEM_BLOCKCHAIN_WALLET_ID}).fetchall()
+        addresses = db.execute(addresses_query, {"wallet_id": wallet_id}).fetchall()
         
-        # Build balances object with all networks
+        # Build balances object
         balances = {}
-        balances_usd = {}
-        total_balance_usd = 0
-        
-        # Network to currency symbol mapping (incluindo stablecoins em múltiplas redes)
-        network_symbols = {
-            # Redes nativas
-            "avalanche": "AVAX",
-            "base": "ETH (Base)",
-            "bitcoin": "BTC",
-            "bsc": "BNB",
-            "cardano": "ADA",
-            "chainlink": "LINK",
-            "dogecoin": "DOGE",
-            "ethereum": "ETH",
-            "litecoin": "LTC",
-            "multi": "MULTI",
-            "polkadot": "DOT",
-            "polygon": "MATIC",
-            "shiba": "SHIB",
-            "solana": "SOL",
-            "tron": "TRX",
-            "xrp": "XRP",
-            # Stablecoins genéricas
-            "usdt": "USDT",
-            "usdc": "USDC",
-            # USDT em múltiplas redes
-            "ethereum_usdt": "USDT (ERC-20)",
-            "polygon_usdt": "USDT (Polygon)",
-            "bsc_usdt": "USDT (BEP-20)",
-            "tron_usdt": "USDT (TRC-20)",
-            "avalanche_usdt": "USDT (Avalanche)",
-            "base_usdt": "USDT (Base)",
-            # USDC em múltiplas redes
-            "ethereum_usdc": "USDC (ERC-20)",
-            "polygon_usdc": "USDC (Polygon)",
-            "bsc_usdc": "USDC (BEP-20)",
-            "avalanche_usdc": "USDC (Avalanche)",
-            "base_usdc": "USDC (Base)",
-            "solana_usdc": "USDC (Solana)"
-        }
+        total_native_usd = 0
+        total_usdt = 0
+        total_usdc = 0
         
         for addr in addresses:
-            network = addr.network
-            symbol = network_symbols.get(network, network.upper())
-            balances[symbol] = float(addr.cached_balance or 0)
-            balances_usd[symbol] = float(addr.cached_balance_usd or 0)
-            total_balance_usd += float(addr.cached_balance_usd or 0)
+            network = addr.network.upper()
+            balances[network] = float(addr.cached_balance or 0)
+            total_usdt += float(addr.cached_usdt_balance or 0)
+            total_usdc += float(addr.cached_usdc_balance or 0)
         
-        # Also get total fees collected from system_wallet_transactions
+        # Add stablecoin totals to balances
+        balances["USDT"] = total_usdt
+        balances["USDC"] = total_usdc
+        
+        # Get fees from accounting_entries (OTC commissions)
         fees_query = text("""
             SELECT 
-                COALESCE(SUM(CASE WHEN fee_type = 'p2p_commission' THEN amount_usd ELSE 0 END), 0) as p2p_fees,
-                COALESCE(SUM(CASE WHEN fee_type = 'otc_spread' THEN amount_usd ELSE 0 END), 0) as otc_spread_fees,
-                COALESCE(SUM(CASE WHEN fee_type = 'network_fee' THEN amount_usd ELSE 0 END), 0) as network_fees,
-                COALESCE(SUM(amount_usd), 0) as total_fees
-            FROM system_wallet_transactions
-            WHERE wallet_id = :wallet_id
+                COALESCE(SUM(CASE WHEN entry_type = 'spread' THEN amount ELSE 0 END), 0) as otc_spread,
+                COALESCE(SUM(CASE WHEN entry_type = 'network_fee' THEN amount ELSE 0 END), 0) as network_fee,
+                COALESCE(SUM(CASE WHEN entry_type = 'platform_fee' THEN amount ELSE 0 END), 0) as platform_fee,
+                COALESCE(SUM(amount), 0) as total_fees
+            FROM accounting_entries
         """)
-        fees = db.execute(fees_query, {"wallet_id": settings.SYSTEM_BLOCKCHAIN_WALLET_ID}).fetchone()
+        fees = db.execute(fees_query).fetchone()
         
-        # Handle fees data safely
         fees_data = {
-            "p2p_commission": 0.0,
-            "otc_spread": 0.0,
-            "network_fee": 0.0,
-            "total": 0.0
+            "otc_spread": round(float(fees.otc_spread or 0), 2) if fees else 0,
+            "network_fee": round(float(fees.network_fee or 0), 2) if fees else 0,
+            "platform_fee": round(float(fees.platform_fee or 0), 2) if fees else 0,
+            "total": round(float(fees.total_fees or 0), 2) if fees else 0
         }
-        if fees:
-            fees_data = {
-                "p2p_commission": round(float(fees.p2p_fees or 0), 2),
-                "otc_spread": round(float(fees.otc_spread_fees or 0), 2),
-                "network_fee": round(float(fees.network_fees or 0), 2),
-                "total": round(float(fees.total_fees or 0), 2)
-            }
         
         return {
             "success": True,
             "data": {
-                "id": str(wallet.id),
+                "id": wallet_id,
                 "name": wallet.name,
                 "description": wallet.description,
                 "balances": balances,
-                "balances_usd": balances_usd,
-                "total_balance_usd": round(total_balance_usd, 2),
+                "total_usdt": total_usdt,
+                "total_usdc": total_usdc,
+                "total_stables": total_usdt + total_usdc,
                 "fees_collected": fees_data,
-                "supported_networks": list(network_symbols.keys()),
                 "is_active": wallet.is_active,
-                "created_at": str(wallet.created_at),
-                "updated_at": str(wallet.updated_at)
+                "created_at": str(wallet.created_at) if wallet.created_at else None,
+                "updated_at": str(wallet.updated_at) if wallet.updated_at else None
             }
         }
     except Exception as e:
