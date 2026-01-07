@@ -45,6 +45,12 @@ class User(Base):
         primaryjoin="foreign(InstantTrade.user_id) == cast(User.id, String)"
     )
     
+    # Security relationships
+    login_attempts = relationship("LoginAttempt", back_populates="user", foreign_keys="[LoginAttempt.user_id]")
+    security_alerts = relationship("SecurityAlert", back_populates="user", foreign_keys="[SecurityAlert.user_id]")
+    sessions = relationship("UserSession", back_populates="user")
+    audit_logs = relationship("AuditLog", back_populates="user")
+    
     def __repr__(self):
         return f"<User(id={self.id}, username='{self.username}', email='{self.email}')>"
     

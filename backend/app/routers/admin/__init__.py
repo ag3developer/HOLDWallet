@@ -33,6 +33,7 @@ from .fees import router as fees_router
 from .system_blockchain_wallet import router as system_blockchain_wallet_router
 from .backup import router as backup_router
 from .notifications import router as notifications_router
+from .security import router as security_router
 
 # Create main admin router
 admin_router = APIRouter(prefix="/admin", tags=["Admin"])
@@ -51,6 +52,7 @@ admin_router.include_router(fees_router)
 admin_router.include_router(system_blockchain_wallet_router)
 admin_router.include_router(backup_router)
 admin_router.include_router(notifications_router)
+admin_router.include_router(security_router)
 
 __all__ = [
     "admin_router",
@@ -66,5 +68,6 @@ __all__ = [
     "fees_router",
     "system_blockchain_wallet_router",
     "backup_router",
-    "notifications_router"
+    "notifications_router",
+    "security_router"
 ]

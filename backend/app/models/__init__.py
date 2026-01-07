@@ -15,6 +15,7 @@ from .system_blockchain_wallet import (
 from .instant_trade import InstantTrade, InstantTradeHistory, TradeStatus, TradeOperationType
 from .accounting import AccountingEntry, AccountingReport, AccountingEntryType, AccountingEntryStatus
 from .platform_settings import PlatformSettings
+from .security import LoginAttempt, BlockedIP, SecurityAlert, UserSession, AuditLog
 
 # Import P2P models to ensure tables are created
 from . import p2p
@@ -26,6 +27,7 @@ from . import instant_trade
 from . import accounting
 from . import platform_settings
 from . import webauthn
+from . import security
 
 __all__ = [
     # Base
@@ -73,5 +75,12 @@ __all__ = [
     "AccountingEntryStatus",
     
     # Modules for table creation
-    "p2p", "chat", "reputation", "system_wallet", "system_blockchain_wallet", "instant_trade", "accounting"
+    "p2p", "chat", "reputation", "system_wallet", "system_blockchain_wallet", "instant_trade", "accounting",
+    
+    # Security & Audit
+    "LoginAttempt",
+    "BlockedIP",
+    "SecurityAlert",
+    "UserSession",
+    "AuditLog",
 ]

@@ -15,6 +15,9 @@ from app.services.cache_service import cache_service
 from app.services.cache_service import cache_service
 from app.services.platform_settings_service import platform_settings_service
 
+# Security middleware
+from app.middleware.security import SecurityMiddleware, RateLimitMiddleware
+
 # Routers
 from app.routers import auth, users, wallet, wallets, tx, prices, prices_batch, prices_batch_v2, health, blockchain, transactions, billing, portfolio, exchange, p2p, chat, chat_enterprise, reputation, dashboard, two_factor, tokens, wallet_transactions, instant_trade, trader_profiles, admin_instant_trades, webauthn, public_settings
 from app.routers.admin import admin_router
@@ -99,6 +102,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add security middleware (IP blocking and rate limiting)
+app.add_middleware(SecurityMiddleware)
+app.add_middleware(RateLimitMiddleware)
 
 # NÃO precisa mais de middleware de reescrita - rotas diretas agora!
 

@@ -9,6 +9,7 @@ from app.core.exceptions import AuthenticationError, ValidationError
 from app.models.user import User
 from app.schemas.auth import LoginRequest, LoginResponse, RegisterRequest, UserResponse, TokenData
 from app.services.user_activity_service import UserActivityService
+from app.services.security_service import SecurityService
 
 router = APIRouter()
 security = HTTPBearer()
@@ -22,13 +23,61 @@ async def login(
     """
     Authenticate user and return access token.
     """
+    ip_address = request.client.host if request.client else "unknown"
+    user_agent = request.headers.get("user-agent")
+    
+    # Check if IP is blocked
+    if SecurityService.is_ip_blocked(db, ip_address):
+        # Record blocked attempt
+        SecurityService.record_login_attempt(
+            db=db,
+            email=login_data.email,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            success=False,
+            failure_reason="ip_blocked"
+        )
+        raise AuthenticationError("Access denied. Please contact support.")
+    
     # Find user by email
     user = db.query(User).filter(User.email == login_data.email).first()
     
-    if not user or not verify_password(login_data.password, user.password_hash):
+    if not user:
+        # Record failed attempt - user not found
+        SecurityService.record_login_attempt(
+            db=db,
+            email=login_data.email,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            success=False,
+            failure_reason="user_not_found"
+        )
+        raise AuthenticationError("Invalid email or password")
+    
+    if not verify_password(login_data.password, user.password_hash):
+        # Record failed attempt - wrong password
+        SecurityService.record_login_attempt(
+            db=db,
+            email=login_data.email,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            success=False,
+            failure_reason="invalid_password",
+            user_id=str(user.id)
+        )
         raise AuthenticationError("Invalid email or password")
     
     if not user.is_active:
+        # Record failed attempt - inactive account
+        SecurityService.record_login_attempt(
+            db=db,
+            email=login_data.email,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            success=False,
+            failure_reason="account_inactive",
+            user_id=str(user.id)
+        )
         raise AuthenticationError("Account is inactive")
     
     # Create access token
@@ -41,17 +90,52 @@ async def login(
     user.last_login = datetime.utcnow()
     db.commit()
     
-    # Log login activity
+    # Record successful login
+    SecurityService.record_login_attempt(
+        db=db,
+        email=str(user.email),
+        ip_address=ip_address,
+        user_agent=user_agent,
+        success=True,
+        user_id=str(user.id)
+    )
+    
+    # Create user session
+    try:
+        SecurityService.create_session(
+            db=db,
+            user_id=str(user.id),
+            ip_address=ip_address,
+            user_agent=user_agent
+        )
+    except Exception as e:
+        # Don't fail login if session creation fails
+        print(f"Failed to create session: {e}")
+    
+    # Log audit
+    try:
+        SecurityService.log_audit(
+            db=db,
+            action="login",
+            user_id=str(user.id),
+            user_email=str(user.email),
+            description=f"User logged in from {ip_address}",
+            ip_address=ip_address,
+            user_agent=user_agent
+        )
+    except Exception as e:
+        print(f"Failed to log audit: {e}")
+    
+    # Log login activity (legacy)
     try:
         UserActivityService.log_login(
             db=db,
             user_id=user.id,
-            ip_address=request.client.host if request.client else None,
-            user_agent=request.headers.get("user-agent"),
+            ip_address=ip_address,
+            user_agent=user_agent,
             success=True
         )
     except Exception as e:
-        # Don't fail login if activity logging fails
         print(f"Failed to log login activity: {e}")
     
     return LoginResponse(
@@ -123,15 +207,39 @@ async def refresh_token(
 
 @router.post("/logout")
 async def logout(
-    current_user: User = Depends(get_current_user)
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """
     Logout user (mainly for client-side token cleanup).
     """
-    # In a production environment, you might want to:
-    # - Add token to blacklist
-    # - Update user's last_logout timestamp
-    # - Clear any session data
+    ip_address = request.client.host if request.client else "unknown"
+    user_agent = request.headers.get("user-agent")
+    
+    # Invalidate all sessions for this user (or just current one in production)
+    try:
+        SecurityService.invalidate_all_user_sessions(
+            db=db,
+            user_id=str(current_user.id),
+            reason="user_logout"
+        )
+    except Exception as e:
+        print(f"Failed to invalidate sessions: {e}")
+    
+    # Log audit
+    try:
+        SecurityService.log_audit(
+            db=db,
+            action="logout",
+            user_id=str(current_user.id),
+            user_email=str(current_user.email),
+            description="User logged out",
+            ip_address=ip_address,
+            user_agent=user_agent
+        )
+    except Exception as e:
+        print(f"Failed to log audit: {e}")
     
     return {"message": "Successfully logged out"}
 
