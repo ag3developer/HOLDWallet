@@ -44,6 +44,19 @@ export const SendPage = () => {
   const [biometricAvailable, setBiometricAvailable] = useState(false)
   const [biometricLoading, setBiometricLoading] = useState(false)
 
+  // Estado para detalhes da transação enviada (para tela de sucesso)
+  const [sentTransaction, setSentTransaction] = useState<{
+    txHash: string
+    fromAddress: string
+    toAddress: string
+    amount: string
+    token: string
+    network: string
+    transactionId: string
+    timestamp: Date
+    fee?: string
+  } | null>(null)
+
   // Check if biometric is available on mount
   useEffect(() => {
     const checkBiometric = async () => {
@@ -372,6 +385,51 @@ export const SendPage = () => {
       .catch(() => toast.error('Erro ao copiar'))
   }
 
+  // Gerar ID numérico único para suporte interno (baseado no hash)
+  const generateTransactionId = (hash: string): string => {
+    // Pegar os primeiros 8 caracteres hexadecimais do hash e converter para número
+    const hexPart = hash.replace('0x', '').substring(0, 8)
+    const numId = Number.parseInt(hexPart, 16) % 100000000 // Número de até 8 dígitos
+    return numId.toString().padStart(8, '0')
+  }
+
+  // Nome amigável da rede
+  const getNetworkDisplayName = (network: string): string => {
+    const names: Record<string, string> = {
+      polygon: 'Polygon',
+      ethereum: 'Ethereum',
+      bsc: 'BNB Smart Chain',
+      base: 'Base',
+      arbitrum: 'Arbitrum',
+      optimism: 'Optimism',
+      avalanche: 'Avalanche',
+      tron: 'TRON',
+      bitcoin: 'Bitcoin',
+      solana: 'Solana',
+    }
+    return names[network.toLowerCase()] || network.charAt(0).toUpperCase() + network.slice(1)
+  }
+
+  // URL do explorer para a transação
+  const getExplorerUrl = (network: string, hash: string): string => {
+    const explorers: Record<string, string> = {
+      polygon: `https://polygonscan.com/tx/${hash}`,
+      ethereum: `https://etherscan.io/tx/${hash}`,
+      bsc: `https://bscscan.com/tx/${hash}`,
+      base: `https://basescan.org/tx/${hash}`,
+      arbitrum: `https://arbiscan.io/tx/${hash}`,
+      optimism: `https://optimistic.etherscan.io/tx/${hash}`,
+      avalanche: `https://snowtrace.io/tx/${hash}`,
+    }
+    return explorers[network.toLowerCase()] || ''
+  }
+
+  // Truncar endereço para exibição
+  const truncateAddress = (address: string, chars: number = 6): string => {
+    if (!address) return ''
+    return `${address.substring(0, chars + 2)}...${address.substring(address.length - chars)}`
+  }
+
   const validateForm = (): boolean => {
     if (!toAddress.trim()) {
       setError('Endereço obrigatório')
@@ -517,6 +575,21 @@ export const SendPage = () => {
       )
 
       console.log('✅ Transação concluída:', result)
+
+      // Guardar detalhes completos da transação para exibição
+      const tokenData = getSelectedTokenData()
+      setSentTransaction({
+        txHash: result.txHash,
+        fromAddress: tokenData?.address || '',
+        toAddress: pendingTransaction.to_address,
+        amount: pendingTransaction.amount,
+        token: pendingTransaction.token_symbol,
+        network: pendingTransaction.network,
+        transactionId: generateTransactionId(result.txHash),
+        timestamp: new Date(),
+        fee: pendingTransaction.feeEstimate?.fee_usd || undefined,
+      })
+
       setTxHash(result.txHash)
       setShowSuccess(true)
       toast.success('Transação enviada com sucesso!')
@@ -560,6 +633,21 @@ export const SendPage = () => {
         )
 
         console.log('✅ Transação concluída:', result)
+
+        // Guardar detalhes completos da transação para exibição
+        const tokenData = getSelectedTokenData()
+        setSentTransaction({
+          txHash: result.txHash,
+          fromAddress: tokenData?.address || '',
+          toAddress: pendingTransaction.to_address,
+          amount: pendingTransaction.amount,
+          token: pendingTransaction.token_symbol,
+          network: pendingTransaction.network,
+          transactionId: generateTransactionId(result.txHash),
+          timestamp: new Date(),
+          fee: pendingTransaction.feeEstimate?.fee_usd || undefined,
+        })
+
         setTxHash(result.txHash)
         setShowSuccess(true)
         toast.success('Transação enviada com sucesso!')
@@ -606,6 +694,7 @@ export const SendPage = () => {
     setError(null)
     setTxHash('')
     setShowSuccess(false)
+    setSentTransaction(null)
   }
 
   if (walletsWithAddresses.length === 0) {
@@ -619,39 +708,163 @@ export const SendPage = () => {
 
   if (showSuccess) {
     return (
-      <div className='text-center space-y-6 py-8'>
-        <div className='flex justify-center'>
-          <div className='w-16 h-16 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center'>
-            <CheckCircle className='w-8 h-8 text-green-500' />
+      <div className='space-y-6 py-6'>
+        {/* Success Header */}
+        <div className='text-center'>
+          <div className='flex justify-center mb-4'>
+            <div className='w-20 h-20 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center'>
+              <CheckCircle className='w-10 h-10 text-green-500' />
+            </div>
           </div>
+          <h3 className='text-2xl font-bold text-gray-900 dark:text-white'>Enviado com Sucesso!</h3>
+          <p className='text-gray-500 dark:text-gray-400 text-sm mt-1'>
+            Sua transação foi enviada para a blockchain
+          </p>
         </div>
 
-        <div>
-          <h3 className='text-2xl font-bold text-gray-900 dark:text-white'>Enviado!</h3>
-          <p className='text-gray-600 dark:text-gray-400 text-sm mt-2'>Transação confirmada</p>
-        </div>
-
-        {txHash && (
-          <div className='bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700'>
-            <p className='text-xs text-gray-600 dark:text-gray-400 mb-2'>Hash:</p>
-            <div className='flex items-center gap-2'>
-              <p className='font-mono text-xs text-gray-900 dark:text-white flex-1 truncate'>
-                {txHash}
-              </p>
+        {/* Transaction ID for Support */}
+        {sentTransaction && (
+          <div className='bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4'>
+            <div className='flex items-center justify-between'>
+              <div>
+                <p className='text-xs text-blue-600 dark:text-blue-400 font-medium'>
+                  ID da Transação (Suporte)
+                </p>
+                <p className='text-2xl font-bold text-blue-700 dark:text-blue-300 font-mono'>
+                  #{sentTransaction.transactionId}
+                </p>
+              </div>
               <button
-                onClick={() => copyToClipboard(txHash)}
-                className='p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors'
+                onClick={() => copyToClipboard(sentTransaction.transactionId)}
+                className='p-2 hover:bg-blue-100 dark:hover:bg-blue-800 rounded-lg transition-colors'
+                title='Copiar ID'
               >
-                <Copy className='w-4 h-4 text-gray-600 dark:text-gray-400' />
+                <Copy className='w-5 h-5 text-blue-600 dark:text-blue-400' />
               </button>
             </div>
           </div>
         )}
 
-        <div className='flex gap-3'>
+        {/* Transaction Details */}
+        <div className='bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden'>
+          <div className='p-4 border-b border-gray-200 dark:border-gray-700'>
+            <h4 className='font-semibold text-gray-900 dark:text-white'>Detalhes da Transação</h4>
+          </div>
+
+          <div className='divide-y divide-gray-200 dark:divide-gray-700'>
+            {/* Amount */}
+            <div className='p-4 flex items-center justify-between'>
+              <span className='text-sm text-gray-500 dark:text-gray-400'>Valor Enviado</span>
+              <div className='flex items-center gap-2'>
+                <CryptoIcon symbol={sentTransaction?.token || selectedToken} size={20} />
+                <span className='font-semibold text-gray-900 dark:text-white'>
+                  {sentTransaction?.amount || amount} {sentTransaction?.token || selectedToken}
+                </span>
+              </div>
+            </div>
+
+            {/* Network */}
+            <div className='p-4 flex items-center justify-between'>
+              <span className='text-sm text-gray-500 dark:text-gray-400'>Rede</span>
+              <span className='font-medium text-gray-900 dark:text-white'>
+                {getNetworkDisplayName(sentTransaction?.network || selectedNetwork)}
+              </span>
+            </div>
+
+            {/* From Address */}
+            <div className='p-4'>
+              <div className='flex items-center justify-between mb-1'>
+                <span className='text-sm text-gray-500 dark:text-gray-400'>De (Sua Carteira)</span>
+                <button
+                  onClick={() => copyToClipboard(sentTransaction?.fromAddress || '')}
+                  className='p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors'
+                  title='Copiar endereço'
+                >
+                  <Copy className='w-4 h-4 text-gray-400' />
+                </button>
+              </div>
+              <p className='font-mono text-xs text-gray-700 dark:text-gray-300 break-all'>
+                {sentTransaction?.fromAddress || 'N/A'}
+              </p>
+            </div>
+
+            {/* To Address */}
+            <div className='p-4'>
+              <div className='flex items-center justify-between mb-1'>
+                <span className='text-sm text-gray-500 dark:text-gray-400'>Para (Destino)</span>
+                <button
+                  onClick={() => copyToClipboard(sentTransaction?.toAddress || toAddress)}
+                  className='p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors'
+                  title='Copiar endereço'
+                >
+                  <Copy className='w-4 h-4 text-gray-400' />
+                </button>
+              </div>
+              <p className='font-mono text-xs text-gray-700 dark:text-gray-300 break-all'>
+                {sentTransaction?.toAddress || toAddress}
+              </p>
+            </div>
+
+            {/* Fee (if available) */}
+            {sentTransaction?.fee && (
+              <div className='p-4 flex items-center justify-between'>
+                <span className='text-sm text-gray-500 dark:text-gray-400'>Taxa de Rede</span>
+                <span className='font-medium text-gray-900 dark:text-white'>
+                  ~${sentTransaction.fee}
+                </span>
+              </div>
+            )}
+
+            {/* Timestamp */}
+            <div className='p-4 flex items-center justify-between'>
+              <span className='text-sm text-gray-500 dark:text-gray-400'>Data/Hora</span>
+              <span className='font-medium text-gray-900 dark:text-white'>
+                {sentTransaction?.timestamp.toLocaleString('pt-BR', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </span>
+            </div>
+
+            {/* Transaction Hash */}
+            <div className='p-4'>
+              <div className='flex items-center justify-between mb-1'>
+                <span className='text-sm text-gray-500 dark:text-gray-400'>Hash da Transação</span>
+                <button
+                  onClick={() => copyToClipboard(txHash)}
+                  className='p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors'
+                  title='Copiar hash'
+                >
+                  <Copy className='w-4 h-4 text-gray-400' />
+                </button>
+              </div>
+              <p className='font-mono text-xs text-gray-700 dark:text-gray-300 break-all'>
+                {txHash}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Explorer Link */}
+        {txHash && getExplorerUrl(sentTransaction?.network || selectedNetwork, txHash) && (
+          <a
+            href={getExplorerUrl(sentTransaction?.network || selectedNetwork, txHash)}
+            target='_blank'
+            rel='noopener noreferrer'
+            className='block w-full text-center py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-xl transition-colors'
+          >
+            🔍 Ver no Explorer
+          </a>
+        )}
+
+        {/* Action Buttons */}
+        <div className='flex gap-3 pt-2'>
           <button
             onClick={resetForm}
-            className='flex-1 px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg transition-colors'
+            className='flex-1 px-4 py-4 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold rounded-xl transition-all shadow-lg'
           >
             Nova Transação
           </button>
