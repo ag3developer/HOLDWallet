@@ -12,6 +12,7 @@ import logging
 from app.core.db import get_db
 from app.core.security import get_current_admin
 from app.models.user import User
+from app.models.two_factor import TwoFactorAuth
 from app.models.security import LoginAttempt, BlockedIP, SecurityAlert, UserSession, AuditLog
 from app.services.security_service import SecurityService
 
@@ -126,27 +127,27 @@ async def get_security_stats(
     db: Session = Depends(get_db),
     current_admin: User = Depends(get_current_admin)
 ):
-    """Get comprehensive security statistics"""
+    """Get comprehensive security statistics - Real data only"""
     try:
         now = datetime.now(timezone.utc)
         last_24h = now - timedelta(hours=24)
         last_7d = now - timedelta(days=7)
         
-        # Count users with 2FA enabled
-        users_with_2fa = db.query(User).filter(
-            User.two_factor_enabled == True
+        # Count total users
+        total_users = db.query(User).count()
+        
+        # Count users with 2FA enabled (from TwoFactorAuth table)
+        users_with_2fa = db.query(TwoFactorAuth).filter(
+            TwoFactorAuth.is_enabled == True
         ).count()
         
-        # Count users without 2FA
-        users_without_2fa = db.query(User).filter(
-            or_(User.two_factor_enabled == False, User.two_factor_enabled == None)
-        ).count()
+        # Users without 2FA
+        users_without_2fa = total_users - users_with_2fa
         
-        # Total active users
-        total_users = users_with_2fa + users_without_2fa
+        # 2FA adoption rate
         two_fa_rate = (users_with_2fa / total_users * 100) if total_users > 0 else 0
         
-        # Real stats from security tables
+        # Real stats from security tables - NO FALLBACKS
         active_sessions = db.query(UserSession).filter(
             UserSession.is_active == True
         ).count()
@@ -165,15 +166,21 @@ async def get_security_stats(
             SecurityAlert.status == "open"
         ).count()
         
+        # Count password changes in last 7 days from audit log
+        password_changes_7d = db.query(AuditLog).filter(
+            AuditLog.action == "password_change",
+            AuditLog.created_at >= last_7d
+        ).count()
+        
         return SecurityStatsResponse(
-            active_sessions=active_sessions if active_sessions > 0 else db.query(User).filter(User.is_active == True).count(),
+            active_sessions=active_sessions,
             failed_login_attempts_24h=failed_logins_24h,
             blocked_ips=blocked_ips_count,
             security_alerts_24h=security_alerts_24h,
             users_with_2fa=users_with_2fa,
             users_without_2fa=users_without_2fa,
             two_fa_adoption_rate=round(two_fa_rate, 1),
-            recent_password_changes_7d=0  # Would need to track password changes in AuditLog
+            recent_password_changes_7d=password_changes_7d
         )
         
     except Exception as e:
@@ -237,100 +244,33 @@ async def get_active_sessions(
     db: Session = Depends(get_db),
     current_admin: User = Depends(get_current_admin)
 ):
-    """Get all active user sessions"""
+    """Get all active user sessions - Real data only, no fallback"""
     try:
         offset = (page - 1) * limit
         now = datetime.now(timezone.utc)
         
-        # Try to get from UserSession table first
+        # Get real sessions from UserSession table only
         session_query = db.query(UserSession).filter(
             UserSession.is_active == True
         ).order_by(desc(UserSession.last_activity))
         
-        total_sessions = session_query.count()
-        
-        if total_sessions > 0:
-            # We have real session data
-            user_sessions = session_query.offset(offset).limit(limit).all()
-            
-            sessions = []
-            for sess in user_sessions:
-                user = db.query(User).filter(User.id == sess.user_id).first()
-                sessions.append(ActiveSessionRecord(
-                    id=str(sess.id),
-                    user_id=sess.user_id,
-                    user_email=str(user.email) if user else "Unknown",
-                    user_name=f"{user.first_name or ''} {user.last_name or ''}".strip() if user else "Unknown",
-                    ip_address=str(sess.ip_address) if sess.ip_address else "Unknown",
-                    device=str(sess.device_type) if sess.device_type else "Unknown",
-                    browser=str(sess.browser) if sess.browser else "Unknown",
-                    location=f"{sess.city}, {sess.country}" if sess.city else None,
-                    started_at=sess.created_at or now,
-                    last_activity=sess.last_activity or now,
-                    is_current=False
-                ))
-            
-            return ActiveSessionsResponse(
-                sessions=sessions,
-                total=total_sessions,
-                page=page,
-                limit=limit
-            )
-        
-        # Fallback: simulate with active users if no session data
-        # Try to get login attempt data for more info
-        active_users = db.query(User).filter(
-            User.is_active == True
-        ).order_by(desc(User.updated_at)).offset(offset).limit(limit).all()
-        
-        total = db.query(User).filter(User.is_active == True).count()
+        total = session_query.count()
+        user_sessions = session_query.offset(offset).limit(limit).all()
         
         sessions = []
-        for i, user in enumerate(active_users):
-            # Try to get last successful login for this user
-            last_login = db.query(LoginAttempt).filter(
-                LoginAttempt.email == user.email,
-                LoginAttempt.success == True
-            ).order_by(desc(LoginAttempt.created_at)).first()
-            
-            ip_address = "Unknown"
-            device = "Unknown"
-            browser = "Unknown"
-            location = None
-            last_activity = user.last_login or now
-            
-            if last_login:
-                ip_address = str(last_login.ip_address) if last_login.ip_address else "Unknown"
-                if last_login.city and last_login.country:
-                    location = f"{last_login.city}, {last_login.country}"
-                last_activity = last_login.created_at or now
-                
-                # Try to parse user agent for device info
-                if last_login.user_agent:
-                    try:
-                        from user_agents import parse as parse_ua
-                        ua = parse_ua(last_login.user_agent)
-                        if ua.is_mobile:
-                            device = "Mobile"
-                        elif ua.is_tablet:
-                            device = "Tablet"
-                        else:
-                            device = "Desktop"
-                        browser = f"{ua.browser.family}"
-                    except Exception:
-                        pass
-            
+        for sess in user_sessions:
+            user = db.query(User).filter(User.id == sess.user_id).first()
             sessions.append(ActiveSessionRecord(
-                id=f"session_{user.id}_{i}",
-                user_id=0,
-                user_email=str(user.email),
-                user_name=str(user.username) if user.username else str(user.email),
-                ip_address=ip_address,
-                device=device,
-                browser=browser,
-                location=location,
-                started_at=last_activity,
-                last_activity=last_activity,
+                id=str(sess.id),
+                user_id=sess.user_id,
+                user_email=str(user.email) if user else "Unknown",
+                user_name=str(user.username) if user and user.username else (str(user.email) if user else "Unknown"),
+                ip_address=str(sess.ip_address) if sess.ip_address else "Unknown",
+                device=str(sess.device_type) if sess.device_type else "Unknown",
+                browser=str(sess.browser) if sess.browser else "Unknown",
+                location=f"{sess.city}, {sess.country}" if sess.city and sess.country else None,
+                started_at=sess.created_at or now,
+                last_activity=sess.last_activity or now,
                 is_current=False
             ))
         
