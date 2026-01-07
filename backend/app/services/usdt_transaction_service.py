@@ -396,17 +396,29 @@ class USDTTransactionService:
             
             w3 = self.web3_instances[network.lower()]
             
-            # Descriptografar private key se necessário
-            try:
-                # Tenta descriptografar se estiver encriptado
-                decrypted_key = crypto_service.decrypt_data(private_key)
-            except Exception as e:
-                # Falha na descriptografia - NÃO usar chave criptografada!
-                logger.error(f"❌ Failed to decrypt private key: {e}")
-                return {
-                    'error': 'Failed to decrypt wallet - check ENCRYPTION_KEY configuration',
-                    'tx_hash': None
-                }
+            # Verificar se a chave já está em formato raw hex (derivada do mnemonic)
+            # ou se precisa ser descriptografada
+            decrypted_key = private_key
+            
+            # Se a chave parece ser criptografada (não começa com 0x e não tem 64 chars hex)
+            is_raw_hex = (
+                (private_key.startswith('0x') and len(private_key) == 66) or  # 0x + 64 hex
+                (not private_key.startswith('0x') and len(private_key) == 64 and all(c in '0123456789abcdefABCDEF' for c in private_key))
+            )
+            
+            if not is_raw_hex:
+                # Parece estar criptografada, tentar descriptografar
+                try:
+                    decrypted_key = crypto_service.decrypt_data(private_key)
+                    logger.info("🔓 Private key descriptografada com sucesso")
+                except Exception as e:
+                    logger.error(f"❌ Failed to decrypt private key: {e}")
+                    return {
+                        'error': 'Failed to decrypt wallet - check ENCRYPTION_KEY configuration',
+                        'tx_hash': None
+                    }
+            else:
+                logger.info("🔑 Private key já está em formato raw hex (derivada do mnemonic)")
             
             # Validar formato da chave privada
             if not decrypted_key.startswith('0x') and len(decrypted_key) == 64:
