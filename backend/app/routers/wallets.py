@@ -917,8 +917,8 @@ async def send_transaction(
                 else:
                     logger.error("Invalid or expired biometric token")
                     raise HTTPException(
-                        status_code=status.HTTP_401_UNAUTHORIZED,
-                        detail="Invalid or expired biometric token. Please authenticate again."
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="BIOMETRIC_TOKEN_EXPIRED"
                     )
             else:
                 # Verify 2FA token (TOTP or backup code)
@@ -933,8 +933,8 @@ async def send_transaction(
                 if not is_valid:
                     logger.error("Invalid 2FA token")
                     raise HTTPException(
-                        status_code=status.HTTP_401_UNAUTHORIZED,
-                        detail="Invalid 2FA token"
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="INVALID_2FA_TOKEN"
                     )
                 
                 logger.info(f"✅ 2FA verified for transaction from user {current_user.id}")

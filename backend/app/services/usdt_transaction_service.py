@@ -400,9 +400,13 @@ class USDTTransactionService:
             try:
                 # Tenta descriptografar se estiver encriptado
                 decrypted_key = crypto_service.decrypt_data(private_key)
-            except Exception:
-                # Se não estiver encriptado, usa como está
-                decrypted_key = private_key
+            except Exception as e:
+                # Falha na descriptografia - NÃO usar chave criptografada!
+                logger.error(f"❌ Failed to decrypt private key: {e}")
+                return {
+                    'error': 'Failed to decrypt wallet - check ENCRYPTION_KEY configuration',
+                    'tx_hash': None
+                }
             
             # Validar formato da chave privada
             if not decrypted_key.startswith('0x') and len(decrypted_key) == 64:

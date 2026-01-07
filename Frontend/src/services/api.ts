@@ -148,8 +148,16 @@ class ApiClient {
           }
         }
 
-        // Handle 403 Forbidden - missing or invalid token
+        // Handle 403 Forbidden - but NOT for biometric/2FA token errors
         if (error.response?.status === 403) {
+          const errorDetail = error.response?.data?.detail
+
+          // Don't logout for biometric/2FA errors - let the UI handle re-authentication
+          if (errorDetail === 'BIOMETRIC_TOKEN_EXPIRED' || errorDetail === 'INVALID_2FA_TOKEN') {
+            console.warn('[API] 403 - Biometric/2FA token issue, not logging out')
+            throw this.handleApiError(error)
+          }
+
           console.warn('[API] 403 Forbidden - Token may be invalid or missing')
           // Check if we have a token
           const token = this.getStoredToken()

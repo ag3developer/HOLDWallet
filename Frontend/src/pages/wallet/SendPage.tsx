@@ -574,6 +574,17 @@ export const SendPage = () => {
       }
     } catch (err: any) {
       console.error('❌ Erro na biometria:', err)
+
+      // Check if biometric token expired - need to re-authenticate
+      if (
+        err.message?.includes('BIOMETRIC_TOKEN_EXPIRED') ||
+        err.response?.data?.detail === 'BIOMETRIC_TOKEN_EXPIRED'
+      ) {
+        toast.error('Token expirado. Autentique novamente.')
+        // Keep dialog open, user can try biometric again
+        return
+      }
+
       toast.error('Biometria falhou. Use o código 2FA.')
       setAuthMethod('2fa')
     } finally {
