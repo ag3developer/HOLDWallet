@@ -57,14 +57,10 @@ export function MarketPricesCarousel({
   const [canScrollRight, setCanScrollRight] = useState(true)
   const [mobileIndex, setMobileIndex] = useState(0)
 
-  // Touch/Swipe states
+  // Touch/Swipe state for mobile
   const [touchStart, setTouchStart] = useState<number | null>(null)
   const [touchEnd, setTouchEnd] = useState<number | null>(null)
-  const [isDragging, setIsDragging] = useState(false)
-  const [dragOffset, setDragOffset] = useState(0)
-
-  // Minimum swipe distance to trigger navigation (in pixels)
-  const minSwipeDistance = 50
+  const minSwipeDistance = 50 // Minimum swipe distance in pixels
 
   useEffect(() => {
     const checkScroll = () => {
@@ -104,44 +100,36 @@ export function MarketPricesCarousel({
 
   // Touch handlers for swipe
   const onTouchStart = (e: React.TouchEvent) => {
-    const touch = e.targetTouches[0]
-    if (!touch) return
     setTouchEnd(null)
-    setTouchStart(touch.clientX)
-    setIsDragging(true)
+    const touch = e.targetTouches[0]
+    if (touch) {
+      setTouchStart(touch.clientX)
+    }
   }
 
   const onTouchMove = (e: React.TouchEvent) => {
-    if (!touchStart) return
     const touch = e.targetTouches[0]
-    if (!touch) return
-    const currentTouch = touch.clientX
-    setTouchEnd(currentTouch)
-    // Calculate drag offset for visual feedback
-    const diff = currentTouch - touchStart
-    // Limit drag offset
-    const maxOffset = 100
-    setDragOffset(Math.max(-maxOffset, Math.min(maxOffset, diff)))
+    if (touch) {
+      setTouchEnd(touch.clientX)
+    }
   }
 
   const onTouchEnd = () => {
-    setIsDragging(false)
-    setDragOffset(0)
-
     if (!touchStart || !touchEnd) return
 
     const distance = touchStart - touchEnd
     const isLeftSwipe = distance > minSwipeDistance
     const isRightSwipe = distance < -minSwipeDistance
 
-    if (isLeftSwipe && mobileIndex < cryptoPrices.length - 1) {
-      // Swipe left = next
-      setMobileIndex(prev => prev + 1)
-    } else if (isRightSwipe && mobileIndex > 0) {
-      // Swipe right = previous
-      setMobileIndex(prev => prev - 1)
+    if (isLeftSwipe) {
+      // Swipe left = next card
+      scrollMobile('right')
+    } else if (isRightSwipe) {
+      // Swipe right = previous card
+      scrollMobile('left')
     }
 
+    // Reset
     setTouchStart(null)
     setTouchEnd(null)
   }
@@ -369,27 +357,12 @@ export function MarketPricesCarousel({
         <>
           {/* Mobile: Single card view with swipe support */}
           <div
-            className='block sm:hidden overflow-hidden'
+            className='block sm:hidden'
             onTouchStart={onTouchStart}
             onTouchMove={onTouchMove}
             onTouchEnd={onTouchEnd}
           >
-            <div
-              className='transition-transform duration-200 ease-out'
-              style={{
-                transform: isDragging ? `translateX(${dragOffset}px)` : 'translateX(0)',
-                opacity: isDragging ? 0.9 : 1,
-              }}
-            >
-              {mobileCrypto && renderCryptoCard(mobileCrypto, mobileIndex, true)}
-            </div>
-
-            {/* Swipe hint on first load */}
-            {mobileIndex === 0 && cryptoPrices.length > 1 && (
-              <p className='text-center text-[10px] text-gray-400 dark:text-gray-500 mt-2 animate-pulse'>
-                ← Arraste para ver mais moedas →
-              </p>
-            )}
+            {mobileCrypto && renderCryptoCard(mobileCrypto, mobileIndex, true)}
 
             {/* Mobile dots indicator */}
             <div className='flex justify-center gap-1.5 mt-3'>

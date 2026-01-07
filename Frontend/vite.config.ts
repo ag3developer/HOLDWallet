@@ -2,17 +2,41 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { resolve } from 'path'
+import { writeFileSync, mkdirSync } from 'fs'
 
-// Versão do app - incrementar a cada deploy
-const APP_VERSION = new Date().toISOString()
+// Versão do app - timestamp único a cada build
+const APP_VERSION = Date.now().toString()
+const BUILD_TIME = new Date().toISOString()
 
 // Detectar se está em desenvolvimento
 const isDev = process.env.NODE_ENV !== 'production'
+
+// Plugin para gerar version.json a cada build
+const versionPlugin = () => ({
+  name: 'version-plugin',
+  closeBundle() {
+    if (!isDev) {
+      const versionInfo = {
+        version: APP_VERSION,
+        buildTime: BUILD_TIME,
+        hash: Math.random().toString(36).substring(2, 15),
+      }
+      try {
+        mkdirSync('./build', { recursive: true })
+        writeFileSync('./build/version.json', JSON.stringify(versionInfo))
+        console.log(`\n✅ version.json gerado: v${APP_VERSION}`)
+      } catch (e) {
+        console.error('Erro ao gerar version.json:', e)
+      }
+    }
+  },
+})
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     react(),
+    versionPlugin(),
     VitePWA({
       registerType: 'autoUpdate', // ✅ MUDANÇA: Auto-atualiza sem prompt
       devOptions: {

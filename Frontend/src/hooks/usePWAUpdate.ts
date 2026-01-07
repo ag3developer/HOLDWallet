@@ -4,20 +4,36 @@
  *
  * Hook profissional para gerenciar atualizações do PWA.
  * Resolve o problema de tela branca após deploys.
+ *
+ * ATUALIZAÇÃO AUTOMÁTICA:
+ * - Verifica version.json a cada 30 segundos
+ * - Força reload quando detecta nova versão
+ * - Limpa caches automaticamente
  */
 
 import { useEffect, useCallback, useState } from 'react'
 
-// Versão do app (atualizada automaticamente pelo build)
+// Versão do app (definida no build)
 const APP_VERSION = import.meta.env.VITE_APP_VERSION || Date.now().toString()
 
 // Chaves no localStorage
 const VERSION_KEY = 'wolknow_app_version'
 const LAST_CHECK_KEY = 'wolknow_last_update_check'
+const SERVER_VERSION_KEY = 'wolknow_server_version'
+
+// Intervalo de verificação (30 segundos)
+const CHECK_INTERVAL = 30 * 1000
 
 interface PWAUpdateState {
   needRefresh: boolean
   offlineReady: boolean
+  checking: boolean
+}
+
+interface VersionInfo {
+  version: string
+  buildTime: string
+  hash: string
 }
 
 // Função auxiliar para atualizar registrations
@@ -33,6 +49,7 @@ export function usePWAUpdate() {
   const [state, setState] = useState<PWAUpdateState>({
     needRefresh: false,
     offlineReady: false,
+    checking: false,
   })
 
   // Limpar todos os caches
@@ -78,6 +95,61 @@ export function usePWAUpdate() {
     localStorage.setItem(LAST_CHECK_KEY, Date.now().toString())
 
     globalThis.location.reload()
+  }, [clearAllCaches, unregisterOldSW])
+
+  // 🆕 Verificar version.json do servidor
+  const checkServerVersion = useCallback(async (): Promise<boolean> => {
+    try {
+      setState(prev => ({ ...prev, checking: true }))
+
+      // Adiciona timestamp para evitar cache
+      const response = await fetch(`/version.json?t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          Pragma: 'no-cache',
+        },
+      })
+
+      if (!response.ok) {
+        console.log('[PWA] version.json não encontrado (ainda em dev?)')
+        return false
+      }
+
+      const serverVersion: VersionInfo = await response.json()
+      const storedServerVersion = localStorage.getItem(SERVER_VERSION_KEY)
+
+      console.log('[PWA] Versão servidor:', serverVersion.version, '| Local:', storedServerVersion)
+
+      if (storedServerVersion && storedServerVersion !== serverVersion.version) {
+        console.log('[PWA] 🚀 Nova versão detectada! Atualizando...')
+        localStorage.setItem(SERVER_VERSION_KEY, serverVersion.version)
+
+        // Aguarda um pouco para o usuário ver a mensagem (se houver UI)
+        setTimeout(async () => {
+          await clearAllCaches()
+          await unregisterOldSW()
+          globalThis.location.reload()
+        }, 500)
+
+        return true
+      }
+
+      // Salva versão se é primeira vez
+      if (!storedServerVersion) {
+        localStorage.setItem(SERVER_VERSION_KEY, serverVersion.version)
+      }
+
+      return false
+    } catch (error) {
+      // Silencia erro em desenvolvimento (version.json não existe)
+      if (!import.meta.env.DEV) {
+        console.error('[PWA] Erro ao verificar versão:', error)
+      }
+      return false
+    } finally {
+      setState(prev => ({ ...prev, checking: false }))
+    }
   }, [clearAllCaches, unregisterOldSW])
 
   // Verificar se há nova versão
@@ -181,18 +253,39 @@ export function usePWAUpdate() {
       if (!lastCheck || now - Number.parseInt(lastCheck, 10) > fiveMinutes) {
         localStorage.setItem(LAST_CHECK_KEY, now.toString())
         await checkForSWUpdates()
+        // Também verifica version.json
+        await checkServerVersion()
       }
     }
 
     document.addEventListener('visibilitychange', onVisibilityChange)
     return () => document.removeEventListener('visibilitychange', onVisibilityChange)
-  }, [])
+  }, [checkServerVersion])
+
+  // 🆕 Verificação automática periódica do version.json
+  useEffect(() => {
+    // Não executar em desenvolvimento
+    if (import.meta.env.DEV) return
+
+    // Verificar imediatamente ao carregar
+    checkServerVersion()
+
+    // Verificar a cada 30 segundos
+    const intervalId = setInterval(() => {
+      checkServerVersion()
+    }, CHECK_INTERVAL)
+
+    console.log(`[PWA] Auto-update ativo (verificando a cada ${CHECK_INTERVAL / 1000}s)`)
+
+    return () => clearInterval(intervalId)
+  }, [checkServerVersion])
 
   return {
     ...state,
     forceUpdate,
     clearAllCaches,
     checkVersion,
+    checkServerVersion,
     appVersion: APP_VERSION,
   }
 }

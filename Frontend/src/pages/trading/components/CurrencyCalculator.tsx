@@ -153,6 +153,29 @@ export function CurrencyCalculator({
     return () => globalThis.removeEventListener('keydown', handleEsc)
   }, [isOpen, onClose])
 
+  // Prevent body scroll when modal is open (Safari fix)
+  useEffect(() => {
+    if (isOpen) {
+      const originalStyle = globalThis.getComputedStyle(document.body).overflow
+      const originalPosition = globalThis.getComputedStyle(document.body).position
+      const scrollY = globalThis.scrollY
+
+      document.body.style.overflow = 'hidden'
+      document.body.style.position = 'fixed'
+      document.body.style.top = `-${scrollY}px`
+      document.body.style.width = '100%'
+
+      return () => {
+        document.body.style.overflow = originalStyle
+        document.body.style.position = originalPosition
+        document.body.style.top = ''
+        document.body.style.width = ''
+        globalThis.scrollTo(0, scrollY)
+      }
+    }
+    return undefined
+  }, [isOpen])
+
   if (!isOpen) return null
 
   const fromInfo = getCurrencyInfo(fromCurrency)
@@ -166,10 +189,18 @@ export function CurrencyCalculator({
         aria-label='Fechar calculadora'
         className='fixed inset-0 bg-black/60 backdrop-blur-sm z-50 transition-opacity cursor-default border-0'
         onClick={onClose}
+        style={{ height: '100dvh' }}
       />
 
       {/* Modal - Full screen on mobile, centered on desktop */}
-      <div className='fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 pointer-events-none'>
+      <div
+        className='fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 pointer-events-none'
+        style={{
+          height: '100dvh',
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+          paddingTop: 'env(safe-area-inset-top, 0px)',
+        }}
+      >
         <dialog
           open
           aria-labelledby='calculator-title'
@@ -179,8 +210,12 @@ export function CurrencyCalculator({
                      transform transition-all 
                      animate-in slide-in-from-bottom sm:zoom-in-95 duration-300
                      m-0 p-0 border-0
-                     max-h-[95vh] sm:max-h-[90vh] overflow-hidden
+                     overflow-hidden
                      flex flex-col'
+          style={{
+            maxHeight:
+              'min(95dvh, calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)))',
+          }}
         >
           {/* Header - Sticky */}
           <div className='flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 shrink-0'>
@@ -393,8 +428,8 @@ export function CurrencyCalculator({
 
           {/* Footer */}
           <div
-            className='p-4 border-t border-gray-200 dark:border-gray-700 space-y-2 
-                          pb-safe-area-inset-bottom sm:pb-4'
+            className='p-4 border-t border-gray-200 dark:border-gray-700 space-y-2 shrink-0'
+            style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 1rem))' }}
           >
             {/* Use Value Buttons */}
             {onSelectAmount && Number(amount) > 0 && (
