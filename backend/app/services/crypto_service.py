@@ -106,12 +106,20 @@ class CryptoService:
     def decrypt_data(self, encrypted_data: str) -> str:
         """Decrypt sensitive data."""
         try:
+            if not encrypted_data:
+                logger.error("Failed to decrypt data: encrypted_data is empty or None")
+                raise ValueError("Encrypted data is empty")
+            
             f = Fernet(self._encryption_key)
             decoded_data = base64.urlsafe_b64decode(encrypted_data.encode())
             decrypted_data = f.decrypt(decoded_data)
             return decrypted_data.decode()
         except Exception as e:
-            logger.error(f"Failed to decrypt data: {e}")
+            # Log mais detalhado para debug
+            error_type = type(e).__name__
+            logger.error(f"Failed to decrypt data: [{error_type}] {str(e)}")
+            logger.error(f"Encrypted data length: {len(encrypted_data) if encrypted_data else 0}")
+            logger.error(f"Encryption key prefix: {self._encryption_key[:10].decode() if self._encryption_key else 'None'}...")
             raise
     
     def decrypt_seed(self, encrypted_mnemonic: str) -> str:

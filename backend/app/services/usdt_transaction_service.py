@@ -432,8 +432,10 @@ class USDTTransactionService:
             )
             
             # Enviar transação (com tratamento de erro robusto)
+            # Compatible with web3.py v5 and v6+
+            raw_tx = getattr(signed_tx, 'rawTransaction', None) or getattr(signed_tx, 'raw_transaction', None)
             try:
-                tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
+                tx_hash = w3.eth.send_raw_transaction(raw_tx)
                 tx_hash_hex = tx_hash.hex()
                 logger.info(f"✅ Transação enviada: {tx_hash_hex}")
             except TimeoutError as e:
