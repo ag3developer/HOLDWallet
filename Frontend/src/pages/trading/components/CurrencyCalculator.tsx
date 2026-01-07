@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { X, Calculator, ArrowUpDown, Info, DollarSign, CircleDollarSign, Euro } from 'lucide-react'
 import { toUSD, fromUSD } from '@/services/currency'
 
@@ -154,21 +155,39 @@ export function CurrencyCalculator({
   }, [isOpen, onClose])
 
   // Prevent body scroll when modal is open (Safari fix)
+  // Also calculate real viewport height for Safari webapp
+  const [viewportHeight, setViewportHeight] = useState('100vh')
+
   useEffect(() => {
     if (isOpen) {
-      const originalStyle = globalThis.getComputedStyle(document.body).overflow
-      const originalPosition = globalThis.getComputedStyle(document.body).position
-      const scrollY = globalThis.scrollY
+      // Calculate real viewport height (Safari webapp fix)
+      const updateHeight = () => {
+        const vh = globalThis.innerHeight
+        setViewportHeight(`${vh}px`)
+      }
+      updateHeight()
 
+      // Update on resize/orientation change
+      globalThis.addEventListener('resize', updateHeight)
+      globalThis.addEventListener('orientationchange', updateHeight)
+
+      // Lock body scroll
+      const scrollY = globalThis.scrollY
       document.body.style.overflow = 'hidden'
       document.body.style.position = 'fixed'
       document.body.style.top = `-${scrollY}px`
+      document.body.style.left = '0'
+      document.body.style.right = '0'
       document.body.style.width = '100%'
 
       return () => {
-        document.body.style.overflow = originalStyle
-        document.body.style.position = originalPosition
+        globalThis.removeEventListener('resize', updateHeight)
+        globalThis.removeEventListener('orientationchange', updateHeight)
+        document.body.style.overflow = ''
+        document.body.style.position = ''
         document.body.style.top = ''
+        document.body.style.left = ''
+        document.body.style.right = ''
         document.body.style.width = ''
         globalThis.scrollTo(0, scrollY)
       }
@@ -181,24 +200,22 @@ export function CurrencyCalculator({
   const fromInfo = getCurrencyInfo(fromCurrency)
   const toInfo = getCurrencyInfo(toCurrency)
 
-  return (
+  const modalContent = (
     <>
       {/* Overlay */}
       <button
         type='button'
         aria-label='Fechar calculadora'
-        className='fixed inset-0 bg-black/60 backdrop-blur-sm z-50 transition-opacity cursor-default border-0'
+        className='fixed inset-0 bg-black/60 backdrop-blur-sm z-[9998] transition-opacity cursor-default border-0'
         onClick={onClose}
-        style={{ height: '100dvh' }}
+        style={{ height: viewportHeight }}
       />
 
       {/* Modal - Full screen on mobile, centered on desktop */}
       <div
-        className='fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 pointer-events-none'
+        className='fixed inset-0 z-[9999] flex items-end sm:items-center justify-center sm:p-4 pointer-events-none'
         style={{
-          height: '100dvh',
-          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-          paddingTop: 'env(safe-area-inset-top, 0px)',
+          height: viewportHeight,
         }}
       >
         <dialog
@@ -213,8 +230,7 @@ export function CurrencyCalculator({
                      overflow-hidden
                      flex flex-col'
           style={{
-            maxHeight:
-              'min(95dvh, calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)))',
+            maxHeight: `calc(${viewportHeight} - 20px)`,
           }}
         >
           {/* Header - Sticky */}
@@ -473,4 +489,7 @@ export function CurrencyCalculator({
       </div>
     </>
   )
+
+  // Render via Portal to escape any container constraints
+  return createPortal(modalContent, document.body)
 }
