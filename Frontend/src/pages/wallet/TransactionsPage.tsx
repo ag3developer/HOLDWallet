@@ -268,72 +268,280 @@ const TransactionRow = ({
   copyToClipboard: (text: string) => void
   openExplorer: (hash: string, network: string) => void
 }) => {
+  const [isExpanded, setIsExpanded] = useState(false)
   const isReceive = walletAddresses.some(addr => addr.toLowerCase() === tx.to_address.toLowerCase())
   const amount = Number.parseFloat(tx.amount)
 
-  return (
-    <div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-3 p-3 sm:p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors items-center'>
-      {/* Data */}
-      <div className='text-xs sm:text-sm text-gray-600 dark:text-gray-400'>
-        {new Date(tx.created_at).toLocaleDateString('pt-BR')}
-      </div>
+  // Gerar ID numérico para suporte (baseado no hash)
+  const generateTxId = (hash: string): string => {
+    const hexPart = hash.replace('0x', '').substring(0, 8)
+    const numId = Number.parseInt(hexPart, 16) % 100000000
+    return numId.toString().padStart(8, '0')
+  }
 
-      {/* Tipo + Moeda */}
-      <div className='flex items-center gap-2'>
+  // Formatar data/hora completa
+  const formatDateTime = (dateStr: string) => {
+    const date = new Date(dateStr)
+    return {
+      date: date.toLocaleDateString('pt-BR'),
+      time: date.toLocaleTimeString('pt-BR', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      }),
+      full: date.toLocaleString('pt-BR'),
+    }
+  }
+
+  // Nome amigável da rede
+  const getNetworkName = (network: string): string => {
+    const names: Record<string, string> = {
+      polygon: 'Polygon',
+      ethereum: 'Ethereum',
+      bsc: 'BNB Smart Chain',
+      base: 'Base',
+      bitcoin: 'Bitcoin',
+      tron: 'TRON',
+      solana: 'Solana',
+    }
+    return names[network.toLowerCase()] || network.charAt(0).toUpperCase() + network.slice(1)
+  }
+
+  const dateTime = formatDateTime(tx.created_at)
+  const txId = generateTxId(tx.hash)
+
+  return (
+    <div className='border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden hover:border-blue-300 dark:hover:border-blue-700 transition-all'>
+      {/* Row Principal - Clicável para expandir */}
+      <button
+        type='button'
+        onClick={() => setIsExpanded(!isExpanded)}
+        className='w-full grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-3 p-3 sm:p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors items-center cursor-pointer text-left'
+      >
+        {/* Data + Hora */}
+        <div className='text-xs sm:text-sm'>
+          <div className='text-gray-900 dark:text-white font-medium'>{dateTime.date}</div>
+          <div className='text-gray-500 dark:text-gray-400 text-xs'>{dateTime.time}</div>
+        </div>
+
+        {/* Tipo + Moeda */}
+        <div className='flex items-center gap-2'>
+          <div
+            className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${
+              isReceive ? 'bg-green-100 dark:bg-green-900/30' : 'bg-blue-100 dark:bg-blue-900/30'
+            }`}
+          >
+            {isReceive ? (
+              <ArrowDownLeft className='w-4 h-4 text-green-600 dark:text-green-400' />
+            ) : (
+              <ArrowUpRight className='w-4 h-4 text-blue-600 dark:text-blue-400' />
+            )}
+          </div>
+          <div className='flex items-center gap-1.5'>
+            <CryptoIcon symbol={tx.token_symbol || tx.network.toUpperCase()} size={22} />
+            <span className='text-sm font-semibold text-gray-900 dark:text-white'>
+              {tx.token_symbol || tx.network.toUpperCase()}
+            </span>
+          </div>
+        </div>
+
+        {/* Valor */}
         <div
-          className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${
-            isReceive ? 'bg-green-100 dark:bg-green-900/30' : 'bg-blue-100 dark:bg-blue-900/30'
+          className={`text-sm font-bold text-right ${
+            isReceive ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-white'
           }`}
         >
-          {isReceive ? (
-            <ArrowDownLeft className='w-3 h-3 text-green-600 dark:text-green-400' />
-          ) : (
-            <ArrowUpRight className='w-3 h-3 text-blue-600 dark:text-blue-400' />
-          )}
+          {isReceive ? '+' : '-'}
+          {amount.toFixed(4)}
         </div>
-        <div className='flex items-center gap-1'>
-          <CryptoIcon symbol={tx.token_symbol || tx.network.toUpperCase()} size={20} />
-          <span className='text-xs sm:text-sm font-medium text-gray-900 dark:text-white truncate'>
-            {tx.token_symbol || tx.network.toUpperCase()}
-          </span>
+
+        {/* Status */}
+        <div className='hidden sm:block'>{getStatusBadge(tx.status)}</div>
+
+        {/* Rede */}
+        <div className='hidden md:block text-xs text-gray-600 dark:text-gray-400 text-center'>
+          {tx.network}
         </div>
-      </div>
 
-      {/* Valor */}
-      <div
-        className={`text-xs sm:text-sm font-semibold text-right ${
-          isReceive ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-white'
-        }`}
-      >
-        {isReceive ? '+' : '-'}
-        {amount.toFixed(4)}
-      </div>
+        {/* Ações */}
+        <div className='flex justify-end gap-1'>
+          <button
+            onClick={e => {
+              e.stopPropagation()
+              copyToClipboard(tx.hash)
+            }}
+            className='p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors'
+            title='Copiar hash'
+          >
+            <Copy className='w-3.5 h-3.5 text-gray-500 dark:text-gray-400' />
+          </button>
+          <button
+            onClick={e => {
+              e.stopPropagation()
+              openExplorer(tx.hash, tx.network)
+            }}
+            className='p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors'
+            title='Abrir no explorer'
+          >
+            <ExternalLink className='w-3.5 h-3.5 text-gray-500 dark:text-gray-400' />
+          </button>
+          <div className={`p-1.5 transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
+            <ChevronDown className='w-3.5 h-3.5 text-gray-400' />
+          </div>
+        </div>
+      </button>
 
-      {/* Status (hidden on mobile) */}
-      <div className='hidden sm:block'>{getStatusBadge(tx.status)}</div>
+      {/* Detalhes Expandidos */}
+      {isExpanded && (
+        <div className='bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 p-4 space-y-4'>
+          {/* ID da Transação (Suporte) */}
+          <div className='flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 rounded-lg px-4 py-3'>
+            <div>
+              <p className='text-xs text-blue-600 dark:text-blue-400 font-medium'>ID (Suporte)</p>
+              <p className='text-lg font-bold text-blue-700 dark:text-blue-300 font-mono'>
+                #{txId}
+              </p>
+            </div>
+            <button
+              onClick={() => copyToClipboard(txId)}
+              className='p-2 hover:bg-blue-100 dark:hover:bg-blue-800 rounded-lg transition-colors'
+              title='Copiar ID'
+            >
+              <Copy className='w-4 h-4 text-blue-600 dark:text-blue-400' />
+            </button>
+          </div>
 
-      {/* Rede (hidden on mobile) */}
-      <div className='hidden md:block text-xs text-gray-600 dark:text-gray-400 text-center'>
-        {tx.network}
-      </div>
+          {/* Grid de detalhes */}
+          <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
+            {/* Tipo */}
+            <div className='bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700'>
+              <p className='text-xs text-gray-500 dark:text-gray-400 mb-1'>Tipo</p>
+              <div
+                className={`flex items-center gap-2 font-semibold ${isReceive ? 'text-green-600' : 'text-blue-600'}`}
+              >
+                {isReceive ? (
+                  <ArrowDownLeft className='w-4 h-4' />
+                ) : (
+                  <ArrowUpRight className='w-4 h-4' />
+                )}
+                {isReceive ? 'Recebido' : 'Enviado'}
+              </div>
+            </div>
 
-      {/* Ações */}
-      <div className='flex justify-end gap-1'>
-        <button
-          onClick={() => copyToClipboard(tx.hash)}
-          className='p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors'
-          title='Copiar hash'
-        >
-          <Copy className='w-3.5 h-3.5 text-gray-500 dark:text-gray-400' />
-        </button>
-        <button
-          onClick={() => openExplorer(tx.hash, tx.network)}
-          className='p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors'
-          title='Abrir no explorer'
-        >
-          <ExternalLink className='w-3.5 h-3.5 text-gray-500 dark:text-gray-400' />
-        </button>
-      </div>
+            {/* Rede */}
+            <div className='bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700'>
+              <p className='text-xs text-gray-500 dark:text-gray-400 mb-1'>Rede</p>
+              <p className='font-semibold text-gray-900 dark:text-white'>
+                {getNetworkName(tx.network)}
+              </p>
+            </div>
+
+            {/* Valor */}
+            <div className='bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700'>
+              <p className='text-xs text-gray-500 dark:text-gray-400 mb-1'>Valor</p>
+              <div className='flex items-center gap-2'>
+                <CryptoIcon symbol={tx.token_symbol || tx.network.toUpperCase()} size={20} />
+                <p
+                  className={`font-bold ${isReceive ? 'text-green-600' : 'text-gray-900 dark:text-white'}`}
+                >
+                  {isReceive ? '+' : '-'}
+                  {amount.toFixed(6)} {tx.token_symbol || tx.network.toUpperCase()}
+                </p>
+              </div>
+            </div>
+
+            {/* Taxa */}
+            <div className='bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700'>
+              <p className='text-xs text-gray-500 dark:text-gray-400 mb-1'>Taxa de Rede</p>
+              <p className='font-semibold text-gray-900 dark:text-white'>
+                {tx.fee ? `${tx.fee} ${tx.network.toUpperCase()}` : 'N/A'}
+              </p>
+            </div>
+
+            {/* Data/Hora Completa */}
+            <div className='bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700'>
+              <p className='text-xs text-gray-500 dark:text-gray-400 mb-1'>Data/Hora</p>
+              <p className='font-semibold text-gray-900 dark:text-white'>{dateTime.full}</p>
+            </div>
+
+            {/* Status */}
+            <div className='bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700'>
+              <p className='text-xs text-gray-500 dark:text-gray-400 mb-1'>Status</p>
+              <div className='flex items-center gap-2'>{getStatusBadge(tx.status)}</div>
+            </div>
+          </div>
+
+          {/* Endereços */}
+          <div className='space-y-3'>
+            {/* De */}
+            <div className='bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700'>
+              <div className='flex items-center justify-between mb-1'>
+                <p className='text-xs text-gray-500 dark:text-gray-400'>De (Origem)</p>
+                <button
+                  onClick={() => copyToClipboard(tx.from_address)}
+                  className='p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors'
+                  title='Copiar'
+                >
+                  <Copy className='w-3.5 h-3.5 text-gray-400' />
+                </button>
+              </div>
+              <p className='font-mono text-xs text-gray-900 dark:text-white break-all'>
+                {tx.from_address}
+              </p>
+            </div>
+
+            {/* Para */}
+            <div className='bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700'>
+              <div className='flex items-center justify-between mb-1'>
+                <p className='text-xs text-gray-500 dark:text-gray-400'>Para (Destino)</p>
+                <button
+                  onClick={() => copyToClipboard(tx.to_address)}
+                  className='p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors'
+                  title='Copiar'
+                >
+                  <Copy className='w-3.5 h-3.5 text-gray-400' />
+                </button>
+              </div>
+              <p className='font-mono text-xs text-gray-900 dark:text-white break-all'>
+                {tx.to_address}
+              </p>
+            </div>
+
+            {/* Hash */}
+            <div className='bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700'>
+              <div className='flex items-center justify-between mb-1'>
+                <p className='text-xs text-gray-500 dark:text-gray-400'>Hash da Transação</p>
+                <div className='flex gap-1'>
+                  <button
+                    onClick={() => copyToClipboard(tx.hash)}
+                    className='p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors'
+                    title='Copiar'
+                  >
+                    <Copy className='w-3.5 h-3.5 text-gray-400' />
+                  </button>
+                  <button
+                    onClick={() => openExplorer(tx.hash, tx.network)}
+                    className='p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors'
+                    title='Abrir no Explorer'
+                  >
+                    <ExternalLink className='w-3.5 h-3.5 text-gray-400' />
+                  </button>
+                </div>
+              </div>
+              <p className='font-mono text-xs text-gray-900 dark:text-white break-all'>{tx.hash}</p>
+            </div>
+          </div>
+
+          {/* Botão Explorer */}
+          <button
+            onClick={() => openExplorer(tx.hash, tx.network)}
+            className='w-full py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg transition-colors flex items-center justify-center gap-2'
+          >
+            <ExternalLink className='w-4 h-4' />
+            Ver no Explorer ({getNetworkName(tx.network)})
+          </button>
+        </div>
+      )}
     </div>
   )
 }
