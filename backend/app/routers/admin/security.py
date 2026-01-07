@@ -52,7 +52,7 @@ class FailedLoginsResponse(BaseModel):
 
 class ActiveSessionRecord(BaseModel):
     id: str
-    user_id: int
+    user_id: str  # UUID as string
     user_email: str
     user_name: str
     ip_address: str
@@ -73,7 +73,7 @@ class ActiveSessionsResponse(BaseModel):
 
 class SuspiciousActivityRecord(BaseModel):
     id: int
-    user_id: Optional[int] = None
+    user_id: Optional[str] = None  # UUID as string
     user_email: Optional[str] = None
     activity_type: str
     description: str
@@ -262,7 +262,7 @@ async def get_active_sessions(
             user = db.query(User).filter(User.id == sess.user_id).first()
             sessions.append(ActiveSessionRecord(
                 id=str(sess.id),
-                user_id=sess.user_id,
+                user_id=str(sess.user_id),
                 user_email=str(user.email) if user else "Unknown",
                 user_name=str(user.username) if user and user.username else (str(user.email) if user else "Unknown"),
                 ip_address=str(sess.ip_address) if sess.ip_address else "Unknown",
@@ -317,7 +317,7 @@ async def get_suspicious_activities(
             
             activities.append(SuspiciousActivityRecord(
                 id=alert.id,
-                user_id=alert.user_id,
+                user_id=str(alert.user_id) if alert.user_id else None,
                 user_email=str(user.email) if user else None,
                 activity_type=str(alert.alert_type) if alert.alert_type else "unknown",
                 description=str(alert.description) if alert.description else "",
