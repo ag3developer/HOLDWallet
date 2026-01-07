@@ -77,8 +77,14 @@ class Settings(BaseSettings):
     CACHE_TTL_PRICES: int = 60  # 1 minute
     CACHE_TTL_BALANCE: int = 30  # 30 seconds
     
+    # WebAuthn/Biometria Configuration
+    WEBAUTHN_RP_ID: str = "localhost"
+    WEBAUTHN_RP_NAME: str = "WolkNow"
+    WEBAUTHN_ORIGIN: str = "http://localhost:3000"
+    
     class Config:
-        env_file = ".env"
+        # Carregar .env.production se existir, senão .env
+        env_file = ".env.production" if os.path.exists(".env.production") else ".env"
         case_sensitive = True
         extra = "allow"  # Permitir campos extras do .env
 

@@ -40,23 +40,16 @@ class WebAuthnService:
     
     def __init__(self):
         # Configurações do RP (Relying Party)
-        # Usa variáveis de ambiente ou valores padrão
+        # Usa variáveis de ambiente definidas no settings
         
-        if hasattr(settings, 'ENVIRONMENT') and settings.ENVIRONMENT == 'development':
-            # Desenvolvimento local
-            self.rp_id = "localhost"
-            self.rp_name = "WolkNow (Dev)"
-            self.origin = "http://localhost:3000"
-        else:
-            # Produção - usar variáveis de ambiente ou padrão
-            self.rp_id = getattr(settings, 'WEBAUTHN_RP_ID', 'hold-wallet-deaj.vercel.app')
-            self.rp_name = getattr(settings, 'WEBAUTHN_RP_NAME', 'WolkNow')
-            self.origin = getattr(settings, 'WEBAUTHN_ORIGIN', 'https://hold-wallet-deaj.vercel.app')
+        # Sempre usar as variáveis do settings (que vêm do .env)
+        self.rp_id = settings.WEBAUTHN_RP_ID
+        self.rp_name = settings.WEBAUTHN_RP_NAME
+        self.origin = settings.WEBAUTHN_ORIGIN
         
-        logger.info(f"WebAuthn configurado: rp_id={self.rp_id}, origin={self.origin}")
+        logger.info(f"WebAuthn configurado: rp_id={self.rp_id}, origin={self.origin}, environment={settings.ENVIRONMENT}")
         
         # Cache de challenges (em produção usar Redis)
-        self._challenges: Dict[str, bytes] = {}
         self._challenges: Dict[str, bytes] = {}
     
     def generate_registration_options_for_user(
