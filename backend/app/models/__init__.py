@@ -5,6 +5,7 @@ from .wallet import Wallet
 from .address import Address
 from .transaction import Transaction
 from .two_factor import TwoFactorAuth
+from .webauthn import WebAuthnCredential
 from .system_wallet import SystemWallet, FeeHistory, FeeType, FeeStatus
 from .system_blockchain_wallet import (
     SystemBlockchainWallet, 
@@ -24,6 +25,7 @@ from . import system_blockchain_wallet
 from . import instant_trade
 from . import accounting
 from . import platform_settings
+from . import webauthn
 
 __all__ = [
     # Base
@@ -43,6 +45,9 @@ __all__ = [
     
     # Two Factor Auth
     "TwoFactorAuth",
+    
+    # WebAuthn
+    "WebAuthnCredential",
     
     # System Wallet & Fees (Contábil)
     "SystemWallet",

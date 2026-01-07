@@ -17,7 +17,7 @@ import logging
 from app.core.db import get_db
 from app.core.security import get_current_admin
 from app.models.user import User
-from app.models.transaction import Transaction
+from app.models.transaction import Transaction, TransactionStatus
 
 logger = logging.getLogger(__name__)
 
@@ -43,17 +43,21 @@ async def get_transaction_stats(
         
         total_transactions = db.query(func.count(Transaction.id)).scalar() or 0
         
-        # Por status
+        # Por status (usando enum)
         pending = db.query(func.count(Transaction.id)).filter(
-            Transaction.status == 'pending'
+            Transaction.status == TransactionStatus.pending
         ).scalar() or 0
         
         confirmed = db.query(func.count(Transaction.id)).filter(
-            Transaction.status == 'confirmed'
+            Transaction.status == TransactionStatus.confirmed
         ).scalar() or 0
         
         failed = db.query(func.count(Transaction.id)).filter(
-            Transaction.status == 'failed'
+            Transaction.status == TransactionStatus.failed
+        ).scalar() or 0
+        
+        created = db.query(func.count(Transaction.id)).filter(
+            Transaction.status == TransactionStatus.created
         ).scalar() or 0
         
         # Últimas 24h
@@ -66,16 +70,7 @@ async def get_transaction_stats(
             Transaction.created_at >= last_7d
         ).scalar() or 0
         
-        # Por tipo
-        deposits = db.query(func.count(Transaction.id)).filter(
-            Transaction.tx_type == 'deposit'
-        ).scalar() or 0
-        
-        withdrawals = db.query(func.count(Transaction.id)).filter(
-            Transaction.tx_type == 'withdrawal'
-        ).scalar() or 0
-        
-        # Por rede (se existir o campo)
+        # Por rede
         networks_stats = []
         try:
             networks = db.query(
@@ -99,10 +94,11 @@ async def get_transaction_stats(
                 "pending": pending,
                 "confirmed": confirmed,
                 "failed": failed,
+                "created": created,
                 "last_24h": tx_24h,
                 "last_7d": tx_7d,
-                "deposits": deposits,
-                "withdrawals": withdrawals,
+                "deposits": 0,  # Campo não existe no modelo atual
+                "withdrawals": 0,  # Campo não existe no modelo atual
                 "by_network": networks_stats
             }
         }
@@ -119,7 +115,6 @@ async def list_transactions(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     status_filter: Optional[str] = None,
-    tx_type: Optional[str] = None,
     network: Optional[str] = None,
     user_id: Optional[str] = None,
     search: Optional[str] = None,
@@ -132,17 +127,22 @@ async def list_transactions(
     try:
         query = db.query(Transaction)
         
+        # Filtro por status usando enum
         if status_filter and status_filter != 'all':
-            query = query.filter(Transaction.status == status_filter)
-        
-        if tx_type and tx_type != 'all':
-            query = query.filter(Transaction.tx_type == tx_type)
+            try:
+                status_enum = TransactionStatus(status_filter)
+                query = query.filter(Transaction.status == status_enum)
+            except ValueError:
+                pass  # Status inválido, ignora filtro
         
         if network and network != 'all':
             query = query.filter(Transaction.network == network)
         
         if user_id:
-            query = query.filter(Transaction.user_id == user_id)
+            try:
+                query = query.filter(Transaction.user_id == int(user_id))
+            except ValueError:
+                pass
         
         if search:
             query = query.filter(
@@ -155,28 +155,28 @@ async def list_transactions(
         transactions = query.order_by(desc(Transaction.created_at)).offset(skip).limit(limit).all()
         
         # Buscar usernames
-        user_ids = list(set([str(t.user_id) for t in transactions if t.user_id]))
+        user_ids = [t.user_id for t in transactions if t.user_id]
         users = db.query(User).filter(User.id.in_(user_ids)).all() if user_ids else []
-        user_map = {str(u.id): u.username for u in users}
+        user_map = {u.id: u.username for u in users}
         
         items = []
         for tx in transactions:
             items.append({
                 "id": str(tx.id),
                 "user_id": str(tx.user_id) if tx.user_id else None,
-                "username": user_map.get(str(tx.user_id), "Unknown") if tx.user_id else None,
-                "tx_type": tx.tx_type,
+                "username": user_map.get(tx.user_id, "Unknown") if tx.user_id else None,
+                "tx_type": "transfer",  # Campo não existe, usando default
                 "tx_hash": tx.tx_hash,
                 "from_address": tx.from_address,
                 "to_address": tx.to_address,
                 "amount": float(tx.amount) if tx.amount else 0,
-                "cryptocurrency": tx.cryptocurrency if hasattr(tx, 'cryptocurrency') else None,
-                "network": tx.network if hasattr(tx, 'network') else None,
-                "status": tx.status,
-                "fee": float(tx.fee) if hasattr(tx, 'fee') and tx.fee else 0,
-                "confirmations": tx.confirmations if hasattr(tx, 'confirmations') else 0,
+                "cryptocurrency": tx.token_symbol,  # Usando token_symbol
+                "network": tx.network,
+                "status": tx.status.value if tx.status else None,
+                "fee": float(tx.fee) if tx.fee else 0,
+                "confirmations": tx.confirmations or 0,
                 "created_at": tx.created_at.isoformat() if tx.created_at else None,
-                "confirmed_at": tx.confirmed_at.isoformat() if hasattr(tx, 'confirmed_at') and tx.confirmed_at else None
+                "confirmed_at": tx.confirmed_at.isoformat() if tx.confirmed_at else None
             })
         
         return {
