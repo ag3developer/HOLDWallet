@@ -1,5 +1,12 @@
 import React, { useRef, useState, useEffect } from 'react'
-import { TrendingUp, TrendingDown, ChevronLeft, ChevronRight } from 'lucide-react'
+import {
+  TrendingUp,
+  TrendingDown,
+  ChevronLeft,
+  ChevronRight,
+  Activity,
+  Sparkles,
+} from 'lucide-react'
 import { useCurrencyStore } from '@/stores/useCurrencyStore'
 
 interface CryptoPrice {
@@ -77,117 +84,184 @@ export function MarketPricesCarousel({
   }
 
   return (
-    <div>
-      <div className='flex items-center justify-between mb-3'>
-        <h2 className='text-lg font-semibold text-gray-900 dark:text-white'>Market Prices</h2>
-        <div className='flex gap-2'>
-          <button
-            onClick={() => scroll('left')}
-            disabled={!canScrollLeft || cryptoPrices.length === 0}
-            title='Scroll left'
-            className='p-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
-          >
-            <ChevronLeft className='w-5 h-5' />
-          </button>
-          <button
-            onClick={() => scroll('right')}
-            disabled={!canScrollRight || cryptoPrices.length === 0}
-            title='Scroll right'
-            className='p-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
-          >
-            <ChevronRight className='w-5 h-5' />
-          </button>
+    <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 p-5'>
+      {/* Header */}
+      <div className='flex items-center justify-between mb-4'>
+        <div className='flex items-center gap-3'>
+          <div className='p-2.5 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg'>
+            <Activity className='w-5 h-5 text-white' />
+          </div>
+          <div>
+            <h2 className='text-lg font-bold text-gray-900 dark:text-white'>Market Prices</h2>
+            <p className='text-xs text-gray-500 dark:text-gray-400'>Live cryptocurrency rates</p>
+          </div>
+        </div>
+        <div className='flex items-center gap-2'>
+          <span className='hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-xs font-medium'>
+            <span className='w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse' />
+            Live
+          </span>
+          <div className='flex gap-1'>
+            <button
+              onClick={() => scroll('left')}
+              disabled={!canScrollLeft || cryptoPrices.length === 0}
+              title='Scroll left'
+              className='p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:scale-105 active:scale-95'
+            >
+              <ChevronLeft className='w-4 h-4' />
+            </button>
+            <button
+              onClick={() => scroll('right')}
+              disabled={!canScrollRight || cryptoPrices.length === 0}
+              title='Scroll right'
+              className='p-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:scale-105 active:scale-95'
+            >
+              <ChevronRight className='w-4 h-4' />
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Show loading state or carousel */}
       {cryptoPrices.length === 0 ? (
-        <div className='flex gap-3 overflow-x-auto scrollbar-hide'>
+        <div className='flex gap-4 overflow-x-auto scrollbar-hide pb-2'>
           {/* Loading skeleton - mostrar 5 cards vazios */}
           {Array.from({ length: 5 }).map((_, i) => (
             <div
               key={`skeleton-${String(i)}`}
-              className='flex-shrink-0 w-48 bg-gray-200 dark:bg-gray-700 rounded-lg p-3 animate-pulse'
+              className='flex-shrink-0 w-52 bg-gradient-to-br from-gray-100 to-gray-50 dark:from-gray-700 dark:to-gray-800 rounded-2xl p-4 animate-pulse'
             >
-              <div className='h-4 bg-gray-300 dark:bg-gray-600 rounded w-24 mb-2'></div>
-              <div className='h-6 bg-gray-300 dark:bg-gray-600 rounded w-32 mb-2'></div>
-              <div className='h-4 bg-gray-300 dark:bg-gray-600 rounded w-20'></div>
+              <div className='flex items-center gap-3 mb-3'>
+                <div className='w-10 h-10 bg-gray-300 dark:bg-gray-600 rounded-xl' />
+                <div className='flex-1'>
+                  <div className='h-4 bg-gray-300 dark:bg-gray-600 rounded w-16 mb-1.5' />
+                  <div className='h-3 bg-gray-300 dark:bg-gray-600 rounded w-20' />
+                </div>
+              </div>
+              <div className='h-6 bg-gray-300 dark:bg-gray-600 rounded w-28 mb-3' />
+              <div className='flex gap-4'>
+                <div className='h-4 bg-gray-300 dark:bg-gray-600 rounded w-16' />
+                <div className='h-4 bg-gray-300 dark:bg-gray-600 rounded w-16' />
+              </div>
             </div>
           ))}
         </div>
       ) : (
-        <div ref={carouselRef} className='flex gap-3 overflow-x-auto scrollbar-hide'>
-          {cryptoPrices.map(crypto => {
+        <div ref={carouselRef} className='flex gap-4 overflow-x-auto scrollbar-hide pb-2'>
+          {cryptoPrices.map((crypto, index) => {
             const isPositive = crypto.change24h >= 0
+            const isSelected = selectedSymbol === crypto.symbol
+            const isTopGainer = index === 0 && crypto.change24h > 2
+
             return (
               <button
                 key={crypto.symbol}
                 onClick={() => onSelectSymbol(crypto.symbol)}
-                className={`flex-shrink-0 w-48 text-left bg-white dark:bg-gray-800 rounded-lg shadow p-3 cursor-pointer transition-all hover:shadow-lg hover:scale-105 ${
-                  selectedSymbol === crypto.symbol ? 'ring-2 ring-blue-500 scale-105' : ''
+                className={`relative flex-shrink-0 w-52 text-left rounded-2xl p-4 cursor-pointer transition-all duration-300 hover:scale-[1.02] group ${
+                  isSelected
+                    ? 'bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-xl shadow-blue-500/25'
+                    : 'bg-gradient-to-br from-gray-50 to-white dark:from-gray-700 dark:to-gray-800 hover:shadow-lg border border-gray-100 dark:border-gray-600'
                 }`}
               >
-                <div className='flex items-start justify-between mb-2'>
-                  <div className='flex items-center gap-2 flex-1'>
+                {/* Top Gainer Badge */}
+                {isTopGainer && !isSelected && (
+                  <div className='absolute -top-2 -right-2 flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-amber-400 to-orange-500 text-white text-[10px] font-bold rounded-full shadow-lg'>
+                    <Sparkles className='w-3 h-3' />
+                    TOP
+                  </div>
+                )}
+
+                {/* Header com logo e change */}
+                <div className='flex items-start justify-between mb-3'>
+                  <div className='flex items-center gap-3'>
                     {/* Crypto Logo */}
-                    <div className='flex-shrink-0'>
+                    <div
+                      className={`flex-shrink-0 p-1 rounded-xl ${isSelected ? 'bg-white/20' : 'bg-gray-100 dark:bg-gray-600'}`}
+                    >
                       <img
                         src={CRYPTO_LOGOS[crypto.symbol] || ''}
                         alt={crypto.symbol}
-                        className='w-8 h-8 rounded-full'
+                        className='w-9 h-9 rounded-lg'
                         onError={e => {
-                          // Fallback if image fails to load
                           e.currentTarget.style.display = 'none'
                         }}
                       />
                     </div>
                     <div>
-                      <p className='font-bold text-gray-900 dark:text-white text-sm'>
+                      <p
+                        className={`font-bold text-sm ${isSelected ? 'text-white' : 'text-gray-900 dark:text-white'}`}
+                      >
                         {crypto.symbol}
                       </p>
-                      <p className='text-xs text-gray-600 dark:text-gray-400 leading-tight'>
+                      <p
+                        className={`text-xs leading-tight ${isSelected ? 'text-white/70' : 'text-gray-500 dark:text-gray-400'}`}
+                      >
                         {crypto.name}
                       </p>
                     </div>
                   </div>
+
+                  {/* Change Badge */}
                   <div
-                    className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-medium ${
-                      isPositive
-                        ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300'
-                        : 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300'
+                    className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold ${
+                      isSelected
+                        ? isPositive
+                          ? 'bg-green-400/30 text-green-100'
+                          : 'bg-red-400/30 text-red-100'
+                        : isPositive
+                          ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400'
+                          : 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400'
                     }`}
                   >
                     {isPositive ? (
-                      <TrendingUp className='w-2.5 h-2.5' />
+                      <TrendingUp className='w-3 h-3' />
                     ) : (
-                      <TrendingDown className='w-2.5 h-2.5' />
+                      <TrendingDown className='w-3 h-3' />
                     )}
-                    <span className='text-xs'>{Math.abs(crypto.change24h).toFixed(1)}%</span>
+                    <span>{Math.abs(crypto.change24h).toFixed(1)}%</span>
                   </div>
                 </div>
 
-                <p className='text-lg font-bold text-gray-900 dark:text-white mb-1 leading-tight'>
+                {/* Price */}
+                <p
+                  className={`text-xl font-bold mb-3 ${isSelected ? 'text-white' : 'text-gray-900 dark:text-white'}`}
+                >
                   {formatCurrency(crypto.price)}
                 </p>
 
-                <div className='grid grid-cols-2 gap-1 pt-1.5 border-t border-gray-200 dark:border-gray-700 text-xs'>
+                {/* High/Low */}
+                <div
+                  className={`grid grid-cols-2 gap-3 pt-3 border-t ${isSelected ? 'border-white/20' : 'border-gray-200 dark:border-gray-600'}`}
+                >
                   <div>
-                    <p className='text-gray-600 dark:text-gray-400 text-xs leading-tight'>H</p>
-                    <p className='font-medium text-gray-900 dark:text-white text-xs'>
+                    <p
+                      className={`text-[10px] uppercase tracking-wider mb-0.5 ${isSelected ? 'text-white/60' : 'text-gray-500 dark:text-gray-400'}`}
+                    >
+                      High 24h
+                    </p>
+                    <p
+                      className={`font-semibold text-xs ${isSelected ? 'text-white' : 'text-gray-900 dark:text-white'}`}
+                    >
                       {crypto.high24h > 0 ? (
                         formatCurrency(crypto.high24h)
                       ) : (
-                        <span className='text-gray-400'>—</span>
+                        <span className='opacity-50'>—</span>
                       )}
                     </p>
                   </div>
                   <div>
-                    <p className='text-gray-600 dark:text-gray-400 text-xs leading-tight'>L</p>
-                    <p className='font-medium text-gray-900 dark:text-white text-xs'>
+                    <p
+                      className={`text-[10px] uppercase tracking-wider mb-0.5 ${isSelected ? 'text-white/60' : 'text-gray-500 dark:text-gray-400'}`}
+                    >
+                      Low 24h
+                    </p>
+                    <p
+                      className={`font-semibold text-xs ${isSelected ? 'text-white' : 'text-gray-900 dark:text-white'}`}
+                    >
                       {crypto.low24h > 0 ? (
                         formatCurrency(crypto.low24h)
                       ) : (
-                        <span className='text-gray-400'>—</span>
+                        <span className='opacity-50'>—</span>
                       )}
                     </p>
                   </div>

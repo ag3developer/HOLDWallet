@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react'
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import {
   Search,
   ChevronDown,
@@ -61,13 +62,33 @@ export function CryptoSelector({
   const [isOpen, setIsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [activeCategory, setActiveCategory] = useState<'all' | 'popular' | 'stablecoins'>('all')
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 })
+  const triggerRef = useRef<HTMLButtonElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
+
+  // Update dropdown position when opened
+  const updateDropdownPosition = useCallback(() => {
+    if (triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect()
+      setDropdownPosition({
+        top: rect.bottom + 8, // 8px gap
+        left: rect.left,
+        width: rect.width,
+      })
+    }
+  }, [])
 
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      const target = event.target as Node
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(target) &&
+        triggerRef.current &&
+        !triggerRef.current.contains(target)
+      ) {
         setIsOpen(false)
       }
     }
@@ -75,6 +96,23 @@ export function CryptoSelector({
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
+
+  // Update position when dropdown opens and on scroll/resize
+  useEffect(() => {
+    if (isOpen) {
+      updateDropdownPosition()
+
+      // Update on scroll and resize
+      const handleUpdate = () => updateDropdownPosition()
+      window.addEventListener('scroll', handleUpdate, true)
+      window.addEventListener('resize', handleUpdate)
+
+      return () => {
+        window.removeEventListener('scroll', handleUpdate, true)
+        window.removeEventListener('resize', handleUpdate)
+      }
+    }
+  }, [isOpen, updateDropdownPosition])
 
   // Focus search input when dropdown opens
   useEffect(() => {
@@ -101,6 +139,13 @@ export function CryptoSelector({
 
   // Filter and categorize cryptos
   const filteredCryptos = useMemo(() => {
+    // Debug: log incoming data
+    console.log('[CryptoSelector] cryptoPrices:', cryptoPrices?.length || 0, 'items')
+
+    if (!cryptoPrices || cryptoPrices.length === 0) {
+      return []
+    }
+
     let filtered = [...cryptoPrices]
 
     // Apply search filter
@@ -147,8 +192,227 @@ export function CryptoSelector({
     setSearchQuery('')
   }
 
+  // Dropdown content rendered via portal
+  const dropdownContent = isOpen ? (
+    <>
+      {/* Backdrop */}
+      <button
+        type='button'
+        aria-label='Fechar seletor'
+        className='fixed inset-0 bg-black/20 z-[9998] cursor-default'
+        onClick={() => setIsOpen(false)}
+      />
+
+      {/* Dropdown Panel - Fixed position via portal */}
+      <div
+        ref={dropdownRef}
+        className='fixed z-[9999] bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden'
+        style={{
+          top: dropdownPosition.top,
+          left: dropdownPosition.left,
+          width: dropdownPosition.width,
+          maxHeight: 'min(480px, calc(100vh - 100px))',
+        }}
+      >
+        {/* Search Bar */}
+        <div className='p-4 border-b border-gray-100 dark:border-gray-700'>
+          <div className='relative'>
+            <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400' />
+            <input
+              ref={searchInputRef}
+              type='text'
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder='Buscar moeda...'
+              className='w-full pl-10 pr-10 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all'
+            />
+            {searchQuery && (
+              <button
+                type='button'
+                title='Limpar busca'
+                onClick={() => setSearchQuery('')}
+                className='absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors'
+              >
+                <X className='w-4 h-4 text-gray-400' />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Category Tabs */}
+        <div className='px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex gap-2'>
+          <button
+            onClick={() => setActiveCategory('all')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              activeCategory === 'all'
+                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+            }`}
+          >
+            <span className='flex items-center gap-1.5'>
+              <Coins className='w-4 h-4' />
+              Todas
+            </span>
+          </button>
+          <button
+            onClick={() => setActiveCategory('popular')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              activeCategory === 'popular'
+                ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+            }`}
+          >
+            <span className='flex items-center gap-1.5'>
+              <Star className='w-4 h-4' />
+              Popular
+            </span>
+          </button>
+          <button
+            onClick={() => setActiveCategory('stablecoins')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              activeCategory === 'stablecoins'
+                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+            }`}
+          >
+            <span className='flex items-center gap-1.5'>
+              <DollarSign className='w-4 h-4' />
+              Stablecoins
+            </span>
+          </button>
+        </div>
+
+        {/* Crypto List */}
+        <div className='overflow-y-auto' style={{ maxHeight: '320px' }}>
+          {filteredCryptos.length === 0 ? (
+            <div className='p-8 text-center'>
+              <div className='w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center'>
+                <Search className='w-8 h-8 text-gray-400' />
+              </div>
+              <p className='text-gray-500 dark:text-gray-400 font-medium'>
+                Nenhuma moeda encontrada
+              </p>
+              <p className='text-sm text-gray-400 dark:text-gray-500 mt-1'>
+                Tente buscar por outro termo
+              </p>
+            </div>
+          ) : (
+            <div className='divide-y divide-gray-100 dark:divide-gray-700/50'>
+              {filteredCryptos.map(crypto => {
+                const isSelected = crypto.symbol === selectedSymbol
+                const isStable = STABLECOINS.has(crypto.symbol)
+
+                return (
+                  <button
+                    key={crypto.symbol}
+                    onClick={() => handleSelect(crypto.symbol)}
+                    className={`w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${
+                      isSelected ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                    }`}
+                  >
+                    <div className='flex items-center gap-3'>
+                      {/* Logo */}
+                      <div className='relative'>
+                        <img
+                          src={CRYPTO_LOGOS[crypto.symbol]}
+                          alt={crypto.symbol}
+                          className={`w-10 h-10 rounded-full ${
+                            isSelected
+                              ? 'ring-2 ring-blue-500'
+                              : 'ring-1 ring-gray-200 dark:ring-gray-700'
+                          }`}
+                          onError={e => {
+                            e.currentTarget.src = `https://ui-avatars.com/api/?name=${crypto.symbol}&background=6366f1&color=fff&size=40`
+                          }}
+                        />
+                        {isSelected && (
+                          <span className='absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center'>
+                            <svg
+                              className='w-2.5 h-2.5 text-white'
+                              fill='currentColor'
+                              viewBox='0 0 20 20'
+                            >
+                              <path
+                                fillRule='evenodd'
+                                d='M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z'
+                                clipRule='evenodd'
+                              />
+                            </svg>
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Info */}
+                      <div className='flex flex-col items-start'>
+                        <div className='flex items-center gap-2'>
+                          <span
+                            className={`font-semibold ${
+                              isSelected
+                                ? 'text-blue-600 dark:text-blue-400'
+                                : 'text-gray-900 dark:text-white'
+                            }`}
+                          >
+                            {crypto.symbol}
+                          </span>
+                          {isStable && (
+                            <span className='px-1.5 py-0.5 text-[10px] font-semibold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded'>
+                              STABLE
+                            </span>
+                          )}
+                        </div>
+                        <span className='text-xs text-gray-500 dark:text-gray-400 truncate max-w-[140px] sm:max-w-[200px]'>
+                          {crypto.name}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Price Info */}
+                    <div className='flex flex-col items-end'>
+                      <span
+                        className={`font-medium ${
+                          isSelected
+                            ? 'text-blue-600 dark:text-blue-400'
+                            : 'text-gray-900 dark:text-white'
+                        }`}
+                      >
+                        ${formatPrice(crypto.price)}
+                      </span>
+                      <span
+                        className={`text-xs font-medium flex items-center gap-0.5 ${
+                          crypto.change24h >= 0
+                            ? 'text-green-600 dark:text-green-400'
+                            : 'text-red-600 dark:text-red-400'
+                        }`}
+                      >
+                        {crypto.change24h >= 0 ? (
+                          <TrendingUp className='w-3 h-3' />
+                        ) : (
+                          <TrendingDown className='w-3 h-3' />
+                        )}
+                        {formatChange(crypto.change24h)}
+                      </span>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Footer with count */}
+        <div className='px-4 py-3 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50'>
+          <p className='text-xs text-center text-gray-500 dark:text-gray-400'>
+            {filteredCryptos.length === 1
+              ? '1 moeda disponível'
+              : `${filteredCryptos.length} moedas disponíveis`}
+          </p>
+        </div>
+      </div>
+    </>
+  ) : null
+
   return (
-    <div className='relative' ref={dropdownRef}>
+    <div className='relative'>
       {/* Label */}
       <span
         id='crypto-selector-label'
@@ -159,6 +423,7 @@ export function CryptoSelector({
 
       {/* Trigger Button */}
       <button
+        ref={triggerRef}
         type='button'
         aria-labelledby='crypto-selector-label'
         onClick={() => setIsOpen(!isOpen)}
@@ -235,215 +500,8 @@ export function CryptoSelector({
         </div>
       </button>
 
-      {/* Dropdown */}
-      {isOpen && (
-        <>
-          {/* Backdrop for mobile */}
-          <button
-            type='button'
-            aria-label='Fechar seletor'
-            className='fixed inset-0 bg-black/20 z-40 md:hidden cursor-default'
-            onClick={() => setIsOpen(false)}
-          />
-
-          {/* Dropdown Panel */}
-          <div className='absolute z-50 w-full mt-2 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden md:max-h-[480px] max-h-[70vh]'>
-            {/* Search Bar */}
-            <div className='p-4 border-b border-gray-100 dark:border-gray-700'>
-              <div className='relative'>
-                <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400' />
-                <input
-                  ref={searchInputRef}
-                  type='text'
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  placeholder='Buscar moeda...'
-                  className='w-full pl-10 pr-10 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all'
-                />
-                {searchQuery && (
-                  <button
-                    type='button'
-                    title='Limpar busca'
-                    onClick={() => setSearchQuery('')}
-                    className='absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors'
-                  >
-                    <X className='w-4 h-4 text-gray-400' />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Category Tabs */}
-            <div className='px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex gap-2'>
-              <button
-                onClick={() => setActiveCategory('all')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                  activeCategory === 'all'
-                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
-                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-                }`}
-              >
-                <span className='flex items-center gap-1.5'>
-                  <Coins className='w-4 h-4' />
-                  Todas
-                </span>
-              </button>
-              <button
-                onClick={() => setActiveCategory('popular')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                  activeCategory === 'popular'
-                    ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
-                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-                }`}
-              >
-                <span className='flex items-center gap-1.5'>
-                  <Star className='w-4 h-4' />
-                  Popular
-                </span>
-              </button>
-              <button
-                onClick={() => setActiveCategory('stablecoins')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                  activeCategory === 'stablecoins'
-                    ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-                }`}
-              >
-                <span className='flex items-center gap-1.5'>
-                  <DollarSign className='w-4 h-4' />
-                  Stablecoins
-                </span>
-              </button>
-            </div>
-
-            {/* Crypto List */}
-            <div className='overflow-y-auto max-h-[320px] md:max-h-[340px]'>
-              {filteredCryptos.length === 0 ? (
-                <div className='p-8 text-center'>
-                  <div className='w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center'>
-                    <Search className='w-8 h-8 text-gray-400' />
-                  </div>
-                  <p className='text-gray-500 dark:text-gray-400 font-medium'>
-                    Nenhuma moeda encontrada
-                  </p>
-                  <p className='text-sm text-gray-400 dark:text-gray-500 mt-1'>
-                    Tente buscar por outro termo
-                  </p>
-                </div>
-              ) : (
-                <div className='divide-y divide-gray-100 dark:divide-gray-700/50'>
-                  {filteredCryptos.map(crypto => {
-                    const isSelected = crypto.symbol === selectedSymbol
-                    const isStable = STABLECOINS.has(crypto.symbol)
-
-                    return (
-                      <button
-                        key={crypto.symbol}
-                        onClick={() => handleSelect(crypto.symbol)}
-                        className={`w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${
-                          isSelected ? 'bg-blue-50 dark:bg-blue-900/20' : ''
-                        }`}
-                      >
-                        <div className='flex items-center gap-3'>
-                          {/* Logo */}
-                          <div className='relative'>
-                            <img
-                              src={CRYPTO_LOGOS[crypto.symbol]}
-                              alt={crypto.symbol}
-                              className={`w-10 h-10 rounded-full ${
-                                isSelected
-                                  ? 'ring-2 ring-blue-500'
-                                  : 'ring-1 ring-gray-200 dark:ring-gray-700'
-                              }`}
-                              onError={e => {
-                                e.currentTarget.src = `https://ui-avatars.com/api/?name=${crypto.symbol}&background=6366f1&color=fff&size=40`
-                              }}
-                            />
-                            {isSelected && (
-                              <span className='absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center'>
-                                <svg
-                                  className='w-2.5 h-2.5 text-white'
-                                  fill='currentColor'
-                                  viewBox='0 0 20 20'
-                                >
-                                  <path
-                                    fillRule='evenodd'
-                                    d='M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z'
-                                    clipRule='evenodd'
-                                  />
-                                </svg>
-                              </span>
-                            )}
-                          </div>
-
-                          {/* Info */}
-                          <div className='flex flex-col items-start'>
-                            <div className='flex items-center gap-2'>
-                              <span
-                                className={`font-semibold ${
-                                  isSelected
-                                    ? 'text-blue-600 dark:text-blue-400'
-                                    : 'text-gray-900 dark:text-white'
-                                }`}
-                              >
-                                {crypto.symbol}
-                              </span>
-                              {isStable && (
-                                <span className='px-1.5 py-0.5 text-[10px] font-semibold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded'>
-                                  STABLE
-                                </span>
-                              )}
-                            </div>
-                            <span className='text-xs text-gray-500 dark:text-gray-400 truncate max-w-[140px] sm:max-w-[200px]'>
-                              {crypto.name}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Price Info */}
-                        <div className='flex flex-col items-end'>
-                          <span
-                            className={`font-medium ${
-                              isSelected
-                                ? 'text-blue-600 dark:text-blue-400'
-                                : 'text-gray-900 dark:text-white'
-                            }`}
-                          >
-                            ${formatPrice(crypto.price)}
-                          </span>
-                          <span
-                            className={`text-xs font-medium flex items-center gap-0.5 ${
-                              crypto.change24h >= 0
-                                ? 'text-green-600 dark:text-green-400'
-                                : 'text-red-600 dark:text-red-400'
-                            }`}
-                          >
-                            {crypto.change24h >= 0 ? (
-                              <TrendingUp className='w-3 h-3' />
-                            ) : (
-                              <TrendingDown className='w-3 h-3' />
-                            )}
-                            {formatChange(crypto.change24h)}
-                          </span>
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Footer with count */}
-            <div className='px-4 py-3 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50'>
-              <p className='text-xs text-center text-gray-500 dark:text-gray-400'>
-                {filteredCryptos.length === 1
-                  ? '1 moeda disponível'
-                  : `${filteredCryptos.length} moedas disponíveis`}
-              </p>
-            </div>
-          </div>
-        </>
-      )}
+      {/* Dropdown rendered via portal to escape overflow:hidden containers */}
+      {createPortal(dropdownContent, document.body)}
     </div>
   )
 }

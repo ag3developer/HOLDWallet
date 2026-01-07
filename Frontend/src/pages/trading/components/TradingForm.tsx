@@ -339,10 +339,10 @@ export function TradingForm({
   }, [amount, selectedSymbol, isBuy, onQuoteReceived, lastQuoteTime, lastQuotedAmount])
 
   return (
-    <div className='bg-white dark:bg-gray-800 rounded-lg shadow'>
-      <div className='p-4 border-b border-gray-200 dark:border-gray-700 space-y-3'>
-        {/* Operation Toggle */}
-        <div className='flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1 gap-1'>
+    <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden'>
+      <div className='p-5 space-y-4'>
+        {/* Operation Toggle - Improved Design */}
+        <div className='flex bg-gray-100 dark:bg-gray-700/50 rounded-xl p-1.5 gap-1'>
           <button
             onClick={() => {
               onOperationChange(true)
@@ -350,10 +350,10 @@ export function TradingForm({
               setLastQuotedAmount('') // Reset valor cotado
               setLastQuoteTime(0)
             }}
-            className={`flex-1 px-2 py-2 rounded text-sm font-medium transition-colors ${
+            className={`flex-1 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${
               isBuy
-                ? 'bg-green-600 text-white shadow'
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-md shadow-green-500/25'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-gray-600/50'
             }`}
           >
             Buy
@@ -365,10 +365,10 @@ export function TradingForm({
               setLastQuotedAmount('') // Reset valor cotado
               setLastQuoteTime(0)
             }}
-            className={`flex-1 px-2 py-2 rounded text-sm font-medium transition-colors ${
+            className={`flex-1 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${
               isBuy
-                ? 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                : 'bg-red-600 text-white shadow'
+                ? 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-gray-600/50'
+                : 'bg-gradient-to-r from-red-500 to-rose-600 text-white shadow-md shadow-red-500/25'
             }`}
           >
             Sell
@@ -442,7 +442,7 @@ export function TradingForm({
             }}
             placeholder='0.00'
             max={isBuy ? undefined : walletBalance}
-            className='w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+            className='w-full px-4 py-3 text-lg font-semibold border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700/50 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-all'
           />
         </div>
 

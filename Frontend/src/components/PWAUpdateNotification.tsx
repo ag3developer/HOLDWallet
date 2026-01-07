@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { FiDownload, FiX } from 'react-icons/fi'
+import { Rocket } from 'lucide-react'
 
 /**
  * Componente que exibe notificação quando há uma nova versão da PWA disponível
@@ -91,9 +92,10 @@ export const PWAUpdateNotification = () => {
           <div className='flex gap-2'>
             <button
               onClick={handleUpdate}
-              className='flex-1 bg-white text-purple-600 font-semibold py-2.5 px-4 rounded-lg hover:bg-white/90 transition-all duration-200 shadow-lg hover:scale-105'
+              className='flex-1 bg-white text-purple-600 font-semibold py-2.5 px-4 rounded-lg hover:bg-white/90 transition-all duration-200 shadow-lg hover:scale-105 flex items-center justify-center gap-2'
             >
-              🚀 Atualizar Agora
+              <Rocket className='w-4 h-4' />
+              Atualizar Agora
             </button>
             <button
               onClick={close}

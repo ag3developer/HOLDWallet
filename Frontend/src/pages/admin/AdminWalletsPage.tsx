@@ -24,6 +24,8 @@ import {
   Shield,
   Zap,
   DollarSign,
+  Coins,
+  Lock,
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 
@@ -122,7 +124,7 @@ const NETWORK_SYMBOLS: Record<string, string> = {
   chainlink: 'LINK',
   shiba: 'SHIB',
   xrp: 'XRP',
-  multi: '🌐',
+  multi: 'MULTI',
 }
 
 // URLs dos logos das criptomoedas
@@ -734,8 +736,9 @@ export const AdminWalletsPage: React.FC = () => {
                   {/* Botão Consultar Blockchain e Saldos */}
                   <div className='mb-4'>
                     <div className='flex items-center justify-between mb-3'>
-                      <h4 className='text-sm font-medium text-gray-400'>
-                        💰 Saldos Blockchain (Tempo Real)
+                      <h4 className='text-sm font-medium text-gray-400 flex items-center gap-2'>
+                        <Coins className='h-4 w-4 text-yellow-500' />
+                        Saldos Blockchain (Tempo Real)
                       </h4>
                       <button
                         onClick={e => {
@@ -934,8 +937,9 @@ export const AdminWalletsPage: React.FC = () => {
                               {bal.total.toFixed(crypto === 'BTC' ? 8 : 4)}
                             </div>
                             {bal.locked > 0 && (
-                              <div className='text-xs text-amber-500'>
-                                🔒 {bal.locked.toFixed(4)} bloqueado
+                              <div className='text-xs text-amber-500 flex items-center gap-1'>
+                                <Lock className='h-3 w-3' />
+                                {bal.locked.toFixed(4)} bloqueado
                               </div>
                             )}
                           </div>

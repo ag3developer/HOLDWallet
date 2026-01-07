@@ -8,7 +8,23 @@ import { ConfirmationPanel, TradeData } from './components/ConfirmationPanel'
 import { BenefitsSidebar } from './components/BenefitsSidebar'
 import { TradeHistoryPanel } from './components/TradeHistoryPanel'
 import { TradeDetailsPage } from './components/TradeDetailsPage'
-import { ChevronDown, TrendingUp, Zap, Clock, Globe } from 'lucide-react'
+import {
+  ChevronDown,
+  TrendingUp,
+  Zap,
+  Clock,
+  Globe,
+  ArrowUpRight,
+  ArrowDownRight,
+  Sparkles,
+  Shield,
+  History,
+  Activity,
+  Flame,
+  BarChart3,
+  Wallet,
+  RefreshCw,
+} from 'lucide-react'
 
 interface Quote {
   quote_id: string
@@ -85,7 +101,18 @@ export function InstantTradePage() {
     SUPPORTED_CRYPTOS.map(c => c.symbol),
     currency
   )
-  const [cryptoPrices, setCryptoPrices] = useState<CryptoPrice[]>([])
+
+  // Inicializar com SUPPORTED_CRYPTOS para garantir que as moedas apareçam mesmo antes dos preços carregarem
+  const [cryptoPrices, setCryptoPrices] = useState<CryptoPrice[]>(() =>
+    SUPPORTED_CRYPTOS.map(crypto => ({
+      symbol: crypto.symbol,
+      name: crypto.name,
+      price: 0,
+      change24h: 0,
+      high24h: 0,
+      low24h: 0,
+    }))
+  )
   const [operation, setOperation] = useState<'buy' | 'sell'>('buy')
   const [symbol, setSymbol] = useState('BTC')
   const [quote, setQuote] = useState<Quote | null>(null)
@@ -221,12 +248,44 @@ export function InstantTradePage() {
 
   return (
     <div className='space-y-6'>
-      {/* Header */}
-      <div>
-        <h1 className='text-3xl font-bold text-gray-900 dark:text-white'>Instant Trade OTC</h1>
-        <p className='text-gray-600 dark:text-gray-400 mt-1'>
-          Buy and sell cryptocurrencies instantly with real-time pricing
-        </p>
+      {/* Clean Header */}
+      <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4'>
+        <div>
+          <div className='flex items-center gap-3 mb-1'>
+            <h1 className='text-2xl md:text-3xl font-bold text-gray-900 dark:text-white'>
+              Instant Trade
+            </h1>
+            <div className='flex items-center gap-1.5 px-2.5 py-1 bg-green-100 dark:bg-green-900/30 rounded-full'>
+              <span className='w-2 h-2 bg-green-500 rounded-full animate-pulse' />
+              <span className='text-xs font-medium text-green-700 dark:text-green-400'>Live</span>
+            </div>
+          </div>
+          <p className='text-gray-500 dark:text-gray-400 text-sm'>
+            Compre e venda crypto com as melhores taxas OTC
+          </p>
+        </div>
+
+        {/* Stats Pills */}
+        <div className='flex gap-2'>
+          <div className='flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm'>
+            <Activity className='w-4 h-4 text-blue-500' />
+            <div>
+              <p className='text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wide'>
+                Volume 24h
+              </p>
+              <p className='text-sm font-bold text-gray-900 dark:text-white'>$2.4M</p>
+            </div>
+          </div>
+          <div className='flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm'>
+            <Flame className='w-4 h-4 text-orange-500' />
+            <div>
+              <p className='text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wide'>
+                Trades
+              </p>
+              <p className='text-sm font-bold text-gray-900 dark:text-white'>847</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Market Prices Carousel */}
@@ -267,44 +326,90 @@ export function InstantTradePage() {
               {quote ? (
                 <QuoteDisplay quote={quote} onConfirmClick={() => setShowConfirmation(true)} />
               ) : (
-                <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-4'>
+                <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 p-6'>
+                  <div className='flex items-center gap-2 mb-4'>
+                    <div className='p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl'>
+                      <Sparkles className='w-5 h-5 text-white' />
+                    </div>
+                    <div>
+                      <h3 className='font-bold text-gray-900 dark:text-white'>Dicas Rápidas</h3>
+                      <p className='text-xs text-gray-500 dark:text-gray-400'>
+                        Maximize seus ganhos
+                      </p>
+                    </div>
+                  </div>
+
                   <div className='space-y-3'>
-                    <h3 className='text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2'>
-                      <Zap className='w-4 h-4' /> Quick Tips
-                    </h3>
-
-                    <div className='space-y-2 text-xs'>
-                      <div className='p-2 bg-blue-50 dark:bg-blue-900/30 rounded border-l-2 border-blue-500 flex gap-2'>
-                        <TrendingUp className='w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5' />
-                        <p className='text-gray-700 dark:text-gray-300'>
-                          <span className='font-medium'>Best rates:</span> Higher amounts get better
-                          prices
-                        </p>
+                    <div className='group p-3 bg-gradient-to-r from-blue-50 to-transparent dark:from-blue-900/20 rounded-xl border-l-4 border-blue-500 hover:scale-[1.02] transition-transform cursor-default'>
+                      <div className='flex items-start gap-3'>
+                        <div className='p-1.5 bg-blue-100 dark:bg-blue-900/50 rounded-lg'>
+                          <TrendingUp className='w-4 h-4 text-blue-600 dark:text-blue-400' />
+                        </div>
+                        <div>
+                          <p className='font-semibold text-sm text-gray-900 dark:text-white'>
+                            Melhores Taxas
+                          </p>
+                          <p className='text-xs text-gray-600 dark:text-gray-400'>
+                            Valores maiores = melhores preços
+                          </p>
+                        </div>
                       </div>
+                    </div>
 
-                      <div className='p-2 bg-green-50 dark:bg-green-900/30 rounded border-l-2 border-green-500 flex gap-2'>
-                        <Zap className='w-4 h-4 text-green-600 flex-shrink-0 mt-0.5' />
-                        <p className='text-gray-700 dark:text-gray-300'>
-                          <span className='font-medium'>Fast delivery:</span> Most trades complete
-                          in minutes
-                        </p>
+                    <div className='group p-3 bg-gradient-to-r from-green-50 to-transparent dark:from-green-900/20 rounded-xl border-l-4 border-green-500 hover:scale-[1.02] transition-transform cursor-default'>
+                      <div className='flex items-start gap-3'>
+                        <div className='p-1.5 bg-green-100 dark:bg-green-900/50 rounded-lg'>
+                          <Zap className='w-4 h-4 text-green-600 dark:text-green-400' />
+                        </div>
+                        <div>
+                          <p className='font-semibold text-sm text-gray-900 dark:text-white'>
+                            Execução Rápida
+                          </p>
+                          <p className='text-xs text-gray-600 dark:text-gray-400'>
+                            Maioria das trades em minutos
+                          </p>
+                        </div>
                       </div>
+                    </div>
 
-                      <div className='p-2 bg-amber-50 dark:bg-amber-900/30 rounded border-l-2 border-amber-500 flex gap-2'>
-                        <Clock className='w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5' />
-                        <p className='text-gray-700 dark:text-gray-300'>
-                          <span className='font-medium'>Quote expires:</span> Refresh if quote times
-                          out
-                        </p>
+                    <div className='group p-3 bg-gradient-to-r from-amber-50 to-transparent dark:from-amber-900/20 rounded-xl border-l-4 border-amber-500 hover:scale-[1.02] transition-transform cursor-default'>
+                      <div className='flex items-start gap-3'>
+                        <div className='p-1.5 bg-amber-100 dark:bg-amber-900/50 rounded-lg'>
+                          <Clock className='w-4 h-4 text-amber-600 dark:text-amber-400' />
+                        </div>
+                        <div>
+                          <p className='font-semibold text-sm text-gray-900 dark:text-white'>
+                            Cotação Expira
+                          </p>
+                          <p className='text-xs text-gray-600 dark:text-gray-400'>
+                            Atualize se o tempo acabar
+                          </p>
+                        </div>
                       </div>
+                    </div>
 
-                      <div className='p-2 bg-purple-50 dark:bg-purple-900/30 rounded border-l-2 border-purple-500 flex gap-2'>
-                        <Globe className='w-4 h-4 text-purple-600 flex-shrink-0 mt-0.5' />
-                        <p className='text-gray-700 dark:text-gray-300'>
-                          <span className='font-medium'>24/7 trading:</span> Trade anytime, every
-                          day
-                        </p>
+                    <div className='group p-3 bg-gradient-to-r from-purple-50 to-transparent dark:from-purple-900/20 rounded-xl border-l-4 border-purple-500 hover:scale-[1.02] transition-transform cursor-default'>
+                      <div className='flex items-start gap-3'>
+                        <div className='p-1.5 bg-purple-100 dark:bg-purple-900/50 rounded-lg'>
+                          <Globe className='w-4 h-4 text-purple-600 dark:text-purple-400' />
+                        </div>
+                        <div>
+                          <p className='font-semibold text-sm text-gray-900 dark:text-white'>
+                            24/7 Trading
+                          </p>
+                          <p className='text-xs text-gray-600 dark:text-gray-400'>
+                            Negocie a qualquer hora
+                          </p>
+                        </div>
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Security Badge */}
+                  <div className='mt-4 pt-4 border-t border-gray-100 dark:border-gray-700'>
+                    <div className='flex items-center justify-center gap-2 text-xs text-gray-500 dark:text-gray-400'>
+                      <Shield className='w-4 h-4 text-green-500' />
+                      <span>Transações 100% seguras e criptografadas</span>
                     </div>
                   </div>
                 </div>
@@ -320,55 +425,90 @@ export function InstantTradePage() {
           {/* Tablet Layout: Stacked */}
           <div className='hidden md:block lg:hidden space-y-6'>
             {/* Trading Form */}
-            <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-6'>
-              <TradingForm
-                cryptoPrices={cryptoPrices}
-                selectedSymbol={symbol}
-                onSymbolChange={setSymbol}
-                isBuy={operation === 'buy'}
-                onOperationChange={isBuy => setOperation(isBuy ? 'buy' : 'sell')}
-                onQuoteReceived={handleQuoteReceived}
-                currency={currency}
-                convertFromBRL={convertFromBRL}
-              />
-            </div>
+            <TradingForm
+              cryptoPrices={cryptoPrices}
+              selectedSymbol={symbol}
+              onSymbolChange={setSymbol}
+              isBuy={operation === 'buy'}
+              onOperationChange={isBuy => setOperation(isBuy ? 'buy' : 'sell')}
+              onQuoteReceived={handleQuoteReceived}
+              currency={currency}
+              convertFromBRL={convertFromBRL}
+            />
 
             {/* Quote or Tips */}
             {quote ? (
               <QuoteDisplay quote={quote} onConfirmClick={() => setShowConfirmation(true)} />
             ) : (
-              <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-4'>
+              <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 p-5 space-y-4'>
+                <div className='flex items-center gap-3 mb-4'>
+                  <div className='p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-md'>
+                    <Zap className='w-5 h-5 text-white' />
+                  </div>
+                  <div>
+                    <h3 className='font-bold text-gray-900 dark:text-white'>Dicas Rápidas</h3>
+                    <p className='text-xs text-gray-500 dark:text-gray-400'>Maximize seus ganhos</p>
+                  </div>
+                </div>
                 <div className='space-y-3'>
-                  <h3 className='text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2'>
-                    <Zap className='w-4 h-4' /> Quick Tips
-                  </h3>
-                  <div className='space-y-2 text-xs'>
-                    <div className='p-2 bg-blue-50 dark:bg-blue-900/30 rounded border-l-2 border-blue-500 flex gap-2'>
-                      <TrendingUp className='w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5' />
-                      <p className='text-gray-700 dark:text-gray-300'>
-                        <span className='font-medium'>Best rates:</span> Higher amounts get better
-                        prices
-                      </p>
+                  <div className='group p-3 bg-gradient-to-r from-blue-50 to-transparent dark:from-blue-900/20 rounded-xl border-l-4 border-blue-500 hover:scale-[1.02] transition-transform'>
+                    <div className='flex items-start gap-3'>
+                      <div className='p-1.5 bg-blue-100 dark:bg-blue-900/50 rounded-lg'>
+                        <TrendingUp className='w-4 h-4 text-blue-600 dark:text-blue-400' />
+                      </div>
+                      <div>
+                        <p className='font-semibold text-sm text-gray-900 dark:text-white'>
+                          Melhores Taxas
+                        </p>
+                        <p className='text-xs text-gray-600 dark:text-gray-400'>
+                          Valores maiores = melhores preços
+                        </p>
+                      </div>
                     </div>
-                    <div className='p-2 bg-green-50 dark:bg-green-900/30 rounded border-l-2 border-green-500 flex gap-2'>
-                      <Zap className='w-4 h-4 text-green-600 flex-shrink-0 mt-0.5' />
-                      <p className='text-gray-700 dark:text-gray-300'>
-                        <span className='font-medium'>Fast delivery:</span> Most trades complete in
-                        minutes
-                      </p>
+                  </div>
+                  <div className='group p-3 bg-gradient-to-r from-green-50 to-transparent dark:from-green-900/20 rounded-xl border-l-4 border-green-500 hover:scale-[1.02] transition-transform'>
+                    <div className='flex items-start gap-3'>
+                      <div className='p-1.5 bg-green-100 dark:bg-green-900/50 rounded-lg'>
+                        <Zap className='w-4 h-4 text-green-600 dark:text-green-400' />
+                      </div>
+                      <div>
+                        <p className='font-semibold text-sm text-gray-900 dark:text-white'>
+                          Execução Rápida
+                        </p>
+                        <p className='text-xs text-gray-600 dark:text-gray-400'>
+                          Maioria das trades em minutos
+                        </p>
+                      </div>
                     </div>
-                    <div className='p-2 bg-amber-50 dark:bg-amber-900/30 rounded border-l-2 border-amber-500 flex gap-2'>
-                      <Clock className='w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5' />
-                      <p className='text-gray-700 dark:text-gray-300'>
-                        <span className='font-medium'>Quote expires:</span> Refresh if quote times
-                        out
-                      </p>
+                  </div>
+                  <div className='group p-3 bg-gradient-to-r from-amber-50 to-transparent dark:from-amber-900/20 rounded-xl border-l-4 border-amber-500 hover:scale-[1.02] transition-transform'>
+                    <div className='flex items-start gap-3'>
+                      <div className='p-1.5 bg-amber-100 dark:bg-amber-900/50 rounded-lg'>
+                        <Clock className='w-4 h-4 text-amber-600 dark:text-amber-400' />
+                      </div>
+                      <div>
+                        <p className='font-semibold text-sm text-gray-900 dark:text-white'>
+                          Cotação Expira
+                        </p>
+                        <p className='text-xs text-gray-600 dark:text-gray-400'>
+                          Atualize se o tempo acabar
+                        </p>
+                      </div>
                     </div>
-                    <div className='p-2 bg-purple-50 dark:bg-purple-900/30 rounded border-l-2 border-purple-500 flex gap-2'>
-                      <Globe className='w-4 h-4 text-purple-600 flex-shrink-0 mt-0.5' />
-                      <p className='text-gray-700 dark:text-gray-300'>
-                        <span className='font-medium'>24/7 trading:</span> Trade anytime, every day
-                      </p>
+                  </div>
+                  <div className='group p-3 bg-gradient-to-r from-purple-50 to-transparent dark:from-purple-900/20 rounded-xl border-l-4 border-purple-500 hover:scale-[1.02] transition-transform'>
+                    <div className='flex items-start gap-3'>
+                      <div className='p-1.5 bg-purple-100 dark:bg-purple-900/50 rounded-lg'>
+                        <Globe className='w-4 h-4 text-purple-600 dark:text-purple-400' />
+                      </div>
+                      <div>
+                        <p className='font-semibold text-sm text-gray-900 dark:text-white'>
+                          24/7 Trading
+                        </p>
+                        <p className='text-xs text-gray-600 dark:text-gray-400'>
+                          Negocie a qualquer hora
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -397,38 +537,75 @@ export function InstantTradePage() {
             {quote ? (
               <QuoteDisplay quote={quote} onConfirmClick={() => setShowConfirmation(true)} />
             ) : (
-              <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-4'>
+              <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 p-5 space-y-4'>
+                <div className='flex items-center gap-3 mb-4'>
+                  <div className='p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-md'>
+                    <Zap className='w-5 h-5 text-white' />
+                  </div>
+                  <div>
+                    <h3 className='font-bold text-gray-900 dark:text-white'>Dicas Rápidas</h3>
+                    <p className='text-xs text-gray-500 dark:text-gray-400'>Maximize seus ganhos</p>
+                  </div>
+                </div>
                 <div className='space-y-3'>
-                  <h3 className='text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2'>
-                    <Zap className='w-4 h-4' /> Quick Tips
-                  </h3>
-                  <div className='space-y-2 text-xs'>
-                    <div className='p-2 bg-blue-50 dark:bg-blue-900/30 rounded border-l-2 border-blue-500 flex gap-2'>
-                      <TrendingUp className='w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5' />
-                      <p className='text-gray-700 dark:text-gray-300'>
-                        <span className='font-medium'>Best rates:</span> Higher amounts get better
-                        prices
-                      </p>
+                  <div className='group p-3 bg-gradient-to-r from-blue-50 to-transparent dark:from-blue-900/20 rounded-xl border-l-4 border-blue-500 hover:scale-[1.02] transition-transform'>
+                    <div className='flex items-start gap-3'>
+                      <div className='p-1.5 bg-blue-100 dark:bg-blue-900/50 rounded-lg'>
+                        <TrendingUp className='w-4 h-4 text-blue-600 dark:text-blue-400' />
+                      </div>
+                      <div>
+                        <p className='font-semibold text-sm text-gray-900 dark:text-white'>
+                          Melhores Taxas
+                        </p>
+                        <p className='text-xs text-gray-600 dark:text-gray-400'>
+                          Valores maiores = melhores preços
+                        </p>
+                      </div>
                     </div>
-                    <div className='p-2 bg-green-50 dark:bg-green-900/30 rounded border-l-2 border-green-500 flex gap-2'>
-                      <Zap className='w-4 h-4 text-green-600 flex-shrink-0 mt-0.5' />
-                      <p className='text-gray-700 dark:text-gray-300'>
-                        <span className='font-medium'>Fast delivery:</span> Most trades complete in
-                        minutes
-                      </p>
+                  </div>
+                  <div className='group p-3 bg-gradient-to-r from-green-50 to-transparent dark:from-green-900/20 rounded-xl border-l-4 border-green-500 hover:scale-[1.02] transition-transform'>
+                    <div className='flex items-start gap-3'>
+                      <div className='p-1.5 bg-green-100 dark:bg-green-900/50 rounded-lg'>
+                        <Zap className='w-4 h-4 text-green-600 dark:text-green-400' />
+                      </div>
+                      <div>
+                        <p className='font-semibold text-sm text-gray-900 dark:text-white'>
+                          Execução Rápida
+                        </p>
+                        <p className='text-xs text-gray-600 dark:text-gray-400'>
+                          Maioria das trades em minutos
+                        </p>
+                      </div>
                     </div>
-                    <div className='p-2 bg-amber-50 dark:bg-amber-900/30 rounded border-l-2 border-amber-500 flex gap-2'>
-                      <Clock className='w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5' />
-                      <p className='text-gray-700 dark:text-gray-300'>
-                        <span className='font-medium'>Quote expires:</span> Refresh if quote times
-                        out
-                      </p>
+                  </div>
+                  <div className='group p-3 bg-gradient-to-r from-amber-50 to-transparent dark:from-amber-900/20 rounded-xl border-l-4 border-amber-500 hover:scale-[1.02] transition-transform'>
+                    <div className='flex items-start gap-3'>
+                      <div className='p-1.5 bg-amber-100 dark:bg-amber-900/50 rounded-lg'>
+                        <Clock className='w-4 h-4 text-amber-600 dark:text-amber-400' />
+                      </div>
+                      <div>
+                        <p className='font-semibold text-sm text-gray-900 dark:text-white'>
+                          Cotação Expira
+                        </p>
+                        <p className='text-xs text-gray-600 dark:text-gray-400'>
+                          Atualize se o tempo acabar
+                        </p>
+                      </div>
                     </div>
-                    <div className='p-2 bg-purple-50 dark:bg-purple-900/30 rounded border-l-2 border-purple-500 flex gap-2'>
-                      <Globe className='w-4 h-4 text-purple-600 flex-shrink-0 mt-0.5' />
-                      <p className='text-gray-700 dark:text-gray-300'>
-                        <span className='font-medium'>24/7 trading:</span> Trade anytime, every day
-                      </p>
+                  </div>
+                  <div className='group p-3 bg-gradient-to-r from-purple-50 to-transparent dark:from-purple-900/20 rounded-xl border-l-4 border-purple-500 hover:scale-[1.02] transition-transform'>
+                    <div className='flex items-start gap-3'>
+                      <div className='p-1.5 bg-purple-100 dark:bg-purple-900/50 rounded-lg'>
+                        <Globe className='w-4 h-4 text-purple-600 dark:text-purple-400' />
+                      </div>
+                      <div>
+                        <p className='font-semibold text-sm text-gray-900 dark:text-white'>
+                          24/7 Trading
+                        </p>
+                        <p className='text-xs text-gray-600 dark:text-gray-400'>
+                          Negocie a qualquer hora
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -442,22 +619,32 @@ export function InstantTradePage() {
       )}
 
       {/* Trade History Section */}
-      <div className='border-t border-gray-200 dark:border-gray-700 pt-6'>
+      <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden'>
         <button
           onClick={() => setShowHistory(!showHistory)}
-          className='w-full flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors'
+          className='w-full flex items-center justify-between p-5 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors'
         >
-          <h2 className='text-lg font-semibold text-gray-900 dark:text-white'>
-            Historico de Trades
-          </h2>
+          <div className='flex items-center gap-3'>
+            <div className='p-2 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl shadow-md'>
+              <History className='w-5 h-5 text-white' />
+            </div>
+            <div className='text-left'>
+              <h2 className='text-lg font-bold text-gray-900 dark:text-white'>
+                Histórico de Trades
+              </h2>
+              <p className='text-xs text-gray-500 dark:text-gray-400'>
+                Suas negociações anteriores
+              </p>
+            </div>
+          </div>
           <ChevronDown
-            className={`w-5 h-5 text-gray-600 dark:text-gray-400 transition-transform ${
+            className={`w-5 h-5 text-gray-600 dark:text-gray-400 transition-transform duration-200 ${
               showHistory ? 'rotate-180' : ''
             }`}
           />
         </button>
         {showHistory && (
-          <div className='mt-2'>
+          <div className='border-t border-gray-100 dark:border-gray-700'>
             <TradeHistoryPanel
               currencySymbol={getCurrencySymbol(currency)}
               currencyLocale={getCurrencyLocale(currency)}
