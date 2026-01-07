@@ -27,6 +27,8 @@ import {
 import { useTradeStats, useTrades, useCancelTrade } from '@/hooks/admin/useAdminTrades'
 import { type Trade } from '@/services/admin/adminService'
 import { toast } from 'react-hot-toast'
+import { ConfirmModal } from '@/components/ui/ConfirmModal'
+import { InputModal } from '@/components/ui/InputModal'
 
 export const AdminTradesPage: React.FC = () => {
   const navigate = useNavigate()
@@ -36,6 +38,11 @@ export const AdminTradesPage: React.FC = () => {
   const [typeFilter, setTypeFilter] = useState<string>('all')
   const [page, setPage] = useState(1)
   const limit = 20
+
+  // Modal states
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false)
+  const [cancelModalOpen, setCancelModalOpen] = useState(false)
+  const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null)
 
   // Debounce search
   React.useEffect(() => {
@@ -89,22 +96,32 @@ export const AdminTradesPage: React.FC = () => {
   const trades = tradesData?.items ?? []
   const total = tradesData?.total ?? 0
 
-  const handleCancelTrade = async (trade: Trade) => {
-    if (!confirm(`Deseja cancelar o trade ${trade.reference_code}?`)) {
-      return
-    }
+  const handleCancelTrade = (trade: Trade) => {
+    setSelectedTrade(trade)
+    setConfirmModalOpen(true)
+  }
 
-    const reason = prompt('Motivo do cancelamento (opcional):')
+  const handleConfirmCancel = () => {
+    setConfirmModalOpen(false)
+    setCancelModalOpen(true)
+  }
+
+  const handleCancelWithReason = async (reason: string) => {
+    if (!selectedTrade) return
+
+    setCancelModalOpen(false)
 
     try {
       await cancelTradeMutation.mutateAsync({
-        tradeId: trade.id,
+        tradeId: selectedTrade.id,
         ...(reason ? { reason } : {}),
       })
-      toast.success(`Trade ${trade.reference_code} cancelado com sucesso`)
+      toast.success(`Trade ${selectedTrade.reference_code} cancelado com sucesso`)
     } catch (err: any) {
       console.error('Erro ao cancelar trade:', err)
       toast.error(err.response?.data?.detail || 'Erro ao cancelar trade')
+    } finally {
+      setSelectedTrade(null)
     }
   }
 
@@ -550,6 +567,42 @@ export const AdminTradesPage: React.FC = () => {
           </>
         )}
       </div>
+
+      {/* Confirm Cancel Modal */}
+      <ConfirmModal
+        isOpen={confirmModalOpen}
+        onClose={() => {
+          setConfirmModalOpen(false)
+          setSelectedTrade(null)
+        }}
+        onConfirm={handleConfirmCancel}
+        title='Cancelar Trade'
+        message={`Tem certeza que deseja cancelar o trade ${selectedTrade?.reference_code}? Esta ação não pode ser desfeita.`}
+        confirmText='Sim, cancelar'
+        cancelText='Não, manter'
+        type='danger'
+        icon={<XCircle className='w-6 h-6' />}
+      />
+
+      {/* Cancel Reason Modal */}
+      <InputModal
+        isOpen={cancelModalOpen}
+        onClose={() => {
+          setCancelModalOpen(false)
+          setSelectedTrade(null)
+        }}
+        onConfirm={handleCancelWithReason}
+        title='Motivo do Cancelamento'
+        message={`Informe o motivo do cancelamento do trade ${selectedTrade?.reference_code}`}
+        inputLabel='Motivo (opcional)'
+        inputPlaceholder='Ex: Cliente solicitou cancelamento...'
+        confirmText='Confirmar Cancelamento'
+        cancelText='Voltar'
+        type='danger'
+        icon={<XCircle className='w-6 h-6' />}
+        isLoading={cancelTradeMutation.isPending}
+        multiline
+      />
     </div>
   )
 }
