@@ -45,6 +45,7 @@ import { CreateWalletPage } from '@/pages/wallet/CreateWalletPage'
 import { SettingsPage as WalletSettingsPage } from '@/pages/wallet/SettingsPage'
 import { NetworkComparison } from '@/components/NetworkComparison'
 import { TraderProfileEditPage } from '@/pages/p2p/TraderProfileEditPage'
+import { NotificationsPage } from '@/pages/notifications/NotificationsPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 
 // Admin Pages
@@ -314,6 +315,7 @@ function App() {
             <Route path='institutional' element={<InstitutionalPage />} />
             <Route path='education' element={<EducationPage />} />
             <Route path='settings/*' element={<SettingsPage />} />
+            <Route path='notifications' element={<NotificationsPage />} />
           </Route>
 
           {/* Admin Routes with Admin Layout */}

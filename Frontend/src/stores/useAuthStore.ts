@@ -65,6 +65,15 @@ export const useAuthStore = create<AuthStore>()(
             error: null,
           })
 
+          // Notificar sobre login bem-sucedido
+          try {
+            const { appNotifications } = await import('@/services/appNotifications')
+            const device = navigator.userAgent.includes('Mobile') ? 'Dispositivo Movel' : 'Desktop'
+            appNotifications.newLogin('', device)
+          } catch {
+            // Notificacao nao e critica
+          }
+
           console.log('[AuthStore] ✅ Login successful, token saved to all stores')
         } catch (error: any) {
           set({

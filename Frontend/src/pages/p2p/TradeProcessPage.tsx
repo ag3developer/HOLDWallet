@@ -32,6 +32,7 @@ import {
   useLeaveFeedback,
 } from '@/hooks/useP2PTrades'
 import { toast } from 'react-hot-toast'
+import { appNotifications } from '@/services/appNotifications'
 
 type TradeStatus =
   | 'pending'
@@ -170,6 +171,9 @@ export const TradeProcessPage = () => {
         proofUrl,
       })
 
+      // Notify payment sent
+      appNotifications.pixSent(trade?.amount || 0, 'Contraparte')
+
       toast.success('Pagamento marcado como enviado!')
       setUploadedFile(null)
     } catch (error) {
@@ -180,6 +184,10 @@ export const TradeProcessPage = () => {
   const handleConfirmPayment = async () => {
     try {
       await confirmPaymentMutation.mutateAsync(tradeId!)
+
+      // Notify payment confirmed
+      appNotifications.paymentConfirmed(tradeId || '', trade?.amount || 0, 'BRL')
+
       toast.success('Pagamento confirmado!')
     } catch (error) {
       console.error('Error confirming payment:', error)
@@ -189,6 +197,10 @@ export const TradeProcessPage = () => {
   const handleReleaseEscrow = async () => {
     try {
       await releaseEscrowMutation.mutateAsync(tradeId!)
+
+      // Notify trade completed
+      appNotifications.orderCompleted(tradeId || '', trade?.amount || 0, trade?.coin || 'BTC')
+
       toast.success('Escrow liberado! Criptomoeda transferida.')
     } catch (error) {
       console.error('Error releasing escrow:', error)

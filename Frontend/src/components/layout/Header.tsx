@@ -1,11 +1,12 @@
 import { useTranslation } from 'react-i18next'
-import { Bell, Sun, Moon, Globe, Search } from 'lucide-react'
+import { Sun, Moon, Globe, Search } from 'lucide-react'
 import { useThemeStore } from '@/stores/useThemeStore'
 import { BackendStatusIndicator } from '@/components/ui/BackendStatusIndicator'
+import { NotificationCenter } from '@/components/NotificationCenter'
 import { useState } from 'react'
 
 export const Header = () => {
-  const { t, i18n } = useTranslation()
+  const { i18n } = useTranslation()
   const { theme, toggleTheme } = useThemeStore()
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -54,13 +55,7 @@ export const Header = () => {
           </div>
 
           {/* Notifications */}
-          <button
-            className='relative p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700'
-            title='Notificações'
-          >
-            <Bell className='w-5 h-5' />
-            <span className='absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full'></span>
-          </button>
+          <NotificationCenter />
 
           {/* Theme toggle */}
           <button

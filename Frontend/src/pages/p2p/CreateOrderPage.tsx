@@ -12,6 +12,7 @@ import { UserProfileSection } from '@/components/trader/UserProfileSection'
 import { ExchangeRateDisplay } from '@/components/ExchangeRateDisplay'
 import { toast } from 'react-hot-toast'
 import { currencyConverterService } from '@/services/currency-converter-service'
+import { appNotifications } from '@/services/appNotifications'
 
 export const CreateOrderPage = () => {
   const navigate = useNavigate()
@@ -284,6 +285,9 @@ export const CreateOrderPage = () => {
       })
 
       await createOrderMutation.mutateAsync(orderData)
+
+      // Add notification
+      appNotifications.orderCreated('new', orderType, amountNum, coin)
 
       toast.success('Ordem criada com sucesso!')
       navigate('/p2p')

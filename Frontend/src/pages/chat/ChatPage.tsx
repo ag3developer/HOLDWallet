@@ -44,6 +44,7 @@ import { AudioMessage } from '@/components/chat/AudioMessage'
 import { useMediaCapture } from '@/hooks/useMediaCapture'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useP2PChat } from '@/hooks/chat/useP2PChat'
+import { appNotifications } from '@/services/appNotifications'
 
 // Interface local para dados da ordem com camelCase (mapeamento do P2POrder)
 interface P2POrderLocal {
@@ -318,6 +319,8 @@ export const ChatPage = () => {
         unsubscribeMessage = chatP2PService.onMessage((message: ChatMessageP2P) => {
           console.log('📨 Mensagem recebida:', message)
 
+          const isOwnMessage = message.sender_id === localStorage.getItem('userId')
+
           const newMessage: Message = {
             id: message.id || Date.now().toString(),
             content: message.content || '',
@@ -325,7 +328,7 @@ export const ChatPage = () => {
               hour: '2-digit',
               minute: '2-digit',
             }),
-            isOwn: message.sender_id === localStorage.getItem('userId'),
+            isOwn: isOwnMessage,
             status: 'read',
             type:
               message.message_type === 'image' || message.message_type === 'document'
@@ -338,6 +341,14 @@ export const ChatPage = () => {
                   ? 'document'
                   : undefined,
             sender_id: message.sender_id,
+          }
+
+          // Notificar apenas mensagens de outros usuários
+          if (!isOwnMessage) {
+            appNotifications.newMessage(
+              message.sender_id || 'Usuário',
+              message.content?.substring(0, 50) || 'Nova mensagem'
+            )
           }
 
           setMessages(prev => [...prev, newMessage])

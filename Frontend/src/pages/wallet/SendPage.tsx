@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import notificationService from '@/services/notificationService'
+import { appNotifications } from '@/services/appNotifications'
 import { CryptoIcon } from '@/components/CryptoIcon'
 import { useWallets, useMultipleWalletBalances } from '@/hooks/useWallet'
 import { useWalletAddresses } from '@/hooks/useWalletAddresses'
@@ -600,6 +601,14 @@ export const SendPage = () => {
       setShowSuccess(true)
       notificationService.showSuccess('Transação enviada com sucesso!')
 
+      // Adicionar notificação no centro de notificações
+      appNotifications.transactionSent(
+        result.txHash,
+        Number.parseFloat(pendingTransaction.amount),
+        pendingTransaction.token_symbol,
+        pendingTransaction.to_address
+      )
+
       // Limpar estado 2FA
       setShow2FADialog(false)
       setTwoFAToken('')
@@ -657,6 +666,14 @@ export const SendPage = () => {
         setTxHash(result.txHash)
         setShowSuccess(true)
         notificationService.showSuccess('Transação enviada com sucesso!')
+
+        // Adicionar notificação no centro de notificações
+        appNotifications.transactionSent(
+          result.txHash,
+          Number.parseFloat(pendingTransaction.amount),
+          pendingTransaction.token_symbol,
+          pendingTransaction.to_address
+        )
 
         // Limpar estado
         setShow2FADialog(false)
