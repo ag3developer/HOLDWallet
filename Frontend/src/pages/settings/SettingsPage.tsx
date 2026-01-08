@@ -317,15 +317,26 @@ export const SettingsPage = () => {
     }
 
     try {
+      // Mapear tipo para o formato aceito pelo backend
+      const typeMapping: Record<string, string> = {
+        PIX: 'pix',
+        'Transferência Bancária': 'bank_transfer',
+        PayPal: 'paypal',
+        PicPay: 'mercado_pago',
+        'Mercado Pago': 'mercado_pago',
+        PagSeguro: 'mercado_pago',
+      }
+
       const paymentMethodData = {
-        type: selectedPaymentType,
-        details: JSON.stringify(details),
+        name: selectedPaymentType, // Nome amigável
+        type: typeMapping[selectedPaymentType] || selectedPaymentType.toLowerCase(),
+        details: details as Record<string, any>,
       }
 
       if (editingPaymentMethod) {
         await updatePaymentMethodMutation.mutateAsync({
-          id: editingPaymentMethod.id,
-          ...paymentMethodData,
+          methodId: editingPaymentMethod.id,
+          updates: paymentMethodData as any,
         })
         toast.success('Método de pagamento atualizado!')
       } else {
@@ -352,13 +363,13 @@ export const SettingsPage = () => {
     }
   }
 
-  const handleDeletePaymentMethod = async (id: number) => {
+  const handleDeletePaymentMethod = async (id: string | number) => {
     if (!confirm('Tem certeza que deseja excluir este método de pagamento?')) {
       return
     }
 
     try {
-      await deletePaymentMethodMutation.mutateAsync(id)
+      await deletePaymentMethodMutation.mutateAsync(String(id))
       toast.success('Método de pagamento excluído!')
       refetchPaymentMethods()
     } catch (error: any) {

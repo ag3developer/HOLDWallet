@@ -5,7 +5,7 @@ import { CryptoSelector } from './CryptoSelector'
 import { CurrencyCalculator } from './CurrencyCalculator'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { apiClient } from '@/services/api'
-import { toUSD } from '@/services/currency'
+import { toUSD, currencyManager } from '@/services/currency'
 import { parseApiError } from '@/services/errors'
 
 interface CryptoPrice {
@@ -288,8 +288,13 @@ export function TradingForm({
           )
         } else if (!isBuy) {
           // Para VENDA, o valor é em crypto - enviar diretamente
+          // Mas precisamos também obter a taxa USD→BRL para calcular o valor a receber
+          const brlRate = currencyManager.getRate('BRL')
+          if (brlRate > 1) {
+            usdToBrlRate = brlRate
+          }
           console.log(
-            `[TradingForm] SELL: Sending ${amountValue} ${selectedSymbol} directly (no conversion)`
+            `[TradingForm] SELL: Sending ${amountValue} ${selectedSymbol} directly (usd_to_brl_rate: ${usdToBrlRate?.toFixed(4)})`
           )
         }
 
@@ -304,15 +309,25 @@ export function TradingForm({
           ...response.data.quote,
         }
 
-        // Se o usuário digitou em BRL, adicionar esses valores à quote
-        if (currency === 'BRL' && originalBrlAmount && usdToBrlRate) {
+        // Para COMPRA: Se o usuário digitou em BRL, adicionar esses valores à quote
+        if (isBuy && currency === 'BRL' && originalBrlAmount && usdToBrlRate) {
           enrichedQuote.brl_amount = originalBrlAmount
           // Calcular total em BRL (com spread e taxas)
           const totalUSD = response.data.quote.total_amount
           enrichedQuote.brl_total_amount = totalUSD * usdToBrlRate
           enrichedQuote.usd_to_brl_rate = usdToBrlRate
           console.log(
-            `[TradingForm] BRL values: amount=${originalBrlAmount}, total=${enrichedQuote.brl_total_amount.toFixed(2)}, rate=${usdToBrlRate.toFixed(4)}`
+            `[TradingForm] BUY BRL values: amount=${originalBrlAmount}, total=${enrichedQuote.brl_total_amount.toFixed(2)}, rate=${usdToBrlRate.toFixed(4)}`
+          )
+        }
+
+        // Para VENDA: Sempre calcular o valor em BRL que o usuário vai receber
+        if (!isBuy && usdToBrlRate) {
+          const totalUSD = response.data.quote.total_amount
+          enrichedQuote.brl_total_amount = totalUSD * usdToBrlRate
+          enrichedQuote.usd_to_brl_rate = usdToBrlRate
+          console.log(
+            `[TradingForm] SELL BRL values: total_usd=${totalUSD.toFixed(2)}, brl_total=${enrichedQuote.brl_total_amount.toFixed(2)}, rate=${usdToBrlRate.toFixed(4)}`
           )
         }
 

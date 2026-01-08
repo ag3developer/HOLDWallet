@@ -159,7 +159,17 @@ export function ConfirmationPanel({
         const selectedMethod = userPaymentMethods?.find(
           (m: any) => m.id === selectedReceivingMethod
         )
-        requestData.payment_method = selectedMethod?.type || 'pix'
+        // Mapear tipo do método de recebimento para o formato aceito pelo backend OTC
+        // Backend P2P usa "bank_transfer", mas OTC espera "ted"
+        const methodType = selectedMethod?.type || 'pix'
+        const paymentMethodMap: Record<string, string> = {
+          bank_transfer: 'ted',
+          bank: 'ted',
+          banktransfer: 'ted',
+          pix: 'pix',
+          ted: 'ted',
+        }
+        requestData.payment_method = paymentMethodMap[methodType] || 'pix'
       }
 
       // Se tiver valores em BRL, incluir no request (para TED/PIX)
@@ -609,7 +619,11 @@ export function ConfirmationPanel({
                       <div className='flex-1 min-w-0'>
                         <div className='flex items-center gap-2'>
                           <span className='text-sm font-medium text-gray-900 dark:text-white'>
-                            {method.type?.toUpperCase()}
+                            {method.type === 'pix'
+                              ? 'PIX'
+                              : method.type === 'bank_transfer'
+                                ? 'TED/Transferência'
+                                : method.type?.toUpperCase()}
                           </span>
                           {method.is_primary && (
                             <span className='px-1.5 py-0.5 text-[10px] font-medium bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded'>
@@ -619,8 +633,12 @@ export function ConfirmationPanel({
                         </div>
                         <p className='text-xs text-gray-600 dark:text-gray-400 truncate'>
                           {method.type === 'pix'
-                            ? method.details?.key_value || method.details?.pix_key || 'Chave PIX'
-                            : `${method.details?.bank_name || 'Banco'} - Ag ${method.details?.agency || '****'} / CC ${method.details?.account_number || '****'}`}
+                            ? `${method.details?.keyType || 'Chave'}: ${method.details?.keyValue || method.details?.key_value || method.details?.pix_key || '****'}`
+                            : `${method.details?.bank || method.details?.bank_name || 'Banco'} - Ag ${method.details?.agency || '****'} / CC ${method.details?.account || method.details?.account_number || '****'}`}
+                        </p>
+                        {/* Mostrar nome do titular */}
+                        <p className='text-[10px] text-gray-500 dark:text-gray-500 truncate'>
+                          {method.details?.holderName || method.details?.holder_name || ''}
                         </p>
                       </div>
                       {selectedReceivingMethod === method.id && (

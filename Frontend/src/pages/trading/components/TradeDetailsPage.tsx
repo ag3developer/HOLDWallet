@@ -73,7 +73,15 @@ interface TradeDetails {
   network_fee_percentage: number
   network_fee_amount?: number
   payment_method: string
-  status: 'PENDING' | 'PAYMENT_CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'EXPIRED' | 'FAILED'
+  status:
+    | 'PENDING'
+    | 'PAYMENT_PROCESSING'
+    | 'PAYMENT_CONFIRMED'
+    | 'CRYPTO_RECEIVED'
+    | 'COMPLETED'
+    | 'CANCELLED'
+    | 'EXPIRED'
+    | 'FAILED'
   created_at: string
   updated_at?: string
   expires_at?: string
@@ -123,10 +131,22 @@ const STATUS_CONFIG: Record<
     bgColor: 'bg-yellow-100 dark:bg-yellow-900/30',
     icon: <Clock className='w-5 h-5' />,
   },
+  PAYMENT_PROCESSING: {
+    label: 'Processando',
+    color: 'text-blue-600 dark:text-blue-400',
+    bgColor: 'bg-blue-100 dark:bg-blue-900/30',
+    icon: <Clock className='w-5 h-5' />,
+  },
   PAYMENT_CONFIRMED: {
     label: 'Pagamento Confirmado',
     color: 'text-blue-600 dark:text-blue-400',
     bgColor: 'bg-blue-100 dark:bg-blue-900/30',
+    icon: <CheckCircle className='w-5 h-5' />,
+  },
+  CRYPTO_RECEIVED: {
+    label: 'Crypto Recebida',
+    color: 'text-green-600 dark:text-green-400',
+    bgColor: 'bg-green-100 dark:bg-green-900/30',
     icon: <CheckCircle className='w-5 h-5' />,
   },
   COMPLETED: {
@@ -361,6 +381,32 @@ export function TradeDetailsPage({
     })
   }
 
+  // Retorna o valor em BRL que foi SALVO no banco no momento da aceitação da proposta
+  // NÃO FAZ CÁLCULO - apenas lê o que foi persistido
+  const getSavedBrlValue = (): number | null => {
+    if (!trade) return null
+
+    // O valor brl_total_amount deve ter sido salvo no momento da criação da ordem
+    if (trade.brl_total_amount && trade.brl_total_amount > 0) {
+      return trade.brl_total_amount
+    }
+
+    // Se não tem brl_total_amount salvo, é um problema no fluxo de criação
+    console.warn(
+      '[TradeDetails] brl_total_amount não encontrado na ordem! Verifique o fluxo de criação.'
+    )
+    return null
+  }
+
+  // Função auxiliar para formatar o valor BRL salvo ou mostrar erro
+  const formatSavedBrlValue = (): string => {
+    const brlValue = getSavedBrlValue()
+    if (brlValue === null) {
+      return 'Valor não disponível'
+    }
+    return formatBRL(brlValue)
+  }
+
   const formatCrypto = (value: number, decimals = 8) => {
     return value.toFixed(decimals)
   }
@@ -512,7 +558,25 @@ export function TradeDetailsPage({
     ] ?? defaultPaymentConfig
 
   const isPending = trade.status === 'PENDING'
-  const showBankDetails = isPending && bankDetails && ['ted', 'pix'].includes(paymentMethod)
+  const isBuy = trade.operation === 'buy'
+  const isSell = trade.operation === 'sell'
+
+  // Para SELL, ajustar o label do status
+  // SELL com PENDING = "Processando Venda" não "Aguardando Pagamento"
+  const adjustedStatusConfig =
+    isSell && isPending
+      ? {
+          ...statusConfig,
+          label: 'Processando Venda',
+          color: 'text-green-600 dark:text-green-400',
+          bgColor: 'bg-green-100 dark:bg-green-900/30',
+        }
+      : statusConfig
+
+  // Mostrar dados bancários da empresa SOMENTE para COMPRA (BUY)
+  // Para VENDA (SELL), mostrar confirmação da venda com dados do usuário
+  const showBankDetails =
+    isPending && bankDetails && ['ted', 'pix'].includes(paymentMethod) && isBuy
 
   return (
     <div className='bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden'>
@@ -532,17 +596,17 @@ export function TradeDetailsPage({
             <p className='text-blue-100 text-xs font-mono truncate'>{trade.reference_code}</p>
           </div>
           <div
-            className={`px-2 py-0.5 rounded-full ${statusConfig.bgColor} ${statusConfig.color} flex items-center gap-1 text-xs`}
+            className={`px-2 py-0.5 rounded-full ${adjustedStatusConfig.bgColor} ${adjustedStatusConfig.color} flex items-center gap-1 text-xs`}
           >
-            {React.cloneElement(statusConfig.icon as React.ReactElement, {
+            {React.cloneElement(adjustedStatusConfig.icon as React.ReactElement, {
               className: 'w-3.5 h-3.5',
             })}
-            <span className='font-medium hidden sm:inline'>{statusConfig.label}</span>
+            <span className='font-medium hidden sm:inline'>{adjustedStatusConfig.label}</span>
           </div>
         </div>
 
-        {/* Timer para trades pendentes */}
-        {isPending && timeRemaining && (
+        {/* Timer para trades pendentes - APENAS PARA COMPRA (BUY) */}
+        {isPending && isBuy && timeRemaining && (
           <div className='flex items-center gap-2 bg-white/20 rounded-lg px-3 py-1.5 mt-2 text-xs'>
             <Timer className='w-4 h-4' />
             <span>
@@ -601,15 +665,21 @@ export function TradeDetailsPage({
 
           <div className='grid grid-cols-2 gap-2 pt-2 border-t border-gray-200 dark:border-gray-700'>
             <div>
-              <p className='text-[10px] text-gray-500 dark:text-gray-400'>Valor USD</p>
+              <p className='text-[10px] text-gray-500 dark:text-gray-400'>
+                {isSell ? 'Valor da Crypto (USD)' : 'Valor USD'}
+              </p>
               <p className='text-sm font-semibold text-gray-900 dark:text-white'>
                 {formatUSD(trade.fiat_amount)}
               </p>
             </div>
             <div>
-              <p className='text-[10px] text-gray-500 dark:text-gray-400'>Total c/ Taxas</p>
-              <p className='text-sm font-semibold text-blue-600 dark:text-blue-400'>
-                {formatUSD(trade.total_amount)}
+              <p className='text-[10px] text-gray-500 dark:text-gray-400'>
+                {isSell ? 'Você Recebe (BRL)' : 'Total c/ Taxas'}
+              </p>
+              <p
+                className={`text-sm font-semibold ${isSell ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400'}`}
+              >
+                {isSell ? formatSavedBrlValue() : formatUSD(trade.total_amount)}
               </p>
             </div>
           </div>
@@ -652,7 +722,7 @@ export function TradeDetailsPage({
           </div>
         </details>
 
-        {/* Método de Pagamento - Compacto */}
+        {/* Método de Pagamento/Recebimento - Compacto */}
         <div className='flex items-center gap-2 bg-gray-50 dark:bg-gray-900 rounded-lg p-2.5'>
           <div className='p-1.5 bg-blue-100 dark:bg-blue-900/30 rounded'>
             {React.cloneElement(paymentConfig.icon as React.ReactElement, {
@@ -663,9 +733,14 @@ export function TradeDetailsPage({
             <p className='text-xs font-medium text-gray-900 dark:text-white'>
               {paymentConfig.label}
             </p>
-            {isPending && (
+            {isPending && isBuy && (
               <p className='text-[10px] text-yellow-600 dark:text-yellow-400'>
                 Aguardando pagamento
+              </p>
+            )}
+            {isPending && isSell && (
+              <p className='text-[10px] text-green-600 dark:text-green-400'>
+                Aguardando processamento
               </p>
             )}
           </div>
@@ -882,6 +957,155 @@ export function TradeDetailsPage({
           </div>
         )}
 
+        {/* Seção de Confirmação de VENDA - Mostrar dados do recebimento */}
+        {isSell &&
+          (trade.status === 'PENDING' ||
+            trade.status === 'PAYMENT_PROCESSING' ||
+            trade.status === 'CRYPTO_RECEIVED') && (
+            <div className='space-y-3'>
+              <h3 className='text-xs font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1.5'>
+                <CheckCircle className='w-3.5 h-3.5 text-green-600' />
+                {trade.status === 'CRYPTO_RECEIVED'
+                  ? 'Crypto Transferida'
+                  : 'Ordem de Venda Registrada'}
+              </h3>
+
+              {/* Card de Sucesso */}
+              <div className='bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-lg p-4 border border-green-200 dark:border-green-800'>
+                <div className='text-center space-y-3'>
+                  {/* Ícone de Sucesso */}
+                  <div className='mx-auto w-12 h-12 bg-green-100 dark:bg-green-800/50 rounded-full flex items-center justify-center'>
+                    <CheckCircle className='w-6 h-6 text-green-600 dark:text-green-400' />
+                  </div>
+
+                  <div>
+                    <h4 className='text-sm font-bold text-green-800 dark:text-green-300'>
+                      {trade.status === 'CRYPTO_RECEIVED'
+                        ? 'Crypto Transferida com Sucesso!'
+                        : trade.status === 'PAYMENT_PROCESSING'
+                          ? 'Processando Transferência...'
+                          : 'Venda Confirmada!'}
+                    </h4>
+                    <p className='text-xs text-green-700 dark:text-green-400 mt-1'>
+                      {trade.status === 'CRYPTO_RECEIVED'
+                        ? 'Sua crypto foi transferida. Aguarde o pagamento na sua conta.'
+                        : trade.status === 'PAYMENT_PROCESSING'
+                          ? 'A transferência da crypto está sendo processada.'
+                          : 'Sua ordem de venda foi registrada com sucesso.'}
+                    </p>
+                  </div>
+
+                  {/* Detalhes da Operação */}
+                  <div className='bg-white dark:bg-gray-800 rounded-lg p-3 space-y-2'>
+                    <div className='flex justify-between text-xs'>
+                      <span className='text-gray-600 dark:text-gray-400'>Código da Ordem:</span>
+                      <button
+                        onClick={() => copyToClipboard(trade.reference_code, 'reference')}
+                        className='flex items-center gap-1 font-mono font-bold text-gray-900 dark:text-white hover:text-blue-600 transition-colors'
+                      >
+                        {trade.reference_code}
+                        {copiedField === 'reference' ? (
+                          <CheckCircle className='w-3 h-3 text-green-600' />
+                        ) : (
+                          <Copy className='w-3 h-3' />
+                        )}
+                      </button>
+                    </div>
+
+                    <div className='flex justify-between text-xs'>
+                      <span className='text-gray-600 dark:text-gray-400'>ID da Transação:</span>
+                      <button
+                        onClick={() => copyToClipboard(trade.id, 'tradeId')}
+                        className='flex items-center gap-1 font-mono text-[10px] text-gray-700 dark:text-gray-300 hover:text-blue-600 transition-colors'
+                      >
+                        {trade.id.substring(0, 8)}...
+                        {copiedField === 'tradeId' ? (
+                          <CheckCircle className='w-3 h-3 text-green-600' />
+                        ) : (
+                          <Copy className='w-3 h-3' />
+                        )}
+                      </button>
+                    </div>
+
+                    {/* TX Hash se disponível */}
+                    {trade.tx_hash && (
+                      <div className='flex justify-between text-xs'>
+                        <span className='text-gray-600 dark:text-gray-400'>TX Hash:</span>
+                        <button
+                          onClick={() => copyToClipboard(trade.tx_hash || '', 'txHash')}
+                          className='flex items-center gap-1 font-mono text-[10px] text-blue-600 dark:text-blue-400 hover:text-blue-700 transition-colors'
+                        >
+                          {trade.tx_hash.substring(0, 10)}...
+                          {trade.tx_hash.substring(trade.tx_hash.length - 6)}
+                          {copiedField === 'txHash' ? (
+                            <CheckCircle className='w-3 h-3 text-green-600' />
+                          ) : (
+                            <Copy className='w-3 h-3' />
+                          )}
+                        </button>
+                      </div>
+                    )}
+
+                    <div className='flex justify-between text-xs'>
+                      <span className='text-gray-600 dark:text-gray-400'>Data/Hora:</span>
+                      <span className='text-gray-900 dark:text-white'>
+                        {formatDate(trade.created_at)}
+                      </span>
+                    </div>
+
+                    <div className='flex justify-between text-xs'>
+                      <span className='text-gray-600 dark:text-gray-400'>Quantidade:</span>
+                      <span className='font-medium text-gray-900 dark:text-white'>
+                        {trade.crypto_amount.toFixed(8)} {trade.symbol}
+                      </span>
+                    </div>
+
+                    <div className='flex justify-between text-xs'>
+                      <span className='text-gray-600 dark:text-gray-400'>
+                        Valor a Receber (BRL):
+                      </span>
+                      <span className='font-bold text-green-600 dark:text-green-400'>
+                        {formatSavedBrlValue()}
+                      </span>
+                    </div>
+
+                    <div className='flex justify-between text-xs'>
+                      <span className='text-gray-600 dark:text-gray-400'>
+                        Método de Recebimento:
+                      </span>
+                      <span className='font-medium text-gray-900 dark:text-white uppercase'>
+                        {trade.payment_method}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Informativo */}
+                  <div
+                    className={`rounded-lg p-2 border ${
+                      trade.status === 'CRYPTO_RECEIVED'
+                        ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
+                        : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
+                    }`}
+                  >
+                    <p
+                      className={`text-[10px] ${
+                        trade.status === 'CRYPTO_RECEIVED'
+                          ? 'text-green-700 dark:text-green-400'
+                          : 'text-blue-700 dark:text-blue-400'
+                      }`}
+                    >
+                      {trade.status === 'CRYPTO_RECEIVED'
+                        ? '✅ Crypto transferida! O pagamento será enviado para sua conta cadastrada em até 24h úteis.'
+                        : trade.status === 'PAYMENT_PROCESSING'
+                          ? '⏳ Aguarde... A transferência da sua crypto está sendo processada.'
+                          : '📌 Próximos passos: Sua crypto será transferida automaticamente e o pagamento será enviado para a conta cadastrada em até 24h úteis.'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
         {/* Timeline - Compacto */}
         <details className='group' open>
           <summary className='text-xs font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1.5 cursor-pointer list-none'>
@@ -914,9 +1138,16 @@ export function TradeDetailsPage({
                 formatDate={formatDate}
               />
             )}
-            {trade.status === 'PENDING' && (
+            {trade.status === 'PENDING' && isBuy && (
               <TimelineItem label='Aguardando Pagamento' pending formatDate={formatDate} />
             )}
+            {trade.status === 'PENDING' && isSell && (
+              <TimelineItem label='Processando Venda' pending formatDate={formatDate} />
+            )}
+            {(trade.status === 'PAYMENT_PROCESSING' || trade.status === 'CRYPTO_RECEIVED') &&
+              isSell && (
+                <TimelineItem label='Crypto Transferida' completed formatDate={formatDate} />
+              )}
           </div>
         </details>
 
