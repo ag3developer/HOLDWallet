@@ -266,14 +266,16 @@ export function TradingForm({
       setIsTyping(false) // Parou de digitar
       setLoading(true)
       try {
-        // Backend espera valores em USD, então precisamos converter BRL/EUR → USD
+        // Para VENDA: amount já é em crypto, não precisa conversão
+        // Para COMPRA: amount é em fiat (BRL/USD/EUR), pode precisar conversão
         const amountValue = Number(amount)
         let amountToSend = amountValue
         let originalBrlAmount: number | undefined
         let usdToBrlRate: number | undefined
 
-        // Se NÃO é USD, converter para USD usando CurrencyManager
-        if (currency !== 'USD') {
+        // Só converter moeda para COMPRA (fiat → USD)
+        // Para VENDA, o valor já está em crypto (USDT, BTC, etc)
+        if (isBuy && currency !== 'USD') {
           // Guardar o valor original em BRL para enviar junto com o trade
           if (currency === 'BRL') {
             originalBrlAmount = amountValue
@@ -283,6 +285,11 @@ export function TradingForm({
           amountToSend = toUSD(amountValue, currency as 'BRL' | 'EUR')
           console.log(
             `[TradingForm] Converting ${amountValue} ${currency} → ${amountToSend.toFixed(2)} USD (rate: ${usdToBrlRate?.toFixed(4)})`
+          )
+        } else if (!isBuy) {
+          // Para VENDA, o valor é em crypto - enviar diretamente
+          console.log(
+            `[TradingForm] SELL: Sending ${amountValue} ${selectedSymbol} directly (no conversion)`
           )
         }
 

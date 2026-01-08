@@ -66,6 +66,39 @@ async def get_supported_assets():
     }
 
 
+@router.get("/fees")
+async def get_fees(db: Session = Depends(get_db)):
+    """
+    Get OTC fee structure from database configuration.
+    
+    Returns:
+    - Spread: configurável via admin
+    - Network Fee: configurável via admin
+    - Total: soma das taxas
+    
+    IMPORTANTE: Esta rota deve ficar ANTES de /{trade_id} para evitar conflitos de roteamento.
+    """
+    from app.services.platform_settings_service import platform_settings_service
+    
+    spread = platform_settings_service.get(db, "otc_spread_percentage", 3.0)
+    network_fee = platform_settings_service.get(db, "network_fee_percentage", 0.25)
+    total = spread + network_fee
+    
+    return {
+        "success": True,
+        "fees": {
+            "spread": f"{spread:.2f}%",
+            "network_fee": f"{network_fee:.2f}%",
+            "total": f"{total:.2f}%",
+        },
+        "limits": {
+            "min": "R$ 50,00",
+            "max": "R$ 50.000,00",
+        },
+        "message": "PF (Pessoa Física) limits",
+    }
+
+
 @router.post("/quote")
 async def get_quote(
     request: QuoteRequest,
@@ -500,34 +533,3 @@ async def get_trade_audit_log(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         )
-
-
-@router.get("/fees")
-async def get_fees(db: Session = Depends(get_db)):
-    """
-    Get OTC fee structure from database configuration.
-    
-    Returns:
-    - Spread: configurável via admin
-    - Network Fee: configurável via admin
-    - Total: soma das taxas
-    """
-    from app.services.platform_settings_service import platform_settings_service
-    
-    spread = platform_settings_service.get(db, "otc_spread_percentage", 3.0)
-    network_fee = platform_settings_service.get(db, "network_fee_percentage", 0.25)
-    total = spread + network_fee
-    
-    return {
-        "success": True,
-        "fees": {
-            "spread": f"{spread:.2f}%",
-            "network_fee": f"{network_fee:.2f}%",
-            "total": f"{total:.2f}%",
-        },
-        "limits": {
-            "min": "R$ 50,00",
-            "max": "R$ 50.000,00",
-        },
-        "message": "PF (Pessoa Física) limits",
-    }
