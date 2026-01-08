@@ -3,9 +3,8 @@ import { Download, AlertCircle, QrCode, Copy, Shield, Sparkles, Share2 } from 'l
 import { QRCodeSVG } from 'qrcode.react'
 import toast from 'react-hot-toast'
 import { CryptoIcon } from '@/components/CryptoIcon'
-import { useWallets } from '@/hooks/useWallets'
+import { useWallets, useMultipleWalletBalances } from '@/hooks/useWallet'
 import { useWalletAddresses } from '@/hooks/useWalletAddresses'
-import { useMultipleWalletBalances } from '@/hooks/useWallet'
 
 // Redes válidas onde cada stablecoin existe
 const STABLECOIN_VALID_NETWORKS: Record<string, string[]> = {
@@ -111,14 +110,17 @@ export const ReceivePage = () => {
     return defaultTokenPrefs
   })
 
-  // Dados da API
-  const { wallets: apiWallets } = useWallets()
+  // Dados da API - useWallets retorna { data, isLoading, etc }
+  const { data: apiWallets, isLoading: isWalletsLoading } = useWallets()
   const walletIds = useMemo(() => apiWallets?.map((w: any) => String(w.id)) || [], [apiWallets])
   const balancesQueries = useMultipleWalletBalances(walletIds)
 
   // Buscar endereços de todas as redes (se for carteira multi)
   // Priorizar a rede selecionada para carregamento mais rápido
-  const multiWallet = useMemo(() => apiWallets?.find(w => w.network === 'multi'), [apiWallets])
+  const multiWallet = useMemo(
+    () => apiWallets?.find((w: any) => w.network === 'multi'),
+    [apiWallets]
+  )
   const networksList = [
     'bitcoin',
     'ethereum',

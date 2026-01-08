@@ -19,7 +19,7 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useTransactions } from '@/hooks/useTransactions'
-import { useWallets } from '@/hooks/useWallets'
+import { useWallets } from '@/hooks/useWallet'
 import { CryptoIcon } from '@/components/CryptoIcon'
 import { Transaction } from '@/services/transactionService'
 
@@ -558,8 +558,8 @@ export const TransactionsPage = () => {
   const [currentPage, setCurrentPage] = useState(1)
   const [showReportMenu, setShowReportMenu] = useState(false)
 
-  // Dados
-  const { wallets: apiWallets } = useWallets()
+  // Dados - useWallets retorna { data, isLoading, etc } do React Query
+  const { data: apiWallets } = useWallets()
   const firstWalletId = useMemo(() => {
     if (!apiWallets || apiWallets.length === 0) return undefined
     const wallet = apiWallets[0]
@@ -588,7 +588,7 @@ export const TransactionsPage = () => {
   // Determinar endereços da carteira
   const walletAddresses = useMemo(() => {
     if (!apiWallets) return []
-    return apiWallets.filter(w => w?.first_address).map(w => String(w.first_address))
+    return apiWallets.filter((w: any) => w?.first_address).map((w: any) => String(w.first_address))
   }, [apiWallets])
 
   // Filtrar e ordenar transações
@@ -599,7 +599,7 @@ export const TransactionsPage = () => {
     if (typeFilter !== 'all') {
       filtered = filtered.filter(tx => {
         const isReceive = walletAddresses.some(
-          addr => addr.toLowerCase() === tx.to_address.toLowerCase()
+          (addr: string) => addr.toLowerCase() === tx.to_address.toLowerCase()
         )
 
         if (typeFilter === 'send') return !isReceive

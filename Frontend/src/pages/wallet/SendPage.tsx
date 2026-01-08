@@ -19,8 +19,7 @@ import {
 import toast from 'react-hot-toast'
 import notificationService from '@/services/notificationService'
 import { CryptoIcon } from '@/components/CryptoIcon'
-import { useWallets } from '@/hooks/useWallets'
-import { useMultipleWalletBalances } from '@/hooks/useWallet'
+import { useWallets, useMultipleWalletBalances } from '@/hooks/useWallet'
 import { useWalletAddresses } from '@/hooks/useWalletAddresses'
 import { QRCodeScanner } from '@/components/QRCodeScanner'
 import { transactionService } from '@/services/transactionService'
@@ -79,13 +78,16 @@ export const SendPage = () => {
     checkBiometric()
   }, [])
 
-  // Dados da API
-  const { wallets: apiWallets } = useWallets()
+  // Dados da API - useWallets retorna { data, isLoading, etc }
+  const { data: apiWallets, isLoading: isWalletsLoading } = useWallets()
   const walletIds = useMemo(() => apiWallets?.map((w: any) => String(w.id)) || [], [apiWallets])
   const balancesQueries = useMultipleWalletBalances(walletIds)
 
   // Buscar endereços específicos por rede (multi-wallet)
-  const multiWallet = useMemo(() => apiWallets?.find(w => w.network === 'multi'), [apiWallets])
+  const multiWallet = useMemo(
+    () => apiWallets?.find((w: any) => w.network === 'multi'),
+    [apiWallets]
+  )
   const networksList = [
     'bitcoin',
     'ethereum',

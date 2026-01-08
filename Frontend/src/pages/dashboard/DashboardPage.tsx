@@ -1,8 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCurrentUser } from '@/hooks/useAuth'
-import { useWallets } from '@/hooks/useWallets'
-import { useMultipleWalletBalances } from '@/hooks/useWallet'
+import { useWallets, useMultipleWalletBalances } from '@/hooks/useWallet'
 import { useMarketPrices } from '@/hooks/useMarketPrices'
 import { CryptoIcon } from '@/components/CryptoIcon'
 import { useCurrencyStore } from '@/stores/useCurrencyStore'
@@ -133,7 +132,8 @@ const MarketCardSkeleton = () => (
 export const DashboardPage = () => {
   const navigate = useNavigate()
   const { data: user, isLoading: userLoading } = useCurrentUser()
-  const { wallets: apiWallets, isLoading: walletsLoading } = useWallets()
+  // useWallets retorna { data, isLoading, etc } do React Query
+  const { data: apiWallets, isLoading: walletsLoading } = useWallets()
   const { formatCurrency, currency } = useCurrencyStore()
   const [expandedWallets, setExpandedWallets] = useState<Set<string>>(new Set())
 
@@ -202,7 +202,7 @@ export const DashboardPage = () => {
   }, [marketPrices])
 
   // Buscar saldos reais
-  const walletIds = useMemo(() => apiWallets?.map(w => String(w.id)) || [], [apiWallets])
+  const walletIds = useMemo(() => apiWallets?.map((w: any) => String(w.id)) || [], [apiWallets])
   const balancesQueries = useMultipleWalletBalances(walletIds)
 
   // Carregar preferências de rede com fallback para Safari

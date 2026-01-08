@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import toast, { Toaster } from 'react-hot-toast'
+import toast from 'react-hot-toast'
 import { useCurrencyStore } from '@/stores/useCurrencyStore'
 import {
   Wallet,
@@ -28,9 +28,8 @@ import { CryptoIcon } from '@/components/CryptoIcon'
 import { SendPage } from '@/pages/wallet/SendPage'
 import { ReceivePage } from '@/pages/wallet/ReceivePage'
 import { TransactionsPage } from '@/pages/wallet/TransactionsPage'
-import { useWallets } from '@/hooks/useWallets'
+import { useWallets, useMultipleWalletBalances } from '@/hooks/useWallet'
 import { useWalletAddresses } from '@/hooks/useWalletAddresses'
-import { useMultipleWalletBalances } from '@/hooks/useWallet'
 import { useSendTransaction } from '@/hooks/useSendTransaction'
 import { use2FAStatus } from '@/hooks/use2FAStatus'
 import { usePriceChange24h, useMultiplePriceChanges24h } from '@/hooks/usePriceChange24h'
@@ -118,8 +117,8 @@ export const WalletPage = () => {
     },
   })
 
-  // Usar dados reais da API
-  const { wallets: apiWallets, isLoading, error } = useWallets()
+  // Usar dados reais da API - useWallets retorna { data, isLoading, error, etc }
+  const { data: apiWallets, isLoading, error } = useWallets()
 
   // Verificar status do 2FA
   const { data: twoFAStatus } = use2FAStatus()
@@ -140,7 +139,7 @@ export const WalletPage = () => {
   }, [marketPrices])
 
   // Buscar saldos reais de todas as carteiras
-  const walletIds = useMemo(() => apiWallets?.map(w => String(w.id)) || [], [apiWallets])
+  const walletIds = useMemo(() => apiWallets?.map((w: any) => String(w.id)) || [], [apiWallets])
   const balancesQueries = useMultipleWalletBalances(walletIds)
 
   // Carregar preferências de rede do localStorage (13 blockchains independentes)
@@ -199,7 +198,9 @@ export const WalletPage = () => {
   const wallets = useMemo(() => {
     const expandedWallets: any[] = []
 
-    apiWallets.forEach((wallet, walletIndex) => {
+    if (!apiWallets) return expandedWallets
+
+    apiWallets.forEach((wallet: any, walletIndex: number) => {
       // Buscar saldos reais desta carteira
       const balanceQuery = balancesQueries[walletIndex]
       const realBalances = balanceQuery?.data || {}
@@ -383,7 +384,7 @@ export const WalletPage = () => {
   // Buscar variação de preço de 24h para BTC (usando como indicador principal)
   const { change24h: btcChange24h } = usePriceChange24h('BTC')
 
-  const multiWallet = apiWallets.find(w => w.network === 'multi')
+  const multiWallet = apiWallets?.find((w: any) => w.network === 'multi')
   const networksList = multiWallet
     ? [
         'bitcoin',
@@ -488,7 +489,9 @@ export const WalletPage = () => {
       <div className='flex items-center justify-center min-h-screen'>
         <div className='text-center'>
           <AlertCircle className='w-12 h-12 text-red-600 mx-auto mb-4' />
-          <p className='text-red-600 dark:text-red-400 mb-4'>{error}</p>
+          <p className='text-red-600 dark:text-red-400 mb-4'>
+            {error.message || 'Erro ao carregar carteiras'}
+          </p>
           <Link
             to='/wallet/create'
             className='inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all'
@@ -527,9 +530,6 @@ export const WalletPage = () => {
 
   return (
     <div className='space-y-4'>
-      {/* Toast Container */}
-      <Toaster />
-
       {/* Clean Header - Compacto */}
       <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3'>
         <div className='flex items-center gap-3'>

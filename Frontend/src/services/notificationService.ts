@@ -298,6 +298,7 @@ export function showError(error: unknown, customMessage?: string): void {
   }
 
   toast.error(message, {
+    id: `error-${message.substring(0, 30)}`, // Evita duplicação
     duration: 6000, // Mais tempo para ler a mensagem
     icon: createIcon(formatted.icon),
     style: {
@@ -311,6 +312,7 @@ export function showError(error: unknown, customMessage?: string): void {
 // Exibe toast de sucesso
 export function showSuccess(message: string, options?: { duration?: number }): void {
   toast.success(message, {
+    id: `success-${message.substring(0, 30)}`, // Evita duplicação
     duration: options?.duration || 4000,
     icon: createIcon(CheckCircle, '#fff'),
     style: {
@@ -322,6 +324,7 @@ export function showSuccess(message: string, options?: { duration?: number }): v
 // Exibe toast de aviso (warning)
 export function showWarning(message: string): void {
   toast(message, {
+    id: `warning-${message.substring(0, 30)}`, // Evita duplicação
     icon: createIcon(AlertTriangle, '#fff'),
     duration: 5000,
     style: {
@@ -335,6 +338,7 @@ export function showWarning(message: string): void {
 // Exibe toast informativo
 export function showInfo(message: string): void {
   toast(message, {
+    id: `info-${message.substring(0, 30)}`, // Evita duplicação
     icon: createIcon(Info, '#fff'),
     duration: 4000,
     style: {
@@ -386,6 +390,7 @@ export async function showLoadingPromise<T>(
 // Notificação especial para sessão expirada
 export function showSessionExpired(): void {
   toast('Sua sessão expirou. Você será redirecionado para o login.', {
+    id: 'session-expired', // Evita duplicação
     icon: createIcon(LogOut, '#fff'),
     duration: 3000,
     style: {
@@ -399,6 +404,7 @@ export function showSessionExpired(): void {
 // Notificação especial para biometria expirada (requer nova autenticação)
 export function showBiometricExpired(): void {
   toast('Autenticação biométrica expirada.\nCada transação requer uma nova verificação.', {
+    id: 'biometric-expired', // Evita duplicação
     icon: createIcon(RefreshCw, '#fff'),
     duration: 5000,
     style: {

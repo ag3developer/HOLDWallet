@@ -173,16 +173,22 @@ export function ConfirmationPanel({
       }
 
       // Se tiver valores em BRL, incluir no request (para TED/PIX)
-      if (quote.brl_amount) {
+      // SEMPRE incluir se existir (mesmo que seja 0)
+      if (quote.brl_amount !== undefined && quote.brl_amount !== null) {
         requestData.brl_amount = quote.brl_amount
       }
-      if (quote.brl_total_amount) {
+      if (quote.brl_total_amount !== undefined && quote.brl_total_amount !== null) {
         requestData.brl_total_amount = quote.brl_total_amount
       }
-      if (quote.usd_to_brl_rate) {
+      if (quote.usd_to_brl_rate !== undefined && quote.usd_to_brl_rate !== null) {
         requestData.usd_to_brl_rate = quote.usd_to_brl_rate
       }
 
+      console.log('[ConfirmationPanel] Quote BRL values:', {
+        brl_amount: quote.brl_amount,
+        brl_total_amount: quote.brl_total_amount,
+        usd_to_brl_rate: quote.usd_to_brl_rate,
+      })
       console.log('[ConfirmationPanel] Creating trade with:', requestData)
 
       const response = await apiClient.post('/instant-trade/create', requestData)

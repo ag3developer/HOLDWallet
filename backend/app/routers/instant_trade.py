@@ -175,6 +175,7 @@ async def create_trade(
     """
     try:
         logger.info(f"Creating trade: quote_id={request.quote_id}, payment_method={request.payment_method}, user_id={current_user.id}")
+        logger.info(f"BRL values received: brl_amount={request.brl_amount}, brl_total_amount={request.brl_total_amount}, usd_to_brl_rate={request.usd_to_brl_rate}")
         
         service = get_instant_trade_service(db)
         
