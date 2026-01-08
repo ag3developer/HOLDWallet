@@ -3,7 +3,7 @@
 ==========================================
 
 Serviço para depositar criptomoedas nas wallets dos usuários após confirmação de pagamento.
-Suporta múltiplas redes: Ethereum, Polygon, Base, etc.
+Suporta múltiplas redes: Ethereum, Polygon, Base, Bitcoin, etc.
 
 Author: HOLD Wallet Team
 """
@@ -22,6 +22,9 @@ from app.models.instant_trade import InstantTrade, TradeStatus
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+# Cryptos que NÃO são EVM (requerem tratamento especial)
+NON_EVM_CRYPTOS = ['BTC', 'LTC', 'DOGE', 'XRP', 'XLM', 'ADA', 'SOL', 'AVAX', 'DOT']
 
 
 class BlockchainDepositService:
@@ -475,6 +478,192 @@ class BlockchainDepositService:
             
         except Exception as e:
             logger.error(f"❌ Erro verificando saldo: {str(e)}")
+            return None
+    
+    # ============================================
+    # BITCOIN - Envio automático
+    # ============================================
+    
+    async def send_btc_to_user(
+        self,
+        db: Session,
+        trade: InstantTrade,
+    ) -> Dict[str, Any]:
+        """
+        Envia Bitcoin para o usuário após confirmação de pagamento.
+        Usa APIs gratuitas (Blockstream, Mempool.space).
+        
+        Obtém credenciais BTC de:
+        1. Carteira do sistema (banco de dados) - preferencial
+        2. Variáveis de ambiente (.env) - fallback
+        
+        Args:
+            db: Sessão do banco
+            trade: InstantTrade com pagamento confirmado
+            
+        Returns:
+            Dict com resultado da transação
+        """
+        try:
+            from app.services.btc_service import btc_service
+            
+            logger.info(f"🔶 Iniciando envio BTC para trade {trade.reference_code}")
+            
+            # 1. Obter credenciais da plataforma (banco ou .env)
+            btc_credentials = self.get_platform_btc_credentials(db)
+            if not btc_credentials:
+                return {
+                    "success": False,
+                    "tx_hash": None,
+                    "wallet_address": None,
+                    "network": "bitcoin",
+                    "error": "Carteira BTC da plataforma não configurada. Configure no banco ou .env"
+                }
+            
+            platform_address = btc_credentials['address']
+            platform_wif = btc_credentials['private_key_wif']
+            
+            # 2. Buscar endereço BTC do usuário
+            user_address = self.get_user_wallet(db, str(trade.user_id), 'bitcoin')
+            if not user_address:
+                return {
+                    "success": False,
+                    "tx_hash": None,
+                    "wallet_address": None,
+                    "network": "bitcoin",
+                    "error": "Endereço Bitcoin do usuário não encontrado"
+                }
+            
+            # 3. Validar endereço do usuário
+            if not btc_service.validate_address(str(user_address.address)):
+                return {
+                    "success": False,
+                    "tx_hash": None,
+                    "wallet_address": str(user_address.address),
+                    "network": "bitcoin",
+                    "error": f"Endereço Bitcoin inválido: {user_address.address}"
+                }
+            
+            # 4. Enviar BTC usando o btc_service diretamente
+            result = await btc_service.send_btc(
+                from_address=platform_address,
+                to_address=str(user_address.address),
+                amount_btc=float(trade.crypto_amount),
+                private_key_wif=platform_wif,
+                fee_level='hour'  # Fee moderado (~1 hora)
+            )
+            
+            if result.success:
+                # 4. Atualizar trade
+                trade.wallet_id = str(user_address.wallet_id)
+                trade.wallet_address = str(user_address.address)
+                trade.network = "bitcoin"
+                trade.tx_hash = result.tx_hash
+                trade.status = TradeStatus.COMPLETED
+                trade.completed_at = datetime.now()
+                
+                db.commit()
+                db.refresh(trade)
+                
+                logger.info(f"✅ BTC enviado! TX: {result.tx_hash}")
+                
+                return {
+                    "success": True,
+                    "tx_hash": result.tx_hash,
+                    "wallet_address": str(user_address.address),
+                    "network": "bitcoin",
+                    "explorer_url": result.explorer_url,
+                    "fee_paid_satoshis": result.fee_paid,
+                    "error": None
+                }
+            else:
+                return {
+                    "success": False,
+                    "tx_hash": None,
+                    "wallet_address": str(user_address.address),
+                    "network": "bitcoin",
+                    "error": result.error
+                }
+                
+        except Exception as e:
+            logger.error(f"❌ Erro enviando BTC: {str(e)}")
+            db.rollback()
+            return {
+                "success": False,
+                "tx_hash": None,
+                "wallet_address": None,
+                "network": "bitcoin",
+                "error": str(e)
+            }
+    
+    def is_btc_auto_enabled(self, db: Session = None) -> bool:
+        """
+        Verifica se o envio automático de BTC está configurado.
+        
+        Primeiro verifica se há chaves no banco (system wallet),
+        depois verifica no .env como fallback.
+        """
+        # Opção 1: Verificar no banco de dados (carteira do sistema)
+        if db:
+            try:
+                from app.services.system_blockchain_wallet_service import system_wallet_service
+                btc_data = system_wallet_service.get_private_key_for_sending(db, 'bitcoin')
+                if btc_data and btc_data.get('private_key_wif'):
+                    return True
+            except Exception as e:
+                logger.warning(f"⚠️ Erro verificando BTC no banco: {e}")
+        
+        # Opção 2: Fallback para .env
+        return bool(
+            getattr(settings, 'PLATFORM_BTC_ADDRESS', None) and
+            getattr(settings, 'PLATFORM_BTC_PRIVATE_KEY_WIF', None)
+        )
+    
+    def get_platform_btc_credentials(self, db: Session) -> Optional[Dict]:
+        """
+        Obtém as credenciais BTC da plataforma.
+        
+        Primeiro busca na carteira do sistema (banco de dados),
+        depois tenta o .env como fallback.
+        
+        Returns:
+            Dict com address e private_key_wif, ou None
+        """
+        # Opção 1: Buscar da carteira do sistema no banco
+        try:
+            from app.services.system_blockchain_wallet_service import system_wallet_service
+            btc_data = system_wallet_service.get_private_key_for_sending(db, 'bitcoin')
+            
+            if btc_data and btc_data.get('private_key_wif'):
+                logger.info(f"🔑 BTC credentials obtidas do banco: {btc_data['address'][:15]}...")
+                return {
+                    "address": btc_data['address'],
+                    "private_key_wif": btc_data['private_key_wif']
+                }
+        except Exception as e:
+            logger.warning(f"⚠️ Erro buscando BTC do banco: {e}")
+        
+        # Opção 2: Fallback para .env
+        env_address = getattr(settings, 'PLATFORM_BTC_ADDRESS', None)
+        env_wif = getattr(settings, 'PLATFORM_BTC_PRIVATE_KEY_WIF', None)
+        
+        if env_address and env_wif:
+            logger.info(f"🔑 BTC credentials obtidas do .env: {env_address[:15]}...")
+            return {
+                "address": env_address,
+                "private_key_wif": env_wif
+            }
+        
+        logger.warning("⚠️ Nenhuma credencial BTC encontrada (banco ou .env)")
+        return None
+
+    def get_platform_btc_balance(self, db: Session = None) -> Optional[Dict]:
+        """Consulta saldo BTC da plataforma."""
+        try:
+            from app.services.btc_service import get_platform_btc_balance
+            return get_platform_btc_balance()
+        except Exception as e:
+            logger.error(f"❌ Erro consultando saldo BTC: {e}")
             return None
 
 

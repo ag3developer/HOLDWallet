@@ -331,32 +331,134 @@ class SystemBlockchainWalletService:
         return address, private_key.hex()
     
     def _generate_btc_address(self, private_key: bytes) -> str:
-        """Gera endereço Bitcoin P2PKH (legacy)."""
+        """Gera endereço Bitcoin REAL usando bitcoinlib."""
         try:
-            import hashlib
-            from eth_account import Account
+            from bitcoinlib.keys import Key
             
-            # Usar secp256k1 para gerar pubkey
-            account = Account.from_key(private_key)
-            # Para Bitcoin real, precisaria usar biblioteca específica
-            # Por ora, gera um placeholder baseado no hash
-            pubkey_hash = hashlib.sha256(private_key).digest()
-            ripemd = hashlib.new('ripemd160', pubkey_hash).hexdigest()
-            return f"1{ripemd[:33]}"  # Placeholder - formato similar a BTC
-        except Exception:
-            return f"btc_{hashlib.sha256(private_key).hexdigest()[:34]}"
+            # Criar key a partir dos bytes da private key
+            key = Key(import_key=private_key.hex(), network='bitcoin')
+            
+            # Gerar endereço SegWit nativo (bc1...) - mais moderno e econômico
+            address = key.address()
+            
+            logger.info(f"✅ BTC address real gerado: {address[:15]}...")
+            return address
+            
+        except Exception as e:
+            logger.error(f"❌ Erro ao gerar BTC address com bitcoinlib: {e}")
+            # Fallback: tentar gerar manualmente P2PKH
+            try:
+                import hashlib
+                import base58
+                
+                # Comprimir public key e gerar P2PKH
+                from ecdsa import SigningKey, SECP256k1
+                sk = SigningKey.from_string(private_key, curve=SECP256k1)
+                vk = sk.get_verifying_key()
+                
+                # Public key comprimida (02/03 + x)
+                x = vk.pubkey.point.x()
+                y = vk.pubkey.point.y()
+                prefix = b'\x02' if y % 2 == 0 else b'\x03'
+                pubkey_compressed = prefix + x.to_bytes(32, 'big')
+                
+                # SHA256 + RIPEMD160
+                sha256_hash = hashlib.sha256(pubkey_compressed).digest()
+                ripemd160_hash = hashlib.new('ripemd160', sha256_hash).digest()
+                
+                # Adicionar prefixo de rede (0x00 = mainnet)
+                versioned = b'\x00' + ripemd160_hash
+                
+                # Double SHA256 para checksum
+                checksum = hashlib.sha256(hashlib.sha256(versioned).digest()).digest()[:4]
+                
+                # Base58 encode
+                address = base58.b58encode(versioned + checksum).decode()
+                
+                logger.info(f"✅ BTC P2PKH address gerado: {address}")
+                return address
+                
+            except Exception as e2:
+                logger.error(f"❌ Fallback também falhou: {e2}")
+                # Último recurso - pelo menos gera algo identificável
+                return f"btc_error_{hashlib.sha256(private_key).hexdigest()[:30]}"
     
     def _generate_ltc_address(self, private_key: bytes) -> str:
-        """Gera endereço Litecoin."""
-        pubkey_hash = hashlib.sha256(private_key).digest()
-        ripemd = hashlib.new('ripemd160', pubkey_hash).hexdigest()
-        return f"L{ripemd[:33]}"  # Placeholder
-    
+        """Gera endereço Litecoin REAL."""
+        try:
+            from bitcoinlib.keys import Key
+            
+            # Litecoin usa mesma curva que Bitcoin, só muda o prefixo
+            key = Key(import_key=private_key.hex(), network='litecoin')
+            address = key.address()
+            
+            logger.info(f"✅ LTC address real gerado: {address[:15]}...")
+            return address
+            
+        except Exception as e:
+            logger.warning(f"⚠️ Fallback LTC address: {e}")
+            # Fallback manual P2PKH para Litecoin (prefixo 0x30 = 'L')
+            try:
+                import hashlib
+                import base58
+                from ecdsa import SigningKey, SECP256k1
+                
+                sk = SigningKey.from_string(private_key, curve=SECP256k1)
+                vk = sk.get_verifying_key()
+                
+                x = vk.pubkey.point.x()
+                y = vk.pubkey.point.y()
+                prefix = b'\x02' if y % 2 == 0 else b'\x03'
+                pubkey_compressed = prefix + x.to_bytes(32, 'big')
+                
+                sha256_hash = hashlib.sha256(pubkey_compressed).digest()
+                ripemd160_hash = hashlib.new('ripemd160', sha256_hash).digest()
+                
+                # Litecoin mainnet = 0x30
+                versioned = b'\x30' + ripemd160_hash
+                checksum = hashlib.sha256(hashlib.sha256(versioned).digest()).digest()[:4]
+                
+                return base58.b58encode(versioned + checksum).decode()
+            except:
+                return f"ltc_error_{hashlib.sha256(private_key).hexdigest()[:30]}"
+
     def _generate_doge_address(self, private_key: bytes) -> str:
-        """Gera endereço Dogecoin."""
-        pubkey_hash = hashlib.sha256(private_key).digest()
-        ripemd = hashlib.new('ripemd160', pubkey_hash).hexdigest()
-        return f"D{ripemd[:33]}"  # Placeholder
+        """Gera endereço Dogecoin REAL."""
+        try:
+            from bitcoinlib.keys import Key
+            
+            key = Key(import_key=private_key.hex(), network='dogecoin')
+            address = key.address()
+            
+            logger.info(f"✅ DOGE address real gerado: {address[:15]}...")
+            return address
+            
+        except Exception as e:
+            logger.warning(f"⚠️ Fallback DOGE address: {e}")
+            # Fallback manual P2PKH para Dogecoin (prefixo 0x1E = 'D')
+            try:
+                import hashlib
+                import base58
+                from ecdsa import SigningKey, SECP256k1
+                
+                sk = SigningKey.from_string(private_key, curve=SECP256k1)
+                vk = sk.get_verifying_key()
+                
+                x = vk.pubkey.point.x()
+                y = vk.pubkey.point.y()
+                prefix = b'\x02' if y % 2 == 0 else b'\x03'
+                pubkey_compressed = prefix + x.to_bytes(32, 'big')
+                
+                sha256_hash = hashlib.sha256(pubkey_compressed).digest()
+                ripemd160_hash = hashlib.new('ripemd160', sha256_hash).digest()
+                
+                # Dogecoin mainnet = 0x1E
+                versioned = b'\x1e' + ripemd160_hash
+                checksum = hashlib.sha256(hashlib.sha256(versioned).digest()).digest()[:4]
+                
+                return base58.b58encode(versioned + checksum).decode()
+            except:
+                return f"doge_error_{hashlib.sha256(private_key).hexdigest()[:30]}"
     
     def _eth_to_tron_address(self, eth_address: str) -> str:
         """Converte endereço Ethereum para formato Tron."""
@@ -430,6 +532,70 @@ class SystemBlockchainWalletService:
             "label": address.label
         }
     
+    def get_private_key_for_sending(
+        self,
+        db: Session,
+        network: str
+    ) -> Optional[Dict[str, str]]:
+        """
+        Obtém a private key descriptografada do sistema para envio.
+        
+        ⚠️ CUIDADO: Esta função retorna a private key em texto claro!
+        Use apenas para enviar transações e nunca exponha em logs.
+        
+        Args:
+            db: Sessão do banco de dados
+            network: Nome da rede (ex: 'bitcoin', 'ethereum', 'polygon')
+            
+        Returns:
+            Dict com address, private_key_hex, private_key_wif (se aplicável)
+            Ou None se não encontrado
+        """
+        address_obj = db.query(SystemBlockchainAddress).join(
+            SystemBlockchainWallet
+        ).filter(
+            SystemBlockchainWallet.name == "main_fees_wallet",
+            SystemBlockchainWallet.is_active == True,
+            SystemBlockchainAddress.network == network.lower(),
+            SystemBlockchainAddress.is_active == True
+        ).first()
+        
+        if not address_obj or not address_obj.encrypted_private_key:
+            logger.warning(f"⚠️ Private key não encontrada para {network}")
+            return None
+        
+        try:
+            # Descriptografar a private key
+            private_key_hex = self.crypto_service.decrypt_data(address_obj.encrypted_private_key)
+            
+            result = {
+                "address": address_obj.address,
+                "network": address_obj.network,
+                "cryptocurrency": address_obj.cryptocurrency,
+                "private_key_hex": private_key_hex
+            }
+            
+            # Para Bitcoin/Litecoin/Dogecoin, também gerar WIF
+            if network.lower() in ['bitcoin', 'litecoin', 'dogecoin']:
+                try:
+                    from bitcoinlib.keys import Key
+                    network_map = {
+                        'bitcoin': 'bitcoin',
+                        'litecoin': 'litecoin',
+                        'dogecoin': 'dogecoin'
+                    }
+                    key = Key(import_key=private_key_hex, network=network_map.get(network.lower(), 'bitcoin'))
+                    result["private_key_wif"] = key.wif()
+                except Exception as e:
+                    logger.warning(f"⚠️ Não foi possível gerar WIF: {e}")
+            
+            logger.info(f"🔑 Private key obtida para {network}: {address_obj.address[:15]}...")
+            return result
+            
+        except Exception as e:
+            logger.error(f"❌ Erro ao descriptografar private key: {e}")
+            return None
+
     def get_all_addresses(self, db: Session) -> List[Dict[str, Any]]:
         """Retorna todos os endereços do sistema."""
         

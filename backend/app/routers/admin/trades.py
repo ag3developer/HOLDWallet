@@ -19,6 +19,7 @@ import logging
 
 from app.core.db import get_db
 from app.core.security import get_current_admin
+from app.core.config import settings
 from app.models.user import User
 from app.models.instant_trade import InstantTrade, TradeStatus, InstantTradeHistory
 from app.models.wallet import Wallet
@@ -196,6 +197,72 @@ async def get_trades_stats(
         
     except Exception as e:
         logger.error(f"❌ Erro nas stats de trades: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+@router.get("/btc/status", response_model=dict)
+async def get_btc_platform_status(
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin)
+):
+    """
+    Retorna status da carteira BTC da plataforma.
+    
+    Inclui:
+    - Se envio automático está habilitado (via banco ou .env)
+    - Endereço da plataforma (banco ou .env)
+    - Saldo disponível
+    - Fees recomendados
+    """
+    from app.services.blockchain_deposit_service import blockchain_deposit_service
+    
+    try:
+        # Verificar se está habilitado (primeiro banco, depois .env)
+        is_enabled = blockchain_deposit_service.is_btc_auto_enabled(db)
+        
+        # Obter credenciais (banco ou .env)
+        btc_credentials = blockchain_deposit_service.get_platform_btc_credentials(db)
+        platform_address = btc_credentials['address'] if btc_credentials else None
+        
+        result = {
+            "success": True,
+            "btc_auto_enabled": is_enabled,
+            "platform_address": platform_address,
+            "source": "database" if btc_credentials and not getattr(settings, 'PLATFORM_BTC_ADDRESS', None) else "env",
+            "balance": None,
+            "recommended_fees": None,
+            "message": None
+        }
+        
+        if is_enabled and platform_address:
+            # Consultar saldo
+            try:
+                from app.services.btc_service import btc_service
+                balance = btc_service.get_balance(platform_address)
+                if balance and 'error' not in balance:
+                    result["balance"] = balance
+            except Exception as e:
+                logger.warning(f"⚠️ Erro consultando saldo: {e}")
+            
+            # Consultar fees
+            try:
+                from app.services.btc_service import btc_service
+                fees = btc_service.get_recommended_fees()
+                result["recommended_fees"] = fees
+            except Exception:
+                pass
+            
+            result["message"] = "Envio automático de BTC está HABILITADO"
+        else:
+            result["message"] = "Configure BTC na carteira do sistema ou no .env para habilitar"
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"❌ Erro consultando status BTC: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
@@ -468,9 +535,13 @@ async def confirm_payment_and_deposit(
     current_admin: User = Depends(get_current_admin)
 ):
     """
-    Confirma pagamento e dispara depósito blockchain automaticamente
+    Confirma pagamento e dispara depósito blockchain automaticamente.
+    
+    Suporta:
+    - EVM (ETH, MATIC, USDT, etc): Envio automático via Web3
+    - BTC: Envio automático via APIs gratuitas (se configurado)
     """
-    from app.services.blockchain_deposit_service import blockchain_deposit_service
+    from app.services.blockchain_deposit_service import blockchain_deposit_service, NON_EVM_CRYPTOS
     
     try:
         trade = db.query(InstantTrade).filter(
@@ -508,7 +579,74 @@ async def confirm_payment_and_deposit(
         
         logger.info(f"✅ Pagamento confirmado para trade {trade.reference_code}")
         
-        # Disparar depósito blockchain
+        # Verificar se é BTC (ou outra non-EVM)
+        symbol = str(trade.symbol).upper()
+        
+        # ===== BITCOIN - Envio automático =====
+        if symbol == 'BTC':
+            # Verificar se BTC automático está configurado
+            if blockchain_deposit_service.is_btc_auto_enabled():
+                logger.info(f"🔶 Processando envio automático de BTC...")
+                
+                deposit_result = await blockchain_deposit_service.send_btc_to_user(
+                    db=db,
+                    trade=trade
+                )
+                
+                if deposit_result["success"]:
+                    history = InstantTradeHistory(
+                        trade_id=trade.id,
+                        old_status=TradeStatus.PAYMENT_CONFIRMED,
+                        new_status=TradeStatus.COMPLETED,
+                        reason=f"BTC enviado automaticamente por admin {current_admin.email}",
+                        history_details=f"TX: {deposit_result['tx_hash']}"
+                    )
+                    db.add(history)
+                    db.commit()
+                    
+                    return {
+                        "success": True,
+                        "message": "Pagamento confirmado e BTC enviado automaticamente!",
+                        "trade_id": trade.id,
+                        "tx_hash": deposit_result.get("tx_hash"),
+                        "wallet_address": deposit_result.get("wallet_address"),
+                        "network": "bitcoin",
+                        "explorer_url": deposit_result.get("explorer_url"),
+                        "status": TradeStatus.COMPLETED.value
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "message": "Pagamento confirmado mas envio BTC falhou",
+                        "trade_id": trade.id,
+                        "error": deposit_result.get("error"),
+                        "status": TradeStatus.PAYMENT_CONFIRMED.value,
+                        "manual_required": True,
+                        "hint": "Use o endpoint /manual-complete para completar manualmente"
+                    }
+            else:
+                # BTC não configurado - requer envio manual
+                return {
+                    "success": True,
+                    "message": "Pagamento confirmado! BTC requer envio manual.",
+                    "trade_id": trade.id,
+                    "status": TradeStatus.PAYMENT_CONFIRMED.value,
+                    "manual_required": True,
+                    "hint": "Configure PLATFORM_BTC_ADDRESS e PLATFORM_BTC_PRIVATE_KEY_WIF no .env para habilitar envio automático"
+                }
+        
+        # ===== Outras non-EVM - Requer envio manual =====
+        if symbol in NON_EVM_CRYPTOS and symbol != 'BTC':
+            return {
+                "success": True,
+                "message": f"Pagamento confirmado! {symbol} requer envio manual.",
+                "trade_id": trade.id,
+                "status": TradeStatus.PAYMENT_CONFIRMED.value,
+                "manual_required": True,
+                "hint": f"Envie {trade.crypto_amount} {symbol} para o endereço do usuário e use /manual-complete"
+            }
+        
+        # ===== EVM (USDT, ETH, MATIC, etc) - Envio automático =====
         network = request.network or "polygon"
         deposit_result = blockchain_deposit_service.deposit_crypto_to_user(
             db=db,
