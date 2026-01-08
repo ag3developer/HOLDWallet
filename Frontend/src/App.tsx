@@ -17,6 +17,7 @@ import { AdminLayout } from '@/components/layout/AdminLayout'
 import { LoadingScreen } from '@/components/ui/LoadingScreen'
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary'
 import { PWAUpdateNotification } from '@/components/PWAUpdateNotification'
+import { IOSPWAUpdateModal } from '@/components/IOSPWAUpdateModal'
 
 // Pages
 import { LoginPage } from '@/pages/auth/LoginPage'
@@ -351,6 +352,9 @@ function App() {
 
         {/* PWA Update Notification - Shows when new version is available */}
         <PWAUpdateNotification />
+
+        {/* iOS PWA Update Modal - Only shows for iOS PWA users */}
+        <IOSPWAUpdateModal />
       </div>
     </ErrorBoundary>
   )

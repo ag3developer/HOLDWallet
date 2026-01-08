@@ -352,10 +352,12 @@ export const AdminTradeDetailPage: React.FC = () => {
   }
 
   // Verifica se a crypto é suportada para depósito automático
-  // BTC, LTC, DOGE etc usam protocolos diferentes e requerem processamento manual
+  // ✅ ATUALIZADO: Agora multi_chain_service suporta TODAS as 16 criptos!
+  // Apenas ADA ainda requer processamento manual
   const isAutomaticDepositSupported = (symbol: string): boolean => {
-    const nonEvmCryptos = ['BTC', 'LTC', 'DOGE', 'XRP', 'XLM', 'ADA', 'SOL', 'AVAX', 'DOT']
-    return !nonEvmCryptos.includes(symbol?.toUpperCase())
+    // Moedas que ainda requerem envio manual
+    const manualOnlyCryptos = ['ADA', 'XLM'] // Cardano e Stellar ainda não implementados
+    return !manualOnlyCryptos.includes(symbol?.toUpperCase())
   }
 
   // Obter URL do blockchain explorer baseado na rede/símbolo
