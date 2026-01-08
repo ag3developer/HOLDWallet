@@ -42,33 +42,41 @@ export default defineConfig({
       devOptions: {
         enabled: false, // ✅ Desabilitado em dev para evitar erros - PWA só em produção
       },
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+      includeAssets: ['favicon.ico', 'images/logos/wn-icon.png'],
       manifest: {
         name: 'WOLK NOW® - Smart & Secure Wallet',
         short_name: 'WOLK NOW',
         description: 'Carteira Inteligente P2P com IA Preditiva e Sistema de Reputação',
-        theme_color: '#7c3aed',
+        theme_color: '#1e3a8a',
         background_color: '#1e3a8a',
         display: 'standalone',
         orientation: 'portrait',
         scope: '/',
-        start_url: '/?v=' + APP_VERSION, // ✅ Versão na URL para forçar atualização
+        start_url: '/',
+        id: 'wolknow-pwa',
+        prefer_related_applications: false,
         icons: [
           {
-            src: 'pwa-192x192.png',
+            src: '/images/logos/wn-icon.png',
             sizes: '192x192',
             type: 'image/png',
           },
           {
-            src: 'pwa-512x512.png',
+            src: '/images/logos/wn-icon.png',
             sizes: '512x512',
             type: 'image/png',
           },
           {
-            src: 'pwa-512x512.png',
+            src: '/images/logos/wn-icon.png',
             sizes: '512x512',
             type: 'image/png',
-            purpose: 'any maskable',
+            purpose: 'any',
+          },
+          {
+            src: '/images/logos/wn-icon.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
           },
         ],
         categories: ['finance', 'productivity'],

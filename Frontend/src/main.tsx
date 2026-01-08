@@ -10,6 +10,10 @@ import { HelmetProvider } from 'react-helmet-async'
 // Detecta e resolve problemas de tela branca no Safari iOS PWA
 import './utils/iosPWAStartup'
 
+// 🍎 Safari iOS Compatibility - Inicializa fixes para Safari iOS 12-17+
+import { initSafariIOSCompat } from './utils/iosSafariCompat'
+initSafariIOSCompat()
+
 import App from './App'
 import './config/i18n'
 import './styles/globals.css'
