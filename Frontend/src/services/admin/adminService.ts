@@ -41,6 +41,23 @@ adminApi.interceptors.response.use(
   response => response,
   error => {
     if (error.response?.status === 401) {
+      // ✅ Check grace period before logging out (Safari iOS fix)
+      let timeSinceLogin = Infinity
+      try {
+        const loginTimestamp = sessionStorage.getItem('auth_token_timestamp')
+        if (loginTimestamp) {
+          timeSinceLogin = Date.now() - Number.parseInt(loginTimestamp, 10)
+        }
+      } catch {
+        // sessionStorage not available
+      }
+
+      // If user just logged in (within 15 seconds), don't logout
+      if (timeSinceLogin < 15000) {
+        console.warn('[AdminAPI] 🛡️ Skipping logout - user just logged in')
+        return Promise.reject(error)
+      }
+
       // Token expirado ou inválido
       console.error('❌ Token inválido ou expirado')
       localStorage.removeItem('hold-wallet-auth')

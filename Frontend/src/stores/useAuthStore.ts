@@ -43,6 +43,14 @@ export const useAuthStore = create<AuthStore>()(
         try {
           const response: AuthResponse = await authService.login(credentials)
 
+          // ✅ Mark login time BEFORE setting state (for Safari iOS fix)
+          try {
+            sessionStorage.setItem('auth_token_timestamp', Date.now().toString())
+            sessionStorage.setItem('auth_token_backup', response.access_token)
+          } catch {
+            // sessionStorage not available
+          }
+
           set({
             user: response.user,
             token: response.access_token,
@@ -50,6 +58,8 @@ export const useAuthStore = create<AuthStore>()(
             isLoading: false,
             error: null,
           })
+
+          console.log('[AuthStore] ✅ Login successful, token saved')
         } catch (error: any) {
           set({
             user: null,
@@ -64,6 +74,14 @@ export const useAuthStore = create<AuthStore>()(
 
       // Set auth data after successful login
       setAuthData: (user: User, token: string) => {
+        // ✅ Mark login time for Safari iOS fix
+        try {
+          sessionStorage.setItem('auth_token_timestamp', Date.now().toString())
+          sessionStorage.setItem('auth_token_backup', token)
+        } catch {
+          // sessionStorage not available
+        }
+
         set({
           user,
           token,
@@ -148,6 +166,23 @@ export const useAuthStore = create<AuthStore>()(
             error: null,
           })
         } catch (error: any) {
+          // ✅ Check grace period before logging out (Safari iOS fix)
+          let timeSinceLogin = Infinity
+          try {
+            const loginTimestamp = sessionStorage.getItem('auth_token_timestamp')
+            if (loginTimestamp) {
+              timeSinceLogin = Date.now() - Number.parseInt(loginTimestamp, 10)
+            }
+          } catch {
+            // sessionStorage not available
+          }
+
+          // If user just logged in (within 15 seconds), don't logout
+          if (timeSinceLogin < 15000) {
+            console.warn('[AuthStore] 🛡️ Skipping logout on refresh fail - user just logged in')
+            throw error
+          }
+
           // If refresh fails, logout user
           get().logout()
           throw error
@@ -191,6 +226,28 @@ export const useAuthStore = create<AuthStore>()(
             error: null,
           })
         } catch (error: any) {
+          // ✅ Check grace period before logging out (Safari iOS fix)
+          let timeSinceLogin = Infinity
+          try {
+            const loginTimestamp = sessionStorage.getItem('auth_token_timestamp')
+            if (loginTimestamp) {
+              timeSinceLogin = Date.now() - Number.parseInt(loginTimestamp, 10)
+            }
+          } catch {
+            // sessionStorage not available
+          }
+
+          // If user just logged in (within 15 seconds), don't logout on validation error
+          if (timeSinceLogin < 15000) {
+            console.warn('[AuthStore] 🛡️ Skipping logout - user just logged in', {
+              timeSinceLogin: `${timeSinceLogin}ms`,
+              error: error.message,
+            })
+            // Keep the user authenticated with the data we have
+            set({ isLoading: false })
+            return
+          }
+
           // Token is invalid, clear auth state
           console.error('[AuthStore] Token validation failed:', error.message)
           set({
@@ -212,23 +269,48 @@ export const useAuthStore = create<AuthStore>()(
         isAuthenticated: state.isAuthenticated,
       }),
       onRehydrateStorage: () => state => {
+        const isSafari =
+          typeof navigator !== 'undefined' &&
+          /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
+
         console.log('[AuthStore] Rehydration completed', {
           hasToken: !!state?.token,
           hasUser: !!state?.user,
           isAuthenticated: state?.isAuthenticated,
-          isSafari:
-            typeof navigator !== 'undefined' &&
-            /^((?!chrome|android).)*safari/i.test(navigator.userAgent),
+          isSafari,
         })
 
         // Mark as hydrated - IMPORTANT for Safari/iOS
         if (state) {
           state.setHasHydrated(true)
+
+          // ✅ SAFARI iOS FIX: If we have a token, mark it as fresh to prevent logout
+          if (state.token) {
+            try {
+              // Set timestamp to prevent immediate logout on Safari
+              const existingTimestamp = sessionStorage.getItem('auth_token_timestamp')
+              if (!existingTimestamp) {
+                sessionStorage.setItem('auth_token_timestamp', Date.now().toString())
+              }
+              // Always backup token
+              sessionStorage.setItem('auth_token_backup', state.token)
+              console.log('[AuthStore] ✅ Token backed up to sessionStorage')
+            } catch {
+              // sessionStorage not available
+            }
+          }
         }
 
-        // Verify stored auth state on rehydration
+        // Verify stored auth state on rehydration (but don't logout immediately)
         if (state?.token && state?.user) {
-          state.initializeAuth()
+          // Delay initializeAuth slightly on Safari to avoid race conditions
+          if (isSafari) {
+            setTimeout(() => {
+              state.initializeAuth()
+            }, 500)
+          } else {
+            state.initializeAuth()
+          }
         }
       },
     }

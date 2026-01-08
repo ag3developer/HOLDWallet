@@ -27,9 +27,6 @@ import {
   CheckCircle2,
   XCircle,
   FileText,
-  Timer,
-  CreditCard,
-  Banknote,
   Menu,
   X,
   ChevronLeft,
@@ -37,7 +34,6 @@ import {
   Loader2,
   ShoppingCart,
   Wallet,
-  ArrowLeftRight,
 } from 'lucide-react'
 import { chatP2PService, ChatMessageP2P } from '@/services/chatP2P'
 import { p2pService } from '@/services/p2p'
@@ -1456,196 +1452,211 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
   }
 
   return (
-    <div className='flex h-[calc(100vh-8rem)] bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden relative'>
+    <div className='flex h-[100dvh] sm:h-[calc(100vh-4rem)] lg:h-[calc(100vh-5rem)] bg-gray-50 dark:bg-[#0a0a0a] sm:rounded-2xl overflow-hidden relative shadow-2xl'>
       {/* Backdrop para Mobile */}
       {isSidebarOpen && (
         <div
-          className='lg:hidden fixed inset-0 bg-black/50 z-10'
+          className='lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-10 transition-opacity'
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
-      {/* Sidebar - Lista de Contatos */}
+      {/* Sidebar - Lista de Contatos - Design WhatsApp/Telegram Style */}
       <div
         className={`
           ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-          ${isSidebarOpen ? 'w-full sm:w-96' : 'w-0 lg:w-20'}
-          transition-all duration-300 ease-in-out
-          border-r border-gray-200 dark:border-gray-700 
+          ${isSidebarOpen ? 'w-[85vw] sm:w-80 md:w-96' : 'w-0 lg:w-[72px]'}
+          transition-all duration-300 ease-out
+          border-r border-gray-200/50 dark:border-white/5
           flex flex-col
           fixed lg:relative inset-y-0 left-0 z-20 lg:z-0
-          bg-white dark:bg-gray-900
+          bg-white dark:bg-[#111] 
+          shadow-xl lg:shadow-none
         `}
       >
-        {/* Header da Sidebar - Moderno estilo Messenger/Telegram */}
-        <div className='p-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-600 to-purple-600'>
-          <div className='flex items-center justify-between mb-3'>
-            <h2 className='text-xl font-bold text-white flex items-center gap-2'>
-              <MessageCircle className='w-6 h-6' />
-              {isSidebarOpen && <span>Mensagens</span>}
-            </h2>
-
-            <div className='flex gap-1.5'>
-              {/* Botões de ação - só visíveis quando expandido */}
-              {isSidebarOpen && (
-                <>
-                  <button
-                    aria-label='Nova conversa'
-                    title='Nova conversa'
-                    className='p-2 text-white hover:bg-white/10 rounded-lg transition-all hover:scale-105'
-                  >
-                    <UserPlus className='w-5 h-5' />
-                  </button>
-                  <button
-                    aria-label='Configurações'
-                    title='Configurações'
-                    className='hidden sm:block p-2 text-white hover:bg-white/10 rounded-lg transition-all hover:scale-105'
-                  >
-                    <Settings className='w-5 h-5' />
-                  </button>
-                </>
-              )}
-
-              {/* Botão toggle para desktop */}
-              <button
-                onClick={toggleSidebar}
-                aria-label={isSidebarOpen ? 'Recolher sidebar' : 'Expandir sidebar'}
-                className='hidden lg:flex p-2 text-white hover:bg-white/10 rounded-lg transition-colors'
-              >
-                {isSidebarOpen ? (
-                  <ChevronLeft className='w-5 h-5' />
-                ) : (
-                  <ChevronRight className='w-5 h-5' />
+        {/* Header da Sidebar - Design Clean e Moderno */}
+        <div className='flex-shrink-0 bg-white dark:bg-[#111] border-b border-gray-100 dark:border-white/5'>
+          <div className='p-3 sm:p-4'>
+            <div className='flex items-center justify-between'>
+              <div className='flex items-center gap-3'>
+                {/* Avatar do usuário atual */}
+                <div className='w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg'>
+                  <MessageCircle className='w-5 h-5 text-white' />
+                </div>
+                {isSidebarOpen && (
+                  <div>
+                    <h2 className='text-base font-bold text-gray-900 dark:text-white'>Chat</h2>
+                    <p className='text-xs text-gray-500 dark:text-gray-500'>Suas conversas</p>
+                  </div>
                 )}
-              </button>
+              </div>
 
-              {/* Botão fechar para mobile */}
-              <button
-                onClick={toggleSidebar}
-                aria-label='Fechar menu'
-                className='lg:hidden p-2 text-white hover:bg-white/10 rounded-lg transition-colors'
-              >
-                <X className='w-5 h-5' />
-              </button>
+              <div className='flex items-center gap-1'>
+                {/* Botões de ação - só visíveis quando expandido */}
+                {isSidebarOpen && (
+                  <>
+                    <button
+                      aria-label='Nova conversa'
+                      title='Nova conversa'
+                      className='p-2 text-gray-500 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-500/10 rounded-xl transition-all'
+                    >
+                      <UserPlus className='w-5 h-5' />
+                    </button>
+                    <button
+                      aria-label='Configurações'
+                      title='Configurações'
+                      className='hidden sm:block p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl transition-all'
+                    >
+                      <Settings className='w-5 h-5' />
+                    </button>
+                  </>
+                )}
+
+                {/* Botão toggle para desktop */}
+                <button
+                  onClick={toggleSidebar}
+                  aria-label={isSidebarOpen ? 'Recolher sidebar' : 'Expandir sidebar'}
+                  className='hidden lg:flex p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl transition-colors'
+                >
+                  {isSidebarOpen ? (
+                    <ChevronLeft className='w-5 h-5' />
+                  ) : (
+                    <ChevronRight className='w-5 h-5' />
+                  )}
+                </button>
+
+                {/* Botão fechar para mobile */}
+                <button
+                  onClick={toggleSidebar}
+                  aria-label='Fechar menu'
+                  className='lg:hidden p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl transition-colors'
+                >
+                  <X className='w-5 h-5' />
+                </button>
+              </div>
             </div>
+
+            {/* Busca - Design Clean */}
+            {isSidebarOpen && (
+              <div className='relative mt-3'>
+                <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500' />
+                <input
+                  type='text'
+                  placeholder='Buscar conversa...'
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  className='w-full pl-10 pr-4 py-2.5 bg-gray-100 dark:bg-white/5 border-0 rounded-xl text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500/50 transition-all text-sm'
+                />
+              </div>
+            )}
           </div>
-
-          {/* Busca - Moderna com glassmorphism */}
-          {isSidebarOpen && (
-            <div className='relative'>
-              <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60' />
-              <input
-                type='text'
-                placeholder='Buscar...'
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                className='w-full pl-10 pr-4 py-2.5 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/30 transition-all text-sm'
-              />
-            </div>
-          )}
         </div>
 
         {/* Lista de Contatos */}
-        <div className='flex-1 overflow-y-auto'>
+        <div className='flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-700'>
           {filteredContacts.length === 0 ? (
             // Mensagem quando não há contatos
-            <div className='flex flex-col items-center justify-center h-full p-8 text-center'>
-              <MessageCircle className='w-16 h-16 text-gray-300 dark:text-gray-600 mb-4' />
-              <h3 className='text-lg font-semibold text-gray-900 dark:text-white mb-2'>
-                Nenhuma conversa ainda
+            <div className='flex flex-col items-center justify-center h-full p-6 text-center'>
+              <div className='w-16 h-16 rounded-full bg-gray-100 dark:bg-white/5 flex items-center justify-center mb-4'>
+                <MessageCircle className='w-8 h-8 text-gray-400 dark:text-gray-600' />
+              </div>
+              <h3 className='text-sm font-semibold text-gray-900 dark:text-white mb-1'>
+                Nenhuma conversa
               </h3>
-              <p className='text-sm text-gray-500 dark:text-gray-400 mb-4'>
-                Comece uma negociação P2P para iniciar uma conversa
-              </p>
+              <p className='text-xs text-gray-500 dark:text-gray-500'>Inicie uma negociação P2P</p>
             </div>
           ) : isSidebarOpen ? (
             // Modo expandido - lista completa com design moderno
-            filteredContacts.map(contact => (
-              <div
-                key={contact.id}
-                onClick={() => setSelectedContact(contact.id)}
-                className={`p-4 cursor-pointer transition-all duration-200 hover:bg-gray-50 dark:hover:bg-gray-800/50 ${
-                  selectedContact === contact.id
-                    ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-600'
-                    : 'border-l-4 border-transparent'
-                } active:scale-[0.98]`}
-              >
-                <div className='flex items-center gap-3'>
-                  {/* Avatar com status online */}
-                  <div className='relative flex-shrink-0'>
-                    <div
-                      className={`w-12 h-12 rounded-full bg-gradient-to-br ${contact.avatarColor} flex items-center justify-center ring-2 ring-white dark:ring-gray-900 shadow-md`}
-                    >
-                      {getAvatarIcon(contact.avatar)}
+            <div className='py-1'>
+              {filteredContacts.map(contact => (
+                <div
+                  key={contact.id}
+                  onClick={() => setSelectedContact(contact.id)}
+                  className={`px-3 py-3 cursor-pointer transition-all duration-150 mx-2 my-0.5 rounded-xl ${
+                    selectedContact === contact.id
+                      ? 'bg-green-50 dark:bg-green-500/10 border-l-[3px] border-green-500'
+                      : 'hover:bg-gray-50 dark:hover:bg-white/5 border-l-[3px] border-transparent'
+                  } active:scale-[0.98]`}
+                >
+                  <div className='flex items-center gap-3'>
+                    {/* Avatar com status online */}
+                    <div className='relative flex-shrink-0'>
+                      <div
+                        className={`w-12 h-12 rounded-full bg-gradient-to-br ${contact.avatarColor} flex items-center justify-center shadow-md`}
+                      >
+                        {getAvatarIcon(contact.avatar)}
+                      </div>
+                      {contact.isOnline && (
+                        <div className='absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-white dark:border-[#111]'></div>
+                      )}
                     </div>
-                    {contact.isOnline && (
-                      <div className='absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-white dark:border-gray-900 animate-pulse'></div>
-                    )}
-                  </div>
 
-                  <div className='flex-1 min-w-0'>
-                    <div className='flex items-center justify-between mb-1'>
-                      <div className='flex items-center gap-1.5 flex-1 min-w-0'>
-                        <h3 className='font-semibold text-gray-900 dark:text-white truncate text-sm'>
-                          {contact.name}
-                        </h3>
-                        {contact.isSupport && (
-                          <Shield className='w-3.5 h-3.5 text-blue-600 flex-shrink-0' />
-                        )}
-                        {contact.rating && (
-                          <div className='flex items-center gap-0.5 flex-shrink-0'>
-                            <Star className='w-3 h-3 text-yellow-500 fill-current' />
-                            <span className='text-xs text-gray-600 dark:text-gray-400 font-medium'>
-                              {contact.rating}
-                            </span>
-                          </div>
+                    <div className='flex-1 min-w-0'>
+                      <div className='flex items-center justify-between mb-0.5'>
+                        <div className='flex items-center gap-1.5 flex-1 min-w-0'>
+                          <h3 className='font-semibold text-gray-900 dark:text-white truncate text-sm'>
+                            {contact.name}
+                          </h3>
+                          {contact.isSupport && (
+                            <Shield className='w-3.5 h-3.5 text-green-600 flex-shrink-0' />
+                          )}
+                          {contact.rating && (
+                            <div className='flex items-center gap-0.5 flex-shrink-0'>
+                              <Star className='w-3 h-3 text-yellow-500 fill-current' />
+                              <span className='text-[10px] text-gray-500 dark:text-gray-400 font-medium'>
+                                {contact.rating}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <span className='text-[10px] text-gray-400 dark:text-gray-500 flex-shrink-0 ml-2'>
+                          {contact.timestamp}
+                        </span>
+                      </div>
+                      <div className='flex items-center justify-between'>
+                        <p className='text-xs text-gray-500 dark:text-gray-400 truncate pr-2'>
+                          {contact.lastMessage}
+                        </p>
+                        {contact.unread > 0 && (
+                          <span className='bg-green-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 flex-shrink-0'>
+                            {contact.unread > 99 ? '99+' : contact.unread}
+                          </span>
                         )}
                       </div>
-                      <span className='text-xs text-gray-500 dark:text-gray-400 flex-shrink-0 ml-2'>
-                        {contact.timestamp}
-                      </span>
-                    </div>
-                    <div className='flex items-center justify-between'>
-                      <p className='text-sm text-gray-600 dark:text-gray-400 truncate pr-2'>
-                        {contact.lastMessage}
-                      </p>
-                      {contact.unread > 0 && (
-                        <span className='bg-gradient-to-r from-blue-600 to-purple-600 text-white text-xs font-medium rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5 shadow-sm flex-shrink-0'>
-                          {contact.unread > 99 ? '99+' : contact.unread}
-                        </span>
-                      )}
                     </div>
                   </div>
                 </div>
-              </div>
-            ))
+              ))}
+            </div>
           ) : (
             // Modo minimizado - só avatares
-            <div className='hidden lg:flex flex-col items-center py-2 gap-2'>
+            <div className='hidden lg:flex flex-col items-center py-3 gap-2'>
               {filteredContacts.map(contact => (
                 <button
                   key={contact.id}
                   onClick={() => setSelectedContact(contact.id)}
                   aria-label={`Chat com ${contact.name}`}
-                  className={`relative group ${
-                    selectedContact === contact.id ? 'ring-2 ring-blue-600' : ''
-                  } rounded-full transition-all`}
+                  className={`relative group p-1 ${
+                    selectedContact === contact.id
+                      ? 'ring-2 ring-green-500 ring-offset-2 dark:ring-offset-[#111]'
+                      : ''
+                  } rounded-full transition-all hover:scale-105`}
                 >
                   <div
-                    className={`w-12 h-12 rounded-full bg-gradient-to-br ${contact.avatarColor} flex items-center justify-center`}
+                    className={`w-10 h-10 rounded-full bg-gradient-to-br ${contact.avatarColor} flex items-center justify-center shadow-md`}
                   >
                     {getAvatarIcon(contact.avatar, 'small')}
                   </div>
                   {contact.isOnline && (
-                    <div className='absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-900'></div>
+                    <div className='absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-[#111]'></div>
                   )}
                   {contact.unread > 0 && (
-                    <div className='absolute -top-1 -right-1 w-5 h-5 bg-blue-600 text-white text-xs rounded-full flex items-center justify-center'>
+                    <div className='absolute -top-1 -right-1 w-5 h-5 bg-green-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center'>
                       {contact.unread}
                     </div>
                   )}
                   {/* Tooltip no hover */}
-                  <div className='absolute left-full ml-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50'>
+                  <div className='absolute left-full ml-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-lg'>
                     {contact.name}
                   </div>
                 </button>
@@ -1656,181 +1667,157 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
       </div>
 
       {/* Área de Chat Principal */}
-      <div className='flex-1 flex flex-col'>
+      <div className='flex-1 flex flex-col min-w-0 bg-white dark:bg-[#0d0d0d]'>
         {currentContact ? (
           <>
-            {/* Header do Chat - Profissional estilo Messenger */}
-            <div className='p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm'>
-              <div className='flex items-center justify-between gap-3'>
-                {/* Botão toggle mobile - Integrado no header */}
+            {/* Header do Chat - Clean Design */}
+            <div className='flex-shrink-0 px-3 sm:px-4 py-3 border-b border-gray-100 dark:border-white/5 bg-white dark:bg-[#111]'>
+              <div className='flex items-center justify-between gap-2'>
+                {/* Botão toggle mobile */}
                 <button
                   onClick={toggleSidebar}
                   aria-label='Abrir menu de conversas'
-                  className='lg:hidden flex-shrink-0 p-2 text-gray-600 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-all'
+                  className='lg:hidden flex-shrink-0 p-2 -ml-1 text-gray-500 hover:text-green-600 dark:text-gray-400 dark:hover:text-green-400 hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl transition-all'
                 >
                   <Menu className='w-5 h-5' />
                 </button>
 
-                <div className='flex items-center gap-3 flex-1 min-w-0'>
-                  {/* Avatar com animação de presença */}
+                <div className='flex items-center gap-2 sm:gap-3 flex-1 min-w-0'>
+                  {/* Avatar */}
                   <div className='relative flex-shrink-0'>
                     <div
-                      className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-gradient-to-br ${currentContact.avatarColor} flex items-center justify-center ring-2 ring-white dark:ring-gray-900 shadow-md transition-transform hover:scale-105`}
+                      className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br ${currentContact.avatarColor} flex items-center justify-center shadow-md`}
                     >
                       {getAvatarIcon(currentContact.avatar, 'small')}
                     </div>
                     {currentContact.isOnline && (
-                      <div className='absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-800 animate-pulse'></div>
+                      <div className='absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white dark:border-[#111]'></div>
                     )}
                   </div>
 
                   {/* Informações do contato */}
                   <div className='flex-1 min-w-0'>
-                    <h3 className='font-semibold text-sm sm:text-base text-gray-900 dark:text-white flex items-center gap-1.5 truncate'>
+                    <h3 className='font-semibold text-sm text-gray-900 dark:text-white flex items-center gap-1.5 truncate'>
                       <span className='truncate'>{currentContact.name}</span>
                       {currentContact.isSupport && (
-                        <Shield className='w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600 flex-shrink-0' />
+                        <Shield className='w-3.5 h-3.5 text-green-600 flex-shrink-0' />
                       )}
                       {/* Status de Conexão WebSocket P2P */}
                       {p2pContext && (
                         <span
-                          className={`text-[10px] px-1.5 py-0.5 rounded-full flex items-center gap-1 flex-shrink-0 ${
+                          className={`text-[9px] px-1.5 py-0.5 rounded-full flex items-center gap-1 flex-shrink-0 font-medium ${
                             connectionStatus === 'connected'
-                              ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                              ? 'bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-400'
                               : connectionStatus === 'connecting'
-                                ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                                ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400'
                                 : connectionStatus === 'error'
-                                  ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                                  : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-400'
+                                  ? 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400'
+                                  : 'bg-gray-100 text-gray-700 dark:bg-white/5 dark:text-gray-400'
                           }`}
                         >
                           <span
-                            className={`w-1 h-1 rounded-full ${
+                            className={`w-1.5 h-1.5 rounded-full ${
                               connectionStatus === 'connected'
-                                ? 'bg-green-600 animate-pulse'
+                                ? 'bg-green-600 dark:bg-green-400'
                                 : connectionStatus === 'connecting'
-                                  ? 'bg-yellow-600 animate-spin'
+                                  ? 'bg-yellow-600 dark:bg-yellow-400 animate-pulse'
                                   : connectionStatus === 'error'
-                                    ? 'bg-red-600'
-                                    : 'bg-gray-600'
+                                    ? 'bg-red-600 dark:bg-red-400'
+                                    : 'bg-gray-600 dark:bg-gray-400'
                             }`}
                           ></span>
-                          {connectionStatus === 'connected' && 'Chat OK'}
-                          {connectionStatus === 'connecting' && 'Conectando...'}
-                          {connectionStatus === 'error' && 'Erro'}
-                          {connectionStatus === 'disconnected' && 'Desconectado'}
+                          <span className='hidden xs:inline'>
+                            {connectionStatus === 'connected' && 'Conectado'}
+                            {connectionStatus === 'connecting' && 'Conectando'}
+                            {connectionStatus === 'error' && 'Erro'}
+                            {connectionStatus === 'disconnected' && 'Offline'}
+                          </span>
                         </span>
                       )}
                     </h3>
-                    <p className='text-xs text-gray-500 dark:text-gray-400 truncate'>
+                    <p className='text-[11px] text-gray-500 dark:text-gray-500 truncate'>
                       {isTyping ? (
-                        <span className='flex items-center gap-1 text-blue-600 dark:text-blue-400'>
-                          <span className='flex gap-1'>
-                            <span
-                              className='w-1.5 h-1.5 bg-blue-600 dark:bg-blue-400 rounded-full animate-bounce'
-                              style={{ animationDelay: '0ms' }}
-                            ></span>
-                            <span
-                              className='w-1.5 h-1.5 bg-blue-600 dark:bg-blue-400 rounded-full animate-bounce'
-                              style={{ animationDelay: '150ms' }}
-                            ></span>
-                            <span
-                              className='w-1.5 h-1.5 bg-blue-600 dark:bg-blue-400 rounded-full animate-bounce'
-                              style={{ animationDelay: '300ms' }}
-                            ></span>
+                        <span className='flex items-center gap-1.5 text-green-600 dark:text-green-400'>
+                          <span className='flex gap-0.5'>
+                            <span className='w-1 h-1 bg-green-600 dark:bg-green-400 rounded-full animate-bounce [animation-delay:0ms]'></span>
+                            <span className='w-1 h-1 bg-green-600 dark:bg-green-400 rounded-full animate-bounce [animation-delay:150ms]'></span>
+                            <span className='w-1 h-1 bg-green-600 dark:bg-green-400 rounded-full animate-bounce [animation-delay:300ms]'></span>
                           </span>
                           digitando...
                         </span>
                       ) : currentContact.isOnline ? (
-                        'Online agora'
+                        'Online'
                       ) : (
-                        'Visto por último às 12:30'
+                        'Offline'
                       )}
                     </p>
                   </div>
                 </div>
 
-                {/* Botões de ação - Design moderno */}
-                <div className='flex gap-1 sm:gap-1.5'>
+                {/* Botões de ação */}
+                <div className='flex items-center'>
                   <button
                     onClick={handleInitiateAudioCall}
                     aria-label='Ligar'
                     title='Chamada de voz'
-                    className='p-2 text-gray-500 hover:text-green-600 dark:hover:text-green-400 transition-all hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg hover:scale-105'
+                    className='p-2 text-gray-500 hover:text-green-600 dark:text-gray-400 dark:hover:text-green-400 transition-all hover:bg-green-50 dark:hover:bg-green-500/10 rounded-xl'
                   >
-                    <Phone className='w-4 h-4 sm:w-5 sm:h-5' />
+                    <Phone className='w-[18px] h-[18px] sm:w-5 sm:h-5' />
                   </button>
                   <button
                     onClick={handleInitiateVideoCall}
                     aria-label='Videochamada'
                     title='Chamada de vídeo'
-                    className='p-2 text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-all hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg hover:scale-105'
+                    className='p-2 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-all hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-xl'
                   >
-                    <Video className='w-4 h-4 sm:w-5 sm:h-5' />
+                    <Video className='w-[18px] h-[18px] sm:w-5 sm:h-5' />
                   </button>
                   <button
                     aria-label='Mais opções'
                     title='Mais opções'
-                    className='p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-all hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg hover:scale-105'
+                    className='p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white transition-all hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl'
                   >
-                    <MoreVertical className='w-4 h-4 sm:w-5 sm:h-5' />
+                    <MoreVertical className='w-[18px] h-[18px] sm:w-5 sm:h-5' />
                   </button>
                 </div>
               </div>
             </div>
 
-            {/* Card de Contexto P2P - Fixo no topo */}
+            {/* Card de Contexto P2P - Design Compacto */}
             {p2pContext &&
               (() => {
                 const cryptoInfo = getCryptoIcon(p2pContext.coin)
                 return (
-                  <div className='bg-gradient-to-r from-blue-500 to-purple-600 p-2 sm:p-4 shadow-lg'>
-                    <div className='bg-white/10 backdrop-blur-lg rounded-lg sm:rounded-xl p-3 sm:p-4 border border-white/20'>
-                      <div className='flex flex-col sm:flex-row items-start gap-3 sm:gap-4'>
-                        {/* Header Mobile: Ícone + Título + Status */}
-                        <div className='flex items-center gap-3 w-full sm:w-auto'>
-                          {/* Ícone da Crypto - Dinâmico baseado na moeda com nome */}
-                          <div className='flex-shrink-0 flex flex-col items-center'>
-                            <div
-                              className={`w-14 h-14 sm:w-16 sm:h-16 rounded-xl ${cryptoInfo.bgColor} flex items-center justify-center shadow-lg ring-2 ring-white/30`}
-                            >
-                              {cryptoInfo.icon}
-                            </div>
-                            <span className='text-white text-xs font-semibold mt-1 opacity-90'>
-                              {cryptoInfo.symbol}
-                            </span>
-                          </div>
+                  <div className='flex-shrink-0 bg-gradient-to-r from-green-500 to-emerald-600 p-2 sm:p-3'>
+                    <div className='bg-white/10 backdrop-blur-sm rounded-xl p-2.5 sm:p-3 border border-white/20'>
+                      <div className='flex items-center gap-3'>
+                        {/* Ícone da Crypto */}
+                        <div
+                          className={`flex-shrink-0 w-11 h-11 sm:w-12 sm:h-12 rounded-xl ${cryptoInfo.bgColor} flex items-center justify-center shadow-lg`}
+                        >
+                          {cryptoInfo.icon}
+                        </div>
 
-                          {/* Título e Status (mobile) */}
-                          <div className='flex-1 sm:hidden text-white min-w-0'>
-                            <h3 className='font-bold text-sm truncate flex items-center gap-1'>
+                        {/* Info Principal */}
+                        <div className='flex-1 min-w-0 text-white'>
+                          <div className='flex items-center gap-2 flex-wrap'>
+                            <h3 className='font-bold text-sm sm:text-base flex items-center gap-1.5'>
                               {p2pContext.type === 'buy' ? (
-                                <ShoppingCart className='w-4 h-4' />
+                                <>
+                                  <ShoppingCart className='w-3.5 h-3.5' />
+                                  <span>Compra</span>
+                                </>
                               ) : (
-                                <Wallet className='w-4 h-4' />
+                                <>
+                                  <Wallet className='w-3.5 h-3.5' />
+                                  <span>Venda</span>
+                                </>
                               )}
-                              {p2pContext.type === 'buy' ? 'Comprar' : 'Vender'}{' '}
-                              {formatCryptoAmount(p2pContext.amount)} {cryptoInfo.name}
                             </h3>
-                            {p2pContext.minAmount && p2pContext.maxAmount && (
-                              <div className='text-xs opacity-80 mt-0.5 flex items-center gap-1'>
-                                <ArrowLeftRight className='w-3 h-3' />
-                                Limites:{' '}
-                                {new Intl.NumberFormat('pt-BR', {
-                                  style: 'currency',
-                                  currency: p2pContext.fiatCurrency || 'BRL',
-                                }).format(parseFloat(p2pContext.minAmount) || 0)}{' '}
-                                -{' '}
-                                {new Intl.NumberFormat('pt-BR', {
-                                  style: 'currency',
-                                  currency: p2pContext.fiatCurrency || 'BRL',
-                                }).format(parseFloat(p2pContext.maxAmount) || 0)}
-                              </div>
-                            )}
                             <span
-                              className={`text-xs px-2 py-0.5 rounded-full inline-flex items-center gap-1 mt-1 ${
+                              className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
                                 p2pContext.status === 'active'
-                                  ? 'bg-green-500/30'
+                                  ? 'bg-white/20'
                                   : p2pContext.status === 'completed'
                                     ? 'bg-blue-500/30'
                                     : p2pContext.status === 'disputed'
@@ -1838,180 +1825,63 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
                                       : 'bg-yellow-500/30'
                               }`}
                             >
-                              {p2pContext.status === 'active' && (
-                                <>
-                                  <CheckCircle2 className='w-3 h-3' /> Ativo
-                                </>
-                              )}
-                              {p2pContext.status === 'completed' && (
-                                <>
-                                  <CheckCircle2 className='w-3 h-3' /> Completo
-                                </>
-                              )}
-                              {p2pContext.status === 'disputed' && (
-                                <>
-                                  <AlertCircle className='w-3 h-3' /> Disputa
-                                </>
-                              )}
-                              {p2pContext.status === 'pending' && (
-                                <>
-                                  <Clock className='w-3 h-3' /> Pendente
-                                </>
-                              )}
+                              {p2pContext.status === 'active' && 'Ativo'}
+                              {p2pContext.status === 'completed' && 'Completo'}
+                              {p2pContext.status === 'disputed' && 'Disputa'}
+                              {p2pContext.status === 'pending' && 'Pendente'}
                             </span>
                           </div>
-                        </div>
-
-                        {/* Detalhes da Ordem */}
-                        <div className='flex-1 text-white min-w-0 w-full sm:w-auto'>
-                          {/* Título Desktop */}
-                          <div className='hidden sm:flex items-center justify-between mb-2 gap-2'>
-                            <h3 className='font-bold text-lg truncate flex items-center gap-2'>
-                              {p2pContext.type === 'buy' ? (
-                                <ShoppingCart className='w-5 h-5' />
-                              ) : (
-                                <Wallet className='w-5 h-5' />
-                              )}
-                              {p2pContext.type === 'buy' ? 'Comprar' : 'Vender'}{' '}
-                              {formatCryptoAmount(p2pContext.amount)} {cryptoInfo.name}
-                            </h3>
-                            <span
-                              className={`text-xs px-2 py-1 rounded-full flex items-center gap-1 whitespace-nowrap ${
-                                p2pContext.status === 'active'
-                                  ? 'bg-green-500/30'
-                                  : p2pContext.status === 'completed'
-                                    ? 'bg-blue-500/30'
-                                    : p2pContext.status === 'disputed'
-                                      ? 'bg-red-500/30'
-                                      : 'bg-yellow-500/30'
-                              }`}
-                            >
-                              {p2pContext.status === 'active' && (
-                                <>
-                                  <CheckCircle2 className='w-3 h-3' /> Ativo
-                                </>
-                              )}
-                              {p2pContext.status === 'completed' && (
-                                <>
-                                  <CheckCircle2 className='w-3 h-3' /> Completo
-                                </>
-                              )}
-                              {p2pContext.status === 'disputed' && (
-                                <>
-                                  <AlertCircle className='w-3 h-3' /> Disputa
-                                </>
-                              )}
-                              {p2pContext.status === 'pending' && (
-                                <>
-                                  <Clock className='w-3 h-3' /> Pendente
-                                </>
-                              )}
+                          <div className='flex items-center gap-2 sm:gap-3 text-xs sm:text-sm mt-1 opacity-90'>
+                            <span className='font-mono font-bold'>
+                              {formatCryptoAmount(p2pContext.amount)} {cryptoInfo.symbol}
+                            </span>
+                            <span className='text-white/60'>→</span>
+                            <span className='font-semibold'>
+                              {new Intl.NumberFormat('pt-BR', {
+                                style: 'currency',
+                                currency: p2pContext.fiatCurrency || 'BRL',
+                              }).format(parseFloat(p2pContext.total) || 0)}
                             </span>
                           </div>
-
-                          {/* Grid de informações - responsivo */}
-                          <div className='grid grid-cols-2 gap-x-3 gap-y-1.5 sm:gap-x-4 sm:gap-y-2 text-xs sm:text-sm mb-2 sm:mb-3'>
-                            <div>
-                              <span className='opacity-75'>Total:</span>
-                              <span className='font-bold ml-1 block sm:inline'>
-                                {new Intl.NumberFormat('pt-BR', {
-                                  style: 'currency',
-                                  currency: p2pContext.fiatCurrency || 'BRL',
-                                  minimumFractionDigits: 2,
-                                  maximumFractionDigits: 2,
-                                }).format(parseFloat(p2pContext.total) || 0)}
+                          {/* Payment methods */}
+                          <div className='flex flex-wrap gap-1 mt-1.5'>
+                            {p2pContext.paymentMethods
+                              .slice(0, 2)
+                              .map(
+                                (
+                                  method: string | { id: string; name: string; type: string },
+                                  idx: number
+                                ) => {
+                                  const methodName =
+                                    typeof method === 'string'
+                                      ? method
+                                      : method.name || method.type || 'Unknown'
+                                  return (
+                                    <span
+                                      key={idx}
+                                      className='text-[10px] bg-white/20 px-1.5 py-0.5 rounded'
+                                    >
+                                      {methodName}
+                                    </span>
+                                  )
+                                }
+                              )}
+                            {p2pContext.paymentMethods.length > 2 && (
+                              <span className='text-[10px] text-white/60'>
+                                +{p2pContext.paymentMethods.length - 2}
                               </span>
-                            </div>
-                            <div>
-                              <span className='opacity-75'>Preço:</span>
-                              <span className='font-bold ml-1 truncate block'>
-                                {new Intl.NumberFormat('pt-BR', {
-                                  style: 'currency',
-                                  currency: p2pContext.fiatCurrency || 'BRL',
-                                  minimumFractionDigits: 2,
-                                  maximumFractionDigits: 2,
-                                }).format(parseFloat(p2pContext.price) || 0)}
-                                /{p2pContext.coin}
-                              </span>
-                            </div>
-                            <div className='col-span-2 sm:col-span-1 flex items-center gap-1'>
-                              <ArrowLeftRight className='w-3 h-3 opacity-75' />
-                              <span className='opacity-75'>Limites:</span>
-                              <span className='ml-1 truncate'>
-                                {p2pContext.minAmount &&
-                                p2pContext.maxAmount &&
-                                !isNaN(parseFloat(p2pContext.minAmount)) &&
-                                !isNaN(parseFloat(p2pContext.maxAmount)) ? (
-                                  <>
-                                    {new Intl.NumberFormat('pt-BR', {
-                                      style: 'currency',
-                                      currency: p2pContext.fiatCurrency || 'BRL',
-                                    }).format(parseFloat(p2pContext.minAmount))}
-                                    {' - '}
-                                    {new Intl.NumberFormat('pt-BR', {
-                                      style: 'currency',
-                                      currency: p2pContext.fiatCurrency || 'BRL',
-                                    }).format(parseFloat(p2pContext.maxAmount))}
-                                  </>
-                                ) : (
-                                  <span className='opacity-60'>Não definido</span>
-                                )}
-                              </span>
-                            </div>
-                            <div className='flex items-center gap-1'>
-                              <Timer className='w-3 h-3 opacity-75' />
-                              <span className='opacity-75'>Prazo:</span>
-                              <span className='ml-1'>
-                                {p2pContext.timeLimit
-                                  ? `${p2pContext.timeLimit} min`
-                                  : 'Não definido'}
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Payment methods - responsivo */}
-                          <div className='flex flex-wrap gap-1.5 sm:gap-2 mb-2 sm:mb-0'>
-                            {p2pContext.paymentMethods.map(
-                              (
-                                method: string | { id: string; name: string; type: string },
-                                idx: number
-                              ) => {
-                                // Suporte para string ou objeto
-                                const methodName =
-                                  typeof method === 'string'
-                                    ? method
-                                    : method.name || method.type || 'Unknown'
-                                const methodType =
-                                  typeof method === 'string'
-                                    ? method.toUpperCase()
-                                    : method.type?.toUpperCase() || ''
-
-                                return (
-                                  <span
-                                    key={idx}
-                                    className='text-xs bg-white/20 px-2 py-1 rounded flex items-center gap-1'
-                                  >
-                                    {methodType === 'PIX' ? (
-                                      <CreditCard className='w-3 h-3' />
-                                    ) : (
-                                      <Banknote className='w-3 h-3' />
-                                    )}
-                                    {methodName}
-                                  </span>
-                                )
-                              }
                             )}
                           </div>
                         </div>
 
-                        {/* Botão Ver Detalhes - responsivo */}
+                        {/* Botão Ver Detalhes */}
                         <button
                           onClick={() => navigate(`/p2p/order/${p2pContext.orderId}`)}
-                          className='w-full sm:w-auto px-3 sm:px-4 py-2 bg-white text-blue-600 rounded-lg font-medium hover:bg-gray-100 transition-colors text-xs sm:text-sm flex items-center justify-center gap-2 whitespace-nowrap'
+                          className='flex-shrink-0 p-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors'
+                          title='Ver detalhes'
+                          aria-label='Ver detalhes da ordem'
                         >
-                          <ExternalLink className='w-3 h-3 sm:w-4 sm:h-4' />
-                          <span className='hidden sm:inline'>Ver Detalhes</span>
-                          <span className='sm:hidden'>Detalhes</span>
+                          <ExternalLink className='w-4 h-4 text-white' />
                         </button>
                       </div>
                     </div>
@@ -2022,23 +1892,23 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
             {/* Timer de Expiração - Se trade ativo */}
             {p2pContext?.status === 'active' && timeRemaining && (
               <div
-                className={`border-b p-2 sm:p-3 ${
+                className={`flex-shrink-0 px-3 py-2 ${
                   timeRemaining.startsWith('0:') || timeRemaining === 'Expirado'
-                    ? 'bg-red-50 dark:bg-red-900/20 border-red-200'
-                    : 'bg-orange-50 dark:bg-orange-900/20 border-orange-200'
+                    ? 'bg-red-50 dark:bg-red-500/10'
+                    : 'bg-amber-50 dark:bg-amber-500/10'
                 }`}
               >
                 <div
-                  className={`flex items-center justify-center gap-1.5 sm:gap-2 ${
+                  className={`flex items-center justify-center gap-2 ${
                     timeRemaining.startsWith('0:') || timeRemaining === 'Expirado'
                       ? 'text-red-600 dark:text-red-400'
-                      : 'text-orange-600 dark:text-orange-400'
+                      : 'text-amber-600 dark:text-amber-400'
                   }`}
                 >
                   <Clock
-                    className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${timeRemaining !== 'Expirado' && 'animate-pulse'}`}
+                    className={`w-3.5 h-3.5 ${timeRemaining !== 'Expirado' && 'animate-pulse'}`}
                   />
-                  <span className='font-bold text-xs sm:text-sm'>
+                  <span className='font-semibold text-xs'>
                     {timeRemaining === 'Expirado'
                       ? 'Negociação expirada!'
                       : `Tempo restante: ${timeRemaining}`}
@@ -2047,8 +1917,8 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
               </div>
             )}
 
-            {/* Área de Mensagens - Design Profissional */}
-            <div className='flex-1 overflow-y-auto p-3 sm:p-4 space-y-2 bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900/50 dark:to-gray-900'>
+            {/* Área de Mensagens - Design Clean */}
+            <div className='flex-1 overflow-y-auto p-3 sm:p-4 space-y-2 bg-gray-50 dark:bg-[#0a0a0a]'>
               {currentMessages.map(message => (
                 <div
                   key={message.id}
@@ -2058,54 +1928,46 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
                       : message.isOwn
                         ? 'justify-end'
                         : 'justify-start'
-                  } animate-fadeIn`}
+                  }`}
                 >
                   {message.type === 'system' ? (
-                    // Mensagem do Sistema - Design Moderno
-                    <div className='max-w-[90%] sm:max-w-md px-3 sm:px-4 py-2 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 border border-blue-200 dark:border-blue-700/50 text-center backdrop-blur-sm shadow-sm'>
-                      <div className='flex items-center justify-center gap-2 text-blue-700 dark:text-blue-300'>
-                        <Info className='w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0' />
-                        <p className='text-xs sm:text-sm font-medium'>{message.content}</p>
+                    // Mensagem do Sistema - Clean Design
+                    <div className='max-w-[85%] sm:max-w-sm px-3 py-2 rounded-xl bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 text-center shadow-sm'>
+                      <div className='flex items-center justify-center gap-2 text-gray-600 dark:text-gray-400'>
+                        <Info className='w-3.5 h-3.5 flex-shrink-0' />
+                        <p className='text-xs font-medium'>{message.content}</p>
                       </div>
-                      <span className='text-xs text-blue-600/70 dark:text-blue-400/70 mt-1 block'>
+                      <span className='text-[10px] text-gray-400 dark:text-gray-500 mt-1 block'>
                         {message.timestamp}
                       </span>
                     </div>
                   ) : (
-                    // Mensagem Normal - Estilo Messenger/Telegram
-                    <div
-                      className={`group max-w-[80%] sm:max-w-xs lg:max-w-md ${
-                        message.isOwn ? 'pr-2' : 'pl-2'
-                      }`}
-                    >
+                    // Mensagem Normal - WhatsApp Style
+                    <div className={`group max-w-[85%] sm:max-w-xs lg:max-w-sm`}>
                       {/* Balão especial para mensagens de áudio */}
                       {message.fileType === 'audio' && message.audioBlob ? (
                         <div
                           className={`${
                             message.isOwn
-                              ? 'rounded-2xl rounded-br-md bg-gradient-to-r from-blue-600 to-purple-600'
-                              : 'rounded-2xl rounded-bl-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700'
-                          } shadow-lg hover:shadow-xl transition-all p-3`}
+                              ? 'rounded-2xl rounded-br-sm bg-green-500'
+                              : 'rounded-2xl rounded-bl-sm bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10'
+                          } shadow-sm p-2.5`}
                         >
                           <AudioMessage audioBlob={message.audioBlob} isOwn={message.isOwn} />
 
-                          {/* Footer com timestamp e status - mais discreto */}
+                          {/* Footer */}
                           <div
-                            className={`flex items-center justify-end mt-2 gap-1.5 ${
-                              message.isOwn ? 'text-white/60' : 'text-gray-400 dark:text-gray-500'
+                            className={`flex items-center justify-end mt-1.5 gap-1 ${
+                              message.isOwn ? 'text-white/70' : 'text-gray-400 dark:text-gray-500'
                             }`}
                           >
                             <span className='text-[10px]'>{message.timestamp}</span>
                             {message.isOwn && (
                               <div className='flex items-center'>
-                                {message.status === 'sending' && (
-                                  <Clock className='w-3 h-3 opacity-70' />
-                                )}
-                                {message.status === 'sent' && (
-                                  <Check className='w-3 h-3 opacity-70' />
-                                )}
+                                {message.status === 'sending' && <Clock className='w-3 h-3' />}
+                                {message.status === 'sent' && <Check className='w-3 h-3' />}
                                 {message.status === 'delivered' && (
-                                  <CheckCheck className='w-3 h-3 opacity-70' />
+                                  <CheckCheck className='w-3 h-3' />
                                 )}
                                 {message.status === 'read' && (
                                   <CheckCheck className='w-3 h-3 text-white' />
@@ -2117,36 +1979,30 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
                       ) : (
                         // Balão normal para mensagens de texto
                         <div
-                          className={`px-3 sm:px-4 py-2 shadow-sm ${
+                          className={`px-3 py-2 shadow-sm ${
                             message.isOwn
-                              ? 'rounded-3xl rounded-br-md bg-gradient-to-r from-blue-600 to-purple-600 text-white'
-                              : 'rounded-3xl rounded-bl-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700'
-                          } transition-all hover:shadow-md`}
+                              ? 'rounded-2xl rounded-br-sm bg-green-500 text-white'
+                              : 'rounded-2xl rounded-bl-sm bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white border border-gray-200 dark:border-white/10'
+                          }`}
                         >
-                          <p className='text-sm sm:text-[15px] break-words leading-relaxed'>
-                            {message.content}
-                          </p>
+                          <p className='text-sm break-words leading-relaxed'>{message.content}</p>
 
-                          {/* Footer da mensagem com timestamp e status */}
+                          {/* Footer */}
                           <div
-                            className={`flex items-center justify-end mt-1 gap-1.5 ${
-                              message.isOwn ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'
+                            className={`flex items-center justify-end mt-1 gap-1 ${
+                              message.isOwn ? 'text-white/70' : 'text-gray-400 dark:text-gray-500'
                             }`}
                           >
-                            <span className='text-[10px] sm:text-xs'>{message.timestamp}</span>
+                            <span className='text-[10px]'>{message.timestamp}</span>
                             {message.isOwn && (
                               <div className='flex items-center'>
-                                {message.status === 'sending' && (
-                                  <Clock className='w-3 h-3 opacity-70' />
-                                )}
-                                {message.status === 'sent' && (
-                                  <Check className='w-3 h-3 opacity-70' />
-                                )}
+                                {message.status === 'sending' && <Clock className='w-3 h-3' />}
+                                {message.status === 'sent' && <Check className='w-3 h-3' />}
                                 {message.status === 'delivered' && (
-                                  <CheckCheck className='w-3 h-3 opacity-70' />
+                                  <CheckCheck className='w-3 h-3' />
                                 )}
                                 {message.status === 'read' && (
-                                  <CheckCheck className='w-3 h-3 text-blue-200' />
+                                  <CheckCheck className='w-3 h-3 text-white' />
                                 )}
                               </div>
                             )}
@@ -2161,88 +2017,52 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Botões de Ação Rápida P2P */}
-            {/* Botões de Ação P2P - Responsivos */}
+            {/* Botões de Ação P2P - Design Compacto */}
             {p2pContext && p2pContext.status === 'active' && (
-              <div className='px-2 sm:px-4 py-2 sm:py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50'>
-                {/* Mobile: Grid 2x2 */}
-                <div className='grid grid-cols-2 sm:hidden gap-2'>
+              <div className='flex-shrink-0 px-3 py-2 border-t border-gray-100 dark:border-white/5 bg-white dark:bg-[#111]'>
+                <div className='flex gap-2'>
                   <button
                     onClick={handleConfirmPayment}
-                    className='py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-1.5 text-xs'
+                    className='flex-1 py-2 bg-green-500 hover:bg-green-600 text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-1.5 text-xs'
                   >
                     <CheckCircle2 className='w-3.5 h-3.5' />
-                    <span className='hidden xs:inline'>Confirmei</span>
-                    <span className='xs:hidden'>✓</span>
+                    <span className='hidden xs:inline'>Pagamento</span>
+                    <span className='xs:hidden'>✓ Paguei</span>
                   </button>
                   <button
                     onClick={handleSendReceipt}
-                    className='py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-1.5 text-xs'
+                    className='flex-1 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-1.5 text-xs'
                   >
-                    <FileText className='w-4 h-4' />
+                    <FileText className='w-3.5 h-3.5' />
                     <span className='hidden xs:inline'>Comprovante</span>
                   </button>
                   <button
                     onClick={handleReportDispute}
-                    className='py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-1.5 text-xs'
+                    className='py-2 px-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-medium transition-colors flex items-center justify-center text-xs'
+                    title='Reportar problema'
+                    aria-label='Reportar problema'
                   >
-                    <AlertCircle className='w-4 h-4' />
-                    <span className='hidden xs:inline'>Reportar</span>
+                    <AlertCircle className='w-3.5 h-3.5' />
                   </button>
                   <button
                     onClick={handleCancelTrade}
                     aria-label='Cancelar negociação'
-                    className='py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-1.5 text-xs'
+                    className='py-2 px-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-medium transition-colors flex items-center justify-center text-xs'
+                    title='Cancelar'
                   >
-                    <XCircle className='w-4 h-4' />
-                    <span className='hidden xs:inline'>Cancelar</span>
-                  </button>
-                </div>
-
-                {/* Desktop/Tablet: Flex horizontal */}
-                <div className='hidden sm:flex gap-2'>
-                  <button
-                    onClick={handleConfirmPayment}
-                    className='flex-1 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 text-sm'
-                  >
-                    <CheckCircle2 className='w-4 h-4' />
-                    <span className='hidden md:inline'>Confirmei o Pagamento</span>
-                    <span className='md:hidden'>Confirmei</span>
-                  </button>
-                  <button
-                    onClick={handleSendReceipt}
-                    className='flex-1 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 text-sm'
-                  >
-                    <FileText className='w-4 h-4' />
-                    <span className='hidden md:inline'>Enviar Comprovante</span>
-                    <span className='md:hidden'>Comprovante</span>
-                  </button>
-                  <button
-                    onClick={handleReportDispute}
-                    className='flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 text-sm'
-                  >
-                    <AlertCircle className='w-4 h-4' />
-                    <span className='hidden md:inline'>Reportar Problema</span>
-                    <span className='md:hidden'>Reportar</span>
-                  </button>
-                  <button
-                    onClick={handleCancelTrade}
-                    aria-label='Cancelar negociação'
-                    className='px-3 md:px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 text-sm'
-                  >
-                    <XCircle className='w-4 h-4' />
-                    <span className='hidden md:inline'>Cancelar</span>
+                    <XCircle className='w-3.5 h-3.5' />
                   </button>
                 </div>
               </div>
             )}
 
-            {/* Input de Mensagem - Design Profissional Messenger/Telegram */}
-            <div className='p-3 sm:p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg'>
-              {/* ✅ Input hidden para upload de arquivos */}
+            {/* Input de Mensagem - Design Clean WhatsApp Style */}
+            <div className='flex-shrink-0 p-2 sm:p-3 border-t border-gray-100 dark:border-white/5 bg-white dark:bg-[#111]'>
+              {/* Input hidden para upload de arquivos */}
               <input
                 type='file'
                 id='file-upload'
+                title='Upload de arquivo'
                 accept='image/jpeg,image/jpg,image/png,image/webp,application/pdf'
                 onChange={handleFileUpload}
                 className='hidden'
@@ -2250,18 +2070,18 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
 
               {/* Progress bar de upload */}
               {isUploading && (
-                <div className='mb-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3'>
-                  <div className='flex items-center justify-between mb-2'>
-                    <span className='text-xs text-blue-600 dark:text-blue-400 font-medium'>
+                <div className='mb-2 bg-green-50 dark:bg-green-500/10 rounded-xl p-2.5'>
+                  <div className='flex items-center justify-between mb-1.5'>
+                    <span className='text-[11px] text-green-600 dark:text-green-400 font-medium'>
                       Enviando arquivo...
                     </span>
-                    <span className='text-xs text-blue-600 dark:text-blue-400 font-bold'>
+                    <span className='text-[11px] text-green-600 dark:text-green-400 font-bold'>
                       {uploadProgress}%
                     </span>
                   </div>
-                  <div className='w-full h-2 bg-blue-100 dark:bg-blue-900/40 rounded-full overflow-hidden'>
+                  <div className='w-full h-1.5 bg-green-100 dark:bg-green-900/40 rounded-full overflow-hidden'>
                     <div
-                      className='h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-300'
+                      className='h-full bg-green-500 transition-all duration-300 rounded-full'
                       style={{ width: `${uploadProgress}%` }}
                     />
                   </div>
@@ -2274,8 +2094,8 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
                   onClick={() => document.getElementById('file-upload')?.click()}
                   disabled={isUploading}
                   aria-label='Anexar arquivo'
-                  title='Anexar arquivo (imagem ou PDF)'
-                  className='hidden sm:flex p-2.5 text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-all hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed'
+                  title='Anexar arquivo'
+                  className='hidden sm:flex p-2.5 text-gray-500 hover:text-green-600 dark:text-gray-400 dark:hover:text-green-400 transition-all hover:bg-green-50 dark:hover:bg-green-500/10 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed'
                 >
                   {isUploading ? (
                     <Loader2 className='w-5 h-5 animate-spin' />
@@ -2284,7 +2104,7 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
                   )}
                 </button>
 
-                {/* Campo de input moderno */}
+                {/* Campo de input */}
                 <div className='flex-1 relative'>
                   <input
                     type='text'
@@ -2292,15 +2112,15 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
                     value={newMessage}
                     onChange={e => setNewMessage(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
-                    className='w-full px-4 py-3 bg-gray-100 dark:bg-gray-700 border-0 rounded-3xl text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all pr-24'
+                    className='w-full px-4 py-2.5 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 transition-all pr-20'
                   />
 
                   {/* Botões dentro do input */}
-                  <div className='absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1'>
+                  <div className='absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5'>
                     <button
                       aria-label='Adicionar emoji'
                       title='Emoji'
-                      className='p-2 text-gray-500 hover:text-yellow-500 transition-all hover:scale-110 rounded-full hover:bg-yellow-50 dark:hover:bg-yellow-900/20'
+                      className='p-1.5 text-gray-400 hover:text-yellow-500 transition-colors rounded-lg hover:bg-yellow-50 dark:hover:bg-yellow-500/10'
                     >
                       <Smile className='w-5 h-5' />
                     </button>
@@ -2311,7 +2131,7 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
                       disabled={isUploading}
                       aria-label='Anexar'
                       title='Anexar arquivo'
-                      className='sm:hidden p-2 text-gray-500 hover:text-blue-600 transition-all hover:scale-110 rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/20 disabled:opacity-50 disabled:cursor-not-allowed'
+                      className='sm:hidden p-1.5 text-gray-400 hover:text-green-600 transition-colors rounded-lg hover:bg-green-50 dark:hover:bg-green-500/10 disabled:opacity-50 disabled:cursor-not-allowed'
                     >
                       {isUploading ? (
                         <Loader2 className='w-5 h-5 animate-spin' />
@@ -2346,7 +2166,7 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
                       setMessages(prev => [...prev, message])
 
                       try {
-                        // ✅ Enviar áudio via API
+                        // Enviar áudio via API
                         await chatP2PService.sendAudioMessage(audio)
 
                         // Atualizar status para 'sent'
@@ -2373,13 +2193,13 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
                   />
                 )}
 
-                {/* Botão de enviar - só aparece quando há texto */}
+                {/* Botão de enviar */}
                 {newMessage.trim() && (
                   <button
                     onClick={handleSendMessage}
                     aria-label='Enviar mensagem'
                     title='Enviar'
-                    className='p-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full hover:from-blue-700 hover:to-purple-700 transition-all transform hover:scale-110 active:scale-95 shadow-lg'
+                    className='p-2.5 bg-green-500 hover:bg-green-600 text-white rounded-xl transition-all transform active:scale-95 shadow-lg'
                   >
                     <Send className='w-5 h-5' />
                   </button>
@@ -2388,17 +2208,17 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
             </div>
           </>
         ) : (
-          /* Estado Inicial */
-          <div className='flex-1 flex items-center justify-center bg-gray-50 dark:bg-gray-900/50'>
-            <div className='text-center'>
-              <div className='w-20 h-20 mx-auto bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center mb-4'>
+          /* Estado Inicial - Sem contato selecionado */
+          <div className='flex-1 flex items-center justify-center bg-gray-50 dark:bg-[#0a0a0a]'>
+            <div className='text-center p-6'>
+              <div className='w-20 h-20 mx-auto bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg'>
                 <MessageCircle className='w-10 h-10 text-white' />
               </div>
-              <h3 className='text-xl font-semibold text-gray-900 dark:text-white mb-2'>
+              <h3 className='text-lg font-semibold text-gray-900 dark:text-white mb-2'>
                 Bem-vindo ao Chat
               </h3>
-              <p className='text-gray-600 dark:text-gray-300'>
-                Selecione uma conversa para começar a trocar mensagens
+              <p className='text-sm text-gray-500 dark:text-gray-500 max-w-xs'>
+                Selecione uma conversa ou inicie uma negociação P2P para começar
               </p>
             </div>
           </div>

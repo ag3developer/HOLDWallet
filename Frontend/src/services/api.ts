@@ -197,7 +197,15 @@ class ApiClient {
       // Strategy 1: Check in-memory Zustand store (fastest & most reliable)
       const zustandToken = useAuthStore.getState().token
       if (zustandToken) {
+        // Also backup to sessionStorage for Safari iOS
+        this.backupTokenToSession(zustandToken)
         return zustandToken
+      }
+
+      // ⚠️ SAFARI iOS FIX: Check if Zustand is still hydrating
+      const hasHydrated = useAuthStore.getState()._hasHydrated
+      if (!hasHydrated) {
+        console.log('[API] ⏳ Zustand still hydrating, checking storage directly...')
       }
 
       // Strategy 2: Try the Zustand persist format from localStorage
@@ -208,10 +216,12 @@ class ApiClient {
         const token = this.extractTokenFromData(authData)
         if (token) {
           console.log('[API] ✅ Token recovered from localStorage (Zustand format)')
+          // Backup to sessionStorage for Safari
+          this.backupTokenToSession(token)
           // Restore to in-memory store for faster future access
           try {
             const parsed = JSON.parse(authData)
-            if (parsed.state?.user) {
+            if (parsed.state?.user && hasHydrated) {
               useAuthStore.getState().setAuthData(parsed.state.user, token)
             }
           } catch (e) {
@@ -235,6 +245,7 @@ class ApiClient {
       // Strategy 4: Check all localStorage keys (comprehensive fallback)
       const foundToken = this.findTokenInAllKeys()
       if (foundToken) {
+        this.backupTokenToSession(foundToken)
         return foundToken
       }
 
@@ -243,6 +254,16 @@ class ApiClient {
     } catch (error) {
       console.error('[API] Error retrieving token:', error)
       return null
+    }
+  }
+
+  // Backup token to sessionStorage for Safari iOS recovery
+  private backupTokenToSession(token: string): void {
+    try {
+      sessionStorage.setItem('auth_token_backup', token)
+      sessionStorage.setItem('auth_token_timestamp', Date.now().toString())
+    } catch {
+      // sessionStorage not available (private mode)
     }
   }
 
@@ -343,7 +364,34 @@ class ApiClient {
     }
   }
 
+  // Track if we're already handling an auth error to prevent duplicate logouts
+  private isHandlingAuthError = false
+  private lastLoginTimestamp = 0
+
   private handleAuthError(): void {
+    // ⚠️ SAFARI iOS FIX: Prevent logout race condition
+    // If user just logged in (within 10 seconds), don't logout
+    const now = Date.now()
+    const loginTimestamp = this.getLoginTimestamp()
+    const timeSinceLogin = now - loginTimestamp
+
+    if (timeSinceLogin < 10000) {
+      // 10 seconds grace period after login
+      console.warn('[API] 🛡️ Preventing logout - user just logged in', {
+        timeSinceLogin: `${timeSinceLogin}ms`,
+        threshold: '10000ms',
+      })
+      return
+    }
+
+    // Prevent duplicate logout handling
+    if (this.isHandlingAuthError) {
+      console.warn('[API] 🛡️ Already handling auth error, skipping duplicate')
+      return
+    }
+
+    this.isHandlingAuthError = true
+
     // Importar dinamicamente para evitar circular dependency
     import('./notificationService')
       .then(({ default: notificationService }) => {
@@ -357,13 +405,42 @@ class ApiClient {
     // Clear stored auth data
     localStorage.removeItem(`${APP_CONFIG.storage.prefix}${APP_CONFIG.storage.keys.auth}`)
 
+    // Also clear sessionStorage backup
+    try {
+      sessionStorage.removeItem('auth_token_backup')
+      sessionStorage.removeItem('auth_token_timestamp')
+    } catch {
+      // sessionStorage not available
+    }
+
     // Aguardar um pouco para o usuário ver a notificação
     setTimeout(() => {
+      this.isHandlingAuthError = false
       // Redirect to login page
       if (globalThis.window !== undefined) {
         globalThis.window.location.href = '/login'
       }
     }, 2000)
+  }
+
+  // Get timestamp of last login
+  private getLoginTimestamp(): number {
+    try {
+      const timestamp = sessionStorage.getItem('auth_token_timestamp')
+      return timestamp ? parseInt(timestamp, 10) : 0
+    } catch {
+      return 0
+    }
+  }
+
+  // Call this after successful login
+  public markLoginTime(): void {
+    try {
+      sessionStorage.setItem('auth_token_timestamp', Date.now().toString())
+      this.lastLoginTimestamp = Date.now()
+    } catch {
+      // sessionStorage not available
+    }
   }
 
   private handleApiError(error: any): Error {
