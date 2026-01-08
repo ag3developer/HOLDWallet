@@ -166,7 +166,7 @@ class BlockchainSigner:
             
         except Exception as e:
             error_str = str(e)
-            logger.error(f"❌ Error signing {network} transaction: {e}")
+            logger.error(f"Error signing {network} transaction: {e}")
             
             # Detectar erros específicos e retornar mensagens amigáveis em português
             if 'insufficient funds' in error_str.lower():
@@ -180,29 +180,29 @@ class BlockchainSigner:
                 }.get(network, 'moeda nativa')
                 
                 raise BlockchainError(
-                    f"⛽ Saldo de {native_token} insuficiente para pagar a taxa de rede (gas). "
+                    f"Saldo de {native_token} insuficiente para pagar a taxa de rede (gas). "
                     f"Reduza o valor da transação ou adicione mais {native_token} à sua carteira. "
                     f"Na rede {network.capitalize()}, recomendamos manter pelo menos 0.01 {native_token} para taxas."
                 )
             elif 'nonce too low' in error_str.lower():
                 raise BlockchainError(
-                    f"⏳ Existe uma transação pendente sendo processada. "
-                    f"Aguarde alguns minutos para a confirmação e tente novamente."
+                    "Existe uma transação pendente sendo processada. "
+                    "Aguarde alguns minutos para a confirmação e tente novamente."
                 )
             elif 'replacement transaction underpriced' in error_str.lower():
                 raise BlockchainError(
-                    f"💰 Taxa de gas muito baixa para substituir a transação pendente. "
-                    f"Aguarde a confirmação da transação anterior ou selecione uma taxa mais alta."
+                    "Taxa de gas muito baixa para substituir a transação pendente. "
+                    "Aguarde a confirmação da transação anterior ou selecione uma taxa mais alta."
                 )
             elif 'execution reverted' in error_str.lower():
                 raise BlockchainError(
-                    f"❌ A transação foi rejeitada pelo contrato. "
-                    f"Verifique se você tem saldo suficiente do token e tente novamente."
+                    "A transação foi rejeitada pelo contrato. "
+                    "Verifique se você tem saldo suficiente do token e tente novamente."
                 )
             elif 'gas required exceeds' in error_str.lower():
                 raise BlockchainError(
-                    f"⚠️ O gas necessário excede o limite. "
-                    f"Tente reduzir o valor da transação."
+                    "O gas necessário excede o limite. "
+                    "Tente reduzir o valor da transação."
                 )
             else:
                 raise BlockchainError(f"Falha ao processar transação: {error_str}")

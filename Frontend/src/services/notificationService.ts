@@ -1,9 +1,31 @@
 /**
  * Serviço de Notificações Centralizado
  * Traduz erros técnicos para mensagens amigáveis ao usuário
+ * Usa ícones do Lucide React
  */
 
 import toast from 'react-hot-toast'
+import { createElement } from 'react'
+import {
+  Wallet,
+  Fuel,
+  Clock,
+  MapPin,
+  Wifi,
+  Timer,
+  Lock,
+  ShieldAlert,
+  KeyRound,
+  XCircle,
+  Ban,
+  ServerCrash,
+  HelpCircle,
+  AlertTriangle,
+  Info,
+  CheckCircle,
+  LogOut,
+  RefreshCw,
+} from 'lucide-react'
 
 // Tipos de erro conhecidos
 export type ErrorType =
@@ -15,6 +37,7 @@ export type ErrorType =
   | 'TIMEOUT'
   | 'AUTH_REQUIRED'
   | 'AUTH_FAILED'
+  | 'SESSION_EXPIRED'
   | 'BIOMETRIC_EXPIRED'
   | 'INVALID_2FA'
   | 'TRANSACTION_FAILED'
@@ -28,85 +51,107 @@ export interface ErrorMessage {
   title: string
   description: string
   suggestion?: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  icon: any // Lucide icon component
   action?: {
     label: string
     onClick: () => void
   }
 }
 
-// Mapa de mensagens de erro amigáveis
+// Mapa de mensagens de erro amigáveis com ícones Lucide
 const ERROR_MESSAGES: Record<ErrorType, Omit<ErrorMessage, 'type'>> = {
   INSUFFICIENT_FUNDS: {
-    title: '💰 Saldo Insuficiente',
+    title: 'Saldo Insuficiente',
     description: 'O saldo disponível não é suficiente para esta transação.',
     suggestion: 'Reduza o valor ou adicione mais fundos à sua carteira.',
+    icon: Wallet,
   },
   INSUFFICIENT_GAS: {
-    title: '⛽ Taxa de Rede Insuficiente',
+    title: 'Taxa de Rede Insuficiente',
     description: 'Você não tem saldo suficiente para pagar a taxa de rede (gas).',
     suggestion:
       'Na rede Polygon, mantenha pelo menos 0.01 MATIC para taxas. Reduza o valor da transação ou adicione MATIC.',
+    icon: Fuel,
   },
   NONCE_TOO_LOW: {
-    title: '⏳ Transação Pendente',
+    title: 'Transação Pendente',
     description: 'Existe uma transação anterior ainda processando.',
     suggestion: 'Aguarde alguns minutos e tente novamente.',
+    icon: Clock,
   },
   INVALID_ADDRESS: {
-    title: '📍 Endereço Inválido',
+    title: 'Endereço Inválido',
     description: 'O endereço de destino não é válido para esta rede.',
     suggestion: 'Verifique se o endereço está correto e corresponde à rede selecionada.',
+    icon: MapPin,
   },
   NETWORK_ERROR: {
-    title: '🌐 Erro de Conexão',
+    title: 'Erro de Conexão',
     description: 'Não foi possível conectar ao servidor.',
     suggestion: 'Verifique sua conexão com a internet e tente novamente.',
+    icon: Wifi,
   },
   TIMEOUT: {
-    title: '⏱️ Tempo Esgotado',
+    title: 'Tempo Esgotado',
     description: 'A operação demorou mais que o esperado.',
     suggestion: 'Tente novamente em alguns segundos.',
+    icon: Timer,
   },
   AUTH_REQUIRED: {
-    title: '🔐 Autenticação Necessária',
+    title: 'Autenticação Necessária',
     description: 'Você precisa fazer login para continuar.',
     suggestion: 'Faça login novamente.',
+    icon: Lock,
   },
   AUTH_FAILED: {
-    title: '🔒 Autenticação Falhou',
+    title: 'Autenticação Falhou',
     description: 'Credenciais inválidas ou sessão expirada.',
     suggestion: 'Verifique suas credenciais e tente novamente.',
+    icon: ShieldAlert,
+  },
+  SESSION_EXPIRED: {
+    title: 'Sessão Expirada',
+    description: 'Sua sessão expirou por inatividade ou segurança.',
+    suggestion: 'Faça login novamente para continuar.',
+    icon: LogOut,
   },
   BIOMETRIC_EXPIRED: {
-    title: '👆 Token Biométrico Expirado',
-    description: 'A autenticação biométrica expirou.',
-    suggestion: 'Autentique novamente usando a biometria ou o código 2FA.',
+    title: 'Autenticação Biométrica Expirada',
+    description: 'A autenticação biométrica expirou. Cada transação requer uma nova verificação.',
+    suggestion: 'Toque em "Autenticar" para uma nova verificação biométrica.',
+    icon: RefreshCw,
   },
   INVALID_2FA: {
-    title: '🔢 Código 2FA Inválido',
+    title: 'Código 2FA Inválido',
     description: 'O código de verificação está incorreto ou expirou.',
     suggestion: 'Verifique o código no seu autenticador e tente novamente.',
+    icon: KeyRound,
   },
   TRANSACTION_FAILED: {
-    title: '❌ Transação Falhou',
+    title: 'Transação Falhou',
     description: 'A transação não pôde ser processada.',
     suggestion: 'Verifique os detalhes e tente novamente.',
+    icon: XCircle,
   },
   RATE_LIMIT: {
-    title: '🚫 Muitas Tentativas',
+    title: 'Muitas Tentativas',
     description: 'Você fez muitas requisições em pouco tempo.',
     suggestion: 'Aguarde alguns minutos antes de tentar novamente.',
+    icon: Ban,
   },
   SERVER_ERROR: {
-    title: '⚠️ Erro no Servidor',
+    title: 'Erro no Servidor',
     description: 'Ocorreu um erro interno no servidor.',
     suggestion:
       'Tente novamente mais tarde. Se o problema persistir, entre em contato com o suporte.',
+    icon: ServerCrash,
   },
   UNKNOWN: {
-    title: '❓ Erro Desconhecido',
+    title: 'Erro Desconhecido',
     description: 'Ocorreu um erro inesperado.',
     suggestion: 'Tente novamente. Se o problema persistir, entre em contato com o suporte.',
+    icon: HelpCircle,
   },
 }
 
@@ -169,11 +214,23 @@ export function detectErrorType(error: any): ErrorType {
     return 'AUTH_FAILED'
   }
 
-  // Biometria
+  // Sessão expirada
   if (
-    message.includes('biometric') ||
+    message.includes('session expired') ||
+    message.includes('sessão expirou') ||
+    message.includes('jwt expired') ||
+    message.includes('token expired') ||
+    message.includes('token invalid')
+  ) {
+    return 'SESSION_EXPIRED'
+  }
+
+  // Biometria expirada
+  if (
+    message.includes('biometric_token_expired') ||
+    message.includes('biometric token') ||
     message.includes('biométric') ||
-    message.includes('token expirado')
+    (message.includes('biometric') && message.includes('expired'))
   ) {
     return 'BIOMETRIC_EXPIRED'
   }
@@ -207,6 +264,16 @@ export function formatErrorMessage(error: unknown): ErrorMessage {
   }
 }
 
+// Cria ícone React element
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function createIcon(IconComponent: any, color: string = '#fff') {
+  return createElement(IconComponent, {
+    size: 20,
+    color: color,
+    strokeWidth: 2,
+  })
+}
+
 // Exibe um toast de erro formatado
 export function showError(error: unknown, customMessage?: string): void {
   const formatted = formatErrorMessage(error)
@@ -227,13 +294,14 @@ export function showError(error: unknown, customMessage?: string): void {
 
   // Adiciona a sugestão se houver
   if (formatted.suggestion) {
-    message = `${message}\n\n💡 ${formatted.suggestion}`
+    message = `${message}\n\n${formatted.suggestion}`
   }
 
   toast.error(message, {
     duration: 6000, // Mais tempo para ler a mensagem
+    icon: createIcon(formatted.icon),
     style: {
-      maxWidth: '400px',
+      maxWidth: '420px',
       whiteSpace: 'pre-line',
       textAlign: 'left',
     },
@@ -244,6 +312,7 @@ export function showError(error: unknown, customMessage?: string): void {
 export function showSuccess(message: string, options?: { duration?: number }): void {
   toast.success(message, {
     duration: options?.duration || 4000,
+    icon: createIcon(CheckCircle, '#fff'),
     style: {
       maxWidth: '400px',
     },
@@ -253,10 +322,10 @@ export function showSuccess(message: string, options?: { duration?: number }): v
 // Exibe toast de aviso (warning)
 export function showWarning(message: string): void {
   toast(message, {
-    icon: '⚠️',
+    icon: createIcon(AlertTriangle, '#fff'),
     duration: 5000,
     style: {
-      background: '#f59e0b',
+      background: 'linear-gradient(135deg, #d97706 0%, #f59e0b 100%)',
       color: '#fff',
       maxWidth: '400px',
     },
@@ -266,10 +335,10 @@ export function showWarning(message: string): void {
 // Exibe toast informativo
 export function showInfo(message: string): void {
   toast(message, {
-    icon: 'ℹ️',
+    icon: createIcon(Info, '#fff'),
     duration: 4000,
     style: {
-      background: '#3b82f6',
+      background: 'linear-gradient(135deg, #2563eb 0%, #3b82f6 100%)',
       color: '#fff',
       maxWidth: '400px',
     },
@@ -296,6 +365,7 @@ export async function showLoadingPromise<T>(
   options: {
     loading: string
     success: string | ((data: T) => string)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     error: string | ((err: any) => string)
   }
 ): Promise<T> {
@@ -313,6 +383,33 @@ export async function showLoadingPromise<T>(
   })
 }
 
+// Notificação especial para sessão expirada
+export function showSessionExpired(): void {
+  toast('Sua sessão expirou. Você será redirecionado para o login.', {
+    icon: createIcon(LogOut, '#fff'),
+    duration: 3000,
+    style: {
+      background: 'linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%)',
+      color: '#fff',
+      maxWidth: '400px',
+    },
+  })
+}
+
+// Notificação especial para biometria expirada (requer nova autenticação)
+export function showBiometricExpired(): void {
+  toast('Autenticação biométrica expirada.\nCada transação requer uma nova verificação.', {
+    icon: createIcon(RefreshCw, '#fff'),
+    duration: 5000,
+    style: {
+      background: 'linear-gradient(135deg, #0891b2 0%, #06b6d4 100%)',
+      color: '#fff',
+      maxWidth: '400px',
+      whiteSpace: 'pre-line',
+    },
+  })
+}
+
 // Export default
 const notificationService = {
   showError,
@@ -322,6 +419,8 @@ const notificationService = {
   showLoading,
   dismissLoading,
   showLoadingPromise,
+  showSessionExpired,
+  showBiometricExpired,
   detectErrorType,
   formatErrorMessage,
 }

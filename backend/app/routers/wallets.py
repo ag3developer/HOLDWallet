@@ -1205,51 +1205,51 @@ async def send_transaction(
         )
     except Exception as e:
         error_msg = str(e)
-        logger.error(f"❌ Error sending transaction: {error_msg}")
+        logger.error(f"Error sending transaction: {error_msg}")
         
         # Retornar mensagem amigável para erros conhecidos
         error_lower = error_msg.lower()
         
         if 'insufficient funds' in error_lower or 'saldo insuficiente' in error_lower or 'saldo de' in error_lower:
             # Se já é uma mensagem formatada, usar ela diretamente
-            if '⛽' in error_msg or 'gas' in error_lower:
+            if 'gas' in error_lower:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=error_msg
                 )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="⛽ Saldo insuficiente para cobrir o valor + taxa de gas. Reduza o valor da transação ou adicione mais fundos."
+                detail="Saldo insuficiente para cobrir o valor + taxa de gas. Reduza o valor da transação ou adicione mais fundos."
             )
         elif 'nonce too low' in error_lower or 'transação pendente' in error_lower:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="⏳ Existe uma transação pendente. Aguarde a confirmação antes de enviar outra."
+                detail="Existe uma transação pendente. Aguarde a confirmação antes de enviar outra."
             )
         elif 'replacement transaction' in error_lower or 'underpriced' in error_lower:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="💰 Taxa de gas muito baixa. Aguarde a confirmação da transação anterior."
+                detail="Taxa de gas muito baixa. Aguarde a confirmação da transação anterior."
             )
         elif 'execution reverted' in error_lower:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="❌ Transação rejeitada pelo contrato. Verifique o saldo do token."
+                detail="Transação rejeitada pelo contrato. Verifique o saldo do token."
             )
         elif 'invalid address' in error_lower or 'checksum' in error_lower:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="📍 Endereço de destino inválido. Verifique o endereço e tente novamente."
+                detail="Endereço de destino inválido. Verifique o endereço e tente novamente."
             )
         elif 'timeout' in error_lower:
             raise HTTPException(
                 status_code=status.HTTP_408_REQUEST_TIMEOUT,
-                detail="⏱️ Tempo esgotado. A rede está congestionada, tente novamente."
+                detail="Tempo esgotado. A rede está congestionada, tente novamente."
             )
         
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"❌ Falha ao enviar transação: {error_msg}"
+            detail=f"Falha ao enviar transação: {error_msg}"
         )
 
 

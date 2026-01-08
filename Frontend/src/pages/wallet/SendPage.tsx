@@ -596,14 +596,14 @@ export const SendPage = () => {
 
       setTxHash(result.txHash)
       setShowSuccess(true)
-      notificationService.showSuccess('🎉 Transação enviada com sucesso!')
+      notificationService.showSuccess('Transação enviada com sucesso!')
 
       // Limpar estado 2FA
       setShow2FADialog(false)
       setTwoFAToken('')
       setPendingTransaction(null)
     } catch (err: any) {
-      console.error('❌ Erro ao enviar:', err)
+      console.error('Erro ao enviar:', err)
       setError(err.message || 'Erro ao enviar transação')
       notificationService.showError(err)
     } finally {
@@ -654,7 +654,7 @@ export const SendPage = () => {
 
         setTxHash(result.txHash)
         setShowSuccess(true)
-        notificationService.showSuccess('🎉 Transação enviada com sucesso!')
+        notificationService.showSuccess('Transação enviada com sucesso!')
 
         // Limpar estado
         setShow2FADialog(false)
@@ -665,7 +665,7 @@ export const SendPage = () => {
         setAuthMethod('2fa')
       }
     } catch (err: any) {
-      console.error('❌ Erro na biometria:', err)
+      console.error('Erro na biometria:', err)
 
       // Check if biometric token expired - need to re-authenticate
       if (

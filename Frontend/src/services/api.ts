@@ -315,13 +315,26 @@ class ApiClient {
   }
 
   private handleAuthError(): void {
+    // Importar dinamicamente para evitar circular dependency
+    import('./notificationService')
+      .then(({ default: notificationService }) => {
+        notificationService.showWarning('Sua sessão expirou. Por favor, faça login novamente.')
+      })
+      .catch(() => {
+        // Fallback se o import falhar
+        console.warn('Session expired - redirecting to login')
+      })
+
     // Clear stored auth data
     localStorage.removeItem(`${APP_CONFIG.storage.prefix}${APP_CONFIG.storage.keys.auth}`)
 
-    // Redirect to login page
-    if (globalThis.window !== undefined) {
-      globalThis.window.location.href = '/login'
-    }
+    // Aguardar um pouco para o usuário ver a notificação
+    setTimeout(() => {
+      // Redirect to login page
+      if (globalThis.window !== undefined) {
+        globalThis.window.location.href = '/login'
+      }
+    }, 2000)
   }
 
   private handleApiError(error: any): Error {
