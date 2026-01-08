@@ -507,15 +507,55 @@ class BlockchainWithdrawService:
             
             # 8. Envia a transação
             tx_hash = None
+            amount_to_send = Decimal(str(trade.crypto_amount))
+            
             if contract_address is None:
-                # Token nativo (ETH, MATIC)
-                logger.info(f"📤 Transferindo {trade.crypto_amount} {trade.symbol} (nativo) de {user_address.address} para plataforma")
+                # Token nativo (ETH, MATIC) - PRECISA RESERVAR GAS!
+                # Calcula quanto gas vai custar a transação
+                gas_price_wei = w3.eth.gas_price
+                gas_cost_wei = gas_price_wei * config["gas_limit"]
+                gas_cost = Decimal(str(w3.from_wei(gas_cost_wei, 'ether')))
+                gas_cost_with_margin = gas_cost * Decimal("1.5")  # 50% margem de segurança
+                
+                # Saldo atual
+                balance_wei = w3.eth.get_balance(Web3.to_checksum_address(str(user_address.address)))
+                current_balance = Decimal(str(w3.from_wei(balance_wei, 'ether')))
+                
+                # Calcula valor máximo que pode enviar (saldo - gas)
+                max_sendable = current_balance - gas_cost_with_margin
+                
+                if max_sendable <= Decimal("0"):
+                    logger.error(f"❌ Saldo insuficiente para cobrir gas! Saldo: {current_balance}, Gas necessário: {gas_cost_with_margin}")
+                    return {
+                        "success": False,
+                        "tx_hash": None,
+                        "from_address": str(user_address.address),
+                        "to_address": self.platform_wallet_address,
+                        "network": network,
+                        "error": f"Saldo insuficiente para cobrir taxa de gas. Saldo: {current_balance:.6f} {trade.symbol}, Gas necessário: {gas_cost_with_margin:.6f}"
+                    }
+                
+                # Se usuário quer vender mais do que o máximo possível, ajusta
+                if amount_to_send > max_sendable:
+                    logger.warning(f"⚠️ Ajustando valor de venda: {amount_to_send} → {max_sendable} (reservando {gas_cost_with_margin} para gas)")
+                    amount_to_send = max_sendable
+                else:
+                    # Verifica se sobra suficiente para gas
+                    remaining_after_send = current_balance - amount_to_send
+                    if remaining_after_send < gas_cost_with_margin:
+                        # Ajusta para deixar gas suficiente
+                        amount_to_send = current_balance - gas_cost_with_margin
+                        logger.warning(f"⚠️ Ajustando valor para reservar gas: {trade.crypto_amount} → {amount_to_send}")
+                
+                logger.info(f"📤 Transferindo {amount_to_send} {trade.symbol} (nativo) de {user_address.address} para plataforma")
+                logger.info(f"   Gas reservado: {gas_cost_with_margin} {config['native_symbol']}")
+                
                 tx_hash = self.send_native_token(
                     w3=w3,
-                    from_address=user_address.address,
+                    from_address=str(user_address.address),
                     private_key=private_key,
                     to_address=self.platform_wallet_address,
-                    amount=trade.crypto_amount,
+                    amount=amount_to_send,
                     network=network
                 )
             else:
@@ -524,10 +564,10 @@ class BlockchainWithdrawService:
                 tx_hash = self.send_erc20_token(
                     w3=w3,
                     contract_address=contract_address,
-                    from_address=user_address.address,
+                    from_address=str(user_address.address),
                     private_key=private_key,
                     to_address=self.platform_wallet_address,
-                    amount=trade.crypto_amount,
+                    amount=Decimal(str(trade.crypto_amount)),
                     network=network
                 )
             
@@ -536,7 +576,7 @@ class BlockchainWithdrawService:
                 return {
                     "success": False,
                     "tx_hash": None,
-                    "from_address": user_address.address,
+                    "from_address": str(user_address.address),
                     "to_address": self.platform_wallet_address,
                     "network": network,
                     "error": "Falha ao enviar transação blockchain",
