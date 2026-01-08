@@ -115,11 +115,86 @@ class WalletService {
    * Listar carteiras do usuário
    */
   async getWallets(): Promise<WalletWithBalance[]> {
+    const startTime = Date.now()
+
     try {
+      console.log('[WalletService] 🔄 GET /wallets/ - Starting request...', {
+        timestamp: new Date().toISOString(),
+      })
+
       const response = await this.apiClient.get<WalletWithBalance[]>('/wallets/')
+
+      const duration = Date.now() - startTime
+      console.log('[WalletService] ✅ Wallets response:', {
+        status: response.status,
+        count: response.data?.length ?? 0,
+        duration: `${duration}ms`,
+        hasData: !!response.data,
+        dataType: typeof response.data,
+        isArray: Array.isArray(response.data),
+      })
+
+      // Validar resposta
+      if (!response.data) {
+        console.warn('[WalletService] ⚠️ Empty response.data, returning []')
+        return []
+      }
+
+      if (!Array.isArray(response.data)) {
+        console.warn('[WalletService] ⚠️ Response is not array:', typeof response.data)
+        // Tentar converter se for objeto com wallets
+        if (response.data && typeof response.data === 'object') {
+          const possibleArray =
+            (response.data as any).wallets ||
+            (response.data as any).items ||
+            (response.data as any).data
+          if (Array.isArray(possibleArray)) {
+            console.log('[WalletService] ✅ Found wallets in nested property')
+            return possibleArray
+          }
+        }
+        return []
+      }
+
+      // Log detalhado se retornar vazio
+      if (response.data.length === 0) {
+        console.warn(
+          '[WalletService] ⚠️ Server returned empty array - user may have no wallets or there may be an auth issue'
+        )
+      }
+
       return response.data
     } catch (error: any) {
-      console.error('Error fetching wallets:', error)
+      const duration = Date.now() - startTime
+      console.error('[WalletService] ❌ Error fetching wallets:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        message: error.message,
+        code: error.code,
+        duration: `${duration}ms`,
+        data: error.response?.data,
+        // Headers de debug (sem dados sensíveis)
+        requestHeaders: error.config?.headers
+          ? {
+              hasAuth: !!error.config.headers.Authorization,
+              contentType: error.config.headers['Content-Type'],
+            }
+          : null,
+      })
+
+      // Erros específicos
+      if (error.response?.status === 401) {
+        throw new Error('Sessão expirada. Faça login novamente.')
+      }
+
+      if (error.response?.status === 403) {
+        throw new Error('Acesso negado.')
+      }
+
+      if (error.code === 'ERR_NETWORK' || error.message?.includes('Network')) {
+        throw new Error('Erro de conexão. Verifique sua internet.')
+      }
+
       throw new Error(error.response?.data?.detail || 'Erro ao carregar carteiras.')
     }
   }

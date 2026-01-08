@@ -27,21 +27,27 @@ class SecurityMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         # Get client IP
         ip_address = self._get_client_ip(request)
+        path = request.url.path
         
         # Skip check for excluded paths
-        if any(request.url.path.startswith(path) for path in self.EXCLUDED_PATHS):
+        if any(path.startswith(excluded) for excluded in self.EXCLUDED_PATHS):
             return await call_next(request)
         
         # Check if IP is blocked
         if ip_address and ip_address != "unknown":
             db: Session = SessionLocal()
             try:
-                if SecurityService.is_ip_blocked(db, ip_address):
-                    logger.warning(f"Blocked IP {ip_address} attempted to access {request.url.path}")
+                is_blocked = SecurityService.is_ip_blocked(db, ip_address)
+                if is_blocked:
+                    logger.warning(f"🚫 Blocked IP {ip_address} attempted to access {path}")
                     raise HTTPException(
                         status_code=status.HTTP_403_FORBIDDEN,
-                        detail="Access denied. Your IP address has been blocked."
+                        detail=f"Access denied. Your IP address ({ip_address}) has been blocked."
                     )
+                else:
+                    # Debug log para ver se está chegando aqui
+                    if '/wallets' in path:
+                        logger.info(f"✅ IP {ip_address} allowed for {path}")
             finally:
                 db.close()
         

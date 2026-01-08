@@ -23,127 +23,230 @@ export const walletKeys = {
   stats: (id: string, period?: string) => [...walletKeys.detail(id), 'stats', period] as const,
 }
 
-// Get all wallets - with retry for mobile browsers
-export function useWallets() {
-  const { token, isAuthenticated, _hasHydrated } = useAuthStore()
-  const [localHydrated, setLocalHydrated] = useState(false)
-  const [safariReady, setSafariReady] = useState(false)
+/**
+ * Safari/WebKit Token Recovery
+ * Safari pode ter atrasos na hidratação do localStorage em PWA mode
+ * Esta função tenta múltiplas fontes para garantir o token
+ */
+const recoverAuthToken = (): string | null => {
+  // 1. Primeiro tentar o store do Zustand
+  const storeToken = useAuthStore.getState().token
+  if (storeToken) {
+    return storeToken
+  }
 
-  // Detectar Safari
-  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
-
-  // Aguardar hydration do Zustand (importante para Safari/iOS)
-  useEffect(() => {
-    // Verificar se o store já está hidratado
-    const checkHydration = () => {
-      const state = useAuthStore.getState()
-      if (state._hasHydrated || state.token || state.isAuthenticated) {
-        setLocalHydrated(true)
+  // 2. Tentar localStorage diretamente (Safari fallback)
+  try {
+    const storageKeys = ['wolk-auth', 'holdwallet-auth', 'auth-storage']
+    for (const key of storageKeys) {
+      const stored = localStorage.getItem(key)
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        const token = parsed?.state?.token || parsed?.token
+        if (token) {
+          console.log(`[TokenRecovery] ✅ Token recovered from localStorage key: ${key}`)
+          return token
+        }
       }
     }
+  } catch (e) {
+    console.warn('[TokenRecovery] localStorage fallback failed:', e)
+  }
 
-    // Verificar imediatamente
-    checkHydration()
-
-    // Verificar novamente após um curto delay (para Safari)
-    const timer = setTimeout(checkHydration, 100)
-    const timer2 = setTimeout(checkHydration, 500)
-
-    // Safari precisa de mais tempo às vezes
-    const timer3 = setTimeout(() => {
-      checkHydration()
-      setSafariReady(true)
-    }, 1000)
-
-    // Também subscrever a mudanças
-    const unsubscribe = useAuthStore.subscribe(checkHydration)
-
-    return () => {
-      clearTimeout(timer)
-      clearTimeout(timer2)
-      clearTimeout(timer3)
-      unsubscribe()
+  // 3. Tentar sessionStorage como última opção
+  try {
+    const sessionToken = sessionStorage.getItem('auth_token_backup')
+    if (sessionToken) {
+      console.log('[TokenRecovery] ✅ Token recovered from sessionStorage backup')
+      return sessionToken
     }
-  }, [])
+  } catch {
+    // sessionStorage não disponível (modo privado)
+  }
 
-  // Safari: forçar ready após timeout
+  return null
+}
+
+/**
+ * Detecta ambiente do navegador
+ */
+const getBrowserInfo = () => {
+  if (typeof navigator === 'undefined') {
+    return { isSafari: false, isMobile: false, isPWA: false, isIOS: false }
+  }
+
+  const ua = navigator.userAgent
+  const isSafari = /^((?!chrome|android).)*safari/i.test(ua)
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(ua)
+  const isIOS = /iPhone|iPad|iPod/i.test(ua)
+  const isPWA =
+    typeof globalThis !== 'undefined' &&
+    globalThis.window &&
+    (globalThis.matchMedia?.('(display-mode: standalone)')?.matches ||
+      (globalThis.navigator as any)?.standalone === true)
+
+  return { isSafari, isMobile, isPWA, isIOS }
+}
+
+// Get all wallets - with robust Safari/PWA support
+export function useWallets() {
+  const { _hasHydrated } = useAuthStore()
+  const [authReady, setAuthReady] = useState(false)
+  const [retryCount, setRetryCount] = useState(0)
+  const queryClient = useQueryClient()
+
+  const browserInfo = getBrowserInfo()
+  const needsExtraTime = browserInfo.isSafari || browserInfo.isMobile || browserInfo.isPWA
+
+  // Robust hydration check with multiple fallbacks
   useEffect(() => {
-    if (isSafari && !localHydrated) {
-      const forceTimer = setTimeout(() => {
-        console.log('[useWallets] Safari force ready triggered')
-        setLocalHydrated(true)
-        setSafariReady(true)
-      }, 1500)
-      return () => clearTimeout(forceTimer)
-    }
-  }, [isSafari, localHydrated])
+    let mounted = true
+    const timers: NodeJS.Timeout[] = []
 
-  const isReady = _hasHydrated || localHydrated || safariReady
+    const checkAuth = () => {
+      if (!mounted) return false
 
-  return useQuery({
-    queryKey: walletKeys.list(),
-    queryFn: async () => {
-      console.log('[useWallets] Fetching wallets...', {
-        hasToken: !!token,
-        isAuthenticated,
-        isReady,
-        _hasHydrated,
-        localHydrated,
-        safariReady,
-        isSafari,
-        isMobile: /iPhone|iPad|iPod|Android/i.test(navigator.userAgent),
-        userAgent: navigator.userAgent.substring(0, 50),
-      })
+      const recoveredToken = recoverAuthToken()
+      const storeState = useAuthStore.getState()
 
-      // Double check token exists - try multiple sources
-      let currentToken = useAuthStore.getState().token
+      const isReady = Boolean(
+        recoveredToken || storeState.token || storeState.isAuthenticated || storeState._hasHydrated
+      )
 
-      // Fallback: tentar pegar do localStorage diretamente (Safari às vezes demora)
-      if (!currentToken) {
-        try {
-          const storageKey = 'wolk-auth' // APP_CONFIG.storage.prefix + auth key
-          const stored = localStorage.getItem(storageKey)
-          if (stored) {
-            const parsed = JSON.parse(stored)
-            currentToken = parsed?.state?.token
-            console.log('[useWallets] Token recovered from localStorage fallback')
+      if (isReady && !authReady) {
+        console.log('[useWallets] ✅ Auth ready detected', {
+          hasToken: !!recoveredToken,
+          storeHydrated: storeState._hasHydrated,
+          browser: browserInfo,
+        })
+        setAuthReady(true)
+
+        // Backup token to sessionStorage for recovery
+        if (recoveredToken) {
+          try {
+            sessionStorage.setItem('auth_token_backup', recoveredToken)
+          } catch {
+            // sessionStorage not available
           }
-        } catch (e) {
-          console.warn('[useWallets] localStorage fallback failed:', e)
         }
       }
 
+      return isReady
+    }
+
+    // Check immediately
+    if (checkAuth()) return
+
+    // Progressive delay checks (faster for non-Safari)
+    const delays = needsExtraTime ? [50, 150, 300, 500, 800, 1200] : [50, 100, 200]
+
+    delays.forEach(delay => {
+      timers.push(setTimeout(checkAuth, delay))
+    })
+
+    // Subscribe to store changes
+    const unsubscribe = useAuthStore.subscribe(() => {
+      checkAuth()
+    })
+
+    return () => {
+      mounted = false
+      timers.forEach(clearTimeout)
+      unsubscribe()
+    }
+  }, [needsExtraTime, authReady])
+
+  // Query configuration
+  const query = useQuery({
+    queryKey: walletKeys.list(),
+    queryFn: async () => {
+      const currentToken = recoverAuthToken()
+
+      console.log('[useWallets] 🔄 Fetching wallets...', {
+        hasToken: !!currentToken,
+        authReady,
+        retryCount,
+        browser: browserInfo,
+      })
+
       if (!currentToken) {
-        console.warn('[useWallets] No token available, skipping fetch')
-        return []
+        // Incrementar retry para forçar nova tentativa
+        setRetryCount(prev => prev + 1)
+        throw new Error('AUTH_TOKEN_PENDING')
       }
 
       try {
         const wallets = await walletService.getWallets()
-        console.log('[useWallets] Wallets loaded:', wallets?.length || 0)
-        return wallets
-      } catch (error: any) {
-        console.error('[useWallets] Error fetching wallets:', error.message)
-        // Retry once if it's a network error (common on mobile)
-        if (error.message?.includes('Network') || error.code === 'ERR_NETWORK') {
-          console.log('[useWallets] Retrying after network error...')
-          await new Promise(resolve => setTimeout(resolve, 1000))
-          return walletService.getWallets()
+
+        console.log('[useWallets] ✅ Wallets loaded:', wallets?.length || 0)
+
+        // Se retornou 0 carteiras, pode ser cache stale - invalidar e tentar novamente uma vez
+        if (wallets?.length === 0 && retryCount < 2) {
+          console.log('[useWallets] ⚠️ Empty response, will retry...')
+          setRetryCount(prev => prev + 1)
         }
+
+        return wallets || []
+      } catch (error: any) {
+        console.error('[useWallets] ❌ Error:', error.message)
+
+        // Network errors - retry
+        if (error.message?.includes('Network') || error.code === 'ERR_NETWORK') {
+          throw error // React Query will retry
+        }
+
+        // Auth errors - clear cache and retry
+        if (error.response?.status === 401) {
+          queryClient.removeQueries({ queryKey: walletKeys.all })
+          throw new Error('AUTH_EXPIRED')
+        }
+
         throw error
       }
     },
-    staleTime: 30 * 1000, // 30 seconds
+    staleTime: 20 * 1000, // 20 seconds - more aggressive for Safari
     gcTime: 5 * 60 * 1000, // 5 minutes cache
-    // Removido placeholderData: [] - causava problemas no Safari
-    // placeholderData: [],
-    retry: 3, // Retry 3 times on failure (aumentado para Safari)
-    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 5000), // Exponential backoff
-    // Safari: enabled mais permissivo - tenta buscar assim que possível
-    enabled: Boolean((isAuthenticated && token) || isReady || safariReady),
-    // Safari: refetch quando window ganha foco (útil após sleep)
+    retry: (failureCount, error: any) => {
+      // Token pending - retry more aggressively
+      if (error?.message === 'AUTH_TOKEN_PENDING') {
+        return failureCount < 8
+      }
+      // Auth expired - don't retry
+      if (error?.message === 'AUTH_EXPIRED') {
+        return false
+      }
+      // Other errors - retry 3x
+      return failureCount < 3
+    },
+    retryDelay: (attemptIndex, error: any) => {
+      // Token pending - shorter delays
+      if (error?.message === 'AUTH_TOKEN_PENDING') {
+        return Math.min(200 * (attemptIndex + 1), 1500)
+      }
+      // Other errors - standard backoff
+      return Math.min(500 * 2 ** attemptIndex, 3000)
+    },
+    // Enable quando auth está ready OU após timeout forçado
+    enabled: authReady || retryCount > 0,
     refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    // Safari: não refetch automático em background
+    refetchOnReconnect: !browserInfo.isSafari,
   })
+
+  // Force refetch on retry count change (Safari recovery mechanism)
+  useEffect(() => {
+    if (retryCount > 0 && retryCount <= 3 && authReady) {
+      const timer = setTimeout(() => {
+        console.log('[useWallets] 🔄 Force refetch triggered, attempt:', retryCount)
+        query.refetch()
+      }, 500 * retryCount)
+      return () => clearTimeout(timer)
+    }
+    return undefined
+  }, [retryCount, authReady])
+
+  return query
 }
 
 // Get specific wallet

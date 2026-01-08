@@ -18,35 +18,35 @@ import {
   ChevronDown,
   ChevronRight,
   RefreshCw,
-  ArrowUpRight,
   Shield,
   Sparkles,
+  CheckCircle,
 } from 'lucide-react'
 
 // Skeleton Components para loading state
 const SkeletonBox = ({ className = '' }: { className?: string }) => (
-  <div className={`animate-pulse bg-slate-200 dark:bg-slate-700 rounded ${className}`} />
+  <div className={`animate-pulse bg-gray-200 dark:bg-gray-700 rounded ${className}`} />
 )
 
 const StatCardSkeleton = () => (
-  <div className='bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4'>
+  <div className='bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl p-4 shadow-sm'>
     <div className='flex items-start justify-between mb-2'>
       <div className='flex-1'>
         <SkeletonBox className='h-3 w-20 mb-2' />
         <SkeletonBox className='h-7 w-24 mb-1' />
         <SkeletonBox className='h-3 w-16' />
       </div>
-      <SkeletonBox className='w-10 h-10 rounded-lg' />
+      <SkeletonBox className='w-10 h-10 rounded-xl' />
     </div>
     <SkeletonBox className='h-0.5 w-full mt-2' />
   </div>
 )
 
 const WalletCardSkeleton = () => (
-  <div className='bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden'>
-    <div className='px-5 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between'>
+  <div className='bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl overflow-hidden shadow-sm'>
+    <div className='px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between'>
       <div className='flex items-center gap-2'>
-        <SkeletonBox className='w-8 h-8 rounded-lg' />
+        <SkeletonBox className='w-8 h-8 rounded-xl' />
         <div>
           <SkeletonBox className='h-4 w-24 mb-1' />
           <SkeletonBox className='h-3 w-32' />
@@ -54,9 +54,9 @@ const WalletCardSkeleton = () => (
       </div>
     </div>
     <div className='p-4 space-y-3'>
-      <div className='flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg'>
+      <div className='flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl'>
         <div className='flex items-center gap-3'>
-          <SkeletonBox className='w-10 h-10 rounded-lg' />
+          <SkeletonBox className='w-10 h-10 rounded-xl' />
           <div>
             <SkeletonBox className='h-4 w-20 mb-1' />
             <SkeletonBox className='h-3 w-16' />
@@ -64,9 +64,9 @@ const WalletCardSkeleton = () => (
         </div>
         <SkeletonBox className='h-5 w-16' />
       </div>
-      <div className='flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg'>
+      <div className='flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl'>
         <div className='flex items-center gap-3'>
-          <SkeletonBox className='w-10 h-10 rounded-lg' />
+          <SkeletonBox className='w-10 h-10 rounded-xl' />
           <div>
             <SkeletonBox className='h-4 w-20 mb-1' />
             <SkeletonBox className='h-3 w-16' />
@@ -79,10 +79,10 @@ const WalletCardSkeleton = () => (
 )
 
 const QuickActionsSkeleton = () => (
-  <div className='bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden'>
-    <div className='px-5 py-4 border-b border-slate-200 dark:border-slate-700'>
+  <div className='bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl overflow-hidden shadow-sm'>
+    <div className='px-5 py-4 border-b border-gray-100 dark:border-gray-700'>
       <div className='flex items-center gap-2'>
-        <SkeletonBox className='w-8 h-8 rounded-lg' />
+        <SkeletonBox className='w-8 h-8 rounded-xl' />
         <SkeletonBox className='h-4 w-24' />
       </div>
     </div>
@@ -90,9 +90,9 @@ const QuickActionsSkeleton = () => (
       {[1, 2, 3].map(i => (
         <div
           key={i}
-          className='flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg'
+          className='flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl'
         >
-          <SkeletonBox className='w-10 h-10 rounded-lg' />
+          <SkeletonBox className='w-10 h-10 rounded-xl' />
           <div className='flex-1'>
             <SkeletonBox className='h-4 w-24 mb-1' />
             <SkeletonBox className='h-3 w-32' />
@@ -104,10 +104,10 @@ const QuickActionsSkeleton = () => (
 )
 
 const MarketCardSkeleton = () => (
-  <div className='bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden'>
-    <div className='px-5 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between'>
+  <div className='bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl overflow-hidden shadow-sm'>
+    <div className='px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between'>
       <div className='flex items-center gap-2'>
-        <SkeletonBox className='w-8 h-8 rounded-lg' />
+        <SkeletonBox className='w-8 h-8 rounded-xl' />
         <SkeletonBox className='h-4 w-16' />
       </div>
       <SkeletonBox className='w-5 h-5 rounded' />
@@ -132,10 +132,49 @@ const MarketCardSkeleton = () => (
 export const DashboardPage = () => {
   const navigate = useNavigate()
   const { data: user, isLoading: userLoading } = useCurrentUser()
-  // useWallets retorna { data, isLoading, etc } do React Query
-  const { data: apiWallets, isLoading: walletsLoading } = useWallets()
+  // useWallets retorna { data, isLoading, isFetching, isError, etc } do React Query
+  const {
+    data: apiWallets,
+    isLoading: walletsLoading,
+    isFetching: walletsFetching,
+    isSuccess: walletsSuccess,
+    isError: walletsError,
+    refetch: refetchWallets,
+  } = useWallets()
   const { formatCurrency, currency } = useCurrencyStore()
   const [expandedWallets, setExpandedWallets] = useState<Set<string>>(new Set())
+  const [manualRetryCount, setManualRetryCount] = useState(0)
+
+  // Safari/PWA detection
+  const isSafari =
+    typeof navigator !== 'undefined' && /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
+  const isPWA =
+    typeof globalThis !== 'undefined' &&
+    (globalThis.matchMedia?.('(display-mode: standalone)')?.matches ||
+      (globalThis.navigator as any)?.standalone === true)
+
+  // Auto-retry mechanism for Safari/PWA when wallets are empty but user should have them
+  useEffect(() => {
+    // Se retornou sucesso mas 0 carteiras, pode ser problema de timing
+    if (walletsSuccess && apiWallets?.length === 0 && manualRetryCount < 3) {
+      const delay = isSafari || isPWA ? 1500 : 800
+
+      const timer = setTimeout(() => {
+        setManualRetryCount(prev => prev + 1)
+        refetchWallets()
+      }, delay)
+
+      return () => clearTimeout(timer)
+    }
+    return undefined
+  }, [walletsSuccess, apiWallets?.length, manualRetryCount, refetchWallets, isSafari, isPWA])
+
+  // Reset retry count when wallets are loaded
+  useEffect(() => {
+    if (apiWallets && apiWallets.length > 0 && manualRetryCount > 0) {
+      setManualRetryCount(0)
+    }
+  }, [apiWallets, manualRetryCount])
 
   // Mapear nome da rede para símbolo da criptomoeda
   const getSymbolFromKey = (key: string): string => {
@@ -294,14 +333,14 @@ export const DashboardPage = () => {
     balancesQueries.forEach(query => {
       if (query.data) {
         Object.entries(query.data).forEach(([networkKey, netBalance]: any) => {
-          const balance = parseFloat(netBalance.balance || '0')
+          const balance = Number.parseFloat(netBalance.balance || '0')
 
           // Mapear nome da rede/token para símbolo
           const symbol = getSymbolFromKey(networkKey)
 
           // ✅ Use real-time price from marketPrices hook instead of backend price
           const marketPriceData = marketPrices[symbol]
-          const priceUSD = marketPriceData?.price || parseFloat(netBalance.price_usd || '0')
+          const priceUSD = marketPriceData?.price || Number.parseFloat(netBalance.price_usd || '0')
 
           const balanceUSD = balance * priceUSD
           console.log(
@@ -370,141 +409,161 @@ export const DashboardPage = () => {
   }
 
   return (
-    <div className='min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900'>
-      {/* Fundo com efeito de luz */}
-      <div className='fixed inset-0 overflow-hidden pointer-events-none'>
-        <div className='absolute top-0 right-0 w-96 h-96 bg-blue-500 rounded-full mix-blend-screen filter blur-3xl opacity-5 dark:opacity-10'></div>
-        <div className='absolute bottom-0 left-0 w-96 h-96 bg-purple-500 rounded-full mix-blend-screen filter blur-3xl opacity-5 dark:opacity-10'></div>
-      </div>
-
+    <div className='min-h-screen bg-gray-50 dark:bg-gray-900'>
       {/* Conteúdo */}
-      <div className='relative z-10 p-4 md:p-6 lg:p-8'>
-        {/* Header com greeting customizado */}
-        <div className='mb-8'>
-          <div className='flex items-center gap-3 mb-2'>
-            <div className='w-1.5 h-12 bg-gradient-to-b from-blue-500 via-purple-500 to-pink-500 rounded-full'></div>
-            <div>
-              <h1 className='text-4xl md:text-5xl font-black bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 dark:from-blue-400 dark:via-purple-400 dark:to-pink-400 bg-clip-text text-transparent'>
+      <div className='relative z-10 p-4 md:p-6 space-y-6'>
+        {/* Header */}
+        <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4'>
+          <div>
+            <div className='flex items-center gap-3 mb-1'>
+              <h1 className='text-2xl md:text-3xl font-bold text-gray-900 dark:text-white'>
                 Dashboard
               </h1>
-              <p className='text-sm text-slate-600 dark:text-slate-400 mt-1'>
-                {new Date().toLocaleDateString('pt-BR')}
-                {user && ` • Bem-vindo de volta, ${user.username}`}
-              </p>
+              <div className='flex items-center gap-1.5 px-2.5 py-1 bg-green-100 dark:bg-green-900/30 rounded-full'>
+                <span className='w-2 h-2 bg-green-500 rounded-full animate-pulse' />
+                <span className='text-xs font-medium text-green-700 dark:text-green-400'>Live</span>
+              </div>
             </div>
+            <p className='text-gray-500 dark:text-gray-400 text-sm'>
+              {new Date().toLocaleDateString('pt-BR')}
+              {user && ` • Olá, ${user.username}`}
+            </p>
+          </div>
+
+          {/* Action Pills */}
+          <div className='flex gap-2'>
+            <button
+              onClick={() => navigate('/wallet')}
+              className='flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all'
+            >
+              <Wallet className='w-4 h-4 text-blue-500' />
+              <span className='text-sm font-medium text-gray-900 dark:text-white'>Carteira</span>
+            </button>
+            <button
+              onClick={() => navigate('/instant-trade')}
+              className='flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl shadow-sm hover:shadow-md transition-all'
+            >
+              <TrendingUp className='w-4 h-4 text-white' />
+              <span className='text-sm font-medium text-white'>Trade</span>
+            </button>
           </div>
         </div>
 
-        {/* Stats Grid - 4 colunas compacto */}
+        {/* Stats Grid - 4 colunas com design premium */}
         {userLoading || walletsLoading ? (
-          <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6'>
+          <div className='grid grid-cols-2 lg:grid-cols-4 gap-3'>
             <StatCardSkeleton />
             <StatCardSkeleton />
             <StatCardSkeleton />
             <StatCardSkeleton />
           </div>
         ) : (
-          <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6'>
-            {/* Saldo Total */}
-            <div className='group relative bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4 overflow-hidden hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-300'>
-              <div className='absolute inset-0 bg-gradient-to-br from-blue-500/5 dark:from-blue-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity'></div>
-              <div className='absolute -right-8 -top-8 w-16 h-16 bg-blue-500/10 dark:bg-blue-500/20 rounded-full blur-xl group-hover:bg-blue-500/20 dark:group-hover:bg-blue-500/40 transition-all'></div>
+          <div className='grid grid-cols-2 lg:grid-cols-4 gap-3'>
+            {/* Saldo Total - Card Premium */}
+            <div className='group relative bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 rounded-2xl p-4 shadow-lg shadow-blue-500/20 overflow-hidden hover:shadow-xl hover:shadow-blue-500/30 transition-all duration-300 hover:-translate-y-0.5'>
+              {/* Efeito de brilho */}
+              <div className='absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700'></div>
+              {/* Círculos decorativos */}
+              <div className='absolute -top-4 -right-4 w-24 h-24 bg-white/10 rounded-full blur-xl'></div>
+              <div className='absolute -bottom-8 -left-8 w-32 h-32 bg-blue-400/20 rounded-full blur-2xl'></div>
+
               <div className='relative z-10'>
-                <div className='flex items-start justify-between mb-2'>
-                  <div className='flex-1'>
-                    <p className='text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-widest mb-1'>
-                      Saldo Total
-                    </p>
-                    <p className='text-2xl font-black text-slate-900 dark:text-white'>
-                      {formatCurrency(totalBalanceUSD)}
-                    </p>
-                    <p className='text-xs text-slate-500 dark:text-slate-500 mt-1'>
-                      {wallets?.length || 0} carteira(s)
-                    </p>
-                  </div>
-                  <div className='w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform'>
+                <div className='flex items-start justify-between mb-3'>
+                  <div className='p-2.5 bg-white/20 backdrop-blur-sm rounded-xl group-hover:scale-110 transition-transform'>
                     <DollarSign className='w-5 h-5 text-white' />
                   </div>
+                  <div className='flex items-center gap-1 px-2 py-0.5 bg-white/20 backdrop-blur-sm rounded-full'>
+                    <span className='w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse'></span>
+                    <span className='text-[10px] font-medium text-white/90'>USD</span>
+                  </div>
                 </div>
-                <div className='h-0.5 w-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full'></div>
+                <p className='text-2xl font-bold text-white mb-1'>
+                  {formatCurrency(totalBalanceUSD)}
+                </p>
+                <p className='text-xs text-blue-200'>
+                  Saldo Total • {wallets?.length || 0} carteira(s)
+                </p>
               </div>
             </div>
 
-            {/* Ordens P2P */}
-            <div className='group relative bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4 overflow-hidden hover:border-purple-400 dark:hover:border-purple-500 transition-all duration-300'>
-              <div className='absolute inset-0 bg-gradient-to-br from-purple-500/5 dark:from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity'></div>
-              <div className='absolute -right-8 -top-8 w-16 h-16 bg-purple-500/10 dark:bg-purple-500/20 rounded-full blur-xl group-hover:bg-purple-500/20 dark:group-hover:bg-purple-500/40 transition-all'></div>
+            {/* Ordens P2P - Card Premium */}
+            <div className='group relative bg-gradient-to-br from-purple-600 via-purple-700 to-pink-700 rounded-2xl p-4 shadow-lg shadow-purple-500/20 overflow-hidden hover:shadow-xl hover:shadow-purple-500/30 transition-all duration-300 hover:-translate-y-0.5'>
+              {/* Efeito de brilho */}
+              <div className='absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700'></div>
+              {/* Círculos decorativos */}
+              <div className='absolute -top-4 -right-4 w-24 h-24 bg-white/10 rounded-full blur-xl'></div>
+              <div className='absolute -bottom-8 -left-8 w-32 h-32 bg-pink-400/20 rounded-full blur-2xl'></div>
+
               <div className='relative z-10'>
-                <div className='flex items-start justify-between mb-2'>
-                  <div className='flex-1'>
-                    <p className='text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-widest mb-1'>
-                      Ordens Ativas
-                    </p>
-                    <p className='text-2xl font-black text-slate-900 dark:text-white'>0</p>
-                    <p className='text-xs text-slate-500 dark:text-slate-500 mt-1'>
-                      Pronto para negociar
-                    </p>
-                  </div>
-                  <div className='w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform'>
+                <div className='flex items-start justify-between mb-3'>
+                  <div className='p-2.5 bg-white/20 backdrop-blur-sm rounded-xl group-hover:scale-110 transition-transform'>
                     <TrendingUp className='w-5 h-5 text-white' />
                   </div>
+                  <div className='flex items-center gap-1 px-2 py-0.5 bg-white/20 backdrop-blur-sm rounded-full'>
+                    <span className='text-[10px] font-medium text-white/90'>P2P</span>
+                  </div>
                 </div>
-                <div className='h-0.5 w-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full'></div>
+                <p className='text-2xl font-bold text-white mb-1'>0</p>
+                <p className='text-xs text-purple-200'>Ordens Ativas • Pronto para negociar</p>
               </div>
             </div>
 
-            {/* Reputação */}
-            <div className='group relative bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4 overflow-hidden hover:border-amber-400 dark:hover:border-amber-500 transition-all duration-300'>
-              <div className='absolute inset-0 bg-gradient-to-br from-amber-500/5 dark:from-amber-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity'></div>
-              <div className='absolute -right-8 -top-8 w-16 h-16 bg-amber-500/10 dark:bg-amber-500/20 rounded-full blur-xl group-hover:bg-amber-500/20 dark:group-hover:bg-amber-500/40 transition-all'></div>
+            {/* Reputação - Card Premium */}
+            <div className='group relative bg-gradient-to-br from-amber-500 via-orange-600 to-red-600 rounded-2xl p-4 shadow-lg shadow-orange-500/20 overflow-hidden hover:shadow-xl hover:shadow-orange-500/30 transition-all duration-300 hover:-translate-y-0.5'>
+              {/* Efeito de brilho */}
+              <div className='absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700'></div>
+              {/* Círculos decorativos */}
+              <div className='absolute -top-4 -right-4 w-24 h-24 bg-white/10 rounded-full blur-xl'></div>
+              <div className='absolute -bottom-8 -left-8 w-32 h-32 bg-yellow-400/20 rounded-full blur-2xl'></div>
+
               <div className='relative z-10'>
-                <div className='flex items-start justify-between mb-2'>
-                  <div className='flex-1'>
-                    <p className='text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-widest mb-1'>
-                      Reputação
-                    </p>
-                    <p className='text-2xl font-black text-slate-900 dark:text-white'>
-                      {user?.isVerified ? '100%' : 'Novo'}
-                    </p>
-                    <p
-                      className={`text-xs mt-1 font-semibold ${user?.isVerified ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400'}`}
-                    >
-                      {user?.isVerified ? 'Verificado' : 'Complete perfil'}
-                    </p>
-                  </div>
-                  <div className='w-10 h-10 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform'>
+                <div className='flex items-start justify-between mb-3'>
+                  <div className='p-2.5 bg-white/20 backdrop-blur-sm rounded-xl group-hover:scale-110 transition-transform'>
                     <Award className='w-5 h-5 text-white' />
                   </div>
+                  <div className='flex items-center gap-1 px-2 py-0.5 bg-white/20 backdrop-blur-sm rounded-full'>
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full ${user?.isVerified ? 'bg-green-400' : 'bg-yellow-400'} animate-pulse`}
+                    ></span>
+                    <span className='text-[10px] font-medium text-white/90'>
+                      {user?.isVerified ? 'Verificado' : 'Novo'}
+                    </span>
+                  </div>
                 </div>
-                <div className='h-0.5 w-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full'></div>
+                <p className='text-2xl font-bold text-white mb-1'>
+                  {user?.isVerified ? '100%' : '--'}
+                </p>
+                <p className='text-xs text-amber-100'>
+                  Reputação • {user?.isVerified ? 'Excelente' : 'Complete seu perfil'}
+                </p>
               </div>
             </div>
 
-            {/* BTC Price */}
-            <div className='group relative bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4 overflow-hidden hover:border-orange-400 dark:hover:border-orange-500 transition-all duration-300'>
-              <div className='absolute inset-0 bg-gradient-to-br from-orange-500/5 dark:from-orange-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity'></div>
-              <div className='absolute -right-8 -top-8 w-16 h-16 bg-orange-500/10 dark:bg-orange-500/20 rounded-full blur-xl group-hover:bg-orange-500/20 dark:group-hover:bg-orange-500/40 transition-all'></div>
+            {/* BTC Price - Card Premium */}
+            <div className='group relative bg-gradient-to-br from-orange-500 via-orange-600 to-amber-700 rounded-2xl p-4 shadow-lg shadow-orange-500/20 overflow-hidden hover:shadow-xl hover:shadow-orange-500/30 transition-all duration-300 hover:-translate-y-0.5'>
+              {/* Efeito de brilho */}
+              <div className='absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700'></div>
+              {/* Círculos decorativos */}
+              <div className='absolute -top-4 -right-4 w-24 h-24 bg-white/10 rounded-full blur-xl'></div>
+              <div className='absolute -bottom-8 -left-8 w-32 h-32 bg-amber-400/20 rounded-full blur-2xl'></div>
+
               <div className='relative z-10'>
-                <div className='flex items-start justify-between mb-2'>
-                  <div className='flex-1'>
-                    <p className='text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-widest mb-1'>
-                      Bitcoin
-                    </p>
-                    <p className='text-xl font-black text-slate-900 dark:text-white'>
-                      {marketPrices.BTC?.price ? formatCurrency(marketPrices.BTC.price) : '--'}
-                    </p>
-                    <p
-                      className={`text-xs font-semibold mt-1 ${marketPrices.BTC && marketPrices.BTC.change24h >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
-                    >
-                      {marketPrices.BTC && marketPrices.BTC.change24h >= 0 ? '↑' : '↓'}
-                      {marketPrices.BTC ? marketPrices.BTC.change24hPercent : '--%'}
-                    </p>
-                  </div>
-                  <div className='w-10 h-10 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform'>
+                <div className='flex items-start justify-between mb-3'>
+                  <div className='p-2.5 bg-white/20 backdrop-blur-sm rounded-xl group-hover:scale-110 transition-transform'>
                     <Coins className='w-5 h-5 text-white' />
                   </div>
+                  <div
+                    className={`flex items-center gap-1 px-2 py-0.5 rounded-full ${(marketPrices.BTC?.change24h ?? 0) >= 0 ? 'bg-green-500/30' : 'bg-red-500/30'}`}
+                  >
+                    <span className='text-[10px] font-medium text-white'>
+                      {marketPrices.BTC?.change24hPercent || '--%'}
+                    </span>
+                  </div>
                 </div>
-                <div className='h-0.5 w-full bg-gradient-to-r from-orange-500 to-amber-500 rounded-full'></div>
+                <p className='text-xl font-bold text-white mb-1'>
+                  {marketPrices.BTC?.price ? formatCurrency(marketPrices.BTC.price) : '--'}
+                </p>
+                <p className='text-xs text-orange-100'>Bitcoin • Preço atual</p>
               </div>
             </div>
           </div>
@@ -526,421 +585,500 @@ export const DashboardPage = () => {
             {/* Carteiras + Ações Rápidas - 2 colunas */}
             <div className='lg:col-span-2 space-y-4'>
               {/* Wallets Card */}
-              <div className='bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden hover:border-blue-400 dark:hover:border-blue-500 transition-all'>
-                <div className='px-5 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between'>
-                  <div className='flex items-center gap-2'>
-                    <div className='p-2 bg-blue-100 dark:bg-blue-500/20 rounded-lg'>
-                      <Wallet className='w-4 h-4 text-blue-600 dark:text-blue-400' />
+              <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden'>
+                <div className='px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between'>
+                  <div className='flex items-center gap-3'>
+                    <div className='p-2 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl'>
+                      <Wallet className='w-5 h-5 text-white' />
                     </div>
                     <div>
-                      <h3 className='font-bold text-slate-900 dark:text-white text-sm'>
-                        Suas Carteiras
-                      </h3>
-                      <p className='text-xs text-slate-600 dark:text-slate-400'>
+                      <h3 className='font-bold text-gray-900 dark:text-white'>Suas Carteiras</h3>
+                      <p className='text-xs text-gray-500 dark:text-gray-400'>
                         Gerencie suas criptomoedas
                       </p>
                     </div>
                   </div>
-                  <Plus className='w-4 h-4 text-slate-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer transition-colors' />
+                  <div className='flex items-center gap-1'>
+                    {walletsFetching && (
+                      <span className='text-xs text-gray-400 dark:text-gray-500 mr-1'>
+                        Atualizando...
+                      </span>
+                    )}
+                    <button
+                      onClick={() => refetchWallets()}
+                      title='Atualizar carteiras'
+                      disabled={walletsFetching}
+                      className='p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors disabled:opacity-50'
+                    >
+                      <RefreshCw
+                        className={`w-4 h-4 text-gray-400 dark:text-gray-500 ${walletsFetching ? 'animate-spin text-blue-500' : 'hover:text-blue-600 dark:hover:text-blue-400'}`}
+                      />
+                    </button>
+                    <button
+                      onClick={handleCreateWallet}
+                      title='Adicionar carteira'
+                      className='p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors'
+                    >
+                      <Plus className='w-5 h-5 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400' />
+                    </button>
+                  </div>
                 </div>
 
                 <div className='p-4'>
-                  {!wallets || wallets.length === 0 ? (
-                    <div className='text-center py-8'>
-                      <div className='w-12 h-12 mx-auto bg-slate-200 dark:bg-slate-700 rounded-full flex items-center justify-center mb-3'>
-                        <Wallet className='w-6 h-6 text-slate-400 dark:text-slate-500' />
-                      </div>
-                      <p className='text-slate-600 dark:text-slate-400 text-sm mb-3'>
-                        Nenhuma carteira encontrada
-                      </p>
-                      <button
-                        onClick={handleCreateWallet}
-                        className='bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-4 py-2 rounded-lg font-medium text-sm transition-all inline-flex items-center gap-2 shadow-lg'
-                      >
-                        <Plus className='w-4 h-4' />
-                        Criar Carteira
-                      </button>
-                    </div>
-                  ) : (
-                    <div className='space-y-2'>
-                      {wallets.map(wallet => {
-                        const walletIdStr = String(wallet.id)
-                        const isExpanded = expandedWallets.has(walletIdStr)
-                        const networks = getAvailableNetworks(wallet)
+                  {/* Renderizar conteúdo das carteiras */}
+                  {(() => {
+                    // Estado de loading - mostrar skeleton enquanto carrega
+                    // walletsLoading = true no primeiro fetch
+                    // walletsFetching = true em qualquer fetch (primeiro ou refetch)
+                    // walletsSuccess = true só depois de ter dados
+                    const isLoadingWallets = walletsLoading || (walletsFetching && !walletsSuccess)
+                    const hasNoWallets = walletsSuccess && (!wallets || wallets.length === 0)
 
-                        return (
-                          <div
-                            key={wallet.id}
-                            className='bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-lg overflow-hidden hover:border-blue-400 dark:hover:border-blue-500 transition-all'
+                    // Estado de erro - mostrar botão de retry
+                    if (walletsError && !isLoadingWallets) {
+                      return (
+                        <div className='text-center py-10'>
+                          <div className='w-16 h-16 mx-auto bg-red-100 dark:bg-red-900/20 rounded-2xl flex items-center justify-center mb-4'>
+                            <RefreshCw className='w-8 h-8 text-red-500 dark:text-red-400' />
+                          </div>
+                          <p className='text-gray-600 dark:text-gray-400 mb-2'>
+                            Erro ao carregar carteiras
+                          </p>
+                          <p className='text-xs text-gray-500 dark:text-gray-500 mb-4'>
+                            Verifique sua conexão e tente novamente
+                          </p>
+                          <button
+                            onClick={() => refetchWallets()}
+                            className='bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-5 py-2.5 rounded-xl font-medium text-sm transition-all inline-flex items-center gap-2 shadow-lg'
                           >
-                            <button
-                              onClick={() => toggleWallet(walletIdStr)}
-                              className='w-full flex items-center justify-between p-3 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors'
+                            <RefreshCw className='w-4 h-4' />
+                            Tentar Novamente
+                          </button>
+                        </div>
+                      )
+                    }
+
+                    if (isLoadingWallets) {
+                      return (
+                        <div className='space-y-3'>
+                          {[1, 2].map(i => (
+                            <div
+                              key={i}
+                              className='animate-pulse bg-gray-100 dark:bg-gray-700/50 rounded-xl p-4'
                             >
-                              <div className='flex items-center space-x-3 flex-1'>
-                                <div className='w-10 h-10 flex items-center justify-center rounded-lg bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-500/20 dark:to-blue-600/20'>
-                                  <Wallet className='w-5 h-5 text-blue-600 dark:text-blue-400' />
+                              <div className='flex items-center space-x-3'>
+                                <div className='w-10 h-10 bg-gray-200 dark:bg-gray-600 rounded-xl'></div>
+                                <div className='flex-1'>
+                                  <div className='h-4 bg-gray-200 dark:bg-gray-600 rounded w-24 mb-2'></div>
+                                  <div className='h-3 bg-gray-200 dark:bg-gray-600 rounded w-16'></div>
                                 </div>
-                                <div className='text-left'>
-                                  <h4 className='font-semibold text-slate-900 dark:text-white text-xs'>
-                                    {wallet.name}
-                                  </h4>
-                                  <p className='text-xs text-slate-600 dark:text-slate-400'>
-                                    Multi • {networks.length} redes
-                                  </p>
-                                </div>
-                              </div>
-                              <div className='flex items-center space-x-2'>
                                 <div className='text-right'>
-                                  {(() => {
-                                    const walletIndex = walletIds.indexOf(walletIdStr)
-                                    const balanceQuery = balancesQueries[walletIndex]
-                                    const balanceData = balanceQuery?.data
-
-                                    if (balanceQuery?.isLoading) {
-                                      return (
-                                        <div className='animate-pulse space-y-1'>
-                                          <div className='h-3 bg-slate-600 rounded w-16'></div>
-                                          <div className='h-2 bg-slate-600 rounded w-12'></div>
-                                        </div>
-                                      )
-                                    }
-
-                                    let totalBRL = 0
-                                    let hasLoadingPrice = false
-                                    if (balanceData) {
-                                      Object.entries(balanceData).forEach(
-                                        ([networkKey, netBalance]: any) => {
-                                          const balance = parseFloat(netBalance.balance || '0')
-
-                                          // Mapear nome da rede/token para símbolo
-                                          const symbol = getSymbolFromKey(networkKey)
-
-                                          // ✅ Use real-time price from marketPrices hook
-                                          const marketPriceData = marketPrices[symbol]
-                                          const priceUSD =
-                                            marketPriceData?.price ||
-                                            parseFloat(netBalance.price_usd || '0')
-                                          const priceLoading =
-                                            marketPriceData === undefined ||
-                                            netBalance.price_loading ||
-                                            false
-
-                                          const balanceUSD = balance * priceUSD
-                                          totalBRL += balanceUSD
-                                          if (priceLoading) hasLoadingPrice = true
-                                        }
-                                      )
-                                    }
-
-                                    return (
-                                      <>
-                                        <p className='font-bold text-white text-xs'>
-                                          {hasLoadingPrice ? (
-                                            <span className='animate-pulse'>Atualizando...</span>
-                                          ) : (
-                                            formatCurrency(totalBRL)
-                                          )}
-                                        </p>
-                                        <p className='text-xs text-slate-400'>Saldo</p>
-                                      </>
-                                    )
-                                  })()}
-                                </div>
-                                <div className='text-slate-500'>
-                                  {isExpanded ? (
-                                    <ChevronDown className='w-4 h-4' />
-                                  ) : (
-                                    <ChevronRight className='w-4 h-4' />
-                                  )}
+                                  <div className='h-4 bg-gray-200 dark:bg-gray-600 rounded w-20 mb-2'></div>
+                                  <div className='h-3 bg-gray-200 dark:bg-gray-600 rounded w-14'></div>
                                 </div>
                               </div>
-                            </button>
+                            </div>
+                          ))}
+                          <p className='text-center text-xs text-gray-500 dark:text-gray-400 mt-2'>
+                            Carregando carteiras...
+                          </p>
+                        </div>
+                      )
+                    }
 
-                            {isExpanded && (
-                              <div className='border-t border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/30 p-3'>
-                                <div className='grid grid-cols-1 md:grid-cols-2 gap-2'>
-                                  {networks
-                                    .filter(net => {
-                                      if (showAllNetworks) return true
-                                      return networkPreferences[
-                                        net.network as keyof typeof networkPreferences
-                                      ]
-                                    })
-                                    .map(network => (
-                                      <div
-                                        key={network.network}
-                                        className='flex items-center justify-between p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-500 transition-all'
-                                      >
-                                        <div className='flex items-center space-x-2'>
-                                          <div className='w-8 h-8 flex items-center justify-center rounded-lg bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-500/20 dark:to-blue-600/20'>
-                                            <CryptoIcon symbol={network.symbol} size={24} />
-                                          </div>
-                                          <div>
-                                            <p className='font-medium text-slate-900 dark:text-white text-xs'>
-                                              {network.name}
-                                            </p>
-                                            <p className='text-xs text-slate-500 dark:text-slate-400'>
-                                              {network.symbol}
-                                            </p>
-                                          </div>
-                                        </div>
-                                        <div className='text-right'>
-                                          {(() => {
-                                            const walletIndex = walletIds.indexOf(walletIdStr)
-                                            const balanceQuery = balancesQueries[walletIndex]
-                                            const balanceData = balanceQuery?.data
-                                            const networkBalance = balanceData?.[network.network]
+                    if (hasNoWallets) {
+                      return (
+                        <div className='text-center py-10'>
+                          <div className='w-16 h-16 mx-auto bg-gray-100 dark:bg-gray-700 rounded-2xl flex items-center justify-center mb-4'>
+                            <Wallet className='w-8 h-8 text-gray-400 dark:text-gray-500' />
+                          </div>
+                          <p className='text-gray-600 dark:text-gray-400 mb-4'>
+                            Nenhuma carteira encontrada
+                          </p>
+                          <button
+                            onClick={handleCreateWallet}
+                            className='bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-5 py-2.5 rounded-xl font-medium text-sm transition-all inline-flex items-center gap-2 shadow-lg'
+                          >
+                            <Plus className='w-4 h-4' />
+                            Criar Carteira
+                          </button>
+                        </div>
+                      )
+                    }
 
-                                            if (balanceQuery?.isLoading) {
-                                              return (
-                                                <div className='animate-pulse space-y-1'>
-                                                  <div className='h-2 bg-slate-300 dark:bg-slate-600 rounded w-20'></div>
-                                                  <div className='h-2 bg-slate-300 dark:bg-slate-600 rounded w-16 mt-1'></div>
-                                                </div>
-                                              )
-                                            }
+                    // Lista de carteiras
+                    return (
+                      <div className='space-y-3'>
+                        {wallets.map(wallet => {
+                          const walletIdStr = String(wallet.id)
+                          const isExpanded = expandedWallets.has(walletIdStr)
+                          const networks = getAvailableNetworks(wallet)
 
-                                            if (networkBalance) {
-                                              const balance = Number.parseFloat(
-                                                (networkBalance as any).balance || '0'
-                                              )
-
-                                              // ✅ Use real-time price from marketPrices
-                                              const marketPriceData = marketPrices[network.symbol]
-                                              const priceUSD =
-                                                marketPriceData?.price ||
-                                                Number.parseFloat(
-                                                  (networkBalance as any).price_usd || '0'
-                                                )
-                                              const priceLoading =
-                                                marketPriceData === undefined || false
-                                              const totalUSD = balance * priceUSD
-
-                                              return (
-                                                <>
-                                                  <p className='font-semibold text-slate-900 dark:text-white text-xs'>
-                                                    {balance.toFixed(6)} {network.symbol}
-                                                  </p>
-                                                  <p className='text-xs text-slate-500 dark:text-slate-400'>
-                                                    {priceLoading ? (
-                                                      <span className='animate-pulse'>
-                                                        Carregando preço...
-                                                      </span>
-                                                    ) : (
-                                                      formatCurrency(totalUSD)
-                                                    )}
-                                                  </p>
-                                                </>
-                                              )
-                                            }
-
-                                            return (
-                                              <>
-                                                <p className='font-semibold text-slate-900 dark:text-white text-xs'>
-                                                  0.000000 {network.symbol}
-                                                </p>
-                                                <p className='text-xs text-slate-500 dark:text-slate-400'>
-                                                  R$ 0,00
-                                                </p>
-                                              </>
-                                            )
-                                          })()}
-                                        </div>
-                                      </div>
-                                    ))}
+                          return (
+                            <div
+                              key={wallet.id}
+                              className='bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-600 overflow-hidden hover:border-blue-200 dark:hover:border-blue-500/30 transition-all'
+                            >
+                              <button
+                                onClick={() => toggleWallet(walletIdStr)}
+                                className='w-full flex items-center justify-between p-4 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors'
+                              >
+                                <div className='flex items-center space-x-3 flex-1'>
+                                  <div className='w-10 h-10 flex items-center justify-center rounded-xl bg-gradient-to-br from-blue-500/10 to-purple-500/10 dark:from-blue-500/20 dark:to-purple-500/20'>
+                                    <Wallet className='w-5 h-5 text-blue-600 dark:text-blue-400' />
+                                  </div>
+                                  <div className='text-left'>
+                                    <h4 className='font-semibold text-gray-900 dark:text-white text-sm'>
+                                      {wallet.name}
+                                    </h4>
+                                    <p className='text-xs text-gray-500 dark:text-gray-400'>
+                                      Multi • {networks.length} redes
+                                    </p>
+                                  </div>
                                 </div>
-
-                                {/* 🪙 TOKENS SECTION (USDT, USDC, etc) */}
-                                <div className='mt-3 pt-3 border-t border-slate-200 dark:border-slate-600'>
-                                  <p className='text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-widest mb-2'>
-                                    Stablecoins
-                                  </p>
-                                  <div className='grid grid-cols-1 md:grid-cols-2 gap-2'>
+                                <div className='flex items-center space-x-3'>
+                                  <div className='text-right'>
                                     {(() => {
                                       const walletIndex = walletIds.indexOf(walletIdStr)
                                       const balanceQuery = balancesQueries[walletIndex]
-                                      const balanceData = balanceQuery?.data || {}
-                                      const tokens: any[] = []
+                                      const balanceData = balanceQuery?.data
 
-                                      // Procurar por tokens no balanceData
-                                      for (const [key, value] of Object.entries(balanceData)) {
-                                        const keyLower = String(key).toLowerCase()
-
-                                        // Detectar USDT
-                                        if (keyLower.includes('usdt')) {
-                                          const networkName =
-                                            keyLower.split('_')[0]?.toUpperCase() ?? 'UNKNOWN'
-                                          tokens.push({
-                                            id: key,
-                                            symbol: 'USDT',
-                                            name: `USDT (${networkName})`,
-                                            balance: value,
-                                            color: 'green',
-                                          })
-                                        }
-
-                                        // Detectar USDC
-                                        if (keyLower.includes('usdc')) {
-                                          const networkName =
-                                            keyLower.split('_')[0]?.toUpperCase() ?? 'UNKNOWN'
-                                          tokens.push({
-                                            id: key,
-                                            symbol: 'USDC',
-                                            name: `USDC (${networkName})`,
-                                            balance: value,
-                                            color: 'blue',
-                                          })
-                                        }
+                                      if (balanceQuery?.isLoading) {
+                                        return (
+                                          <div className='animate-pulse space-y-1'>
+                                            <div className='h-4 bg-gray-300 dark:bg-gray-600 rounded w-20'></div>
+                                            <div className='h-3 bg-gray-300 dark:bg-gray-600 rounded w-14'></div>
+                                          </div>
+                                        )
                                       }
 
-                                      // Se não encontrou tokens, retorna mensagem
-                                      if (tokens.length === 0) {
-                                        return (
-                                          <p className='text-xs text-slate-500 dark:text-slate-400 col-span-full'>
-                                            Nenhum stablecoin encontrado
+                                      let totalBRL = 0
+                                      let hasLoadingPrice = false
+                                      if (balanceData) {
+                                        Object.entries(balanceData).forEach(
+                                          ([networkKey, netBalance]: any) => {
+                                            const balance = Number.parseFloat(
+                                              netBalance.balance || '0'
+                                            )
+                                            const symbol = getSymbolFromKey(networkKey)
+                                            const marketPriceData = marketPrices[symbol]
+                                            const priceUSD =
+                                              marketPriceData?.price ||
+                                              Number.parseFloat(netBalance.price_usd || '0')
+                                            const priceLoading =
+                                              marketPriceData === undefined ||
+                                              netBalance.price_loading ||
+                                              false
+
+                                            const balanceUSD = balance * priceUSD
+                                            totalBRL += balanceUSD
+                                            if (priceLoading) hasLoadingPrice = true
+                                          }
+                                        )
+                                      }
+
+                                      return (
+                                        <>
+                                          <p className='font-bold text-gray-900 dark:text-white text-sm'>
+                                            {hasLoadingPrice ? (
+                                              <span className='animate-pulse'>Atualizando...</span>
+                                            ) : (
+                                              formatCurrency(totalBRL)
+                                            )}
                                           </p>
-                                        )
-                                      }
+                                          <p className='text-xs text-gray-500 dark:text-gray-400'>
+                                            Saldo
+                                          </p>
+                                        </>
+                                      )
+                                    })()}
+                                  </div>
+                                  <div className='text-gray-400 dark:text-gray-500'>
+                                    {isExpanded ? (
+                                      <ChevronDown className='w-5 h-5' />
+                                    ) : (
+                                      <ChevronRight className='w-5 h-5' />
+                                    )}
+                                  </div>
+                                </div>
+                              </button>
 
-                                      // Renderizar tokens
-                                      return tokens.map(token => {
-                                        const bgColorGreen = 'bg-green-100 dark:bg-green-600/20'
-                                        const bgColorBlue = 'bg-blue-100 dark:bg-blue-600/20'
-                                        const borderColorGreen =
-                                          'border-green-300 dark:border-green-600/50 hover:border-green-400 dark:hover:border-green-500'
-                                        const borderColorBlue =
-                                          'border-blue-300 dark:border-blue-600/50 hover:border-blue-400 dark:hover:border-blue-500'
-                                        const bgColor =
-                                          token.color === 'green' ? bgColorGreen : bgColorBlue
-                                        const borderColor =
-                                          token.color === 'green'
-                                            ? borderColorGreen
-                                            : borderColorBlue
-
-                                        const balance = Number.parseFloat(
-                                          token.balance?.balance || '0'
-                                        )
-                                        const marketPriceData = marketPrices[token.symbol]
-                                        const priceUSD = marketPriceData?.price ?? 1
-                                        const totalUSD = balance * priceUSD
-
-                                        return (
-                                          <div
-                                            key={token.id}
-                                            className={`flex items-center justify-between p-3 ${bgColor} rounded-lg border ${borderColor} transition-all`}
-                                          >
-                                            <div className='flex items-center space-x-2'>
-                                              <div
-                                                className={`w-8 h-8 flex items-center justify-center rounded-lg ${token.color === 'green' ? 'bg-gradient-to-br from-green-100 to-green-200 dark:from-green-500/20 dark:to-green-600/20' : 'bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-500/20 dark:to-blue-600/20'}`}
-                                              >
-                                                <CryptoIcon symbol={token.symbol} size={24} />
-                                              </div>
-                                              <div>
-                                                <p className='font-medium text-slate-900 dark:text-white text-xs'>
-                                                  {token.symbol}
-                                                </p>
-                                                <p className='text-xs text-slate-500 dark:text-slate-400'>
-                                                  {token.name.split('(')[1]?.replace(')', '') ||
-                                                    token.symbol}
-                                                </p>
-                                              </div>
+                              {isExpanded && (
+                                <div className='border-t border-gray-100 dark:border-gray-600 bg-white dark:bg-gray-800/50 p-4'>
+                                  <div className='grid grid-cols-1 md:grid-cols-2 gap-2'>
+                                    {networks
+                                      .filter(net => {
+                                        if (showAllNetworks) return true
+                                        return networkPreferences[
+                                          net.network as keyof typeof networkPreferences
+                                        ]
+                                      })
+                                      .map(network => (
+                                        <div
+                                          key={network.network}
+                                          className='flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-600 hover:border-blue-200 dark:hover:border-blue-500/30 transition-all'
+                                        >
+                                          <div className='flex items-center space-x-2'>
+                                            <div className='w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-600'>
+                                              <CryptoIcon symbol={network.symbol} size={24} />
                                             </div>
-                                            <div className='text-right'>
-                                              <p className='font-semibold text-slate-900 dark:text-white text-xs'>
-                                                {balance.toFixed(2)} {token.symbol}
+                                            <div>
+                                              <p className='font-medium text-gray-900 dark:text-white text-xs'>
+                                                {network.name}
                                               </p>
-                                              <p className='text-xs text-slate-500 dark:text-slate-400'>
-                                                {formatCurrency(totalUSD)}
+                                              <p className='text-xs text-gray-500 dark:text-gray-400'>
+                                                {network.symbol}
                                               </p>
                                             </div>
                                           </div>
-                                        )
-                                      })
-                                    })()}
+                                          <div className='text-right'>
+                                            {(() => {
+                                              const walletIndex = walletIds.indexOf(walletIdStr)
+                                              const balanceQuery = balancesQueries[walletIndex]
+                                              const balanceData = balanceQuery?.data
+                                              const networkBalance = balanceData?.[network.network]
+
+                                              if (balanceQuery?.isLoading) {
+                                                return (
+                                                  <div className='animate-pulse space-y-1'>
+                                                    <div className='h-3 bg-gray-300 dark:bg-gray-600 rounded w-16'></div>
+                                                    <div className='h-2 bg-gray-300 dark:bg-gray-600 rounded w-12 mt-1'></div>
+                                                  </div>
+                                                )
+                                              }
+
+                                              if (networkBalance) {
+                                                const balance = Number.parseFloat(
+                                                  (networkBalance as any).balance || '0'
+                                                )
+                                                const marketPriceData = marketPrices[network.symbol]
+                                                const priceUSD =
+                                                  marketPriceData?.price ||
+                                                  Number.parseFloat(
+                                                    (networkBalance as any).price_usd || '0'
+                                                  )
+                                                const priceLoading =
+                                                  marketPriceData === undefined || false
+                                                const totalUSD = balance * priceUSD
+
+                                                return (
+                                                  <>
+                                                    <p className='font-semibold text-gray-900 dark:text-white text-xs'>
+                                                      {balance.toFixed(6)} {network.symbol}
+                                                    </p>
+                                                    <p className='text-xs text-gray-500 dark:text-gray-400'>
+                                                      {priceLoading ? (
+                                                        <span className='animate-pulse'>
+                                                          Carregando...
+                                                        </span>
+                                                      ) : (
+                                                        formatCurrency(totalUSD)
+                                                      )}
+                                                    </p>
+                                                  </>
+                                                )
+                                              }
+
+                                              return (
+                                                <>
+                                                  <p className='font-semibold text-gray-900 dark:text-white text-xs'>
+                                                    0.000000 {network.symbol}
+                                                  </p>
+                                                  <p className='text-xs text-gray-500 dark:text-gray-400'>
+                                                    R$ 0,00
+                                                  </p>
+                                                </>
+                                              )
+                                            })()}
+                                          </div>
+                                        </div>
+                                      ))}
+                                  </div>
+
+                                  {/* 🪙 TOKENS SECTION (USDT, USDC, etc) */}
+                                  <div className='mt-4 pt-4 border-t border-gray-100 dark:border-gray-600'>
+                                    <p className='text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3'>
+                                      Stablecoins
+                                    </p>
+                                    <div className='grid grid-cols-1 md:grid-cols-2 gap-2'>
+                                      {(() => {
+                                        const walletIndex = walletIds.indexOf(walletIdStr)
+                                        const balanceQuery = balancesQueries[walletIndex]
+                                        const balanceData = balanceQuery?.data || {}
+                                        const tokens: any[] = []
+
+                                        // Procurar por tokens no balanceData
+                                        for (const [key, value] of Object.entries(balanceData)) {
+                                          const keyLower = String(key).toLowerCase()
+
+                                          // Detectar USDT
+                                          if (keyLower.includes('usdt')) {
+                                            const networkName =
+                                              keyLower.split('_')[0]?.toUpperCase() ?? 'UNKNOWN'
+                                            tokens.push({
+                                              id: key,
+                                              symbol: 'USDT',
+                                              name: `USDT (${networkName})`,
+                                              balance: value,
+                                              color: 'green',
+                                            })
+                                          }
+
+                                          // Detectar USDC
+                                          if (keyLower.includes('usdc')) {
+                                            const networkName =
+                                              keyLower.split('_')[0]?.toUpperCase() ?? 'UNKNOWN'
+                                            tokens.push({
+                                              id: key,
+                                              symbol: 'USDC',
+                                              name: `USDC (${networkName})`,
+                                              balance: value,
+                                              color: 'blue',
+                                            })
+                                          }
+                                        }
+
+                                        // Se não encontrou tokens, retorna mensagem
+                                        if (tokens.length === 0) {
+                                          return (
+                                            <p className='text-xs text-gray-500 dark:text-gray-400 col-span-full'>
+                                              Nenhum stablecoin encontrado
+                                            </p>
+                                          )
+                                        }
+
+                                        // Renderizar tokens
+                                        return tokens.map(token => {
+                                          const bgColorGreen = 'bg-green-100 dark:bg-green-600/20'
+                                          const bgColorBlue = 'bg-blue-100 dark:bg-blue-600/20'
+                                          const borderColorGreen =
+                                            'border-green-300 dark:border-green-600/50 hover:border-green-400 dark:hover:border-green-500'
+                                          const borderColorBlue =
+                                            'border-blue-300 dark:border-blue-600/50 hover:border-blue-400 dark:hover:border-blue-500'
+                                          const bgColor =
+                                            token.color === 'green' ? bgColorGreen : bgColorBlue
+                                          const borderColor =
+                                            token.color === 'green'
+                                              ? borderColorGreen
+                                              : borderColorBlue
+
+                                          const balance = Number.parseFloat(
+                                            token.balance?.balance || '0'
+                                          )
+                                          const marketPriceData = marketPrices[token.symbol]
+                                          const priceUSD = marketPriceData?.price ?? 1
+                                          const totalUSD = balance * priceUSD
+
+                                          return (
+                                            <div
+                                              key={token.id}
+                                              className={`flex items-center justify-between p-3 ${bgColor} rounded-xl border ${borderColor} transition-all`}
+                                            >
+                                              <div className='flex items-center space-x-2'>
+                                                <div
+                                                  className={`w-8 h-8 flex items-center justify-center rounded-lg ${token.color === 'green' ? 'bg-green-100 dark:bg-green-500/20' : 'bg-blue-100 dark:bg-blue-500/20'}`}
+                                                >
+                                                  <CryptoIcon symbol={token.symbol} size={24} />
+                                                </div>
+                                                <div>
+                                                  <p className='font-medium text-gray-900 dark:text-white text-xs'>
+                                                    {token.symbol}
+                                                  </p>
+                                                  <p className='text-xs text-gray-500 dark:text-gray-400'>
+                                                    {token.name.split('(')[1]?.replace(')', '') ||
+                                                      token.symbol}
+                                                  </p>
+                                                </div>
+                                              </div>
+                                              <div className='text-right'>
+                                                <p className='font-semibold text-gray-900 dark:text-white text-xs'>
+                                                  {balance.toFixed(2)} {token.symbol}
+                                                </p>
+                                                <p className='text-xs text-gray-500 dark:text-gray-400'>
+                                                  {formatCurrency(totalUSD)}
+                                                </p>
+                                              </div>
+                                            </div>
+                                          )
+                                        })
+                                      })()}
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )
+                  })()}
                 </div>
               </div>
 
               {/* Quick Actions */}
-              <div className='bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden hover:border-emerald-400 dark:hover:border-emerald-500 transition-all'>
-                <div className='px-5 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2'>
-                  <div className='p-2 bg-emerald-100 dark:bg-emerald-500/20 rounded-lg'>
-                    <Sparkles className='w-4 h-4 text-emerald-600 dark:text-emerald-400' />
+              <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden'>
+                <div className='px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center gap-3'>
+                  <div className='p-2 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl'>
+                    <Sparkles className='w-5 h-5 text-white' />
                   </div>
-                  <h3 className='font-bold text-slate-900 dark:text-white text-sm'>
-                    Ações Rápidas
-                  </h3>
+                  <div>
+                    <h3 className='font-bold text-gray-900 dark:text-white'>Ações Rápidas</h3>
+                    <p className='text-xs text-gray-500 dark:text-gray-400'>
+                      Acesso rápido às funções
+                    </p>
+                  </div>
                 </div>
-                <div className='p-3 space-y-2'>
+                <div className='p-4 grid grid-cols-2 gap-3'>
                   <button
                     onClick={handleCreateP2POrder}
-                    className='w-full flex items-center gap-3 p-3 bg-blue-100 dark:bg-blue-600/20 hover:bg-blue-200 dark:hover:bg-blue-600/30 rounded-lg border border-blue-300 dark:border-blue-600/50 hover:border-blue-400 dark:hover:border-blue-500 transition-all group'
+                    className='group p-4 bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-900/20 dark:to-blue-800/10 rounded-xl border border-blue-200 dark:border-blue-700/30 hover:border-blue-300 dark:hover:border-blue-600/50 transition-all text-left'
                   >
-                    <div className='w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform'>
+                    <div className='w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform shadow-lg'>
                       <DollarSign className='w-5 h-5 text-white' />
                     </div>
-                    <div className='text-left flex-1'>
-                      <p className='text-xs font-bold text-blue-900 dark:text-white'>P2P Trading</p>
-                      <p className='text-xs text-blue-700 dark:text-slate-400'>Criar ordem</p>
-                    </div>
-                    <ArrowUpRight className='w-4 h-4 text-blue-600 dark:text-blue-400' />
+                    <p className='font-semibold text-gray-900 dark:text-white text-sm'>
+                      P2P Trading
+                    </p>
+                    <p className='text-xs text-gray-500 dark:text-gray-400 mt-0.5'>Criar ordem</p>
                   </button>
 
                   <button
                     onClick={handleSendCrypto}
-                    className='w-full flex items-center gap-3 p-3 bg-green-100 dark:bg-green-600/20 hover:bg-green-200 dark:hover:bg-green-600/30 rounded-lg border border-green-300 dark:border-green-600/50 hover:border-green-400 dark:hover:border-green-500 transition-all group'
+                    className='group p-4 bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/20 dark:to-green-800/10 rounded-xl border border-green-200 dark:border-green-700/30 hover:border-green-300 dark:hover:border-green-600/50 transition-all text-left'
                   >
-                    <div className='w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform'>
+                    <div className='w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform shadow-lg'>
                       <Send className='w-5 h-5 text-white' />
                     </div>
-                    <div className='text-left flex-1'>
-                      <p className='text-xs font-bold text-green-900 dark:text-white'>Enviar</p>
-                      <p className='text-xs text-green-700 dark:text-slate-400'>
-                        Transferir cripto
-                      </p>
-                    </div>
-                    <ArrowUpRight className='w-4 h-4 text-green-600 dark:text-green-400' />
+                    <p className='font-semibold text-gray-900 dark:text-white text-sm'>Enviar</p>
+                    <p className='text-xs text-gray-500 dark:text-gray-400 mt-0.5'>
+                      Transferir cripto
+                    </p>
                   </button>
 
                   <button
                     onClick={handleReceiveCrypto}
-                    className='w-full flex items-center gap-3 p-3 bg-purple-100 dark:bg-purple-600/20 hover:bg-purple-200 dark:hover:bg-purple-600/30 rounded-lg border border-purple-300 dark:border-purple-600/50 hover:border-purple-400 dark:hover:border-purple-500 transition-all group'
+                    className='group p-4 bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-900/20 dark:to-purple-800/10 rounded-xl border border-purple-200 dark:border-purple-700/30 hover:border-purple-300 dark:hover:border-purple-600/50 transition-all text-left'
                   >
-                    <div className='w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform'>
+                    <div className='w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform shadow-lg'>
                       <Download className='w-5 h-5 text-white' />
                     </div>
-                    <div className='text-left flex-1'>
-                      <p className='text-xs font-bold text-purple-900 dark:text-white'>Receber</p>
-                      <p className='text-xs text-purple-700 dark:text-slate-400'>
-                        Endereço de depósito
-                      </p>
-                    </div>
-                    <ArrowUpRight className='w-4 h-4 text-purple-600 dark:text-purple-400' />
+                    <p className='font-semibold text-gray-900 dark:text-white text-sm'>Receber</p>
+                    <p className='text-xs text-gray-500 dark:text-gray-400 mt-0.5'>
+                      Endereço de depósito
+                    </p>
                   </button>
 
                   <button
                     onClick={handleChatP2P}
-                    className='w-full flex items-center gap-3 p-3 bg-orange-100 dark:bg-orange-600/20 hover:bg-orange-200 dark:hover:bg-orange-600/30 rounded-lg border border-orange-300 dark:border-orange-600/50 hover:border-orange-400 dark:hover:border-orange-500 transition-all group'
+                    className='group p-4 bg-gradient-to-br from-orange-50 to-orange-100/50 dark:from-orange-900/20 dark:to-orange-800/10 rounded-xl border border-orange-200 dark:border-orange-700/30 hover:border-orange-300 dark:hover:border-orange-600/50 transition-all text-left'
                   >
-                    <div className='w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform'>
+                    <div className='w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform shadow-lg'>
                       <MessageCircle className='w-5 h-5 text-white' />
                     </div>
-                    <div className='text-left flex-1'>
-                      <p className='text-xs font-bold text-orange-900 dark:text-white'>Chat</p>
-                      <p className='text-xs text-orange-700 dark:text-slate-400'>
-                        Negociar com outros
-                      </p>
-                    </div>
-                    <ArrowUpRight className='w-4 h-4 text-orange-600 dark:text-orange-400' />
+                    <p className='font-semibold text-gray-900 dark:text-white text-sm'>Chat</p>
+                    <p className='text-xs text-gray-500 dark:text-gray-400 mt-0.5'>
+                      Negociar com outros
+                    </p>
                   </button>
                 </div>
               </div>
@@ -949,13 +1087,18 @@ export const DashboardPage = () => {
             {/* Mercado + Segurança - 1 coluna */}
             <div className='space-y-4'>
               {/* Market Prices */}
-              <div className='bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden hover:border-rose-400 dark:hover:border-rose-500 transition-all'>
-                <div className='px-5 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between'>
-                  <div className='flex items-center gap-2'>
-                    <div className='p-2 bg-rose-100 dark:bg-rose-500/20 rounded-lg'>
-                      <TrendingUp className='w-4 h-4 text-rose-600 dark:text-rose-400' />
+              <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden'>
+                <div className='px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between'>
+                  <div className='flex items-center gap-3'>
+                    <div className='p-2 bg-gradient-to-br from-rose-500 to-rose-600 rounded-xl'>
+                      <TrendingUp className='w-5 h-5 text-white' />
                     </div>
-                    <h3 className='font-bold text-slate-900 dark:text-white text-sm'>Mercado</h3>
+                    <div>
+                      <h3 className='font-bold text-gray-900 dark:text-white'>Mercado</h3>
+                      <p className='text-xs text-gray-500 dark:text-gray-400'>
+                        Preços em tempo real
+                      </p>
+                    </div>
                   </div>
                   <button
                     onClick={async () => {
@@ -963,74 +1106,83 @@ export const DashboardPage = () => {
                       // O hook usePrices já faz isso automaticamente a cada 5 segundos
                     }}
                     disabled={loadingPrices}
-                    className='p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-50'
+                    className='p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors disabled:opacity-50'
                     title='Preços atualizando automaticamente'
                   >
                     <RefreshCw
-                      className={`w-3.5 h-3.5 text-slate-600 dark:text-slate-400 ${loadingPrices ? 'animate-spin' : ''}`}
+                      className={`w-4 h-4 text-gray-500 dark:text-gray-400 ${loadingPrices ? 'animate-spin' : ''}`}
                     />
                   </button>
                 </div>
-                <div className='p-3 space-y-2'>
+                <div className='p-4 space-y-2'>
                   {[
                     {
                       symbol: 'BTC',
                       name: 'Bitcoin',
-                      color: 'bg-orange-100 dark:bg-orange-600/20',
-                      border: 'border-orange-300 dark:border-orange-600/50',
-                      text: 'text-orange-900 dark:text-slate-200',
+                      gradient: 'from-orange-500 to-amber-500',
+                      bg: 'bg-orange-50 dark:bg-orange-900/20',
+                      border: 'border-orange-200 dark:border-orange-700/30',
                     },
                     {
                       symbol: 'ETH',
                       name: 'Ethereum',
-                      color: 'bg-blue-100 dark:bg-blue-600/20',
-                      border: 'border-blue-300 dark:border-blue-600/50',
-                      text: 'text-blue-900 dark:text-slate-200',
+                      gradient: 'from-blue-500 to-indigo-500',
+                      bg: 'bg-blue-50 dark:bg-blue-900/20',
+                      border: 'border-blue-200 dark:border-blue-700/30',
                     },
                     {
                       symbol: 'BNB',
                       name: 'BNB',
-                      color: 'bg-yellow-100 dark:bg-yellow-600/20',
-                      border: 'border-yellow-300 dark:border-yellow-600/50',
-                      text: 'text-yellow-900 dark:text-slate-200',
+                      gradient: 'from-yellow-500 to-amber-500',
+                      bg: 'bg-yellow-50 dark:bg-yellow-900/20',
+                      border: 'border-yellow-200 dark:border-yellow-700/30',
                     },
                     {
                       symbol: 'SOL',
                       name: 'Solana',
-                      color: 'bg-purple-100 dark:bg-purple-600/20',
-                      border: 'border-purple-300 dark:border-purple-600/50',
-                      text: 'text-purple-900 dark:text-slate-200',
+                      gradient: 'from-purple-500 to-violet-500',
+                      bg: 'bg-purple-50 dark:bg-purple-900/20',
+                      border: 'border-purple-200 dark:border-purple-700/30',
                     },
                     {
                       symbol: 'USDT',
                       name: 'USDT',
-                      color: 'bg-green-100 dark:bg-green-600/20',
-                      border: 'border-green-300 dark:border-green-600/50',
-                      text: 'text-green-900 dark:text-slate-200',
+                      gradient: 'from-green-500 to-emerald-500',
+                      bg: 'bg-green-50 dark:bg-green-900/20',
+                      border: 'border-green-200 dark:border-green-700/30',
                     },
                   ].map(crypto => (
                     <div
                       key={crypto.symbol}
-                      className={`p-2.5 ${crypto.color} rounded-lg border ${crypto.border} hover:border-opacity-100 transition-all`}
+                      className={`p-3 ${crypto.bg} rounded-xl border ${crypto.border} hover:scale-[1.02] transition-all`}
                     >
                       <div className='flex items-center justify-between'>
-                        <div className='flex items-center gap-2'>
-                          <div className='w-6 h-6 rounded-lg bg-slate-300 dark:bg-slate-700 flex items-center justify-center'>
-                            <CryptoIcon symbol={crypto.symbol} size={20} />
+                        <div className='flex items-center gap-3'>
+                          <div
+                            className={`w-9 h-9 rounded-xl bg-gradient-to-br ${crypto.gradient} flex items-center justify-center shadow-md`}
+                          >
+                            <CryptoIcon symbol={crypto.symbol} size={22} />
                           </div>
-                          <p className={`text-xs font-bold ${crypto.text}`}>{crypto.name}</p>
+                          <div>
+                            <p className='text-sm font-bold text-gray-900 dark:text-white'>
+                              {crypto.name}
+                            </p>
+                            <p className='text-xs text-gray-500 dark:text-gray-400'>
+                              {crypto.symbol}
+                            </p>
+                          </div>
                         </div>
                         <div className='text-right'>
-                          <p className={`text-xs font-bold ${crypto.text}`}>
+                          <p className='text-sm font-bold text-gray-900 dark:text-white'>
                             {marketPrices?.[crypto.symbol]?.price
                               ? formatCurrency(marketPrices[crypto.symbol]!.price)
                               : '--'}
                           </p>
-                          <p
-                            className={`text-xs font-semibold ${(marketPrices?.[crypto.symbol]?.change24h ?? 0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
+                          <span
+                            className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-xs font-semibold ${(marketPrices?.[crypto.symbol]?.change24h ?? 0) >= 0 ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'}`}
                           >
                             {marketPrices?.[crypto.symbol]?.change24hPercent || '--%'}
-                          </p>
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -1039,33 +1191,38 @@ export const DashboardPage = () => {
               </div>
 
               {/* Security Status */}
-              <div className='bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden hover:border-cyan-400 dark:hover:border-cyan-500 transition-all'>
-                <div className='px-5 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2'>
-                  <div className='p-2 bg-cyan-100 dark:bg-cyan-500/20 rounded-lg'>
-                    <Shield className='w-4 h-4 text-cyan-600 dark:text-cyan-400' />
+              <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden'>
+                <div className='px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center gap-3'>
+                  <div className='p-2 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-xl'>
+                    <Shield className='w-5 h-5 text-white' />
                   </div>
-                  <h3 className='font-bold text-slate-900 dark:text-white text-sm'>Segurança</h3>
+                  <div>
+                    <h3 className='font-bold text-gray-900 dark:text-white'>Segurança</h3>
+                    <p className='text-xs text-gray-500 dark:text-gray-400'>Status da sua conta</p>
+                  </div>
                 </div>
                 <div className='p-4 space-y-3'>
-                  <div className='flex items-center gap-3 p-2 bg-slate-100 dark:bg-slate-700/50 rounded-lg'>
-                    <div className='w-2 h-2 bg-green-500 rounded-full'></div>
+                  <div className='flex items-center gap-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-700/30'>
+                    <div className='w-3 h-3 bg-green-500 rounded-full animate-pulse'></div>
                     <div className='flex-1'>
-                      <p className='text-xs font-semibold text-slate-900 dark:text-white'>
+                      <p className='text-sm font-semibold text-gray-900 dark:text-white'>
                         2FA Ativado
                       </p>
-                      <p className='text-xs text-slate-600 dark:text-slate-400'>
+                      <p className='text-xs text-gray-500 dark:text-gray-400'>
                         {user?.isVerified ? 'Verificado' : 'Pendente'}
                       </p>
                     </div>
+                    <CheckCircle className='w-5 h-5 text-green-500' />
                   </div>
-                  <div className='flex items-center gap-3 p-2 bg-slate-100 dark:bg-slate-700/50 rounded-lg'>
-                    <div className='w-2 h-2 bg-green-500 rounded-full'></div>
+                  <div className='flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-700/30'>
+                    <div className='w-3 h-3 bg-blue-500 rounded-full'></div>
                     <div className='flex-1'>
-                      <p className='text-xs font-semibold text-slate-900 dark:text-white'>
+                      <p className='text-sm font-semibold text-gray-900 dark:text-white'>
                         Senha Forte
                       </p>
-                      <p className='text-xs text-slate-600 dark:text-slate-400'>Bem protegido</p>
+                      <p className='text-xs text-gray-500 dark:text-gray-400'>Bem protegido</p>
                     </div>
+                    <CheckCircle className='w-5 h-5 text-blue-500' />
                   </div>
                 </div>
               </div>

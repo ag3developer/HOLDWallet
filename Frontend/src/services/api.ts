@@ -158,12 +158,31 @@ class ApiClient {
             throw this.handleApiError(error)
           }
 
-          console.warn('[API] 403 Forbidden - Token may be invalid or missing')
+          // Log detailed 403 info for debugging
+          console.error('[API] 🚫 403 Forbidden Details:', {
+            url: error.config?.url,
+            detail: errorDetail,
+            fullResponse: error.response?.data,
+            hasAuthHeader: !!error.config?.headers?.Authorization,
+            authHeaderPreview: error.config?.headers?.Authorization?.substring(0, 30) + '...',
+          })
+
           // Check if we have a token
           const token = this.getStoredToken()
           if (!token) {
-            console.warn('[API] No token found - redirecting to login')
+            console.warn('[API] ⚠️ No token found - user needs to login again')
             this.handleAuthError()
+          } else {
+            // Token exists but 403 - likely expired or invalid
+            console.warn('[API] ⚠️ Token exists but got 403 - token may be expired/invalid')
+            // Check if it's an IP block message
+            if (errorDetail?.includes('IP') || errorDetail?.includes('blocked')) {
+              console.error('[API] 🚫 IP BLOCKED! Contact support.')
+            } else {
+              // Token is invalid - force logout
+              console.warn('[API] 🔐 Forcing re-authentication')
+              this.handleAuthError()
+            }
           }
         }
 
@@ -178,7 +197,6 @@ class ApiClient {
       // Strategy 1: Check in-memory Zustand store (fastest & most reliable)
       const zustandToken = useAuthStore.getState().token
       if (zustandToken) {
-        console.log('[API] ✅ Token found in Zustand store (in-memory)')
         return zustandToken
       }
 
@@ -189,7 +207,7 @@ class ApiClient {
       if (authData) {
         const token = this.extractTokenFromData(authData)
         if (token) {
-          console.log('[API] ✅ Token found in localStorage (Zustand format)')
+          console.log('[API] ✅ Token recovered from localStorage (Zustand format)')
           // Restore to in-memory store for faster future access
           try {
             const parsed = JSON.parse(authData)
@@ -197,13 +215,24 @@ class ApiClient {
               useAuthStore.getState().setAuthData(parsed.state.user, token)
             }
           } catch (e) {
-            console.warn('[API] Could not restore auth to memory', e)
+            console.warn('[API] Could not restore auth to memory')
           }
           return token
         }
       }
 
-      // Strategy 3: Check all localStorage keys (comprehensive fallback)
+      // Strategy 3: Check sessionStorage backup (Safari PWA fallback)
+      try {
+        const sessionToken = sessionStorage.getItem('auth_token_backup')
+        if (sessionToken) {
+          console.log('[API] ✅ Token recovered from sessionStorage backup')
+          return sessionToken
+        }
+      } catch {
+        // sessionStorage not available
+      }
+
+      // Strategy 4: Check all localStorage keys (comprehensive fallback)
       const foundToken = this.findTokenInAllKeys()
       if (foundToken) {
         return foundToken
