@@ -41,33 +41,58 @@ class BlockchainWithdrawService:
     guarda as chaves privadas dos usuários de forma criptografada.
     """
     
+    # Mapeamento de símbolos alternativos para o símbolo canônico
+    SYMBOL_ALIASES = {
+        "POL": "MATIC",  # POL é o novo nome de MATIC
+        "WMATIC": "MATIC",
+        "WETH": "ETH",
+        "WBNB": "BNB",
+    }
+    
+    # Tokens nativos de cada rede (não tem contrato, balance via get_balance)
+    NATIVE_TOKENS = {
+        "ethereum": ["ETH"],
+        "polygon": ["MATIC", "POL"],  # POL é alias de MATIC
+        "base": ["ETH"],
+        "bsc": ["BNB"],
+        "avalanche": ["AVAX"],
+        "arbitrum": ["ETH"],
+        "optimism": ["ETH"],
+    }
+    
     # Configuração de redes (mesma do deposit service)
     NETWORK_CONFIG = {
         "ethereum": {
             "rpc_url": settings.ETHEREUM_RPC_URL,
             "chain_id": 1,
             "gas_limit": 21000,
+            "native_symbol": "ETH",
             "contracts": {
                 "USDT": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
                 "USDC": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+                "ETH": None,  # Native token
             }
         },
         "polygon": {
             "rpc_url": settings.POLYGON_RPC_URL,
             "chain_id": 137,
             "gas_limit": 21000,
+            "native_symbol": "MATIC",
             "contracts": {
                 "USDT": "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
                 "USDC": "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
                 "MATIC": None,  # Native token
+                "POL": None,    # POL é alias de MATIC (native token)
             }
         },
         "base": {
             "rpc_url": settings.BASE_RPC_URL,
             "chain_id": 8453,
             "gas_limit": 21000,
+            "native_symbol": "ETH",
             "contracts": {
                 "USDC": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                "ETH": None,  # Native token
             }
         }
     }
@@ -180,17 +205,49 @@ class BlockchainWithdrawService:
         network: str,
         required_amount: Decimal
     ) -> Dict[str, Any]:
-        """Verifica se usuário tem saldo suficiente"""
+        """
+        Verifica se usuário tem saldo suficiente.
+        
+        Trata corretamente:
+        - Tokens nativos (ETH, MATIC/POL, BNB, AVAX)
+        - Stablecoins ERC20 (USDT, USDC)
+        - Alias de símbolos (POL -> MATIC)
+        """
         try:
-            config = self.NETWORK_CONFIG[network.lower()]
-            contract_address = config["contracts"].get(symbol.upper())
+            config = self.NETWORK_CONFIG.get(network.lower())
+            if not config:
+                logger.error(f"❌ Rede não configurada: {network}")
+                return {
+                    "balance": 0,
+                    "required": float(required_amount),
+                    "has_enough": False,
+                    "error": f"Rede {network} não configurada"
+                }
             
-            if contract_address is None:
-                # Token nativo (ETH, MATIC)
+            # Normalizar símbolo (POL -> MATIC, etc)
+            normalized_symbol = self.SYMBOL_ALIASES.get(symbol.upper(), symbol.upper())
+            logger.info(f"🔍 Verificando saldo: symbol={symbol} -> normalized={normalized_symbol}, network={network}")
+            
+            # Verificar se é token nativo da rede
+            native_tokens = self.NATIVE_TOKENS.get(network.lower(), [])
+            is_native_token = (
+                normalized_symbol in native_tokens or 
+                symbol.upper() in native_tokens or
+                config["contracts"].get(normalized_symbol) is None or
+                config["contracts"].get(symbol.upper()) is None
+            )
+            
+            # Se não encontrou contrato E é símbolo conhecido como nativo, trata como nativo
+            contract_address = config["contracts"].get(normalized_symbol) or config["contracts"].get(symbol.upper())
+            
+            if contract_address is None or is_native_token:
+                # Token nativo (ETH, MATIC/POL, BNB, AVAX, etc)
+                logger.info(f"💎 Token nativo detectado: {symbol} na rede {network}")
                 balance_wei = w3.eth.get_balance(Web3.to_checksum_address(address))
                 balance = Decimal(str(w3.from_wei(balance_wei, 'ether')))
             else:
-                # Token ERC20
+                # Token ERC20 (USDT, USDC, etc)
+                logger.info(f"📄 Token ERC20 detectado: {symbol} em {contract_address}")
                 contract = w3.eth.contract(
                     address=Web3.to_checksum_address(contract_address),
                     abi=self.ERC20_ABI
@@ -203,15 +260,26 @@ class BlockchainWithdrawService:
             
             has_enough = balance >= required_amount
             
+            # Tolerância para erros de precisão de float (0.000001 = 1 microunidade)
+            # Isso evita falsos negativos quando o saldo é praticamente igual ao necessário
+            tolerance = Decimal("0.000001")
+            if not has_enough and (required_amount - balance) < tolerance:
+                logger.info(f"⚠️ Aplicando tolerância de precisão: diferença = {required_amount - balance}")
+                has_enough = True
+            
+            logger.info(f"{'✅' if has_enough else '❌'} Saldo: {balance} {symbol}, Necessário: {required_amount}")
+            
             return {
                 "balance": float(balance),
                 "required": float(required_amount),
                 "has_enough": has_enough,
-                "missing": float(required_amount - balance) if not has_enough else 0
+                "missing": float(required_amount - balance) if not has_enough else 0,
+                "is_native": contract_address is None or is_native_token,
+                "normalized_symbol": normalized_symbol
             }
             
         except Exception as e:
-            logger.error(f"❌ Erro verificando saldo: {str(e)}")
+            logger.error(f"❌ Erro verificando saldo de {symbol} na rede {network}: {str(e)}")
             return {
                 "balance": 0,
                 "required": float(required_amount),
@@ -468,11 +536,20 @@ class BlockchainWithdrawService:
             logger.info(f"✅ Saldo suficiente! Disponível: {balance_check['balance']}")
             
             # 6. Determina se é token nativo ou ERC20
+            # Usar informação de is_native retornada pelo check_user_balance
             config = self.NETWORK_CONFIG[network.lower()]
-            contract_address = config["contracts"].get(trade.symbol.upper())
-            is_erc20 = contract_address is not None
+            is_native_token = balance_check.get("is_native", False)
             
-            logger.info(f"📋 Token: {trade.symbol}, Contract: {contract_address or 'NATIVO'}")
+            # Se check_user_balance determinou que é nativo, contract_address é None
+            if is_native_token:
+                contract_address = None
+            else:
+                normalized_symbol = balance_check.get("normalized_symbol", trade.symbol.upper())
+                contract_address = config["contracts"].get(normalized_symbol) or config["contracts"].get(trade.symbol.upper())
+            
+            is_erc20 = not is_native_token
+            
+            logger.info(f"📋 Token: {trade.symbol}, Native: {is_native_token}, Contract: {contract_address or 'NATIVO'}")
             logger.info(f"📍 Destino: {self.platform_wallet_address}")
             
             # 7. ⭐ GAS SPONSOR: Verifica e patrocina gas se necessário

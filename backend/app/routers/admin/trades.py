@@ -1185,9 +1185,10 @@ async def check_sell_ready(
         )
         
         # Verificar saldo de gas
+        # Usar informação de is_native retornada pelo check_user_balance
         config = gas_sponsor_service.NETWORK_CONFIG[network.lower()]
-        contract_address = blockchain_withdraw_service.NETWORK_CONFIG[network.lower()]["contracts"].get(trade.symbol.upper())
-        is_erc20 = contract_address is not None
+        is_native_token = balance_check.get("is_native", False)
+        is_erc20 = not is_native_token
         
         gas_check = gas_sponsor_service.check_user_gas_balance(
             w3=w3,
