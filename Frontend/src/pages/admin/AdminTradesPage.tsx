@@ -3,6 +3,7 @@
  * ===================================
  *
  * Página de gestão de trades OTC.
+ * Design moderno, responsivo e compacto para todos os dispositivos.
  * Usa React Query para cache de dados.
  */
 
@@ -23,12 +24,51 @@ import {
   Filter,
   AlertTriangle,
   DollarSign,
+  Wallet,
+  User,
+  Hash,
 } from 'lucide-react'
 import { useTradeStats, useTrades, useCancelTrade } from '@/hooks/admin/useAdminTrades'
 import { type Trade } from '@/services/admin/adminService'
 import { toast } from 'react-hot-toast'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
 import { InputModal } from '@/components/ui/InputModal'
+
+// Mapeamento de logos das criptomoedas
+const CRYPTO_LOGOS: Record<string, string> = {
+  BTC: 'https://cryptologos.cc/logos/bitcoin-btc-logo.png',
+  ETH: 'https://cryptologos.cc/logos/ethereum-eth-logo.png',
+  USDT: 'https://cryptologos.cc/logos/tether-usdt-logo.png',
+  USDC: 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png',
+  MATIC: 'https://cryptologos.cc/logos/polygon-matic-logo.png',
+  POL: 'https://cryptologos.cc/logos/polygon-matic-logo.png',
+  BNB: 'https://cryptologos.cc/logos/bnb-bnb-logo.png',
+  SOL: 'https://cryptologos.cc/logos/solana-sol-logo.png',
+  XRP: 'https://cryptologos.cc/logos/xrp-xrp-logo.png',
+  ADA: 'https://cryptologos.cc/logos/cardano-ada-logo.png',
+  DOGE: 'https://cryptologos.cc/logos/dogecoin-doge-logo.png',
+  DOT: 'https://cryptologos.cc/logos/polkadot-new-dot-logo.png',
+  AVAX: 'https://cryptologos.cc/logos/avalanche-avax-logo.png',
+  LTC: 'https://cryptologos.cc/logos/litecoin-ltc-logo.png',
+  LINK: 'https://cryptologos.cc/logos/chainlink-link-logo.png',
+  UNI: 'https://cryptologos.cc/logos/uniswap-uni-logo.png',
+  ATOM: 'https://cryptologos.cc/logos/cosmos-atom-logo.png',
+  XLM: 'https://cryptologos.cc/logos/stellar-xlm-logo.png',
+}
+
+// Função para obter logo da crypto
+const getCryptoLogo = (symbol?: string) => {
+  if (!symbol) return null
+  return CRYPTO_LOGOS[symbol.toUpperCase()] || null
+}
+
+// Função para gerar ID WolkNow do usuário (mesmo formato do Sidebar)
+const formatUserWNId = (userId?: string) => {
+  if (!userId) return 'WN00000'
+  // Remove todos os caracteres não-numéricos e pega os primeiros 5 dígitos
+  const numericId = String(userId).replaceAll(/\D/g, '').substring(0, 5) || '00000'
+  return `WN${numericId}`
+}
 
 export const AdminTradesPage: React.FC = () => {
   const navigate = useNavigate()
@@ -37,6 +77,7 @@ export const AdminTradesPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [typeFilter, setTypeFilter] = useState<string>('all')
   const [page, setPage] = useState(1)
+  const [showFilters, setShowFilters] = useState(false)
   const limit = 20
 
   // Modal states
@@ -125,38 +166,17 @@ export const AdminTradesPage: React.FC = () => {
     }
   }
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  }
-
   const formatCurrency = (value: number, currency: string = 'USD') => {
+    if (currency === 'BRL') {
+      return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL',
+      }).format(value)
+    }
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency,
     }).format(value)
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-      case 'pending':
-      case 'payment_processing':
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-      case 'cancelled':
-      case 'expired':
-        return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-      case 'failed':
-        return 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400'
-      default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-    }
   }
 
   const getStatusIcon = (status: string) => {
@@ -199,189 +219,295 @@ export const AdminTradesPage: React.FC = () => {
     return status === 'pending' || status === 'payment_processing'
   }
 
+  // Formatar data relativa
+  const formatRelativeDate = (dateStr: string) => {
+    const date = new Date(dateStr)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMs / 3600000)
+    const diffDays = Math.floor(diffMs / 86400000)
+
+    if (diffMins < 1) return 'Agora'
+    if (diffMins < 60) return `${diffMins}min`
+    if (diffHours < 24) return `${diffHours}h`
+    if (diffDays < 7) return `${diffDays}d`
+    return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+  }
+
+  // Formatar quantidade de crypto
+  const formatCryptoAmount = (amount: number | null | undefined) => {
+    if (amount === null || amount === undefined) return '0.00'
+    const numAmount = Number(amount)
+    if (Number.isNaN(numAmount)) return '0.00'
+    if (numAmount >= 1000) return numAmount.toLocaleString('pt-BR', { maximumFractionDigits: 2 })
+    if (numAmount >= 1) return numAmount.toFixed(4)
+    return numAmount.toFixed(8)
+  }
+
+  // Obter classe de cor do status (background)
+  const getStatusBgClass = (status: string) => {
+    if (status === 'completed') return 'bg-green-500/10 text-green-400'
+    if (status === 'pending' || status === 'payment_processing')
+      return 'bg-yellow-500/10 text-yellow-400'
+    if (status === 'cancelled' || status === 'expired') return 'bg-red-500/10 text-red-400'
+    return 'bg-orange-500/10 text-orange-400'
+  }
+
+  // Obter classe de cor do status (texto)
+  const getStatusTextClass = (status: string) => {
+    if (status === 'completed') return 'text-green-400'
+    if (status === 'pending' || status === 'payment_processing') return 'text-yellow-400'
+    if (status === 'cancelled' || status === 'expired') return 'text-red-400'
+    return 'text-orange-400'
+  }
+
   return (
-    <div className='min-h-screen bg-gray-50 dark:bg-gray-900 p-6'>
-      {/* Header */}
-      <div className='mb-8'>
-        <div className='flex items-center gap-3 mb-2'>
-          <TrendingUp className='w-8 h-8 text-green-600' />
-          <h1 className='text-2xl font-bold text-gray-900 dark:text-white'>Gestão de Trades OTC</h1>
+    <div className='min-h-screen bg-[#0a0a0a] p-3 sm:p-4 lg:p-6 space-y-4'>
+      {/* Header Compacto */}
+      <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-3'>
+        <div className='flex items-center gap-3'>
+          <div className='p-2 rounded-xl bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-green-500/20'>
+            <TrendingUp className='h-5 w-5 text-green-400' />
+          </div>
+          <div>
+            <h1 className='text-lg sm:text-xl font-bold text-white'>Trades OTC</h1>
+            <p className='text-gray-500 text-xs sm:text-sm'>Compra e venda de criptomoedas</p>
+          </div>
         </div>
-        <p className='text-gray-600 dark:text-gray-400'>
-          Monitore e gerencie todos os trades OTC da plataforma
-        </p>
+        <button
+          onClick={() => refetch()}
+          disabled={isFetching}
+          className='flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-white border border-white/10 transition-all text-sm disabled:opacity-50'
+        >
+          <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
+          <span className='hidden sm:inline'>Atualizar</span>
+        </button>
       </div>
 
-      {/* Stats Cards */}
-      <div className='grid grid-cols-1 md:grid-cols-5 gap-4 mb-6'>
-        <div className='bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm'>
-          <div className='flex items-center gap-3'>
-            <div className='w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center'>
-              <TrendingUp className='w-5 h-5 text-blue-600' />
-            </div>
-            <div>
-              <p className='text-sm text-gray-500'>Total de Trades</p>
-              <p className='text-xl font-bold text-gray-900 dark:text-white'>
-                {stats?.total_trades || 0}
-              </p>
-            </div>
+      {/* Stats Cards - Grid Responsivo */}
+      <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3'>
+        {/* Total */}
+        <div className='bg-gradient-to-br from-[#111] to-[#0d0d0d] border border-white/5 rounded-xl p-3 sm:p-4'>
+          <div className='flex items-center justify-between mb-2'>
+            <TrendingUp className='h-4 w-4 text-gray-500' />
           </div>
+          <div className='text-xl sm:text-2xl font-bold text-white'>{stats?.total_trades || 0}</div>
+          <p className='text-[10px] sm:text-xs text-gray-500 mt-1'>Total</p>
         </div>
-        <div className='bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm'>
-          <div className='flex items-center gap-3'>
-            <div className='w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center'>
-              <CheckCircle className='w-5 h-5 text-green-600' />
-            </div>
-            <div>
-              <p className='text-sm text-gray-500'>Concluídos</p>
-              <p className='text-xl font-bold text-green-600'>{stats?.completed || 0}</p>
-            </div>
+
+        {/* Concluídos */}
+        <div className='bg-gradient-to-br from-[#111] to-[#0d0d0d] border border-green-500/10 rounded-xl p-3 sm:p-4'>
+          <div className='flex items-center justify-between mb-2'>
+            <CheckCircle className='h-4 w-4 text-green-500/70' />
           </div>
+          <div className='text-xl sm:text-2xl font-bold text-green-500'>
+            {stats?.completed || 0}
+          </div>
+          <p className='text-[10px] sm:text-xs text-gray-500 mt-1'>Concluídos</p>
         </div>
-        <div className='bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm'>
-          <div className='flex items-center gap-3'>
-            <div className='w-10 h-10 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg flex items-center justify-center'>
-              <Clock className='w-5 h-5 text-yellow-600' />
-            </div>
-            <div>
-              <p className='text-sm text-gray-500'>Pendentes</p>
-              <p className='text-xl font-bold text-yellow-600'>{stats?.pending || 0}</p>
-            </div>
+
+        {/* Pendentes */}
+        <div className='bg-gradient-to-br from-[#111] to-[#0d0d0d] border border-yellow-500/10 rounded-xl p-3 sm:p-4'>
+          <div className='flex items-center justify-between mb-2'>
+            <Clock className='h-4 w-4 text-yellow-500/70' />
+            {(stats?.pending || 0) > 0 && (
+              <span className='flex h-2 w-2'>
+                <span className='animate-ping absolute inline-flex h-2 w-2 rounded-full bg-yellow-400 opacity-75'></span>
+                <span className='relative inline-flex rounded-full h-2 w-2 bg-yellow-500'></span>
+              </span>
+            )}
           </div>
+          <div className='text-xl sm:text-2xl font-bold text-yellow-500'>{stats?.pending || 0}</div>
+          <p className='text-[10px] sm:text-xs text-gray-500 mt-1'>Pendentes</p>
         </div>
-        <div className='bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm'>
-          <div className='flex items-center gap-3'>
-            <div className='w-10 h-10 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center'>
-              <XCircle className='w-5 h-5 text-red-600' />
-            </div>
-            <div>
-              <p className='text-sm text-gray-500'>Cancelados</p>
-              <p className='text-xl font-bold text-red-600'>{stats?.cancelled || 0}</p>
-            </div>
+
+        {/* Cancelados */}
+        <div className='bg-gradient-to-br from-[#111] to-[#0d0d0d] border border-red-500/10 rounded-xl p-3 sm:p-4'>
+          <div className='flex items-center justify-between mb-2'>
+            <XCircle className='h-4 w-4 text-red-500/70' />
           </div>
+          <div className='text-xl sm:text-2xl font-bold text-red-500'>{stats?.cancelled || 0}</div>
+          <p className='text-[10px] sm:text-xs text-gray-500 mt-1'>Cancelados</p>
         </div>
-        <div className='bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm'>
-          <div className='flex items-center gap-3'>
-            <div className='w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center'>
-              <DollarSign className='w-5 h-5 text-purple-600' />
-            </div>
-            <div>
-              <p className='text-sm text-gray-500'>Volume Total</p>
-              <p className='text-xl font-bold text-purple-600'>
-                {formatCurrency(stats?.total_volume_brl || 0)}
-              </p>
-            </div>
+
+        {/* Volume */}
+        <div className='col-span-2 sm:col-span-1 bg-gradient-to-br from-[#111] to-[#0d0d0d] border border-purple-500/10 rounded-xl p-3 sm:p-4'>
+          <div className='flex items-center justify-between mb-2'>
+            <DollarSign className='h-4 w-4 text-purple-500/70' />
           </div>
+          <div className='text-xl sm:text-2xl font-bold text-purple-500 truncate'>
+            {formatCurrency(stats?.total_volume_brl || 0, 'BRL')}
+          </div>
+          <p className='text-[10px] sm:text-xs text-gray-500 mt-1'>Volume Total</p>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className='bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm mb-6'>
-        <div className='flex flex-col md:flex-row gap-4'>
+      {/* Barra de Busca e Filtros */}
+      <div className='bg-[#111] border border-white/5 rounded-xl p-3'>
+        <div className='flex flex-col sm:flex-row gap-2'>
           {/* Search */}
-          <div className='flex-1 relative'>
-            <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400' />
+          <div className='relative flex-1'>
+            <Search className='absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500' />
             <input
               type='text'
-              placeholder='Buscar por código, ID...'
+              placeholder='Buscar código, usuário...'
               value={search}
               onChange={e => {
                 setSearch(e.target.value)
                 setPage(1)
               }}
-              className='w-full pl-10 pr-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500'
+              className='w-full pl-9 pr-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-gray-600 focus:outline-none focus:ring-1 focus:ring-green-500/50 focus:border-green-500/50'
             />
           </div>
 
-          {/* Status Filter */}
-          <div className='flex items-center gap-2'>
-            <Filter className='w-4 h-4 text-gray-500' />
+          {/* Filtros Desktop */}
+          <div className='hidden sm:flex gap-2'>
             <select
               value={statusFilter}
               onChange={e => {
                 setStatusFilter(e.target.value)
                 setPage(1)
               }}
-              className='px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white'
               title='Filtrar por status'
+              aria-label='Filtrar por status'
+              className='px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-green-500/50 cursor-pointer'
             >
-              <option value='all'>Todos Status</option>
-              <option value='pending'>Pendentes</option>
+              <option value='all'>Status</option>
+              <option value='pending'>Pendente</option>
               <option value='payment_processing'>Processando</option>
-              <option value='completed'>Concluídos</option>
-              <option value='cancelled'>Cancelados</option>
-              <option value='failed'>Falhas</option>
-              <option value='expired'>Expirados</option>
+              <option value='completed'>Concluído</option>
+              <option value='cancelled'>Cancelado</option>
+              <option value='failed'>Falhou</option>
+              <option value='expired'>Expirado</option>
             </select>
+
+            {/* Botões de Tipo */}
+            <div className='flex gap-1 bg-white/5 rounded-lg p-1'>
+              <button
+                onClick={() => {
+                  setTypeFilter('all')
+                  setPage(1)
+                }}
+                className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                  typeFilter === 'all' ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                Todos
+              </button>
+              <button
+                onClick={() => {
+                  setTypeFilter('buy')
+                  setPage(1)
+                }}
+                className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                  typeFilter === 'buy'
+                    ? 'bg-green-500/20 text-green-400'
+                    : 'text-gray-400 hover:text-green-400'
+                }`}
+              >
+                Compra
+              </button>
+              <button
+                onClick={() => {
+                  setTypeFilter('sell')
+                  setPage(1)
+                }}
+                className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                  typeFilter === 'sell'
+                    ? 'bg-red-500/20 text-red-400'
+                    : 'text-gray-400 hover:text-red-400'
+                }`}
+              >
+                Venda
+              </button>
+            </div>
           </div>
 
-          {/* Type Filter */}
-          <div className='flex gap-2'>
-            <button
-              onClick={() => {
-                setTypeFilter('all')
-                setPage(1)
-              }}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                typeFilter === 'all'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-              }`}
-            >
-              Todos
-            </button>
-            <button
-              onClick={() => {
-                setTypeFilter('buy')
-                setPage(1)
-              }}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                typeFilter === 'buy'
-                  ? 'bg-green-600 text-white'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-              }`}
-            >
-              Compra
-            </button>
-            <button
-              onClick={() => {
-                setTypeFilter('sell')
-                setPage(1)
-              }}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                typeFilter === 'sell'
-                  ? 'bg-red-600 text-white'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-              }`}
-            >
-              Venda
-            </button>
-          </div>
-
+          {/* Filtros Mobile Toggle */}
           <button
-            onClick={() => refetch()}
-            disabled={isFetching}
-            className='p-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50'
-            title='Atualizar lista'
+            onClick={() => setShowFilters(!showFilters)}
+            className='sm:hidden flex items-center justify-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-gray-400'
           >
-            <RefreshCw
-              className={`w-5 h-5 text-gray-600 dark:text-gray-400 ${isFetching ? 'animate-spin' : ''}`}
-            />
+            <Filter className='h-4 w-4' />
+            Filtros
           </button>
         </div>
+
+        {/* Filtros Mobile Expandidos */}
+        {showFilters && (
+          <div className='flex flex-col gap-2 mt-2 sm:hidden'>
+            <select
+              value={statusFilter}
+              onChange={e => {
+                setStatusFilter(e.target.value)
+                setPage(1)
+              }}
+              title='Filtrar por status'
+              aria-label='Filtrar por status'
+              className='w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm'
+            >
+              <option value='all'>Todos Status</option>
+              <option value='pending'>Pendente</option>
+              <option value='payment_processing'>Processando</option>
+              <option value='completed'>Concluído</option>
+              <option value='cancelled'>Cancelado</option>
+              <option value='failed'>Falhou</option>
+              <option value='expired'>Expirado</option>
+            </select>
+
+            <div className='flex gap-1 bg-white/5 rounded-lg p-1'>
+              <button
+                onClick={() => {
+                  setTypeFilter('all')
+                  setPage(1)
+                }}
+                className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  typeFilter === 'all' ? 'bg-white/10 text-white' : 'text-gray-400'
+                }`}
+              >
+                Todos
+              </button>
+              <button
+                onClick={() => {
+                  setTypeFilter('buy')
+                  setPage(1)
+                }}
+                className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  typeFilter === 'buy' ? 'bg-green-500/20 text-green-400' : 'text-gray-400'
+                }`}
+              >
+                Compra
+              </button>
+              <button
+                onClick={() => {
+                  setTypeFilter('sell')
+                  setPage(1)
+                }}
+                className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  typeFilter === 'sell' ? 'bg-red-500/20 text-red-400' : 'text-gray-400'
+                }`}
+              >
+                Venda
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Trades Table */}
-      <div className='bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden'>
-        {loading ? (
-          <div className='p-8 text-center'>
-            <RefreshCw className='w-8 h-8 animate-spin text-blue-500 mx-auto mb-4' />
-            <p className='text-gray-600 dark:text-gray-400'>Carregando trades...</p>
+      {/* Lista de Trades - Cards Mobile / Tabela Desktop */}
+      <div className='bg-[#111] border border-white/5 rounded-xl overflow-hidden'>
+        {loading && (
+          <div className='flex flex-col items-center justify-center py-12'>
+            <RefreshCw className='h-8 w-8 animate-spin text-green-500 mb-3' />
+            <p className='text-gray-500 text-sm'>Carregando trades...</p>
           </div>
-        ) : trades.length === 0 ? (
-          <div className='p-8 text-center'>
-            <TrendingUp className='w-12 h-12 text-gray-400 mx-auto mb-4' />
-            <p className='text-gray-600 dark:text-gray-400'>Nenhum trade encontrado</p>
+        )}
+
+        {!loading && trades.length === 0 && (
+          <div className='flex flex-col items-center justify-center py-12'>
+            <TrendingUp className='h-10 w-10 text-gray-700 mb-3' />
+            <p className='text-gray-500 text-sm'>Nenhum trade encontrado</p>
             {(search || statusFilter !== 'all' || typeFilter !== 'all') && (
               <button
                 onClick={() => {
@@ -390,181 +516,341 @@ export const AdminTradesPage: React.FC = () => {
                   setTypeFilter('all')
                   setPage(1)
                 }}
-                className='mt-4 text-blue-600 hover:underline'
+                className='mt-4 text-green-400 hover:underline text-sm'
               >
                 Limpar filtros
               </button>
             )}
           </div>
-        ) : (
+        )}
+
+        {!loading && trades.length > 0 && (
           <>
-            <div className='overflow-x-auto'>
+            {/* Tabela Desktop */}
+            <div className='hidden lg:block overflow-x-auto'>
               <table className='w-full'>
-                <thead className='bg-gray-50 dark:bg-gray-700'>
-                  <tr>
-                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider'>
-                      Código / Data
+                <thead>
+                  <tr className='border-b border-white/5 bg-white/[0.02]'>
+                    <th className='text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      Moeda
                     </th>
-                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider'>
-                      Usuário
-                    </th>
-                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider'>
+                    <th className='text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider'>
                       Tipo
                     </th>
-                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider'>
+                    <th className='text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider'>
                       Quantidade
                     </th>
-                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider'>
-                      Preço
-                    </th>
-                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider'>
+                    <th className='text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider'>
                       Total USD
                     </th>
-                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider'>
+                    <th className='text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider'>
                       Valor BRL
                     </th>
-                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider'>
+                    <th className='text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      Usuário
+                    </th>
+                    <th className='text-center px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider'>
                       Status
                     </th>
-                    <th className='px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider'>
-                      Ações
+                    <th className='text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      Data
                     </th>
+                    <th className='text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider'></th>
                   </tr>
                 </thead>
-                <tbody className='divide-y divide-gray-200 dark:divide-gray-700'>
-                  {trades.map(trade => (
-                    <tr key={trade.id} className='hover:bg-gray-50 dark:hover:bg-gray-700/50'>
-                      <td className='px-6 py-4 whitespace-nowrap'>
-                        <div>
-                          <span className='text-sm font-medium text-gray-900 dark:text-white'>
-                            {trade.reference_code}
-                          </span>
-                          <p className='text-xs text-gray-500'>{formatDate(trade.created_at)}</p>
-                        </div>
-                      </td>
-                      <td className='px-6 py-4 whitespace-nowrap'>
-                        <span className='text-sm text-gray-900 dark:text-white'>
-                          {trade.username}
-                        </span>
-                      </td>
-                      <td className='px-6 py-4 whitespace-nowrap'>
-                        <div className='flex items-center gap-2'>
-                          {trade.operation_type === 'buy' ? (
-                            <>
-                              <ArrowDownRight className='w-4 h-4 text-green-500' />
-                              <span className='text-sm font-medium text-green-600'>Compra</span>
-                            </>
-                          ) : (
-                            <>
-                              <ArrowUpRight className='w-4 h-4 text-red-500' />
-                              <span className='text-sm font-medium text-red-600'>Venda</span>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                      <td className='px-6 py-4 whitespace-nowrap'>
-                        <span className='text-sm text-gray-900 dark:text-white'>
-                          {trade.crypto_amount?.toLocaleString('pt-BR', {
-                            maximumFractionDigits: 8,
-                          })}{' '}
-                          {trade.symbol}
-                        </span>
-                      </td>
-                      <td className='px-6 py-4 whitespace-nowrap'>
-                        <span className='text-sm text-gray-900 dark:text-white'>
-                          {formatCurrency(trade.crypto_price || 0)}
-                        </span>
-                      </td>
-                      <td className='px-6 py-4 whitespace-nowrap'>
-                        <span className='text-sm font-medium text-gray-900 dark:text-white'>
-                          {formatCurrency(trade.total_amount || 0)}
-                        </span>
-                      </td>
-                      <td className='px-6 py-4 whitespace-nowrap'>
-                        {trade.brl_total_amount ? (
-                          <div>
-                            <span className='text-sm font-medium text-green-600 dark:text-green-400'>
-                              R${' '}
-                              {trade.brl_total_amount.toLocaleString('pt-BR', {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              })}
-                            </span>
-                            <p className='text-[10px] text-gray-400 uppercase'>
-                              {trade.payment_method}
-                            </p>
+                <tbody className='divide-y divide-white/5'>
+                  {trades.map(trade => {
+                    const logo = getCryptoLogo(trade.symbol)
+                    const isBuy = trade.operation_type === 'buy'
+
+                    return (
+                      <tr key={trade.id} className='hover:bg-white/[0.02] transition-colors'>
+                        {/* Moeda */}
+                        <td className='px-4 py-3'>
+                          <div className='flex items-center gap-2'>
+                            {logo ? (
+                              <img src={logo} alt={trade.symbol} className='w-7 h-7 rounded-full' />
+                            ) : (
+                              <div className='w-7 h-7 rounded-full bg-gray-700 flex items-center justify-center'>
+                                <Wallet className='h-3.5 w-3.5 text-gray-400' />
+                              </div>
+                            )}
+                            <div>
+                              <span className='text-white font-medium text-sm'>
+                                {trade.symbol || 'N/A'}
+                              </span>
+                              <span className='block text-[10px] text-gray-500 font-mono'>
+                                {trade.reference_code}
+                              </span>
+                            </div>
                           </div>
-                        ) : (
-                          <span className='text-sm text-gray-400'>-</span>
-                        )}
-                      </td>
-                      <td className='px-6 py-4 whitespace-nowrap'>
-                        <span
-                          className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(trade.status)}`}
-                        >
-                          {getStatusIcon(trade.status)}
-                          {getStatusLabel(trade.status)}
-                        </span>
-                      </td>
-                      <td className='px-6 py-4 whitespace-nowrap text-right'>
-                        <div className='flex items-center justify-end gap-2'>
-                          <button
-                            onClick={() => navigate(`/admin/trades/${trade.id}`)}
-                            className='p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg'
-                            title='Ver detalhes'
-                          >
-                            <Eye className='w-4 h-4' />
-                          </button>
-                          {canCancel(trade.status) && (
-                            <button
-                              onClick={() => handleCancelTrade(trade)}
-                              disabled={cancelTradeMutation.isPending}
-                              className='p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg disabled:opacity-50'
-                              title='Cancelar trade'
-                            >
-                              {cancelTradeMutation.isPending ? (
-                                <RefreshCw className='w-4 h-4 animate-spin' />
-                              ) : (
-                                <XCircle className='w-4 h-4' />
-                              )}
-                            </button>
+                        </td>
+
+                        {/* Tipo */}
+                        <td className='px-4 py-3'>
+                          {isBuy ? (
+                            <span className='inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-green-500/10 text-green-400 border border-green-500/20'>
+                              <ArrowDownRight className='h-3 w-3' />
+                              Compra
+                            </span>
+                          ) : (
+                            <span className='inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20'>
+                              <ArrowUpRight className='h-3 w-3' />
+                              Venda
+                            </span>
                           )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+
+                        {/* Quantidade */}
+                        <td className='px-4 py-3 text-right'>
+                          <span className='font-mono text-sm text-white'>
+                            {formatCryptoAmount(trade.crypto_amount)}
+                          </span>
+                        </td>
+
+                        {/* Total USD */}
+                        <td className='px-4 py-3 text-right'>
+                          <span className='font-mono text-sm text-gray-300'>
+                            {formatCurrency(trade.total_amount || 0)}
+                          </span>
+                        </td>
+
+                        {/* Valor BRL */}
+                        <td className='px-4 py-3 text-right'>
+                          {trade.brl_total_amount ? (
+                            <div>
+                              <span className='font-mono text-sm font-medium text-green-400'>
+                                R${' '}
+                                {trade.brl_total_amount.toLocaleString('pt-BR', {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })}
+                              </span>
+                              <span className='block text-[10px] text-gray-500 uppercase'>
+                                {trade.payment_method}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className='text-gray-600'>-</span>
+                          )}
+                        </td>
+
+                        {/* Usuário */}
+                        <td className='px-4 py-3'>
+                          <div className='flex items-center gap-2'>
+                            <div className='w-6 h-6 rounded-full bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center text-[9px] font-bold text-blue-300'>
+                              WN
+                            </div>
+                            <span className='text-gray-300 text-xs font-mono'>
+                              {formatUserWNId(trade.user_id)}
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* Status */}
+                        <td className='px-4 py-3 text-center'>
+                          <span
+                            className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium ${getStatusBgClass(trade.status)}`}
+                          >
+                            {getStatusIcon(trade.status)}
+                            {getStatusLabel(trade.status)}
+                          </span>
+                        </td>
+
+                        {/* Data */}
+                        <td className='px-4 py-3 text-right'>
+                          <span className='text-gray-500 text-xs'>
+                            {formatRelativeDate(trade.created_at)}
+                          </span>
+                        </td>
+
+                        {/* Ações */}
+                        <td className='px-4 py-3 text-right'>
+                          <div className='flex items-center justify-end gap-1'>
+                            <button
+                              onClick={() => navigate(`/admin/trades/${trade.id}`)}
+                              className='p-1.5 text-gray-500 hover:text-green-400 hover:bg-green-500/10 rounded-lg transition-colors'
+                              title='Ver detalhes'
+                            >
+                              <Eye className='w-4 h-4' />
+                            </button>
+                            {canCancel(trade.status) && (
+                              <button
+                                onClick={() => handleCancelTrade(trade)}
+                                disabled={cancelTradeMutation.isPending}
+                                className='p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-50'
+                                title='Cancelar trade'
+                              >
+                                {cancelTradeMutation.isPending ? (
+                                  <RefreshCw className='w-4 h-4 animate-spin' />
+                                ) : (
+                                  <XCircle className='w-4 h-4' />
+                                )}
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
 
-            {/* Pagination */}
-            <div className='px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between'>
-              <span className='text-sm text-gray-500 dark:text-gray-400'>
-                Mostrando {trades.length} de {total} trades
-              </span>
-              <div className='flex items-center gap-2'>
-                <button
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  className='p-2 rounded-lg bg-gray-100 dark:bg-gray-700 disabled:opacity-50'
-                  title='Página anterior'
-                >
-                  <ChevronLeft className='w-4 h-4' />
-                </button>
-                <span className='px-3 py-1 text-sm text-gray-700 dark:text-gray-300'>
-                  Página {page} de {Math.ceil(total / limit) || 1}
-                </span>
-                <button
-                  onClick={() => setPage(p => p + 1)}
-                  disabled={page >= Math.ceil(total / limit)}
-                  className='p-2 rounded-lg bg-gray-100 dark:bg-gray-700 disabled:opacity-50'
-                  title='Próxima página'
-                >
-                  <ChevronRight className='w-4 h-4' />
-                </button>
-              </div>
+            {/* Cards Mobile */}
+            <div className='lg:hidden divide-y divide-white/5'>
+              {trades.map(trade => {
+                const logo = getCryptoLogo(trade.symbol)
+                const isBuy = trade.operation_type === 'buy'
+
+                return (
+                  <div key={trade.id} className='p-3 hover:bg-white/[0.02] transition-colors'>
+                    <div className='flex items-start justify-between gap-3'>
+                      {/* Left: Coin + Info */}
+                      <div className='flex items-center gap-3'>
+                        {/* Coin Logo */}
+                        <div className='relative'>
+                          {logo ? (
+                            <img src={logo} alt={trade.symbol} className='w-10 h-10 rounded-full' />
+                          ) : (
+                            <div className='w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center'>
+                              <Wallet className='h-5 w-5 text-gray-400' />
+                            </div>
+                          )}
+                          {/* Direction indicator */}
+                          <div
+                            className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center ${
+                              isBuy ? 'bg-green-500' : 'bg-red-500'
+                            }`}
+                          >
+                            {isBuy ? (
+                              <ArrowDownRight className='h-3 w-3 text-white' />
+                            ) : (
+                              <ArrowUpRight className='h-3 w-3 text-white' />
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Info */}
+                        <div>
+                          <div className='flex items-center gap-2'>
+                            <span className='text-white font-medium'>{trade.symbol || 'N/A'}</span>
+                            <span
+                              className={`text-[10px] px-1.5 py-0.5 rounded ${
+                                isBuy
+                                  ? 'bg-green-500/10 text-green-400'
+                                  : 'bg-red-500/10 text-red-400'
+                              }`}
+                            >
+                              {isBuy ? 'Compra' : 'Venda'}
+                            </span>
+                          </div>
+                          <div className='flex items-center gap-2 mt-0.5'>
+                            <Hash className='h-3 w-3 text-gray-600' />
+                            <span className='text-gray-500 text-xs font-mono'>
+                              {trade.reference_code}
+                            </span>
+                          </div>
+                          <div className='flex items-center gap-2 mt-0.5'>
+                            <User className='h-3 w-3 text-blue-500' />
+                            <span className='text-blue-400 text-xs font-mono font-medium'>
+                              {formatUserWNId(trade.user_id)}
+                            </span>
+                            <span className='text-gray-700'>•</span>
+                            <span className='text-gray-600 text-xs'>
+                              {formatRelativeDate(trade.created_at)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right: Amount + Status */}
+                      <div className='text-right'>
+                        <div className='font-mono font-medium text-white'>
+                          {formatCryptoAmount(trade.crypto_amount)}
+                        </div>
+                        {trade.brl_total_amount && (
+                          <div className='font-mono text-xs text-green-400'>
+                            R${' '}
+                            {trade.brl_total_amount.toLocaleString('pt-BR', {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
+                          </div>
+                        )}
+                        <div className='mt-1'>
+                          <span
+                            className={`inline-flex items-center gap-1 text-[10px] ${getStatusTextClass(trade.status)}`}
+                          >
+                            {getStatusIcon(trade.status)}
+                            {getStatusLabel(trade.status)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Actions Row */}
+                    <div className='flex items-center justify-end gap-2 mt-2 pt-2 border-t border-white/5'>
+                      <button
+                        onClick={() => navigate(`/admin/trades/${trade.id}`)}
+                        className='flex items-center gap-1 px-2 py-1 text-green-400 text-xs hover:bg-green-500/10 rounded-lg transition-colors'
+                      >
+                        <Eye className='h-3 w-3' />
+                        Detalhes
+                      </button>
+                      {canCancel(trade.status) && (
+                        <button
+                          onClick={() => handleCancelTrade(trade)}
+                          disabled={cancelTradeMutation.isPending}
+                          className='flex items-center gap-1 px-2 py-1 text-red-400 text-xs hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-50'
+                        >
+                          {cancelTradeMutation.isPending ? (
+                            <RefreshCw className='h-3 w-3 animate-spin' />
+                          ) : (
+                            <XCircle className='h-3 w-3' />
+                          )}
+                          Cancelar
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </>
+        )}
+
+        {/* Paginação */}
+        {Math.ceil(total / limit) > 1 && (
+          <div className='flex items-center justify-between px-3 sm:px-4 py-3 border-t border-white/5 bg-white/[0.01]'>
+            <p className='text-xs text-gray-500'>
+              <span className='hidden sm:inline'>Mostrando </span>
+              {(page - 1) * limit + 1}-{Math.min(page * limit, total)} de {total}
+            </p>
+            <div className='flex items-center gap-1'>
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                title='Página anterior'
+                aria-label='Ir para página anterior'
+                className='p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors'
+              >
+                <ChevronLeft className='h-4 w-4' />
+              </button>
+              <span className='px-3 text-xs text-gray-400'>
+                {page}/{Math.ceil(total / limit) || 1}
+              </span>
+              <button
+                onClick={() => setPage(p => p + 1)}
+                disabled={page >= Math.ceil(total / limit)}
+                title='Próxima página'
+                aria-label='Ir para próxima página'
+                className='p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors'
+              >
+                <ChevronRight className='h-4 w-4' />
+              </button>
+            </div>
+          </div>
         )}
       </div>
 

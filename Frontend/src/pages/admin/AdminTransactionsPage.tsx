@@ -162,11 +162,16 @@ export const AdminTransactionsPage: React.FC = () => {
   }
 
   const formatAmount = (amount: number | string | null | undefined) => {
+    // Verifica se é null ou undefined primeiro
+    if (amount === null || amount === undefined) {
+      return '0.00'
+    }
+
     // Converte para número se necessário
-    const numAmount = typeof amount === 'string' ? parseFloat(amount) : Number(amount)
+    const numAmount = typeof amount === 'string' ? Number.parseFloat(amount) : Number(amount)
 
     // Verifica se é um número válido
-    if (isNaN(numAmount) || amount === null || amount === undefined) {
+    if (Number.isNaN(numAmount)) {
       return '0.00'
     }
 
@@ -473,15 +478,15 @@ export const AdminTransactionsPage: React.FC = () => {
 
                         {/* Tipo */}
                         <td className='px-4 py-3'>
-                          {tx.tx_type === 'deposit' || tx.tx_type === 'sell' ? (
+                          {tx.tx_type === 'deposit' ? (
                             <span className='inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-green-500/10 text-green-400 border border-green-500/20'>
                               <ArrowDownLeft className='h-3 w-3' />
-                              Entrada
+                              Depósito
                             </span>
-                          ) : tx.tx_type === 'withdrawal' || tx.tx_type === 'buy' ? (
+                          ) : tx.tx_type === 'withdrawal' ? (
                             <span className='inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20'>
                               <ArrowUpRight className='h-3 w-3' />
-                              Saida
+                              Saque
                             </span>
                           ) : (
                             <span className='inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-gray-500/10 text-gray-400 border border-gray-500/20'>
@@ -494,12 +499,10 @@ export const AdminTransactionsPage: React.FC = () => {
                         <td className='px-4 py-3 text-right'>
                           <span
                             className={`font-mono text-sm font-medium ${
-                              tx.tx_type === 'deposit' || tx.tx_type === 'sell'
-                                ? 'text-green-400'
-                                : 'text-white'
+                              tx.tx_type === 'deposit' ? 'text-green-400' : 'text-white'
                             }`}
                           >
-                            {tx.tx_type === 'deposit' || tx.tx_type === 'sell' ? '+' : '-'}
+                            {tx.tx_type === 'deposit' ? '+' : '-'}
                             {formatAmount(tx.amount)}
                           </span>
                         </td>
@@ -589,7 +592,7 @@ export const AdminTransactionsPage: React.FC = () => {
                 const logo = getCryptoLogo(tx.cryptocurrency)
                 const networkStyle = getNetworkStyle(tx.network)
                 const explorerUrl = getExplorerUrl(tx.network, tx.tx_hash)
-                const isIncoming = tx.tx_type === 'deposit' || tx.tx_type === 'sell'
+                const isDeposit = tx.tx_type === 'deposit'
 
                 return (
                   <div key={tx.id} className='p-3 hover:bg-white/[0.02] transition-colors'>
@@ -612,10 +615,10 @@ export const AdminTransactionsPage: React.FC = () => {
                           {/* Direction indicator */}
                           <div
                             className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center ${
-                              isIncoming ? 'bg-green-500' : 'bg-blue-500'
+                              isDeposit ? 'bg-green-500' : 'bg-blue-500'
                             }`}
                           >
-                            {isIncoming ? (
+                            {isDeposit ? (
                               <ArrowDownLeft className='h-3 w-3 text-white' />
                             ) : (
                               <ArrowUpRight className='h-3 w-3 text-white' />
@@ -651,9 +654,9 @@ export const AdminTransactionsPage: React.FC = () => {
                       {/* Right: Amount + Status */}
                       <div className='text-right'>
                         <div
-                          className={`font-mono font-medium ${isIncoming ? 'text-green-400' : 'text-white'}`}
+                          className={`font-mono font-medium ${isDeposit ? 'text-green-400' : 'text-white'}`}
                         >
-                          {isIncoming ? '+' : '-'}
+                          {isDeposit ? '+' : '-'}
                           {formatAmount(tx.amount)}
                         </div>
                         <div className='mt-1'>
