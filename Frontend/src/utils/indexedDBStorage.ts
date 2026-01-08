@@ -8,19 +8,57 @@
  * 3. Persiste mesmo em PWA standalone mode
  * 4. Quota maior (50MB+ vs 5MB do localStorage)
  *
- * Esta implementação fornece uma API síncrona-like usando cache em memória
- * com persistência assíncrona no IndexedDB.
+ * Esta implementação:
+ * - NUNCA BLOQUEIA - usa cache em memória para acesso síncrono
+ * - Auto-inicializa em background
+ * - Fallback automático para localStorage/sessionStorage
+ * - Não requer chamada explícita de init()
  */
 
 const DB_NAME = 'WolkNowAuthDB'
 const DB_VERSION = 1
 const STORE_NAME = 'auth'
 
-// Cache em memória para acesso síncrono
-let memoryCache: Map<string, string> = new Map()
+// Cache em memória para acesso síncrono (NUNCA BLOQUEIA)
+const memoryCache: Map<string, string> = new Map()
 let dbInstance: IDBDatabase | null = null
 let isInitialized = false
 let initPromise: Promise<void> | null = null
+
+// Auto-inicializar assim que o módulo é carregado (não bloqueia)
+const autoInit = (): void => {
+  if (typeof window !== 'undefined' && typeof indexedDB !== 'undefined') {
+    initDB().catch(() => {
+      // Ignorar erros - fallback para localStorage funciona automaticamente
+    })
+    // Também carregar de localStorage/sessionStorage imediatamente
+    loadFromFallbackStorage()
+  }
+}
+
+// Carrega dados de localStorage/sessionStorage para memória (síncrono, não bloqueia)
+const loadFromFallbackStorage = (): void => {
+  try {
+    // Tentar localStorage primeiro
+    const keys = ['auth_token', 'auth_user', 'auth_timestamp', 'auth_refresh_token']
+    for (const key of keys) {
+      // Verificar backup do IndexedDB
+      const backupValue = localStorage.getItem(`idb_backup_${key}`)
+      if (backupValue && !memoryCache.has(key)) {
+        memoryCache.set(key, backupValue)
+      }
+      // Verificar sessionStorage
+      if (key === 'auth_token') {
+        const sessionValue = sessionStorage.getItem('auth_token_backup')
+        if (sessionValue && !memoryCache.has(key)) {
+          memoryCache.set(key, sessionValue)
+        }
+      }
+    }
+  } catch {
+    // Ignorar erros de storage
+  }
+}
 
 /**
  * Inicializa o IndexedDB
@@ -379,5 +417,8 @@ export const authStorage = {
     return elapsed < seconds * 1000
   },
 }
+
+// 🚀 AUTO-INICIALIZAÇÃO (não bloqueia, roda em background)
+autoInit()
 
 export default indexedDBStorage
