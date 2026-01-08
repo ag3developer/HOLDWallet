@@ -53,7 +53,8 @@ export class WalletService {
    */
   static async getWallets() {
     try {
-      const response = await apiClient.get('/wallets')
+      // 🔧 Use trailing slash to avoid 307 redirect (Safari iOS fix)
+      const response = await apiClient.get('/wallets/')
       return response.data
     } catch (error) {
       console.error('[WalletService] Error fetching wallets:', error)

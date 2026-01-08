@@ -3,6 +3,20 @@ import { APP_CONFIG } from '@/config/app'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { authStorage } from '@/utils/indexedDBStorage'
 
+// 🔧 Endpoints que precisam de trailing slash para evitar redirect 307
+// Safari iOS perde o Authorization header em redirects
+const ENDPOINTS_NEEDING_TRAILING_SLASH = [
+  '/wallets',
+  '/users',
+  '/transactions',
+  '/addresses',
+  '/p2p/offers',
+  '/p2p/orders',
+  '/admin/users',
+  '/admin/wallets',
+  '/admin/transactions',
+]
+
 class ApiClient {
   private readonly client: AxiosInstance
 
@@ -20,6 +34,28 @@ class ApiClient {
     })
 
     this.setupInterceptors()
+  }
+
+  /**
+   * 🔧 Normaliza URL para evitar redirects 307 que perdem headers no Safari iOS
+   * Adiciona trailing slash em endpoints de coleção
+   */
+  private normalizeUrl(url: string): string {
+    // Não modificar URLs com query params ou que já terminam com /
+    if (url.includes('?') || url.endsWith('/')) {
+      return url
+    }
+
+    // Verificar se é um endpoint de coleção que precisa de trailing slash
+    for (const endpoint of ENDPOINTS_NEEDING_TRAILING_SLASH) {
+      // Match exato: /wallets mas não /wallets/123 ou /wallets/create
+      if (url === endpoint) {
+        console.log(`[API] 🔧 Adding trailing slash to: ${url} -> ${url}/`)
+        return url + '/'
+      }
+    }
+
+    return url
   }
 
   private debugLogRequest(config: any, token: string | null): void {
@@ -59,9 +95,15 @@ class ApiClient {
   }
 
   private setupInterceptors() {
-    // Request interceptor to add auth token
+    // Request interceptor to add auth token and normalize URLs
     this.client.interceptors.request.use(
       config => {
+        // 🔧 Fix Safari iOS redirect issue: ensure trailing slash on collection endpoints
+        // Safari iOS loses Authorization header on 307 redirects
+        if (config.url) {
+          config.url = this.normalizeUrl(config.url)
+        }
+
         // Get token from localStorage (or from auth store)
         const token = this.getStoredToken()
 

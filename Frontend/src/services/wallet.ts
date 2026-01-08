@@ -55,7 +55,8 @@ class WalletService {
   // Get all user wallets
   async getWallets(): Promise<Wallet[]> {
     try {
-      const response = await apiClient.get<ApiResponse<Wallet[]>>('/wallets')
+      // 🔧 Use trailing slash to avoid 307 redirect (Safari iOS fix)
+      const response = await apiClient.get<ApiResponse<Wallet[]>>('/wallets/')
       console.log('✅ Wallets response:', response.data)
 
       // Garantir que sempre retorna um array
@@ -77,7 +78,8 @@ class WalletService {
 
   // Create new wallet
   async createWallet(walletData: CreateWalletRequest): Promise<Wallet> {
-    const response = await apiClient.post<ApiResponse<Wallet>>('/wallets', walletData)
+    // 🔧 Use trailing slash to avoid 307 redirect (Safari iOS fix)
+    const response = await apiClient.post<ApiResponse<Wallet>>('/wallets/', walletData)
     return response.data.data
   }
 
