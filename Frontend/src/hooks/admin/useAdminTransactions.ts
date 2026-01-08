@@ -69,7 +69,7 @@ export interface Transaction {
   user_id: string
   username?: string
   email?: string
-  tx_type: 'deposit' | 'withdrawal' | 'transfer'
+  tx_type: 'deposit' | 'withdrawal' | 'transfer' | 'buy' | 'sell'
   tx_hash?: string
   from_address?: string
   to_address?: string

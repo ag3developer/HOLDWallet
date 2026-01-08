@@ -16,6 +16,15 @@ class TransactionStatus(str, enum.Enum):
     failed = "failed"            # Transação falhou
     cancelled = "cancelled"      # Transação cancelada pelo usuário
 
+
+class TransactionType(str, enum.Enum):
+    """Transaction type enumeration."""
+    deposit = "deposit"          # Recebimento de crypto (entrada)
+    withdrawal = "withdrawal"    # Envio de crypto (saída)
+    transfer = "transfer"        # Transferência genérica
+    buy = "buy"                  # Compra OTC (plataforma envia para usuário)
+    sell = "sell"                # Venda OTC (usuário envia para plataforma)
+
 class Transaction(Base):
     """Transaction model for storing blockchain transactions."""
     __tablename__ = "transactions"
@@ -29,6 +38,7 @@ class Transaction(Base):
     
     # Transaction data
     tx_hash = Column(String(255), nullable=True, unique=True, index=True)  # Hash após broadcast
+    tx_type = Column(SQLEnum(TransactionType), default=TransactionType.transfer, nullable=False, index=True)
     from_address = Column(String(255), nullable=False, index=True)
     to_address = Column(String(255), nullable=False, index=True)
     amount = Column(String(50), nullable=False)  # Storing as string to avoid precision issues
