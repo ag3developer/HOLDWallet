@@ -49,21 +49,38 @@ root.render(
           <Toaster
             position='top-right'
             toastOptions={{
-              duration: 4000,
+              duration: 5000,
               style: {
-                background: '#363636',
+                background: '#1f2937',
                 color: '#fff',
-                borderRadius: '8px',
+                borderRadius: '12px',
                 fontSize: '14px',
+                padding: '12px 16px',
+                maxWidth: '420px',
+                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.25)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
               },
               success: {
+                duration: 4000,
                 style: {
-                  background: '#22c55e',
+                  background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                },
+                iconTheme: {
+                  primary: '#fff',
+                  secondary: '#059669',
                 },
               },
               error: {
+                duration: 7000, // Mais tempo para erros
                 style: {
-                  background: '#ef4444',
+                  background: 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  whiteSpace: 'pre-line', // Permite quebras de linha
+                },
+                iconTheme: {
+                  primary: '#fff',
+                  secondary: '#dc2626',
                 },
               },
             }}

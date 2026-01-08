@@ -17,6 +17,7 @@ import {
   Info,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import notificationService from '@/services/notificationService'
 import { CryptoIcon } from '@/components/CryptoIcon'
 import { useWallets } from '@/hooks/useWallets'
 import { useMultipleWalletBalances } from '@/hooks/useWallet'
@@ -546,19 +547,19 @@ export const SendPage = () => {
     } catch (err: any) {
       console.error('❌ Erro ao preparar envio:', err)
       setError(err.message || 'Erro ao estimar taxa ou preparar transação')
-      toast.error(err.message || 'Erro ao estimar taxa')
+      notificationService.showError(err, 'Erro ao estimar taxa')
       setLoading(false)
     }
   }
 
   const handleSubmit2FA = async () => {
     if (!twoFAToken || twoFAToken.length < 6) {
-      toast.error('Código 2FA inválido (mínimo 6 dígitos)')
+      notificationService.showWarning('Código 2FA inválido (mínimo 6 dígitos)')
       return
     }
 
     if (!pendingTransaction) {
-      toast.error('Nenhuma transação pendente')
+      notificationService.showWarning('Nenhuma transação pendente')
       return
     }
 
@@ -595,7 +596,7 @@ export const SendPage = () => {
 
       setTxHash(result.txHash)
       setShowSuccess(true)
-      toast.success('Transação enviada com sucesso!')
+      notificationService.showSuccess('🎉 Transação enviada com sucesso!')
 
       // Limpar estado 2FA
       setShow2FADialog(false)
@@ -604,7 +605,7 @@ export const SendPage = () => {
     } catch (err: any) {
       console.error('❌ Erro ao enviar:', err)
       setError(err.message || 'Erro ao enviar transação')
-      toast.error(err.message || 'Erro ao enviar transação')
+      notificationService.showError(err)
     } finally {
       setLoading(false)
     }
@@ -613,7 +614,7 @@ export const SendPage = () => {
   // Handler for biometric authentication
   const handleBiometricAuth = async () => {
     if (!pendingTransaction) {
-      toast.error('Nenhuma transação pendente')
+      notificationService.showWarning('Nenhuma transação pendente')
       return
     }
 
@@ -653,14 +654,14 @@ export const SendPage = () => {
 
         setTxHash(result.txHash)
         setShowSuccess(true)
-        toast.success('Transação enviada com sucesso!')
+        notificationService.showSuccess('🎉 Transação enviada com sucesso!')
 
         // Limpar estado
         setShow2FADialog(false)
         setTwoFAToken('')
         setPendingTransaction(null)
       } else {
-        toast.error('Falha na autenticação biométrica')
+        notificationService.showWarning('Falha na autenticação biométrica. Tente novamente.')
         setAuthMethod('2fa')
       }
     } catch (err: any) {
@@ -671,12 +672,12 @@ export const SendPage = () => {
         err.message?.includes('BIOMETRIC_TOKEN_EXPIRED') ||
         err.response?.data?.detail === 'BIOMETRIC_TOKEN_EXPIRED'
       ) {
-        toast.error('Token expirado. Autentique novamente.')
+        notificationService.showWarning('Token biométrico expirado. Autentique novamente.')
         // Keep dialog open, user can try biometric again
         return
       }
 
-      toast.error('Biometria falhou. Use o código 2FA.')
+      notificationService.showInfo('Biometria falhou. Use o código 2FA.')
       setAuthMethod('2fa')
     } finally {
       setBiometricLoading(false)
