@@ -1,15 +1,18 @@
 /**
- * iOS PWA Update Modal
+ * PWA Update Modal
  * ========================
  *
- * Modal específico para atualização em iOS Safari PWA (webapp instalado).
- * Resolve o problema de cache agressivo do Safari que causa tela branca.
+ * Modal universal para atualização do PWA em todos os dispositivos.
+ * Mostra quando há uma nova versão disponível no servidor.
  *
- * APENAS exibido para usuários iOS com PWA instalada (standalone mode).
+ * Funciona em:
+ * - iOS Safari PWA (standalone)
+ * - Android Chrome PWA
+ * - Desktop browsers
  */
 
 import { useEffect, useState, useCallback } from 'react'
-import { Smartphone, RefreshCw, Download, AlertTriangle, CheckCircle2 } from 'lucide-react'
+import { RefreshCw, Download, AlertTriangle, CheckCircle2, Rocket } from 'lucide-react'
 
 // Detecta se é iOS
 const isIOS = (): boolean => {
@@ -99,8 +102,9 @@ export const IOSPWAUpdateModal = ({ forceShow = false }: IOSPWAUpdateModalProps)
 
   // Verifica se há nova versão disponível
   const checkForUpdate = useCallback(async () => {
-    // Só verifica em iOS PWA (ou se forçado para teste)
-    if (!isIOSPWA() && !forceShow) return
+    // Funciona em todos os dispositivos (não apenas iOS PWA)
+    // O forceShow permite testar em qualquer ambiente
+    if (globalThis.window === undefined) return
 
     try {
       // Busca version.json do servidor sem cache
@@ -114,7 +118,7 @@ export const IOSPWAUpdateModal = ({ forceShow = false }: IOSPWAUpdateModalProps)
       })
 
       if (!response.ok) {
-        console.log('[iOS PWA] version.json não encontrado')
+        console.log('[PWA Update] version.json não encontrado')
         return
       }
 
@@ -122,35 +126,35 @@ export const IOSPWAUpdateModal = ({ forceShow = false }: IOSPWAUpdateModalProps)
       const newVersion = data.version || data.buildTime
       const storedVersion = localStorage.getItem(IOS_VERSION_KEY)
 
-      console.log('[iOS PWA] Versão servidor:', newVersion, '| Local:', storedVersion)
+      console.log('[PWA Update] Versão servidor:', newVersion, '| Local:', storedVersion)
 
       if (storedVersion && storedVersion !== newVersion) {
         // Nova versão disponível!
         setServerVersion(newVersion)
         setUpdateAvailable(true)
         setShowModal(true)
-        console.log('[iOS PWA] 🚀 Nova versão detectada!')
+        console.log('[PWA Update] 🚀 Nova versão detectada!')
       } else if (!storedVersion) {
         // Primeira vez - salva versão atual
         localStorage.setItem(IOS_VERSION_KEY, newVersion)
       }
     } catch (error) {
-      console.error('[iOS PWA] Erro ao verificar versão:', error)
+      console.error('[PWA Update] Erro ao verificar versão:', error)
     }
   }, [forceShow])
 
-  // Limpa todos os caches do iOS Safari
+  // Limpa todos os caches do browser
   const clearIOSCaches = useCallback(async () => {
-    console.log('[iOS PWA] Limpando caches do Safari...')
+    console.log('[PWA Update] Limpando caches...')
 
     // 1. Limpar Cache Storage
     if ('caches' in globalThis) {
       try {
         const cacheNames = await caches.keys()
         await Promise.all(cacheNames.map(name => caches.delete(name)))
-        console.log('[iOS PWA] Cache Storage limpo:', cacheNames.length, 'caches')
+        console.log('[PWA Update] Cache Storage limpo:', cacheNames.length, 'caches')
       } catch (e) {
-        console.error('[iOS PWA] Erro ao limpar Cache Storage:', e)
+        console.error('[PWA Update] Erro ao limpar Cache Storage:', e)
       }
     }
 
@@ -161,9 +165,9 @@ export const IOSPWAUpdateModal = ({ forceShow = false }: IOSPWAUpdateModalProps)
         for (const reg of registrations) {
           await reg.unregister()
         }
-        console.log('[iOS PWA] Service Workers desregistrados:', registrations.length)
+        console.log('[PWA Update] Service Workers desregistrados:', registrations.length)
       } catch (e) {
-        console.error('[iOS PWA] Erro ao desregistrar SW:', e)
+        console.error('[PWA Update] Erro ao desregistrar SW:', e)
       }
     }
 
@@ -182,7 +186,7 @@ export const IOSPWAUpdateModal = ({ forceShow = false }: IOSPWAUpdateModalProps)
       localStorage.setItem(IOS_LAST_UPDATE_KEY, Date.now().toString())
     }
 
-    console.log('[iOS PWA] ✅ Caches limpos com sucesso!')
+    console.log('[PWA Update] ✅ Caches limpos com sucesso!')
   }, [serverVersion])
 
   // Executa a atualização
@@ -200,7 +204,7 @@ export const IOSPWAUpdateModal = ({ forceShow = false }: IOSPWAUpdateModalProps)
       newUrl.searchParams.set('v', Date.now().toString())
       globalThis.location.replace(newUrl.toString())
     } catch (error) {
-      console.error('[iOS PWA] Erro durante atualização:', error)
+      console.error('[PWA Update] Erro durante atualização:', error)
       // Tenta reload normal como fallback
       globalThis.location.reload()
     }
@@ -260,29 +264,29 @@ export const IOSPWAUpdateModal = ({ forceShow = false }: IOSPWAUpdateModalProps)
 
           <div className='relative flex items-center gap-4'>
             <div className='w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm'>
-              <Smartphone className='w-8 h-8 text-white' />
+              <Rocket className='w-8 h-8 text-white' />
             </div>
             <div>
-              <h2 className='text-white text-xl font-bold'>Atualização Disponível</h2>
-              <p className='text-white/80 text-sm'>WOLK NOW® PWA</p>
+              <h2 className='text-white text-xl font-bold'>Nova Versão Disponível!</h2>
+              <p className='text-white/80 text-sm'>WOLK NOW® foi atualizado</p>
             </div>
           </div>
         </div>
 
         {/* Content */}
         <div className='p-6'>
-          <div className='flex items-start gap-3 mb-4 p-3 bg-yellow-500/10 rounded-xl border border-yellow-500/20'>
-            <AlertTriangle className='w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5' />
-            <p className='text-sm text-yellow-200/90'>
-              Uma nova versão está disponível. Atualize para evitar problemas de carregamento e tela
-              branca.
+          <div className='flex items-start gap-3 mb-4 p-3 bg-blue-500/10 rounded-xl border border-blue-500/20'>
+            <AlertTriangle className='w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5' />
+            <p className='text-sm text-blue-200/90'>
+              Uma nova versão está disponível com melhorias importantes. Atualize agora para a
+              melhor experiência.
             </p>
           </div>
 
           <div className='space-y-3 mb-6'>
             <div className='flex items-center gap-3 text-gray-300'>
               <CheckCircle2 className='w-4 h-4 text-green-500' />
-              <span className='text-sm'>Correções de bugs e melhorias</span>
+              <span className='text-sm'>Correções de bugs e segurança</span>
             </div>
             <div className='flex items-center gap-3 text-gray-300'>
               <CheckCircle2 className='w-4 h-4 text-green-500' />
@@ -290,7 +294,7 @@ export const IOSPWAUpdateModal = ({ forceShow = false }: IOSPWAUpdateModalProps)
             </div>
             <div className='flex items-center gap-3 text-gray-300'>
               <CheckCircle2 className='w-4 h-4 text-green-500' />
-              <span className='text-sm'>Cache limpo automaticamente</span>
+              <span className='text-sm'>Novos recursos e melhorias</span>
             </div>
           </div>
 

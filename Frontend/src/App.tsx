@@ -16,7 +16,6 @@ import { Layout } from '@/components/layout/Layout'
 import { AdminLayout } from '@/components/layout/AdminLayout'
 import { LoadingScreen } from '@/components/ui/LoadingScreen'
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary'
-import { PWAUpdateNotification } from '@/components/PWAUpdateNotification'
 import { IOSPWAUpdateModal } from '@/components/IOSPWAUpdateModal'
 
 // Pages
@@ -350,10 +349,7 @@ function App() {
           <Route path='*' element={<NotFoundPage />} />
         </Routes>
 
-        {/* PWA Update Notification - Shows when new version is available */}
-        <PWAUpdateNotification />
-
-        {/* iOS PWA Update Modal - Only shows for iOS PWA users */}
+        {/* PWA Update Modal - Shows when new version is available (all devices) */}
         <IOSPWAUpdateModal />
       </div>
     </ErrorBoundary>
