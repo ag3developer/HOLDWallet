@@ -144,8 +144,8 @@ export const WalletPage = () => {
 
   // Carregar preferências de rede do localStorage (13 blockchains independentes)
   // Nota: USDT e USDC são tokens, não blockchains - aparecem nos seletores de cada rede
+  // Safari fix: try-catch para evitar erros de localStorage
   const [networkPreferences, setNetworkPreferences] = useState(() => {
-    const saved = localStorage.getItem('wallet_network_preferences')
     const defaultPreferences = {
       bitcoin: true,
       ethereum: true,
@@ -164,34 +164,49 @@ export const WalletPage = () => {
       xrp: true,
     }
 
-    // Merge saved preferences with defaults to handle new cryptocurrencies
-    if (saved) {
-      const savedPrefs = JSON.parse(saved)
-      return { ...defaultPreferences, ...savedPrefs }
+    try {
+      const saved = localStorage.getItem('wallet_network_preferences')
+      // Merge saved preferences with defaults to handle new cryptocurrencies
+      if (saved) {
+        const savedPrefs = JSON.parse(saved)
+        return { ...defaultPreferences, ...savedPrefs }
+      }
+    } catch (e) {
+      console.warn('[WalletPage] Error reading localStorage:', e)
     }
 
     return defaultPreferences
   })
 
   // Preferências de tokens (USDT, USDC, etc)
+  // Safari fix: try-catch para evitar erros de localStorage
   const [tokenPreferences, setTokenPreferences] = useState(() => {
-    const saved = localStorage.getItem('wallet_token_preferences')
     const defaultTokenPrefs = {
       usdt: true,
       usdc: true,
     }
 
-    if (saved) {
-      const savedPrefs = JSON.parse(saved)
-      return { ...defaultTokenPrefs, ...savedPrefs }
+    try {
+      const saved = localStorage.getItem('wallet_token_preferences')
+      if (saved) {
+        const savedPrefs = JSON.parse(saved)
+        return { ...defaultTokenPrefs, ...savedPrefs }
+      }
+    } catch (e) {
+      console.warn('[WalletPage] Error reading token preferences:', e)
     }
 
     return defaultTokenPrefs
   })
 
   const [showAllNetworks, setShowAllNetworks] = useState(() => {
-    const saved = localStorage.getItem('wallet_show_all_networks')
-    return saved !== null ? saved === 'true' : true
+    try {
+      const saved = localStorage.getItem('wallet_show_all_networks')
+      return saved !== null ? saved === 'true' : true
+    } catch (e) {
+      console.warn('[WalletPage] Error reading showAllNetworks:', e)
+      return true
+    }
   })
 
   // Expandir carteira multi para mostrar todas as redes disponíveis com saldos reais
@@ -504,8 +519,31 @@ export const WalletPage = () => {
     )
   }
 
-  // Empty state - apenas após carregamento completo
-  if (!isLoading && walletsWithAddresses.length === 0) {
+  // Safari fix: Detectar se ainda está hidratando/carregando
+  const isSafari =
+    typeof navigator !== 'undefined' && /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
+  const isStillHydrating = !apiWallets && !isLoading && !error
+
+  // Empty state - apenas após carregamento completo E não estar hidratando
+  // Safari: espera mais tempo antes de mostrar empty state
+  if (
+    !isLoading &&
+    !isStillHydrating &&
+    walletsWithAddresses.length === 0 &&
+    apiWallets !== undefined
+  ) {
+    // Safari: dar uma chance extra de carregar
+    if (isSafari && !apiWallets) {
+      return (
+        <div className='flex items-center justify-center min-h-screen'>
+          <div className='text-center'>
+            <div className='w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4'></div>
+            <p className='text-gray-600 dark:text-gray-400'>Carregando carteiras...</p>
+          </div>
+        </div>
+      )
+    }
+
     return (
       <div className='flex items-center justify-center min-h-screen'>
         <div className='text-center'>
@@ -523,6 +561,18 @@ export const WalletPage = () => {
             <Plus className='w-5 h-5 mr-2' />
             Criar Carteira Principal
           </Link>
+        </div>
+      </div>
+    )
+  }
+
+  // Safari: mostrar loading enquanto apiWallets é undefined
+  if (apiWallets === undefined || isStillHydrating) {
+    return (
+      <div className='flex items-center justify-center min-h-screen'>
+        <div className='text-center'>
+          <div className='w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4'></div>
+          <p className='text-gray-600 dark:text-gray-400'>Carregando carteiras...</p>
         </div>
       </div>
     )

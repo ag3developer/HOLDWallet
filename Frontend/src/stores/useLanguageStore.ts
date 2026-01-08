@@ -1,5 +1,6 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, createJSONStorage } from 'zustand/middleware'
+import { safariSafeStorage } from '@/utils/safariStorage'
 
 export type Language = 'pt' | 'en' | 'es'
 
@@ -18,6 +19,7 @@ export const useLanguageStore = create<LanguageStore>()(
     }),
     {
       name: 'language-store',
+      storage: createJSONStorage(() => safariSafeStorage),
     }
   )
 )

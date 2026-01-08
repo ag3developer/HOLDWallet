@@ -17,8 +17,9 @@
  */
 
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, createJSONStorage } from 'zustand/middleware'
 import { currencyManager, type SupportedCurrency } from '@/services/currency'
+import { safariSafeStorage } from '@/utils/safariStorage'
 
 export type Currency = SupportedCurrency
 
@@ -106,6 +107,7 @@ export const useCurrencyStore = create<CurrencyStore>()(
     }),
     {
       name: 'currency-store',
+      storage: createJSONStorage(() => safariSafeStorage),
     }
   )
 )

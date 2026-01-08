@@ -1,8 +1,9 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, createJSONStorage } from 'zustand/middleware'
 import { User, AuthState, LoginRequest, RegisterRequest, AuthResponse } from '@/types'
 import { authService } from '@/services/auth'
 import { APP_CONFIG } from '@/config/app'
+import { safariSafeStorage } from '@/utils/safariStorage'
 
 interface AuthStore extends AuthState {
   // Actions
@@ -204,6 +205,7 @@ export const useAuthStore = create<AuthStore>()(
     }),
     {
       name: `${APP_CONFIG.storage.prefix}${APP_CONFIG.storage.keys.auth}`,
+      storage: createJSONStorage(() => safariSafeStorage),
       partialize: state => ({
         user: state.user,
         token: state.token,
@@ -214,6 +216,9 @@ export const useAuthStore = create<AuthStore>()(
           hasToken: !!state?.token,
           hasUser: !!state?.user,
           isAuthenticated: state?.isAuthenticated,
+          isSafari:
+            typeof navigator !== 'undefined' &&
+            /^((?!chrome|android).)*safari/i.test(navigator.userAgent),
         })
 
         // Mark as hydrated - IMPORTANT for Safari/iOS

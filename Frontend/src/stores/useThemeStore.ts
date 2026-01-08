@@ -1,6 +1,7 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, createJSONStorage } from 'zustand/middleware'
 import { APP_CONFIG } from '@/config/app'
+import { safariSafeStorage } from '@/utils/safariStorage'
 
 type Theme = 'light' | 'dark' | 'system'
 
@@ -42,9 +43,9 @@ export const useThemeStore = create<ThemeStore>()(
       setTheme: (theme: Theme) => {
         const systemTheme = get().systemTheme
         const isDark = calculateIsDark(theme, systemTheme)
-        
+
         set({ theme, isDark })
-        
+
         // Apply theme to document
         if (isDark) {
           document.documentElement.classList.add('dark')
@@ -65,9 +66,9 @@ export const useThemeStore = create<ThemeStore>()(
         const theme = get().theme
         const systemTheme = getSystemTheme()
         const isDark = calculateIsDark(theme, systemTheme)
-        
+
         set({ systemTheme, isDark })
-        
+
         // Apply initial theme to document
         if (isDark) {
           document.documentElement.classList.add('dark')
@@ -78,14 +79,14 @@ export const useThemeStore = create<ThemeStore>()(
         // Listen for system theme changes
         if (typeof window !== 'undefined') {
           const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-          
+
           const handleChange = (e: MediaQueryListEvent) => {
             const newSystemTheme = e.matches ? 'dark' : 'light'
             const currentTheme = get().theme
             const newIsDark = calculateIsDark(currentTheme, newSystemTheme)
-            
+
             set({ systemTheme: newSystemTheme, isDark: newIsDark })
-            
+
             // Only apply if using system theme
             if (currentTheme === 'system') {
               if (newIsDark) {
@@ -97,7 +98,7 @@ export const useThemeStore = create<ThemeStore>()(
           }
 
           mediaQuery.addEventListener('change', handleChange)
-          
+
           // Cleanup function
           return () => mediaQuery.removeEventListener('change', handleChange)
         }
@@ -105,10 +106,11 @@ export const useThemeStore = create<ThemeStore>()(
     }),
     {
       name: `${APP_CONFIG.storage.prefix}${APP_CONFIG.storage.keys.theme}`,
-      partialize: (state) => ({
+      storage: createJSONStorage(() => safariSafeStorage),
+      partialize: state => ({
         theme: state.theme,
       }),
-      onRehydrateStorage: () => (state) => {
+      onRehydrateStorage: () => state => {
         // Re-initialize theme on rehydration
         if (state) {
           setTimeout(() => state.initializeTheme(), 0)

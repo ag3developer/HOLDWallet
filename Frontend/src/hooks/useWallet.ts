@@ -27,6 +27,10 @@ export const walletKeys = {
 export function useWallets() {
   const { token, isAuthenticated, _hasHydrated } = useAuthStore()
   const [localHydrated, setLocalHydrated] = useState(false)
+  const [safariReady, setSafariReady] = useState(false)
+
+  // Detectar Safari
+  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
 
   // Aguardar hydration do Zustand (importante para Safari/iOS)
   useEffect(() => {
@@ -45,17 +49,36 @@ export function useWallets() {
     const timer = setTimeout(checkHydration, 100)
     const timer2 = setTimeout(checkHydration, 500)
 
+    // Safari precisa de mais tempo às vezes
+    const timer3 = setTimeout(() => {
+      checkHydration()
+      setSafariReady(true)
+    }, 1000)
+
     // Também subscrever a mudanças
     const unsubscribe = useAuthStore.subscribe(checkHydration)
 
     return () => {
       clearTimeout(timer)
       clearTimeout(timer2)
+      clearTimeout(timer3)
       unsubscribe()
     }
   }, [])
 
-  const isReady = _hasHydrated || localHydrated
+  // Safari: forçar ready após timeout
+  useEffect(() => {
+    if (isSafari && !localHydrated) {
+      const forceTimer = setTimeout(() => {
+        console.log('[useWallets] Safari force ready triggered')
+        setLocalHydrated(true)
+        setSafariReady(true)
+      }, 1500)
+      return () => clearTimeout(forceTimer)
+    }
+  }, [isSafari, localHydrated])
+
+  const isReady = _hasHydrated || localHydrated || safariReady
 
   return useQuery({
     queryKey: walletKeys.list(),
@@ -65,6 +88,9 @@ export function useWallets() {
         isAuthenticated,
         isReady,
         _hasHydrated,
+        localHydrated,
+        safariReady,
+        isSafari,
         isMobile: /iPhone|iPad|iPod|Android/i.test(navigator.userAgent),
         userAgent: navigator.userAgent.substring(0, 50),
       })
@@ -109,11 +135,14 @@ export function useWallets() {
     },
     staleTime: 30 * 1000, // 30 seconds
     gcTime: 5 * 60 * 1000, // 5 minutes cache
-    placeholderData: [],
-    retry: 2, // Retry 2 times on failure
+    // Removido placeholderData: [] - causava problemas no Safari
+    // placeholderData: [],
+    retry: 3, // Retry 3 times on failure (aumentado para Safari)
     retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 5000), // Exponential backoff
-    // Only fetch if authenticated AND hydrated (Safari fix)
-    enabled: (isAuthenticated && !!token) || isReady,
+    // Safari: enabled mais permissivo - tenta buscar assim que possível
+    enabled: Boolean((isAuthenticated && token) || isReady || safariReady),
+    // Safari: refetch quando window ganha foco (útil após sleep)
+    refetchOnWindowFocus: true,
   })
 }
 
