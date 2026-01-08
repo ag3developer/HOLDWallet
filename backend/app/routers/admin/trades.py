@@ -579,74 +579,61 @@ async def confirm_payment_and_deposit(
         
         logger.info(f"✅ Pagamento confirmado para trade {trade.reference_code}")
         
-        # Verificar se é BTC (ou outra non-EVM)
+        # ===== USAR MULTI-CHAIN SERVICE PARA TODAS AS MOEDAS =====
         symbol = str(trade.symbol).upper()
+        network = request.network or "polygon"
         
-        # ===== BITCOIN - Envio automático =====
-        if symbol == 'BTC':
-            # Verificar se BTC automático está configurado
-            if blockchain_deposit_service.is_btc_auto_enabled():
-                logger.info(f"🔶 Processando envio automático de BTC...")
-                
-                deposit_result = await blockchain_deposit_service.send_btc_to_user(
-                    db=db,
-                    trade=trade
+        try:
+            from app.services.multi_chain_service import multi_chain_service
+            
+            logger.info(f"🌐 Processando envio automático de {symbol}...")
+            
+            deposit_result = await multi_chain_service.send_crypto(
+                db=db,
+                trade=trade,
+                network=network
+            )
+            
+            if deposit_result.success:
+                history = InstantTradeHistory(
+                    trade_id=trade.id,
+                    old_status=TradeStatus.PAYMENT_CONFIRMED,
+                    new_status=TradeStatus.COMPLETED,
+                    reason=f"{symbol} enviado automaticamente por admin {current_admin.email}",
+                    history_details=f"TX: {deposit_result.tx_hash}"
                 )
+                db.add(history)
+                db.commit()
                 
-                if deposit_result["success"]:
-                    history = InstantTradeHistory(
-                        trade_id=trade.id,
-                        old_status=TradeStatus.PAYMENT_CONFIRMED,
-                        new_status=TradeStatus.COMPLETED,
-                        reason=f"BTC enviado automaticamente por admin {current_admin.email}",
-                        history_details=f"TX: {deposit_result['tx_hash']}"
-                    )
-                    db.add(history)
-                    db.commit()
-                    
-                    return {
-                        "success": True,
-                        "message": "Pagamento confirmado e BTC enviado automaticamente!",
-                        "trade_id": trade.id,
-                        "tx_hash": deposit_result.get("tx_hash"),
-                        "wallet_address": deposit_result.get("wallet_address"),
-                        "network": "bitcoin",
-                        "explorer_url": deposit_result.get("explorer_url"),
-                        "status": TradeStatus.COMPLETED.value
-                    }
-                else:
-                    return {
-                        "success": False,
-                        "message": "Pagamento confirmado mas envio BTC falhou",
-                        "trade_id": trade.id,
-                        "error": deposit_result.get("error"),
-                        "status": TradeStatus.PAYMENT_CONFIRMED.value,
-                        "manual_required": True,
-                        "hint": "Use o endpoint /manual-complete para completar manualmente"
-                    }
-            else:
-                # BTC não configurado - requer envio manual
                 return {
                     "success": True,
-                    "message": "Pagamento confirmado! BTC requer envio manual.",
+                    "message": f"Pagamento confirmado e {symbol} enviado automaticamente!",
                     "trade_id": trade.id,
+                    "tx_hash": deposit_result.tx_hash,
+                    "wallet_address": trade.wallet_address,
+                    "network": deposit_result.network,
+                    "explorer_url": deposit_result.explorer_url,
+                    "status": TradeStatus.COMPLETED.value
+                }
+            else:
+                # Verificar se é erro de configuração ou outro
+                error_msg = deposit_result.error or "Erro desconhecido"
+                
+                return {
+                    "success": False,
+                    "message": f"Pagamento confirmado mas envio {symbol} falhou",
+                    "trade_id": trade.id,
+                    "error": error_msg,
                     "status": TradeStatus.PAYMENT_CONFIRMED.value,
                     "manual_required": True,
-                    "hint": "Configure PLATFORM_BTC_ADDRESS e PLATFORM_BTC_PRIVATE_KEY_WIF no .env para habilitar envio automático"
+                    "hint": "Use o endpoint /manual-complete para completar manualmente"
                 }
+                
+        except ImportError:
+            logger.warning("⚠️ MultiChainService não disponível, usando fallback...")
+            # Fallback para o sistema antigo se multi_chain_service não estiver disponível
         
-        # ===== Outras non-EVM - Requer envio manual =====
-        if symbol in NON_EVM_CRYPTOS and symbol != 'BTC':
-            return {
-                "success": True,
-                "message": f"Pagamento confirmado! {symbol} requer envio manual.",
-                "trade_id": trade.id,
-                "status": TradeStatus.PAYMENT_CONFIRMED.value,
-                "manual_required": True,
-                "hint": f"Envie {trade.crypto_amount} {symbol} para o endereço do usuário e use /manual-complete"
-            }
-        
-        # ===== EVM (USDT, ETH, MATIC, etc) - Envio automático =====
+        # ===== FALLBACK: EVM (USDT, ETH, MATIC, etc) - Envio automático =====
         network = request.network or "polygon"
         deposit_result = blockchain_deposit_service.deposit_crypto_to_user(
             db=db,
