@@ -15,6 +15,7 @@ import {
   updateTradeStatus,
   confirmTradePayment,
   retryTradeDeposit,
+  manualCompleteTrade,
   sendToAccounting,
   getTradeAccountingEntries,
   processSellTrade,
@@ -23,6 +24,7 @@ import {
   type UpdateTradeStatusRequest,
   type ConfirmPaymentRequest,
   type ProcessSellRequest,
+  type ManualCompleteRequest,
 } from '@/services/admin/adminService'
 
 // Query Keys para cache
@@ -151,6 +153,23 @@ export function useRetryTradeDeposit() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: adminTradesKeys.detail(variables.tradeId) })
       queryClient.invalidateQueries({ queryKey: adminTradesKeys.lists() })
+    },
+  })
+}
+
+/**
+ * Hook para completar trade manualmente (BTC, LTC e outras cryptos não-EVM)
+ */
+export function useManualCompleteTrade() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ tradeId, data }: { tradeId: string; data: ManualCompleteRequest }) =>
+      manualCompleteTrade(tradeId, data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: adminTradesKeys.detail(variables.tradeId) })
+      queryClient.invalidateQueries({ queryKey: adminTradesKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: adminTradesKeys.stats() })
     },
   })
 }

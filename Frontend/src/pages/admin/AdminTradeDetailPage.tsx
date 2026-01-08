@@ -6,7 +6,7 @@
  * Usa React Query para cache de dados.
  */
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -46,6 +46,7 @@ import {
   useUpdateTradeStatus,
   useProcessSellTrade,
   useCompleteSellTrade,
+  useManualCompleteTrade,
 } from '@/hooks/admin/useAdminTrades'
 import { toast } from 'react-hot-toast'
 
@@ -284,6 +285,9 @@ export const AdminTradeDetailPage: React.FC = () => {
   })
   const [modalLoading, setModalLoading] = useState(false)
 
+  // Estado para completar trade manualmente (BTC)
+  const [manualTxHash, setManualTxHash] = useState('')
+
   // Query para trade específico
   const { data: trade, isLoading, error, refetch, isFetching } = useTrade(tradeId || '')
 
@@ -295,6 +299,131 @@ export const AdminTradeDetailPage: React.FC = () => {
   const updateStatusMutation = useUpdateTradeStatus()
   const processSellMutation = useProcessSellTrade()
   const completeSellMutation = useCompleteSellTrade()
+  const manualCompleteMutation = useManualCompleteTrade()
+
+  // Mapa de símbolo para rede padrão
+  const getDefaultNetworkForSymbol = (symbol: string): string => {
+    const symbolNetworks: Record<string, string> = {
+      BTC: 'bitcoin',
+      ETH: 'ethereum',
+      MATIC: 'polygon',
+      POL: 'polygon',
+      USDT: 'polygon',
+      USDC: 'polygon',
+      DAI: 'polygon',
+    }
+    return symbolNetworks[symbol?.toUpperCase()] || 'polygon'
+  }
+
+  // Redes disponíveis por símbolo
+  const getAvailableNetworksForSymbol = (symbol: string): { value: string; label: string }[] => {
+    const s = symbol?.toUpperCase()
+
+    // Criptos nativas - só podem usar sua própria rede
+    if (s === 'BTC') {
+      return [{ value: 'bitcoin', label: 'Bitcoin' }]
+    }
+    if (s === 'ETH') {
+      return [
+        { value: 'ethereum', label: 'Ethereum' },
+        { value: 'polygon', label: 'Polygon' },
+        { value: 'base', label: 'Base' },
+      ]
+    }
+    if (s === 'MATIC' || s === 'POL') {
+      return [{ value: 'polygon', label: 'Polygon' }]
+    }
+
+    // Stablecoins - podem usar múltiplas redes EVM
+    if (s === 'USDT' || s === 'USDC' || s === 'DAI') {
+      return [
+        { value: 'polygon', label: 'Polygon' },
+        { value: 'ethereum', label: 'Ethereum' },
+        { value: 'base', label: 'Base' },
+      ]
+    }
+
+    // Default para outras criptos
+    return [
+      { value: 'polygon', label: 'Polygon' },
+      { value: 'ethereum', label: 'Ethereum' },
+      { value: 'base', label: 'Base' },
+    ]
+  }
+
+  // Verifica se a crypto é suportada para depósito automático
+  // BTC, LTC, DOGE etc usam protocolos diferentes e requerem processamento manual
+  const isAutomaticDepositSupported = (symbol: string): boolean => {
+    const nonEvmCryptos = ['BTC', 'LTC', 'DOGE', 'XRP', 'XLM', 'ADA', 'SOL', 'AVAX', 'DOT']
+    return !nonEvmCryptos.includes(symbol?.toUpperCase())
+  }
+
+  // Obter URL do blockchain explorer baseado na rede/símbolo
+  const getExplorerUrl = (txHash: string, network?: string, symbol?: string): string => {
+    // Determinar a rede baseado no parâmetro ou no símbolo
+    const net = network?.toLowerCase() || ''
+    const sym = symbol?.toUpperCase() || ''
+
+    // Bitcoin e derivados
+    if (net === 'bitcoin' || sym === 'BTC') {
+      return `https://blockstream.info/tx/${txHash}`
+    }
+    if (sym === 'LTC') {
+      return `https://blockchair.com/litecoin/transaction/${txHash}`
+    }
+    if (sym === 'DOGE') {
+      return `https://dogechain.info/tx/${txHash}`
+    }
+
+    // Redes EVM
+    if (net === 'ethereum' || net === 'eth') {
+      return `https://etherscan.io/tx/${txHash}`
+    }
+    if (net === 'base') {
+      return `https://basescan.org/tx/${txHash}`
+    }
+    if (net === 'bsc' || net === 'binance') {
+      return `https://bscscan.com/tx/${txHash}`
+    }
+    if (net === 'arbitrum') {
+      return `https://arbiscan.io/tx/${txHash}`
+    }
+    if (net === 'avalanche' || sym === 'AVAX') {
+      return `https://snowtrace.io/tx/${txHash}`
+    }
+
+    // Polygon como default (mais usado no sistema)
+    return `https://polygonscan.com/tx/${txHash}`
+  }
+
+  // Obter nome do explorer para exibição
+  const getExplorerName = (network?: string, symbol?: string): string => {
+    const net = network?.toLowerCase() || ''
+    const sym = symbol?.toUpperCase() || ''
+
+    if (net === 'bitcoin' || sym === 'BTC') return 'Blockstream'
+    if (sym === 'LTC') return 'Blockchair'
+    if (sym === 'DOGE') return 'Dogechain'
+    if (net === 'ethereum' || net === 'eth') return 'Etherscan'
+    if (net === 'base') return 'Basescan'
+    if (net === 'bsc' || net === 'binance') return 'BSCscan'
+    if (net === 'arbitrum') return 'Arbiscan'
+    if (net === 'avalanche' || sym === 'AVAX') return 'Snowtrace'
+    return 'Polygonscan'
+  }
+
+  // Effect para inicializar a rede correta baseada no trade
+  useEffect(() => {
+    if (trade) {
+      // Se o trade já tem uma rede definida, usar ela
+      if (trade.network) {
+        setSelectedNetwork(trade.network)
+      } else {
+        // Senão, usar a rede padrão para o símbolo
+        setSelectedNetwork(getDefaultNetworkForSymbol(trade.symbol))
+      }
+    }
+  }, [trade?.id, trade?.network, trade?.symbol])
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('pt-BR', {
@@ -610,6 +739,52 @@ export const AdminTradeDetailPage: React.FC = () => {
         } catch (err: any) {
           console.error('Erro ao finalizar venda:', err)
           toast.error(err.response?.data?.detail || 'Erro ao finalizar venda')
+        } finally {
+          setModalLoading(false)
+        }
+      },
+    })
+  }
+
+  // Handler para completar trade MANUALMENTE (BTC e outras non-EVM)
+  const handleManualComplete = async () => {
+    if (!trade || !tradeId || !manualTxHash.trim()) {
+      toast.error('Informe o TX Hash da transação')
+      return
+    }
+
+    setModalConfig({
+      isOpen: true,
+      title: 'Completar Trade Manualmente',
+      message: `Confirmar que você enviou ${trade.crypto_amount} ${trade.symbol} para o usuário?`,
+      details: [
+        `Trade: ${trade.reference_code}`,
+        `Crypto: ${trade.crypto_amount} ${trade.symbol}`,
+        `TX Hash: ${manualTxHash}`,
+        `Endereço destino: ${trade.wallet_address || 'N/A'}`,
+        'Isso marcará o trade como COMPLETED.',
+      ],
+      variant: 'success',
+      confirmText: 'Confirmar Envio',
+      icon: <CheckCircle className='w-6 h-6' />,
+      onConfirm: async () => {
+        try {
+          setModalLoading(true)
+          const result = await manualCompleteMutation.mutateAsync({
+            tradeId,
+            data: { tx_hash: manualTxHash.trim() },
+          })
+
+          if (result.success) {
+            toast.success(`Trade ${trade.reference_code} completado com sucesso!`)
+            setManualTxHash('')
+          } else {
+            toast.error('Erro ao completar trade')
+          }
+          setModalConfig(prev => ({ ...prev, isOpen: false }))
+        } catch (err: any) {
+          console.error('Erro ao completar trade:', err)
+          toast.error(err.response?.data?.detail || 'Erro ao completar trade')
         } finally {
           setModalLoading(false)
         }
@@ -992,11 +1167,11 @@ export const AdminTradeDetailPage: React.FC = () => {
                       <Copy className='w-2.5 h-2.5' />
                     </button>
                     <a
-                      href={`https://polygonscan.com/tx/${trade.tx_hash}`}
+                      href={getExplorerUrl(trade.tx_hash, trade.network, trade.symbol)}
                       target='_blank'
                       rel='noopener noreferrer'
                       className='text-blue-600'
-                      title='Ver no explorador'
+                      title={`Ver no ${getExplorerName(trade.network, trade.symbol)}`}
                       aria-label='Ver transação no explorador'
                     >
                       <ExternalLink className='w-2.5 h-2.5' />
@@ -1049,38 +1224,100 @@ export const AdminTradeDetailPage: React.FC = () => {
                 <Play className='w-3.5 h-3.5' />
                 Ações
               </h2>
+
+              {/* Aviso para cryptos não-EVM (BTC, etc) */}
+              {!isAutomaticDepositSupported(trade.symbol) && trade.status !== 'completed' && (
+                <div className='mb-2 p-2.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded'>
+                  <div className='flex items-center gap-1 text-[10px] text-amber-700 dark:text-amber-300 mb-2'>
+                    <AlertTriangle className='w-3 h-3' />
+                    <strong>{trade.symbol}</strong> requer envio manual. Informe o TX após enviar:
+                  </div>
+                  <div className='flex gap-1.5'>
+                    <input
+                      type='text'
+                      value={manualTxHash}
+                      onChange={e => setManualTxHash(e.target.value)}
+                      placeholder='Cole o TX Hash aqui...'
+                      className='flex-1 px-2 py-1.5 text-[10px] border border-amber-300 dark:border-amber-700 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400'
+                    />
+                    <button
+                      onClick={handleManualComplete}
+                      disabled={manualCompleteMutation.isPending || !manualTxHash.trim()}
+                      className='flex items-center gap-1 px-3 py-1.5 text-[10px] bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 whitespace-nowrap'
+                    >
+                      {manualCompleteMutation.isPending ? (
+                        <RefreshCw className='w-3 h-3 animate-spin' />
+                      ) : (
+                        <CheckCircle className='w-3 h-3' />
+                      )}
+                      Completar
+                    </button>
+                  </div>
+                  {trade.wallet_address && (
+                    <div className='mt-1.5 text-[9px] text-amber-600 dark:text-amber-400'>
+                      Enviar para: <span className='font-mono'>{trade.wallet_address}</span>
+                      <button
+                        onClick={() => copyToClipboard(trade.wallet_address!, 'Endereço')}
+                        className='ml-1 text-amber-700 hover:text-amber-800'
+                        title='Copiar endereço'
+                      >
+                        <Copy className='w-2.5 h-2.5 inline' />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className='flex flex-wrap items-center gap-1.5'>
-                {/* Network Selection */}
-                <select
-                  id='network-select'
-                  value={selectedNetwork}
-                  onChange={e => setSelectedNetwork(e.target.value)}
-                  className='px-2 py-1 text-[10px] border border-gray-200 dark:border-gray-700 rounded bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white'
-                  title='Rede'
-                >
-                  <option value='polygon'>Polygon</option>
-                  <option value='ethereum'>Ethereum</option>
-                  <option value='base'>Base</option>
-                </select>
+                {/* Network Selection - Dinâmico baseado no símbolo */}
+                {(() => {
+                  const availableNetworks = getAvailableNetworksForSymbol(trade.symbol)
+                  // Se só tem uma rede, mostrar como label fixo
+                  if (availableNetworks.length === 1 && availableNetworks[0]) {
+                    return (
+                      <span className='px-2 py-1 text-[10px] border border-gray-200 dark:border-gray-700 rounded bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white font-medium'>
+                        {availableNetworks[0].label}
+                      </span>
+                    )
+                  }
+                  // Se tem múltiplas redes, mostrar dropdown
+                  return (
+                    <select
+                      id='network-select'
+                      value={selectedNetwork}
+                      onChange={e => setSelectedNetwork(e.target.value)}
+                      className='px-2 py-1 text-[10px] border border-gray-200 dark:border-gray-700 rounded bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white'
+                      title='Rede'
+                    >
+                      {availableNetworks.map(net => (
+                        <option key={net.value} value={net.value}>
+                          {net.label}
+                        </option>
+                      ))}
+                    </select>
+                  )
+                })()}
 
-                {/* Confirmar Pagamento */}
-                {canConfirmPayment(trade.status) && trade.operation_type === 'buy' && (
-                  <button
-                    onClick={handleConfirmPayment}
-                    disabled={confirmPaymentMutation.isPending}
-                    className='flex items-center gap-1 px-2 py-1 text-[10px] bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50'
-                  >
-                    {confirmPaymentMutation.isPending ? (
-                      <RefreshCw className='w-3 h-3 animate-spin' />
-                    ) : (
-                      <CheckCircle className='w-3 h-3' />
-                    )}
-                    Confirmar
-                  </button>
-                )}
+                {/* Confirmar Pagamento - Apenas para cryptos EVM */}
+                {canConfirmPayment(trade.status) &&
+                  trade.operation_type === 'buy' &&
+                  isAutomaticDepositSupported(trade.symbol) && (
+                    <button
+                      onClick={handleConfirmPayment}
+                      disabled={confirmPaymentMutation.isPending}
+                      className='flex items-center gap-1 px-2 py-1 text-[10px] bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50'
+                    >
+                      {confirmPaymentMutation.isPending ? (
+                        <RefreshCw className='w-3 h-3 animate-spin' />
+                      ) : (
+                        <CheckCircle className='w-3 h-3' />
+                      )}
+                      Confirmar
+                    </button>
+                  )}
 
-                {/* Retry Depósito */}
-                {canRetryDeposit(trade.status) && (
+                {/* Retry Depósito - Apenas para cryptos EVM */}
+                {canRetryDeposit(trade.status) && isAutomaticDepositSupported(trade.symbol) && (
                   <button
                     onClick={handleRetryDeposit}
                     disabled={retryDepositMutation.isPending}
@@ -1234,11 +1471,11 @@ export const AdminTradeDetailPage: React.FC = () => {
                         <Copy className='w-3 h-3' />
                       </button>
                       <a
-                        href={`https://polygonscan.com/tx/${trade.tx_hash}`}
+                        href={getExplorerUrl(trade.tx_hash, trade.network, trade.symbol)}
                         target='_blank'
                         rel='noopener noreferrer'
                         className='text-blue-600 hover:text-blue-700'
-                        title='Ver no explorador'
+                        title={`Ver no ${getExplorerName(trade.network, trade.symbol)}`}
                         aria-label='Ver no explorador'
                       >
                         <ExternalLink className='w-3 h-3' />

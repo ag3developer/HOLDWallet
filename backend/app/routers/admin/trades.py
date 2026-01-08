@@ -560,6 +560,87 @@ async def confirm_payment_and_deposit(
         )
 
 
+class ManualCompleteRequest(BaseModel):
+    """Schema para completar trade manualmente (BTC, etc)"""
+    tx_hash: str
+    notes: Optional[str] = None
+
+
+@router.post("/{trade_id}/manual-complete", response_model=dict)
+async def manual_complete_trade(
+    trade_id: str,
+    request: ManualCompleteRequest,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin)
+):
+    """
+    Completa manualmente um trade de crypto não-EVM (BTC, LTC, etc).
+    Usado quando o admin já enviou a crypto manualmente e quer registrar o TX hash.
+    """
+    try:
+        trade = db.query(InstantTrade).filter(
+            InstantTrade.id == trade_id
+        ).first()
+        
+        if not trade:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Trade {trade_id} não encontrado"
+            )
+        
+        # Permite completar trades pendentes ou com pagamento confirmado
+        allowed_statuses = [
+            TradeStatus.PENDING, 
+            TradeStatus.PAYMENT_PROCESSING, 
+            TradeStatus.PAYMENT_CONFIRMED,
+            TradeStatus.FAILED
+        ]
+        if trade.status not in allowed_statuses:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Trade com status {trade.status.value} não pode ser completado manualmente"
+            )
+        
+        old_status = trade.status
+        
+        # Atualizar trade
+        trade.tx_hash = request.tx_hash
+        trade.status = TradeStatus.COMPLETED
+        trade.completed_at = datetime.now(timezone.utc)
+        trade.error_message = None
+        
+        # Registrar histórico
+        history = InstantTradeHistory(
+            trade_id=trade.id,
+            old_status=old_status,
+            new_status=TradeStatus.COMPLETED,
+            reason=f"Completado manualmente por admin {current_admin.email}",
+            history_details=f"TX: {request.tx_hash}" + (f" | Notas: {request.notes}" if request.notes else "")
+        )
+        db.add(history)
+        db.commit()
+        
+        logger.info(f"✅ Trade {trade.reference_code} completado manualmente. TX: {request.tx_hash}")
+        
+        return {
+            "success": True,
+            "message": f"Trade {trade.reference_code} completado com sucesso!",
+            "trade_id": trade.id,
+            "tx_hash": request.tx_hash,
+            "status": TradeStatus.COMPLETED.value
+        }
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"❌ Erro completando trade manualmente: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
 @router.post("/{trade_id}/retry-deposit", response_model=dict)
 async def retry_trade_deposit(
     trade_id: str,

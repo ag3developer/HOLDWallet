@@ -338,6 +338,25 @@ export const retryTradeDeposit = async (
   return response.data
 }
 
+export interface ManualCompleteRequest {
+  tx_hash: string
+  notes?: string
+}
+
+export const manualCompleteTrade = async (
+  tradeId: string,
+  data: ManualCompleteRequest
+): Promise<{
+  success: boolean
+  message: string
+  trade_id: string
+  tx_hash: string
+  status: string
+}> => {
+  const response = await adminApi.post(`/trades/${tradeId}/manual-complete`, data)
+  return response.data
+}
+
 export const sendToAccounting = async (
   tradeId: string
 ): Promise<{ success: boolean; message: string; entries: AccountingEntry[] }> => {
