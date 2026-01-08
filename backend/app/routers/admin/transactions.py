@@ -2,7 +2,9 @@
 🛡️ HOLD Wallet - Admin Transactions Router
 ===========================================
 
-Gestão de transações blockchain.
+Gestão de transações blockchain wallet-to-wallet.
+Mostra depósitos (recebimentos) e saques (envios) on-chain.
+Inclui sincronização de status com a blockchain.
 
 Author: HOLD Wallet Team
 """
@@ -10,15 +12,18 @@ Author: HOLD Wallet Team
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime, timedelta
 import logging
+import asyncio
 
 from app.core.db import get_db
 from app.core.security import get_current_admin
 from app.models.user import User
-from app.models.transaction import Transaction, TransactionStatus, TransactionType
-from app.models.instant_trade import InstantTrade, TradeStatus, OperationType
+from app.models.transaction import Transaction, TransactionStatus
+from app.models.address import Address
+from app.models.wallet import Wallet
+from app.services.blockchain_signer import BlockchainSigner
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +33,9 @@ router = APIRouter(
     dependencies=[Depends(get_current_admin)]
 )
 
+# Instância do signer para verificar status na blockchain
+blockchain_signer = BlockchainSigner()
+
 
 @router.get("/stats", response_model=dict)
 async def get_transaction_stats(
@@ -35,8 +43,8 @@ async def get_transaction_stats(
     current_admin: User = Depends(get_current_admin)
 ):
     """
-    Retorna estatísticas de transações blockchain
-    Inclui tanto transações da tabela transactions quanto InstantTrades com tx_hash
+    Retorna estatísticas de transações blockchain wallet-to-wallet.
+    Determina depósitos e saques baseado nos endereços dos usuários.
     """
     try:
         from datetime import timezone
@@ -44,10 +52,10 @@ async def get_transaction_stats(
         last_24h = now - timedelta(hours=24)
         last_7d = now - timedelta(days=7)
         
-        # ========== TRANSAÇÕES TABELA TRANSACTIONS ==========
+        # Total de transações
         total_transactions = db.query(func.count(Transaction.id)).scalar() or 0
         
-        # Por status (usando enum)
+        # Por status
         pending = db.query(func.count(Transaction.id)).filter(
             Transaction.status == TransactionStatus.pending
         ).scalar() or 0
@@ -64,41 +72,36 @@ async def get_transaction_stats(
             Transaction.status == TransactionStatus.created
         ).scalar() or 0
         
-        # Últimas 24h
+        # Últimas 24h e 7d
         tx_24h = db.query(func.count(Transaction.id)).filter(
             Transaction.created_at >= last_24h
         ).scalar() or 0
         
-        # Última semana
         tx_7d = db.query(func.count(Transaction.id)).filter(
             Transaction.created_at >= last_7d
         ).scalar() or 0
         
-        # Depósitos e Saques da tabela transactions (por tx_type)
-        deposits_tx = db.query(func.count(Transaction.id)).filter(
-            Transaction.tx_type == TransactionType.deposit
-        ).scalar() or 0
+        # ===== CALCULAR DEPÓSITOS E SAQUES =====
+        # Buscar todos os endereços de usuários da plataforma
+        user_addresses = db.query(Address.address).distinct().all()
+        user_address_set = {addr[0].lower() for addr in user_addresses if addr[0]}
         
-        withdrawals_tx = db.query(func.count(Transaction.id)).filter(
-            Transaction.tx_type == TransactionType.withdrawal
-        ).scalar() or 0
+        # Buscar todas as transações para calcular
+        all_transactions = db.query(Transaction).all()
         
-        # ========== INSTANT TRADES COM TX_HASH (transações blockchain) ==========
-        # Compras (BUY) = plataforma envia crypto para usuário = SAQUE da plataforma
-        buy_trades_with_tx = db.query(func.count(InstantTrade.id)).filter(
-            InstantTrade.operation_type == "buy",
-            InstantTrade.tx_hash.isnot(None)
-        ).scalar() or 0
+        deposits = 0   # to_address pertence a um usuário (recebeu)
+        withdrawals = 0  # from_address pertence a um usuário (enviou)
         
-        # Vendas (SELL) = usuário envia crypto para plataforma = DEPÓSITO na plataforma
-        sell_trades_with_tx = db.query(func.count(InstantTrade.id)).filter(
-            InstantTrade.operation_type == "sell",
-            InstantTrade.tx_hash.isnot(None)
-        ).scalar() or 0
-        
-        # Total incluindo InstantTrades
-        total_deposits = deposits_tx + sell_trades_with_tx  # Vendas = entrada na plataforma
-        total_withdrawals = withdrawals_tx + buy_trades_with_tx  # Compras = saída da plataforma
+        for tx in all_transactions:
+            from_addr = (tx.from_address or "").lower()
+            to_addr = (tx.to_address or "").lower()
+            
+            # Se o destinatário é um usuário da plataforma = depósito
+            if to_addr in user_address_set:
+                deposits += 1
+            # Se o remetente é um usuário da plataforma = saque
+            if from_addr in user_address_set:
+                withdrawals += 1
         
         # Por rede
         networks_stats = []
@@ -120,19 +123,16 @@ async def get_transaction_stats(
         return {
             "success": True,
             "data": {
-                "total": total_transactions + buy_trades_with_tx + sell_trades_with_tx,
+                "total": total_transactions,
                 "pending": pending,
                 "confirmed": confirmed,
                 "failed": failed,
                 "created": created,
                 "last_24h": tx_24h,
                 "last_7d": tx_7d,
-                "deposits": total_deposits,
-                "withdrawals": total_withdrawals,
-                "by_network": networks_stats,
-                # Detalhamento
-                "otc_buys": buy_trades_with_tx,
-                "otc_sells": sell_trades_with_tx
+                "deposits": deposits,
+                "withdrawals": withdrawals,
+                "by_network": networks_stats
             }
         }
     except Exception as e:
@@ -152,20 +152,21 @@ async def list_transactions(
     network: Optional[str] = None,
     user_id: Optional[str] = None,
     search: Optional[str] = None,
-    include_otc: bool = Query(True, description="Incluir transações OTC (InstantTrade)"),
     db: Session = Depends(get_db),
     current_admin: User = Depends(get_current_admin)
 ):
     """
-    Lista todas as transações blockchain (incluindo InstantTrades com tx_hash)
+    Lista transações blockchain wallet-to-wallet.
+    Determina se é depósito ou saque baseado nos endereços dos usuários.
     """
     try:
-        items = []
+        # Buscar todos os endereços de usuários da plataforma
+        user_addresses = db.query(Address.address).distinct().all()
+        user_address_set = {addr[0].lower() for addr in user_addresses if addr[0]}
         
-        # ========== TRANSAÇÕES DA TABELA TRANSACTIONS ==========
         query = db.query(Transaction)
         
-        # Filtro por status usando enum
+        # Filtro por status
         if status_filter and status_filter != 'all':
             try:
                 status_enum = TransactionStatus(status_filter)
@@ -173,23 +174,18 @@ async def list_transactions(
             except ValueError:
                 pass
         
-        # Filtro por tipo
-        if tx_type and tx_type != 'all':
-            try:
-                type_enum = TransactionType(tx_type)
-                query = query.filter(Transaction.tx_type == type_enum)
-            except ValueError:
-                pass
-        
+        # Filtro por rede
         if network and network != 'all':
             query = query.filter(Transaction.network == network)
         
+        # Filtro por usuário
         if user_id:
             try:
                 query = query.filter(Transaction.user_id == int(user_id))
             except ValueError:
                 pass
         
+        # Busca por hash ou endereço
         if search:
             query = query.filter(
                 Transaction.tx_hash.ilike(f"%{search}%") |
@@ -197,109 +193,65 @@ async def list_transactions(
                 Transaction.from_address.ilike(f"%{search}%")
             )
         
-        transactions = query.order_by(desc(Transaction.created_at)).all()
+        # Buscar todas para filtrar por tipo se necessário
+        all_transactions = query.order_by(desc(Transaction.created_at)).all()
         
-        # Buscar usernames para transactions
-        tx_user_ids = [t.user_id for t in transactions if t.user_id]
-        tx_users = db.query(User).filter(User.id.in_(tx_user_ids)).all() if tx_user_ids else []
-        tx_user_map = {u.id: u.username for u in tx_users}
+        # Determinar tipo de cada transação e filtrar se necessário
+        typed_transactions = []
+        for tx in all_transactions:
+            from_addr = (tx.from_address or "").lower()
+            to_addr = (tx.to_address or "").lower()
+            
+            # Determinar tipo: depósito (recebeu) ou saque (enviou)
+            is_deposit = to_addr in user_address_set
+            is_withdrawal = from_addr in user_address_set
+            
+            if is_withdrawal:
+                tx_type_value = "withdrawal"
+            elif is_deposit:
+                tx_type_value = "deposit"
+            else:
+                tx_type_value = "transfer"
+            
+            # Aplicar filtro de tipo se especificado
+            if tx_type and tx_type != 'all':
+                if tx_type == 'deposit' and not is_deposit:
+                    continue
+                if tx_type == 'withdrawal' and not is_withdrawal:
+                    continue
+            
+            typed_transactions.append((tx, tx_type_value))
         
-        for tx in transactions:
-            tx_type_value = tx.tx_type.value if hasattr(tx, 'tx_type') and tx.tx_type else "transfer"
+        # Contar total após filtro de tipo
+        total = len(typed_transactions)
+        
+        # Aplicar paginação
+        paginated = typed_transactions[skip:skip + limit]
+        
+        # Buscar usernames
+        user_ids_list = list({t[0].user_id for t in paginated if t[0].user_id})
+        users = db.query(User).filter(User.id.in_(user_ids_list)).all() if user_ids_list else []
+        user_map = {u.id: u.username for u in users}
+        
+        items = []
+        for tx, tx_type_value in paginated:
             items.append({
-                "id": f"tx_{tx.id}",
-                "source": "transaction",
-                "user_id": str(tx.user_id) if tx.user_id else None,
-                "username": tx_user_map.get(tx.user_id, "Unknown") if tx.user_id else None,
+                "id": tx.id,
+                "user_id": tx.user_id,
+                "username": user_map.get(tx.user_id, "Unknown") if tx.user_id else None,
                 "tx_type": tx_type_value,
                 "tx_hash": tx.tx_hash,
                 "from_address": tx.from_address,
                 "to_address": tx.to_address,
-                "amount": float(tx.amount) if tx.amount else 0,
+                "amount": str(tx.amount) if tx.amount else "0",
                 "cryptocurrency": tx.token_symbol,
                 "network": tx.network,
                 "status": tx.status.value if tx.status else None,
-                "fee": float(tx.fee) if tx.fee else 0,
+                "fee": str(tx.fee) if tx.fee else "0",
                 "confirmations": tx.confirmations or 0,
                 "created_at": tx.created_at.isoformat() if tx.created_at else None,
                 "confirmed_at": tx.confirmed_at.isoformat() if tx.confirmed_at else None
             })
-        
-        # ========== INSTANT TRADES COM TX_HASH ==========
-        if include_otc:
-            otc_query = db.query(InstantTrade).filter(InstantTrade.tx_hash.isnot(None))
-            
-            # Filtro por tipo OTC
-            if tx_type and tx_type != 'all':
-                if tx_type == 'deposit' or tx_type == 'sell':
-                    otc_query = otc_query.filter(InstantTrade.operation_type == "sell")
-                elif tx_type == 'withdrawal' or tx_type == 'buy':
-                    otc_query = otc_query.filter(InstantTrade.operation_type == "buy")
-            
-            if network and network != 'all':
-                otc_query = otc_query.filter(InstantTrade.network == network)
-            
-            if user_id:
-                otc_query = otc_query.filter(InstantTrade.user_id == user_id)
-            
-            if search:
-                otc_query = otc_query.filter(
-                    InstantTrade.tx_hash.ilike(f"%{search}%") |
-                    InstantTrade.wallet_address.ilike(f"%{search}%") |
-                    InstantTrade.reference_code.ilike(f"%{search}%")
-                )
-            
-            otc_trades = otc_query.order_by(desc(InstantTrade.created_at)).all()
-            
-            # Buscar usernames para OTC
-            otc_user_ids = [t.user_id for t in otc_trades if t.user_id]
-            otc_users = db.query(User).filter(User.id.in_(otc_user_ids)).all() if otc_user_ids else []
-            otc_user_map = {str(u.id): u.username for u in otc_users}
-            
-            for trade in otc_trades:
-                # BUY = plataforma envia para usuário = withdrawal
-                # SELL = usuário envia para plataforma = deposit
-                op_type = str(trade.operation_type.value) if hasattr(trade.operation_type, 'value') else str(trade.operation_type)
-                tx_type_mapped = "withdrawal" if op_type == "buy" else "deposit"
-                
-                # Determinar status
-                trade_status = str(trade.status.value) if hasattr(trade.status, 'value') else str(trade.status)
-                if trade_status in ["completed", "crypto_sent", "crypto_received"]:
-                    mapped_status = "confirmed"
-                elif trade_status in ["pending", "processing", "awaiting_payment"]:
-                    mapped_status = "pending"
-                elif trade_status in ["cancelled", "failed", "expired"]:
-                    mapped_status = "failed"
-                else:
-                    mapped_status = "pending"
-                
-                items.append({
-                    "id": f"otc_{trade.id}",
-                    "source": "instant_trade",
-                    "user_id": str(trade.user_id) if trade.user_id else None,
-                    "username": otc_user_map.get(str(trade.user_id), "Unknown") if trade.user_id else None,
-                    "tx_type": tx_type_mapped,
-                    "tx_hash": trade.tx_hash,
-                    "from_address": trade.wallet_address if op_type == "sell" else None,
-                    "to_address": trade.wallet_address if op_type == "buy" else None,
-                    "amount": float(trade.crypto_amount) if trade.crypto_amount else 0,
-                    "cryptocurrency": trade.symbol,
-                    "network": trade.network,
-                    "status": mapped_status,
-                    "fee": 0,
-                    "confirmations": 1 if mapped_status == "confirmed" else 0,
-                    "created_at": trade.created_at.isoformat() if trade.created_at else None,
-                    "confirmed_at": trade.updated_at.isoformat() if trade.updated_at and mapped_status == "confirmed" else None,
-                    "reference_code": trade.reference_code,
-                    "brl_amount": float(trade.brl_amount) if trade.brl_amount else 0
-                })
-        
-        # Ordenar por data (mais recentes primeiro)
-        items.sort(key=lambda x: x.get("created_at") or "", reverse=True)
-        
-        # Aplicar paginação
-        total = len(items)
-        items = items[skip:skip + limit]
         
         return {
             "success": True,
@@ -426,6 +378,272 @@ async def get_user_transactions(
         raise
     except Exception as e:
         logger.error(f"❌ Erro listando transações do usuário: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+# ============================================
+# SINCRONIZAÇÃO COM BLOCKCHAIN
+# ============================================
+
+@router.post("/sync", response_model=dict)
+async def sync_pending_transactions(
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin)
+):
+    """
+    Sincroniza o status de todas as transações pendentes com a blockchain.
+    Verifica cada transação com tx_hash e atualiza o status no banco.
+    """
+    try:
+        # Buscar transações pendentes que têm hash
+        pending_transactions = db.query(Transaction).filter(
+            Transaction.status == TransactionStatus.pending,
+            Transaction.tx_hash.isnot(None)
+        ).all()
+        
+        if not pending_transactions:
+            return {
+                "success": True,
+                "message": "Nenhuma transação pendente para sincronizar",
+                "data": {
+                    "total_checked": 0,
+                    "updated": 0,
+                    "confirmed": 0,
+                    "failed": 0,
+                    "still_pending": 0
+                }
+            }
+        
+        updated = 0
+        confirmed = 0
+        failed = 0
+        still_pending = 0
+        errors = []
+        
+        for tx in pending_transactions:
+            try:
+                # Verificar status na blockchain
+                network = tx.network or "polygon"
+                
+                try:
+                    status_info = await blockchain_signer.get_transaction_status(
+                        network=network,
+                        tx_hash=tx.tx_hash
+                    )
+                except Exception as e:
+                    logger.warning(f"⚠️ Erro ao verificar tx {tx.tx_hash}: {e}")
+                    errors.append({"tx_hash": tx.tx_hash, "error": str(e)})
+                    continue
+                
+                blockchain_status = status_info.get("status", "pending")
+                confirmations = status_info.get("confirmations", 0)
+                block_number = status_info.get("block_number")
+                
+                # Atualizar se status mudou
+                if blockchain_status == "confirmed":
+                    tx.status = TransactionStatus.confirmed
+                    tx.confirmations = confirmations
+                    tx.block_number = block_number
+                    tx.confirmed_at = datetime.utcnow()
+                    tx.updated_at = datetime.utcnow()
+                    updated += 1
+                    confirmed += 1
+                    logger.info(f"✅ Transação {tx.tx_hash} confirmada ({confirmations} confirmações)")
+                    
+                elif blockchain_status == "failed":
+                    tx.status = TransactionStatus.failed
+                    tx.confirmations = confirmations
+                    tx.block_number = block_number
+                    tx.updated_at = datetime.utcnow()
+                    tx.error_message = "Transação falhou na blockchain"
+                    updated += 1
+                    failed += 1
+                    logger.warning(f"❌ Transação {tx.tx_hash} falhou")
+                    
+                else:
+                    # Ainda pendente - atualizar confirmações se houver
+                    if confirmations > 0:
+                        tx.confirmations = confirmations
+                        tx.updated_at = datetime.utcnow()
+                    still_pending += 1
+                
+            except Exception as e:
+                logger.error(f"❌ Erro processando tx {tx.id}: {e}")
+                errors.append({"tx_id": tx.id, "error": str(e)})
+        
+        # Commit das mudanças
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": f"Sincronização concluída: {confirmed} confirmadas, {failed} falharam, {still_pending} ainda pendentes",
+            "data": {
+                "total_checked": len(pending_transactions),
+                "updated": updated,
+                "confirmed": confirmed,
+                "failed": failed,
+                "still_pending": still_pending,
+                "errors": errors if errors else None
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Erro sincronizando transações: {str(e)}")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+@router.post("/sync/{transaction_id}", response_model=dict)
+async def sync_single_transaction(
+    transaction_id: int,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin)
+):
+    """
+    Sincroniza o status de uma transação específica com a blockchain.
+    """
+    try:
+        tx = db.query(Transaction).filter(Transaction.id == transaction_id).first()
+        
+        if not tx:
+            raise HTTPException(status_code=404, detail="Transação não encontrada")
+        
+        if not tx.tx_hash:
+            raise HTTPException(
+                status_code=400, 
+                detail="Transação não possui hash - não pode ser verificada na blockchain"
+            )
+        
+        # Verificar status na blockchain
+        network = tx.network or "polygon"
+        
+        try:
+            status_info = await blockchain_signer.get_transaction_status(
+                network=network,
+                tx_hash=tx.tx_hash
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Erro ao consultar blockchain: {str(e)}"
+            )
+        
+        old_status = tx.status.value if tx.status else "unknown"
+        blockchain_status = status_info.get("status", "pending")
+        confirmations = status_info.get("confirmations", 0)
+        block_number = status_info.get("block_number")
+        gas_used = status_info.get("gas_used")
+        is_final = status_info.get("final", False)
+        
+        # Atualizar transação
+        if blockchain_status == "confirmed":
+            tx.status = TransactionStatus.confirmed
+            tx.confirmations = confirmations
+            tx.block_number = block_number
+            tx.confirmed_at = datetime.utcnow()
+            tx.updated_at = datetime.utcnow()
+            
+        elif blockchain_status == "failed":
+            tx.status = TransactionStatus.failed
+            tx.confirmations = confirmations
+            tx.block_number = block_number
+            tx.updated_at = datetime.utcnow()
+            tx.error_message = "Transação falhou na blockchain"
+            
+        else:
+            # Ainda pendente
+            if confirmations > 0:
+                tx.confirmations = confirmations
+                tx.updated_at = datetime.utcnow()
+        
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": f"Status atualizado: {old_status} → {blockchain_status}",
+            "data": {
+                "id": tx.id,
+                "tx_hash": tx.tx_hash,
+                "old_status": old_status,
+                "new_status": blockchain_status,
+                "confirmations": confirmations,
+                "block_number": block_number,
+                "gas_used": gas_used,
+                "is_final": is_final
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Erro sincronizando transação {transaction_id}: {str(e)}")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+@router.patch("/{transaction_id}/status", response_model=dict)
+async def update_transaction_status(
+    transaction_id: int,
+    new_status: str = Query(..., description="Novo status: pending, confirmed, failed"),
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin)
+):
+    """
+    Atualiza manualmente o status de uma transação.
+    Use com cuidado - preferir sincronização automática.
+    """
+    try:
+        tx = db.query(Transaction).filter(Transaction.id == transaction_id).first()
+        
+        if not tx:
+            raise HTTPException(status_code=404, detail="Transação não encontrada")
+        
+        # Validar status
+        valid_statuses = ["pending", "confirmed", "failed", "cancelled"]
+        if new_status not in valid_statuses:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Status inválido. Use: {', '.join(valid_statuses)}"
+            )
+        
+        old_status = tx.status.value if tx.status else "unknown"
+        
+        # Atualizar
+        tx.status = TransactionStatus(new_status)
+        tx.updated_at = datetime.utcnow()
+        
+        if new_status == "confirmed":
+            tx.confirmed_at = datetime.utcnow()
+        
+        db.commit()
+        
+        logger.info(f"📝 Admin {current_admin.username} alterou status da tx {tx.id}: {old_status} → {new_status}")
+        
+        return {
+            "success": True,
+            "message": f"Status atualizado: {old_status} → {new_status}",
+            "data": {
+                "id": tx.id,
+                "tx_hash": tx.tx_hash,
+                "old_status": old_status,
+                "new_status": new_status
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Erro atualizando status: {str(e)}")
+        db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)

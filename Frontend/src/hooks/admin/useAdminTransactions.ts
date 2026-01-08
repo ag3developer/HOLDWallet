@@ -6,9 +6,9 @@
  * Implementa cache inteligente e invalidação automática.
  */
 
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/v1'
 
 // Helper para obter token
 const getAuthToken = () => {
@@ -215,10 +215,53 @@ export function useUserTransactions(userId: string, txType?: string) {
 // HOOK COMBINADO PARA PÁGINA
 // ============================================
 
+export interface SyncResult {
+  total_checked: number
+  updated: number
+  confirmed: number
+  failed: number
+  still_pending: number
+  errors?: Array<{ tx_hash?: string; tx_id?: number; error: string }>
+}
+
+export function useSyncTransactions() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (): Promise<SyncResult> => {
+      const response = await authFetch('/admin/transactions/sync', {
+        method: 'POST',
+      })
+      return response.data as SyncResult
+    },
+    onSuccess: () => {
+      // Invalidar queries para recarregar dados
+      queryClient.invalidateQueries({ queryKey: transactionKeys.all })
+    },
+  })
+}
+
+export function useSyncSingleTransaction() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (transactionId: number) => {
+      const response = await authFetch(`/admin/transactions/sync/${transactionId}`, {
+        method: 'POST',
+      })
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: transactionKeys.all })
+    },
+  })
+}
+
 export function useAdminTransactionsPage(filters: TransactionsFilters = {}) {
   const queryClient = useQueryClient()
   const stats = useTransactionStats()
   const transactions = useTransactions(filters)
+  const syncMutation = useSyncTransactions()
 
   return {
     stats,
@@ -232,5 +275,9 @@ export function useAdminTransactionsPage(filters: TransactionsFilters = {}) {
     invalidateAll: () => {
       queryClient.invalidateQueries({ queryKey: transactionKeys.all })
     },
+    // Sincronização
+    syncTransactions: syncMutation.mutateAsync,
+    isSyncing: syncMutation.isPending,
+    syncResult: syncMutation.data,
   }
 }

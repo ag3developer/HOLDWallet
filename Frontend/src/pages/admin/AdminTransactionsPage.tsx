@@ -11,6 +11,7 @@ import { toast } from 'react-hot-toast'
 import {
   useTransactionStats,
   useTransactions,
+  useSyncTransactions,
   type Transaction,
 } from '@/hooks/admin/useAdminTransactions'
 import {
@@ -32,6 +33,7 @@ import {
   Wallet,
   Hash,
   User,
+  RefreshCcw,
 } from 'lucide-react'
 
 // Mapeamento de logos das criptomoedas
@@ -115,6 +117,9 @@ export const AdminTransactionsPage: React.FC = () => {
     search: debouncedSearch || undefined,
   })
 
+  // Sincronização com blockchain
+  const syncMutation = useSyncTransactions()
+
   const transactions = transactionsData?.items || []
   const total = transactionsData?.total || 0
   const totalPages = Math.ceil(total / limit)
@@ -123,6 +128,27 @@ export const AdminTransactionsPage: React.FC = () => {
     refetchStats()
     refetchTransactions()
     toast.success('Dados atualizados')
+  }
+
+  const handleSyncBlockchain = async () => {
+    try {
+      const result = await syncMutation.mutateAsync()
+      if (result.updated > 0) {
+        toast.success(
+          `Sincronizado! ${result.confirmed} confirmadas, ${result.failed} falharam, ${result.still_pending} pendentes`
+        )
+      } else if (result.total_checked === 0) {
+        toast.success('Nenhuma transação pendente para sincronizar')
+      } else {
+        toast.success(`${result.still_pending} transações ainda pendentes na blockchain`)
+      }
+      // Recarregar dados
+      refetchStats()
+      refetchTransactions()
+    } catch (error) {
+      toast.error('Erro ao sincronizar com blockchain')
+      console.error(error)
+    }
   }
 
   const copyToClipboard = (text: string) => {
@@ -135,10 +161,18 @@ export const AdminTransactionsPage: React.FC = () => {
     return `${hash.slice(0, 6)}...${hash.slice(-4)}`
   }
 
-  const formatAmount = (amount: number) => {
-    if (amount >= 1000) return amount.toLocaleString('pt-BR', { maximumFractionDigits: 2 })
-    if (amount >= 1) return amount.toFixed(4)
-    return amount.toFixed(8)
+  const formatAmount = (amount: number | string | null | undefined) => {
+    // Converte para número se necessário
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : Number(amount)
+
+    // Verifica se é um número válido
+    if (isNaN(numAmount) || amount === null || amount === undefined) {
+      return '0.00'
+    }
+
+    if (numAmount >= 1000) return numAmount.toLocaleString('pt-BR', { maximumFractionDigits: 2 })
+    if (numAmount >= 1) return numAmount.toFixed(4)
+    return numAmount.toFixed(8)
   }
 
   const formatDate = (dateStr?: string) => {
@@ -169,7 +203,12 @@ export const AdminTransactionsPage: React.FC = () => {
   }
 
   const getNetworkStyle = (network?: string) => {
-    return NETWORK_COLORS[network?.toLowerCase() || ''] || { bg: 'bg-gray-500/10', text: 'text-gray-400' }
+    return (
+      NETWORK_COLORS[network?.toLowerCase() || ''] || {
+        bg: 'bg-gray-500/10',
+        text: 'text-gray-400',
+      }
+    )
   }
 
   return (
@@ -185,14 +224,31 @@ export const AdminTransactionsPage: React.FC = () => {
             <p className='text-gray-500 text-xs sm:text-sm'>Depositos e saques on-chain</p>
           </div>
         </div>
-        <button
-          onClick={handleRefresh}
-          disabled={statsLoading || transactionsLoading}
-          className='flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-white border border-white/10 transition-all text-sm disabled:opacity-50'
-        >
-          <RefreshCw className={`h-4 w-4 ${statsLoading || transactionsLoading ? 'animate-spin' : ''}`} />
-          <span className='hidden sm:inline'>Atualizar</span>
-        </button>
+        <div className='flex items-center gap-2'>
+          {/* Botão Sincronizar com Blockchain */}
+          <button
+            onClick={handleSyncBlockchain}
+            disabled={syncMutation.isPending || statsLoading}
+            title='Sincronizar status das transações pendentes com a blockchain'
+            className='flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-green-500/20 to-emerald-500/20 hover:from-green-500/30 hover:to-emerald-500/30 text-green-400 border border-green-500/20 transition-all text-sm disabled:opacity-50'
+          >
+            <RefreshCcw className={`h-4 w-4 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
+            <span className='hidden sm:inline'>
+              {syncMutation.isPending ? 'Sincronizando...' : 'Sync Blockchain'}
+            </span>
+          </button>
+          {/* Botão Atualizar */}
+          <button
+            onClick={handleRefresh}
+            disabled={statsLoading || transactionsLoading}
+            className='flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-white border border-white/10 transition-all text-sm disabled:opacity-50'
+          >
+            <RefreshCw
+              className={`h-4 w-4 ${statsLoading || transactionsLoading ? 'animate-spin' : ''}`}
+            />
+            <span className='hidden sm:inline'>Atualizar</span>
+          </button>
+        </div>
       </div>
 
       {/* Stats Cards - Grid Responsivo */}
@@ -356,13 +412,27 @@ export const AdminTransactionsPage: React.FC = () => {
               <table className='w-full'>
                 <thead>
                   <tr className='border-b border-white/5 bg-white/[0.02]'>
-                    <th className='text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider'>Moeda</th>
-                    <th className='text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider'>Tipo</th>
-                    <th className='text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider'>Valor</th>
-                    <th className='text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider'>Usuario</th>
-                    <th className='text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider'>Hash</th>
-                    <th className='text-center px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider'>Status</th>
-                    <th className='text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider'>Data</th>
+                    <th className='text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      Moeda
+                    </th>
+                    <th className='text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      Tipo
+                    </th>
+                    <th className='text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      Valor
+                    </th>
+                    <th className='text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      Usuario
+                    </th>
+                    <th className='text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      Hash
+                    </th>
+                    <th className='text-center px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      Status
+                    </th>
+                    <th className='text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      Data
+                    </th>
                     <th className='text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider'></th>
                   </tr>
                 </thead>
@@ -378,14 +448,20 @@ export const AdminTransactionsPage: React.FC = () => {
                         <td className='px-4 py-3'>
                           <div className='flex items-center gap-2'>
                             {logo ? (
-                              <img src={logo} alt={tx.cryptocurrency} className='w-7 h-7 rounded-full' />
+                              <img
+                                src={logo}
+                                alt={tx.cryptocurrency}
+                                className='w-7 h-7 rounded-full'
+                              />
                             ) : (
                               <div className='w-7 h-7 rounded-full bg-gray-700 flex items-center justify-center'>
                                 <Wallet className='h-3.5 w-3.5 text-gray-400' />
                               </div>
                             )}
                             <div>
-                              <span className='text-white font-medium text-sm'>{tx.cryptocurrency || 'N/A'}</span>
+                              <span className='text-white font-medium text-sm'>
+                                {tx.cryptocurrency || 'N/A'}
+                              </span>
                               {tx.network && (
                                 <span className={`block text-[10px] ${networkStyle.text}`}>
                                   {tx.network}
@@ -416,9 +492,13 @@ export const AdminTransactionsPage: React.FC = () => {
 
                         {/* Valor */}
                         <td className='px-4 py-3 text-right'>
-                          <span className={`font-mono text-sm font-medium ${
-                            tx.tx_type === 'deposit' || tx.tx_type === 'sell' ? 'text-green-400' : 'text-white'
-                          }`}>
+                          <span
+                            className={`font-mono text-sm font-medium ${
+                              tx.tx_type === 'deposit' || tx.tx_type === 'sell'
+                                ? 'text-green-400'
+                                : 'text-white'
+                            }`}
+                          >
                             {tx.tx_type === 'deposit' || tx.tx_type === 'sell' ? '+' : '-'}
                             {formatAmount(tx.amount)}
                           </span>
@@ -430,7 +510,9 @@ export const AdminTransactionsPage: React.FC = () => {
                             <div className='w-6 h-6 rounded-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center text-[10px] font-medium text-blue-300'>
                               {tx.username?.charAt(0).toUpperCase() || '?'}
                             </div>
-                            <span className='text-gray-300 text-sm'>{tx.username || 'Unknown'}</span>
+                            <span className='text-gray-300 text-sm'>
+                              {tx.username || 'Unknown'}
+                            </span>
                           </div>
                         </td>
 
@@ -438,7 +520,9 @@ export const AdminTransactionsPage: React.FC = () => {
                         <td className='px-4 py-3'>
                           <div className='flex items-center gap-1.5'>
                             <Hash className='h-3 w-3 text-gray-600' />
-                            <span className='text-gray-400 font-mono text-xs'>{shortenHash(tx.tx_hash)}</span>
+                            <span className='text-gray-400 font-mono text-xs'>
+                              {shortenHash(tx.tx_hash)}
+                            </span>
                             {tx.tx_hash && (
                               <button
                                 onClick={() => copyToClipboard(tx.tx_hash!)}
@@ -515,16 +599,22 @@ export const AdminTransactionsPage: React.FC = () => {
                         {/* Coin Logo */}
                         <div className='relative'>
                           {logo ? (
-                            <img src={logo} alt={tx.cryptocurrency} className='w-10 h-10 rounded-full' />
+                            <img
+                              src={logo}
+                              alt={tx.cryptocurrency}
+                              className='w-10 h-10 rounded-full'
+                            />
                           ) : (
                             <div className='w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center'>
                               <Wallet className='h-5 w-5 text-gray-400' />
                             </div>
                           )}
                           {/* Direction indicator */}
-                          <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center ${
-                            isIncoming ? 'bg-green-500' : 'bg-blue-500'
-                          }`}>
+                          <div
+                            className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center ${
+                              isIncoming ? 'bg-green-500' : 'bg-blue-500'
+                            }`}
+                          >
                             {isIncoming ? (
                               <ArrowDownLeft className='h-3 w-3 text-white' />
                             ) : (
@@ -536,24 +626,35 @@ export const AdminTransactionsPage: React.FC = () => {
                         {/* Info */}
                         <div>
                           <div className='flex items-center gap-2'>
-                            <span className='text-white font-medium'>{tx.cryptocurrency || 'N/A'}</span>
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded ${networkStyle.bg} ${networkStyle.text}`}>
+                            <span className='text-white font-medium'>
+                              {tx.cryptocurrency || 'N/A'}
+                            </span>
+                            <span
+                              className={`text-[10px] px-1.5 py-0.5 rounded ${networkStyle.bg} ${networkStyle.text}`}
+                            >
                               {tx.network}
                             </span>
                           </div>
                           <div className='flex items-center gap-2 mt-0.5'>
                             <User className='h-3 w-3 text-gray-600' />
-                            <span className='text-gray-500 text-xs'>{tx.username || 'Unknown'}</span>
+                            <span className='text-gray-500 text-xs'>
+                              {tx.username || 'Unknown'}
+                            </span>
                             <span className='text-gray-700'>|</span>
-                            <span className='text-gray-600 text-xs'>{formatDate(tx.created_at)}</span>
+                            <span className='text-gray-600 text-xs'>
+                              {formatDate(tx.created_at)}
+                            </span>
                           </div>
                         </div>
                       </div>
 
                       {/* Right: Amount + Status */}
                       <div className='text-right'>
-                        <div className={`font-mono font-medium ${isIncoming ? 'text-green-400' : 'text-white'}`}>
-                          {isIncoming ? '+' : '-'}{formatAmount(tx.amount)}
+                        <div
+                          className={`font-mono font-medium ${isIncoming ? 'text-green-400' : 'text-white'}`}
+                        >
+                          {isIncoming ? '+' : '-'}
+                          {formatAmount(tx.amount)}
                         </div>
                         <div className='mt-1'>
                           {tx.status === 'confirmed' ? (
@@ -581,7 +682,9 @@ export const AdminTransactionsPage: React.FC = () => {
                       <div className='flex items-center justify-between mt-2 pt-2 border-t border-white/5'>
                         <div className='flex items-center gap-2'>
                           <Hash className='h-3 w-3 text-gray-600' />
-                          <span className='text-gray-500 font-mono text-xs'>{shortenHash(tx.tx_hash)}</span>
+                          <span className='text-gray-500 font-mono text-xs'>
+                            {shortenHash(tx.tx_hash)}
+                          </span>
                           <button
                             onClick={() => copyToClipboard(tx.tx_hash!)}
                             title='Copiar hash'

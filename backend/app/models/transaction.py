@@ -38,7 +38,8 @@ class Transaction(Base):
     
     # Transaction data
     tx_hash = Column(String(255), nullable=True, unique=True, index=True)  # Hash após broadcast
-    tx_type = Column(SQLEnum(TransactionType), default=TransactionType.transfer, nullable=False, index=True)
+    # Nota: tx_type foi removido pois a coluna não existe no banco de dados
+    # O tipo de transação é determinado pelo contexto (InstantTrade.operation_type)
     from_address = Column(String(255), nullable=False, index=True)
     to_address = Column(String(255), nullable=False, index=True)
     amount = Column(String(50), nullable=False)  # Storing as string to avoid precision issues
