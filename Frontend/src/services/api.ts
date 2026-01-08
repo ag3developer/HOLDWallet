@@ -1,6 +1,7 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios'
 import { APP_CONFIG } from '@/config/app'
 import { useAuthStore } from '@/stores/useAuthStore'
+import { authStorage } from '@/utils/indexedDBStorage'
 
 class ApiClient {
   private readonly client: AxiosInstance
@@ -194,10 +195,18 @@ class ApiClient {
 
   private getStoredToken(): string | null {
     try {
-      // Strategy 1: Check in-memory Zustand store (fastest & most reliable)
+      // 🗄️ Strategy 0: IndexedDB (most reliable for Safari iOS)
+      const indexedDBToken = authStorage.getToken()
+      if (indexedDBToken) {
+        console.log('[API] ✅ Token from IndexedDB')
+        return indexedDBToken
+      }
+
+      // Strategy 1: Check in-memory Zustand store (fastest)
       const zustandToken = useAuthStore.getState().token
       if (zustandToken) {
-        // Also backup to sessionStorage for Safari iOS
+        // Save to IndexedDB for iOS
+        authStorage.setToken(zustandToken)
         this.backupTokenToSession(zustandToken)
         return zustandToken
       }
@@ -216,17 +225,9 @@ class ApiClient {
         const token = this.extractTokenFromData(authData)
         if (token) {
           console.log('[API] ✅ Token recovered from localStorage (Zustand format)')
-          // Backup to sessionStorage for Safari
+          // Save to IndexedDB for iOS
+          authStorage.setToken(token)
           this.backupTokenToSession(token)
-          // Restore to in-memory store for faster future access
-          try {
-            const parsed = JSON.parse(authData)
-            if (parsed.state?.user && hasHydrated) {
-              useAuthStore.getState().setAuthData(parsed.state.user, token)
-            }
-          } catch (e) {
-            console.warn('[API] Could not restore auth to memory')
-          }
           return token
         }
       }
@@ -236,6 +237,7 @@ class ApiClient {
         const sessionToken = sessionStorage.getItem('auth_token_backup')
         if (sessionToken) {
           console.log('[API] ✅ Token recovered from sessionStorage backup')
+          authStorage.setToken(sessionToken)
           return sessionToken
         }
       } catch {
@@ -245,6 +247,7 @@ class ApiClient {
       // Strategy 4: Check all localStorage keys (comprehensive fallback)
       const foundToken = this.findTokenInAllKeys()
       if (foundToken) {
+        authStorage.setToken(foundToken)
         this.backupTokenToSession(foundToken)
         return foundToken
       }
@@ -369,17 +372,22 @@ class ApiClient {
   private lastLoginTimestamp = 0
 
   private handleAuthError(): void {
-    // ⚠️ SAFARI iOS FIX: Prevent logout race condition
-    // If user just logged in (within 10 seconds), don't logout
+    // ⚠️ SAFARI iOS FIX: Check IndexedDB grace period first
+    if (authStorage.isWithinGracePeriod(15)) {
+      console.warn('[API] 🛡️ Preventing logout - IndexedDB grace period active')
+      return
+    }
+
+    // Also check sessionStorage grace period
     const now = Date.now()
     const loginTimestamp = this.getLoginTimestamp()
     const timeSinceLogin = now - loginTimestamp
 
-    if (timeSinceLogin < 10000) {
-      // 10 seconds grace period after login
+    if (timeSinceLogin < 15000) {
+      // 15 seconds grace period after login
       console.warn('[API] 🛡️ Preventing logout - user just logged in', {
         timeSinceLogin: `${timeSinceLogin}ms`,
-        threshold: '10000ms',
+        threshold: '15000ms',
       })
       return
     }
@@ -402,8 +410,11 @@ class ApiClient {
         console.warn('Session expired - redirecting to login')
       })
 
-    // Clear stored auth data
+    // Clear all auth data
     localStorage.removeItem(`${APP_CONFIG.storage.prefix}${APP_CONFIG.storage.keys.auth}`)
+
+    // Clear IndexedDB
+    authStorage.clearAll().catch(console.error)
 
     // Also clear sessionStorage backup
     try {

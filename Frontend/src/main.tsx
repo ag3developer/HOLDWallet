@@ -14,6 +14,11 @@ import './utils/iosPWAStartup'
 import { initSafariIOSCompat } from './utils/iosSafariCompat'
 initSafariIOSCompat()
 
+// 🗄️ IndexedDB Storage - Mais confiável que localStorage no iOS
+import { authStorage } from './utils/indexedDBStorage'
+// Inicializar IndexedDB em background (não bloqueia render)
+authStorage.init().catch(console.error)
+
 import App from './App'
 import './config/i18n'
 import './styles/globals.css'

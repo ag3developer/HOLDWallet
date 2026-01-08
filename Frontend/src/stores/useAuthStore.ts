@@ -4,6 +4,7 @@ import { User, AuthState, LoginRequest, RegisterRequest, AuthResponse } from '@/
 import { authService } from '@/services/auth'
 import { APP_CONFIG } from '@/config/app'
 import { safariSafeStorage } from '@/utils/safariStorage'
+import { authStorage } from '@/utils/indexedDBStorage'
 
 interface AuthStore extends AuthState {
   // Actions
@@ -43,7 +44,12 @@ export const useAuthStore = create<AuthStore>()(
         try {
           const response: AuthResponse = await authService.login(credentials)
 
-          // ✅ Mark login time BEFORE setting state (for Safari iOS fix)
+          // ✅ SAFARI iOS FIX: Save to ALL storage mechanisms
+          // 1. IndexedDB (most reliable for iOS)
+          authStorage.setToken(response.access_token)
+          authStorage.setUser(response.user)
+
+          // 2. sessionStorage backup
           try {
             sessionStorage.setItem('auth_token_timestamp', Date.now().toString())
             sessionStorage.setItem('auth_token_backup', response.access_token)
@@ -59,7 +65,7 @@ export const useAuthStore = create<AuthStore>()(
             error: null,
           })
 
-          console.log('[AuthStore] ✅ Login successful, token saved')
+          console.log('[AuthStore] ✅ Login successful, token saved to all stores')
         } catch (error: any) {
           set({
             user: null,
@@ -136,6 +142,18 @@ export const useAuthStore = create<AuthStore>()(
           }
         }
 
+        // ✅ SAFARI iOS FIX: Clear ALL storage mechanisms
+        // 1. IndexedDB
+        authStorage.clearAll().catch(console.error)
+
+        // 2. sessionStorage
+        try {
+          sessionStorage.removeItem('auth_token_backup')
+          sessionStorage.removeItem('auth_token_timestamp')
+        } catch {
+          // ignore
+        }
+
         // Clear local state
         set({
           user: null,
@@ -145,7 +163,7 @@ export const useAuthStore = create<AuthStore>()(
           error: null,
         })
 
-        console.log('[AuthStore] ✅ Local state cleared')
+        console.log('[AuthStore] ✅ Local state cleared from all stores')
       },
 
       // Refresh token action
@@ -206,7 +224,28 @@ export const useAuthStore = create<AuthStore>()(
 
       // Initialize auth on app start
       initializeAuth: async () => {
-        const token = get().token
+        let token = get().token
+
+        // ✅ SAFARI iOS FIX: If no token in Zustand, try IndexedDB
+        if (!token) {
+          const indexedDBToken = authStorage.getToken()
+          if (indexedDBToken) {
+            console.log('[AuthStore] 🔄 Recovering token from IndexedDB')
+            token = indexedDBToken
+            // Also try to get user from IndexedDB
+            const indexedDBUser = authStorage.getUser<User>()
+            if (indexedDBUser) {
+              set({
+                user: indexedDBUser,
+                token: indexedDBToken,
+                isAuthenticated: true,
+                isLoading: false,
+              })
+              console.log('[AuthStore] ✅ Auth recovered from IndexedDB')
+              return
+            }
+          }
+        }
 
         if (!token) {
           set({ isLoading: false })
@@ -219,6 +258,10 @@ export const useAuthStore = create<AuthStore>()(
           // Verify token and get current user
           const user = await authService.getCurrentUser(token)
 
+          // Save to IndexedDB for future recovery
+          authStorage.setToken(token)
+          authStorage.setUser(user)
+
           set({
             user,
             isAuthenticated: true,
@@ -226,7 +269,14 @@ export const useAuthStore = create<AuthStore>()(
             error: null,
           })
         } catch (error: any) {
-          // ✅ Check grace period before logging out (Safari iOS fix)
+          // ✅ Check IndexedDB grace period first
+          if (authStorage.isWithinGracePeriod(15)) {
+            console.warn('[AuthStore] 🛡️ Skipping logout - IndexedDB grace period active')
+            set({ isLoading: false })
+            return
+          }
+
+          // Also check sessionStorage grace period
           let timeSinceLogin = Infinity
           try {
             const loginTimestamp = sessionStorage.getItem('auth_token_timestamp')
