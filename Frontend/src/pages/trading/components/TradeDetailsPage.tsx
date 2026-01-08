@@ -381,17 +381,52 @@ export function TradeDetailsPage({
     })
   }
 
-  // Retorna o valor em BRL que foi SALVO no banco no momento da aceitação da proposta
-  // NÃO FAZ CÁLCULO - apenas lê o que foi persistido
+  // State para taxa USD/BRL (fallback)
+  const [fallbackUsdBrlRate, setFallbackUsdBrlRate] = useState<number | null>(null)
+
+  // Buscar taxa USD/BRL se necessário
+  useEffect(() => {
+    const fetchRate = async () => {
+      // Só buscar se não tiver brl_total_amount e for uma SELL
+      if (trade && !trade.brl_total_amount && trade.operation === 'sell') {
+        try {
+          const response = await fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL')
+          const data = await response.json()
+          const rate = Number.parseFloat(data.USDBRL?.bid || '6')
+          setFallbackUsdBrlRate(rate)
+          console.log(`[TradeDetails] Fetched USD/BRL rate: ${rate}`)
+        } catch (error) {
+          console.warn('[TradeDetails] Failed to fetch USD/BRL rate:', error)
+          setFallbackUsdBrlRate(6) // Fallback
+        }
+      }
+    }
+    fetchRate()
+  }, [trade?.id, trade?.brl_total_amount, trade?.operation])
+
+  // Retorna o valor em BRL - usa valor salvo ou calcula com taxa
   const getSavedBrlValue = (): number | null => {
     if (!trade) return null
 
-    // O valor brl_total_amount deve ter sido salvo no momento da criação da ordem
+    // 1. Se tem brl_total_amount salvo, usar
     if (trade.brl_total_amount && trade.brl_total_amount > 0) {
       return trade.brl_total_amount
     }
 
-    // Se não tem brl_total_amount salvo, é um problema no fluxo de criação
+    // 2. Se tem usd_to_brl_rate salvo, calcular
+    if (trade.usd_to_brl_rate && trade.usd_to_brl_rate > 0 && trade.total_amount) {
+      return trade.total_amount * trade.usd_to_brl_rate
+    }
+
+    // 3. Se temos taxa de fallback e é SELL, calcular
+    if (fallbackUsdBrlRate && trade.operation === 'sell' && trade.total_amount) {
+      console.log(
+        `[TradeDetails] Calculating BRL with fallback rate: ${trade.total_amount} * ${fallbackUsdBrlRate}`
+      )
+      return trade.total_amount * fallbackUsdBrlRate
+    }
+
+    // 4. Último recurso: se não tem nada, retornar null
     console.warn(
       '[TradeDetails] brl_total_amount não encontrado na ordem! Verifique o fluxo de criação.'
     )
@@ -964,34 +999,68 @@ export function TradeDetailsPage({
             trade.status === 'CRYPTO_RECEIVED') && (
             <div className='space-y-3'>
               <h3 className='text-xs font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1.5'>
-                <CheckCircle className='w-3.5 h-3.5 text-green-600' />
+                {trade.status === 'PENDING' ? (
+                  <Clock className='w-3.5 h-3.5 text-yellow-600' />
+                ) : (
+                  <CheckCircle className='w-3.5 h-3.5 text-green-600' />
+                )}
                 {trade.status === 'CRYPTO_RECEIVED'
-                  ? 'Crypto Transferida'
-                  : 'Ordem de Venda Registrada'}
+                  ? 'Crypto Recebida - Aguardando PIX'
+                  : trade.status === 'PAYMENT_PROCESSING'
+                    ? 'Processando Retirada'
+                    : 'Ordem de Venda Registrada'}
               </h3>
 
-              {/* Card de Sucesso */}
-              <div className='bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-lg p-4 border border-green-200 dark:border-green-800'>
+              {/* Card de Status */}
+              <div
+                className={`rounded-lg p-4 border ${
+                  trade.status === 'PENDING'
+                    ? 'bg-gradient-to-br from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20 border-yellow-200 dark:border-yellow-800'
+                    : 'bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-green-200 dark:border-green-800'
+                }`}
+              >
                 <div className='text-center space-y-3'>
-                  {/* Ícone de Sucesso */}
-                  <div className='mx-auto w-12 h-12 bg-green-100 dark:bg-green-800/50 rounded-full flex items-center justify-center'>
-                    <CheckCircle className='w-6 h-6 text-green-600 dark:text-green-400' />
+                  {/* Ícone de Status */}
+                  <div
+                    className={`mx-auto w-12 h-12 rounded-full flex items-center justify-center ${
+                      trade.status === 'PENDING'
+                        ? 'bg-yellow-100 dark:bg-yellow-800/50'
+                        : 'bg-green-100 dark:bg-green-800/50'
+                    }`}
+                  >
+                    {trade.status === 'PENDING' ? (
+                      <Clock className='w-6 h-6 text-yellow-600 dark:text-yellow-400' />
+                    ) : (
+                      <CheckCircle className='w-6 h-6 text-green-600 dark:text-green-400' />
+                    )}
                   </div>
 
                   <div>
-                    <h4 className='text-sm font-bold text-green-800 dark:text-green-300'>
+                    <h4
+                      className={`text-sm font-bold ${
+                        trade.status === 'PENDING'
+                          ? 'text-yellow-800 dark:text-yellow-300'
+                          : 'text-green-800 dark:text-green-300'
+                      }`}
+                    >
                       {trade.status === 'CRYPTO_RECEIVED'
-                        ? 'Crypto Transferida com Sucesso!'
+                        ? 'Crypto Recebida pela Plataforma!'
                         : trade.status === 'PAYMENT_PROCESSING'
-                          ? 'Processando Transferência...'
-                          : 'Venda Confirmada!'}
+                          ? 'Operador Processando Retirada...'
+                          : 'Aguardando Análise OTC'}
                     </h4>
-                    <p className='text-xs text-green-700 dark:text-green-400 mt-1'>
+                    <p
+                      className={`text-xs mt-1 ${
+                        trade.status === 'PENDING'
+                          ? 'text-yellow-700 dark:text-yellow-400'
+                          : 'text-green-700 dark:text-green-400'
+                      }`}
+                    >
                       {trade.status === 'CRYPTO_RECEIVED'
-                        ? 'Sua crypto foi transferida. Aguarde o pagamento na sua conta.'
+                        ? 'Sua crypto foi recebida. O operador enviará o PIX em breve.'
                         : trade.status === 'PAYMENT_PROCESSING'
-                          ? 'A transferência da crypto está sendo processada.'
-                          : 'Sua ordem de venda foi registrada com sucesso.'}
+                          ? 'O operador está retirando a crypto da sua carteira.'
+                          : 'Sua ordem está sendo analisada pela equipe OTC. Aguarde a aprovação.'}
                     </p>
                   </div>
 
@@ -1084,21 +1153,25 @@ export function TradeDetailsPage({
                     className={`rounded-lg p-2 border ${
                       trade.status === 'CRYPTO_RECEIVED'
                         ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
-                        : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
+                        : trade.status === 'PENDING'
+                          ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800'
+                          : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
                     }`}
                   >
                     <p
                       className={`text-[10px] ${
                         trade.status === 'CRYPTO_RECEIVED'
                           ? 'text-green-700 dark:text-green-400'
-                          : 'text-blue-700 dark:text-blue-400'
+                          : trade.status === 'PENDING'
+                            ? 'text-yellow-700 dark:text-yellow-400'
+                            : 'text-blue-700 dark:text-blue-400'
                       }`}
                     >
                       {trade.status === 'CRYPTO_RECEIVED'
-                        ? '✅ Crypto transferida! O pagamento será enviado para sua conta cadastrada em até 24h úteis.'
+                        ? 'Crypto recebida! O operador enviará o PIX para sua conta em breve.'
                         : trade.status === 'PAYMENT_PROCESSING'
-                          ? '⏳ Aguarde... A transferência da sua crypto está sendo processada.'
-                          : '📌 Próximos passos: Sua crypto será transferida automaticamente e o pagamento será enviado para a conta cadastrada em até 24h úteis.'}
+                          ? 'Aguarde... O operador está processando a retirada da sua crypto.'
+                          : 'Sua ordem está aguardando análise da equipe OTC. Após aprovação, o operador processará a retirada da crypto e enviará o PIX.'}
                     </p>
                   </div>
                 </div>
@@ -1116,20 +1189,61 @@ export function TradeDetailsPage({
             </span>
           </summary>
           <div className='mt-2 bg-gray-50 dark:bg-gray-900 rounded-lg p-3 space-y-2'>
+            {/* Ordem Criada - Sempre mostra */}
             <TimelineItem
               label='Ordem Criada'
               date={trade.created_at}
               completed
               formatDate={formatDate}
             />
-            {trade.payment_confirmed_at && (
-              <TimelineItem
-                label='Pagamento Confirmado'
-                date={trade.payment_confirmed_at}
-                completed
-                formatDate={formatDate}
-              />
+
+            {/* ========== FLUXO COMPRA (BUY) ========== */}
+            {isBuy && (
+              <>
+                {/* Aguardando pagamento PIX */}
+                {trade.status === 'PENDING' && (
+                  <TimelineItem label='Aguardando Pagamento' pending formatDate={formatDate} />
+                )}
+                {/* Pagamento confirmado */}
+                {trade.payment_confirmed_at && (
+                  <TimelineItem
+                    label='Pagamento Confirmado'
+                    date={trade.payment_confirmed_at}
+                    completed
+                    formatDate={formatDate}
+                  />
+                )}
+              </>
             )}
+
+            {/* ========== FLUXO VENDA (SELL) ========== */}
+            {isSell && (
+              <>
+                {/* Etapa 1: Aguardando Análise OTC */}
+                {trade.status === 'PENDING' && (
+                  <TimelineItem label='Aguardando Análise OTC' pending formatDate={formatDate} />
+                )}
+
+                {/* Etapa 2: Crypto sendo retirada pelo operador */}
+                {trade.status === 'PAYMENT_PROCESSING' && (
+                  <>
+                    <TimelineItem label='Análise Aprovada' completed formatDate={formatDate} />
+                    <TimelineItem label='Processando Retirada' pending formatDate={formatDate} />
+                  </>
+                )}
+
+                {/* Etapa 3: Crypto recebida pela plataforma */}
+                {trade.status === 'CRYPTO_RECEIVED' && (
+                  <>
+                    <TimelineItem label='Análise Aprovada' completed formatDate={formatDate} />
+                    <TimelineItem label='Crypto Recebida' completed formatDate={formatDate} />
+                    <TimelineItem label='Aguardando Envio do PIX' pending formatDate={formatDate} />
+                  </>
+                )}
+              </>
+            )}
+
+            {/* Ordem Concluída - Ambos os fluxos */}
             {trade.completed_at && (
               <TimelineItem
                 label='Ordem Concluída'
@@ -1138,16 +1252,6 @@ export function TradeDetailsPage({
                 formatDate={formatDate}
               />
             )}
-            {trade.status === 'PENDING' && isBuy && (
-              <TimelineItem label='Aguardando Pagamento' pending formatDate={formatDate} />
-            )}
-            {trade.status === 'PENDING' && isSell && (
-              <TimelineItem label='Processando Venda' pending formatDate={formatDate} />
-            )}
-            {(trade.status === 'PAYMENT_PROCESSING' || trade.status === 'CRYPTO_RECEIVED') &&
-              isSell && (
-                <TimelineItem label='Crypto Transferida' completed formatDate={formatDate} />
-              )}
           </div>
         </details>
 

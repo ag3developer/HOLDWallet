@@ -292,59 +292,19 @@ class InstantTradeService:
 
         logger.info(f"Trade created from quote: {reference_code}")
 
-        # 🚀 PARA VENDA (SELL): Transferir crypto do usuário para a plataforma automaticamente
-        withdraw_result = None
+        # VENDA (SELL): NÃO transferir automaticamente
+        # Fluxo correto:
+        # 1. Usuário cria pedido de venda -> Status: PENDING
+        # 2. Admin/OTC analisa o pedido
+        # 3. Operador clica "Processar Venda" no painel admin -> Retira crypto do usuário
+        # 4. Admin confirma envio do PIX -> Finaliza a venda
+        
         if operation == "sell":
-            try:
-                from app.services.blockchain_withdraw_service import blockchain_withdraw_service
-                
-                logger.info(f"🔄 Iniciando transferência automática de crypto para SELL {reference_code}")
-                
-                # Atualizar status para PAYMENT_PROCESSING
-                trade.status = TradeStatus.PAYMENT_PROCESSING  # type: ignore
-                self.db.commit()
-                
-                # Executar withdraw (transferência do usuário para plataforma)
-                # Usar polygon como rede padrão para USDT
-                network = "polygon"
-                withdraw_result = blockchain_withdraw_service.withdraw_crypto_from_user(
-                    db=self.db,
-                    trade=trade,
-                    network=network
-                )
-                
-                if withdraw_result.get("success"):
-                    # Withdraw OK - crypto recebida pela plataforma
-                    logger.info(f"✅ Crypto transferida do usuário para plataforma! TX: {withdraw_result['tx_hash']}")
-                    
-                    # Atualizar trade com dados blockchain
-                    trade.tx_hash = withdraw_result.get("tx_hash")  # type: ignore
-                    trade.network = network  # type: ignore
-                    trade.status = TradeStatus.CRYPTO_RECEIVED  # type: ignore
-                    self.db.commit()
-                    
-                    # Registrar histórico
-                    history = InstantTradeHistory(
-                        trade_id=trade.id,
-                        old_status=TradeStatus.PAYMENT_PROCESSING,
-                        new_status=TradeStatus.CRYPTO_RECEIVED,
-                        reason="Crypto transferida automaticamente do usuário",
-                        history_details=f"TX: {withdraw_result['tx_hash']}, Network: {network}"
-                    )
-                    self.db.add(history)
-                    self.db.commit()
-                else:
-                    # Withdraw falhou - manter status PENDING para admin revisar
-                    logger.error(f"❌ Falha na transferência automática: {withdraw_result.get('error')}")
-                    trade.status = TradeStatus.PENDING  # type: ignore
-                    trade.error_message = f"Auto-withdraw failed: {withdraw_result.get('error')}"  # type: ignore
-                    self.db.commit()
-                    
-            except Exception as e:
-                logger.error(f"❌ Erro na transferência automática de SELL: {str(e)}")
-                trade.status = TradeStatus.PENDING  # type: ignore
-                trade.error_message = f"Auto-withdraw error: {str(e)}"  # type: ignore
-                self.db.commit()
+            logger.info(f"Ordem de VENDA criada: {reference_code}")
+            logger.info("Status: PENDING - Aguardando analise e processamento pelo admin")
+            logger.info(f"Crypto: {trade.crypto_amount} {trade.symbol}")
+            logger.info(f"Valor BRL: R$ {trade.fiat_amount}")
+            logger.info("Admin deve usar Processar Venda para retirar crypto do usuario")
 
         # Remove quote from cache after using it
         del _quote_cache[quote_id]
@@ -360,15 +320,6 @@ class InstantTradeService:
             "total_amount": float(quote["total_amount"]),
             "expires_at": expires_at.isoformat(),
         }
-        
-        # Incluir dados do withdraw se for SELL
-        if withdraw_result:
-            result["withdraw_result"] = {
-                "success": withdraw_result.get("success", False),
-                "tx_hash": withdraw_result.get("tx_hash"),
-                "network": withdraw_result.get("network"),
-                "error": withdraw_result.get("error")
-            }
         
         return result
 

@@ -28,6 +28,7 @@ from app.models.address import Address
 from app.models.instant_trade import InstantTrade, TradeStatus
 from app.services.crypto_service import CryptoService
 from app.core.config import settings
+from app.services.gas_sponsor_service import gas_sponsor_service
 
 logger = logging.getLogger(__name__)
 
@@ -106,7 +107,9 @@ class BlockchainWithdrawService:
         # Endereço da carteira da plataforma (destino das vendas)
         self.platform_wallet_address = settings.PLATFORM_WALLET_ADDRESS
         if not self.platform_wallet_address:
-            logger.warning("⚠️ PLATFORM_WALLET_ADDRESS não configurada!")
+            logger.error("❌ CRITICAL: PLATFORM_WALLET_ADDRESS não configurada no .env!")
+            logger.error("   As vendas (SELL) não funcionarão sem esse endereço.")
+            logger.error("   Configure: PLATFORM_WALLET_ADDRESS=0xSeuEnderecoAqui")
     
     def get_web3(self, network: str) -> Optional[Web3]:
         """Retorna instância Web3 para a rede especificada"""
@@ -256,8 +259,9 @@ class BlockchainWithdrawService:
             # Assina transação com a chave do USUÁRIO
             signed_txn = w3.eth.account.sign_transaction(transaction, private_key)
             
-            # Envia transação
-            tx_hash = w3.eth.send_raw_transaction(signed_txn.raw_transaction)
+            # Envia transação (compatível com diferentes versões do web3.py)
+            raw_tx = getattr(signed_txn, 'rawTransaction', None) or getattr(signed_txn, 'raw_transaction', None)
+            tx_hash = w3.eth.send_raw_transaction(raw_tx)
             tx_hash_hex = w3.to_hex(tx_hash)
             
             logger.info(f"✅ Token nativo transferido! TX: {tx_hash_hex}")
@@ -319,8 +323,9 @@ class BlockchainWithdrawService:
             # Assina transação com a chave do USUÁRIO
             signed_txn = w3.eth.account.sign_transaction(transaction, private_key)
             
-            # Envia transação
-            tx_hash = w3.eth.send_raw_transaction(signed_txn.raw_transaction)
+            # Envia transação (compatível com diferentes versões do web3.py)
+            raw_tx = getattr(signed_txn, 'rawTransaction', None) or getattr(signed_txn, 'raw_transaction', None)
+            tx_hash = w3.eth.send_raw_transaction(raw_tx)
             tx_hash_hex = w3.to_hex(tx_hash)
             
             logger.info(f"✅ Token ERC20 transferido! TX: {tx_hash_hex}")
@@ -364,6 +369,18 @@ class BlockchainWithdrawService:
         try:
             logger.info(f"🚀 Iniciando withdraw para trade SELL {trade.reference_code}")
             
+            # 0. Verifica se PLATFORM_WALLET_ADDRESS está configurado
+            if not self.platform_wallet_address:
+                logger.error("❌ PLATFORM_WALLET_ADDRESS não configurada!")
+                return {
+                    "success": False,
+                    "tx_hash": None,
+                    "from_address": None,
+                    "to_address": None,
+                    "network": network,
+                    "error": "PLATFORM_WALLET_ADDRESS não configurada no servidor. Configure no .env"
+                }
+            
             # 1. Valida tipo de operação
             if trade.operation_type.value != "sell":
                 return {
@@ -376,8 +393,10 @@ class BlockchainWithdrawService:
                 }
             
             # 2. Busca Address do usuário
+            logger.info(f"📍 Buscando address do usuário {trade.user_id} na rede {network}")
             user_address = self.get_user_address(db, trade.user_id, network)
             if not user_address:
+                logger.error(f"❌ Address não encontrado para user={trade.user_id}, network={network}")
                 return {
                     "success": False,
                     "tx_hash": None,
@@ -387,9 +406,16 @@ class BlockchainWithdrawService:
                     "error": f"Address do usuário não encontrado para network={network}"
                 }
             
+            logger.info(f"✅ Address encontrado: {user_address.address}")
+            
             # 3. Descriptografa chave privada
+            logger.info(f"🔐 Descriptografando chave privada do usuário...")
+            has_encrypted_key = bool(user_address.encrypted_private_key)
+            logger.info(f"   - Tem chave criptografada: {has_encrypted_key}")
+            
             private_key = self.decrypt_user_private_key(user_address.encrypted_private_key)
             if not private_key:
+                logger.error(f"❌ Falha ao descriptografar chave privada")
                 return {
                     "success": False,
                     "tx_hash": None,
@@ -399,7 +425,10 @@ class BlockchainWithdrawService:
                     "error": "Não foi possível descriptografar a chave privada do usuário"
                 }
             
+            logger.info(f"✅ Chave privada descriptografada com sucesso")
+            
             # 4. Conecta na rede
+            logger.info(f"🌐 Conectando na rede {network}...")
             w3 = self.get_web3(network)
             if not w3:
                 return {
@@ -411,7 +440,10 @@ class BlockchainWithdrawService:
                     "error": f"Não foi possível conectar à rede {network}"
                 }
             
+            logger.info(f"✅ Conectado à rede {network}")
+            
             # 5. Verifica saldo do usuário
+            logger.info(f"💰 Verificando saldo de {trade.crypto_amount} {trade.symbol} em {user_address.address}...")
             balance_check = self.check_user_balance(
                 w3=w3,
                 address=user_address.address,
@@ -420,7 +452,10 @@ class BlockchainWithdrawService:
                 required_amount=trade.crypto_amount
             )
             
+            logger.info(f"💰 Saldo verificado: {balance_check}")
+            
             if not balance_check.get("has_enough"):
+                logger.error(f"❌ Saldo insuficiente! Disponível: {balance_check['balance']}, Necessário: {balance_check['required']}")
                 return {
                     "success": False,
                     "tx_hash": None,
@@ -430,11 +465,47 @@ class BlockchainWithdrawService:
                     "error": f"Saldo insuficiente. Disponível: {balance_check['balance']} {trade.symbol}, Necessário: {balance_check['required']}"
                 }
             
+            logger.info(f"✅ Saldo suficiente! Disponível: {balance_check['balance']}")
+            
             # 6. Determina se é token nativo ou ERC20
             config = self.NETWORK_CONFIG[network.lower()]
             contract_address = config["contracts"].get(trade.symbol.upper())
+            is_erc20 = contract_address is not None
             
-            # 7. Envia a transação
+            logger.info(f"📋 Token: {trade.symbol}, Contract: {contract_address or 'NATIVO'}")
+            logger.info(f"📍 Destino: {self.platform_wallet_address}")
+            
+            # 7. ⭐ GAS SPONSOR: Verifica e patrocina gas se necessário
+            gas_sponsor_result = None
+            network_fee_brl = Decimal("0")
+            
+            logger.info(f"⛽ Verificando necessidade de gas sponsor...")
+            gas_sponsor_result = gas_sponsor_service.sponsor_gas_for_sell(
+                w3=w3,
+                user_address=str(user_address.address),
+                network=network,
+                is_erc20=is_erc20
+            )
+            
+            if gas_sponsor_result.get("error"):
+                logger.error(f"❌ Erro no gas sponsor: {gas_sponsor_result['error']}")
+                return {
+                    "success": False,
+                    "tx_hash": None,
+                    "from_address": user_address.address,
+                    "to_address": self.platform_wallet_address,
+                    "network": network,
+                    "error": f"Erro ao patrocinar gas: {gas_sponsor_result['error']}"
+                }
+            
+            if gas_sponsor_result.get("gas_sponsored"):
+                network_fee_brl = gas_sponsor_result.get("network_fee_brl", Decimal("0"))
+                logger.info(f"✅ Gas patrocinado! Taxa de rede: R$ {network_fee_brl}")
+                logger.info(f"   Gas TX: {gas_sponsor_result.get('gas_tx_hash')}")
+            else:
+                logger.info(f"✅ Usuário já tem gas suficiente, sem taxa adicional")
+            
+            # 8. Envia a transação
             tx_hash = None
             if contract_address is None:
                 # Token nativo (ETH, MATIC)
@@ -461,20 +532,30 @@ class BlockchainWithdrawService:
                 )
             
             if not tx_hash:
+                logger.error("❌ Falha ao enviar transação - tx_hash é None")
                 return {
                     "success": False,
                     "tx_hash": None,
                     "from_address": user_address.address,
                     "to_address": self.platform_wallet_address,
                     "network": network,
-                    "error": "Falha ao enviar transação blockchain"
+                    "error": "Falha ao enviar transação blockchain",
+                    "gas_sponsor": gas_sponsor_result
                 }
             
-            # 8. Atualiza o trade com os dados blockchain
+            # 9. Atualiza o trade com os dados blockchain
             trade.wallet_address = user_address.address
             trade.network = network
             trade.tx_hash = tx_hash
             trade.status = TradeStatus.CRYPTO_RECEIVED  # Novo status para VENDA
+            
+            # Registra a taxa de rede se houver
+            if network_fee_brl > 0 and trade.brl_amount is not None:
+                # Atualiza o valor final BRL descontando a taxa de rede
+                original_brl = Decimal(str(trade.brl_amount))
+                trade.brl_amount = original_brl - network_fee_brl
+                logger.info(f"💰 Taxa de rede descontada: R$ {network_fee_brl}")
+                logger.info(f"   BRL original: R$ {original_brl} → BRL final: R$ {trade.brl_amount}")
             
             db.commit()
             db.refresh(trade)
@@ -487,7 +568,15 @@ class BlockchainWithdrawService:
                 "from_address": user_address.address,
                 "to_address": self.platform_wallet_address,
                 "network": network,
-                "error": None
+                "error": None,
+                # Informações do Gas Sponsor
+                "gas_sponsor": {
+                    "sponsored": gas_sponsor_result.get("gas_sponsored", False) if gas_sponsor_result else False,
+                    "gas_tx_hash": gas_sponsor_result.get("gas_tx_hash") if gas_sponsor_result else None,
+                    "gas_amount_sent": str(gas_sponsor_result.get("gas_amount_sent", 0)) if gas_sponsor_result else "0",
+                    "network_fee_brl": str(network_fee_brl),
+                    "native_symbol": gas_sponsor_result.get("native_symbol", "") if gas_sponsor_result else "",
+                }
             }
             
         except Exception as e:
@@ -499,7 +588,8 @@ class BlockchainWithdrawService:
                 "from_address": None,
                 "to_address": None,
                 "network": network,
-                "error": str(e)
+                "error": str(e),
+                "gas_sponsor": None
             }
 
 

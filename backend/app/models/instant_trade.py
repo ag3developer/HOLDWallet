@@ -29,14 +29,14 @@ class TradeOperationType(str, enum.Enum):
 
 class TradeStatus(str, enum.Enum):
     """Status da operação OTC"""
-    PENDING = "pending"                          # Aguardando confirmação
-    PAYMENT_PROCESSING = "payment_processing"    # Processando pagamento
-    PAYMENT_CONFIRMED = "payment_confirmed"      # Pagamento confirmado (BUY)
-    CRYPTO_RECEIVED = "crypto_received"          # Crypto recebida (SELL) - aguardando PIX
-    COMPLETED = "completed"                      # Operação concluída
-    EXPIRED = "expired"                          # Expirou (15 min)
-    CANCELLED = "cancelled"                      # Cancelada pelo usuário
-    FAILED = "failed"                            # Falha na operação
+    PENDING = "PENDING"                          # Aguardando confirmação
+    PAYMENT_PROCESSING = "PAYMENT_PROCESSING"    # Processando pagamento
+    PAYMENT_CONFIRMED = "PAYMENT_CONFIRMED"      # Pagamento confirmado (BUY)
+    CRYPTO_RECEIVED = "CRYPTO_RECEIVED"          # Crypto recebida (SELL) - aguardando PIX
+    COMPLETED = "COMPLETED"                      # Operação concluída
+    EXPIRED = "EXPIRED"                          # Expirou (15 min)
+    CANCELLED = "CANCELLED"                      # Cancelada pelo usuário
+    FAILED = "FAILED"                            # Falha na operação
 
 
 class PaymentMethod(str, enum.Enum):

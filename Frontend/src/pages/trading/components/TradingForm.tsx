@@ -289,7 +289,23 @@ export function TradingForm({
         } else if (!isBuy) {
           // Para VENDA, o valor é em crypto - enviar diretamente
           // Mas precisamos também obter a taxa USD→BRL para calcular o valor a receber
-          const brlRate = currencyManager.getRate('BRL')
+          let brlRate = currencyManager.getRate('BRL')
+
+          // Se a taxa não está disponível no CurrencyManager, buscar da API
+          if (!brlRate || brlRate <= 1) {
+            try {
+              const rateResponse = await fetch(
+                'https://economia.awesomeapi.com.br/json/last/USD-BRL'
+              )
+              const rateData = await rateResponse.json()
+              brlRate = Number.parseFloat(rateData.USDBRL?.bid || '6')
+              console.log(`[TradingForm] USD/BRL rate from API: ${brlRate}`)
+            } catch (rateError) {
+              console.warn('[TradingForm] Failed to fetch USD/BRL rate, using fallback:', rateError)
+              brlRate = 6 // Fallback
+            }
+          }
+
           if (brlRate > 1) {
             usdToBrlRate = brlRate
           }
@@ -324,10 +340,16 @@ export function TradingForm({
         // Para VENDA: Sempre calcular o valor em BRL que o usuário vai receber
         if (!isBuy && usdToBrlRate) {
           const totalUSD = response.data.quote.total_amount
+          const fiatAmountUSD = response.data.quote.fiat_amount
+
+          // brl_amount = valor base em BRL (sem taxas)
+          enrichedQuote.brl_amount = fiatAmountUSD * usdToBrlRate
+          // brl_total_amount = valor líquido que o usuário recebe (com taxas descontadas)
           enrichedQuote.brl_total_amount = totalUSD * usdToBrlRate
           enrichedQuote.usd_to_brl_rate = usdToBrlRate
+
           console.log(
-            `[TradingForm] SELL BRL values: total_usd=${totalUSD.toFixed(2)}, brl_total=${enrichedQuote.brl_total_amount.toFixed(2)}, rate=${usdToBrlRate.toFixed(4)}`
+            `[TradingForm] SELL BRL values: fiat_usd=${fiatAmountUSD.toFixed(2)}, total_usd=${totalUSD.toFixed(2)}, brl_amount=${enrichedQuote.brl_amount.toFixed(2)}, brl_total=${enrichedQuote.brl_total_amount.toFixed(2)}, rate=${usdToBrlRate.toFixed(4)}`
           )
         }
 

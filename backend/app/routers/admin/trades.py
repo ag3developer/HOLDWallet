@@ -767,7 +767,6 @@ async def send_to_accounting(
         )
 
 
-
 @router.get("/{trade_id}/accounting", response_model=dict)
 async def get_trade_accounting_entries(
     trade_id: str,
@@ -942,18 +941,32 @@ async def process_sell_trade(
             # Withdraw OK - crypto recebida
             logger.info(f"✅ Crypto recebida do usuário! TX: {withdraw_result['tx_hash']}")
             
-            # Registrar histórico
+            # Informações do Gas Sponsor
+            gas_sponsor_info = withdraw_result.get("gas_sponsor", {})
+            gas_sponsored = gas_sponsor_info.get("sponsored", False) if gas_sponsor_info else False
+            network_fee_brl = gas_sponsor_info.get("network_fee_brl", "0") if gas_sponsor_info else "0"
+            
+            # Atualizar status do trade para CRYPTO_RECEIVED
+            trade.status = TradeStatus.CRYPTO_RECEIVED
+            trade.tx_hash = withdraw_result["tx_hash"]
+            
+            # Registrar histórico com info do gas sponsor
+            history_details = f"TX: {withdraw_result['tx_hash']}, Network: {network}"
+            if gas_sponsored:
+                history_details += f", Gas Sponsored: {gas_sponsor_info.get('gas_amount_sent')} {gas_sponsor_info.get('native_symbol')}, Taxa Rede: R$ {network_fee_brl}"
+            
             history = InstantTradeHistory(
                 trade_id=trade.id,
                 old_status=old_status,
                 new_status=TradeStatus.CRYPTO_RECEIVED,
                 reason=f"Crypto retirada do usuário por admin {current_admin.email}",
-                history_details=f"TX: {withdraw_result['tx_hash']}, Network: {network}"
+                history_details=history_details
             )
             db.add(history)
             db.commit()
+            db.refresh(trade)
             
-            return {
+            response = {
                 "success": True,
                 "message": "Crypto recebida com sucesso! Agora processe o pagamento BRL para o usuário.",
                 "trade_id": trade.id,
@@ -964,6 +977,19 @@ async def process_sell_trade(
                 "status": TradeStatus.CRYPTO_RECEIVED.value,
                 "next_step": "Processar PIX/TED para o usuário e marcar como COMPLETED"
             }
+            
+            # Adiciona info do gas sponsor se foi usado
+            if gas_sponsored:
+                response["gas_sponsor"] = {
+                    "sponsored": True,
+                    "gas_tx_hash": gas_sponsor_info.get("gas_tx_hash"),
+                    "gas_amount_sent": gas_sponsor_info.get("gas_amount_sent"),
+                    "network_fee_brl": network_fee_brl,
+                    "native_symbol": gas_sponsor_info.get("native_symbol"),
+                    "message": f"Taxa de rede de R$ {network_fee_brl} foi descontada do valor BRL"
+                }
+            
+            return response
         else:
             # Withdraw falhou
             logger.error(f"❌ Withdraw falhou: {withdraw_result['error']}")
@@ -1068,6 +1094,58 @@ async def complete_sell_trade(
     except Exception as e:
         db.rollback()
         logger.error(f"❌ Erro finalizando venda: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+# ===== GAS SPONSOR STATUS =====
+
+@router.get("/gas-sponsor/status", response_model=dict)
+async def get_gas_sponsor_status(
+    current_admin: User = Depends(get_current_admin)
+):
+    """
+    Verifica o status do Gas Sponsor - saldo de MATIC/ETH da carteira da plataforma.
+    
+    Útil para monitorar se a plataforma tem fundos suficientes para patrocinar
+    transações de VENDA dos usuários.
+    """
+    from app.services.gas_sponsor_service import gas_sponsor_service
+    
+    try:
+        # Verifica saldo em cada rede
+        networks = ["polygon", "ethereum"]
+        balances = {}
+        
+        for network in networks:
+            balance_info = gas_sponsor_service.get_platform_gas_balance(network)
+            balances[network] = {
+                "balance": str(balance_info.get("balance", 0)),
+                "native_symbol": balance_info.get("native_symbol", ""),
+                "low_balance_alert": balance_info.get("low_balance_alert", False),
+                "platform_address": balance_info.get("platform_address", ""),
+                "error": balance_info.get("error")
+            }
+        
+        # Calcula alerta geral
+        any_low_balance = any(
+            b.get("low_balance_alert", False) 
+            for b in balances.values() 
+            if not b.get("error")
+        )
+        
+        return {
+            "success": True,
+            "platform_address": gas_sponsor_service.platform_address,
+            "balances": balances,
+            "low_balance_alert": any_low_balance,
+            "message": "⚠️ Saldo baixo detectado! Abasteça a carteira." if any_low_balance else "✅ Saldo OK para patrocínio de gas"
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Erro verificando gas sponsor status: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)

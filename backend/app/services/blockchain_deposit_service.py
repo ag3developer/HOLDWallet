@@ -201,8 +201,9 @@ class BlockchainDepositService:
             # Assina transação
             signed_txn = w3.eth.account.sign_transaction(transaction, self.platform_wallet_private_key)
             
-            # Envia transação
-            tx_hash = w3.eth.send_raw_transaction(signed_txn.raw_transaction)
+            # Envia transação (compatível com diferentes versões do web3.py)
+            raw_tx = getattr(signed_txn, 'rawTransaction', None) or getattr(signed_txn, 'raw_transaction', None)
+            tx_hash = w3.eth.send_raw_transaction(raw_tx)
             tx_hash_hex = w3.to_hex(tx_hash)
             
             logger.info(f"✅ Token nativo enviado! TX: {tx_hash_hex}")
@@ -288,8 +289,9 @@ class BlockchainDepositService:
             # Assina transação
             signed_txn = w3.eth.account.sign_transaction(transaction, self.platform_wallet_private_key)
             
-            # Envia transação
-            tx_hash = w3.eth.send_raw_transaction(signed_txn.raw_transaction)
+            # Envia transação (compatível com diferentes versões do web3.py)
+            raw_tx = getattr(signed_txn, 'rawTransaction', None) or getattr(signed_txn, 'raw_transaction', None)
+            tx_hash = w3.eth.send_raw_transaction(raw_tx)
             tx_hash_hex = w3.to_hex(tx_hash)
             
             logger.info(f"✅ Token ERC20 enviado! TX: {tx_hash_hex}")
