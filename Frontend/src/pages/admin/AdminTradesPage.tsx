@@ -247,38 +247,45 @@ export const AdminTradesPage: React.FC = () => {
 
   // Obter classe de cor do status (background)
   const getStatusBgClass = (status: string) => {
-    if (status === 'completed') return 'bg-green-500/10 text-green-400'
+    if (status === 'completed')
+      return 'bg-green-100 dark:bg-green-500/10 text-green-700 dark:text-green-400'
     if (status === 'pending' || status === 'payment_processing')
-      return 'bg-yellow-500/10 text-yellow-400'
-    if (status === 'cancelled' || status === 'expired') return 'bg-red-500/10 text-red-400'
-    return 'bg-orange-500/10 text-orange-400'
+      return 'bg-yellow-100 dark:bg-yellow-500/10 text-yellow-700 dark:text-yellow-400'
+    if (status === 'cancelled' || status === 'expired')
+      return 'bg-red-100 dark:bg-red-500/10 text-red-700 dark:text-red-400'
+    return 'bg-orange-100 dark:bg-orange-500/10 text-orange-700 dark:text-orange-400'
   }
 
   // Obter classe de cor do status (texto)
   const getStatusTextClass = (status: string) => {
-    if (status === 'completed') return 'text-green-400'
-    if (status === 'pending' || status === 'payment_processing') return 'text-yellow-400'
-    if (status === 'cancelled' || status === 'expired') return 'text-red-400'
-    return 'text-orange-400'
+    if (status === 'completed') return 'text-green-600 dark:text-green-400'
+    if (status === 'pending' || status === 'payment_processing')
+      return 'text-yellow-600 dark:text-yellow-400'
+    if (status === 'cancelled' || status === 'expired') return 'text-red-600 dark:text-red-400'
+    return 'text-orange-600 dark:text-orange-400'
   }
 
   return (
-    <div className='min-h-screen bg-[#0a0a0a] p-3 sm:p-4 lg:p-6 space-y-4'>
+    <div className='min-h-screen bg-gray-50 dark:bg-[#0a0a0a] p-3 sm:p-4 lg:p-6 space-y-4'>
       {/* Header Compacto */}
       <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-3'>
         <div className='flex items-center gap-3'>
-          <div className='p-2 rounded-xl bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-green-500/20'>
-            <TrendingUp className='h-5 w-5 text-green-400' />
+          <div className='p-2 rounded-xl bg-gradient-to-br from-green-500/10 to-emerald-500/10 dark:from-green-500/20 dark:to-emerald-500/20 border border-green-500/20'>
+            <TrendingUp className='h-5 w-5 text-green-600 dark:text-green-400' />
           </div>
           <div>
-            <h1 className='text-lg sm:text-xl font-bold text-white'>Trades OTC</h1>
-            <p className='text-gray-500 text-xs sm:text-sm'>Compra e venda de criptomoedas</p>
+            <h1 className='text-lg sm:text-xl font-bold text-gray-900 dark:text-white'>
+              Trades OTC
+            </h1>
+            <p className='text-gray-500 dark:text-gray-500 text-xs sm:text-sm'>
+              Compra e venda de criptomoedas
+            </p>
           </div>
         </div>
         <button
           onClick={() => refetch()}
           disabled={isFetching}
-          className='flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-white border border-white/10 transition-all text-sm disabled:opacity-50'
+          className='flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-700 dark:text-white border border-gray-200 dark:border-white/10 transition-all text-sm disabled:opacity-50'
         >
           <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
           <span className='hidden sm:inline'>Atualizar</span>
@@ -288,29 +295,31 @@ export const AdminTradesPage: React.FC = () => {
       {/* Stats Cards - Grid Responsivo */}
       <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3'>
         {/* Total */}
-        <div className='bg-gradient-to-br from-[#111] to-[#0d0d0d] border border-white/5 rounded-xl p-3 sm:p-4'>
+        <div className='bg-white dark:bg-gradient-to-br dark:from-[#111] dark:to-[#0d0d0d] border border-gray-200 dark:border-white/5 rounded-xl p-3 sm:p-4 shadow-sm'>
           <div className='flex items-center justify-between mb-2'>
-            <TrendingUp className='h-4 w-4 text-gray-500' />
+            <TrendingUp className='h-4 w-4 text-gray-400 dark:text-gray-500' />
           </div>
-          <div className='text-xl sm:text-2xl font-bold text-white'>{stats?.total_trades || 0}</div>
+          <div className='text-xl sm:text-2xl font-bold text-gray-900 dark:text-white'>
+            {stats?.total_trades || 0}
+          </div>
           <p className='text-[10px] sm:text-xs text-gray-500 mt-1'>Total</p>
         </div>
 
         {/* Concluídos */}
-        <div className='bg-gradient-to-br from-[#111] to-[#0d0d0d] border border-green-500/10 rounded-xl p-3 sm:p-4'>
+        <div className='bg-white dark:bg-gradient-to-br dark:from-[#111] dark:to-[#0d0d0d] border border-green-200 dark:border-green-500/10 rounded-xl p-3 sm:p-4 shadow-sm'>
           <div className='flex items-center justify-between mb-2'>
-            <CheckCircle className='h-4 w-4 text-green-500/70' />
+            <CheckCircle className='h-4 w-4 text-green-500 dark:text-green-500/70' />
           </div>
-          <div className='text-xl sm:text-2xl font-bold text-green-500'>
+          <div className='text-xl sm:text-2xl font-bold text-green-600 dark:text-green-500'>
             {stats?.completed || 0}
           </div>
           <p className='text-[10px] sm:text-xs text-gray-500 mt-1'>Concluídos</p>
         </div>
 
         {/* Pendentes */}
-        <div className='bg-gradient-to-br from-[#111] to-[#0d0d0d] border border-yellow-500/10 rounded-xl p-3 sm:p-4'>
+        <div className='bg-white dark:bg-gradient-to-br dark:from-[#111] dark:to-[#0d0d0d] border border-yellow-200 dark:border-yellow-500/10 rounded-xl p-3 sm:p-4 shadow-sm'>
           <div className='flex items-center justify-between mb-2'>
-            <Clock className='h-4 w-4 text-yellow-500/70' />
+            <Clock className='h-4 w-4 text-yellow-500 dark:text-yellow-500/70' />
             {(stats?.pending || 0) > 0 && (
               <span className='flex h-2 w-2'>
                 <span className='animate-ping absolute inline-flex h-2 w-2 rounded-full bg-yellow-400 opacity-75'></span>
@@ -318,25 +327,29 @@ export const AdminTradesPage: React.FC = () => {
               </span>
             )}
           </div>
-          <div className='text-xl sm:text-2xl font-bold text-yellow-500'>{stats?.pending || 0}</div>
+          <div className='text-xl sm:text-2xl font-bold text-yellow-600 dark:text-yellow-500'>
+            {stats?.pending || 0}
+          </div>
           <p className='text-[10px] sm:text-xs text-gray-500 mt-1'>Pendentes</p>
         </div>
 
         {/* Cancelados */}
-        <div className='bg-gradient-to-br from-[#111] to-[#0d0d0d] border border-red-500/10 rounded-xl p-3 sm:p-4'>
+        <div className='bg-white dark:bg-gradient-to-br dark:from-[#111] dark:to-[#0d0d0d] border border-red-200 dark:border-red-500/10 rounded-xl p-3 sm:p-4 shadow-sm'>
           <div className='flex items-center justify-between mb-2'>
-            <XCircle className='h-4 w-4 text-red-500/70' />
+            <XCircle className='h-4 w-4 text-red-500 dark:text-red-500/70' />
           </div>
-          <div className='text-xl sm:text-2xl font-bold text-red-500'>{stats?.cancelled || 0}</div>
+          <div className='text-xl sm:text-2xl font-bold text-red-600 dark:text-red-500'>
+            {stats?.cancelled || 0}
+          </div>
           <p className='text-[10px] sm:text-xs text-gray-500 mt-1'>Cancelados</p>
         </div>
 
         {/* Volume */}
-        <div className='col-span-2 sm:col-span-1 bg-gradient-to-br from-[#111] to-[#0d0d0d] border border-purple-500/10 rounded-xl p-3 sm:p-4'>
+        <div className='col-span-2 sm:col-span-1 bg-white dark:bg-gradient-to-br dark:from-[#111] dark:to-[#0d0d0d] border border-purple-200 dark:border-purple-500/10 rounded-xl p-3 sm:p-4 shadow-sm'>
           <div className='flex items-center justify-between mb-2'>
-            <DollarSign className='h-4 w-4 text-purple-500/70' />
+            <DollarSign className='h-4 w-4 text-purple-500 dark:text-purple-500/70' />
           </div>
-          <div className='text-xl sm:text-2xl font-bold text-purple-500 truncate'>
+          <div className='text-xl sm:text-2xl font-bold text-purple-600 dark:text-purple-500 truncate'>
             {formatCurrency(stats?.total_volume_brl || 0, 'BRL')}
           </div>
           <p className='text-[10px] sm:text-xs text-gray-500 mt-1'>Volume Total</p>
@@ -344,11 +357,11 @@ export const AdminTradesPage: React.FC = () => {
       </div>
 
       {/* Barra de Busca e Filtros */}
-      <div className='bg-[#111] border border-white/5 rounded-xl p-3'>
+      <div className='bg-white dark:bg-[#111] border border-gray-200 dark:border-white/5 rounded-xl p-3 shadow-sm'>
         <div className='flex flex-col sm:flex-row gap-2'>
           {/* Search */}
           <div className='relative flex-1'>
-            <Search className='absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500' />
+            <Search className='absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500' />
             <input
               type='text'
               placeholder='Buscar código, usuário...'
@@ -357,7 +370,7 @@ export const AdminTradesPage: React.FC = () => {
                 setSearch(e.target.value)
                 setPage(1)
               }}
-              className='w-full pl-9 pr-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-gray-600 focus:outline-none focus:ring-1 focus:ring-green-500/50 focus:border-green-500/50'
+              className='w-full pl-9 pr-3 py-2 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg text-gray-900 dark:text-white text-sm placeholder:text-gray-400 dark:placeholder:text-gray-600 focus:outline-none focus:ring-1 focus:ring-green-500/50 focus:border-green-500/50'
             />
           </div>
 
@@ -371,7 +384,7 @@ export const AdminTradesPage: React.FC = () => {
               }}
               title='Filtrar por status'
               aria-label='Filtrar por status'
-              className='px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-green-500/50 cursor-pointer'
+              className='px-3 py-2 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-1 focus:ring-green-500/50 cursor-pointer'
             >
               <option value='all'>Status</option>
               <option value='pending'>Pendente</option>
@@ -383,14 +396,16 @@ export const AdminTradesPage: React.FC = () => {
             </select>
 
             {/* Botões de Tipo */}
-            <div className='flex gap-1 bg-white/5 rounded-lg p-1'>
+            <div className='flex gap-1 bg-gray-100 dark:bg-white/5 rounded-lg p-1'>
               <button
                 onClick={() => {
                   setTypeFilter('all')
                   setPage(1)
                 }}
                 className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                  typeFilter === 'all' ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white'
+                  typeFilter === 'all'
+                    ? 'bg-white dark:bg-white/10 text-gray-900 dark:text-white shadow-sm'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                 }`}
               >
                 Todos
@@ -402,8 +417,8 @@ export const AdminTradesPage: React.FC = () => {
                 }}
                 className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
                   typeFilter === 'buy'
-                    ? 'bg-green-500/20 text-green-400'
-                    : 'text-gray-400 hover:text-green-400'
+                    ? 'bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-400'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400'
                 }`}
               >
                 Compra
@@ -415,8 +430,8 @@ export const AdminTradesPage: React.FC = () => {
                 }}
                 className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
                   typeFilter === 'sell'
-                    ? 'bg-red-500/20 text-red-400'
-                    : 'text-gray-400 hover:text-red-400'
+                    ? 'bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400'
                 }`}
               >
                 Venda
@@ -427,7 +442,7 @@ export const AdminTradesPage: React.FC = () => {
           {/* Filtros Mobile Toggle */}
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className='sm:hidden flex items-center justify-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-gray-400'
+            className='sm:hidden flex items-center justify-center gap-2 px-3 py-2 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg text-gray-600 dark:text-gray-400'
           >
             <Filter className='h-4 w-4' />
             Filtros
@@ -445,7 +460,7 @@ export const AdminTradesPage: React.FC = () => {
               }}
               title='Filtrar por status'
               aria-label='Filtrar por status'
-              className='w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm'
+              className='w-full px-3 py-2 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg text-gray-900 dark:text-white text-sm'
             >
               <option value='all'>Todos Status</option>
               <option value='pending'>Pendente</option>
@@ -456,14 +471,16 @@ export const AdminTradesPage: React.FC = () => {
               <option value='expired'>Expirado</option>
             </select>
 
-            <div className='flex gap-1 bg-white/5 rounded-lg p-1'>
+            <div className='flex gap-1 bg-gray-100 dark:bg-white/5 rounded-lg p-1'>
               <button
                 onClick={() => {
                   setTypeFilter('all')
                   setPage(1)
                 }}
                 className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                  typeFilter === 'all' ? 'bg-white/10 text-white' : 'text-gray-400'
+                  typeFilter === 'all'
+                    ? 'bg-white dark:bg-white/10 text-gray-900 dark:text-white shadow-sm'
+                    : 'text-gray-500 dark:text-gray-400'
                 }`}
               >
                 Todos
@@ -474,7 +491,9 @@ export const AdminTradesPage: React.FC = () => {
                   setPage(1)
                 }}
                 className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                  typeFilter === 'buy' ? 'bg-green-500/20 text-green-400' : 'text-gray-400'
+                  typeFilter === 'buy'
+                    ? 'bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-400'
+                    : 'text-gray-500 dark:text-gray-400'
                 }`}
               >
                 Compra
@@ -485,7 +504,9 @@ export const AdminTradesPage: React.FC = () => {
                   setPage(1)
                 }}
                 className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                  typeFilter === 'sell' ? 'bg-red-500/20 text-red-400' : 'text-gray-400'
+                  typeFilter === 'sell'
+                    ? 'bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400'
+                    : 'text-gray-500 dark:text-gray-400'
                 }`}
               >
                 Venda
@@ -496,7 +517,7 @@ export const AdminTradesPage: React.FC = () => {
       </div>
 
       {/* Lista de Trades - Cards Mobile / Tabela Desktop */}
-      <div className='bg-[#111] border border-white/5 rounded-xl overflow-hidden'>
+      <div className='bg-white dark:bg-[#111] border border-gray-200 dark:border-white/5 rounded-xl overflow-hidden shadow-sm'>
         {loading && (
           <div className='flex flex-col items-center justify-center py-12'>
             <RefreshCw className='h-8 w-8 animate-spin text-green-500 mb-3' />
@@ -506,7 +527,7 @@ export const AdminTradesPage: React.FC = () => {
 
         {!loading && trades.length === 0 && (
           <div className='flex flex-col items-center justify-center py-12'>
-            <TrendingUp className='h-10 w-10 text-gray-700 mb-3' />
+            <TrendingUp className='h-10 w-10 text-gray-300 dark:text-gray-700 mb-3' />
             <p className='text-gray-500 text-sm'>Nenhum trade encontrado</p>
             {(search || statusFilter !== 'all' || typeFilter !== 'all') && (
               <button
@@ -516,7 +537,7 @@ export const AdminTradesPage: React.FC = () => {
                   setTypeFilter('all')
                   setPage(1)
                 }}
-                className='mt-4 text-green-400 hover:underline text-sm'
+                className='mt-4 text-green-600 dark:text-green-400 hover:underline text-sm'
               >
                 Limpar filtros
               </button>
@@ -530,7 +551,7 @@ export const AdminTradesPage: React.FC = () => {
             <div className='hidden lg:block overflow-x-auto'>
               <table className='w-full'>
                 <thead>
-                  <tr className='border-b border-white/5 bg-white/[0.02]'>
+                  <tr className='border-b border-gray-200 dark:border-white/5 bg-gray-50 dark:bg-white/[0.02]'>
                     <th className='text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider'>
                       Moeda
                     </th>
@@ -558,25 +579,28 @@ export const AdminTradesPage: React.FC = () => {
                     <th className='text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider'></th>
                   </tr>
                 </thead>
-                <tbody className='divide-y divide-white/5'>
+                <tbody className='divide-y divide-gray-100 dark:divide-white/5'>
                   {trades.map(trade => {
                     const logo = getCryptoLogo(trade.symbol)
                     const isBuy = trade.operation_type === 'buy'
 
                     return (
-                      <tr key={trade.id} className='hover:bg-white/[0.02] transition-colors'>
+                      <tr
+                        key={trade.id}
+                        className='hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors'
+                      >
                         {/* Moeda */}
                         <td className='px-4 py-3'>
                           <div className='flex items-center gap-2'>
                             {logo ? (
                               <img src={logo} alt={trade.symbol} className='w-7 h-7 rounded-full' />
                             ) : (
-                              <div className='w-7 h-7 rounded-full bg-gray-700 flex items-center justify-center'>
-                                <Wallet className='h-3.5 w-3.5 text-gray-400' />
+                              <div className='w-7 h-7 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center'>
+                                <Wallet className='h-3.5 w-3.5 text-gray-500 dark:text-gray-400' />
                               </div>
                             )}
                             <div>
-                              <span className='text-white font-medium text-sm'>
+                              <span className='text-gray-900 dark:text-white font-medium text-sm'>
                                 {trade.symbol || 'N/A'}
                               </span>
                               <span className='block text-[10px] text-gray-500 font-mono'>
@@ -589,12 +613,12 @@ export const AdminTradesPage: React.FC = () => {
                         {/* Tipo */}
                         <td className='px-4 py-3'>
                           {isBuy ? (
-                            <span className='inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-green-500/10 text-green-400 border border-green-500/20'>
+                            <span className='inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-green-100 dark:bg-green-500/10 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-500/20'>
                               <ArrowDownRight className='h-3 w-3' />
                               Compra
                             </span>
                           ) : (
-                            <span className='inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20'>
+                            <span className='inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-red-100 dark:bg-red-500/10 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-500/20'>
                               <ArrowUpRight className='h-3 w-3' />
                               Venda
                             </span>
@@ -603,14 +627,14 @@ export const AdminTradesPage: React.FC = () => {
 
                         {/* Quantidade */}
                         <td className='px-4 py-3 text-right'>
-                          <span className='font-mono text-sm text-white'>
+                          <span className='font-mono text-sm text-gray-900 dark:text-white'>
                             {formatCryptoAmount(trade.crypto_amount)}
                           </span>
                         </td>
 
                         {/* Total USD */}
                         <td className='px-4 py-3 text-right'>
-                          <span className='font-mono text-sm text-gray-300'>
+                          <span className='font-mono text-sm text-gray-600 dark:text-gray-300'>
                             {formatCurrency(trade.total_amount || 0)}
                           </span>
                         </td>
@@ -619,7 +643,7 @@ export const AdminTradesPage: React.FC = () => {
                         <td className='px-4 py-3 text-right'>
                           {trade.brl_total_amount ? (
                             <div>
-                              <span className='font-mono text-sm font-medium text-green-400'>
+                              <span className='font-mono text-sm font-medium text-green-600 dark:text-green-400'>
                                 R${' '}
                                 {trade.brl_total_amount.toLocaleString('pt-BR', {
                                   minimumFractionDigits: 2,
@@ -631,17 +655,17 @@ export const AdminTradesPage: React.FC = () => {
                               </span>
                             </div>
                           ) : (
-                            <span className='text-gray-600'>-</span>
+                            <span className='text-gray-400 dark:text-gray-600'>-</span>
                           )}
                         </td>
 
                         {/* Usuário */}
                         <td className='px-4 py-3'>
                           <div className='flex items-center gap-2'>
-                            <div className='w-6 h-6 rounded-full bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center text-[9px] font-bold text-blue-300'>
+                            <div className='w-6 h-6 rounded-full bg-gradient-to-br from-blue-100 to-cyan-100 dark:from-blue-500/20 dark:to-cyan-500/20 flex items-center justify-center text-[9px] font-bold text-blue-600 dark:text-blue-300'>
                               WN
                             </div>
-                            <span className='text-gray-300 text-xs font-mono'>
+                            <span className='text-gray-600 dark:text-gray-300 text-xs font-mono'>
                               {formatUserWNId(trade.user_id)}
                             </span>
                           </div>
@@ -669,7 +693,7 @@ export const AdminTradesPage: React.FC = () => {
                           <div className='flex items-center justify-end gap-1'>
                             <button
                               onClick={() => navigate(`/admin/trades/${trade.id}`)}
-                              className='p-1.5 text-gray-500 hover:text-green-400 hover:bg-green-500/10 rounded-lg transition-colors'
+                              className='p-1.5 text-gray-500 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-500/10 rounded-lg transition-colors'
                               title='Ver detalhes'
                             >
                               <Eye className='w-4 h-4' />
@@ -678,7 +702,7 @@ export const AdminTradesPage: React.FC = () => {
                               <button
                                 onClick={() => handleCancelTrade(trade)}
                                 disabled={cancelTradeMutation.isPending}
-                                className='p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-50'
+                                className='p-1.5 text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-50'
                                 title='Cancelar trade'
                               >
                                 {cancelTradeMutation.isPending ? (
@@ -698,13 +722,16 @@ export const AdminTradesPage: React.FC = () => {
             </div>
 
             {/* Cards Mobile */}
-            <div className='lg:hidden divide-y divide-white/5'>
+            <div className='lg:hidden divide-y divide-gray-100 dark:divide-white/5'>
               {trades.map(trade => {
                 const logo = getCryptoLogo(trade.symbol)
                 const isBuy = trade.operation_type === 'buy'
 
                 return (
-                  <div key={trade.id} className='p-3 hover:bg-white/[0.02] transition-colors'>
+                  <div
+                    key={trade.id}
+                    className='p-3 hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors'
+                  >
                     <div className='flex items-start justify-between gap-3'>
                       {/* Left: Coin + Info */}
                       <div className='flex items-center gap-3'>
@@ -713,8 +740,8 @@ export const AdminTradesPage: React.FC = () => {
                           {logo ? (
                             <img src={logo} alt={trade.symbol} className='w-10 h-10 rounded-full' />
                           ) : (
-                            <div className='w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center'>
-                              <Wallet className='h-5 w-5 text-gray-400' />
+                            <div className='w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center'>
+                              <Wallet className='h-5 w-5 text-gray-500 dark:text-gray-400' />
                             </div>
                           )}
                           {/* Direction indicator */}
@@ -734,30 +761,32 @@ export const AdminTradesPage: React.FC = () => {
                         {/* Info */}
                         <div>
                           <div className='flex items-center gap-2'>
-                            <span className='text-white font-medium'>{trade.symbol || 'N/A'}</span>
+                            <span className='text-gray-900 dark:text-white font-medium'>
+                              {trade.symbol || 'N/A'}
+                            </span>
                             <span
                               className={`text-[10px] px-1.5 py-0.5 rounded ${
                                 isBuy
-                                  ? 'bg-green-500/10 text-green-400'
-                                  : 'bg-red-500/10 text-red-400'
+                                  ? 'bg-green-100 dark:bg-green-500/10 text-green-700 dark:text-green-400'
+                                  : 'bg-red-100 dark:bg-red-500/10 text-red-700 dark:text-red-400'
                               }`}
                             >
                               {isBuy ? 'Compra' : 'Venda'}
                             </span>
                           </div>
                           <div className='flex items-center gap-2 mt-0.5'>
-                            <Hash className='h-3 w-3 text-gray-600' />
+                            <Hash className='h-3 w-3 text-gray-400 dark:text-gray-600' />
                             <span className='text-gray-500 text-xs font-mono'>
                               {trade.reference_code}
                             </span>
                           </div>
                           <div className='flex items-center gap-2 mt-0.5'>
                             <User className='h-3 w-3 text-blue-500' />
-                            <span className='text-blue-400 text-xs font-mono font-medium'>
+                            <span className='text-blue-600 dark:text-blue-400 text-xs font-mono font-medium'>
                               {formatUserWNId(trade.user_id)}
                             </span>
-                            <span className='text-gray-700'>•</span>
-                            <span className='text-gray-600 text-xs'>
+                            <span className='text-gray-300 dark:text-gray-700'>•</span>
+                            <span className='text-gray-500 dark:text-gray-600 text-xs'>
                               {formatRelativeDate(trade.created_at)}
                             </span>
                           </div>
@@ -766,11 +795,11 @@ export const AdminTradesPage: React.FC = () => {
 
                       {/* Right: Amount + Status */}
                       <div className='text-right'>
-                        <div className='font-mono font-medium text-white'>
+                        <div className='font-mono font-medium text-gray-900 dark:text-white'>
                           {formatCryptoAmount(trade.crypto_amount)}
                         </div>
                         {trade.brl_total_amount && (
-                          <div className='font-mono text-xs text-green-400'>
+                          <div className='font-mono text-xs text-green-600 dark:text-green-400'>
                             R${' '}
                             {trade.brl_total_amount.toLocaleString('pt-BR', {
                               minimumFractionDigits: 2,
@@ -790,10 +819,10 @@ export const AdminTradesPage: React.FC = () => {
                     </div>
 
                     {/* Actions Row */}
-                    <div className='flex items-center justify-end gap-2 mt-2 pt-2 border-t border-white/5'>
+                    <div className='flex items-center justify-end gap-2 mt-2 pt-2 border-t border-gray-100 dark:border-white/5'>
                       <button
                         onClick={() => navigate(`/admin/trades/${trade.id}`)}
-                        className='flex items-center gap-1 px-2 py-1 text-green-400 text-xs hover:bg-green-500/10 rounded-lg transition-colors'
+                        className='flex items-center gap-1 px-2 py-1 text-green-600 dark:text-green-400 text-xs hover:bg-green-50 dark:hover:bg-green-500/10 rounded-lg transition-colors'
                       >
                         <Eye className='h-3 w-3' />
                         Detalhes
@@ -802,7 +831,7 @@ export const AdminTradesPage: React.FC = () => {
                         <button
                           onClick={() => handleCancelTrade(trade)}
                           disabled={cancelTradeMutation.isPending}
-                          className='flex items-center gap-1 px-2 py-1 text-red-400 text-xs hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-50'
+                          className='flex items-center gap-1 px-2 py-1 text-red-600 dark:text-red-400 text-xs hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-50'
                         >
                           {cancelTradeMutation.isPending ? (
                             <RefreshCw className='h-3 w-3 animate-spin' />
@@ -822,7 +851,7 @@ export const AdminTradesPage: React.FC = () => {
 
         {/* Paginação */}
         {Math.ceil(total / limit) > 1 && (
-          <div className='flex items-center justify-between px-3 sm:px-4 py-3 border-t border-white/5 bg-white/[0.01]'>
+          <div className='flex items-center justify-between px-3 sm:px-4 py-3 border-t border-gray-200 dark:border-white/5 bg-gray-50 dark:bg-white/[0.01]'>
             <p className='text-xs text-gray-500'>
               <span className='hidden sm:inline'>Mostrando </span>
               {(page - 1) * limit + 1}-{Math.min(page * limit, total)} de {total}
@@ -833,11 +862,11 @@ export const AdminTradesPage: React.FC = () => {
                 disabled={page === 1}
                 title='Página anterior'
                 aria-label='Ir para página anterior'
-                className='p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors'
+                className='p-1.5 rounded-lg bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-700 dark:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors'
               >
                 <ChevronLeft className='h-4 w-4' />
               </button>
-              <span className='px-3 text-xs text-gray-400'>
+              <span className='px-3 text-xs text-gray-500 dark:text-gray-400'>
                 {page}/{Math.ceil(total / limit) || 1}
               </span>
               <button
@@ -845,7 +874,7 @@ export const AdminTradesPage: React.FC = () => {
                 disabled={page >= Math.ceil(total / limit)}
                 title='Próxima página'
                 aria-label='Ir para próxima página'
-                className='p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors'
+                className='p-1.5 rounded-lg bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-700 dark:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors'
               >
                 <ChevronRight className='h-4 w-4' />
               </button>
