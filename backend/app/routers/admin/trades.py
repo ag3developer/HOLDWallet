@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List, Optional
 from datetime import datetime, timezone
+from decimal import Decimal
 from pydantic import BaseModel
 import logging
 
@@ -20,6 +21,8 @@ from app.core.db import get_db
 from app.core.security import get_current_admin
 from app.models.user import User
 from app.models.instant_trade import InstantTrade, TradeStatus, InstantTradeHistory
+from app.models.wallet import Wallet
+from app.models.address import Address
 from app.models.accounting import AccountingEntry  # Enums não são mais usados
 
 logger = logging.getLogger(__name__)
@@ -856,6 +859,215 @@ async def get_trade_accounting_entries(
         raise
     except Exception as e:
         logger.error(f"❌ Erro buscando entradas contábeis: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+# ===== ENDPOINT PARA VERIFICAR SE PODE PROCESSAR VENDA (PRE-CHECK) =====
+
+@router.get("/{trade_id}/check-sell-ready", response_model=dict)
+async def check_sell_ready(
+    trade_id: str,
+    network: str = "polygon",
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin)
+):
+    """
+    Verifica se uma operação de VENDA pode ser processada.
+    
+    Faz verificações antes de processar:
+    1. Trade existe e é do tipo SELL
+    2. Status está correto (PENDING ou PAYMENT_PROCESSING)
+    3. Usuário tem saldo de crypto suficiente
+    4. Usuário tem saldo de gas OU plataforma pode patrocinar
+    
+    Use este endpoint ANTES de clicar em "Processar Venda" para evitar erros.
+    """
+    from app.services.blockchain_withdraw_service import blockchain_withdraw_service
+    from app.services.gas_sponsor_service import gas_sponsor_service
+    
+    try:
+        trade = db.query(InstantTrade).filter(
+            InstantTrade.id == trade_id
+        ).first()
+        
+        if not trade:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Trade {trade_id} não encontrado"
+            )
+        
+        # Validar que é uma operação de VENDA
+        if trade.operation_type.value != "sell":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Este trade não é uma operação de VENDA"
+            )
+        
+        # Validar status
+        if trade.status not in [TradeStatus.PENDING, TradeStatus.PAYMENT_PROCESSING]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Trade com status {trade.status.value} não pode ser processado."
+            )
+        
+        # Buscar wallet do usuário
+        user_wallet = db.query(Wallet).filter(
+            Wallet.user_id == trade.user_id
+        ).first()
+        
+        if not user_wallet:
+            return {
+                "ready": False,
+                "reason": "Carteira do usuário não encontrada",
+                "checks": {
+                    "trade_found": True,
+                    "trade_type": "sell",
+                    "status_ok": True,
+                    "wallet_found": False,
+                    "crypto_balance_ok": False,
+                    "gas_ok": False,
+                }
+            }
+        
+        # Buscar address do usuário
+        user_address = db.query(Address).filter(
+            Address.wallet_id == user_wallet.id,
+            Address.network.ilike(f"%{network}%")
+        ).first()
+        
+        if not user_address:
+            return {
+                "ready": False,
+                "reason": f"Endereço do usuário não encontrado para rede {network}",
+                "checks": {
+                    "trade_found": True,
+                    "trade_type": "sell",
+                    "status_ok": True,
+                    "wallet_found": True,
+                    "address_found": False,
+                    "crypto_balance_ok": False,
+                    "gas_ok": False,
+                }
+            }
+        
+        # Conectar na rede
+        w3 = blockchain_withdraw_service.get_web3(network)
+        if not w3:
+            return {
+                "ready": False,
+                "reason": f"Não foi possível conectar à rede {network}",
+                "checks": {
+                    "trade_found": True,
+                    "trade_type": "sell",
+                    "status_ok": True,
+                    "wallet_found": True,
+                    "address_found": True,
+                    "network_connected": False,
+                }
+            }
+        
+        # Verificar saldo de crypto
+        balance_check = blockchain_withdraw_service.check_user_balance(
+            w3=w3,
+            address=user_address.address,
+            symbol=trade.symbol,
+            network=network,
+            required_amount=trade.crypto_amount
+        )
+        
+        # Verificar saldo de gas
+        config = gas_sponsor_service.NETWORK_CONFIG[network.lower()]
+        contract_address = blockchain_withdraw_service.NETWORK_CONFIG[network.lower()]["contracts"].get(trade.symbol.upper())
+        is_erc20 = contract_address is not None
+        
+        gas_check = gas_sponsor_service.check_user_gas_balance(
+            w3=w3,
+            user_address=str(user_address.address),
+            network=network,
+            is_erc20=is_erc20
+        )
+        
+        # Se usuário não tem gas suficiente, verifica se plataforma pode patrocinar
+        platform_can_sponsor = True
+        platform_gas_info = None
+        
+        if not gas_check["has_enough_gas"]:
+            gas_deficit = gas_check["gas_deficit"] * Decimal("1.2")  # 20% extra
+            gas_deficit = max(gas_deficit, Decimal("0.01"))  # Mínimo 0.01
+            
+            platform_check = gas_sponsor_service.check_platform_gas_balance(
+                w3=w3,
+                network=network,
+                required_gas=gas_deficit
+            )
+            
+            platform_can_sponsor = platform_check["has_enough"]
+            platform_gas_info = {
+                "platform_balance": str(platform_check["platform_balance"]),
+                "required_gas": str(platform_check["required_gas"]),
+                "deficit": str(platform_check.get("deficit", 0)),
+                "native_symbol": config["native_symbol"],
+            }
+        
+        # Calcular taxa de gas em BRL se precisar patrocinar
+        gas_fee_brl = Decimal("0")
+        if not gas_check["has_enough_gas"] and platform_can_sponsor:
+            gas_deficit = gas_check["gas_deficit"] * Decimal("1.2")
+            gas_deficit = max(gas_deficit, Decimal("0.01"))
+            fee_calc = gas_sponsor_service.calculate_gas_fee_brl(gas_deficit, network)
+            gas_fee_brl = fee_calc["total_fee_brl"]
+        
+        # Resultado final
+        is_ready = (
+            balance_check.get("has_enough", False) and
+            (gas_check["has_enough_gas"] or platform_can_sponsor)
+        )
+        
+        reason = None
+        if not balance_check.get("has_enough"):
+            reason = f"Saldo de crypto insuficiente. Disponível: {balance_check['balance']} {trade.symbol}, Necessário: {balance_check['required']}"
+        elif not gas_check["has_enough_gas"] and not platform_can_sponsor:
+            reason = f"Saldo de gas insuficiente. Usuário não tem {config['native_symbol']} e plataforma não tem saldo suficiente para patrocinar. Adicione fundos na carteira da plataforma."
+        
+        return {
+            "ready": is_ready,
+            "reason": reason,
+            "trade": {
+                "id": trade.id,
+                "reference_code": trade.reference_code,
+                "symbol": trade.symbol,
+                "crypto_amount": str(trade.crypto_amount),
+                "brl_amount": str(trade.brl_amount),
+                "user_email": trade.user.email if trade.user else None,
+            },
+            "checks": {
+                "trade_found": True,
+                "trade_type": "sell",
+                "status_ok": True,
+                "wallet_found": True,
+                "address_found": True,
+                "network_connected": True,
+                "crypto_balance_ok": balance_check.get("has_enough", False),
+                "crypto_balance": str(balance_check.get("balance", 0)),
+                "crypto_required": str(balance_check.get("required", 0)),
+                "user_has_gas": gas_check["has_enough_gas"],
+                "user_gas_balance": str(gas_check["current_balance"]),
+                "gas_required": str(gas_check["required_gas"]),
+                "platform_can_sponsor": platform_can_sponsor,
+                "platform_gas_info": platform_gas_info,
+                "gas_fee_brl": str(gas_fee_brl) if gas_fee_brl > 0 else None,
+            },
+            "network": network,
+            "user_address": user_address.address,
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Erro verificando sell ready: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)

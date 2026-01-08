@@ -165,6 +165,67 @@ class GasSponsorService:
                 "error": str(e)
             }
     
+    def check_platform_gas_balance(
+        self,
+        w3: Web3,
+        network: str,
+        required_gas: Decimal
+    ) -> Dict[str, Any]:
+        """
+        Verifica se a plataforma tem saldo suficiente para patrocinar gas.
+        
+        Args:
+            w3: Instância Web3
+            network: Nome da rede (polygon, ethereum, base)
+            required_gas: Quantidade de gas necessária em native token
+        
+        Returns:
+            {
+                "has_enough": bool,
+                "platform_balance": Decimal,  # saldo da plataforma
+                "required_gas": Decimal,       # quanto precisa
+                "deficit": Decimal,            # quanto falta (se aplicável)
+            }
+        """
+        try:
+            config = self.NETWORK_CONFIG[network.lower()]
+            
+            # Saldo da plataforma em native token
+            platform_balance_wei = w3.eth.get_balance(
+                Web3.to_checksum_address(self.platform_address)
+            )
+            platform_balance = Decimal(str(w3.from_wei(platform_balance_wei, 'ether')))
+            
+            # Adiciona margem de segurança (para cobrir gas da própria transação de envio)
+            # A plataforma precisa do gas para enviar + gas para a transação de envio
+            gas_for_platform_tx = Decimal("0.001")  # Gas para a TX de envio
+            total_required = required_gas + gas_for_platform_tx
+            
+            has_enough = platform_balance >= total_required
+            deficit = max(Decimal("0"), total_required - platform_balance)
+            
+            logger.info(f"💰 Saldo plataforma {config['native_symbol']}: {platform_balance}")
+            logger.info(f"   Necessário: {total_required} (gas: {required_gas} + tx: {gas_for_platform_tx})")
+            logger.info(f"   Suficiente: {has_enough}")
+            
+            return {
+                "has_enough": has_enough,
+                "platform_balance": platform_balance,
+                "required_gas": total_required,
+                "deficit": deficit,
+                "native_symbol": config["native_symbol"],
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ Erro verificando saldo da plataforma: {str(e)}")
+            return {
+                "has_enough": False,
+                "platform_balance": Decimal("0"),
+                "required_gas": required_gas,
+                "deficit": required_gas,
+                "error": str(e)
+            }
+    
     def calculate_gas_fee_brl(
         self,
         gas_amount: Decimal,
@@ -401,14 +462,43 @@ class GasSponsorService:
             # Mínimo de 0.01 para evitar micro-transações
             gas_to_send = max(gas_to_send, Decimal("0.01"))
             
-            logger.info(f"📤 Enviando {gas_to_send} {config['native_symbol']} para {user_address}")
+            logger.info(f"📤 Precisa enviar {gas_to_send} {config['native_symbol']} para {user_address}")
             
-            # 4. Calcula taxa em BRL
+            # 4. ⚠️ VERIFICA SE A PLATAFORMA TEM SALDO PARA PATROCINAR
+            platform_check = self.check_platform_gas_balance(
+                w3=w3,
+                network=network,
+                required_gas=gas_to_send
+            )
+            
+            if not platform_check["has_enough"]:
+                error_msg = (
+                    f"Saldo insuficiente da plataforma para patrocinar gas. "
+                    f"Disponível: {platform_check['platform_balance']:.6f} {config['native_symbol']}, "
+                    f"Necessário: {platform_check['required_gas']:.6f} {config['native_symbol']}. "
+                    f"Contate o administrador para adicionar fundos na carteira da plataforma."
+                )
+                logger.error(f"❌ {error_msg}")
+                return {
+                    "gas_sponsored": False,
+                    "gas_tx_hash": None,
+                    "gas_amount_sent": Decimal("0"),
+                    "network_fee_brl": Decimal("0"),
+                    "fee_breakdown": None,
+                    "native_symbol": config["native_symbol"],
+                    "error": error_msg,
+                    "platform_balance": platform_check["platform_balance"],
+                    "required_gas": platform_check["required_gas"],
+                }
+            
+            logger.info(f"✅ Plataforma tem saldo suficiente: {platform_check['platform_balance']} {config['native_symbol']}")
+            
+            # 5. Calcula taxa em BRL
             fee_calc = self.calculate_gas_fee_brl(gas_to_send, network)
             
             logger.info(f"💵 Taxa calculada: R$ {fee_calc['total_fee_brl']}")
             
-            # 5. Envia gas para o usuário
+            # 6. Envia gas para o usuário
             send_result = self.send_gas_to_user(
                 w3=w3,
                 user_address=user_address,
@@ -427,7 +517,7 @@ class GasSponsorService:
                     "error": send_result.get("error", "Falha ao enviar gas")
                 }
             
-            # 6. Aguarda confirmação
+            # 7. Aguarda confirmação
             confirmed = self.wait_for_gas_confirmation(
                 w3=w3,
                 tx_hash=send_result["tx_hash"],
@@ -445,7 +535,7 @@ class GasSponsorService:
                     "error": "Timeout aguardando confirmação do gas"
                 }
             
-            # 7. Sucesso!
+            # 8. Sucesso!
             logger.info("✅ Gas sponsor completo!")
             logger.info(f"   TX: {send_result['tx_hash']}")
             logger.info(f"   Enviado: {gas_to_send} {config['native_symbol']}")
