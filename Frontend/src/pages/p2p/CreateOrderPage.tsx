@@ -560,16 +560,21 @@ export const CreateOrderPage = () => {
                     value={amount}
                     onChange={e => setAmount(e.target.value)}
                     placeholder='0.00'
-                    className='w-full px-4 py-3 text-lg font-mono border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700/50 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500'
+                    className='w-full px-4 py-3 pr-24 text-lg font-mono border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700/50 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500'
                   />
-                  <span className='absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-gray-400'>
-                    {coin}
-                  </span>
+                  <div className='absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2'>
+                    <CryptoIcon symbol={coin} size={20} />
+                    <span className='text-sm font-bold text-gray-400'>{coin}</span>
+                  </div>
                 </div>
                 <div className='flex items-center justify-between'>
-                  <span className='text-xs text-gray-500'>
-                    Disponível: {formatBalance(currentBalance)} {coin}
-                  </span>
+                  <div className='flex items-center gap-1.5 text-xs text-gray-500'>
+                    <span>Disponível:</span>
+                    <CryptoIcon symbol={coin} size={14} />
+                    <span>
+                      {formatBalance(currentBalance)} {coin}
+                    </span>
+                  </div>
                   <button
                     type='button'
                     onClick={() => setAmount(currentBalance.toString())}
@@ -594,9 +599,12 @@ export const CreateOrderPage = () => {
                 <div className='space-y-2'>
                   <div className='flex justify-between text-xs'>
                     <span className='text-gray-600 dark:text-gray-400'>Quantidade:</span>
-                    <span className='font-semibold text-gray-900 dark:text-white'>
-                      {formatBalance(Number.parseFloat(amount) || 0)} {coin}
-                    </span>
+                    <div className='flex items-center gap-1.5'>
+                      <CryptoIcon symbol={coin} size={14} />
+                      <span className='font-semibold text-gray-900 dark:text-white'>
+                        {formatBalance(Number.parseFloat(amount) || 0)} {coin}
+                      </span>
+                    </div>
                   </div>
                   <div className='flex justify-between text-xs'>
                     <span className='text-gray-600 dark:text-gray-400'>Preço:</span>

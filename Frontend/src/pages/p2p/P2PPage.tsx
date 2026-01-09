@@ -69,10 +69,26 @@ export const P2PPage = () => {
   const { data: paymentMethodsData } = usePaymentMethods()
 
   const cryptoOptions = [
-    { symbol: 'BTC', name: 'Bitcoin', logo: 'https://assets.coingecko.com/coins/images/1/small/bitcoin.png' },
-    { symbol: 'ETH', name: 'Ethereum', logo: 'https://assets.coingecko.com/coins/images/279/small/ethereum.png' },
-    { symbol: 'USDT', name: 'Tether', logo: 'https://assets.coingecko.com/coins/images/325/small/Tether.png' },
-    { symbol: 'BNB', name: 'BNB', logo: 'https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png' },
+    {
+      symbol: 'BTC',
+      name: 'Bitcoin',
+      logo: 'https://assets.coingecko.com/coins/images/1/small/bitcoin.png',
+    },
+    {
+      symbol: 'ETH',
+      name: 'Ethereum',
+      logo: 'https://assets.coingecko.com/coins/images/279/small/ethereum.png',
+    },
+    {
+      symbol: 'USDT',
+      name: 'Tether',
+      logo: 'https://assets.coingecko.com/coins/images/325/small/Tether.png',
+    },
+    {
+      symbol: 'BNB',
+      name: 'BNB',
+      logo: 'https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png',
+    },
   ]
 
   // Função para obter logo da moeda
@@ -297,12 +313,13 @@ export const P2PPage = () => {
                 : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700'
             }`}
           >
-            <img 
-              src={crypto.logo} 
+            <img
+              src={crypto.logo}
               alt={crypto.name}
               className='w-5 h-5 rounded-full object-cover'
-              onError={(e) => {
-                (e.target as HTMLImageElement).src = 'https://assets.coingecko.com/coins/images/1/small/bitcoin.png'
+              onError={e => {
+                ;(e.target as HTMLImageElement).src =
+                  'https://assets.coingecko.com/coins/images/1/small/bitcoin.png'
               }}
             />
             {crypto.symbol}
@@ -595,12 +612,13 @@ const PremiumOrderCard: React.FC<PremiumOrderCardProps> = ({
             {formatCurrency(Number(order.price || 0))}
           </p>
           <div className='flex items-center justify-end gap-1'>
-            <img 
-              src={getCryptoLogo(coin)} 
+            <img
+              src={getCryptoLogo(coin)}
               alt={coin}
               className='w-3.5 h-3.5 rounded-full'
-              onError={(e) => {
-                (e.target as HTMLImageElement).src = 'https://assets.coingecko.com/coins/images/1/small/bitcoin.png'
+              onError={e => {
+                ;(e.target as HTMLImageElement).src =
+                  'https://assets.coingecko.com/coins/images/1/small/bitcoin.png'
               }}
             />
             <p className='text-[11px] text-gray-400'>por {coin}</p>
@@ -613,12 +631,13 @@ const PremiumOrderCard: React.FC<PremiumOrderCardProps> = ({
         <div className='flex-1'>
           <p className='text-[10px] text-gray-400 uppercase font-medium mb-0.5'>Disponível</p>
           <div className='flex items-center gap-1'>
-            <img 
-              src={getCryptoLogo(coin)} 
+            <img
+              src={getCryptoLogo(coin)}
               alt={coin}
               className='w-4 h-4 rounded-full'
-              onError={(e) => {
-                (e.target as HTMLImageElement).src = 'https://assets.coingecko.com/coins/images/1/small/bitcoin.png'
+              onError={e => {
+                ;(e.target as HTMLImageElement).src =
+                  'https://assets.coingecko.com/coins/images/1/small/bitcoin.png'
               }}
             />
             <p className='text-xs font-semibold text-gray-900 dark:text-white'>
