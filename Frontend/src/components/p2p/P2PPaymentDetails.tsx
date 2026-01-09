@@ -1,8 +1,8 @@
 /**
- * 💰 P2P Payment Details Component
- * =================================
+ * 💰 P2P Payment Details Component - Premium Design
+ * ==================================================
  * Mostra dados de pagamento do vendedor com QR Code PIX
- * Inclui identificador único para rastreamento
+ * Design compacto e premium com PIX Copia e Cola
  */
 
 import { useState, useEffect } from 'react'
@@ -17,6 +17,8 @@ import {
   AlertCircle,
   CheckCircle,
   Loader2,
+  Zap,
+  Link2,
 } from 'lucide-react'
 import QRCode from 'qrcode'
 
@@ -47,7 +49,7 @@ interface P2PPaymentDetailsProps {
   onPaymentSent?: () => void
 }
 
-// Componente auxiliar para exibição do QR Code - Compacto
+// Componente auxiliar para exibição do QR Code - Compacto Premium
 const QRCodeDisplay = ({
   isGenerating,
   qrCodeUrl,
@@ -57,27 +59,29 @@ const QRCodeDisplay = ({
 }) => {
   if (isGenerating) {
     return (
-      <div className='w-40 h-40 flex items-center justify-center'>
-        <Loader2 className='w-6 h-6 animate-spin text-green-600' />
+      <div className='w-32 h-32 flex items-center justify-center bg-white rounded-xl'>
+        <Loader2 className='w-5 h-5 animate-spin text-emerald-600' />
       </div>
     )
   }
 
   if (qrCodeUrl) {
     return (
-      <>
-        <img src={qrCodeUrl} alt='QR Code PIX' className='w-40 h-40 rounded-lg' />
-        <p className='text-xs text-gray-500 dark:text-gray-400 mt-1 text-center'>
-          <Smartphone className='w-3 h-3 inline mr-1' />
+      <div className='flex flex-col items-center'>
+        <div className='p-2 bg-white rounded-xl shadow-sm'>
+          <img src={qrCodeUrl} alt='QR Code PIX' className='w-32 h-32' />
+        </div>
+        <p className='text-[10px] text-gray-500 dark:text-gray-400 mt-2 flex items-center gap-1'>
+          <Smartphone className='w-3 h-3' />
           Escaneie com o app do seu banco
         </p>
-      </>
+      </div>
     )
   }
 
   return (
-    <div className='w-40 h-40 flex items-center justify-center bg-gray-200 dark:bg-gray-600 rounded-lg'>
-      <AlertCircle className='w-6 h-6 text-gray-400' />
+    <div className='w-32 h-32 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-xl'>
+      <AlertCircle className='w-5 h-5 text-gray-400' />
     </div>
   )
 }
@@ -99,6 +103,7 @@ export const P2PPaymentDetails = ({
   )
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null)
+  const [pixPayload, setPixPayload] = useState<string | null>(null)
   const [isGeneratingQR, setIsGeneratingQR] = useState(false)
   const [timeRemaining, setTimeRemaining] = useState(timeLimit * 60) // segundos
 
@@ -250,13 +255,13 @@ export const P2PPaymentDetails = ({
 
       setIsGeneratingQR(true)
       try {
-        const pixPayload = generatePixPayload(
+        const pixPayloadStr = generatePixPayload(
           selectedMethod.details.pix_key,
           amount,
           paymentIdentifier
         )
 
-        const url = await QRCode.toDataURL(pixPayload, {
+        const url = await QRCode.toDataURL(pixPayloadStr, {
           width: 256,
           margin: 2,
           color: {
@@ -265,6 +270,7 @@ export const P2PPaymentDetails = ({
           },
         })
         setQrCodeUrl(url)
+        setPixPayload(pixPayloadStr)
       } catch (error) {
         console.error('Error generating QR code:', error)
       } finally {
@@ -309,45 +315,50 @@ export const P2PPaymentDetails = ({
   }
 
   return (
-    <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden'>
-      {/* Header Compacto */}
-      <div className='bg-gradient-to-r from-green-500 to-emerald-600 px-4 py-3'>
+    <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden'>
+      {/* Header Premium Compacto */}
+      <div className='bg-gradient-to-r from-emerald-500 to-green-500 px-4 py-3'>
         <div className='flex items-center justify-between'>
-          <div>
-            <h3 className='text-white font-bold text-base'>Dados para Pagamento</h3>
-            <p className='text-green-100 text-xs'>
-              Pague {formatCurrency(amount)} para {sellerName}
-            </p>
+          <div className='flex items-center gap-2'>
+            <div className='w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center'>
+              <Zap className='w-4 h-4 text-white' />
+            </div>
+            <div>
+              <h3 className='text-white font-bold text-sm'>Dados para Pagamento</h3>
+              <p className='text-emerald-100 text-[11px]'>
+                Pague {formatCurrency(amount)} para {sellerName}
+              </p>
+            </div>
           </div>
           <div
-            className={`px-2 py-1 rounded-full text-xs font-medium ${
-              timeRemaining < 300 ? 'bg-red-500/20 text-red-100' : 'bg-white/20 text-white'
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold ${
+              timeRemaining < 300 ? 'bg-red-500/30 text-red-100' : 'bg-white/20 text-white'
             }`}
           >
-            <Clock className='w-3 h-3 inline mr-1' />
+            <Clock className='w-3.5 h-3.5' />
             {formatTime(timeRemaining)}
           </div>
         </div>
       </div>
 
       {/* Identificador do Pedido - Compacto */}
-      <div className='px-4 py-2 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-800'>
+      <div className='px-4 py-2.5 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-100 dark:border-amber-800'>
         <div className='flex items-center justify-between'>
           <div>
-            <p className='text-xs text-blue-600 dark:text-blue-400 font-medium'>
-              IDENTIFICADOR DO PEDIDO
+            <p className='text-[10px] text-amber-700 dark:text-amber-400 font-semibold uppercase'>
+              Identificador do Pedido
             </p>
-            <p className='text-lg font-mono font-bold text-blue-900 dark:text-blue-100'>
+            <p className='text-base font-mono font-bold text-amber-900 dark:text-amber-100'>
               {paymentIdentifier}
             </p>
-            <p className='text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1'>
+            <p className='text-[10px] text-amber-600 dark:text-amber-400 flex items-center gap-1 mt-0.5'>
               <AlertCircle className='w-3 h-3' />
               Inclua este código na descrição do PIX
             </p>
           </div>
           <button
             onClick={() => copyToClipboard(paymentIdentifier, 'identifier')}
-            className='p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors'
+            className='p-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl transition-all shadow-lg shadow-amber-500/25'
           >
             {copiedField === 'identifier' ? (
               <Check className='w-4 h-4' />
@@ -358,18 +369,18 @@ export const P2PPaymentDetails = ({
         </div>
       </div>
 
-      {/* Seleção de Método - Compacto */}
+      {/* Seleção de Método */}
       {sellerPaymentMethods.length > 1 && (
-        <div className='px-4 py-2 border-b border-gray-200 dark:border-gray-700'>
-          <div className='flex flex-wrap gap-1'>
+        <div className='px-4 py-2 border-b border-gray-100 dark:border-gray-700'>
+          <div className='flex flex-wrap gap-1.5'>
             {sellerPaymentMethods.map(method => (
               <button
                 key={method.id}
                 onClick={() => setSelectedMethod(method)}
-                className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                   selectedMethod?.id === method.id
-                    ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-500'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-transparent'
+                    ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-2 border-emerald-500'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-2 border-transparent'
                 }`}
               >
                 {getMethodIcon(method.type)}
@@ -380,31 +391,34 @@ export const P2PPaymentDetails = ({
         </div>
       )}
 
-      {/* Conteúdo Principal - Compacto */}
-      <div className='px-4 py-3'>
+      {/* Conteúdo Principal */}
+      <div className='p-4'>
         {selectedMethod?.type.toLowerCase() === 'pix' ? (
-          /* PIX Payment - Layout Compacto */
           <div className='space-y-3'>
-            {/* QR Code - Centralizado e menor */}
-            <div className='flex flex-col items-center py-2 bg-gray-50 dark:bg-gray-700 rounded-xl'>
+            {/* QR Code Centralizado */}
+            <div className='flex justify-center py-3 bg-gray-50 dark:bg-gray-700/30 rounded-xl'>
               <QRCodeDisplay isGenerating={isGeneratingQR} qrCodeUrl={qrCodeUrl} />
             </div>
 
-            {/* PIX Copia e Cola - Compacto */}
-            <div className='space-y-2'>
+            {/* PIX Copia e Cola (EMV) */}
+            {pixPayload && (
               <div>
-                <span className='text-xs text-gray-500 dark:text-gray-400 font-medium'>
-                  CHAVE PIX ({selectedMethod.details.pix_key_type?.toUpperCase() || 'CHAVE'})
-                </span>
-                <div className='flex items-center gap-2 mt-1'>
-                  <div className='flex-1 px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg font-mono text-sm break-all'>
-                    {selectedMethod.details.pix_key}
+                <div className='flex items-center justify-between mb-1.5'>
+                  <span className='text-[10px] text-gray-500 dark:text-gray-400 font-semibold uppercase flex items-center gap-1'>
+                    <Link2 className='w-3 h-3' />
+                    PIX Copia e Cola (EMV)
+                  </span>
+                </div>
+                <div className='flex items-center gap-2'>
+                  <div className='flex-1 px-3 py-2.5 bg-gray-100 dark:bg-gray-700 rounded-xl font-mono text-[10px] text-gray-600 dark:text-gray-300 break-all line-clamp-2 overflow-hidden'>
+                    {pixPayload}
                   </div>
                   <button
-                    onClick={() => copyToClipboard(selectedMethod.details.pix_key!, 'pix')}
-                    className='p-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors'
+                    onClick={() => copyToClipboard(pixPayload, 'emv')}
+                    className='p-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl transition-all shadow-lg shadow-emerald-500/25 flex-shrink-0'
+                    title='Copiar PIX Copia e Cola'
                   >
-                    {copiedField === 'pix' ? (
+                    {copiedField === 'emv' ? (
                       <Check className='w-4 h-4' />
                     ) : (
                       <Copy className='w-4 h-4' />
@@ -412,69 +426,93 @@ export const P2PPaymentDetails = ({
                   </button>
                 </div>
               </div>
+            )}
 
-              {/* Nome do Titular - Compacto */}
-              {selectedMethod.details.holder_name && (
-                <div>
-                  <span className='text-xs text-gray-500 dark:text-gray-400 font-medium'>
-                    NOME DO TITULAR
-                  </span>
-                  <p className='mt-1 px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm'>
-                    {selectedMethod.details.holder_name}
-                  </p>
+            {/* Chave PIX */}
+            <div>
+              <span className='text-[10px] text-gray-500 dark:text-gray-400 font-semibold uppercase'>
+                Chave PIX ({selectedMethod.details.pix_key_type?.toUpperCase() || 'CPF'})
+              </span>
+              <div className='flex items-center gap-2 mt-1.5'>
+                <div className='flex-1 px-3 py-2.5 bg-gray-100 dark:bg-gray-700 rounded-xl font-mono text-sm text-gray-900 dark:text-white'>
+                  {selectedMethod.details.pix_key}
                 </div>
-              )}
+                <button
+                  onClick={() => copyToClipboard(selectedMethod.details.pix_key!, 'pix')}
+                  className='p-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl transition-all shadow-lg shadow-emerald-500/25'
+                >
+                  {copiedField === 'pix' ? (
+                    <Check className='w-4 h-4' />
+                  ) : (
+                    <Copy className='w-4 h-4' />
+                  )}
+                </button>
+              </div>
+            </div>
 
-              {/* Valor - Compacto */}
+            {/* Nome do Titular */}
+            {selectedMethod.details.holder_name && (
               <div>
-                <span className='text-xs text-gray-500 dark:text-gray-400 font-medium'>
-                  VALOR A PAGAR
+                <span className='text-[10px] text-gray-500 dark:text-gray-400 font-semibold uppercase'>
+                  Nome do Titular
                 </span>
-                <div className='flex items-center gap-2 mt-1'>
-                  <div className='flex-1 px-3 py-2 bg-green-50 dark:bg-green-900/20 rounded-lg'>
-                    <span className='text-xl font-bold text-green-600 dark:text-green-400'>
-                      {formatCurrency(amount)}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => copyToClipboard(amount.toFixed(2), 'amount')}
-                    className='p-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors'
-                  >
-                    {copiedField === 'amount' ? (
-                      <Check className='w-4 h-4' />
-                    ) : (
-                      <Copy className='w-4 h-4' />
-                    )}
-                  </button>
+                <p className='mt-1.5 px-3 py-2.5 bg-gray-100 dark:bg-gray-700 rounded-xl text-sm text-gray-900 dark:text-white'>
+                  {selectedMethod.details.holder_name}
+                </p>
+              </div>
+            )}
+
+            {/* Valor a Pagar */}
+            <div>
+              <span className='text-[10px] text-gray-500 dark:text-gray-400 font-semibold uppercase'>
+                Valor a Pagar
+              </span>
+              <div className='flex items-center gap-2 mt-1.5'>
+                <div className='flex-1 px-3 py-2.5 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800'>
+                  <span className='text-xl font-bold text-emerald-600 dark:text-emerald-400'>
+                    {formatCurrency(amount)}
+                  </span>
                 </div>
+                <button
+                  onClick={() => copyToClipboard(amount.toFixed(2), 'amount')}
+                  className='p-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl transition-all shadow-lg shadow-emerald-500/25'
+                >
+                  {copiedField === 'amount' ? (
+                    <Check className='w-4 h-4' />
+                  ) : (
+                    <Copy className='w-4 h-4' />
+                  )}
+                </button>
               </div>
             </div>
           </div>
         ) : (
-          /* Bank Transfer */
+          /* Bank Transfer - Compacto */
           <div className='space-y-3'>
             {selectedMethod?.details.bank_name && (
               <div>
-                <span className='text-xs text-gray-500 dark:text-gray-400 font-medium'>BANCO</span>
-                <p className='mt-1 p-3 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm font-medium'>
+                <span className='text-[10px] text-gray-500 dark:text-gray-400 font-semibold uppercase'>
+                  Banco
+                </span>
+                <p className='mt-1.5 px-3 py-2.5 bg-gray-100 dark:bg-gray-700 rounded-xl text-sm font-medium text-gray-900 dark:text-white'>
                   {selectedMethod.details.bank_name}
                 </p>
               </div>
             )}
 
             {selectedMethod?.details.agency && (
-              <div className='grid grid-cols-2 gap-3'>
+              <div className='grid grid-cols-2 gap-2'>
                 <div>
-                  <span className='text-xs text-gray-500 dark:text-gray-400 font-medium'>
-                    AGÊNCIA
+                  <span className='text-[10px] text-gray-500 dark:text-gray-400 font-semibold uppercase'>
+                    Agência
                   </span>
-                  <div className='flex items-center gap-2 mt-1'>
-                    <p className='flex-1 p-3 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm font-mono'>
+                  <div className='flex items-center gap-2 mt-1.5'>
+                    <p className='flex-1 px-3 py-2.5 bg-gray-100 dark:bg-gray-700 rounded-xl text-sm font-mono text-gray-900 dark:text-white'>
                       {selectedMethod.details.agency}
                     </p>
                     <button
                       onClick={() => copyToClipboard(selectedMethod.details.agency!, 'agency')}
-                      className='p-2 text-gray-400 hover:text-green-600 transition-colors'
+                      className='p-2 text-gray-400 hover:text-emerald-500 transition-colors'
                     >
                       {copiedField === 'agency' ? (
                         <Check className='w-4 h-4' />
@@ -485,18 +523,18 @@ export const P2PPaymentDetails = ({
                   </div>
                 </div>
                 <div>
-                  <span className='text-xs text-gray-500 dark:text-gray-400 font-medium'>
-                    CONTA
+                  <span className='text-[10px] text-gray-500 dark:text-gray-400 font-semibold uppercase'>
+                    Conta
                   </span>
-                  <div className='flex items-center gap-2 mt-1'>
-                    <p className='flex-1 p-3 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm font-mono'>
+                  <div className='flex items-center gap-2 mt-1.5'>
+                    <p className='flex-1 px-3 py-2.5 bg-gray-100 dark:bg-gray-700 rounded-xl text-sm font-mono text-gray-900 dark:text-white'>
                       {selectedMethod.details.account_number}
                     </p>
                     <button
                       onClick={() =>
                         copyToClipboard(selectedMethod.details.account_number!, 'account')
                       }
-                      className='p-2 text-gray-400 hover:text-green-600 transition-colors'
+                      className='p-2 text-gray-400 hover:text-emerald-500 transition-colors'
                     >
                       {copiedField === 'account' ? (
                         <Check className='w-4 h-4' />
@@ -511,10 +549,10 @@ export const P2PPaymentDetails = ({
 
             {selectedMethod?.details.holder_name && (
               <div>
-                <span className='text-xs text-gray-500 dark:text-gray-400 font-medium'>
-                  TITULAR
+                <span className='text-[10px] text-gray-500 dark:text-gray-400 font-semibold uppercase'>
+                  Titular
                 </span>
-                <p className='mt-1 p-3 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm'>
+                <p className='mt-1.5 px-3 py-2.5 bg-gray-100 dark:bg-gray-700 rounded-xl text-sm text-gray-900 dark:text-white'>
                   {selectedMethod.details.holder_name}
                 </p>
               </div>
@@ -522,23 +560,23 @@ export const P2PPaymentDetails = ({
 
             {/* Valor */}
             <div>
-              <span className='text-xs text-gray-500 dark:text-gray-400 font-medium'>
-                VALOR A TRANSFERIR
+              <span className='text-[10px] text-gray-500 dark:text-gray-400 font-semibold uppercase'>
+                Valor a Transferir
               </span>
-              <div className='flex items-center gap-2 mt-1'>
-                <div className='flex-1 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg'>
-                  <span className='text-2xl font-bold text-green-600 dark:text-green-400'>
+              <div className='flex items-center gap-2 mt-1.5'>
+                <div className='flex-1 px-3 py-2.5 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800'>
+                  <span className='text-xl font-bold text-emerald-600 dark:text-emerald-400'>
                     {formatCurrency(amount)}
                   </span>
                 </div>
                 <button
                   onClick={() => copyToClipboard(amount.toFixed(2), 'amount')}
-                  className='p-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors'
+                  className='p-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl transition-all'
                 >
                   {copiedField === 'amount' ? (
-                    <Check className='w-5 h-5' />
+                    <Check className='w-4 h-4' />
                   ) : (
-                    <Copy className='w-5 h-5' />
+                    <Copy className='w-4 h-4' />
                   )}
                 </button>
               </div>
@@ -547,10 +585,10 @@ export const P2PPaymentDetails = ({
         )}
       </div>
 
-      {/* Footer - Resumo */}
-      <div className='p-4 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-700'>
+      {/* Footer Premium */}
+      <div className='px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-100 dark:border-gray-700'>
         <div className='flex items-center justify-between text-sm mb-3'>
-          <span className='text-gray-600 dark:text-gray-400'>Você receberá:</span>
+          <span className='text-gray-500 dark:text-gray-400'>Você receberá:</span>
           <span className='font-bold text-gray-900 dark:text-white'>
             {cryptoAmount} {cryptoCoin}
           </span>
@@ -558,14 +596,14 @@ export const P2PPaymentDetails = ({
 
         <button
           onClick={onPaymentSent}
-          className='w-full py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2'
+          className='w-full py-3.5 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-400 hover:to-green-400 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25'
         >
           <CheckCircle className='w-5 h-5' />
           Já Fiz o Pagamento
         </button>
 
-        <p className='text-xs text-center text-gray-500 dark:text-gray-400 mt-3'>
-          Após o pagamento, o vendedor terá até 15 minutos para confirmar
+        <p className='text-[10px] text-center text-gray-400 mt-2'>
+          Após o pagamento, o vendedor terá até {timeLimit} minutos para confirmar
         </p>
       </div>
     </div>
