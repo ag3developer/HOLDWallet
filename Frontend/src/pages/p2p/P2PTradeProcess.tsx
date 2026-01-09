@@ -1,29 +1,34 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { 
-  ArrowLeft, 
-  Clock, 
-  CheckCircle, 
+import {
+  ArrowLeft,
+  Clock,
+  CheckCircle,
   AlertCircle,
-  Upload,
-  MessageCircle,
+  Loader2,
   Shield,
   Star,
-  Info
+  Info,
 } from 'lucide-react'
-import { Loader2 } from 'lucide-react'
-import { useP2PTrade, useMarkPaymentSent, useConfirmPaymentReceived, useCancelTrade, useDisputeTrade } from '@/hooks/useP2PTrades'
+import {
+  useP2PTrade,
+  useMarkPaymentSent,
+  useConfirmPaymentReceived,
+  useCancelTrade,
+  useDisputeTrade,
+} from '@/hooks/useP2PTrades'
+import { P2PTradeChatBox } from '@/components/chat/P2PTradeChatBox'
 
 const P2PTradeProcess: React.FC = () => {
   const { tradeId } = useParams<{ tradeId: string }>()
   const navigate = useNavigate()
-  
+
   const { data: trade, isLoading } = useP2PTrade(tradeId!)
   const markPaymentSent = useMarkPaymentSent()
   const confirmPayment = useConfirmPaymentReceived()
   const cancelTrade = useCancelTrade()
   const disputeTrade = useDisputeTrade()
-  
+
   const [timeRemaining, setTimeRemaining] = useState<number>(0)
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
   const [showDisputeForm, setShowDisputeForm] = useState(false)
@@ -32,7 +37,7 @@ const P2PTradeProcess: React.FC = () => {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
-      currency: 'BRL'
+      currency: 'BRL',
     }).format(value)
   }
 
@@ -74,17 +79,20 @@ const P2PTradeProcess: React.FC = () => {
     cancelTrade.mutate(tradeId, {
       onSuccess: () => {
         navigate('/p2p')
-      }
+      },
     })
   }
 
   const handleDispute = () => {
     if (!tradeId || !disputeReason) return
-    disputeTrade.mutate({ tradeId, reason: disputeReason }, {
-      onSuccess: () => {
-        setShowDisputeForm(false)
+    disputeTrade.mutate(
+      { tradeId, reason: disputeReason },
+      {
+        onSuccess: () => {
+          setShowDisputeForm(false)
+        },
       }
-    })
+    )
   }
 
   const getStatusInfo = () => {
@@ -92,63 +100,60 @@ const P2PTradeProcess: React.FC = () => {
     switch (status) {
       case 'pending':
         return {
-          icon: <Clock className="w-6 h-6 text-yellow-500" />,
+          icon: <Clock className='w-6 h-6 text-yellow-500' />,
           text: 'Aguardando Pagamento',
-          color: 'yellow'
+          color: 'yellow',
         }
       case 'paid':
         return {
-          icon: <CheckCircle className="w-6 h-6 text-blue-500" />,
+          icon: <CheckCircle className='w-6 h-6 text-blue-500' />,
           text: 'Pagamento Enviado - Aguardando Confirmação',
-          color: 'blue'
+          color: 'blue',
         }
       case 'completed':
         return {
-          icon: <CheckCircle className="w-6 h-6 text-green-500" />,
+          icon: <CheckCircle className='w-6 h-6 text-green-500' />,
           text: 'Trade Completo',
-          color: 'green'
+          color: 'green',
         }
       case 'cancelled':
         return {
-          icon: <AlertCircle className="w-6 h-6 text-red-500" />,
+          icon: <AlertCircle className='w-6 h-6 text-red-500' />,
           text: 'Trade Cancelado',
-          color: 'red'
+          color: 'red',
         }
       case 'disputed':
         return {
-          icon: <Shield className="w-6 h-6 text-orange-500" />,
+          icon: <Shield className='w-6 h-6 text-orange-500' />,
           text: 'Em Disputa - Suporte Analisando',
-          color: 'orange'
+          color: 'orange',
         }
       default:
         return {
-          icon: <Info className="w-6 h-6 text-gray-500" />,
+          icon: <Info className='w-6 h-6 text-gray-500' />,
           text: 'Status Desconhecido',
-          color: 'gray'
+          color: 'gray',
         }
     }
   }
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      <div className='min-h-screen flex items-center justify-center'>
+        <Loader2 className='w-8 h-8 animate-spin text-blue-600' />
       </div>
     )
   }
 
   if (!trade?.data) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <AlertCircle className="w-16 h-16 mx-auto text-red-500 mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+      <div className='min-h-screen flex items-center justify-center'>
+        <div className='text-center'>
+          <AlertCircle className='w-16 h-16 mx-auto text-red-500 mb-4' />
+          <h2 className='text-2xl font-bold text-gray-900 dark:text-white mb-2'>
             Trade não encontrado
           </h2>
-          <button
-            onClick={() => navigate('/p2p')}
-            className="text-blue-600 hover:underline"
-          >
+          <button onClick={() => navigate('/p2p')} className='text-blue-600 hover:underline'>
             Voltar ao marketplace
           </button>
         </div>
@@ -161,36 +166,38 @@ const P2PTradeProcess: React.FC = () => {
   const isBuyer = tradeData.buyer_id === 'current_user_id' // TODO: Get from auth context
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
-      <div className="max-w-6xl mx-auto px-4">
+    <div className='min-h-screen bg-gray-50 dark:bg-gray-900 py-8'>
+      <div className='max-w-6xl mx-auto px-4'>
         {/* Header */}
         <button
           onClick={() => navigate('/p2p')}
-          className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-6"
+          className='flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-6'
         >
-          <ArrowLeft className="w-5 h-5" />
+          <ArrowLeft className='w-5 h-5' />
           Voltar ao Marketplace
         </button>
 
         {/* Status Banner */}
-        <div className={`bg-${statusInfo.color}-50 dark:bg-${statusInfo.color}-900/20 border-2 border-${statusInfo.color}-200 dark:border-${statusInfo.color}-800 rounded-lg p-6 mb-6`}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+        <div
+          className={`bg-${statusInfo.color}-50 dark:bg-${statusInfo.color}-900/20 border-2 border-${statusInfo.color}-200 dark:border-${statusInfo.color}-800 rounded-lg p-6 mb-6`}
+        >
+          <div className='flex items-center justify-between'>
+            <div className='flex items-center gap-4'>
               {statusInfo.icon}
               <div>
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                <h2 className='text-2xl font-bold text-gray-900 dark:text-white'>
                   {statusInfo.text}
                 </h2>
-                <p className="text-gray-600 dark:text-gray-400 mt-1">
-                  Trade ID: {tradeId}
-                </p>
+                <p className='text-gray-600 dark:text-gray-400 mt-1'>Trade ID: {tradeId}</p>
               </div>
             </div>
-            
+
             {tradeData.status === 'pending' && timeRemaining > 0 && (
-              <div className="text-center">
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Tempo Restante</p>
-                <p className={`text-3xl font-bold ${timeRemaining < 300 ? 'text-red-600' : 'text-gray-900 dark:text-white'}`}>
+              <div className='text-center'>
+                <p className='text-sm text-gray-600 dark:text-gray-400 mb-1'>Tempo Restante</p>
+                <p
+                  className={`text-3xl font-bold ${timeRemaining < 300 ? 'text-red-600' : 'text-gray-900 dark:text-white'}`}
+                >
                   {formatTime(timeRemaining)}
                 </p>
               </div>
@@ -198,37 +205,39 @@ const P2PTradeProcess: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className='grid grid-cols-1 lg:grid-cols-3 gap-6'>
           {/* Left Column - Trade Details */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className='lg:col-span-2 space-y-6'>
             {/* Trade Info */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
+            <div className='bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6'>
+              <h3 className='text-lg font-bold text-gray-900 dark:text-white mb-4'>
                 Detalhes do Trade
               </h3>
 
-              <div className="grid grid-cols-2 gap-6">
+              <div className='grid grid-cols-2 gap-6'>
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Criptomoeda</p>
-                  <p className="text-xl font-bold text-gray-900 dark:text-white">
+                  <p className='text-sm text-gray-600 dark:text-gray-400 mb-1'>Criptomoeda</p>
+                  <p className='text-xl font-bold text-gray-900 dark:text-white'>
                     {tradeData.amount} {tradeData.coin}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Preço Unitário</p>
-                  <p className="text-xl font-bold text-gray-900 dark:text-white">
+                  <p className='text-sm text-gray-600 dark:text-gray-400 mb-1'>Preço Unitário</p>
+                  <p className='text-xl font-bold text-gray-900 dark:text-white'>
                     {formatCurrency(tradeData.price)}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Valor Total</p>
-                  <p className="text-2xl font-bold text-green-600">
+                  <p className='text-sm text-gray-600 dark:text-gray-400 mb-1'>Valor Total</p>
+                  <p className='text-2xl font-bold text-green-600'>
                     {formatCurrency(tradeData.total)}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Método de Pagamento</p>
-                  <p className="text-xl font-bold text-gray-900 dark:text-white">
+                  <p className='text-sm text-gray-600 dark:text-gray-400 mb-1'>
+                    Método de Pagamento
+                  </p>
+                  <p className='text-xl font-bold text-gray-900 dark:text-white'>
                     {tradeData.payment_method}
                   </p>
                 </div>
@@ -236,69 +245,91 @@ const P2PTradeProcess: React.FC = () => {
             </div>
 
             {/* Trade Process Steps */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-6">
+            <div className='bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6'>
+              <h3 className='text-lg font-bold text-gray-900 dark:text-white mb-6'>
                 Processo do Trade
               </h3>
 
-              <div className="space-y-4">
+              <div className='space-y-4'>
                 {/* Step 1 */}
-                <div className="flex gap-4">
-                  <div className="flex flex-col items-center">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                      tradeData.status !== 'pending' ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
-                    }`}>
-                      <CheckCircle className="w-6 h-6 text-white" />
+                <div className='flex gap-4'>
+                  <div className='flex flex-col items-center'>
+                    <div
+                      className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                        tradeData.status !== 'pending'
+                          ? 'bg-green-500'
+                          : 'bg-gray-300 dark:bg-gray-600'
+                      }`}
+                    >
+                      <CheckCircle className='w-6 h-6 text-white' />
                     </div>
-                    <div className="w-0.5 h-16 bg-gray-300 dark:bg-gray-600"></div>
+                    <div className='w-0.5 h-16 bg-gray-300 dark:bg-gray-600'></div>
                   </div>
-                  <div className="flex-1 pb-8">
-                    <h4 className="font-bold text-gray-900 dark:text-white mb-2">1. Trade Iniciado</h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <div className='flex-1 pb-8'>
+                    <h4 className='font-bold text-gray-900 dark:text-white mb-2'>
+                      1. Trade Iniciado
+                    </h4>
+                    <p className='text-sm text-gray-600 dark:text-gray-400'>
                       O trade foi criado com sucesso. Aguardando confirmação de pagamento.
                     </p>
                   </div>
                 </div>
 
                 {/* Step 2 */}
-                <div className="flex gap-4">
-                  <div className="flex flex-col items-center">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                      tradeData.status === 'paid' || tradeData.status === 'completed' ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
-                    }`}>
+                <div className='flex gap-4'>
+                  <div className='flex flex-col items-center'>
+                    <div
+                      className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                        tradeData.status === 'paid' || tradeData.status === 'completed'
+                          ? 'bg-green-500'
+                          : 'bg-gray-300 dark:bg-gray-600'
+                      }`}
+                    >
                       {tradeData.status === 'paid' || tradeData.status === 'completed' ? (
-                        <CheckCircle className="w-6 h-6 text-white" />
+                        <CheckCircle className='w-6 h-6 text-white' />
                       ) : (
-                        <span className="text-white font-bold">2</span>
+                        <span className='text-white font-bold'>2</span>
                       )}
                     </div>
-                    <div className="w-0.5 h-16 bg-gray-300 dark:bg-gray-600"></div>
+                    <div className='w-0.5 h-16 bg-gray-300 dark:bg-gray-600'></div>
                   </div>
-                  <div className="flex-1 pb-8">
-                    <h4 className="font-bold text-gray-900 dark:text-white mb-2">2. Pagamento Enviado</h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {isBuyer ? 'Envie o pagamento e clique em "Pagamento Enviado".' : 'Aguardando o comprador enviar o pagamento.'}
+                  <div className='flex-1 pb-8'>
+                    <h4 className='font-bold text-gray-900 dark:text-white mb-2'>
+                      2. Pagamento Enviado
+                    </h4>
+                    <p className='text-sm text-gray-600 dark:text-gray-400'>
+                      {isBuyer
+                        ? 'Envie o pagamento e clique em "Pagamento Enviado".'
+                        : 'Aguardando o comprador enviar o pagamento.'}
                     </p>
                   </div>
                 </div>
 
                 {/* Step 3 */}
-                <div className="flex gap-4">
-                  <div className="flex flex-col items-center">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                      tradeData.status === 'completed' ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
-                    }`}>
+                <div className='flex gap-4'>
+                  <div className='flex flex-col items-center'>
+                    <div
+                      className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                        tradeData.status === 'completed'
+                          ? 'bg-green-500'
+                          : 'bg-gray-300 dark:bg-gray-600'
+                      }`}
+                    >
                       {tradeData.status === 'completed' ? (
-                        <CheckCircle className="w-6 h-6 text-white" />
+                        <CheckCircle className='w-6 h-6 text-white' />
                       ) : (
-                        <span className="text-white font-bold">3</span>
+                        <span className='text-white font-bold'>3</span>
                       )}
                     </div>
                   </div>
-                  <div className="flex-1">
-                    <h4 className="font-bold text-gray-900 dark:text-white mb-2">3. Trade Completo</h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {isBuyer ? 'Aguardando o vendedor confirmar o recebimento.' : 'Confirme o recebimento do pagamento para liberar a cripto.'}
+                  <div className='flex-1'>
+                    <h4 className='font-bold text-gray-900 dark:text-white mb-2'>
+                      3. Trade Completo
+                    </h4>
+                    <p className='text-sm text-gray-600 dark:text-gray-400'>
+                      {isBuyer
+                        ? 'Aguardando o vendedor confirmar o recebimento.'
+                        : 'Confirme o recebimento do pagamento para liberar a cripto.'}
                     </p>
                   </div>
                 </div>
@@ -307,77 +338,69 @@ const P2PTradeProcess: React.FC = () => {
 
             {/* Payment Instructions */}
             {tradeData.status === 'pending' && isBuyer && (
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
-                <h3 className="text-lg font-bold text-blue-900 dark:text-blue-200 mb-4">
+              <div className='bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6'>
+                <h3 className='text-lg font-bold text-blue-900 dark:text-blue-200 mb-4'>
                   Instruções de Pagamento
                 </h3>
-                <div className="space-y-3 text-sm text-blue-800 dark:text-blue-300">
-                  <p><strong>1.</strong> Faça o pagamento de {formatCurrency(tradeData.total)} via {tradeData.payment_method}</p>
-                  <p><strong>2.</strong> Após enviar o pagamento, clique em "Confirmei o Pagamento"</p>
-                  <p><strong>3.</strong> Aguarde o vendedor confirmar o recebimento</p>
-                  <p><strong>4.</strong> As criptomoedas serão liberadas automaticamente após confirmação</p>
+                <div className='space-y-3 text-sm text-blue-800 dark:text-blue-300'>
+                  <p>
+                    <strong>1.</strong> Faça o pagamento de {formatCurrency(tradeData.total)} via{' '}
+                    {tradeData.payment_method}
+                  </p>
+                  <p>
+                    <strong>2.</strong> Após enviar o pagamento, clique em "Confirmei o Pagamento"
+                  </p>
+                  <p>
+                    <strong>3.</strong> Aguarde o vendedor confirmar o recebimento
+                  </p>
+                  <p>
+                    <strong>4.</strong> As criptomoedas serão liberadas automaticamente após
+                    confirmação
+                  </p>
                 </div>
               </div>
             )}
 
-            {/* Chat Box */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                <MessageCircle className="w-5 h-5" />
-                Chat com {isBuyer ? 'Vendedor' : 'Comprador'}
-              </h3>
-              <div className="border border-gray-300 dark:border-gray-600 rounded-lg p-4 h-64 overflow-y-auto mb-4 bg-gray-50 dark:bg-gray-700">
-                <p className="text-center text-gray-500 dark:text-gray-400 text-sm">
-                  Chat em tempo real será implementado em breve
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="Digite sua mensagem..."
-                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  disabled
-                />
-                <button
-                  disabled
-                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Enviar
-                </button>
-              </div>
-            </div>
+            {/* Chat Box - Integrado com Backend */}
+            <P2PTradeChatBox
+              tradeId={tradeId!}
+              counterpartyName={isBuyer ? tradeData.seller?.username || 'Vendedor' : 'Comprador'}
+              counterpartyId={isBuyer ? tradeData.seller_id : tradeData.buyer_id}
+              orderId={tradeData.order_id}
+            />
           </div>
 
           {/* Right Column - Actions */}
-          <div className="lg:col-span-1 space-y-6">
+          <div className='lg:col-span-1 space-y-6'>
             {/* Trader Info */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
+            <div className='bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6'>
+              <h3 className='text-lg font-bold text-gray-900 dark:text-white mb-4'>
                 {isBuyer ? 'Vendedor' : 'Comprador'}
               </h3>
-              
-              <div className="flex items-center gap-3 mb-4">
-                <div className="relative">
-                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-lg font-bold">
+
+              <div className='flex items-center gap-3 mb-4'>
+                <div className='relative'>
+                  <div className='w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-lg font-bold'>
                     {tradeData.seller?.username?.charAt(0) || 'U'}
                   </div>
                   {tradeData.seller?.is_online && (
-                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white dark:border-gray-800 rounded-full"></div>
+                    <div className='absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white dark:border-gray-800 rounded-full'></div>
                   )}
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
-                    <p className="font-bold text-gray-900 dark:text-white">
+                  <div className='flex items-center gap-2'>
+                    <p className='font-bold text-gray-900 dark:text-white'>
                       {tradeData.seller?.username || 'Anônimo'}
                     </p>
                     {tradeData.seller?.is_verified && (
-                      <CheckCircle className="w-4 h-4 text-blue-500" />
+                      <CheckCircle className='w-4 h-4 text-blue-500' />
                     )}
                   </div>
-                  <div className="flex items-center gap-1 mt-1">
-                    <Star className="w-3 h-3 text-yellow-500 fill-current" />
-                    <span className="text-sm text-gray-600 dark:text-gray-400">
-                      {tradeData.seller?.reputation || 0}% ({tradeData.seller?.completed_trades || 0} trades)
+                  <div className='flex items-center gap-1 mt-1'>
+                    <Star className='w-3 h-3 text-yellow-500 fill-current' />
+                    <span className='text-sm text-gray-600 dark:text-gray-400'>
+                      {tradeData.seller?.reputation || 0}% (
+                      {tradeData.seller?.completed_trades || 0} trades)
                     </span>
                   </div>
                 </div>
@@ -386,15 +409,15 @@ const P2PTradeProcess: React.FC = () => {
 
             {/* Action Buttons */}
             {tradeData.status === 'pending' && isBuyer && (
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 space-y-3">
+              <div className='bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 space-y-3'>
                 <button
                   onClick={handleMarkPaymentSent}
                   disabled={markPaymentSent.isPending}
-                  className="w-full py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold transition-colors disabled:opacity-50"
+                  className='w-full py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold transition-colors disabled:opacity-50'
                 >
                   {markPaymentSent.isPending ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <Loader2 className="w-5 h-5 animate-spin" />
+                    <span className='flex items-center justify-center gap-2'>
+                      <Loader2 className='w-5 h-5 animate-spin' />
                       Processando...
                     </span>
                   ) : (
@@ -404,7 +427,7 @@ const P2PTradeProcess: React.FC = () => {
 
                 <button
                   onClick={() => setShowCancelConfirm(true)}
-                  className="w-full py-3 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-bold transition-colors"
+                  className='w-full py-3 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-bold transition-colors'
                 >
                   Cancelar Trade
                 </button>
@@ -412,15 +435,15 @@ const P2PTradeProcess: React.FC = () => {
             )}
 
             {tradeData.status === 'paid' && !isBuyer && (
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 space-y-3">
+              <div className='bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 space-y-3'>
                 <button
                   onClick={handleConfirmPayment}
                   disabled={confirmPayment.isPending}
-                  className="w-full py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold transition-colors disabled:opacity-50"
+                  className='w-full py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold transition-colors disabled:opacity-50'
                 >
                   {confirmPayment.isPending ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <Loader2 className="w-5 h-5 animate-spin" />
+                    <span className='flex items-center justify-center gap-2'>
+                      <Loader2 className='w-5 h-5 animate-spin' />
                       Processando...
                     </span>
                   ) : (
@@ -430,7 +453,7 @@ const P2PTradeProcess: React.FC = () => {
 
                 <button
                   onClick={() => setShowDisputeForm(true)}
-                  className="w-full py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-bold transition-colors"
+                  className='w-full py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-bold transition-colors'
                 >
                   Abrir Disputa
                 </button>
@@ -438,14 +461,14 @@ const P2PTradeProcess: React.FC = () => {
             )}
 
             {/* Warning Box */}
-            <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-4">
-              <div className="flex gap-2">
-                <AlertCircle className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />
+            <div className='bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-4'>
+              <div className='flex gap-2'>
+                <AlertCircle className='w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5' />
                 <div>
-                  <p className="text-sm font-medium text-orange-800 dark:text-orange-200 mb-1">
+                  <p className='text-sm font-medium text-orange-800 dark:text-orange-200 mb-1'>
                     Importante
                   </p>
-                  <ul className="text-xs text-orange-700 dark:text-orange-300 space-y-1">
+                  <ul className='text-xs text-orange-700 dark:text-orange-300 space-y-1'>
                     <li>• Não cancele após enviar o pagamento</li>
                     <li>• Guarde comprovantes de pagamento</li>
                     <li>• Não compartilhe dados sensíveis no chat</li>
@@ -459,25 +482,25 @@ const P2PTradeProcess: React.FC = () => {
 
         {/* Cancel Confirmation Modal */}
         {showCancelConfirm && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+          <div className='fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4'>
+            <div className='bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6'>
+              <h3 className='text-xl font-bold text-gray-900 dark:text-white mb-4'>
                 Confirmar Cancelamento
               </h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-6">
+              <p className='text-gray-600 dark:text-gray-400 mb-6'>
                 Tem certeza que deseja cancelar este trade? Esta ação não pode ser desfeita.
               </p>
-              <div className="flex gap-3">
+              <div className='flex gap-3'>
                 <button
                   onClick={() => setShowCancelConfirm(false)}
-                  className="flex-1 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium transition-colors"
+                  className='flex-1 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium transition-colors'
                 >
                   Não, voltar
                 </button>
                 <button
                   onClick={handleCancelTrade}
                   disabled={cancelTrade.isPending}
-                  className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+                  className='flex-1 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors'
                 >
                   {cancelTrade.isPending ? 'Cancelando...' : 'Sim, cancelar'}
                 </button>
@@ -488,32 +511,32 @@ const P2PTradeProcess: React.FC = () => {
 
         {/* Dispute Form Modal */}
         {showDisputeForm && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+          <div className='fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4'>
+            <div className='bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6'>
+              <h3 className='text-xl font-bold text-gray-900 dark:text-white mb-4'>
                 Abrir Disputa
               </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              <p className='text-sm text-gray-600 dark:text-gray-400 mb-4'>
                 Descreva o motivo da disputa. Nossa equipe irá analisar e entrar em contato.
               </p>
               <textarea
                 value={disputeReason}
-                onChange={(e) => setDisputeReason(e.target.value)}
-                placeholder="Descreva o problema..."
+                onChange={e => setDisputeReason(e.target.value)}
+                placeholder='Descreva o problema...'
                 rows={5}
-                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-4"
+                className='w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-4'
               />
-              <div className="flex gap-3">
+              <div className='flex gap-3'>
                 <button
                   onClick={() => setShowDisputeForm(false)}
-                  className="flex-1 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium transition-colors"
+                  className='flex-1 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium transition-colors'
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleDispute}
                   disabled={!disputeReason || disputeTrade.isPending}
-                  className="flex-1 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
+                  className='flex-1 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50'
                 >
                   {disputeTrade.isPending ? 'Enviando...' : 'Abrir Disputa'}
                 </button>

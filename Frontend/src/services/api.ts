@@ -5,13 +5,13 @@ import { authStorage } from '@/utils/indexedDBStorage'
 
 // 🔧 Endpoints que precisam de trailing slash para evitar redirect 307
 // Safari iOS perde o Authorization header em redirects
+// NOTA: O backend está configurado com redirect_slashes=False, então não é mais necessário
 const ENDPOINTS_NEEDING_TRAILING_SLASH = [
   '/wallets',
   '/users',
   '/transactions',
   '/addresses',
-  '/p2p/offers',
-  '/p2p/orders',
+  // Removido: '/p2p/offers', '/p2p/orders' - backend não redireciona mais
   '/admin/users',
   '/admin/wallets',
   '/admin/transactions',
