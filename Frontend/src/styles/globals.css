@@ -56,28 +56,30 @@
     box-sizing: border-box;
     margin: 0;
     padding: 0;
+    -webkit-tap-highlight-color: transparent;
   }
 
   html {
-    scroll-behavior: smooth;
-    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
-    font-variant-ligatures: normal;
+    height: -webkit-fill-available;
+    height: 100%;
   }
 
   body {
     font-family:
       'Inter',
-      system-ui,
       -apple-system,
       BlinkMacSystemFont,
+      system-ui,
       sans-serif;
     font-weight: 400;
     line-height: 1.5;
     color: theme('colors.gray.900');
     background-color: theme('colors.gray.50');
     -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    text-rendering: optimizeLegibility;
+    height: -webkit-fill-available;
+    height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
   }
 
   /* Dark mode */
@@ -86,97 +88,25 @@
     background-color: theme('colors.gray.900');
   }
 
-  /* ✅ Mobile PWA - Keyboard behavior */
-  /* Garantir que o layout se ajuste quando o teclado mobile aparecer */
-  html {
+  #root {
+    height: -webkit-fill-available;
     height: 100%;
-  }
-
-  body {
-    height: 100%;
-    overflow-x: hidden;
-    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
   }
 
   /* ✅ Prevenir zoom automático em inputs no iOS (fonte mínima 16px) */
-  input[type='text'],
-  input[type='email'],
-  input[type='password'],
-  input[type='number'],
-  input[type='tel'],
-  input[type='search'],
-  input[type='url'],
-  textarea,
-  select {
-    font-size: 16px !important;
-    /* Usar transform para aparência menor mantendo 16px real */
-  }
-
-  /* ✅ Prevenir highlight de tap no mobile */
-  * {
-    -webkit-tap-highlight-color: transparent;
-  }
-
-  /* ✅ Garantir que SVG icons (lucide-react) apareçam corretamente no Safari/iOS */
-  svg {
-    display: inline-block;
-    vertical-align: middle;
-    flex-shrink: 0;
-  }
-
-  /* ✅ Botões no Safari/iOS - garantir clicabilidade */
-  button {
-    cursor: pointer;
-  }
-
-  /* ✅ Inputs no Safari - garantir interatividade */
   input,
   textarea,
   select {
+    font-size: 16px !important;
+  }
+
+  /* ✅ Botões clicáveis */
+  button {
+    cursor: pointer;
     -webkit-appearance: none;
     appearance: none;
-  }
-
-  /* ✅ Manter border-radius em inputs com classe específica */
-  input.rounded-2xl,
-  input[type='text'],
-  input[type='email'],
-  input[type='password'] {
-    border-radius: 1rem; /* rounded-2xl */
-  }
-
-  /* ✅ iOS Safari - Garantir que headers fiquem visíveis abaixo do notch */
-  @supports (padding-top: env(safe-area-inset-top)) {
-    /* Padding top automático para safe-area no iOS */
-    .ios-safe-header {
-      padding-top: max(0.5rem, env(safe-area-inset-top));
-    }
-  }
-
-  /* Usar dvh (dynamic viewport height) para suportar teclado mobile */
-  @supports (height: 100dvh) {
-    html,
-    body,
-    #root {
-      height: 100dvh;
-    }
-  }
-
-  /* Fallback para navegadores antigos */
-  @supports not (height: 100dvh) {
-    html,
-    body,
-    #root {
-      height: -webkit-fill-available;
-      height: 100vh;
-    }
-  }
-
-  /* Transição suave quando o viewport muda (teclado sobe/desce) */
-  #root {
-    display: flex;
-    flex-direction: column;
-    transition: height 0.2s ease-out;
   }
 
   /* Scrollbar customization */
@@ -444,7 +374,6 @@
   /* Hide scrollbar but keep functionality */
   .no-scrollbar {
     -ms-overflow-style: none;
-    scrollbar-width: none;
   }
 
   .no-scrollbar::-webkit-scrollbar {
@@ -453,6 +382,7 @@
 
   /* Glassmorphism effect */
   .glass {
+    -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
     background: rgba(255, 255, 255, 0.1);
     border: 1px solid rgba(255, 255, 255, 0.2);
