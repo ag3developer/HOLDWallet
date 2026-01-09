@@ -191,11 +191,46 @@ export const ChatPage = () => {
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const typingTimeoutRef = useRef<NodeJS.Timeout>()
+  const inputRef = useRef<HTMLInputElement>(null)
+  const chatContainerRef = useRef<HTMLDivElement>(null)
 
   // Scroll automático para a última mensagem
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  // ✅ NOVO: Handler para teclado mobile/PWA - garantir scroll suave quando o teclado aparecer
+  useEffect(() => {
+    const handleResize = () => {
+      // Quando o teclado abre, o viewport diminui - fazer scroll para o input
+      if (document.activeElement === inputRef.current) {
+        setTimeout(() => {
+          inputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+        }, 100)
+      }
+    }
+
+    // Listener para resize (teclado mobile)
+    window.visualViewport?.addEventListener('resize', handleResize)
+
+    return () => {
+      window.visualViewport?.removeEventListener('resize', handleResize)
+    }
+  }, [])
+
+  // Handler para quando o input recebe foco (teclado vai aparecer)
+  const handleInputFocus = () => {
+    // Pequeno delay para esperar o teclado abrir
+    setTimeout(() => {
+      // Scroll para o final das mensagens primeiro
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+
+      // Depois garantir que o input está visível
+      setTimeout(() => {
+        inputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+      }, 150)
+    }, 100)
+  }
 
   // ✅ NOVO: Usar dados do hook ao invés de URL params
   const { userId: urlUserId, orderId: urlOrderId, context: urlContext } = urlParams
@@ -1563,145 +1598,154 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
   }
 
   return (
-    <div className='flex h-[100dvh] sm:h-[calc(100vh-4rem)] lg:h-[calc(100vh-5rem)] bg-gray-50 dark:bg-[#0a0a0a] sm:rounded-2xl overflow-hidden relative shadow-2xl'>
-      {/* Backdrop para Mobile */}
+    <div className='flex flex-col lg:flex-row h-[100dvh] lg:h-full w-full bg-gray-50 dark:bg-[#0a0a0a] overflow-hidden'>
+      {/* Backdrop para Mobile - z-30 */}
       {isSidebarOpen && (
         <div
-          className='lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-10 transition-opacity'
+          role='button'
+          tabIndex={0}
+          aria-label='Fechar menu'
+          className='lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-30 transition-opacity cursor-pointer'
           onClick={() => setIsSidebarOpen(false)}
+          onKeyDown={e => e.key === 'Enter' && setIsSidebarOpen(false)}
         />
       )}
 
-      {/* Sidebar - Lista de Contatos - Design WhatsApp/Telegram Style */}
-      <div
+      {/* Sidebar - Lista de Contatos - Premium Design */}
+      <aside
         className={`
-          ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-          ${isSidebarOpen ? 'w-[85vw] sm:w-80 md:w-96' : 'w-0 lg:w-[72px]'}
+          fixed lg:relative inset-y-0 left-0
+          ${isSidebarOpen ? 'w-[85vw] sm:w-80 lg:w-80' : 'w-0 lg:w-[72px]'}
+          ${isSidebarOpen ? 'translate-x-0 z-40' : '-translate-x-full lg:translate-x-0 z-20'}
           transition-all duration-300 ease-out
-          border-r border-gray-200/50 dark:border-white/5
+          bg-white dark:bg-gray-900
+          border-r border-gray-200 dark:border-gray-800
           flex flex-col
-          fixed lg:relative inset-y-0 left-0 z-20 lg:z-0
-          bg-white dark:bg-[#111] 
           shadow-xl lg:shadow-none
         `}
       >
-        {/* Header da Sidebar - Design Clean e Moderno */}
-        <div className='flex-shrink-0 bg-white dark:bg-[#111] border-b border-gray-100 dark:border-white/5'>
-          <div className='p-3 sm:p-4'>
+        {/* Header da Sidebar */}
+        <div
+          className={`flex-shrink-0 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 ${!isSidebarOpen ? 'hidden lg:block' : ''}`}
+        >
+          <div className='p-3'>
             <div className='flex items-center justify-between'>
-              <div className='flex items-center gap-3'>
-                {/* Avatar do usuário atual */}
-                <div className='w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg'>
-                  <MessageCircle className='w-5 h-5 text-white' />
-                </div>
-                {isSidebarOpen && (
-                  <div>
-                    <h2 className='text-base font-bold text-gray-900 dark:text-white'>Chat</h2>
-                    <p className='text-xs text-gray-500 dark:text-gray-500'>Suas conversas</p>
+              {isSidebarOpen ? (
+                <div className='flex items-center gap-3'>
+                  {/* Avatar do usuário atual - só quando expandido */}
+                  <div className='w-9 h-9 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center'>
+                    <MessageCircle className='w-5 h-5 text-white' />
                   </div>
-                )}
-              </div>
+                  <div>
+                    <h2 className='text-sm font-bold text-gray-900 dark:text-white'>Chat</h2>
+                    <p className='text-[10px] text-gray-500 dark:text-gray-400'>Suas conversas</p>
+                  </div>
+                </div>
+              ) : (
+                /* Modo minimizado - botão para expandir (só desktop) */
+                <div className='w-full flex justify-center'>
+                  <button
+                    onClick={toggleSidebar}
+                    aria-label='Abrir lista de contatos'
+                    title='Abrir contatos'
+                    className='w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center justify-center transition-colors'
+                  >
+                    <MoreVertical className='w-5 h-5 text-gray-600 dark:text-gray-300' />
+                  </button>
+                </div>
+              )}
 
-              <div className='flex items-center gap-1'>
-                {/* Botões de ação - só visíveis quando expandido */}
-                {isSidebarOpen && (
-                  <>
-                    <button
-                      aria-label='Nova conversa'
-                      title='Nova conversa'
-                      className='p-2 text-gray-500 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-500/10 rounded-xl transition-all'
-                    >
-                      <UserPlus className='w-5 h-5' />
-                    </button>
-                    <button
-                      aria-label='Configurações'
-                      title='Configurações'
-                      className='hidden sm:block p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl transition-all'
-                    >
-                      <Settings className='w-5 h-5' />
-                    </button>
-                  </>
-                )}
+              {isSidebarOpen && (
+                <div className='flex items-center gap-1'>
+                  {/* Botões de ação - só visíveis quando expandido */}
+                  <button
+                    aria-label='Nova conversa'
+                    title='Nova conversa'
+                    className='p-1.5 text-gray-500 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 rounded-lg transition-all'
+                  >
+                    <UserPlus className='w-4 h-4' />
+                  </button>
 
-                {/* Botão toggle para desktop */}
-                <button
-                  onClick={toggleSidebar}
-                  aria-label={isSidebarOpen ? 'Recolher sidebar' : 'Expandir sidebar'}
-                  className='hidden lg:flex p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl transition-colors'
-                >
-                  {isSidebarOpen ? (
-                    <ChevronLeft className='w-5 h-5' />
-                  ) : (
-                    <ChevronRight className='w-5 h-5' />
-                  )}
-                </button>
+                  {/* Botão toggle para desktop */}
+                  <button
+                    onClick={toggleSidebar}
+                    aria-label='Recolher sidebar'
+                    className='hidden lg:flex p-1.5 text-gray-500 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors'
+                  >
+                    <ChevronLeft className='w-4 h-4' />
+                  </button>
 
-                {/* Botão fechar para mobile */}
-                <button
-                  onClick={toggleSidebar}
-                  aria-label='Fechar menu'
-                  className='lg:hidden p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl transition-colors'
-                >
-                  <X className='w-5 h-5' />
-                </button>
-              </div>
+                  {/* Botão fechar para mobile */}
+                  <button
+                    onClick={toggleSidebar}
+                    aria-label='Fechar menu'
+                    className='lg:hidden p-1.5 text-gray-500 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors'
+                  >
+                    <X className='w-4 h-4' />
+                  </button>
+                </div>
+              )}
             </div>
 
-            {/* Busca - Design Clean */}
+            {/* Busca - Compacta */}
             {isSidebarOpen && (
-              <div className='relative mt-3'>
-                <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500' />
+              <div className='relative mt-2'>
+                <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400' />
                 <input
                   type='text'
-                  placeholder='Buscar conversa...'
+                  placeholder='Buscar...'
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
-                  className='w-full pl-10 pr-4 py-2.5 bg-gray-100 dark:bg-white/5 border-0 rounded-xl text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500/50 transition-all text-sm'
+                  className='w-full pl-9 pr-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500/50 text-sm'
                 />
               </div>
             )}
           </div>
         </div>
 
-        {/* Lista de Contatos */}
-        <div className='flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-700'>
+        {/* Lista de Contatos - Premium Design */}
+        <div className='flex-1 overflow-y-auto bg-white dark:bg-gray-900 scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-700'>
           {filteredContacts.length === 0 ? (
             // Mensagem quando não há contatos
             <div className='flex flex-col items-center justify-center h-full p-6 text-center'>
-              <div className='w-16 h-16 rounded-full bg-gray-100 dark:bg-white/5 flex items-center justify-center mb-4'>
-                <MessageCircle className='w-8 h-8 text-gray-400 dark:text-gray-600' />
+              <div className='w-16 h-16 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center mb-4 shadow-lg'>
+                <MessageCircle className='w-8 h-8 text-white' />
               </div>
               <h3 className='text-sm font-semibold text-gray-900 dark:text-white mb-1'>
                 Nenhuma conversa
               </h3>
-              <p className='text-xs text-gray-500 dark:text-gray-500'>Inicie uma negociação P2P</p>
+              <p className='text-xs text-gray-500 dark:text-gray-400'>Inicie uma negociação P2P</p>
             </div>
           ) : isSidebarOpen ? (
-            // Modo expandido - lista completa com design moderno
-            <div className='py-1'>
+            // Modo expandido - Premium Contact Cards
+            <div className='py-2'>
               {filteredContacts.map(contact => (
                 <div
                   key={contact.id}
+                  role='button'
+                  tabIndex={0}
                   onClick={() => setSelectedContact(contact.id)}
-                  className={`px-3 py-3 cursor-pointer transition-all duration-150 mx-2 my-0.5 rounded-xl ${
+                  onKeyDown={e => e.key === 'Enter' && setSelectedContact(contact.id)}
+                  className={`p-3 mx-2 my-1 rounded-xl cursor-pointer transition-all duration-200 ${
                     selectedContact === contact.id
-                      ? 'bg-green-50 dark:bg-green-500/10 border-l-[3px] border-green-500'
-                      : 'hover:bg-gray-50 dark:hover:bg-white/5 border-l-[3px] border-transparent'
+                      ? 'bg-emerald-50 dark:bg-emerald-500/10 border-l-4 border-emerald-500 shadow-md'
+                      : 'hover:bg-gray-50 dark:hover:bg-gray-800/50 border-l-4 border-transparent'
                   } active:scale-[0.98]`}
                 >
                   <div className='flex items-center gap-3'>
-                    {/* Avatar com status online */}
+                    {/* Avatar Premium com status online */}
                     <div className='relative flex-shrink-0'>
                       <div
-                        className={`w-12 h-12 rounded-full bg-gradient-to-br ${contact.avatarColor} flex items-center justify-center shadow-md`}
+                        className={`w-12 h-12 rounded-xl bg-gradient-to-br ${contact.avatarColor} flex items-center justify-center shadow-lg`}
                       >
                         {getAvatarIcon(contact.avatar)}
                       </div>
                       {contact.isOnline && (
-                        <div className='absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-white dark:border-[#111]'></div>
+                        <div className='absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-white dark:border-gray-900 shadow-sm'></div>
                       )}
                     </div>
 
+                    {/* Info Premium */}
                     <div className='flex-1 min-w-0'>
                       <div className='flex items-center justify-between mb-0.5'>
                         <div className='flex items-center gap-1.5 flex-1 min-w-0'>
@@ -1709,7 +1753,7 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
                             {contact.name}
                           </h3>
                           {contact.isSupport && (
-                            <Shield className='w-3.5 h-3.5 text-green-600 flex-shrink-0' />
+                            <Shield className='w-3.5 h-3.5 text-emerald-500 flex-shrink-0' />
                           )}
                           {contact.rating && (
                             <div className='flex items-center gap-0.5 flex-shrink-0'>
@@ -1724,12 +1768,12 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
                           {contact.timestamp}
                         </span>
                       </div>
-                      <div className='flex items-center justify-between'>
+                      <div className='flex items-center justify-between mt-0.5'>
                         <p className='text-xs text-gray-500 dark:text-gray-400 truncate pr-2'>
                           {contact.lastMessage}
                         </p>
                         {contact.unread > 0 && (
-                          <span className='bg-green-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 flex-shrink-0'>
+                          <span className='bg-emerald-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 flex-shrink-0 shadow-sm'>
                             {contact.unread > 99 ? '99+' : contact.unread}
                           </span>
                         )}
@@ -1740,7 +1784,7 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
               ))}
             </div>
           ) : (
-            // Modo minimizado - só avatares
+            // Modo minimizado - avatares premium
             <div className='hidden lg:flex flex-col items-center py-3 gap-2'>
               {filteredContacts.map(contact => (
                 <button
@@ -1749,24 +1793,24 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
                   aria-label={`Chat com ${contact.name}`}
                   className={`relative group p-1 ${
                     selectedContact === contact.id
-                      ? 'ring-2 ring-green-500 ring-offset-2 dark:ring-offset-[#111]'
+                      ? 'ring-2 ring-emerald-500 ring-offset-2 dark:ring-offset-gray-900'
                       : ''
-                  } rounded-full transition-all hover:scale-105`}
+                  } rounded-xl transition-all hover:scale-105`}
                 >
                   <div
-                    className={`w-10 h-10 rounded-full bg-gradient-to-br ${contact.avatarColor} flex items-center justify-center shadow-md`}
+                    className={`w-10 h-10 rounded-xl bg-gradient-to-br ${contact.avatarColor} flex items-center justify-center shadow-md`}
                   >
                     {getAvatarIcon(contact.avatar, 'small')}
                   </div>
                   {contact.isOnline && (
-                    <div className='absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-[#111]'></div>
+                    <div className='absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white dark:border-gray-900'></div>
                   )}
                   {contact.unread > 0 && (
-                    <div className='absolute -top-1 -right-1 w-5 h-5 bg-green-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center'>
+                    <div className='absolute -top-1 -right-1 w-5 h-5 bg-emerald-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-sm'>
                       {contact.unread}
                     </div>
                   )}
-                  {/* Tooltip no hover */}
+                  {/* Tooltip Premium */}
                   <div className='absolute left-full ml-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-lg'>
                     {contact.name}
                   </div>
@@ -1775,34 +1819,34 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
             </div>
           )}
         </div>
-      </div>
+      </aside>
 
-      {/* Área de Chat Principal */}
-      <div className='flex-1 flex flex-col min-w-0 bg-white dark:bg-[#0d0d0d]'>
+      {/* Área de Chat Principal - Full Screen Mobile */}
+      <main className='flex-1 flex flex-col min-w-0 min-h-0 bg-white dark:bg-[#0d0d0d]'>
         {currentContact ? (
           <>
-            {/* Header do Chat - Clean Design */}
-            <div className='flex-shrink-0 px-3 sm:px-4 py-3 border-b border-gray-100 dark:border-white/5 bg-white dark:bg-[#111]'>
+            {/* Header do Chat - Compacto */}
+            <div className='flex-shrink-0 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 px-3 py-2'>
               <div className='flex items-center justify-between gap-2'>
                 {/* Botão toggle mobile */}
                 <button
                   onClick={toggleSidebar}
                   aria-label='Abrir menu de conversas'
-                  className='lg:hidden flex-shrink-0 p-2 -ml-1 text-gray-500 hover:text-green-600 dark:text-gray-400 dark:hover:text-green-400 hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl transition-all'
+                  className='lg:hidden flex-shrink-0 p-1.5 -ml-1 text-gray-500 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all'
                 >
                   <Menu className='w-5 h-5' />
                 </button>
 
-                <div className='flex items-center gap-2 sm:gap-3 flex-1 min-w-0'>
-                  {/* Avatar */}
+                <div className='flex items-center gap-2 flex-1 min-w-0'>
+                  {/* Avatar Compacto */}
                   <div className='relative flex-shrink-0'>
                     <div
-                      className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br ${currentContact.avatarColor} flex items-center justify-center shadow-md`}
+                      className={`w-8 h-8 rounded-lg bg-gradient-to-br ${currentContact.avatarColor} flex items-center justify-center`}
                     >
                       {getAvatarIcon(currentContact.avatar, 'small')}
                     </div>
                     {currentContact.isOnline && (
-                      <div className='absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white dark:border-[#111]'></div>
+                      <div className='absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-emerald-500 rounded-full border-[1.5px] border-white dark:border-gray-900'></div>
                     )}
                   </div>
 
@@ -1811,30 +1855,30 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
                     <h3 className='font-semibold text-sm text-gray-900 dark:text-white flex items-center gap-1.5 truncate'>
                       <span className='truncate'>{currentContact.name}</span>
                       {currentContact.isSupport && (
-                        <Shield className='w-3.5 h-3.5 text-green-600 flex-shrink-0' />
+                        <Shield className='w-3.5 h-3.5 text-emerald-500 flex-shrink-0' />
                       )}
                       {/* Status de Conexão WebSocket P2P */}
                       {p2pContext && (
                         <span
                           className={`text-[9px] px-1.5 py-0.5 rounded-full flex items-center gap-1 flex-shrink-0 font-medium ${
                             connectionStatus === 'connected'
-                              ? 'bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-400'
+                              ? 'bg-emerald-500/20 text-emerald-400'
                               : connectionStatus === 'connecting'
-                                ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400'
+                                ? 'bg-yellow-500/20 text-yellow-400'
                                 : connectionStatus === 'error'
-                                  ? 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400'
-                                  : 'bg-gray-100 text-gray-700 dark:bg-white/5 dark:text-gray-400'
+                                  ? 'bg-red-500/20 text-red-400'
+                                  : 'bg-gray-100 dark:bg-gray-800 text-gray-500'
                           }`}
                         >
                           <span
                             className={`w-1.5 h-1.5 rounded-full ${
                               connectionStatus === 'connected'
-                                ? 'bg-green-600 dark:bg-green-400'
+                                ? 'bg-emerald-400'
                                 : connectionStatus === 'connecting'
-                                  ? 'bg-yellow-600 dark:bg-yellow-400 animate-pulse'
+                                  ? 'bg-yellow-400 animate-pulse'
                                   : connectionStatus === 'error'
-                                    ? 'bg-red-600 dark:bg-red-400'
-                                    : 'bg-gray-600 dark:bg-gray-400'
+                                    ? 'bg-red-400'
+                                    : 'bg-gray-400'
                             }`}
                           ></span>
                           <span className='hidden xs:inline'>
@@ -1846,13 +1890,13 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
                         </span>
                       )}
                     </h3>
-                    <p className='text-[11px] text-gray-500 dark:text-gray-500 truncate'>
+                    <p className='text-[11px] text-gray-500 dark:text-gray-400 truncate'>
                       {isTyping ? (
-                        <span className='flex items-center gap-1.5 text-green-600 dark:text-green-400'>
+                        <span className='flex items-center gap-1.5 text-emerald-400'>
                           <span className='flex gap-0.5'>
-                            <span className='w-1 h-1 bg-green-600 dark:bg-green-400 rounded-full animate-bounce [animation-delay:0ms]'></span>
-                            <span className='w-1 h-1 bg-green-600 dark:bg-green-400 rounded-full animate-bounce [animation-delay:150ms]'></span>
-                            <span className='w-1 h-1 bg-green-600 dark:bg-green-400 rounded-full animate-bounce [animation-delay:300ms]'></span>
+                            <span className='w-1 h-1 bg-emerald-400 rounded-full animate-bounce [animation-delay:0ms]'></span>
+                            <span className='w-1 h-1 bg-emerald-400 rounded-full animate-bounce [animation-delay:150ms]'></span>
+                            <span className='w-1 h-1 bg-emerald-400 rounded-full animate-bounce [animation-delay:300ms]'></span>
                           </span>
                           digitando...
                         </span>
@@ -1865,44 +1909,44 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
                   </div>
                 </div>
 
-                {/* Botões de ação */}
-                <div className='flex items-center'>
+                {/* Botões de ação - Compactos */}
+                <div className='flex items-center gap-0.5'>
                   {/* Botão de busca */}
                   <button
                     onClick={() => setShowMessageSearch(!showMessageSearch)}
                     aria-label='Buscar mensagens'
                     title='Buscar mensagens'
-                    className={`p-2 transition-all rounded-xl
+                    className={`p-1.5 transition-all rounded-lg
                               ${
                                 showMessageSearch
-                                  ? 'text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-500/10'
-                                  : 'text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10'
+                                  ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10'
+                                  : 'text-gray-500 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'
                               }`}
                   >
-                    <Search className='w-[18px] h-[18px] sm:w-5 sm:h-5' />
+                    <Search className='w-4 h-4' />
                   </button>
                   <button
                     onClick={handleInitiateAudioCall}
                     aria-label='Ligar'
                     title='Chamada de voz'
-                    className='p-2 text-gray-500 hover:text-green-600 dark:text-gray-400 dark:hover:text-green-400 transition-all hover:bg-green-50 dark:hover:bg-green-500/10 rounded-xl'
+                    className='p-1.5 text-gray-500 hover:text-emerald-500 transition-all hover:bg-emerald-50 dark:hover:bg-emerald-500/10 rounded-lg'
                   >
-                    <Phone className='w-[18px] h-[18px] sm:w-5 sm:h-5' />
+                    <Phone className='w-4 h-4' />
                   </button>
                   <button
                     onClick={handleInitiateVideoCall}
                     aria-label='Videochamada'
                     title='Chamada de vídeo'
-                    className='p-2 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-all hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-xl'
+                    className='p-1.5 text-gray-500 hover:text-blue-500 transition-all hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg'
                   >
-                    <Video className='w-[18px] h-[18px] sm:w-5 sm:h-5' />
+                    <Video className='w-4 h-4' />
                   </button>
                   <button
                     aria-label='Mais opções'
                     title='Mais opções'
-                    className='p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white transition-all hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl'
+                    className='p-1.5 text-gray-500 hover:text-gray-700 dark:hover:text-white transition-all hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg'
                   >
-                    <MoreVertical className='w-[18px] h-[18px] sm:w-5 sm:h-5' />
+                    <MoreVertical className='w-4 h-4' />
                   </button>
                 </div>
               </div>
@@ -2051,8 +2095,19 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
               </div>
             )}
 
-            {/* Área de Mensagens - Design Clean */}
-            <div className='flex-1 overflow-y-auto p-3 sm:p-4 space-y-2 bg-gray-50 dark:bg-[#0a0a0a]'>
+            {/* Área de Mensagens - Full Height Mobile */}
+            <div
+              ref={chatContainerRef}
+              className='flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 space-y-2.5 overscroll-contain relative bg-[#f8fafc] dark:bg-[#0d1117]'
+              style={{
+                backgroundImage: `
+                  radial-gradient(circle at 20% 50%, rgba(16, 185, 129, 0.06) 0%, transparent 50%),
+                  radial-gradient(circle at 80% 20%, rgba(6, 182, 212, 0.04) 0%, transparent 40%),
+                  radial-gradient(circle at 40% 80%, rgba(16, 185, 129, 0.04) 0%, transparent 40%),
+                  url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%2310b981' fill-opacity='0.04'%3E%3Cpath d='M15 8c0-1.1.9-2 2-2h8c1.1 0 2 .9 2 2v5c0 1.1-.9 2-2 2h-1l-2 2v-2h-5c-1.1 0-2-.9-2-2V8z'/%3E%3Cpath d='M40 35c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2v6c0 1.1-.9 2-2 2h-2l-2 2v-2h-6c-1.1 0-2-.9-2-2v-6z'/%3E%3Cpath d='M5 40c0-.8.7-1.5 1.5-1.5h6c.8 0 1.5.7 1.5 1.5v4c0 .8-.7 1.5-1.5 1.5h-1l-1.5 1.5V45.5h-3.5c-.8 0-1.5-.7-1.5-1.5v-4z'/%3E%3Ccircle cx='50' cy='12' r='2'/%3E%3Ccircle cx='8' cy='25' r='1.5'/%3E%3Ccircle cx='55' cy='50' r='1'/%3E%3C/g%3E%3C/svg%3E")
+                `,
+              }}
+            >
               {currentMessages.map(message => (
                 <div
                   key={message.id}
@@ -2068,27 +2123,27 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
                   onContextMenu={e => handleMessageContextMenu(e, message)}
                 >
                   {message.type === 'system' ? (
-                    // Mensagem do Sistema - Clean Design
-                    <div className='max-w-[85%] sm:max-w-sm px-3 py-2 rounded-xl bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 text-center shadow-sm'>
-                      <div className='flex items-center justify-center gap-2 text-gray-600 dark:text-gray-400'>
+                    // Mensagem do Sistema - Premium Design
+                    <div className='max-w-[85%] sm:max-w-sm px-4 py-2 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-center'>
+                      <div className='flex items-center justify-center gap-2 text-blue-600 dark:text-blue-400'>
                         <Info className='w-3.5 h-3.5 flex-shrink-0' />
                         <p className='text-xs font-medium'>{message.content}</p>
                       </div>
-                      <span className='text-[10px] text-gray-400 dark:text-gray-500 mt-1 block'>
+                      <span className='text-[10px] text-blue-400 dark:text-blue-500 mt-1 block'>
                         {message.timestamp}
                       </span>
                     </div>
                   ) : (
-                    // Mensagem Normal - WhatsApp Style
-                    <div className={`group max-w-[85%] sm:max-w-xs lg:max-w-sm`}>
+                    // Mensagem Normal - Premium Bubbles
+                    <div className={`group max-w-[80%] sm:max-w-xs lg:max-w-sm`}>
                       {/* Balão especial para mensagens de áudio */}
                       {message.fileType === 'audio' && message.audioBlob ? (
                         <div
                           className={`${
                             message.isOwn
-                              ? 'rounded-2xl rounded-br-sm bg-green-500'
-                              : 'rounded-2xl rounded-bl-sm bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10'
-                          } shadow-sm p-2.5`}
+                              ? 'rounded-2xl rounded-br-sm bg-gradient-to-br from-emerald-500 to-teal-500 shadow-lg shadow-emerald-500/20'
+                              : 'rounded-2xl rounded-bl-sm bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-md'
+                          } p-2.5`}
                         >
                           <AudioMessage audioBlob={message.audioBlob} isOwn={message.isOwn} />
 
@@ -2114,20 +2169,20 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
                           </div>
                         </div>
                       ) : (
-                        // Balão normal para mensagens de texto
+                        // Balão Premium para mensagens de texto
                         <div
-                          className={`px-3 py-2 shadow-sm ${
+                          className={`px-4 py-2.5 ${
                             message.isOwn
-                              ? 'rounded-2xl rounded-br-sm bg-green-500 text-white'
-                              : 'rounded-2xl rounded-bl-sm bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white border border-gray-200 dark:border-white/10'
+                              ? 'rounded-2xl rounded-br-sm bg-gradient-to-br from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/20'
+                              : 'rounded-2xl rounded-bl-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-100 dark:border-gray-700 shadow-md'
                           }`}
                         >
                           <p className='text-sm break-words leading-relaxed'>{message.content}</p>
 
-                          {/* Footer */}
+                          {/* Footer Premium */}
                           <div
                             className={`flex items-center justify-end mt-1 gap-1 ${
-                              message.isOwn ? 'text-white/70' : 'text-gray-400 dark:text-gray-500'
+                              message.isOwn ? 'opacity-70' : 'text-gray-400 dark:text-gray-500'
                             }`}
                           >
                             <span className='text-[10px]'>{message.timestamp}</span>
@@ -2139,7 +2194,7 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
                                   <CheckCheck className='w-3 h-3' />
                                 )}
                                 {message.status === 'read' && (
-                                  <CheckCheck className='w-3 h-3 text-white' />
+                                  <CheckCheck className='w-3.5 h-3.5 text-white' />
                                 )}
                               </div>
                             )}
@@ -2154,47 +2209,46 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Botões de Ação P2P - Design Compacto */}
+            {/* Botões de Ação P2P - Premium Design */}
             {p2pContext && p2pContext.status === 'active' && (
-              <div className='flex-shrink-0 px-3 py-2 border-t border-gray-100 dark:border-white/5 bg-white dark:bg-[#111]'>
+              <div className='flex-shrink-0 px-3 py-2.5 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900'>
                 <div className='flex gap-2'>
                   <button
                     onClick={handleConfirmPayment}
-                    className='flex-1 py-2 bg-green-500 hover:bg-green-600 text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-1.5 text-xs'
+                    className='flex-1 py-2.5 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 text-white rounded-xl font-bold transition-all flex items-center justify-center gap-1.5 text-xs shadow-lg shadow-emerald-500/25'
                   >
-                    <CheckCircle2 className='w-3.5 h-3.5' />
-                    <span className='hidden xs:inline'>Pagamento</span>
-                    <span className='xs:hidden'>✓ Paguei</span>
+                    <CheckCircle2 className='w-4 h-4' />
+                    <span>Confirmar Pagamento</span>
                   </button>
                   <button
                     onClick={handleSendReceipt}
-                    className='flex-1 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-1.5 text-xs'
+                    className='flex-1 py-2.5 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white rounded-xl font-bold transition-all flex items-center justify-center gap-1.5 text-xs shadow-lg shadow-blue-500/25'
                   >
-                    <FileText className='w-3.5 h-3.5' />
-                    <span className='hidden xs:inline'>Comprovante</span>
+                    <FileText className='w-4 h-4' />
+                    <span>Enviar Comprovante</span>
                   </button>
                   <button
                     onClick={handleReportDispute}
-                    className='py-2 px-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-medium transition-colors flex items-center justify-center text-xs'
+                    className='py-2.5 px-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-medium transition-colors flex items-center justify-center text-xs'
                     title='Reportar problema'
                     aria-label='Reportar problema'
                   >
-                    <AlertCircle className='w-3.5 h-3.5' />
+                    <AlertCircle className='w-4 h-4' />
                   </button>
                   <button
                     onClick={handleCancelTrade}
                     aria-label='Cancelar negociação'
-                    className='py-2 px-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-medium transition-colors flex items-center justify-center text-xs'
+                    className='py-2 px-2.5 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-colors flex items-center justify-center text-xs'
                     title='Cancelar'
                   >
-                    <XCircle className='w-3.5 h-3.5' />
+                    <XCircle className='w-4 h-4' />
                   </button>
                 </div>
               </div>
             )}
 
-            {/* Input de Mensagem - Design Clean WhatsApp Style */}
-            <div className='flex-shrink-0 p-2 sm:p-3 border-t border-gray-100 dark:border-white/5 bg-white dark:bg-[#111]'>
+            {/* Input de Mensagem - Compacto - Sticky no bottom com safe area */}
+            <div className='flex-shrink-0 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 sticky bottom-0'>
               {/* Input hidden para upload de arquivos */}
               <input
                 type='file'
@@ -2207,32 +2261,32 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
 
               {/* Progress bar de upload */}
               {isUploading && (
-                <div className='mb-2 bg-green-50 dark:bg-green-500/10 rounded-xl p-2.5'>
-                  <div className='flex items-center justify-between mb-1.5'>
-                    <span className='text-[11px] text-green-600 dark:text-green-400 font-medium'>
+                <div className='mb-2 bg-emerald-50 dark:bg-emerald-500/10 rounded-lg p-2'>
+                  <div className='flex items-center justify-between mb-1'>
+                    <span className='text-xs text-emerald-600 dark:text-emerald-400 font-medium'>
                       Enviando arquivo...
                     </span>
-                    <span className='text-[11px] text-green-600 dark:text-green-400 font-bold'>
+                    <span className='text-xs text-emerald-600 dark:text-emerald-400 font-bold'>
                       {uploadProgress}%
                     </span>
                   </div>
-                  <div className='w-full h-1.5 bg-green-100 dark:bg-green-900/40 rounded-full overflow-hidden'>
+                  <div className='w-full h-1 bg-emerald-100 dark:bg-emerald-900/40 rounded-full overflow-hidden'>
                     <div
-                      className='h-full bg-green-500 transition-all duration-300 rounded-full'
+                      className='h-full bg-emerald-500 transition-all duration-300 rounded-full'
                       style={{ width: `${uploadProgress}%` }}
                     />
                   </div>
                 </div>
               )}
 
-              <div className='flex items-end gap-2'>
+              <div className='flex items-end gap-1.5'>
                 {/* Botão anexar arquivo */}
                 <button
                   onClick={() => document.getElementById('file-upload')?.click()}
                   disabled={isUploading}
                   aria-label='Anexar arquivo'
                   title='Anexar arquivo'
-                  className='hidden sm:flex p-2.5 text-gray-500 hover:text-green-600 dark:text-gray-400 dark:hover:text-green-400 transition-all hover:bg-green-50 dark:hover:bg-green-500/10 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed'
+                  className='hidden sm:flex p-2 sm:p-2.5 text-gray-400 hover:text-emerald-500 dark:hover:text-emerald-400 transition-all hover:bg-emerald-50 dark:hover:bg-emerald-500/10 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed'
                 >
                   {isUploading ? (
                     <Loader2 className='w-5 h-5 animate-spin' />
@@ -2241,19 +2295,21 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
                   )}
                 </button>
 
-                {/* Campo de input */}
+                {/* Campo de input - Mobile Optimized */}
                 <div className='flex-1 relative'>
                   <input
+                    ref={inputRef}
                     type='text'
                     placeholder='Mensagem...'
                     value={newMessage}
                     onChange={e => setNewMessage(e.target.value)}
+                    onFocus={handleInputFocus}
                     onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
-                    className='w-full px-4 py-2.5 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 transition-all pr-20'
+                    className='w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all pr-16 sm:pr-20'
                   />
 
                   {/* Botões dentro do input */}
-                  <div className='absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5'>
+                  <div className='absolute right-1.5 sm:right-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5 sm:gap-1'>
                     <button
                       onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                       aria-label='Adicionar emoji'
@@ -2270,7 +2326,7 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
                       disabled={isUploading}
                       aria-label='Anexar'
                       title='Anexar arquivo'
-                      className='sm:hidden p-1.5 text-gray-400 hover:text-green-600 transition-colors rounded-lg hover:bg-green-50 dark:hover:bg-green-500/10 disabled:opacity-50 disabled:cursor-not-allowed'
+                      className='sm:hidden p-1.5 text-gray-400 hover:text-emerald-500 transition-colors rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-500/10 disabled:opacity-50 disabled:cursor-not-allowed'
                     >
                       {isUploading ? (
                         <Loader2 className='w-5 h-5 animate-spin' />
@@ -2280,7 +2336,7 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
                     </button>
                   </div>
 
-                  {/* Emoji Picker */}
+                  {/* Emoji Picker - z-50 */}
                   {showEmojiPicker && (
                     <EmojiPicker
                       onSelect={handleEmojiSelect}
@@ -2294,13 +2350,13 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
                 {!newMessage.trim() && (
                   <AudioMessageInput
                     onAudioSend={async audio => {
-                      console.log('📤 Áudio para enviar:', audio.size, 'bytes')
+                      console.log('Áudio para enviar:', audio.size, 'bytes')
 
                       // Adicionar mensagem temporária
                       const tempId = Date.now().toString()
                       const message: Message = {
                         id: tempId,
-                        content: '🎤 Mensagem de áudio',
+                        content: 'Mensagem de áudio',
                         timestamp: new Date().toLocaleTimeString('pt-BR', {
                           hour: '2-digit',
                           minute: '2-digit',
@@ -2324,15 +2380,15 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
                           )
                         )
 
-                        console.log('✅ Áudio enviado com sucesso')
+                        console.log('Áudio enviado com sucesso')
                       } catch (error) {
-                        console.error('❌ Erro ao enviar áudio:', error)
+                        console.error('Erro ao enviar áudio:', error)
 
                         // Marcar mensagem como erro
                         setMessages(prev =>
                           prev.map(msg =>
                             msg.id === tempId
-                              ? { ...msg, status: 'sent' as const, content: `❌ ${msg.content}` }
+                              ? { ...msg, status: 'sent' as const, content: `Erro: ${msg.content}` }
                               : msg
                           )
                         )
@@ -2341,41 +2397,67 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
                   />
                 )}
 
-                {/* Botão de enviar */}
+                {/* Botão de enviar - Premium */}
                 {newMessage.trim() && (
                   <button
                     onClick={handleSendMessage}
                     aria-label='Enviar mensagem'
                     title='Enviar'
-                    className='p-2.5 bg-green-500 hover:bg-green-600 text-white rounded-xl transition-all transform active:scale-95 shadow-lg'
+                    className='p-2.5 sm:p-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-xl transition-all transform active:scale-95 shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40'
                   >
-                    <Send className='w-5 h-5' />
+                    <Send className='w-4 h-4 sm:w-5 sm:h-5' />
                   </button>
                 )}
               </div>
             </div>
           </>
         ) : (
-          /* Estado Inicial - Sem contato selecionado */
-          <div className='flex-1 flex items-center justify-center bg-gray-50 dark:bg-[#0a0a0a]'>
-            <div className='text-center p-6'>
-              <div className='w-20 h-20 mx-auto bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg'>
-                <MessageCircle className='w-10 h-10 text-white' />
+          /* Estado Inicial - Premium Design - Mobile Full Screen */
+          <div
+            className='flex-1 flex flex-col bg-[#f8fafc] dark:bg-[#0d1117]'
+            style={{
+              backgroundImage: `
+                radial-gradient(circle at 30% 40%, rgba(16, 185, 129, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 70% 60%, rgba(6, 182, 212, 0.05) 0%, transparent 40%),
+                url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%2310b981' fill-opacity='0.05'%3E%3Cpath d='M20 10c0-2.8 2.2-5 5-5h15c2.8 0 5 2.2 5 5v10c0 2.8-2.2 5-5 5h-3l-5 5v-5h-7c-2.8 0-5-2.2-5-5V10z'/%3E%3Cpath d='M50 45c0-2.2 1.8-4 4-4h12c2.2 0 4 1.8 4 4v8c0 2.2-1.8 4-4 4h-2l-4 4v-4h-6c-2.2 0-4-1.8-4-4v-8z'/%3E%3Ccircle cx='65' cy='15' r='3'/%3E%3Ccircle cx='15' cy='60' r='2'/%3E%3C/g%3E%3C/svg%3E")
+              `,
+            }}
+          >
+            {/* Header Mobile para estado inicial */}
+            <div className='lg:hidden flex-shrink-0 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 px-3 py-2 pt-[max(0.5rem,env(safe-area-inset-top))]'>
+              <div className='flex items-center gap-3'>
+                <button
+                  onClick={toggleSidebar}
+                  aria-label='Abrir menu de conversas'
+                  className='p-2 -ml-1 text-gray-500 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-all'
+                >
+                  <Menu className='w-5 h-5' />
+                </button>
+                <h1 className='text-lg font-bold text-gray-900 dark:text-white'>Chat</h1>
               </div>
-              <h3 className='text-lg font-semibold text-gray-900 dark:text-white mb-2'>
-                Bem-vindo ao Chat
-              </h3>
-              <p className='text-sm text-gray-500 dark:text-gray-500 max-w-xs'>
-                Selecione uma conversa ou inicie uma negociação P2P para começar
-              </p>
+            </div>
+
+            {/* Conteúdo central */}
+            <div className='flex-1 flex items-center justify-center p-6'>
+              <div className='text-center'>
+                <div className='w-20 h-20 mx-auto bg-gradient-to-br from-emerald-500 to-teal-500 rounded-2xl flex items-center justify-center mb-4 shadow-xl shadow-emerald-500/20'>
+                  <MessageCircle className='w-10 h-10 text-white' />
+                </div>
+                <h3 className='text-lg font-bold text-gray-900 dark:text-white mb-2'>
+                  Chat Premium
+                </h3>
+                <p className='text-sm text-gray-500 dark:text-gray-400 max-w-xs'>
+                  Selecione uma conversa ou inicie uma negociação P2P para começar
+                </p>
+              </div>
             </div>
           </div>
         )}
-      </div>
+      </main>
 
-      {/* Call Modal */}
+      {/* Call Modal - z-50 */}
       {(() => {
-        console.log('📞 CallModal render check:', {
+        console.log('CallModal render check:', {
           hasContact: !!currentContact,
           isCallActive,
           callType,

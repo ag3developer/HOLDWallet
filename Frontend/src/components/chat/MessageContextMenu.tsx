@@ -135,12 +135,12 @@ export const MessageContextMenu = ({
     onClose()
   }
 
-  // Calcular posição do menu
+  // Calcular posição do menu - z-60 para ficar acima de modais
   const menuStyle: React.CSSProperties = {
     position: 'fixed',
     left: position.x,
     top: position.y,
-    zIndex: 1000,
+    zIndex: 60,
   }
 
   // Modo de edição

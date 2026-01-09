@@ -86,6 +86,40 @@
     background-color: theme('colors.gray.900');
   }
 
+  /* ✅ Mobile PWA - Keyboard behavior */
+  /* Garantir que o layout se ajuste quando o teclado mobile aparecer */
+  html,
+  body {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  /* Usar dvh (dynamic viewport height) para suportar teclado mobile */
+  @supports (height: 100dvh) {
+    html,
+    body,
+    #root {
+      height: 100dvh;
+    }
+  }
+
+  /* Fallback para navegadores antigos */
+  @supports not (height: 100dvh) {
+    html,
+    body,
+    #root {
+      height: -webkit-fill-available;
+      height: 100vh;
+    }
+  }
+
+  /* Transição suave quando o viewport muda (teclado sobe/desce) */
+  #root {
+    display: flex;
+    flex-direction: column;
+    transition: height 0.2s ease-out;
+  }
+
   /* Scrollbar customization */
   ::-webkit-scrollbar {
     width: 8px;
