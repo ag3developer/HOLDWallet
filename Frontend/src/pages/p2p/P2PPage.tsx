@@ -69,11 +69,17 @@ export const P2PPage = () => {
   const { data: paymentMethodsData } = usePaymentMethods()
 
   const cryptoOptions = [
-    { symbol: 'BTC', name: 'Bitcoin', icon: '₿' },
-    { symbol: 'ETH', name: 'Ethereum', icon: 'Ξ' },
-    { symbol: 'USDT', name: 'Tether', icon: '₮' },
-    { symbol: 'BNB', name: 'BNB', icon: 'B' },
+    { symbol: 'BTC', name: 'Bitcoin', logo: 'https://assets.coingecko.com/coins/images/1/small/bitcoin.png' },
+    { symbol: 'ETH', name: 'Ethereum', logo: 'https://assets.coingecko.com/coins/images/279/small/ethereum.png' },
+    { symbol: 'USDT', name: 'Tether', logo: 'https://assets.coingecko.com/coins/images/325/small/Tether.png' },
+    { symbol: 'BNB', name: 'BNB', logo: 'https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png' },
   ]
+
+  // Função para obter logo da moeda
+  const getCryptoLogo = (symbol: string) => {
+    const crypto = cryptoOptions.find(c => c.symbol === symbol)
+    return crypto?.logo || 'https://assets.coingecko.com/coins/images/1/small/bitcoin.png'
+  }
 
   const formatCurrency = (amount: number, currency: string = 'BRL') => {
     return new Intl.NumberFormat('pt-BR', {
@@ -164,6 +170,7 @@ export const P2PPage = () => {
         order={order}
         formatCurrency={formatCurrency}
         getPaymentMethodIcon={getPaymentMethodIcon}
+        getCryptoLogo={getCryptoLogo}
         onNavigate={navigate}
         onOpenChat={handleOpenChat}
       />
@@ -290,9 +297,14 @@ export const P2PPage = () => {
                 : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700'
             }`}
           >
-            <span className='w-5 h-5 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white'>
-              {crypto.icon}
-            </span>
+            <img 
+              src={crypto.logo} 
+              alt={crypto.name}
+              className='w-5 h-5 rounded-full object-cover'
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = 'https://assets.coingecko.com/coins/images/1/small/bitcoin.png'
+              }}
+            />
             {crypto.symbol}
           </button>
         ))}
@@ -507,6 +519,7 @@ interface PremiumOrderCardProps {
   order: any
   formatCurrency: (amount: number, currency?: string) => string
   getPaymentMethodIcon: (method: string) => React.ReactNode
+  getCryptoLogo: (symbol: string) => string
   onNavigate: (path: string) => void
   onOpenChat: (order: any) => void
 }
@@ -515,6 +528,7 @@ const PremiumOrderCard: React.FC<PremiumOrderCardProps> = ({
   order,
   formatCurrency,
   getPaymentMethodIcon,
+  getCryptoLogo,
   onNavigate,
   onOpenChat,
 }) => {
@@ -580,7 +594,17 @@ const PremiumOrderCard: React.FC<PremiumOrderCardProps> = ({
           <p className='text-xl font-bold text-gray-900 dark:text-white'>
             {formatCurrency(Number(order.price || 0))}
           </p>
-          <p className='text-[11px] text-gray-400'>por {coin}</p>
+          <div className='flex items-center justify-end gap-1'>
+            <img 
+              src={getCryptoLogo(coin)} 
+              alt={coin}
+              className='w-3.5 h-3.5 rounded-full'
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = 'https://assets.coingecko.com/coins/images/1/small/bitcoin.png'
+              }}
+            />
+            <p className='text-[11px] text-gray-400'>por {coin}</p>
+          </div>
         </div>
       </div>
 
@@ -588,9 +612,19 @@ const PremiumOrderCard: React.FC<PremiumOrderCardProps> = ({
       <div className='flex items-center gap-4 mb-3 py-2.5 px-3 bg-gray-50 dark:bg-gray-700/30 rounded-xl'>
         <div className='flex-1'>
           <p className='text-[10px] text-gray-400 uppercase font-medium mb-0.5'>Disponível</p>
-          <p className='text-xs font-semibold text-gray-900 dark:text-white'>
-            {availableAmount} {coin}
-          </p>
+          <div className='flex items-center gap-1'>
+            <img 
+              src={getCryptoLogo(coin)} 
+              alt={coin}
+              className='w-4 h-4 rounded-full'
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = 'https://assets.coingecko.com/coins/images/1/small/bitcoin.png'
+              }}
+            />
+            <p className='text-xs font-semibold text-gray-900 dark:text-white'>
+              {availableAmount} {coin}
+            </p>
+          </div>
         </div>
         <div className='h-8 w-px bg-gray-200 dark:bg-gray-600' />
         <div className='flex-1'>
