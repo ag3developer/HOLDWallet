@@ -16,6 +16,7 @@ from sqlalchemy import text
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 import json
+import uuid
 
 from app.db.database import get_db
 from app.core.security import get_current_user
@@ -1047,20 +1048,55 @@ async def cancel_order(
 @router.post("/trades")
 async def start_trade(
     trade_data: Dict[str, Any],
-    buyer_id: int = Query(1, description="Buyer ID (default: 1 for testing)"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Start a new P2P trade"""
+    buyer_id = str(current_user.id)  # ✅ UUID do usuário autenticado
     print(f"[DEBUG] POST /trades - buyer_id: {buyer_id}, data: {trade_data}")
     
     try:
-        order_id = int(trade_data.get("order_id"))
-        amount = float(trade_data.get("amount"))
-        payment_method_id = trade_data.get("payment_method_id")
+        from uuid import UUID as PyUUID
         
-        # Get order details
-        order_query = text("SELECT * FROM p2p_orders WHERE id = :id AND status = 'active'")
-        order = db.execute(order_query, {"id": order_id}).fetchone()
+        # Aceitar tanto orderId (camelCase) quanto order_id (snake_case)
+        order_id_raw = trade_data.get("orderId") or trade_data.get("order_id")
+        if not order_id_raw:
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST,
+                detail="orderId is required"
+            )
+        
+        # Verificar se é UUID ou int
+        order_id_value = None
+        is_uuid = False
+        
+        try:
+            # Tenta como UUID primeiro
+            order_uuid = PyUUID(str(order_id_raw))
+            order_id_value = str(order_uuid)
+            is_uuid = True
+            print(f"[DEBUG] Order ID is UUID: {order_id_value}")
+        except ValueError:
+            try:
+                # Tenta como int
+                order_id_value = int(order_id_raw)
+                print(f"[DEBUG] Order ID is integer: {order_id_value}")
+            except (ValueError, TypeError):
+                raise HTTPException(
+                    status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"Invalid order ID format: {order_id_raw}"
+                )
+        
+        amount = float(trade_data.get("amount", 0))
+        payment_method_id = trade_data.get("paymentMethodId") or trade_data.get("payment_method_id")
+        
+        # Get order details - query diferente dependendo do tipo de ID
+        if is_uuid:
+            order_query = text("SELECT * FROM p2p_orders WHERE id = CAST(:id AS UUID) AND status = 'active'")
+            order = db.execute(order_query, {"id": order_id_value}).fetchone()
+        else:
+            order_query = text("SELECT * FROM p2p_orders WHERE id = :id AND status = 'active'")
+            order = db.execute(order_query, {"id": order_id_value}).fetchone()
         
         if not order:
             raise HTTPException(
@@ -1068,12 +1104,26 @@ async def start_trade(
                 detail="Order not found or not active"
             )
         
-        # Validations
-        total_price = amount * float(order.price)
-        if total_price < float(order.min_order_limit) or total_price > float(order.max_order_limit):
+        # ⚠️ IMPORTANTE: O frontend envia o valor em FIAT (BRL), não em crypto!
+        # amount = valor em BRL que o usuário quer negociar
+        # crypto_amount = quantidade de crypto correspondente
+        fiat_amount = amount  # Valor em BRL enviado pelo frontend
+        crypto_amount = fiat_amount / float(order.price)  # Calcula quantidade de crypto
+        
+        print(f"[DEBUG] Trade calculation: fiat_amount={fiat_amount} BRL, price={order.price}, crypto_amount={crypto_amount} {order.cryptocurrency}")
+        
+        # Validations - min/max limits são em FIAT (BRL)
+        if fiat_amount < float(order.min_order_limit) or fiat_amount > float(order.max_order_limit):
             raise HTTPException(
                 status_code=http_status.HTTP_400_BAD_REQUEST,
-                detail=f"Amount must be between {order.min_order_limit} and {order.max_order_limit}"
+                detail=f"Valor deve estar entre R$ {float(order.min_order_limit):.2f} e R$ {float(order.max_order_limit):.2f}"
+            )
+        
+        # Verificar se há crypto suficiente disponível na ordem
+        if crypto_amount > float(order.available_amount):
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST,
+                detail=f"Quantidade insuficiente na ordem. Disponível: {float(order.available_amount):.8f} {order.cryptocurrency}"
             )
         
         # ✅ PHASE 1: Validate buyer balance (for buy orders)
@@ -1084,10 +1134,10 @@ async def start_trade(
                 {"user_id": buyer_id}
             ).fetchone()
             
-            if not buyer_balance or buyer_balance.available_balance < total_price:
+            if not buyer_balance or buyer_balance.available_balance < fiat_amount:
                 raise HTTPException(
                     status_code=http_status.HTTP_402_PAYMENT_REQUIRED,
-                    detail=f"Insufficient balance. You need {total_price} BRL"
+                    detail=f"Saldo insuficiente. Você precisa de R$ {fiat_amount:.2f}"
                 )
         else:
             # Seller needs to have crypto balance
@@ -1096,15 +1146,18 @@ async def start_trade(
                 {"user_id": order.user_id, "cryptocurrency": order.cryptocurrency}
             ).fetchone()
             
-            if not seller_balance or seller_balance.available_balance < amount:
+            if not seller_balance or seller_balance.available_balance < crypto_amount:
                 raise HTTPException(
                     status_code=http_status.HTTP_402_PAYMENT_REQUIRED,
-                    detail=f"Seller insufficient balance. Needs {amount} {order.cryptocurrency}"
+                    detail=f"Vendedor com saldo insuficiente. Necessário: {crypto_amount:.8f} {order.cryptocurrency}"
                 )
         
         # Insert trade - PostgreSQL usa RETURNING id
         from datetime import datetime, timedelta
         expires_at = datetime.now() + timedelta(minutes=order.time_limit)
+        
+        # Usar o order.id diretamente (já é o valor correto do banco)
+        actual_order_id = order.id
         
         trade_query = text("""
             INSERT INTO p2p_trades (
@@ -1112,7 +1165,7 @@ async def start_trade(
                 amount, price, total_fiat, payment_method_id, expires_at,
                 status, created_at, updated_at
             ) VALUES (
-                :order_id, :buyer_id, :seller_id, :cryptocurrency, :fiat_currency,
+                :order_id, CAST(:buyer_id AS UUID), :seller_id, :cryptocurrency, :fiat_currency,
                 :amount, :price, :total_fiat, :payment_method_id, :expires_at,
                 'pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
             )
@@ -1120,14 +1173,14 @@ async def start_trade(
         """)
         
         result = db.execute(trade_query, {
-            "order_id": order_id,
+            "order_id": actual_order_id,
             "buyer_id": buyer_id,
             "seller_id": order.user_id,
             "cryptocurrency": order.cryptocurrency,
             "fiat_currency": order.fiat_currency,
-            "amount": amount,
+            "amount": crypto_amount,  # Quantidade de crypto
             "price": float(order.price),
-            "total_fiat": total_price,
+            "total_fiat": fiat_amount,  # Valor em BRL
             "payment_method_id": payment_method_id,
             "expires_at": expires_at.strftime("%Y-%m-%d %H:%M:%S")
         })
@@ -1149,7 +1202,7 @@ async def start_trade(
                         available_balance = available_balance - :amount,
                         updated_at = CURRENT_TIMESTAMP
                     WHERE user_id = :user_id AND cryptocurrency = 'BRL'
-                """), {"user_id": buyer_id, "amount": total_price})
+                """), {"user_id": buyer_id, "amount": fiat_amount})
             else:
                 # Freeze crypto on seller side
                 db.execute(text("""
@@ -1158,7 +1211,7 @@ async def start_trade(
                         available_balance = available_balance - :amount,
                         updated_at = CURRENT_TIMESTAMP
                     WHERE user_id = :user_id AND cryptocurrency = :cryptocurrency
-                """), {"user_id": order.user_id, "amount": amount, "cryptocurrency": order.cryptocurrency})
+                """), {"user_id": order.user_id, "amount": crypto_amount, "cryptocurrency": order.cryptocurrency})
             
             db.commit()
             print(f"[DEBUG] Balances frozen for trade {trade_id}")
@@ -1176,15 +1229,18 @@ async def start_trade(
             "success": True,
             "data": {
                 "id": str(trade_id),
-                "order_id": str(order_id),
+                "order_id": str(actual_order_id),
                 "buyer_id": str(buyer_id),
                 "seller_id": str(order.user_id),
-                "amount": str(amount),
+                "cryptocurrency": order.cryptocurrency,
+                "fiat_currency": order.fiat_currency,
+                "amount": str(crypto_amount),  # Quantidade de crypto
                 "price": str(order.price),
-                "total_price": str(total_price),
+                "total_fiat": str(fiat_amount),  # Valor em BRL
+                "total_price": str(fiat_amount),  # Alias para compatibilidade
                 "status": "pending"
             },
-            "message": "Trade started successfully"
+            "message": "Trade iniciado com sucesso"
         }
     except HTTPException:
         db.rollback()
@@ -1200,21 +1256,79 @@ async def start_trade(
 
 @router.get("/trades/{trade_id}")
 async def get_trade_details(
-    trade_id: int,
+    trade_id: str,  # ✅ Aceita string (UUID ou int)
     db: Session = Depends(get_db)
 ):
     """Get trade details"""
     print(f"[DEBUG] GET /trades/{trade_id}")
     
     try:
-        query = text("SELECT * FROM p2p_trades WHERE id = :id")
-        trade = db.execute(query, {"id": trade_id}).fetchone()
+        from uuid import UUID as PyUUID
+        
+        # Verificar se é UUID ou int
+        trade_id_value = None
+        is_uuid = False
+        
+        try:
+            trade_uuid = PyUUID(str(trade_id))
+            trade_id_value = str(trade_uuid)
+            is_uuid = True
+            print(f"[DEBUG] Trade ID is UUID: {trade_id_value}")
+        except ValueError:
+            try:
+                trade_id_value = int(trade_id)
+                print(f"[DEBUG] Trade ID is integer: {trade_id_value}")
+            except ValueError:
+                raise HTTPException(
+                    status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"Invalid trade ID format: {trade_id}"
+                )
+        
+        # Query diferente dependendo do tipo
+        if is_uuid:
+            query = text("SELECT * FROM p2p_trades WHERE id = CAST(:id AS UUID)")
+        else:
+            query = text("SELECT * FROM p2p_trades WHERE id = :id")
+        
+        trade = db.execute(query, {"id": trade_id_value}).fetchone()
         
         if not trade:
             raise HTTPException(
                 status_code=http_status.HTTP_404_NOT_FOUND,
                 detail="Trade not found"
             )
+        
+        # Buscar dados da ordem associada
+        order_query = text("SELECT * FROM p2p_orders WHERE id = :id")
+        order = db.execute(order_query, {"id": trade.order_id}).fetchone()
+        
+        # Buscar método de pagamento se existir
+        payment_method = None
+        if trade.payment_method_id:
+            pm_query = text("SELECT * FROM payment_methods WHERE id = CAST(:id AS UUID)")
+            pm_result = db.execute(pm_query, {"id": str(trade.payment_method_id)}).fetchone()
+            if pm_result:
+                payment_method = {
+                    "id": str(pm_result.id),
+                    "type": pm_result.type,
+                    "details": json.loads(pm_result.details) if pm_result.details else {}
+                }
+        
+        # Se não tem payment_method do trade, pega o primeiro da ordem
+        if not payment_method and order and order.payment_methods:
+            pm_ids = json.loads(order.payment_methods)
+            if pm_ids:
+                pm_query = text("SELECT * FROM payment_methods WHERE id = CAST(:id AS UUID)")
+                pm_result = db.execute(pm_query, {"id": str(pm_ids[0])}).fetchone()
+                if pm_result:
+                    payment_method = {
+                        "id": str(pm_result.id),
+                        "type": pm_result.type,
+                        "details": json.loads(pm_result.details) if pm_result.details else {}
+                    }
+        
+        # Determinar total_fiat (pode ser total_fiat ou total_price dependendo do schema)
+        total_fiat = getattr(trade, 'total_fiat', None) or getattr(trade, 'total_price', None) or 0
         
         return {
             "success": True,
@@ -1223,10 +1337,15 @@ async def get_trade_details(
                 "order_id": str(trade.order_id),
                 "buyer_id": str(trade.buyer_id),
                 "seller_id": str(trade.seller_id),
+                "cryptocurrency": trade.cryptocurrency if hasattr(trade, 'cryptocurrency') else (order.cryptocurrency if order else "USDT"),
+                "fiat_currency": trade.fiat_currency if hasattr(trade, 'fiat_currency') else (order.fiat_currency if order else "BRL"),
                 "amount": str(trade.amount),
                 "price": str(trade.price),
-                "total_price": str(trade.total_price),
+                "total_fiat": str(total_fiat),
+                "total_price": str(total_fiat),  # Alias
+                "payment_method": payment_method,
                 "payment_method_id": str(trade.payment_method_id) if trade.payment_method_id else None,
+                "expires_at": str(trade.expires_at) if hasattr(trade, 'expires_at') and trade.expires_at else None,
                 "status": trade.status,
                 "created_at": str(trade.created_at),
                 "updated_at": str(trade.updated_at)
@@ -1239,6 +1358,62 @@ async def get_trade_details(
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get trade: {str(e)}"
+        )
+
+
+@router.get("/trades/{trade_id}/messages")
+async def get_trade_messages(
+    trade_id: str,
+    db: Session = Depends(get_db)
+):
+    """Get messages for a P2P trade"""
+    print(f"[DEBUG] GET /trades/{trade_id}/messages")
+    
+    try:
+        # Por enquanto retorna lista vazia - implementar chat posteriormente
+        # TODO: Criar tabela p2p_trade_messages e implementar chat real
+        return {
+            "success": True,
+            "data": [],
+            "message": "Chat messages endpoint - implementation pending"
+        }
+    except Exception as e:
+        print(f"[ERROR] Failed to get trade messages: {str(e)}")
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get trade messages: {str(e)}"
+        )
+
+
+@router.post("/trades/{trade_id}/messages")
+async def send_trade_message(
+    trade_id: str,
+    message_data: Dict[str, Any],
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Send a message in a P2P trade"""
+    print(f"[DEBUG] POST /trades/{trade_id}/messages")
+    
+    try:
+        # Por enquanto retorna sucesso fake - implementar chat posteriormente
+        # TODO: Criar tabela p2p_trade_messages e implementar chat real
+        return {
+            "success": True,
+            "data": {
+                "id": str(uuid.uuid4()),
+                "trade_id": trade_id,
+                "user_id": str(current_user.id),
+                "message": message_data.get("message", ""),
+                "created_at": datetime.now().isoformat()
+            },
+            "message": "Message sent (pending real implementation)"
+        }
+    except Exception as e:
+        print(f"[ERROR] Failed to send trade message: {str(e)}")
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to send trade message: {str(e)}"
         )
 
 

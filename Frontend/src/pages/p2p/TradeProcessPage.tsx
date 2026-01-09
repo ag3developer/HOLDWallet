@@ -33,6 +33,8 @@ import {
 } from '@/hooks/useP2PTrades'
 import { toast } from 'react-hot-toast'
 import { appNotifications } from '@/services/appNotifications'
+import { P2PPaymentDetails } from '@/components/p2p/P2PPaymentDetails'
+import { useAuthStore } from '@/stores/useAuthStore'
 
 type TradeStatus =
   | 'pending'
@@ -46,6 +48,7 @@ type TradeStatus =
 export const TradeProcessPage = () => {
   const navigate = useNavigate()
   const { tradeId } = useParams<{ tradeId: string }>()
+  const { user } = useAuthStore()
 
   // State
   const [message, setMessage] = useState('')
@@ -318,7 +321,7 @@ export const TradeProcessPage = () => {
   }
 
   const steps = getTimelineSteps(trade.status)
-  const isBuyer = true // TODO: Check if current user is buyer
+  const isBuyer = trade.buyer_id === user?.id // Verificar se usuário atual é o comprador
   const canMarkPayment = isBuyer && trade.status === 'pending'
   const canConfirmPayment = !isBuyer && trade.status === 'payment_sent'
   const canReleaseEscrow = !isBuyer && trade.status === 'payment_confirmed'
@@ -491,24 +494,37 @@ export const TradeProcessPage = () => {
               </div>
             )}
 
-            {/* Upload Proof */}
+            {/* Payment Details com QR Code PIX */}
             {canMarkPayment && (
               <div className='space-y-4'>
-                <div className='p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800'>
-                  <div className='flex gap-3'>
-                    <Info className='w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5' />
-                    <div className='text-sm text-gray-700 dark:text-gray-300'>
-                      <p className='font-medium mb-1'>Instruções:</p>
-                      <ol className='list-decimal list-inside space-y-1'>
-                        <li>Realize o pagamento via {trade.payment_method || 'PIX'}</li>
-                        <li>Faça upload do comprovante abaixo</li>
-                        <li>Marque como "Pagamento Enviado"</li>
-                        <li>Aguarde confirmação do vendedor</li>
-                      </ol>
-                    </div>
-                  </div>
-                </div>
+                {/* Componente de Pagamento com QR Code */}
+                <P2PPaymentDetails
+                  tradeId={tradeId!}
+                  orderId={trade.order_id || trade.orderId || tradeId!}
+                  sellerPaymentMethods={[
+                    {
+                      id: '1',
+                      type: trade.payment_method?.toLowerCase() || 'pix',
+                      details: {
+                        pix_key: trade.seller_pix_key || trade.payment_details?.pix_key || '',
+                        pix_key_type: trade.payment_details?.pix_key_type || 'cpf',
+                        holder_name: trade.seller?.username || trade.seller_name || 'Vendedor',
+                        bank_name: trade.payment_details?.bank_name,
+                        agency: trade.payment_details?.agency,
+                        account_number: trade.payment_details?.account_number,
+                      },
+                    },
+                  ]}
+                  amount={trade.amount}
+                  fiatCurrency='BRL'
+                  cryptoAmount={(trade.amount / trade.price).toFixed(8)}
+                  cryptoCoin={trade.coin || 'USDT'}
+                  sellerName={trade.seller?.username || trade.seller_name || 'Vendedor'}
+                  timeLimit={Math.ceil(timeLeft / 60)}
+                  onPaymentSent={handleMarkPaymentSent}
+                />
 
+                {/* Upload de Comprovante (opcional) */}
                 <div className='border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6'>
                   <input
                     type='file'
