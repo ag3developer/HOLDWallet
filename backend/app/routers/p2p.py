@@ -1311,7 +1311,7 @@ async def get_trade_details(
                 payment_method = {
                     "id": str(pm_result.id),
                     "type": pm_result.type,
-                    "details": json.loads(pm_result.details) if pm_result.details else {}
+                    "details": parse_json_details(pm_result.details)
                 }
         
         # Se não tem payment_method do trade, pega o primeiro da ordem
@@ -1324,31 +1324,37 @@ async def get_trade_details(
                     payment_method = {
                         "id": str(pm_result.id),
                         "type": pm_result.type,
-                        "details": json.loads(pm_result.details) if pm_result.details else {}
+                        "details": parse_json_details(pm_result.details)
                     }
         
         # Determinar total_fiat (pode ser total_fiat ou total_price dependendo do schema)
         total_fiat = getattr(trade, 'total_fiat', None) or getattr(trade, 'total_price', None) or 0
         
+        # Pegar cryptocurrency do trade ou da ordem
+        cryptocurrency = getattr(trade, 'cryptocurrency', None) or (order.cryptocurrency if order else "USDT")
+        fiat_currency = getattr(trade, 'fiat_currency', None) or (order.fiat_currency if order else "BRL")
+        time_limit = order.time_limit if order else 30  # Default 30 minutos
+        
         return {
             "success": True,
             "data": {
                 "id": str(trade.id),
-                "order_id": str(trade.order_id),
-                "buyer_id": str(trade.buyer_id),
-                "seller_id": str(trade.seller_id),
-                "cryptocurrency": trade.cryptocurrency if hasattr(trade, 'cryptocurrency') else (order.cryptocurrency if order else "USDT"),
-                "fiat_currency": trade.fiat_currency if hasattr(trade, 'fiat_currency') else (order.fiat_currency if order else "BRL"),
+                "orderId": str(trade.order_id),
+                "buyerId": str(trade.buyer_id),
+                "sellerId": str(trade.seller_id),
+                "cryptocurrency": cryptocurrency,
+                "coin": cryptocurrency,  # Alias para frontend
+                "fiatCurrency": fiat_currency,
                 "amount": str(trade.amount),
                 "price": str(trade.price),
-                "total_fiat": str(total_fiat),
-                "total_price": str(total_fiat),  # Alias
-                "payment_method": payment_method,
-                "payment_method_id": str(trade.payment_method_id) if trade.payment_method_id else None,
-                "expires_at": str(trade.expires_at) if hasattr(trade, 'expires_at') and trade.expires_at else None,
+                "total": str(total_fiat),
+                "paymentMethod": payment_method,
+                "paymentMethodId": str(trade.payment_method_id) if trade.payment_method_id else None,
+                "timeLimit": time_limit,  # Em minutos
+                "expiresAt": str(trade.expires_at) if hasattr(trade, 'expires_at') and trade.expires_at else None,
                 "status": trade.status,
-                "created_at": str(trade.created_at),
-                "updated_at": str(trade.updated_at)
+                "createdAt": str(trade.created_at),
+                "updatedAt": str(trade.updated_at)
             }
         }
     except HTTPException:

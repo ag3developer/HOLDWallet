@@ -36,8 +36,9 @@ import { appNotifications } from '@/services/appNotifications'
 import { P2PPaymentDetails } from '@/components/p2p/P2PPaymentDetails'
 import { useAuthStore } from '@/stores/useAuthStore'
 
-type TradeStatus =
+type TradeStatusLocal =
   | 'pending'
+  | 'payment_pending'
   | 'payment_sent'
   | 'payment_confirmed'
   | 'escrow_released'
@@ -61,7 +62,7 @@ export const TradeProcessPage = () => {
   const [timeLeft, setTimeLeft] = useState(0)
 
   // Fetch trade data
-  const { data: tradeData, isLoading, error } = useP2PTrade(tradeId!)
+  const { data: trade, isLoading, error } = useP2PTrade(tradeId!)
   const { data: messagesData } = useTradeMessages(tradeId!)
 
   // Mutations
@@ -73,15 +74,13 @@ export const TradeProcessPage = () => {
   const sendMessageMutation = useSendTradeMessage()
   const feedbackMutation = useLeaveFeedback()
 
-  const trade = tradeData?.data
-
   // Timer countdown
   useEffect(() => {
-    if (!trade || !trade.time_limit) return
+    if (!trade || !trade.timeLimit) return
 
     const calculateTimeLeft = () => {
-      const createdAt = new Date(trade.created_at).getTime()
-      const timeLimit = trade.time_limit * 60 * 1000 // convert to ms
+      const createdAt = new Date(trade.createdAt).getTime()
+      const timeLimit = trade.timeLimit * 60 * 1000 // convert to ms
       const deadline = createdAt + timeLimit
       const now = Date.now()
       const remaining = Math.max(0, deadline - now)
@@ -116,13 +115,13 @@ export const TradeProcessPage = () => {
     }).format(value)
   }
 
-  const getTimelineSteps = (status: TradeStatus) => {
+  const getTimelineSteps = (status: string) => {
     const steps = [
       {
         key: 'pending',
         label: 'Aguardando Pagamento',
         icon: Clock,
-        active: status === 'pending',
+        active: status === 'pending' || status === 'payment_pending',
       },
       {
         key: 'payment_sent',
@@ -166,16 +165,13 @@ export const TradeProcessPage = () => {
     }
 
     try {
-      // In a real app, upload file first and get URL
-      const proofUrl = 'uploaded-proof-url'
-
       await markPaymentMutation.mutateAsync({
         tradeId: tradeId!,
-        proofUrl,
+        message: 'Pagamento enviado',
       })
 
       // Notify payment sent
-      appNotifications.pixSent(trade?.amount || 0, 'Contraparte')
+      appNotifications.pixSent(Number.parseFloat(trade?.amount || '0'), 'Contraparte')
 
       toast.success('Pagamento marcado como enviado!')
       setUploadedFile(null)
@@ -189,7 +185,11 @@ export const TradeProcessPage = () => {
       await confirmPaymentMutation.mutateAsync(tradeId!)
 
       // Notify payment confirmed
-      appNotifications.paymentConfirmed(tradeId || '', trade?.amount || 0, 'BRL')
+      appNotifications.paymentConfirmed(
+        tradeId || '',
+        Number.parseFloat(trade?.amount || '0'),
+        'BRL'
+      )
 
       toast.success('Pagamento confirmado!')
     } catch (error) {
@@ -202,7 +202,11 @@ export const TradeProcessPage = () => {
       await releaseEscrowMutation.mutateAsync(tradeId!)
 
       // Notify trade completed
-      appNotifications.orderCompleted(tradeId || '', trade?.amount || 0, trade?.coin || 'BTC')
+      appNotifications.orderCompleted(
+        tradeId || '',
+        Number.parseFloat(trade?.amount || '0'),
+        trade?.coin || 'BTC'
+      )
 
       toast.success('Escrow liberado! Criptomoeda transferida.')
     } catch (error) {
@@ -214,7 +218,10 @@ export const TradeProcessPage = () => {
     if (!confirm('Tem certeza que deseja cancelar este trade?')) return
 
     try {
-      await cancelTradeMutation.mutateAsync(tradeId!)
+      await cancelTradeMutation.mutateAsync({
+        tradeId: tradeId!,
+        reason: 'Usuário cancelou o trade',
+      })
       toast.success('Trade cancelado')
       navigate('/p2p')
     } catch (error) {
@@ -232,6 +239,7 @@ export const TradeProcessPage = () => {
       await disputeMutation.mutateAsync({
         tradeId: tradeId!,
         reason: disputeReason,
+        description: disputeReason,
       })
 
       toast.success('Disputa aberta. Nossa equipe irá analisar.')
@@ -268,6 +276,7 @@ export const TradeProcessPage = () => {
         tradeId: tradeId!,
         rating,
         comment: feedbackComment,
+        type: rating >= 4 ? 'positive' : rating >= 3 ? 'neutral' : 'negative',
       })
 
       toast.success('Obrigado pelo seu feedback!')
@@ -321,8 +330,8 @@ export const TradeProcessPage = () => {
   }
 
   const steps = getTimelineSteps(trade.status)
-  const isBuyer = trade.buyer_id === user?.id // Verificar se usuário atual é o comprador
-  const canMarkPayment = isBuyer && trade.status === 'pending'
+  const isBuyer = trade.buyerId === user?.id // Verificar se usuário atual é o comprador
+  const canMarkPayment = isBuyer && trade.status === 'payment_pending'
   const canConfirmPayment = !isBuyer && trade.status === 'payment_sent'
   const canReleaseEscrow = !isBuyer && trade.status === 'payment_confirmed'
   const isCompleted = trade.status === 'completed'
@@ -431,7 +440,7 @@ export const TradeProcessPage = () => {
                   Você {isBuyer ? 'paga' : 'recebe'}
                 </p>
                 <p className='text-2xl font-bold text-gray-900 dark:text-white'>
-                  {formatCurrency(trade.amount)}
+                  {formatCurrency(parseFloat(trade.amount))}
                 </p>
               </div>
 
@@ -440,21 +449,21 @@ export const TradeProcessPage = () => {
                   Você {isBuyer ? 'recebe' : 'envia'}
                 </p>
                 <p className='text-2xl font-bold text-gray-900 dark:text-white'>
-                  {(trade.amount / trade.price).toFixed(8)} {trade.coin}
+                  {(parseFloat(trade.amount) / parseFloat(trade.price)).toFixed(8)} {trade.coin}
                 </p>
               </div>
 
               <div>
                 <p className='text-sm text-gray-600 dark:text-gray-400 mb-1'>Preço</p>
                 <p className='text-lg font-semibold text-gray-900 dark:text-white'>
-                  {formatCurrency(trade.price)}
+                  {formatCurrency(parseFloat(trade.price))}
                 </p>
               </div>
 
               <div>
                 <p className='text-sm text-gray-600 dark:text-gray-400 mb-1'>Método de Pagamento</p>
                 <p className='text-lg font-semibold text-gray-900 dark:text-white'>
-                  {trade.payment_method || 'PIX'}
+                  {trade.paymentMethod?.type?.toUpperCase() || 'PIX'}
                 </p>
               </div>
             </div>
@@ -500,26 +509,19 @@ export const TradeProcessPage = () => {
                 {/* Componente de Pagamento com QR Code */}
                 <P2PPaymentDetails
                   tradeId={tradeId!}
-                  orderId={trade.order_id || trade.orderId || tradeId!}
+                  orderId={trade.orderId || tradeId!}
                   sellerPaymentMethods={[
                     {
-                      id: '1',
-                      type: trade.payment_method?.toLowerCase() || 'pix',
-                      details: {
-                        pix_key: trade.seller_pix_key || trade.payment_details?.pix_key || '',
-                        pix_key_type: trade.payment_details?.pix_key_type || 'cpf',
-                        holder_name: trade.seller?.username || trade.seller_name || 'Vendedor',
-                        bank_name: trade.payment_details?.bank_name,
-                        agency: trade.payment_details?.agency,
-                        account_number: trade.payment_details?.account_number,
-                      },
+                      id: trade.paymentMethod?.id || '1',
+                      type: trade.paymentMethod?.type || 'pix',
+                      details: trade.paymentMethod?.details || {},
                     },
                   ]}
-                  amount={trade.amount}
-                  fiatCurrency='BRL'
-                  cryptoAmount={(trade.amount / trade.price).toFixed(8)}
+                  amount={Number.parseFloat(trade.total || trade.amount)}
+                  fiatCurrency={trade.fiatCurrency || 'BRL'}
+                  cryptoAmount={(parseFloat(trade.amount) / parseFloat(trade.price)).toFixed(8)}
                   cryptoCoin={trade.coin || 'USDT'}
-                  sellerName={trade.seller?.username || trade.seller_name || 'Vendedor'}
+                  sellerName={trade.seller?.username || 'Vendedor'}
                   timeLimit={Math.ceil(timeLeft / 60)}
                   onPaymentSent={handleMarkPaymentSent}
                 />
@@ -698,7 +700,7 @@ export const TradeProcessPage = () => {
 
           {/* Messages */}
           <div className='flex-1 overflow-y-auto p-4 space-y-4'>
-            {messagesData?.data?.map((msg: any) => (
+            {(messagesData || [])?.map((msg: any) => (
               <div key={msg.id} className={`flex ${msg.is_own ? 'justify-end' : 'justify-start'}`}>
                 <div
                   className={`max-w-xs px-4 py-2 rounded-lg ${
@@ -722,7 +724,7 @@ export const TradeProcessPage = () => {
               </div>
             ))}
 
-            {(!messagesData?.data || messagesData.data.length === 0) && (
+            {(!messagesData || messagesData.length === 0) && (
               <div className='flex flex-col items-center justify-center h-full'>
                 <MessageCircle className='w-12 h-12 text-gray-400 mb-3' />
                 <p className='text-gray-600 dark:text-gray-400 text-center'>

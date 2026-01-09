@@ -171,18 +171,22 @@ export interface Trade {
   orderId: string
   buyerId: string
   sellerId: string
+  coin: string
+  cryptocurrency?: string
+  fiatCurrency?: string
   amount: string
   price: string
   total: string
   status: TradeStatus
   paymentMethod: PaymentMethod
+  paymentMethodId?: string
   escrowAddress?: string
   escrowAmount?: string
   timeLimit: number
   expiresAt: string
-  buyer: PublicUser
-  seller: PublicUser
-  messages: TradeMessage[]
+  buyer?: PublicUser
+  seller?: PublicUser
+  messages?: TradeMessage[]
   disputes?: Dispute[]
   createdAt: string
   updatedAt: string
