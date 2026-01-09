@@ -1599,7 +1599,7 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
   }
 
   return (
-    <div className='flex flex-col lg:flex-row h-[100dvh] lg:h-full w-full bg-gray-50 dark:bg-[#0a0a0a] overflow-hidden pt-[env(safe-area-inset-top)]'>
+    <div className='flex flex-col lg:flex-row h-[100dvh] lg:h-full w-full bg-gray-50 dark:bg-[#0a0a0a] overflow-hidden'>
       {/* Backdrop para Mobile - z-30 */}
       {isSidebarOpen && (
         <div
@@ -1627,7 +1627,7 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
       >
         {/* Header da Sidebar */}
         <div
-          className={`flex-shrink-0 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 ${!isSidebarOpen ? 'hidden lg:block' : ''}`}
+          className={`flex-shrink-0 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 pt-[max(0.75rem,env(safe-area-inset-top))] ${!isSidebarOpen ? 'hidden lg:block' : ''}`}
         >
           <div className='p-3'>
             <div className='flex items-center justify-between'>
@@ -1827,8 +1827,8 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
         {currentContact ? (
           <>
             {/* Header do Chat - Compacto */}
-            <div className='flex-shrink-0 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 px-3 py-2 z-10 relative'>
-              <div className='flex items-center justify-between gap-2'>
+            <div className='flex-shrink-0 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 px-3 py-2 pt-[max(0.5rem,env(safe-area-inset-top))] z-10 relative'>
+              <div className='flex items-center justify-between gap-2 w-full'>
                 {/* Botão toggle mobile */}
                 <button
                   onClick={toggleSidebar}
@@ -1838,7 +1838,7 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
                   <Menu className='w-5 h-5' />
                 </button>
 
-                <div className='flex items-center gap-2 flex-1 min-w-0'>
+                <div className='flex items-center gap-2 flex-1 min-w-0 overflow-hidden'>
                   {/* Avatar Compacto */}
                   <div className='relative flex-shrink-0'>
                     <div
@@ -1911,43 +1911,43 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
                 </div>
 
                 {/* Botões de ação - Compactos */}
-                <div className='flex items-center gap-0.5'>
+                <div className='flex items-center gap-1 flex-shrink-0'>
                   {/* Botão de busca */}
                   <button
                     onClick={() => setShowMessageSearch(!showMessageSearch)}
                     aria-label='Buscar mensagens'
                     title='Buscar mensagens'
-                    className={`p-1.5 transition-all rounded-lg
+                    className={`p-2 transition-all rounded-lg flex-shrink-0
                               ${
                                 showMessageSearch
                                   ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10'
                                   : 'text-gray-500 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'
                               }`}
                   >
-                    <Search className='w-4 h-4' />
+                    <Search className='w-5 h-5' />
                   </button>
                   <button
                     onClick={handleInitiateAudioCall}
                     aria-label='Ligar'
                     title='Chamada de voz'
-                    className='p-1.5 text-gray-500 hover:text-emerald-500 transition-all hover:bg-emerald-50 dark:hover:bg-emerald-500/10 rounded-lg'
+                    className='p-2 text-gray-500 hover:text-emerald-500 transition-all hover:bg-emerald-50 dark:hover:bg-emerald-500/10 rounded-lg flex-shrink-0'
                   >
-                    <Phone className='w-4 h-4' />
+                    <Phone className='w-5 h-5' />
                   </button>
                   <button
                     onClick={handleInitiateVideoCall}
                     aria-label='Videochamada'
                     title='Chamada de vídeo'
-                    className='p-1.5 text-gray-500 hover:text-blue-500 transition-all hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg'
+                    className='p-2 text-gray-500 hover:text-blue-500 transition-all hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg flex-shrink-0'
                   >
-                    <Video className='w-4 h-4' />
+                    <Video className='w-5 h-5' />
                   </button>
                   <button
                     aria-label='Mais opções'
                     title='Mais opções'
-                    className='p-1.5 text-gray-500 hover:text-gray-700 dark:hover:text-white transition-all hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg'
+                    className='p-2 text-gray-500 hover:text-gray-700 dark:hover:text-white transition-all hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg flex-shrink-0'
                   >
-                    <MoreVertical className='w-4 h-4' />
+                    <MoreVertical className='w-5 h-5' />
                   </button>
                 </div>
               </div>

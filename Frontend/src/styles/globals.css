@@ -114,6 +114,21 @@
     touch-action: manipulation;
   }
 
+  /* ✅ Garantir que SVG icons (lucide-react) apareçam corretamente no Safari/iOS */
+  svg {
+    display: block;
+    flex-shrink: 0;
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+  }
+
+  /* ✅ Botões no Safari/iOS - garantir clicabilidade e visibilidade */
+  button {
+    -webkit-appearance: none;
+    appearance: none;
+    -webkit-touch-callout: none;
+  }
+
   /* ✅ Desabilitar zoom via gesture em toda a página */
   html {
     touch-action: pan-x pan-y;
