@@ -260,7 +260,7 @@ export const usePushNotifications = () => {
       // Enviar título e body para compatibilidade com backend
       await apiClient.post('/notifications/test', {
         title: 'Notificação de Teste',
-        body: 'Esta é uma notificação de teste do WOLK NOW!'
+        body: 'Esta é uma notificação de teste do WOLK NOW!',
       })
       return true
     } catch (error) {

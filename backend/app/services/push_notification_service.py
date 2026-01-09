@@ -7,12 +7,15 @@ Serviço para enviar Push Notifications via Web Push Protocol.
 
 import json
 import time
+import base64
 import logging
 from datetime import datetime
 from typing import Optional, Dict, Any, List
 
 from pywebpush import webpush, WebPushException
 from sqlalchemy.orm import Session
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ec
 
 from app.core.config import settings
 from app.models.push_subscription import PushSubscription, NotificationPreference
@@ -20,16 +23,88 @@ from app.models.push_subscription import PushSubscription, NotificationPreferenc
 logger = logging.getLogger(__name__)
 
 
+def _decode_private_key(key: Optional[str]) -> Optional[str]:
+    """
+    Decodifica a chave privada VAPID e converte para URL-safe Base64.
+    
+    A biblioteca pywebpush espera a chave em formato URL-safe Base64 (sem headers PEM).
+    Esta função aceita múltiplos formatos e converte automaticamente.
+    
+    Suporta:
+    - Chave PEM direta (com -----BEGIN EC PRIVATE KEY-----)
+    - Chave PEM com \\n escapados
+    - Chave PEM codificada em Base64 padrão
+    - Chave já em URL-safe Base64
+    """
+    if not key:
+        return None
+    
+    key = key.strip()
+    pem_key = None
+    
+    # Caso 1: Se já tem o header PEM
+    if '-----BEGIN' in key:
+        if '\\n' in key:
+            key = key.replace('\\n', '\n')
+        pem_key = key
+    
+    # Caso 2: Tentar decodificar de Base64 padrão (pode ser PEM codificado)
+    if not pem_key:
+        try:
+            decoded = base64.b64decode(key).decode('utf-8')
+            if '-----BEGIN' in decoded:
+                pem_key = decoded
+        except Exception:
+            pass
+    
+    # Caso 3: Se não é PEM, assumir que já é URL-safe Base64 (formato nativo)
+    if not pem_key:
+        # Já está no formato correto para pywebpush
+        return key
+    
+    # Converter PEM para URL-safe Base64 (formato que pywebpush espera)
+    try:
+        # Carregar a chave PEM
+        private_key = serialization.load_pem_private_key(
+            pem_key.encode('utf-8'),
+            password=None
+        )
+        
+        # Extrair os bytes raw da chave privada (32 bytes para EC P-256)
+        if isinstance(private_key, ec.EllipticCurvePrivateKey):
+            private_numbers = private_key.private_numbers()
+            # Converter para bytes (32 bytes para P-256)
+            key_bytes = private_numbers.private_value.to_bytes(32, byteorder='big')
+            # Converter para URL-safe Base64 sem padding
+            url_safe_key = base64.urlsafe_b64encode(key_bytes).decode('utf-8').rstrip('=')
+            logger.info(f"Converted PEM to URL-safe Base64 ({len(url_safe_key)} chars)")
+            return url_safe_key
+        else:
+            logger.error("Private key is not an EC key")
+            return None
+    except Exception as e:
+        logger.error(f"Failed to convert PEM to URL-safe Base64: {e}")
+        # Fallback: retornar PEM mesmo assim (algumas versões aceitam)
+        return pem_key
+
+
 class PushNotificationService:
     """Serviço para gerenciar e enviar Push Notifications."""
     
     def __init__(self):
-        self.vapid_private_key = getattr(settings, 'VAPID_PRIVATE_KEY', None)
+        raw_private_key = getattr(settings, 'VAPID_PRIVATE_KEY', None)
+        self.vapid_private_key = _decode_private_key(raw_private_key)
         self.vapid_public_key = getattr(settings, 'VAPID_PUBLIC_KEY', None)
         self.vapid_email = getattr(settings, 'VAPID_EMAIL', 'contato@wolknow.com')
         self.vapid_claims = {
             "sub": f"mailto:{self.vapid_email}"
         }
+        
+        # Log para debug (sem mostrar a chave completa)
+        if self.vapid_private_key:
+            logger.info(f"VAPID private key loaded ({len(self.vapid_private_key)} chars)")
+        else:
+            logger.warning("VAPID private key not configured")
     
     def is_configured(self) -> bool:
         """Verifica se o serviço está configurado corretamente."""
