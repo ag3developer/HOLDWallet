@@ -1,6 +1,25 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, AlertCircle, Loader2, RefreshCw } from 'lucide-react'
+import {
+  ArrowLeft,
+  AlertCircle,
+  Loader2,
+  RefreshCw,
+  Crown,
+  TrendingUp,
+  TrendingDown,
+  Zap,
+  Shield,
+  Clock,
+  Wallet,
+  BadgeCheck,
+  Sparkles,
+  ChevronRight,
+  Check,
+  CreditCard,
+  Target,
+  Percent,
+} from 'lucide-react'
 import { useCreateP2POrder } from '@/hooks/useP2POrders'
 import { usePaymentMethods } from '@/hooks/usePaymentMethods'
 import { useAuthStore } from '@/stores/useAuthStore'
@@ -19,8 +38,6 @@ export const CreateOrderPage = () => {
   const createOrderMutation = useCreateP2POrder()
   const { data: paymentMethodsData } = usePaymentMethods()
   const { token } = useAuthStore()
-
-  // Usar o novo hook com cache para wallet
   const { data: wallet, isLoading: walletLoading } = useUserWallet()
 
   // Form state
@@ -28,7 +45,7 @@ export const CreateOrderPage = () => {
   const [coin, setCoin] = useState('')
   const [fiatCurrency, setFiatCurrency] = useState('BRL')
   const [basePrice, setBasePrice] = useState<number>(0)
-  const [priceMargin, setPriceMargin] = useState<number>(0) // percentage: -10 to +50
+  const [priceMargin, setPriceMargin] = useState<number>(0)
   const [amount, setAmount] = useState('')
   const [minAmount, setMinAmount] = useState('')
   const [maxAmount, setMaxAmount] = useState('')
@@ -38,70 +55,47 @@ export const CreateOrderPage = () => {
   const [autoReply, setAutoReply] = useState('')
   const [allBalances, setAllBalances] = useState<Record<string, number>>({})
   const [balancesLoading, setBalancesLoading] = useState(true)
+  const [currentStep, setCurrentStep] = useState(1)
 
-  // Get available cryptos - only those user actually has
   const availableCryptos = Object.keys(allBalances).length > 0 ? Object.keys(allBalances) : []
-
-  // Only fetch prices for cryptos user actually has
-  // If coin is selected and available, fetch its price; otherwise fetch all available
   const { prices: cryptoPrices, loading: pricesLoading } = usePrices(
     coin ? [coin] : availableCryptos,
     fiatCurrency
   )
-
-  // Use the hook to fetch balances (using wallet ID from useUserWallet)
   const { balances, loading: balancesHookLoading, refreshBalances } = useWalletBalances(wallet?.id)
 
-  // Update balances when they change from hook
   useEffect(() => {
-    console.log(
-      '[CreateOrder] Balances updated from hook:',
-      balances,
-      'Loading:',
-      balancesHookLoading || walletLoading
-    )
     setAllBalances(balances)
     setBalancesLoading(balancesHookLoading || walletLoading)
-
-    // Auto-select first available coin if not selected yet
     if (!coin && Object.keys(balances).length > 0) {
-      const firstCoin = Object.keys(balances).sort((a, b) => balances[b] - balances[a])[0]
-      if (firstCoin) {
-        console.log('[CreateOrder] Auto-selecting first coin:', firstCoin)
-        setCoin(firstCoin)
-      }
+      const sortedCoins = Object.keys(balances).sort(
+        (a, b) => (balances[b] ?? 0) - (balances[a] ?? 0)
+      )
+      const firstCoin = sortedCoins[0]
+      if (firstCoin) setCoin(firstCoin)
     }
   }, [balances, balancesHookLoading, walletLoading, coin])
 
-  // Update base price from hook when cryptoPrices change
   useEffect(() => {
     if (coin && cryptoPrices?.[coin]?.price) {
-      // Preços vêm em USD do backend, precisamos converter para moeda selecionada
       let priceInUSD = cryptoPrices[coin].price
-      console.log(`[CreateOrder] Price from API for ${coin}: $${priceInUSD} USD`)
-
-      // Converter para a moeda fiat selecionada
       let convertedPrice = priceInUSD
       if (fiatCurrency === 'BRL') {
         convertedPrice = currencyConverterService.convert(priceInUSD, 'USD', 'BRL')
-        console.log(`[CreateOrder] Converted to BRL: R$ ${convertedPrice}`)
       } else if (fiatCurrency === 'EUR') {
         convertedPrice = currencyConverterService.convert(priceInUSD, 'USD', 'EUR')
-        console.log(`[CreateOrder] Converted to EUR: € ${convertedPrice}`)
       }
-
       setBasePrice(convertedPrice)
     } else {
       setBasePrice(0)
     }
   }, [cryptoPrices, coin, fiatCurrency])
 
-  // Calculate final price based on basePrice and margin
   const finalPrice = basePrice > 0 ? basePrice * (1 + priceMargin / 100) : 0
   const totalValue =
     finalPrice > 0 && amount ? (finalPrice * Number.parseFloat(amount)).toFixed(2) : '0.00'
+  const currentBalance = allBalances[coin] || 0
 
-  // Smart formatting: shows appropriate decimals based on value
   const formatBalance = (value: number): string => {
     if (value === 0) return '0'
     if (value < 0.0001) return value.toFixed(8).replace(/\.?0+$/, '')
@@ -110,19 +104,11 @@ export const CreateOrderPage = () => {
     return value.toFixed(2).replace(/\.?0+$/, '')
   }
 
-  // Get current coin balance
-  const currentBalance = allBalances[coin] || 0
-
-  const fiatOptions = [
-    { code: 'BRL', name: 'Real Brasileiro', symbol: 'R$' },
-    { code: 'USD', name: 'Dólar Americano', symbol: '$' },
-    { code: 'EUR', name: 'Euro', symbol: '€' },
-  ]
-
-  // Get available cryptos with details for UI display (already defined above, but with more details)
-  const availableCryptosWithDetails = Object.entries(allBalances)
-    .sort((a, b) => b[1] - a[1])
-    .map(([symbol, balance]) => ({ symbol, name: symbol, balance }))
+  const getCurrencySymbol = () => {
+    if (fiatCurrency === 'BRL') return 'R$'
+    if (fiatCurrency === 'USD') return '$'
+    return '€'
+  }
 
   const handlePaymentMethodToggle = (methodId: string) => {
     setSelectedPaymentMethods(prev =>
@@ -130,128 +116,63 @@ export const CreateOrderPage = () => {
     )
   }
 
-  // Helper for currency symbol
-  const getCurrencySymbol = () => {
-    if (fiatCurrency === 'BRL') return 'R$'
-    if (fiatCurrency === 'USD') return '$'
-    return '€'
-  }
-
-  // Helper for balance validation message
-  const getBalanceValidationMessage = () => {
-    if (!amount) return null
-    if (currentBalance > 0 && Number.parseFloat(amount) <= currentBalance) {
-      return <span className='text-green-600 dark:text-green-400'>✓ Você tem saldo suficiente</span>
-    }
-    if (currentBalance > 0) {
-      return (
-        <span className='text-red-600 dark:text-red-400'>
-          ✗ Saldo insuficiente (Máximo: {formatBalance(currentBalance)})
-        </span>
-      )
-    }
-    return null
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Validate raw string inputs first
     if (!amount || amount.trim() === '') {
       toast.error('Por favor, preencha a Quantidade')
       return
     }
-
     if (!minAmount || minAmount.trim() === '') {
       toast.error('Por favor, preencha o Valor Mínimo')
       return
     }
-
     if (!maxAmount || maxAmount.trim() === '') {
       toast.error('Por favor, preencha o Valor Máximo')
       return
     }
-
-    console.log('[CreateOrder] handleSubmit called with state:', {
-      basePrice,
-      finalPrice,
-      priceMargin,
-      coin,
-      fiatCurrency,
-      amount,
-      minAmount,
-      maxAmount,
-      currentBalance,
-      allBalances,
-    })
-
-    // Validate price first
     if (basePrice <= 0) {
-      toast.error('Aguarde o carregamento do preço de mercado antes de criar a ordem')
+      toast.error('Aguarde o carregamento do preço de mercado')
       return
     }
-
     if (finalPrice <= 0) {
-      toast.error('Preço final inválido. Verifique a moeda selecionada')
+      toast.error('Preço final inválido')
       return
     }
 
-    // Convert and validate amounts
     const amountNum = Number.parseFloat(amount)
     const minAmountNum = Number.parseFloat(minAmount)
     const maxAmountNum = Number.parseFloat(maxAmount)
     const totalValueNum = Number.parseFloat(totalValue)
 
-    console.log('[CreateOrder] Converted values:', {
-      amountNum,
-      minAmountNum,
-      maxAmountNum,
-      totalValueNum,
-    })
-
     if (Number.isNaN(amountNum) || amountNum <= 0) {
-      toast.error('Quantidade deve ser um número maior que 0')
+      toast.error('Quantidade deve ser maior que 0')
       return
     }
-
     if (Number.isNaN(minAmountNum) || minAmountNum <= 0) {
-      toast.error('Valor mínimo deve ser um número maior que 0')
+      toast.error('Valor mínimo deve ser maior que 0')
       return
     }
-
     if (Number.isNaN(maxAmountNum) || maxAmountNum <= 0) {
-      toast.error('Valor máximo deve ser um número maior que 0')
+      toast.error('Valor máximo deve ser maior que 0')
       return
     }
-
     if (minAmountNum > maxAmountNum) {
-      toast.error('O valor mínimo não pode ser maior que o máximo')
+      toast.error('Valor mínimo não pode ser maior que o máximo')
       return
     }
-
-    // Validate balance: amount must be <= currentBalance
     if (amountNum > currentBalance) {
-      toast.error(
-        `Saldo insuficiente. Você tem ${formatBalance(currentBalance)} ${coin}, mas quer vender ${formatBalance(amountNum)} ${coin}`
-      )
+      toast.error(`Saldo insuficiente. Você tem ${formatBalance(currentBalance)} ${coin}`)
       return
     }
-
-    // Validate that total order value is within min/max range
     if (totalValueNum < minAmountNum) {
-      toast.error(
-        `Valor total (${getCurrencySymbol()} ${totalValue}) é menor que o mínimo (${getCurrencySymbol()} ${minAmount})`
-      )
+      toast.error('Valor total é menor que o mínimo')
       return
     }
-
     if (totalValueNum > maxAmountNum) {
-      toast.error(
-        `Valor total (${getCurrencySymbol()} ${totalValue}) é maior que o máximo (${getCurrencySymbol()} ${maxAmount})`
-      )
+      toast.error('Valor total é maior que o máximo')
       return
     }
-
     if (selectedPaymentMethods.length === 0) {
       toast.error('Selecione pelo menos um método de pagamento')
       return
@@ -261,34 +182,19 @@ export const CreateOrderPage = () => {
       const orderData: Parameters<typeof createOrderMutation.mutateAsync>[0] = {
         type: orderType,
         coin,
-        fiat_currency: fiatCurrency,
         price: finalPrice.toString(),
         amount: amountNum.toString(),
-        min_amount: minAmountNum.toString(),
-        max_amount: maxAmountNum.toString(),
-        payment_methods: selectedPaymentMethods,
-        time_limit: Number.parseInt(timeLimit),
+        minAmount: minAmountNum.toString(),
+        maxAmount: maxAmountNum.toString(),
+        paymentMethods: selectedPaymentMethods,
+        timeLimit: Number.parseInt(timeLimit),
       }
 
       if (terms) orderData.terms = terms
-      if (autoReply) orderData.auto_reply = autoReply
-
-      console.log('[CreateOrder] Enviando ordem com dados:', {
-        finalPrice,
-        amountNum,
-        minAmountNum,
-        maxAmountNum,
-        totalValueNum,
-        basePrice,
-        priceMargin,
-        orderData,
-      })
+      if (autoReply) orderData.autoReply = autoReply
 
       await createOrderMutation.mutateAsync(orderData)
-
-      // Add notification
       appNotifications.orderCreated('new', orderType, amountNum, coin)
-
       toast.success('Ordem criada com sucesso!')
       navigate('/p2p')
     } catch (error) {
@@ -296,457 +202,413 @@ export const CreateOrderPage = () => {
     }
   }
 
+  const steps = [
+    { number: 1, label: 'Tipo', icon: Target },
+    { number: 2, label: 'Preço', icon: Percent },
+    { number: 3, label: 'Detalhes', icon: CreditCard },
+  ]
+
   return (
-    <div className='min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-6'>
-      <div className='max-w-6xl mx-auto'>
-        {/* Header Compacto */}
-        <div className='flex items-center gap-3 mb-4'>
-          <button
-            onClick={() => navigate('/p2p')}
-            title='Voltar'
-            className='p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors'
-          >
-            <ArrowLeft className='w-5 h-5' />
-          </button>
-          <div>
-            <h1 className='text-2xl md:text-3xl font-bold text-gray-900 dark:text-white'>
-              Criar Ordem P2P
-            </h1>
-            <p className='text-sm text-gray-600 dark:text-gray-400'>
-              {orderType === 'buy' ? 'Compra' : 'Venda'} de {coin}
-            </p>
-          </div>
+    <div className='space-y-4 pb-24'>
+      {/* Premium Header */}
+      <div className='relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900'>
+        <div className='absolute inset-0 opacity-20'>
+          <div className='absolute top-0 right-0 w-40 h-40 bg-blue-500 rounded-full blur-3xl' />
+          <div className='absolute bottom-0 left-0 w-48 h-48 bg-indigo-500 rounded-full blur-3xl' />
         </div>
 
-        {/* Main Grid: 2 Colunas */}
-        <div className='grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6'>
-          {/* Coluna Esquerda: Formulário Principal */}
-          <div className='lg:col-span-2 space-y-4'>
-            <form onSubmit={handleSubmit} className='space-y-4'>
-              {/* Card: Tipo de Ordem + Moedas */}
-              <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-4 md:p-5'>
-                <h3 className='text-lg font-semibold text-gray-900 dark:text-white mb-3'>
-                  Configuração Básica
-                </h3>
-
-                {/* Tipo de Ordem */}
-                <div className='mb-4'>
-                  <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
-                    Tipo de Ordem
-                  </label>
-                  <div className='grid grid-cols-2 gap-2'>
-                    <button
-                      type='button'
-                      onClick={() => setOrderType('sell')}
-                      className={`py-2 px-3 rounded-lg font-medium transition-colors text-sm ${
-                        orderType === 'sell'
-                          ? 'bg-green-600 text-white shadow'
-                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                      }`}
-                    >
-                      Vender ({fiatCurrency})
-                    </button>
-                    <button
-                      type='button'
-                      onClick={() => setOrderType('buy')}
-                      className={`py-2 px-3 rounded-lg font-medium transition-colors text-sm ${
-                        orderType === 'buy'
-                          ? 'bg-red-600 text-white shadow'
-                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                      }`}
-                    >
-                      Comprar ({fiatCurrency})
-                    </button>
-                  </div>
-                </div>
-
-                {/* Moedas em Grid Horizontal */}
-                {balancesLoading ? (
-                  <div className='mb-3 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg'>
-                    <div className='flex items-center gap-2'>
-                      <Loader2 className='w-4 h-4 animate-spin text-blue-600 dark:text-blue-400' />
-                      <span className='text-sm text-blue-700 dark:text-blue-300'>
-                        Carregando seus saldos da carteira...
-                      </span>
-                    </div>
-                  </div>
-                ) : Object.keys(allBalances).length > 0 ? (
-                  <div className='mb-3'>
-                    <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
-                      Moeda
-                    </label>
-                    <div className='grid grid-cols-2 md:grid-cols-3 gap-2 max-h-32 overflow-y-auto'>
-                      {Object.entries(allBalances)
-                        .sort((a, b) => b[1] - a[1])
-                        .map(([symbol, balance]) => (
-                          <button
-                            key={symbol}
-                            type='button'
-                            onClick={() => setCoin(symbol)}
-                            className={`p-2 rounded-lg text-xs font-medium transition-all ${
-                              coin === symbol
-                                ? 'bg-blue-100 dark:bg-blue-900/30 border-2 border-blue-500 text-blue-700 dark:text-blue-300'
-                                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600'
-                            }`}
-                          >
-                            <div className='flex items-center gap-1 justify-center'>
-                              <CryptoIcon
-                                symbol={symbol}
-                                size={16}
-                                className='rounded-full flex-shrink-0'
-                              />
-                              <span>{symbol}</span>
-                            </div>
-                            <div className='text-xs text-gray-600 dark:text-gray-400'>
-                              {formatBalance(balance)}
-                            </div>
-                          </button>
-                        ))}
-                    </div>
-                  </div>
-                ) : (
-                  <div className='mb-3 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg flex items-start gap-2'>
-                    <AlertCircle className='w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5' />
-                    <div>
-                      <p className='text-sm font-medium text-yellow-800 dark:text-yellow-300'>
-                        Nenhum saldo encontrado
-                      </p>
-                      <p className='text-xs text-yellow-700 dark:text-yellow-400 mt-1'>
-                        Você precisa ter uma carteira com criptomoedas para criar uma ordem de
-                        venda.
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Moeda Fiat */}
-                <div>
-                  <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
-                    Moeda Fiat
-                  </label>
-                  <select
-                    value={fiatCurrency}
-                    onChange={e => setFiatCurrency(e.target.value)}
-                    aria-label='Selecionar moeda fiat'
-                    className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm'
-                  >
-                    <option value='BRL'>Real Brasileiro (R$)</option>
-                    <option value='USD'>Dólar Americano ($)</option>
-                    <option value='EUR'>Euro (€)</option>
-                  </select>
-
-                  {/* Mostrar taxa de câmbio real */}
-                  <div className='mt-2'>
-                    <ExchangeRateDisplay />
-                  </div>
-                </div>
-              </div>
-
-              {/* Card: Preço & Quantidade */}
-              <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-4 md:p-5'>
-                <h3 className='text-lg font-semibold text-gray-900 dark:text-white mb-3'>
-                  Preço & Quantidade
-                </h3>
-
-                {/* Preço Base */}
-                {basePrice <= 0 ? (
-                  <div className='mb-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800'>
-                    <div className='flex items-center gap-2'>
-                      <Loader2 className='w-4 h-4 animate-spin text-blue-600 dark:text-blue-400' />
-                      <span className='text-sm text-blue-700 dark:text-blue-300'>
-                        Carregando cotação de {coin || 'moeda'}...
-                      </span>
-                    </div>
-                  </div>
-                ) : basePrice > 0 ? (
-                  <div className='mb-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800'>
-                    <div className='grid grid-cols-2 gap-3 text-sm'>
-                      <div>
-                        <p className='text-xs text-gray-600 dark:text-gray-400'>Preço Mercado:</p>
-                        <p className='font-semibold text-gray-900 dark:text-white'>
-                          {getCurrencySymbol()} {formatBalance(basePrice)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className='text-xs text-gray-600 dark:text-gray-400'>Seu Preço:</p>
-                        <p className='font-semibold text-blue-600 dark:text-blue-400'>
-                          {getCurrencySymbol()} {formatBalance(finalPrice)}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className='mb-3 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded text-xs text-yellow-700 dark:text-yellow-300'>
-                    ⚠ Não conseguimos buscar o preço. Tente novamente.
-                  </div>
-                )}
-
-                {/* Margem de Lucro */}
-                <div className='mb-3'>
-                  <div className='flex items-center justify-between mb-2'>
-                    <label className='text-sm font-medium text-gray-700 dark:text-gray-300'>
-                      Margem de Lucro
-                    </label>
-                    <span
-                      className={`text-sm font-bold ${priceMargin >= 0 ? 'text-green-600' : 'text-red-600'}`}
-                    >
-                      {priceMargin > 0 ? '+' : ''}
-                      {priceMargin.toFixed(1)}%
-                    </span>
-                  </div>
-                  <input
-                    type='range'
-                    min='-50'
-                    max='100'
-                    step='0.5'
-                    value={priceMargin}
-                    onChange={e => setPriceMargin(Number.parseFloat(e.target.value))}
-                    aria-label='Margem de lucro'
-                    className='w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer'
-                  />
-                  <div className='flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1'>
-                    <span>-50%</span>
-                    <span>0%</span>
-                    <span>+100%</span>
-                  </div>
-
-                  {/* Quick Buttons */}
-                  <div className='grid grid-cols-3 gap-2 mt-2'>
-                    <button
-                      type='button'
-                      onClick={() => setPriceMargin(-10)}
-                      className='py-1 px-2 rounded text-xs font-medium bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/30 transition'
-                    >
-                      -10%
-                    </button>
-                    <button
-                      type='button'
-                      onClick={() => setPriceMargin(0)}
-                      className='py-1 px-2 rounded text-xs font-medium bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition'
-                    >
-                      Mercado
-                    </button>
-                    <button
-                      type='button'
-                      onClick={() => setPriceMargin(10)}
-                      className='py-1 px-2 rounded text-xs font-medium bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/30 transition'
-                    >
-                      +10%
-                    </button>
-                  </div>
-                </div>
-
-                {/* Quantidade */}
-                <div>
-                  <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
-                    Quantidade a Vender ({coin}) *
-                  </label>
-                  <div className='flex gap-2'>
-                    <input
-                      type='number'
-                      step='0.01'
-                      value={amount}
-                      onChange={e => setAmount(e.target.value)}
-                      placeholder='0.00'
-                      className='flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm'
-                      required
-                    />
-                    <button
-                      type='button'
-                      onClick={() => setAmount(currentBalance.toString())}
-                      className='px-3 py-2 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/30 transition text-sm font-medium'
-                    >
-                      Max ({formatBalance(currentBalance)} {coin})
-                    </button>
-                  </div>
-                  {amount && currentBalance > 0 && (
-                    <p className='text-xs mt-1 text-green-600 dark:text-green-400'>
-                      ✓ Saldo suficiente
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Card: Limites e Métodos */}
-              <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-4 md:p-5'>
-                <h3 className='text-lg font-semibold text-gray-900 dark:text-white mb-3'>
-                  Detalhes da Ordem
-                </h3>
-
-                {/* Limites */}
-                <div className='grid grid-cols-2 gap-3 mb-4'>
-                  <div>
-                    <label className='block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1'>
-                      Mín. ({fiatCurrency}) *
-                    </label>
-                    <input
-                      type='number'
-                      step='0.01'
-                      value={minAmount}
-                      onChange={e => setMinAmount(e.target.value)}
-                      placeholder='0.00'
-                      className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm'
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className='block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1'>
-                      Máx. ({fiatCurrency}) *
-                    </label>
-                    <input
-                      type='number'
-                      step='0.01'
-                      value={maxAmount}
-                      onChange={e => setMaxAmount(e.target.value)}
-                      placeholder='0.00'
-                      className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm'
-                      required
-                    />
-                  </div>
-                </div>
-
-                {/* Tempo Limite */}
-                <div className='mb-4'>
-                  <label className='block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1'>
-                    Tempo Limite (min) *
-                  </label>
-                  <select
-                    value={timeLimit}
-                    onChange={e => setTimeLimit(e.target.value)}
-                    aria-label='Selecionar tempo limite'
-                    className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm'
-                    required
-                  >
-                    <option value='15'>15 minutos</option>
-                    <option value='30'>30 minutos</option>
-                    <option value='45'>45 minutos</option>
-                    <option value='60'>60 minutos</option>
-                  </select>
-                </div>
-
-                {/* Métodos de Pagamento */}
-                <div>
-                  <label className='block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2'>
-                    Métodos de Pagamento *
-                  </label>
-                  {paymentMethodsData && paymentMethodsData.length > 0 ? (
-                    <div className='space-y-1 max-h-32 overflow-y-auto'>
-                      {paymentMethodsData.map((method: any) => {
-                        const detailsObj =
-                          typeof method.details === 'string'
-                            ? JSON.parse(method.details)
-                            : method.details
-                        const accountLabel = detailsObj?.account_number || detailsObj?.key || 'N/A'
-
-                        return (
-                          <label
-                            key={method.id}
-                            className='flex items-center gap-2 p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer text-sm'
-                          >
-                            <input
-                              type='checkbox'
-                              checked={selectedPaymentMethods.includes(method.id)}
-                              onChange={() => handlePaymentMethodToggle(method.id)}
-                              className='rounded border-gray-300 text-blue-600 focus:ring-blue-500'
-                            />
-                            <div className='flex-1 min-w-0'>
-                              <p className='font-medium text-gray-900 dark:text-white truncate'>
-                                {method.method_type}
-                              </p>
-                              <p className='text-xs text-gray-600 dark:text-gray-400 truncate'>
-                                {accountLabel}
-                              </p>
-                            </div>
-                          </label>
-                        )
-                      })}
-                    </div>
-                  ) : (
-                    <p className='text-xs text-gray-600 dark:text-gray-400'>
-                      Nenhum método de pagamento configurado
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Card: Termos */}
-              <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-4 md:p-5'>
-                <h3 className='text-lg font-semibold text-gray-900 dark:text-white mb-3'>
-                  Mensagens (Opcional)
-                </h3>
-
-                <div className='space-y-3'>
-                  <div>
-                    <label className='block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1'>
-                      Termos da Transação
-                    </label>
-                    <textarea
-                      value={terms}
-                      onChange={e => setTerms(e.target.value)}
-                      placeholder='Ex: Apenas transferência bancária confirmada...'
-                      rows={2}
-                      className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm resize-none'
-                    />
-                  </div>
-
-                  <div>
-                    <label className='block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1'>
-                      Resposta Automática
-                    </label>
-                    <textarea
-                      value={autoReply}
-                      onChange={e => setAutoReply(e.target.value)}
-                      placeholder='Ex: Olá! Você tem 30 minutos para pagar...'
-                      rows={2}
-                      className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm resize-none'
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Submit Button */}
+        <div className='relative p-4'>
+          <div className='flex items-center justify-between mb-4'>
+            <div className='flex items-center gap-3'>
               <button
-                type='submit'
-                disabled={createOrderMutation.isPending || basePrice <= 0}
-                className='w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold rounded-lg transition-all shadow-md hover:shadow-lg'
-                title={basePrice <= 0 ? 'Aguarde o carregamento do preço de mercado' : ''}
+                onClick={() => navigate('/p2p')}
+                className='p-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-xl transition-all border border-white/10'
+                aria-label='Voltar'
               >
-                {createOrderMutation.isPending ? 'Criando ordem...' : 'Criar Ordem'}
+                <ArrowLeft className='w-4 h-4 text-white' />
               </button>
-            </form>
+              <div>
+                <div className='flex items-center gap-2'>
+                  <div className='w-7 h-7 bg-gradient-to-br from-amber-400 to-orange-500 rounded-lg flex items-center justify-center'>
+                    <Crown className='w-3.5 h-3.5 text-white' />
+                  </div>
+                  <h1 className='text-lg font-bold text-white'>Criar Anúncio</h1>
+                </div>
+                <p className='text-xs text-gray-400 mt-0.5'>
+                  {orderType === 'sell' ? 'Venda' : 'Compra'} de {coin || 'Crypto'}
+                </p>
+              </div>
+            </div>
           </div>
 
-          {/* Coluna Direita: Perfil, Resumo & Saldo */}
-          <div className='lg:col-span-1 space-y-4'>
-            {/* Card: Seu Perfil */}
-            <UserProfileSection
-              token={token}
-              onEdit={() => navigate('/p2p/trader-profile/edit')}
-              showEditButton={true}
-              showProfileLink={true}
-            />
+          {/* Progress Steps */}
+          <div className='flex items-center gap-2'>
+            {steps.map((step, index) => {
+              const Icon = step.icon
+              const isActive = currentStep === step.number
+              const isCompleted = currentStep > step.number
+              return (
+                <React.Fragment key={step.number}>
+                  <button
+                    onClick={() => setCurrentStep(step.number)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
+                      isActive
+                        ? 'bg-white/20 text-white'
+                        : isCompleted
+                          ? 'bg-emerald-500/20 text-emerald-300'
+                          : 'bg-white/5 text-gray-400'
+                    }`}
+                  >
+                    {isCompleted ? <Check className='w-3 h-3' /> : <Icon className='w-3 h-3' />}
+                    <span className='text-[10px] font-semibold'>{step.label}</span>
+                  </button>
+                  {index < steps.length - 1 && (
+                    <div
+                      className={`flex-1 h-0.5 ${isCompleted ? 'bg-emerald-500/50' : 'bg-white/10'}`}
+                    />
+                  )}
+                </React.Fragment>
+              )
+            })}
+          </div>
+        </div>
+      </div>
 
-            {/* Card: Resumo */}
+      <form onSubmit={handleSubmit} className='space-y-4'>
+        {/* Step 1: Order Type & Crypto */}
+        {currentStep === 1 && (
+          <div className='space-y-4'>
+            {/* Order Type */}
+            <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 p-4'>
+              <h3 className='text-sm font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2'>
+                <Target className='w-4 h-4 text-blue-500' />
+                Tipo de Ordem
+              </h3>
+              <div className='grid grid-cols-2 gap-3'>
+                <button
+                  type='button'
+                  onClick={() => setOrderType('sell')}
+                  className={`p-4 rounded-xl border-2 transition-all ${
+                    orderType === 'sell'
+                      ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
+                      : 'border-gray-200 dark:border-gray-700'
+                  }`}
+                >
+                  <div
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center mb-2 ${
+                      orderType === 'sell'
+                        ? 'bg-emerald-500 text-white'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-500'
+                    }`}
+                  >
+                    <TrendingUp className='w-5 h-5' />
+                  </div>
+                  <p
+                    className={`text-sm font-bold ${
+                      orderType === 'sell'
+                        ? 'text-emerald-700 dark:text-emerald-400'
+                        : 'text-gray-700 dark:text-gray-300'
+                    }`}
+                  >
+                    Vender
+                  </p>
+                  <p className='text-[10px] text-gray-500 mt-0.5'>Receber {fiatCurrency}</p>
+                </button>
+                <button
+                  type='button'
+                  onClick={() => setOrderType('buy')}
+                  className={`p-4 rounded-xl border-2 transition-all ${
+                    orderType === 'buy'
+                      ? 'border-red-500 bg-red-50 dark:bg-red-900/20'
+                      : 'border-gray-200 dark:border-gray-700'
+                  }`}
+                >
+                  <div
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center mb-2 ${
+                      orderType === 'buy'
+                        ? 'bg-red-500 text-white'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-500'
+                    }`}
+                  >
+                    <TrendingDown className='w-5 h-5' />
+                  </div>
+                  <p
+                    className={`text-sm font-bold ${
+                      orderType === 'buy'
+                        ? 'text-red-700 dark:text-red-400'
+                        : 'text-gray-700 dark:text-gray-300'
+                    }`}
+                  >
+                    Comprar
+                  </p>
+                  <p className='text-[10px] text-gray-500 mt-0.5'>Pagar {fiatCurrency}</p>
+                </button>
+              </div>
+            </div>
+
+            {/* Select Crypto */}
+            <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 p-4'>
+              <div className='flex items-center justify-between mb-3'>
+                <h3 className='text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2'>
+                  <Wallet className='w-4 h-4 text-purple-500' />
+                  Selecionar Crypto
+                </h3>
+                <button
+                  type='button'
+                  onClick={() => refreshBalances()}
+                  disabled={balancesLoading}
+                  className='p-1.5 text-gray-400 hover:text-blue-500 rounded-lg transition-all'
+                  aria-label='Atualizar saldos'
+                >
+                  <RefreshCw className={`w-4 h-4 ${balancesLoading ? 'animate-spin' : ''}`} />
+                </button>
+              </div>
+
+              {balancesLoading ? (
+                <div className='flex items-center gap-2 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl'>
+                  <Loader2 className='w-4 h-4 animate-spin text-blue-500' />
+                  <span className='text-xs text-blue-600 dark:text-blue-400'>
+                    Carregando saldos...
+                  </span>
+                </div>
+              ) : Object.keys(allBalances).length > 0 ? (
+                <div className='grid grid-cols-2 gap-2'>
+                  {Object.entries(allBalances)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([symbol, balance]) => (
+                      <button
+                        key={symbol}
+                        type='button'
+                        onClick={() => setCoin(symbol)}
+                        className={`p-3 rounded-xl border-2 transition-all text-left ${
+                          coin === symbol
+                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                            : 'border-gray-200 dark:border-gray-700'
+                        }`}
+                      >
+                        <div className='flex items-center gap-2 mb-1'>
+                          <CryptoIcon symbol={symbol} size={20} className='rounded-full' />
+                          <span className='text-sm font-bold text-gray-900 dark:text-white'>
+                            {symbol}
+                          </span>
+                        </div>
+                        <p className='text-xs text-gray-500'>Saldo: {formatBalance(balance)}</p>
+                      </button>
+                    ))}
+                </div>
+              ) : (
+                <div className='p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl flex items-start gap-2'>
+                  <AlertCircle className='w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5' />
+                  <div>
+                    <p className='text-xs font-medium text-amber-700 dark:text-amber-400'>
+                      Nenhum saldo encontrado
+                    </p>
+                    <p className='text-[10px] text-amber-600 dark:text-amber-500 mt-0.5'>
+                      Deposite crypto para criar uma ordem de venda
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Fiat Currency */}
+            <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 p-4'>
+              <h3 className='text-sm font-bold text-gray-900 dark:text-white mb-3'>Moeda Fiat</h3>
+              <div className='grid grid-cols-3 gap-2'>
+                {[
+                  { code: 'BRL', symbol: 'R$', flag: '🇧🇷' },
+                  { code: 'USD', symbol: '$', flag: '🇺🇸' },
+                  { code: 'EUR', symbol: '€', flag: '🇪🇺' },
+                ].map(currency => (
+                  <button
+                    key={currency.code}
+                    type='button'
+                    onClick={() => setFiatCurrency(currency.code)}
+                    className={`p-3 rounded-xl border-2 transition-all ${
+                      fiatCurrency === currency.code
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                        : 'border-gray-200 dark:border-gray-700'
+                    }`}
+                  >
+                    <span className='text-lg'>{currency.flag}</span>
+                    <p className='text-xs font-bold text-gray-900 dark:text-white mt-1'>
+                      {currency.code}
+                    </p>
+                  </button>
+                ))}
+              </div>
+              <div className='mt-3'>
+                <ExchangeRateDisplay />
+              </div>
+            </div>
+
+            <button
+              type='button'
+              onClick={() => setCurrentStep(2)}
+              disabled={!coin}
+              className='w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:from-gray-400 disabled:to-gray-500 text-white font-bold rounded-xl shadow-lg shadow-blue-500/25 transition-all flex items-center justify-center gap-2'
+            >
+              Continuar
+              <ChevronRight className='w-4 h-4' />
+            </button>
+          </div>
+        )}
+
+        {/* Step 2: Price & Amount */}
+        {currentStep === 2 && (
+          <div className='space-y-4'>
+            {/* Market Price */}
+            <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 p-4'>
+              <h3 className='text-sm font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2'>
+                <TrendingUp className='w-4 h-4 text-emerald-500' />
+                Preço
+              </h3>
+
+              {basePrice <= 0 ? (
+                <div className='flex items-center gap-2 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl'>
+                  <Loader2 className='w-4 h-4 animate-spin text-blue-500' />
+                  <span className='text-xs text-blue-600 dark:text-blue-400'>
+                    Carregando cotação de {coin}...
+                  </span>
+                </div>
+              ) : (
+                <>
+                  <div className='grid grid-cols-2 gap-3 mb-4'>
+                    <div className='p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl'>
+                      <p className='text-[10px] text-gray-400 uppercase font-medium'>Mercado</p>
+                      <p className='text-lg font-bold text-gray-900 dark:text-white'>
+                        {getCurrencySymbol()} {formatBalance(basePrice)}
+                      </p>
+                    </div>
+                    <div className='p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800'>
+                      <p className='text-[10px] text-blue-500 uppercase font-medium'>Seu Preço</p>
+                      <p className='text-lg font-bold text-blue-600 dark:text-blue-400'>
+                        {getCurrencySymbol()} {formatBalance(finalPrice)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Margin Slider */}
+                  <div className='space-y-3'>
+                    <div className='flex items-center justify-between'>
+                      <span className='text-xs font-medium text-gray-700 dark:text-gray-300'>
+                        Margem de Lucro
+                      </span>
+                      <span
+                        className={`text-sm font-bold ${priceMargin >= 0 ? 'text-emerald-600' : 'text-red-600'}`}
+                      >
+                        {priceMargin > 0 ? '+' : ''}
+                        {priceMargin.toFixed(1)}%
+                      </span>
+                    </div>
+                    <input
+                      type='range'
+                      min='-50'
+                      max='100'
+                      step='0.5'
+                      value={priceMargin}
+                      onChange={e => setPriceMargin(Number.parseFloat(e.target.value))}
+                      aria-label='Margem de lucro'
+                      className='w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-600'
+                    />
+                    <div className='flex justify-between text-[10px] text-gray-400'>
+                      <span>-50%</span>
+                      <span>0%</span>
+                      <span>+100%</span>
+                    </div>
+                    <div className='grid grid-cols-3 gap-2'>
+                      {[
+                        { value: -10, label: '-10%', color: 'red' },
+                        { value: 0, label: 'Mercado', color: 'gray' },
+                        { value: 10, label: '+10%', color: 'emerald' },
+                      ].map(btn => (
+                        <button
+                          key={btn.value}
+                          type='button'
+                          onClick={() => setPriceMargin(btn.value)}
+                          className={`py-2 px-3 rounded-lg text-xs font-medium transition-all ${
+                            priceMargin === btn.value
+                              ? btn.color === 'red'
+                                ? 'bg-red-500 text-white'
+                                : btn.color === 'emerald'
+                                  ? 'bg-emerald-500 text-white'
+                                  : 'bg-gray-600 text-white'
+                              : btn.color === 'red'
+                                ? 'bg-red-100 dark:bg-red-900/20 text-red-600'
+                                : btn.color === 'emerald'
+                                  ? 'bg-emerald-100 dark:bg-emerald-900/20 text-emerald-600'
+                                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+                          }`}
+                        >
+                          {btn.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Amount */}
+            <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 p-4'>
+              <h3 className='text-sm font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2'>
+                <Sparkles className='w-4 h-4 text-amber-500' />
+                Quantidade a Vender
+              </h3>
+              <div className='space-y-3'>
+                <div className='relative'>
+                  <input
+                    type='number'
+                    step='0.0001'
+                    value={amount}
+                    onChange={e => setAmount(e.target.value)}
+                    placeholder='0.00'
+                    className='w-full px-4 py-3 text-lg font-mono border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700/50 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500'
+                  />
+                  <span className='absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-gray-400'>
+                    {coin}
+                  </span>
+                </div>
+                <div className='flex items-center justify-between'>
+                  <span className='text-xs text-gray-500'>
+                    Disponível: {formatBalance(currentBalance)} {coin}
+                  </span>
+                  <button
+                    type='button'
+                    onClick={() => setAmount(currentBalance.toString())}
+                    className='px-3 py-1 bg-blue-100 dark:bg-blue-900/20 text-blue-600 rounded-lg text-xs font-medium'
+                  >
+                    Usar Máximo
+                  </button>
+                </div>
+                {amount && Number.parseFloat(amount) <= currentBalance && (
+                  <div className='flex items-center gap-1 text-emerald-600'>
+                    <Check className='w-3 h-3' />
+                    <span className='text-xs'>Saldo suficiente</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Summary */}
             {finalPrice > 0 && amount && (
-              <div className='bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-900/20 rounded-lg shadow p-4 border border-blue-200 dark:border-blue-800 sticky top-4'>
-                <h4 className='text-sm font-semibold text-gray-900 dark:text-white mb-3'>
-                  Resumo da Ordem
-                </h4>
-                <div className='space-y-2 text-sm'>
-                  <div className='flex justify-between'>
-                    <span className='text-gray-700 dark:text-gray-400'>Quantidade:</span>
+              <div className='bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl p-4 border border-blue-200 dark:border-blue-800'>
+                <h4 className='text-xs font-semibold text-gray-900 dark:text-white mb-3'>Resumo</h4>
+                <div className='space-y-2'>
+                  <div className='flex justify-between text-xs'>
+                    <span className='text-gray-600 dark:text-gray-400'>Quantidade:</span>
                     <span className='font-semibold text-gray-900 dark:text-white'>
-                      {formatBalance(Number.parseFloat(amount))} {coin}
+                      {formatBalance(Number.parseFloat(amount) || 0)} {coin}
                     </span>
                   </div>
-                  <div className='flex justify-between'>
-                    <span className='text-gray-700 dark:text-gray-400'>Preço Unit.:</span>
+                  <div className='flex justify-between text-xs'>
+                    <span className='text-gray-600 dark:text-gray-400'>Preço:</span>
                     <span className='font-semibold text-gray-900 dark:text-white'>
                       {getCurrencySymbol()} {formatBalance(finalPrice)}
                     </span>
                   </div>
-                  <div className='border-t border-blue-300 dark:border-blue-700 pt-2 flex justify-between'>
-                    <span className='font-semibold text-gray-900 dark:text-white'>Total:</span>
+                  <div className='pt-2 border-t border-blue-200 dark:border-blue-700 flex justify-between'>
+                    <span className='text-sm font-bold text-gray-900 dark:text-white'>Total:</span>
                     <span className='text-lg font-bold text-blue-600 dark:text-blue-400'>
                       {getCurrencySymbol()} {totalValue}
                     </span>
@@ -755,56 +617,224 @@ export const CreateOrderPage = () => {
               </div>
             )}
 
-            {/* Card: Saldo */}
-            {(currentBalance > 0 || Object.keys(allBalances).length > 0) && (
-              <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-4'>
-                <div className='flex items-center justify-between mb-3'>
-                  <h4 className='text-sm font-semibold text-gray-900 dark:text-white'>
-                    Seus Saldos
-                  </h4>
-                  <button
-                    onClick={() => refreshBalances()}
-                    disabled={balancesLoading}
-                    className='p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors'
-                    title='Atualizar saldos'
-                  >
-                    <RefreshCw
-                      className={`w-4 h-4 text-gray-600 dark:text-gray-400 ${balancesLoading ? 'animate-spin' : ''}`}
-                    />
-                  </button>
+            <div className='flex gap-3'>
+              <button
+                type='button'
+                onClick={() => setCurrentStep(1)}
+                className='flex-1 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium rounded-xl'
+              >
+                Voltar
+              </button>
+              <button
+                type='button'
+                onClick={() => setCurrentStep(3)}
+                disabled={!amount || basePrice <= 0}
+                className='flex-1 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:from-gray-400 disabled:to-gray-500 text-white font-bold rounded-xl flex items-center justify-center gap-2'
+              >
+                Continuar
+                <ChevronRight className='w-4 h-4' />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 3: Details */}
+        {currentStep === 3 && (
+          <div className='space-y-4'>
+            {/* Limits */}
+            <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 p-4'>
+              <h3 className='text-sm font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2'>
+                <Shield className='w-4 h-4 text-blue-500' />
+                Limites da Ordem
+              </h3>
+              <div className='grid grid-cols-2 gap-3'>
+                <div>
+                  <label className='block text-[10px] text-gray-500 uppercase font-medium mb-1'>
+                    Mínimo ({fiatCurrency})
+                  </label>
+                  <input
+                    type='number'
+                    step='0.01'
+                    value={minAmount}
+                    onChange={e => setMinAmount(e.target.value)}
+                    placeholder='0.00'
+                    className='w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700/50 text-gray-900 dark:text-white'
+                    required
+                  />
                 </div>
-                <div className='space-y-2 max-h-48 overflow-y-auto'>
-                  {Object.entries(allBalances)
-                    .sort((a, b) => b[1] - a[1])
-                    .map(([symbol, balance]) => (
-                      <div key={symbol} className='flex items-center justify-between text-sm'>
-                        <div className='flex items-center gap-2'>
-                          <CryptoIcon symbol={symbol} size={16} className='rounded-full' />
-                          <span className='font-medium text-gray-900 dark:text-white'>
-                            {symbol}
-                          </span>
-                        </div>
-                        <span
-                          className={`font-semibold ${balance > 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-500'}`}
-                        >
-                          {formatBalance(balance)}
-                        </span>
-                      </div>
-                    ))}
-                </div>
-                <div className='mt-3 pt-3 border-t border-gray-200 dark:border-gray-700'>
-                  <div className='flex items-center justify-between font-semibold text-gray-900 dark:text-white'>
-                    <span>Total:</span>
-                    <span className='text-lg text-blue-600 dark:text-blue-400'>
-                      {formatBalance(Object.values(allBalances).reduce((a, b) => a + b, 0))}
-                    </span>
-                  </div>
+                <div>
+                  <label className='block text-[10px] text-gray-500 uppercase font-medium mb-1'>
+                    Máximo ({fiatCurrency})
+                  </label>
+                  <input
+                    type='number'
+                    step='0.01'
+                    value={maxAmount}
+                    onChange={e => setMaxAmount(e.target.value)}
+                    placeholder='0.00'
+                    className='w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700/50 text-gray-900 dark:text-white'
+                    required
+                  />
                 </div>
               </div>
-            )}
+            </div>
+
+            {/* Time Limit */}
+            <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 p-4'>
+              <h3 className='text-sm font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2'>
+                <Clock className='w-4 h-4 text-amber-500' />
+                Tempo Limite
+              </h3>
+              <div className='grid grid-cols-4 gap-2'>
+                {['15', '30', '45', '60'].map(time => (
+                  <button
+                    key={time}
+                    type='button'
+                    onClick={() => setTimeLimit(time)}
+                    className={`py-2.5 rounded-xl text-xs font-medium transition-all ${
+                      timeLimit === time
+                        ? 'bg-amber-500 text-white'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+                    }`}
+                  >
+                    {time} min
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Payment Methods */}
+            <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 p-4'>
+              <h3 className='text-sm font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2'>
+                <CreditCard className='w-4 h-4 text-purple-500' />
+                Métodos de Pagamento
+              </h3>
+              {paymentMethodsData && paymentMethodsData.length > 0 ? (
+                <div className='space-y-2'>
+                  {paymentMethodsData.map((method: any) => {
+                    const isSelected = selectedPaymentMethods.includes(method.id)
+                    return (
+                      <button
+                        key={method.id}
+                        type='button'
+                        onClick={() => handlePaymentMethodToggle(method.id)}
+                        className={`w-full p-3 rounded-xl border-2 transition-all flex items-center gap-3 ${
+                          isSelected
+                            ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
+                            : 'border-gray-200 dark:border-gray-700'
+                        }`}
+                      >
+                        <div
+                          className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                            isSelected
+                              ? 'bg-purple-500 text-white'
+                              : 'bg-gray-100 dark:bg-gray-700 text-gray-500'
+                          }`}
+                        >
+                          {method.method_type?.includes('PIX') ? (
+                            <Zap className='w-4 h-4' />
+                          ) : (
+                            <CreditCard className='w-4 h-4' />
+                          )}
+                        </div>
+                        <div className='flex-1 text-left'>
+                          <p className='text-sm font-medium text-gray-900 dark:text-white'>
+                            {method.method_type}
+                          </p>
+                        </div>
+                        <div
+                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                            isSelected
+                              ? 'bg-purple-500 border-purple-500'
+                              : 'border-gray-300 dark:border-gray-600'
+                          }`}
+                        >
+                          {isSelected && <Check className='w-3 h-3 text-white' />}
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className='p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl flex items-center gap-2'>
+                  <AlertCircle className='w-4 h-4 text-amber-500' />
+                  <span className='text-xs text-amber-700 dark:text-amber-400'>
+                    Nenhum método configurado
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Terms (Optional) */}
+            <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 p-4'>
+              <h3 className='text-sm font-bold text-gray-900 dark:text-white mb-3'>
+                Mensagens (Opcional)
+              </h3>
+              <div className='space-y-3'>
+                <div>
+                  <label className='block text-[10px] text-gray-500 uppercase font-medium mb-1'>
+                    Termos da Transação
+                  </label>
+                  <textarea
+                    value={terms}
+                    onChange={e => setTerms(e.target.value)}
+                    placeholder='Ex: Apenas transferência bancária confirmada...'
+                    rows={2}
+                    className='w-full px-3 py-2 text-xs border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700/50 text-gray-900 dark:text-white resize-none'
+                  />
+                </div>
+                <div>
+                  <label className='block text-[10px] text-gray-500 uppercase font-medium mb-1'>
+                    Resposta Automática
+                  </label>
+                  <textarea
+                    value={autoReply}
+                    onChange={e => setAutoReply(e.target.value)}
+                    placeholder='Ex: Olá! Você tem 30 minutos para pagar...'
+                    rows={2}
+                    className='w-full px-3 py-2 text-xs border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700/50 text-gray-900 dark:text-white resize-none'
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className='flex gap-3'>
+              <button
+                type='button'
+                onClick={() => setCurrentStep(2)}
+                className='flex-1 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium rounded-xl'
+              >
+                Voltar
+              </button>
+              <button
+                type='submit'
+                disabled={createOrderMutation.isPending || selectedPaymentMethods.length === 0}
+                className='flex-1 py-3 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-400 hover:to-green-400 disabled:from-gray-400 disabled:to-gray-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2'
+              >
+                {createOrderMutation.isPending ? (
+                  <>
+                    <Loader2 className='w-4 h-4 animate-spin' />
+                    Criando...
+                  </>
+                ) : (
+                  <>
+                    <BadgeCheck className='w-4 h-4' />
+                    Criar Ordem
+                  </>
+                )}
+              </button>
+            </div>
           </div>
-        </div>
-      </div>
+        )}
+      </form>
+
+      {/* User Profile Section */}
+      <UserProfileSection
+        token={token}
+        onEdit={() => navigate('/p2p/trader-profile/edit')}
+        showEditButton={true}
+        showProfileLink={true}
+      />
     </div>
   )
 }

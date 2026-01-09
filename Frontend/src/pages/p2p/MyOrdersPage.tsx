@@ -13,13 +13,14 @@ import {
   XCircle,
   TrendingUp,
   TrendingDown,
-  Filter,
   Search,
-  MoreVertical,
-  AlertCircle,
   RefreshCw,
-  Loader2,
-  DollarSign,
+  Crown,
+  Star,
+  ChevronRight,
+  Sparkles,
+  Target,
+  Award,
 } from 'lucide-react'
 import { useMyP2POrders, useCancelP2POrder, useToggleOrderStatus } from '@/hooks/useP2POrders'
 import { toast } from 'react-hot-toast'
@@ -40,18 +41,15 @@ export const MyOrdersPage = () => {
     orderId: null,
   })
 
-  // Fetch user's orders
   const { data: ordersData, isLoading, error, refetch } = useMyP2POrders()
   const cancelOrderMutation = useCancelP2POrder()
   const toggleStatusMutation = useToggleOrderStatus()
 
   const cryptoOptions = [
-    { value: 'all', label: 'Todas' },
-    { value: 'BTC', label: 'Bitcoin' },
-    { value: 'ETH', label: 'Ethereum' },
-    { value: 'USDT', label: 'Tether' },
-    { value: 'BNB', label: 'BNB' },
-    { value: 'SOL', label: 'Solana' },
+    { value: 'all', label: 'Todas', icon: '✦' },
+    { value: 'BTC', label: 'BTC', icon: '₿' },
+    { value: 'ETH', label: 'ETH', icon: 'Ξ' },
+    { value: 'USDT', label: 'USDT', icon: '₮' },
   ]
 
   const handleCancelOrder = async (orderId: string) => {
@@ -60,7 +58,6 @@ export const MyOrdersPage = () => {
 
   const confirmCancelOrder = async () => {
     if (!modalState.orderId) return
-
     try {
       await cancelOrderMutation.mutateAsync(modalState.orderId)
       toast.success('Ordem cancelada com sucesso')
@@ -71,401 +68,317 @@ export const MyOrdersPage = () => {
 
   const handleToggleStatus = async (orderId: string, currentStatus: boolean) => {
     try {
-      await toggleStatusMutation.mutateAsync({ orderId, isActive: !currentStatus })
+      await toggleStatusMutation.mutateAsync(orderId)
       toast.success(currentStatus ? 'Ordem pausada' : 'Ordem ativada')
     } catch (error) {
       console.error('Error toggling order status:', error)
     }
   }
 
-  const getStatusBadge = (status: string) => {
-    const badges = {
-      active: {
-        icon: CheckCircle,
-        text: 'Ativa',
-        color: 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300',
-      },
-      paused: {
-        icon: Pause,
-        text: 'Pausada',
-        color: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300',
-      },
-      completed: {
-        icon: CheckCircle,
-        text: 'Completa',
-        color: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300',
-      },
-      cancelled: {
-        icon: XCircle,
-        text: 'Cancelada',
-        color: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300',
-      },
-    }
-    const badge = badges[status as keyof typeof badges] || badges.active
-    const Icon = badge.icon
-    return (
-      <span
-        className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${badge.color}`}
-      >
-        <Icon className='w-4 h-4' />
-        {badge.text}
-      </span>
-    )
-  }
-
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL',
+      maximumFractionDigits: 0,
     }).format(value)
   }
 
-  // Filter orders based on active tab and search
+  const formatCompact = (amount: number) => {
+    if (amount >= 1000000) return `${(amount / 1000000).toFixed(1)}M`
+    if (amount >= 1000) return `${(amount / 1000).toFixed(0)}K`
+    return amount.toString()
+  }
+
+  // Count orders by status
+  const orderCounts = {
+    active: ordersData?.data?.filter((o: any) => o.status === 'active').length || 0,
+    paused: ordersData?.data?.filter((o: any) => o.status === 'paused').length || 0,
+    completed: ordersData?.data?.filter((o: any) => o.status === 'completed').length || 0,
+    cancelled: ordersData?.data?.filter((o: any) => o.status === 'cancelled').length || 0,
+  }
+
+  const totalVolume =
+    ordersData?.data?.reduce((acc: number, o: any) => acc + (o.price || 0) * (o.amount || 0), 0) ||
+    0
+
   const filteredOrders =
     ordersData?.data?.filter((order: any) => {
       const matchesTab = order.status === activeTab
       const matchesCoin = selectedCoin === 'all' || order.coin === selectedCoin
       const matchesSearch =
         !searchTerm ||
-        order.coin.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        order.coin?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         order.payment_methods?.some((pm: string) =>
           pm.toLowerCase().includes(searchTerm.toLowerCase())
         )
-
       return matchesTab && matchesCoin && matchesSearch
     }) || []
 
   return (
-    <div className='space-y-6'>
-      {/* Header */}
-      <div className='flex flex-col lg:flex-row lg:items-center justify-between gap-4'>
-        <div className='flex items-center gap-4'>
+    <div className='space-y-4 pb-24'>
+      {/* Premium Header */}
+      <div className='relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-indigo-900 to-purple-900'>
+        {/* Background Effects */}
+        <div className='absolute inset-0 opacity-20'>
+          <div className='absolute top-0 right-0 w-40 h-40 bg-indigo-500 rounded-full blur-3xl' />
+          <div className='absolute bottom-0 left-0 w-48 h-48 bg-purple-500 rounded-full blur-3xl' />
+        </div>
+
+        <div className='relative p-4'>
+          {/* Top Bar */}
+          <div className='flex items-center justify-between mb-4'>
+            <div className='flex items-center gap-3'>
+              <button
+                onClick={() => navigate('/p2p')}
+                className='p-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-xl transition-all border border-white/10'
+                aria-label='Voltar'
+              >
+                <ArrowLeft className='w-4 h-4 text-white' />
+              </button>
+              <div>
+                <div className='flex items-center gap-2'>
+                  <div className='w-7 h-7 bg-gradient-to-br from-amber-400 to-orange-500 rounded-lg flex items-center justify-center'>
+                    <Crown className='w-3.5 h-3.5 text-white' />
+                  </div>
+                  <h1 className='text-lg font-bold text-white'>Minhas Ordens</h1>
+                </div>
+                <p className='text-xs text-gray-400 mt-0.5'>Gerencie seus anúncios P2P</p>
+              </div>
+            </div>
+            <button
+              onClick={() => navigate('/p2p/create-order')}
+              className='px-3 py-2 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-400 hover:to-green-400 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-emerald-500/25 transition-all'
+            >
+              <Plus className='w-3.5 h-3.5' />
+              Nova Ordem
+            </button>
+          </div>
+
+          {/* Stats Grid */}
+          <div className='grid grid-cols-4 gap-2'>
+            <div className='bg-white/5 backdrop-blur-sm rounded-xl p-2.5 border border-white/10'>
+              <div className='flex items-center gap-1.5 mb-1'>
+                <CheckCircle className='w-3 h-3 text-emerald-400' />
+                <span className='text-[9px] text-gray-400 uppercase'>Ativas</span>
+              </div>
+              <p className='text-sm font-bold text-white'>{orderCounts.active}</p>
+            </div>
+            <div className='bg-white/5 backdrop-blur-sm rounded-xl p-2.5 border border-white/10'>
+              <div className='flex items-center gap-1.5 mb-1'>
+                <Pause className='w-3 h-3 text-amber-400' />
+                <span className='text-[9px] text-gray-400 uppercase'>Pausadas</span>
+              </div>
+              <p className='text-sm font-bold text-white'>{orderCounts.paused}</p>
+            </div>
+            <div className='bg-white/5 backdrop-blur-sm rounded-xl p-2.5 border border-white/10'>
+              <div className='flex items-center gap-1.5 mb-1'>
+                <Award className='w-3 h-3 text-blue-400' />
+                <span className='text-[9px] text-gray-400 uppercase'>Completas</span>
+              </div>
+              <p className='text-sm font-bold text-white'>{orderCounts.completed}</p>
+            </div>
+            <div className='bg-white/5 backdrop-blur-sm rounded-xl p-2.5 border border-white/10'>
+              <div className='flex items-center gap-1.5 mb-1'>
+                <TrendingUp className='w-3 h-3 text-purple-400' />
+                <span className='text-[9px] text-gray-400 uppercase'>Volume</span>
+              </div>
+              <p className='text-sm font-bold text-white'>R$ {formatCompact(totalVolume)}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Crypto Filter */}
+      <div className='flex gap-2 overflow-x-auto pb-1 scrollbar-hide'>
+        {cryptoOptions.map(crypto => (
           <button
-            onClick={() => navigate('/p2p')}
-            className='p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors'
+            key={crypto.value}
+            onClick={() => setSelectedCoin(crypto.value)}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+              selectedCoin === crypto.value
+                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/25'
+                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700'
+            }`}
           >
-            <ArrowLeft className='w-5 h-5' />
+            {crypto.value === 'all' ? (
+              <Sparkles className='w-3.5 h-3.5' />
+            ) : (
+              <span className='w-5 h-5 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white'>
+                {crypto.icon}
+              </span>
+            )}
+            {crypto.label}
           </button>
-          <div>
-            <h1 className='text-3xl font-bold text-gray-900 dark:text-white'>Minhas Ordens P2P</h1>
-            <p className='text-gray-600 dark:text-gray-400 mt-1'>
-              Gerencie suas ordens de compra e venda
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={() => navigate('/p2p/create-order')}
-          className='bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors inline-flex items-center gap-2'
-        >
-          <Plus className='w-4 h-4' />
-          Nova Ordem
-        </button>
+        ))}
       </div>
 
-      {/* Stats Cards */}
-      <div className='grid grid-cols-1 md:grid-cols-4 gap-4'>
-        <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-4'>
-          <div className='flex items-center justify-between'>
-            <div>
-              <p className='text-sm text-gray-600 dark:text-gray-400'>Ordens Ativas</p>
-              <p className='text-2xl font-bold text-gray-900 dark:text-white'>
-                {ordersData?.data?.filter((o: any) => o.status === 'active').length || 0}
-              </p>
-            </div>
-            <div className='w-12 h-12 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center'>
-              <CheckCircle className='w-6 h-6 text-green-600' />
-            </div>
-          </div>
-        </div>
-
-        <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-4'>
-          <div className='flex items-center justify-between'>
-            <div>
-              <p className='text-sm text-gray-600 dark:text-gray-400'>Pausadas</p>
-              <p className='text-2xl font-bold text-gray-900 dark:text-white'>
-                {ordersData?.data?.filter((o: any) => o.status === 'paused').length || 0}
-              </p>
-            </div>
-            <div className='w-12 h-12 bg-yellow-100 dark:bg-yellow-900 rounded-lg flex items-center justify-center'>
-              <Pause className='w-6 h-6 text-yellow-600' />
-            </div>
-          </div>
-        </div>
-
-        <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-4'>
-          <div className='flex items-center justify-between'>
-            <div>
-              <p className='text-sm text-gray-600 dark:text-gray-400'>Completas</p>
-              <p className='text-2xl font-bold text-gray-900 dark:text-white'>
-                {ordersData?.data?.filter((o: any) => o.status === 'completed').length || 0}
-              </p>
-            </div>
-            <div className='w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center'>
-              <CheckCircle className='w-6 h-6 text-blue-600' />
-            </div>
-          </div>
-        </div>
-
-        <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-4'>
-          <div className='flex items-center justify-between'>
-            <div>
-              <p className='text-sm text-gray-600 dark:text-gray-400'>Volume Total</p>
-              <p className='text-2xl font-bold text-gray-900 dark:text-white'>
-                {formatCurrency(
-                  ordersData?.data?.reduce((acc: number, o: any) => acc + o.price * o.amount, 0) ||
-                    0
-                )}
-              </p>
-            </div>
-            <div className='w-12 h-12 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center'>
-              <DollarSign className='w-6 h-6 text-purple-600' />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Filters and Search */}
-      <div className='bg-white dark:bg-gray-800 rounded-lg shadow'>
-        <div className='p-6 border-b border-gray-200 dark:border-gray-700'>
-          {/* Tabs */}
-          <div className='flex flex-wrap gap-2 mb-4'>
-            {[
-              { key: 'active', label: 'Ativas', icon: CheckCircle },
-              { key: 'paused', label: 'Pausadas', icon: Pause },
-              { key: 'completed', label: 'Completas', icon: CheckCircle },
-              { key: 'cancelled', label: 'Canceladas', icon: XCircle },
-            ].map(tab => {
-              const Icon = tab.icon
-              return (
-                <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key as any)}
-                  className={`px-4 py-2 rounded-lg font-medium transition-colors inline-flex items-center gap-2 ${
-                    activeTab === tab.key
-                      ? 'bg-blue-600 text-white shadow'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                  }`}
-                >
-                  <Icon className='w-4 h-4' />
+      {/* Main Content Card */}
+      <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden'>
+        {/* Status Tabs */}
+        <div className='flex border-b border-gray-100 dark:border-gray-700'>
+          {[
+            { key: 'active', label: 'Ativas', icon: CheckCircle, color: 'emerald' },
+            { key: 'paused', label: 'Pausadas', icon: Pause, color: 'amber' },
+            { key: 'completed', label: 'Completas', icon: Award, color: 'blue' },
+            { key: 'cancelled', label: 'Canceladas', icon: XCircle, color: 'red' },
+          ].map(tab => {
+            const Icon = tab.icon
+            const isActive = activeTab === tab.key
+            const count = orderCounts[tab.key as keyof typeof orderCounts]
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key as any)}
+                className={`flex-1 py-3 px-2 text-[10px] font-semibold transition-all relative flex flex-col items-center gap-1 ${
+                  isActive
+                    ? `text-${tab.color}-600 dark:text-${tab.color}-400`
+                    : 'text-gray-500 dark:text-gray-400'
+                }`}
+              >
+                <div className='flex items-center gap-1'>
+                  <Icon className='w-3.5 h-3.5' />
                   {tab.label}
-                </button>
-              )
-            })}
-          </div>
+                  {count > 0 && (
+                    <span
+                      className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${
+                        isActive
+                          ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-500'
+                      }`}
+                    >
+                      {count}
+                    </span>
+                  )}
+                </div>
+                {isActive && (
+                  <div
+                    className={`absolute bottom-0 left-0 right-0 h-0.5 bg-${tab.color}-500`}
+                    style={{
+                      backgroundColor:
+                        tab.color === 'emerald'
+                          ? '#10b981'
+                          : tab.color === 'amber'
+                            ? '#f59e0b'
+                            : tab.color === 'blue'
+                              ? '#3b82f6'
+                              : '#ef4444',
+                    }}
+                  />
+                )}
+              </button>
+            )
+          })}
+        </div>
 
-          {/* Search and Filters */}
-          <div className='flex flex-col md:flex-row gap-3'>
+        {/* Search Bar */}
+        <div className='p-3 border-b border-gray-100 dark:border-gray-700'>
+          <div className='flex gap-2'>
             <div className='relative flex-1'>
-              <Search className='w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400' />
+              <Search className='w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400' />
               <input
                 type='text'
-                placeholder='Buscar por criptomoeda ou método de pagamento...'
+                placeholder='Buscar ordem...'
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                className='w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+                className='w-full pl-9 pr-3 py-2.5 text-xs border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700/50 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all'
               />
             </div>
-
-            <select
-              value={selectedCoin}
-              onChange={e => setSelectedCoin(e.target.value)}
-              aria-label='Filtrar por criptomoeda'
-              className='px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-            >
-              {cryptoOptions.map(option => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-
             <button
               onClick={() => refetch()}
               disabled={isLoading}
-              className='px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium transition-colors inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed'
+              className='p-2.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-xl border border-gray-200 dark:border-gray-600 disabled:opacity-50 transition-all'
+              aria-label='Atualizar'
             >
               <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-              Atualizar
             </button>
           </div>
         </div>
 
         {/* Orders List */}
-        <div className='p-6'>
+        <div className='divide-y divide-gray-100 dark:divide-gray-700'>
           {isLoading ? (
-            <div className='flex items-center justify-center py-12'>
-              <Loader2 className='w-8 h-8 animate-spin text-blue-600' />
-              <span className='ml-3 text-gray-600 dark:text-gray-400'>Carregando ordens...</span>
+            <div className='flex flex-col items-center justify-center py-16'>
+              <div className='relative'>
+                <div className='w-14 h-14 border-4 border-indigo-200 dark:border-indigo-900 rounded-full' />
+                <div className='w-14 h-14 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin absolute top-0 left-0' />
+              </div>
+              <p className='mt-4 text-sm text-gray-500 dark:text-gray-400'>Carregando ordens...</p>
             </div>
           ) : error ? (
-            <div className='flex flex-col items-center justify-center py-12'>
-              <AlertCircle className='w-12 h-12 text-red-500 mb-3' />
-              <p className='text-red-600 dark:text-red-400 font-medium'>Erro ao carregar ordens</p>
-              <p className='text-gray-600 dark:text-gray-400 text-sm mt-2'>
-                {error instanceof Error ? error.message : 'Erro desconhecido'}
+            <div className='flex flex-col items-center justify-center py-16'>
+              <div className='w-14 h-14 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-4'>
+                <XCircle className='w-7 h-7 text-red-500' />
+              </div>
+              <p className='text-sm font-medium text-gray-900 dark:text-white mb-1'>
+                Erro ao carregar
               </p>
+              <p className='text-xs text-gray-500 mb-4'>Tente novamente</p>
+              <button
+                onClick={() => refetch()}
+                className='px-4 py-2 bg-indigo-600 text-white text-xs font-medium rounded-lg'
+              >
+                Tentar novamente
+              </button>
             </div>
           ) : filteredOrders.length === 0 ? (
-            <div className='flex flex-col items-center justify-center py-12'>
-              <div className='w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mb-4'>
-                <Eye className='w-8 h-8 text-gray-400' />
+            <div className='flex flex-col items-center justify-center py-16'>
+              <div className='w-16 h-16 bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 rounded-2xl flex items-center justify-center mb-4'>
+                <Target className='w-8 h-8 text-indigo-500' />
               </div>
-              <h3 className='text-lg font-medium text-gray-900 dark:text-white mb-2'>
-                Nenhuma ordem encontrada
-              </h3>
-              <p className='text-gray-600 dark:text-gray-400 mb-4'>
-                Você ainda não criou nenhuma ordem P2P
+              <p className='text-sm font-semibold text-gray-900 dark:text-white mb-1'>
+                Nenhuma ordem {activeTab === 'active' ? 'ativa' : activeTab}
               </p>
+              <p className='text-xs text-gray-500 mb-4'>Crie sua primeira ordem P2P</p>
               <button
                 onClick={() => navigate('/p2p/create-order')}
-                className='bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors inline-flex items-center gap-2'
+                className='px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-xs font-bold rounded-xl flex items-center gap-2 shadow-lg shadow-indigo-500/25'
               >
-                <Plus className='w-4 h-4' />
-                Criar Primeira Ordem
+                <Plus className='w-3.5 h-3.5' />
+                Criar Ordem
               </button>
             </div>
           ) : (
-            <div className='space-y-4'>
-              {filteredOrders.map((order: any) => (
-                <div
-                  key={order.id}
-                  className='border border-gray-200 dark:border-gray-700 rounded-lg p-6 hover:border-blue-500 dark:hover:border-blue-500 transition-colors'
-                >
-                  <div className='flex flex-col lg:flex-row lg:items-center justify-between gap-4'>
-                    {/* Order Info */}
-                    <div className='flex-1'>
-                      <div className='flex items-center gap-3 mb-3'>
-                        <div
-                          className={`p-2 rounded-lg ${
-                            order.type === 'sell'
-                              ? 'bg-green-100 dark:bg-green-900'
-                              : 'bg-red-100 dark:bg-red-900'
-                          }`}
-                        >
-                          {order.type === 'sell' ? (
-                            <TrendingUp className='w-5 h-5 text-green-600' />
-                          ) : (
-                            <TrendingDown className='w-5 h-5 text-red-600' />
-                          )}
-                        </div>
-                        <div>
-                          <h3 className='text-lg font-semibold text-gray-900 dark:text-white'>
-                            {order.type === 'sell' ? 'Vender' : 'Comprar'} {order.coin}
-                          </h3>
-                          <p className='text-sm text-gray-600 dark:text-gray-400'>
-                            Criada em {new Date(order.created_at).toLocaleDateString('pt-BR')}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
-                        <div>
-                          <p className='text-xs text-gray-600 dark:text-gray-400 mb-1'>Preço</p>
-                          <p className='font-semibold text-gray-900 dark:text-white'>
-                            {formatCurrency(Number(order.price) || 0)}
-                          </p>
-                        </div>
-                        <div>
-                          <p className='text-xs text-gray-600 dark:text-gray-400 mb-1'>
-                            Quantidade
-                          </p>
-                          <p className='font-semibold text-gray-900 dark:text-white'>
-                            {Number(order.total_amount || order.amount) || 0}{' '}
-                            {order.cryptocurrency || order.coin}
-                          </p>
-                        </div>
-                        <div>
-                          <p className='text-xs text-gray-600 dark:text-gray-400 mb-1'>Limites</p>
-                          <p className='font-semibold text-gray-900 dark:text-white text-sm'>
-                            {formatCurrency(Number(order.min_order_limit || order.minAmount) || 0)}{' '}
-                            -{' '}
-                            {formatCurrency(Number(order.max_order_limit || order.maxAmount) || 0)}
-                          </p>
-                        </div>
-                        <div>
-                          <p className='text-xs text-gray-600 dark:text-gray-400 mb-1'>Trades</p>
-                          <p className='font-semibold text-gray-900 dark:text-white'>
-                            {order.completed_trades || order.completedTrades || 0} completos
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className='flex flex-wrap gap-2 mt-3'>
-                        {order.payment_methods?.map((method: string, index: number) => (
-                          <span
-                            key={index}
-                            className='px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded text-xs font-medium'
-                          >
-                            {method}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Status and Actions */}
-                    <div className='flex flex-col items-end gap-3'>
-                      {getStatusBadge(order.status)}
-
-                      <div className='flex gap-2'>
-                        <button
-                          onClick={() => navigate(`/p2p/order/${order.id}`)}
-                          className='p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors'
-                          title='Ver Detalhes'
-                        >
-                          <Eye className='w-5 h-5' />
-                        </button>
-
-                        {order.status === 'active' && (
-                          <>
-                            <button
-                              onClick={() => navigate(`/p2p/edit-order/${order.id}`)}
-                              className='p-2 text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors'
-                              title='Editar'
-                            >
-                              <Edit className='w-5 h-5' />
-                            </button>
-
-                            <button
-                              onClick={() =>
-                                handleToggleStatus(order.id, order.status === 'active')
-                              }
-                              disabled={toggleStatusMutation.isPending}
-                              className='p-2 text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 rounded-lg transition-colors disabled:opacity-50'
-                              title='Pausar'
-                            >
-                              <Pause className='w-5 h-5' />
-                            </button>
-                          </>
-                        )}
-
-                        {order.status === 'paused' && (
-                          <button
-                            onClick={() => handleToggleStatus(order.id, false)}
-                            disabled={toggleStatusMutation.isPending}
-                            className='p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors disabled:opacity-50'
-                            title='Reativar'
-                          >
-                            <Play className='w-5 h-5' />
-                          </button>
-                        )}
-
-                        {(order.status === 'active' || order.status === 'paused') && (
-                          <button
-                            onClick={() => handleCancelOrder(order.id)}
-                            disabled={cancelOrderMutation.isPending}
-                            className='p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50'
-                            title='Cancelar Ordem'
-                          >
-                            <Trash2 className='w-5 h-5' />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            filteredOrders.map((order: any) => (
+              <PremiumOrderCard
+                key={order.id}
+                order={order}
+                formatCurrency={formatCurrency}
+                onView={() => navigate(`/p2p/order/${order.id}`)}
+                onEdit={() => navigate(`/p2p/edit-order/${order.id}`)}
+                onToggle={() => handleToggleStatus(order.id, order.status === 'active')}
+                onCancel={() => handleCancelOrder(order.id)}
+                isToggling={toggleStatusMutation.isPending}
+                isCancelling={cancelOrderMutation.isPending}
+              />
+            ))
           )}
+        </div>
+      </div>
+
+      {/* Become Pro CTA */}
+      <div className='relative overflow-hidden rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600'>
+        <div className='absolute inset-0 opacity-20'>
+          <div className='absolute top-0 right-0 w-32 h-32 bg-white rounded-full blur-2xl' />
+        </div>
+        <div className='relative p-4'>
+          <div className='flex items-center justify-between'>
+            <div className='flex items-center gap-3'>
+              <div className='w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center'>
+                <Star className='w-5 h-5 text-white' />
+              </div>
+              <div>
+                <h3 className='text-sm font-bold text-white'>Torne-se Pro Trader</h3>
+                <p className='text-purple-200 text-xs'>Taxas reduzidas + Badge exclusiva</p>
+              </div>
+            </div>
+            <button
+              onClick={() => navigate('/p2p/trader-profile/edit')}
+              className='p-2.5 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-xl transition-all'
+              aria-label='Configurar perfil'
+            >
+              <ChevronRight className='w-5 h-5 text-white' />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -482,6 +395,208 @@ export const MyOrdersPage = () => {
         icon={<Trash2 className='w-6 h-6' />}
         isLoading={cancelOrderMutation.isPending}
       />
+    </div>
+  )
+}
+
+// ============================================
+// PREMIUM ORDER CARD COMPONENT
+// ============================================
+interface PremiumOrderCardProps {
+  order: any
+  formatCurrency: (value: number) => string
+  onView: () => void
+  onEdit: () => void
+  onToggle: () => void
+  onCancel: () => void
+  isToggling: boolean
+  isCancelling: boolean
+}
+
+const PremiumOrderCard: React.FC<PremiumOrderCardProps> = ({
+  order,
+  formatCurrency,
+  onView,
+  onEdit,
+  onToggle,
+  onCancel,
+  isToggling,
+  isCancelling,
+}) => {
+  const isSell = order.type === 'sell' || order.order_type === 'sell'
+  const isActive = order.status === 'active'
+  const isPaused = order.status === 'paused'
+
+  const getStatusConfig = () => {
+    switch (order.status) {
+      case 'active':
+        return {
+          bg: 'bg-emerald-100 dark:bg-emerald-900/30',
+          text: 'text-emerald-700 dark:text-emerald-400',
+          icon: CheckCircle,
+          label: 'Ativa',
+        }
+      case 'paused':
+        return {
+          bg: 'bg-amber-100 dark:bg-amber-900/30',
+          text: 'text-amber-700 dark:text-amber-400',
+          icon: Pause,
+          label: 'Pausada',
+        }
+      case 'completed':
+        return {
+          bg: 'bg-blue-100 dark:bg-blue-900/30',
+          text: 'text-blue-700 dark:text-blue-400',
+          icon: Award,
+          label: 'Completa',
+        }
+      case 'cancelled':
+        return {
+          bg: 'bg-red-100 dark:bg-red-900/30',
+          text: 'text-red-700 dark:text-red-400',
+          icon: XCircle,
+          label: 'Cancelada',
+        }
+      default:
+        return {
+          bg: 'bg-gray-100 dark:bg-gray-800',
+          text: 'text-gray-600 dark:text-gray-400',
+          icon: Clock,
+          label: order.status,
+        }
+    }
+  }
+
+  const statusConfig = getStatusConfig()
+  const StatusIcon = statusConfig.icon
+
+  return (
+    <div className='p-4 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-all'>
+      {/* Top Row: Type + Status + Actions */}
+      <div className='flex items-center justify-between mb-3'>
+        <div className='flex items-center gap-2'>
+          {/* Type Badge */}
+          <div
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold ${
+              isSell
+                ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
+                : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+            }`}
+          >
+            {isSell ? <TrendingUp className='w-3 h-3' /> : <TrendingDown className='w-3 h-3' />}
+            {isSell ? 'Venda' : 'Compra'}
+          </div>
+          {/* Crypto */}
+          <span className='px-2.5 py-1 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg text-xs font-bold'>
+            {order.coin || order.cryptocurrency}
+          </span>
+          {/* Status */}
+          <div
+            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold ${statusConfig.bg} ${statusConfig.text}`}
+          >
+            <StatusIcon className='w-3 h-3' />
+            {statusConfig.label}
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className='flex items-center gap-1'>
+          <button
+            onClick={onView}
+            className='p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-all'
+            title='Ver detalhes'
+          >
+            <Eye className='w-4 h-4' />
+          </button>
+          {isActive && (
+            <>
+              <button
+                onClick={onEdit}
+                className='p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-all'
+                title='Editar'
+              >
+                <Edit className='w-4 h-4' />
+              </button>
+              <button
+                onClick={onToggle}
+                disabled={isToggling}
+                className='p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-lg transition-all disabled:opacity-50'
+                title='Pausar'
+              >
+                <Pause className='w-4 h-4' />
+              </button>
+            </>
+          )}
+          {isPaused && (
+            <button
+              onClick={onToggle}
+              disabled={isToggling}
+              className='p-2 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-lg transition-all disabled:opacity-50'
+              title='Reativar'
+            >
+              <Play className='w-4 h-4' />
+            </button>
+          )}
+          {(isActive || isPaused) && (
+            <button
+              onClick={onCancel}
+              disabled={isCancelling}
+              className='p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-all disabled:opacity-50'
+              title='Cancelar'
+            >
+              <Trash2 className='w-4 h-4' />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Details Row */}
+      <div className='flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/30 rounded-xl'>
+        <div className='flex-1'>
+          <p className='text-[10px] text-gray-400 uppercase font-medium'>Preço</p>
+          <p className='text-sm font-bold text-gray-900 dark:text-white'>
+            {formatCurrency(Number(order.price) || 0)}
+          </p>
+        </div>
+        <div className='h-8 w-px bg-gray-200 dark:bg-gray-600' />
+        <div className='flex-1 text-center'>
+          <p className='text-[10px] text-gray-400 uppercase font-medium'>Quantidade</p>
+          <p className='text-sm font-bold text-gray-900 dark:text-white'>
+            {Number(order.total_amount || order.amount) || 0} {order.coin || order.cryptocurrency}
+          </p>
+        </div>
+        <div className='h-8 w-px bg-gray-200 dark:bg-gray-600' />
+        <div className='flex-1 text-right'>
+          <p className='text-[10px] text-gray-400 uppercase font-medium'>Trades</p>
+          <p className='text-sm font-bold text-indigo-600 dark:text-indigo-400'>
+            {order.completed_trades || order.completedTrades || 0}
+          </p>
+        </div>
+      </div>
+
+      {/* Bottom Row: Limits + Methods */}
+      <div className='flex items-center justify-between mt-3'>
+        <div className='flex items-center gap-2 text-xs text-gray-500'>
+          <Clock className='w-3 h-3' />
+          <span>
+            {formatCurrency(Number(order.min_order_limit || order.minAmount) || 0)} -{' '}
+            {formatCurrency(Number(order.max_order_limit || order.maxAmount) || 0)}
+          </span>
+        </div>
+        <div className='flex items-center gap-1'>
+          {order.payment_methods?.slice(0, 2).map((method: string, index: number) => (
+            <span
+              key={index}
+              className='px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded text-[10px] font-medium'
+            >
+              {method}
+            </span>
+          ))}
+          {order.payment_methods?.length > 2 && (
+            <span className='text-[10px] text-gray-400'>+{order.payment_methods.length - 2}</span>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
