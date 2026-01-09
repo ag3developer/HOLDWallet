@@ -9,7 +9,7 @@
     />
 
     <!-- PWA Cache Busting -->
-    <meta name="app-version" content="2.0.4" />
+    <meta name="app-version" content="2.0.5" />
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
@@ -218,7 +218,7 @@
 
     <script>
       // PWA Cache Clearing - Force update on version mismatch
-      const APP_VERSION = '2.0.3'
+      const APP_VERSION = '2.0.5'
       const STORED_VERSION = localStorage.getItem('app_version')
 
       if (STORED_VERSION !== APP_VERSION) {
@@ -264,6 +264,62 @@
           }
         }, 1000)
       })
+
+      // ========================================
+      // SWIPE GESTURE NAVIGATION (iOS PWA)
+      // Arrastar direita = voltar | Arrastar esquerda = avançar
+      // ========================================
+      ;(function () {
+        let touchStartX = 0
+        let touchStartY = 0
+        let touchEndX = 0
+        let touchEndY = 0
+        const minSwipeDistance = 80 // Mínimo de pixels para considerar swipe
+        const maxVerticalDistance = 100 // Máximo vertical para não confundir com scroll
+        const edgeThreshold = 50 // Pixels da borda para iniciar o swipe
+
+        document.addEventListener(
+          'touchstart',
+          function (e) {
+            touchStartX = e.changedTouches[0].screenX
+            touchStartY = e.changedTouches[0].screenY
+          },
+          { passive: true }
+        )
+
+        document.addEventListener(
+          'touchend',
+          function (e) {
+            touchEndX = e.changedTouches[0].screenX
+            touchEndY = e.changedTouches[0].screenY
+            handleSwipeGesture()
+          },
+          { passive: true }
+        )
+
+        function handleSwipeGesture() {
+          const horizontalDistance = touchEndX - touchStartX
+          const verticalDistance = Math.abs(touchEndY - touchStartY)
+
+          // Verificar se é um swipe horizontal válido
+          if (Math.abs(horizontalDistance) < minSwipeDistance) return
+          if (verticalDistance > maxVerticalDistance) return
+
+          // Swipe da borda esquerda para direita = VOLTAR
+          if (horizontalDistance > 0 && touchStartX < edgeThreshold) {
+            if (window.history.length > 1) {
+              console.log('[Gesture] Swipe right from edge - Going back')
+              window.history.back()
+            }
+          }
+
+          // Swipe da borda direita para esquerda = AVANÇAR
+          if (horizontalDistance < 0 && touchStartX > window.innerWidth - edgeThreshold) {
+            console.log('[Gesture] Swipe left from edge - Going forward')
+            window.history.forward()
+          }
+        }
+      })()
     </script>
   </body>
 </html>
