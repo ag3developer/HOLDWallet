@@ -164,13 +164,30 @@ export const P2PPaymentDetails = ({
     const city = 'SAO PAULO'
 
     // Transaction ID (máx 25 caracteres, sem espaços)
-    const cleanTxId = txId.replace(/[^a-zA-Z0-9]/g, '').substring(0, 25) || '***'
+    // Formato: WOLK + últimos 8 chars do tradeId
+    const shortTradeId = txId
+      .replace(/[^a-zA-Z0-9]/g, '')
+      .slice(-8)
+      .toUpperCase()
+    const cleanTxId = `WOLK${shortTradeId}`.substring(0, 25)
+
+    // Descrição do pagamento (será exibida no extrato)
+    // Descrição neutra sem mencionar cripto - apenas identificador
+    // Máx 72 caracteres, sem acentos ou caracteres especiais
+    const description = `WOLK P2P ${cleanTxId}`
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .substring(0, 72)
 
     // Construir Merchant Account Information (ID 26)
     // GUI do PIX: BR.GOV.BCB.PIX
+    // 00 - GUI (obrigatório)
+    // 01 - Chave PIX (obrigatório)
+    // 02 - Descrição (opcional - aparece no extrato)
     const gui = formatTLV('00', 'BR.GOV.BCB.PIX')
     const key = formatTLV('01', cleanPixKey)
-    const merchantAccountInfo = formatTLV('26', gui + key)
+    const desc = formatTLV('02', description)
+    const merchantAccountInfo = formatTLV('26', gui + key + desc)
 
     // Construir o payload PIX EMV
     let payload = ''
