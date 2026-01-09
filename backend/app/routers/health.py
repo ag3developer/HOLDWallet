@@ -12,6 +12,7 @@ from app.core.logging import get_logger
 router = APIRouter()
 logger = get_logger("health")
 
+@router.get("")
 @router.get("/")
 async def basic_health_check():
     """

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   useCurrentUser,
@@ -46,6 +46,7 @@ import {
   Phone,
   Hash,
   Wallet,
+  Bell,
 } from 'lucide-react'
 
 interface ChangePasswordForm {
@@ -57,6 +58,7 @@ interface ChangePasswordForm {
 export const SettingsPage = () => {
   const { t } = useTranslation()
   const location = useLocation()
+  const navigate = useNavigate()
   const { data: user } = useCurrentUser()
   const { data: twoFAStatus, refetch: refetch2FAStatus } = use2FAStatus()
   const { data: paymentMethodsData, refetch: refetchPaymentMethods } = usePaymentMethods()
@@ -72,9 +74,9 @@ export const SettingsPage = () => {
 
   // Check if user came from payment-methods route
   const initialTab = location.pathname.includes('/payment-methods') ? 'payment-methods' : 'general'
-  const [activeTab, setActiveTab] = useState<'general' | 'security' | '2fa' | 'payment-methods'>(
-    initialTab
-  )
+  const [activeTab, setActiveTab] = useState<
+    'general' | 'security' | '2fa' | 'payment-methods' | 'notifications'
+  >(initialTab)
   const [showChangePassword, setShowChangePassword] = useState(false)
   const [passwordData, setPasswordData] = useState<ChangePasswordForm>({
     currentPassword: '',
@@ -136,6 +138,7 @@ export const SettingsPage = () => {
     { id: 'security', name: 'Segurança', icon: Shield },
     { id: '2fa', name: 'Autenticação 2FA', icon: ShieldCheck },
     { id: 'payment-methods', name: 'Métodos de Pagamento', icon: CreditCard },
+    { id: 'notifications', name: 'Notificações', icon: Bell },
   ] as const
 
   // Password validation
@@ -397,7 +400,13 @@ export const SettingsPage = () => {
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
+                  onClick={() => {
+                    if (tab.id === 'notifications') {
+                      navigate('/settings/notifications')
+                    } else {
+                      setActiveTab(tab.id)
+                    }
+                  }}
                   className={`py-3 md:py-4 px-1 border-b-2 font-medium text-xs md:text-sm whitespace-nowrap flex items-center gap-1 md:gap-2 ${
                     activeTab === tab.id
                       ? 'border-primary-500 text-primary-600 dark:text-primary-400'

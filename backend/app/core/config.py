@@ -86,6 +86,11 @@ class Settings(BaseSettings):
     WEBAUTHN_RP_NAME: str = "WolkNow"
     WEBAUTHN_ORIGIN: str = "http://localhost:3000"
     
+    # Push Notifications (VAPID)
+    VAPID_PUBLIC_KEY: Optional[str] = None
+    VAPID_PRIVATE_KEY: Optional[str] = None
+    VAPID_EMAIL: str = "contato@wolknow.com"
+    
     class Config:
         # Carregar .env.production se existir, senão .env
         env_file = ".env.production" if os.path.exists(".env.production") else ".env"

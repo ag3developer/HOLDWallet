@@ -1,5 +1,6 @@
 # Models module initialization
 from .base import Base, BaseModel
+from .push_subscription import PushSubscription, NotificationPreference
 from .user import User
 from .wallet import Wallet
 from .address import Address
@@ -28,6 +29,7 @@ from . import accounting
 from . import platform_settings
 from . import webauthn
 from . import security
+from . import push_subscription
 
 __all__ = [
     # Base
@@ -83,4 +85,8 @@ __all__ = [
     "SecurityAlert",
     "UserSession",
     "AuditLog",
+    
+    # Push Notifications
+    "PushSubscription",
+    "NotificationPreference",
 ]

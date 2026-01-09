@@ -19,7 +19,7 @@ from app.services.platform_settings_service import platform_settings_service
 from app.middleware.security import SecurityMiddleware, RateLimitMiddleware
 
 # Routers
-from app.routers import auth, users, wallet, wallets, tx, prices, prices_batch, prices_batch_v2, health, blockchain, transactions, billing, portfolio, exchange, p2p, chat, chat_enterprise, reputation, dashboard, two_factor, tokens, wallet_transactions, instant_trade, trader_profiles, admin_instant_trades, webauthn, public_settings
+from app.routers import auth, users, wallet, wallets, tx, prices, prices_batch, prices_batch_v2, health, blockchain, transactions, billing, portfolio, exchange, p2p, chat, chat_enterprise, reputation, dashboard, two_factor, tokens, wallet_transactions, instant_trade, trader_profiles, admin_instant_trades, webauthn, public_settings, notifications
 from app.routers.admin import admin_router
 from app.api.v1.endpoints import seed_verification
 
@@ -89,6 +89,7 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
     root_path=os.getenv("ROOT_PATH", ""),  # Set to /v1 in production
+    redirect_slashes=False,  # Evita 307 redirects que quebram Safari iOS
     docs_url="/docs",       # Swagger UI em /v1/docs
     redoc_url="/redoc",     # ReDoc em /v1/redoc
     openapi_url="/openapi.json",  # OpenAPI spec em /v1/openapi.json
@@ -190,6 +191,7 @@ app.include_router(chat.router, prefix="", tags=["chat-p2p"])  # Router de chat 
 app.include_router(chat_enterprise.router, prefix="", tags=["chat"])
 app.include_router(reputation.router, prefix="", tags=["reputation"])
 app.include_router(public_settings.router, prefix="/public", tags=["public-settings"])
+app.include_router(notifications.router, prefix="/notifications", tags=["push-notifications"])
 
 # Root endpoint
 @app.get("/")

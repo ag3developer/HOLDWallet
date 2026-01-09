@@ -17,6 +17,7 @@ import { AdminLayout } from '@/components/layout/AdminLayout'
 import { LoadingScreen } from '@/components/ui/LoadingScreen'
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary'
 import { IOSPWAUpdateModal } from '@/components/IOSPWAUpdateModal'
+import { PushNotificationPrompt } from '@/components/PushNotificationPrompt'
 
 // Pages
 import { LoginPage } from '@/pages/auth/LoginPage'
@@ -46,6 +47,7 @@ import { SettingsPage as WalletSettingsPage } from '@/pages/wallet/SettingsPage'
 import { NetworkComparison } from '@/components/NetworkComparison'
 import { TraderProfileEditPage } from '@/pages/p2p/TraderProfileEditPage'
 import { NotificationsPage } from '@/pages/notifications/NotificationsPage'
+import { NotificationSettingsPage } from '@/pages/NotificationSettingsPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 
 // Admin Pages
@@ -315,6 +317,7 @@ function App() {
             <Route path='institutional' element={<InstitutionalPage />} />
             <Route path='education' element={<EducationPage />} />
             <Route path='settings/*' element={<SettingsPage />} />
+            <Route path='settings/notifications' element={<NotificationSettingsPage />} />
             <Route path='notifications' element={<NotificationsPage />} />
           </Route>
 
@@ -353,6 +356,9 @@ function App() {
 
         {/* PWA Update Modal - Shows when new version is available (all devices) */}
         <IOSPWAUpdateModal />
+
+        {/* Push Notification Prompt - Shows after login to enable notifications */}
+        <PushNotificationPrompt delay={5000} />
       </div>
     </ErrorBoundary>
   )

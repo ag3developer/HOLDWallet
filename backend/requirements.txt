@@ -29,6 +29,9 @@ aiofiles==23.2.1
 python-socketio==5.10.0
 aioredis==2.0.1
 
+# Push Notifications
+pywebpush==1.14.1
+
 # File upload e security
 pillow==10.1.0
 python-magic==0.4.27

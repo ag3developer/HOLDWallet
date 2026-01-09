@@ -40,7 +40,8 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate', // ✅ MUDANÇA: Auto-atualiza sem prompt
       devOptions: {
-        enabled: false, // ✅ Desabilitado em dev para evitar erros - PWA só em produção
+        enabled: true, // ✅ Habilitado em dev para testar Push Notifications
+        type: 'module',
       },
       includeAssets: ['favicon.ico', 'images/logos/wn-icon.png'],
       manifest: {
@@ -112,6 +113,8 @@ export default defineConfig({
         clientsClaim: true,
         // ✅ Força atualização imediata
         sourcemap: false,
+        // ✅ Importar SW de Push Notifications
+        importScripts: ['/sw-push.js'],
         // ✅ NOVO: Ignorar URLs externas (localhost:8000, APIs de produção, etc)
         navigateFallbackDenylist: [/^\/api/, /^http/],
         runtimeCaching: [

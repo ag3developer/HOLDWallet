@@ -1,10 +1,9 @@
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, DateTime, Boolean
 from sqlalchemy.sql import func
 from datetime import datetime
 
-# Base class for all models
-Base = declarative_base()
+# Import Base from core.db to ensure all models share the same Base
+from app.core.db import Base
 
 class BaseModel(Base):
     """Abstract base model with common fields."""
