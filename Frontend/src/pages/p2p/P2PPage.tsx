@@ -36,13 +36,22 @@ export const P2PPage = () => {
   const [maxAmount, setMaxAmount] = useState<string>('')
 
   // Fetch real data from backend
+  // ✅ LÓGICA CORRETA:
+  // - Aba "Comprar" = busca anúncios de VENDA (sell) → você compra de quem vende
+  // - Aba "Vender" = busca anúncios de COMPRA (buy) → você vende para quem compra
+  const getApiFilterType = () => {
+    if (activeTab === 'all') return undefined
+    // Inverte: "buy" na UI → busca "sell" na API, e vice-versa
+    return activeTab === 'buy' ? 'sell' : 'buy'
+  }
+
   const {
     data: ordersData,
     isLoading: ordersLoading,
     error: ordersError,
     refetch: refetchOrders,
   } = useP2POrders({
-    type: activeTab === 'all' ? undefined : (activeTab as 'buy' | 'sell'),
+    type: getApiFilterType(),
     coin: selectedCrypto || undefined,
     paymentMethod: selectedPaymentMethod || undefined,
     minAmount: minAmount || undefined,
@@ -494,12 +503,15 @@ export const P2PPage = () => {
                       <button
                         onClick={() => navigate(`/p2p/order/${order.id}`)}
                         className={`flex-1 px-4 py-2.5 rounded-lg font-medium transition-colors text-white text-sm ${
-                          activeTab === 'buy'
+                          order.type === 'sell' || order.order_type === 'sell'
                             ? 'bg-green-600 hover:bg-green-700'
                             : 'bg-red-600 hover:bg-red-700'
                         }`}
                       >
-                        {activeTab === 'buy' ? 'Comprar' : 'Vender'}
+                        {/* Se anúncio é de VENDA, usuário vai COMPRAR. Se é de COMPRA, usuário vai VENDER */}
+                        {order.type === 'sell' || order.order_type === 'sell'
+                          ? 'Comprar'
+                          : 'Vender'}
                       </button>
                       <button
                         onClick={() => handleOpenChat(order)}
@@ -643,12 +655,15 @@ export const P2PPage = () => {
                           <button
                             onClick={() => navigate(`/p2p/order/${order.id}`)}
                             className={`px-4 py-2 rounded-lg font-medium transition-colors text-white ${
-                              activeTab === 'buy'
+                              order.type === 'sell' || order.order_type === 'sell'
                                 ? 'bg-green-600 hover:bg-green-700'
                                 : 'bg-red-600 hover:bg-red-700'
                             }`}
                           >
-                            {activeTab === 'buy' ? 'Comprar' : 'Vender'}
+                            {/* Se anúncio é de VENDA, usuário vai COMPRAR. Se é de COMPRA, usuário vai VENDER */}
+                            {order.type === 'sell' || order.order_type === 'sell'
+                              ? 'Comprar'
+                              : 'Vender'}
                           </button>
                           <button
                             onClick={() => handleOpenChat(order)}

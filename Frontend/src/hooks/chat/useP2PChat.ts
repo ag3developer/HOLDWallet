@@ -199,10 +199,37 @@ export const useP2PChat = (): UseP2PChatReturn => {
       }
 
       // Mapear snake_case -> camelCase (backend retorna camelCase)
+      // ✅ FIX: Determinar o tipo do ponto de vista do USUÁRIO ATUAL, não do anunciante
+      // Se o anúncio é de "sell" e o usuário atual NÃO é o dono, então ele está COMPRANDO
+      // Se o anúncio é de "buy" e o usuário atual NÃO é o dono, então ele está VENDENDO
+      const orderOwnerId = orderData.userId || orderData.user_id
+      const currentUserId = user?.id
+      const isOwner = currentUserId === orderOwnerId
+
+      // Tipo original do anúncio (perspectiva do anunciante)
+      const originalType = orderData.type === 'buy' ? 'buy' : 'sell'
+
+      // Tipo do ponto de vista do usuário atual
+      // Se é o dono, mantém o tipo original
+      // Se não é o dono, inverte (se anúncio é sell, usuário está buy, e vice-versa)
+      const userPerspectiveType: 'buy' | 'sell' = isOwner
+        ? originalType
+        : originalType === 'sell'
+          ? 'buy'
+          : 'sell'
+
+      console.log('🔄 [useP2PChat] Tipo da ordem:', {
+        originalType,
+        orderOwnerId,
+        currentUserId,
+        isOwner,
+        userPerspectiveType,
+      })
+
       const localOrder: P2POrderLocal = {
         id: orderData.id,
         orderId: orderData.id, // usar id diretamente
-        type: orderData.type === 'buy' ? 'buy' : 'sell',
+        type: userPerspectiveType, // ✅ Usar tipo da perspectiva do usuário
         coin: orderData.coin || orderData.cryptocurrency || '',
         amount: orderData.amount,
         price: orderData.price,
@@ -233,7 +260,7 @@ export const useP2PChat = (): UseP2PChatReturn => {
     } catch (error) {
       console.error('❌ [useP2PChat] Erro ao carregar ordem P2P:', error)
     }
-  }, [urlOrderId, urlUserId])
+  }, [urlOrderId, urlUserId, user?.id])
 
   /**
    * Atualizar o status da ordem P2P

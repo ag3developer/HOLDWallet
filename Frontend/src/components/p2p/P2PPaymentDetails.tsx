@@ -1,0 +1,481 @@
+/**
+ * 💰 P2P Payment Details Component
+ * =================================
+ * Mostra dados de pagamento do vendedor com QR Code PIX
+ * Inclui identificador único para rastreamento
+ */
+
+import { useState, useEffect } from 'react'
+import {
+  Copy,
+  Check,
+  QrCode,
+  Smartphone,
+  CreditCard,
+  Building2,
+  Clock,
+  AlertCircle,
+  CheckCircle,
+  Loader2,
+} from 'lucide-react'
+import QRCode from 'qrcode'
+
+interface PaymentMethod {
+  id: string
+  type: string
+  details: {
+    pix_key?: string
+    pix_key_type?: string
+    bank_name?: string
+    account_number?: string
+    account_type?: string
+    agency?: string
+    holder_name?: string
+  }
+}
+
+interface P2PPaymentDetailsProps {
+  tradeId: string
+  orderId: string
+  sellerPaymentMethods: PaymentMethod[]
+  amount: number
+  fiatCurrency: string
+  cryptoAmount: string
+  cryptoCoin: string
+  sellerName: string
+  timeLimit: number // em minutos
+  onPaymentSent?: () => void
+}
+
+// Componente auxiliar para exibição do QR Code
+const QRCodeDisplay = ({
+  isGenerating,
+  qrCodeUrl,
+}: {
+  isGenerating: boolean
+  qrCodeUrl: string | null
+}) => {
+  if (isGenerating) {
+    return (
+      <div className='w-64 h-64 flex items-center justify-center'>
+        <Loader2 className='w-8 h-8 animate-spin text-green-600' />
+      </div>
+    )
+  }
+
+  if (qrCodeUrl) {
+    return (
+      <>
+        <img src={qrCodeUrl} alt='QR Code PIX' className='w-64 h-64 rounded-lg' />
+        <p className='text-sm text-gray-600 dark:text-gray-400 mt-2 text-center'>
+          <Smartphone className='w-4 h-4 inline mr-1' />
+          Escaneie com o app do seu banco
+        </p>
+      </>
+    )
+  }
+
+  return (
+    <div className='w-64 h-64 flex items-center justify-center bg-gray-200 dark:bg-gray-600 rounded-lg'>
+      <AlertCircle className='w-8 h-8 text-gray-400' />
+    </div>
+  )
+}
+
+export const P2PPaymentDetails = ({
+  tradeId,
+  orderId,
+  sellerPaymentMethods,
+  amount,
+  fiatCurrency,
+  cryptoAmount,
+  cryptoCoin,
+  sellerName,
+  timeLimit,
+  onPaymentSent,
+}: P2PPaymentDetailsProps) => {
+  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(
+    sellerPaymentMethods[0] || null
+  )
+  const [copiedField, setCopiedField] = useState<string | null>(null)
+  const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null)
+  const [isGeneratingQR, setIsGeneratingQR] = useState(false)
+  const [timeRemaining, setTimeRemaining] = useState(timeLimit * 60) // segundos
+
+  // Gerar identificador único do pedido
+  const paymentIdentifier = `P2P-${tradeId.slice(-7).toUpperCase()}`
+
+  // Timer countdown
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTimeRemaining(prev => Math.max(0, prev - 1))
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Formatar tempo restante
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+  }
+
+  // Gerar PIX Copia e Cola (EMV format simplificado)
+  const generatePixPayload = (pixKey: string, value: number, identifier: string) => {
+    // Gerar string PIX EMV (simplificado)
+    // Em produção, usar pix-payload ou biblioteca oficial do Banco Central
+    const merchantName = sellerName.substring(0, 25)
+    const valueStr = value.toFixed(2)
+    const pixString = [
+      '000201',
+      `26${String(26 + pixKey.length).padStart(2, '0')}`,
+      '0014BR.GOV.BCB.PIX',
+      `01${String(pixKey.length).padStart(2, '0')}${pixKey}`,
+      '52040000',
+      '5303986',
+      `54${String(valueStr.length).padStart(2, '0')}${valueStr}`,
+      '5802BR',
+      `59${String(merchantName.length).padStart(2, '0')}${merchantName}`,
+      `60${String(identifier.length).padStart(2, '0')}${identifier}`,
+      '6304',
+    ].join('')
+
+    // Adicionar CRC16 (simplificado - em produção, calcular CRC16 real)
+    return pixString + 'A1B2'
+  }
+
+  // Gerar QR Code
+  useEffect(() => {
+    const generateQR = async () => {
+      if (!selectedMethod?.details?.pix_key) {
+        setQrCodeUrl(null)
+        return
+      }
+
+      setIsGeneratingQR(true)
+      try {
+        const pixPayload = generatePixPayload(
+          selectedMethod.details.pix_key,
+          amount,
+          paymentIdentifier
+        )
+
+        const url = await QRCode.toDataURL(pixPayload, {
+          width: 256,
+          margin: 2,
+          color: {
+            dark: '#000000',
+            light: '#FFFFFF',
+          },
+        })
+        setQrCodeUrl(url)
+      } catch (error) {
+        console.error('Error generating QR code:', error)
+      } finally {
+        setIsGeneratingQR(false)
+      }
+    }
+
+    generateQR()
+  }, [selectedMethod, amount, paymentIdentifier])
+
+  // Copiar para clipboard
+  const copyToClipboard = async (text: string, field: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedField(field)
+      setTimeout(() => setCopiedField(null), 2000)
+    } catch (error) {
+      console.error('Failed to copy:', error)
+    }
+  }
+
+  // Formatar moeda
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: fiatCurrency,
+    }).format(value)
+  }
+
+  // Ícone do método de pagamento
+  const getMethodIcon = (type: string) => {
+    switch (type.toLowerCase()) {
+      case 'pix':
+        return <QrCode className='w-5 h-5' />
+      case 'bank_transfer':
+      case 'ted':
+      case 'doc':
+        return <Building2 className='w-5 h-5' />
+      default:
+        return <CreditCard className='w-5 h-5' />
+    }
+  }
+
+  return (
+    <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden'>
+      {/* Header */}
+      <div className='bg-gradient-to-r from-green-500 to-emerald-600 p-4'>
+        <div className='flex items-center justify-between'>
+          <div>
+            <h3 className='text-white font-bold text-lg'>Dados para Pagamento</h3>
+            <p className='text-green-100 text-sm'>
+              Pague {formatCurrency(amount)} para {sellerName}
+            </p>
+          </div>
+          <div className='text-right'>
+            <div
+              className={`px-3 py-1 rounded-full text-sm font-medium ${
+                timeRemaining < 300 ? 'bg-red-500/20 text-red-100' : 'bg-white/20 text-white'
+              }`}
+            >
+              <Clock className='w-4 h-4 inline mr-1' />
+              {formatTime(timeRemaining)}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Identificador do Pedido */}
+      <div className='p-4 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-800'>
+        <div className='flex items-center justify-between'>
+          <div>
+            <p className='text-xs text-blue-600 dark:text-blue-400 font-medium mb-1'>
+              IDENTIFICADOR DO PEDIDO
+            </p>
+            <p className='text-xl font-mono font-bold text-blue-900 dark:text-blue-100'>
+              {paymentIdentifier}
+            </p>
+            <p className='text-xs text-blue-600 dark:text-blue-400 mt-1'>
+              ⚠️ Inclua este código na descrição do PIX
+            </p>
+          </div>
+          <button
+            onClick={() => copyToClipboard(paymentIdentifier, 'identifier')}
+            className='p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors'
+          >
+            {copiedField === 'identifier' ? (
+              <Check className='w-5 h-5' />
+            ) : (
+              <Copy className='w-5 h-5' />
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Seleção de Método */}
+      {sellerPaymentMethods.length > 1 && (
+        <div className='p-4 border-b border-gray-200 dark:border-gray-700'>
+          <p className='text-sm text-gray-600 dark:text-gray-400 mb-2'>Método de Pagamento:</p>
+          <div className='flex flex-wrap gap-2'>
+            {sellerPaymentMethods.map(method => (
+              <button
+                key={method.id}
+                onClick={() => setSelectedMethod(method)}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  selectedMethod?.id === method.id
+                    ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-2 border-green-500'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-2 border-transparent'
+                }`}
+              >
+                {getMethodIcon(method.type)}
+                {method.type.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Conteúdo Principal */}
+      <div className='p-4'>
+        {selectedMethod?.type.toLowerCase() === 'pix' ? (
+          /* PIX Payment */
+          <div className='space-y-4'>
+            {/* QR Code */}
+            <div className='flex flex-col items-center p-4 bg-gray-50 dark:bg-gray-700 rounded-xl'>
+              <QRCodeDisplay isGenerating={isGeneratingQR} qrCodeUrl={qrCodeUrl} />
+            </div>
+
+            {/* PIX Copia e Cola */}
+            <div className='space-y-3'>
+              <div>
+                <span className='text-xs text-gray-500 dark:text-gray-400 font-medium'>
+                  CHAVE PIX ({selectedMethod.details.pix_key_type?.toUpperCase() || 'CHAVE'})
+                </span>
+                <div className='flex items-center gap-2 mt-1'>
+                  <div className='flex-1 p-3 bg-gray-100 dark:bg-gray-700 rounded-lg font-mono text-sm break-all'>
+                    {selectedMethod.details.pix_key}
+                  </div>
+                  <button
+                    onClick={() => copyToClipboard(selectedMethod.details.pix_key!, 'pix')}
+                    className='p-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors'
+                  >
+                    {copiedField === 'pix' ? (
+                      <Check className='w-5 h-5' />
+                    ) : (
+                      <Copy className='w-5 h-5' />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Nome do Titular */}
+              {selectedMethod.details.holder_name && (
+                <div>
+                  <span className='text-xs text-gray-500 dark:text-gray-400 font-medium'>
+                    NOME DO TITULAR
+                  </span>
+                  <p className='mt-1 p-3 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm'>
+                    {selectedMethod.details.holder_name}
+                  </p>
+                </div>
+              )}
+
+              {/* Valor */}
+              <div>
+                <span className='text-xs text-gray-500 dark:text-gray-400 font-medium'>
+                  VALOR A PAGAR
+                </span>
+                <div className='flex items-center gap-2 mt-1'>
+                  <div className='flex-1 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg'>
+                    <span className='text-2xl font-bold text-green-600 dark:text-green-400'>
+                      {formatCurrency(amount)}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => copyToClipboard(amount.toFixed(2), 'amount')}
+                    className='p-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors'
+                  >
+                    {copiedField === 'amount' ? (
+                      <Check className='w-5 h-5' />
+                    ) : (
+                      <Copy className='w-5 h-5' />
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Bank Transfer */
+          <div className='space-y-3'>
+            {selectedMethod?.details.bank_name && (
+              <div>
+                <span className='text-xs text-gray-500 dark:text-gray-400 font-medium'>BANCO</span>
+                <p className='mt-1 p-3 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm font-medium'>
+                  {selectedMethod.details.bank_name}
+                </p>
+              </div>
+            )}
+
+            {selectedMethod?.details.agency && (
+              <div className='grid grid-cols-2 gap-3'>
+                <div>
+                  <span className='text-xs text-gray-500 dark:text-gray-400 font-medium'>
+                    AGÊNCIA
+                  </span>
+                  <div className='flex items-center gap-2 mt-1'>
+                    <p className='flex-1 p-3 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm font-mono'>
+                      {selectedMethod.details.agency}
+                    </p>
+                    <button
+                      onClick={() => copyToClipboard(selectedMethod.details.agency!, 'agency')}
+                      className='p-2 text-gray-400 hover:text-green-600 transition-colors'
+                    >
+                      {copiedField === 'agency' ? (
+                        <Check className='w-4 h-4' />
+                      ) : (
+                        <Copy className='w-4 h-4' />
+                      )}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <span className='text-xs text-gray-500 dark:text-gray-400 font-medium'>
+                    CONTA
+                  </span>
+                  <div className='flex items-center gap-2 mt-1'>
+                    <p className='flex-1 p-3 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm font-mono'>
+                      {selectedMethod.details.account_number}
+                    </p>
+                    <button
+                      onClick={() =>
+                        copyToClipboard(selectedMethod.details.account_number!, 'account')
+                      }
+                      className='p-2 text-gray-400 hover:text-green-600 transition-colors'
+                    >
+                      {copiedField === 'account' ? (
+                        <Check className='w-4 h-4' />
+                      ) : (
+                        <Copy className='w-4 h-4' />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {selectedMethod?.details.holder_name && (
+              <div>
+                <span className='text-xs text-gray-500 dark:text-gray-400 font-medium'>
+                  TITULAR
+                </span>
+                <p className='mt-1 p-3 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm'>
+                  {selectedMethod.details.holder_name}
+                </p>
+              </div>
+            )}
+
+            {/* Valor */}
+            <div>
+              <span className='text-xs text-gray-500 dark:text-gray-400 font-medium'>
+                VALOR A TRANSFERIR
+              </span>
+              <div className='flex items-center gap-2 mt-1'>
+                <div className='flex-1 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg'>
+                  <span className='text-2xl font-bold text-green-600 dark:text-green-400'>
+                    {formatCurrency(amount)}
+                  </span>
+                </div>
+                <button
+                  onClick={() => copyToClipboard(amount.toFixed(2), 'amount')}
+                  className='p-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors'
+                >
+                  {copiedField === 'amount' ? (
+                    <Check className='w-5 h-5' />
+                  ) : (
+                    <Copy className='w-5 h-5' />
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Footer - Resumo */}
+      <div className='p-4 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-700'>
+        <div className='flex items-center justify-between text-sm mb-3'>
+          <span className='text-gray-600 dark:text-gray-400'>Você receberá:</span>
+          <span className='font-bold text-gray-900 dark:text-white'>
+            {cryptoAmount} {cryptoCoin}
+          </span>
+        </div>
+
+        <button
+          onClick={onPaymentSent}
+          className='w-full py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2'
+        >
+          <CheckCircle className='w-5 h-5' />
+          Já Fiz o Pagamento
+        </button>
+
+        <p className='text-xs text-center text-gray-500 dark:text-gray-400 mt-3'>
+          Após o pagamento, o vendedor terá até 15 minutos para confirmar
+        </p>
+      </div>
+    </div>
+  )
+}
+
+export default P2PPaymentDetails

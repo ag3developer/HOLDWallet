@@ -18,10 +18,13 @@ import {
   useDisputeTrade,
 } from '@/hooks/useP2PTrades'
 import { P2PTradeChatBox } from '@/components/chat/P2PTradeChatBox'
+import { P2PPaymentDetails } from '@/components/p2p/P2PPaymentDetails'
+import { useAuthStore } from '@/stores/useAuthStore'
 
 const P2PTradeProcess: React.FC = () => {
   const { tradeId } = useParams<{ tradeId: string }>()
   const navigate = useNavigate()
+  const { user } = useAuthStore()
 
   const { data: trade, isLoading } = useP2PTrade(tradeId!)
   const markPaymentSent = useMarkPaymentSent()
@@ -49,11 +52,11 @@ const P2PTradeProcess: React.FC = () => {
 
   // Timer countdown
   useEffect(() => {
-    if (!trade?.data?.expires_at) return
+    if (!trade?.expiresAt) return
 
     const updateTimer = () => {
-      const now = new Date().getTime()
-      const expiresAt = new Date(trade.data.expires_at).getTime()
+      const now = Date.now()
+      const expiresAt = new Date(trade.expiresAt).getTime()
       const remaining = Math.max(0, Math.floor((expiresAt - now) / 1000))
       setTimeRemaining(remaining)
     }
@@ -62,11 +65,11 @@ const P2PTradeProcess: React.FC = () => {
     const interval = setInterval(updateTimer, 1000)
 
     return () => clearInterval(interval)
-  }, [trade?.data?.expires_at])
+  }, [trade?.expiresAt])
 
   const handleMarkPaymentSent = () => {
     if (!tradeId) return
-    markPaymentSent.mutate(tradeId)
+    markPaymentSent.mutate({ tradeId })
   }
 
   const handleConfirmPayment = () => {
@@ -76,17 +79,20 @@ const P2PTradeProcess: React.FC = () => {
 
   const handleCancelTrade = () => {
     if (!tradeId) return
-    cancelTrade.mutate(tradeId, {
-      onSuccess: () => {
-        navigate('/p2p')
-      },
-    })
+    cancelTrade.mutate(
+      { tradeId, reason: 'Cancelado pelo usuário' },
+      {
+        onSuccess: () => {
+          navigate('/p2p')
+        },
+      }
+    )
   }
 
   const handleDispute = () => {
     if (!tradeId || !disputeReason) return
     disputeTrade.mutate(
-      { tradeId, reason: disputeReason },
+      { tradeId, reason: disputeReason, description: disputeReason },
       {
         onSuccess: () => {
           setShowDisputeForm(false)
@@ -96,15 +102,15 @@ const P2PTradeProcess: React.FC = () => {
   }
 
   const getStatusInfo = () => {
-    const status = trade?.data?.status
+    const status = trade?.status
     switch (status) {
-      case 'pending':
+      case 'payment_pending':
         return {
           icon: <Clock className='w-6 h-6 text-yellow-500' />,
           text: 'Aguardando Pagamento',
           color: 'yellow',
         }
-      case 'paid':
+      case 'payment_sent':
         return {
           icon: <CheckCircle className='w-6 h-6 text-blue-500' />,
           text: 'Pagamento Enviado - Aguardando Confirmação',
@@ -145,7 +151,7 @@ const P2PTradeProcess: React.FC = () => {
     )
   }
 
-  if (!trade?.data) {
+  if (!trade) {
     return (
       <div className='min-h-screen flex items-center justify-center'>
         <div className='text-center'>
@@ -161,9 +167,10 @@ const P2PTradeProcess: React.FC = () => {
     )
   }
 
-  const tradeData = trade.data
   const statusInfo = getStatusInfo()
-  const isBuyer = tradeData.buyer_id === 'current_user_id' // TODO: Get from auth context
+  // Determinar se o usuário atual é o comprador
+  const currentUserId = user?.id || ''
+  const isBuyer = trade.buyerId === currentUserId
 
   return (
     <div className='min-h-screen bg-gray-50 dark:bg-gray-900 py-8'>
@@ -192,7 +199,7 @@ const P2PTradeProcess: React.FC = () => {
               </div>
             </div>
 
-            {tradeData.status === 'pending' && timeRemaining > 0 && (
+            {trade.status === 'payment_pending' && timeRemaining > 0 && (
               <div className='text-center'>
                 <p className='text-sm text-gray-600 dark:text-gray-400 mb-1'>Tempo Restante</p>
                 <p
@@ -217,20 +224,18 @@ const P2PTradeProcess: React.FC = () => {
               <div className='grid grid-cols-2 gap-6'>
                 <div>
                   <p className='text-sm text-gray-600 dark:text-gray-400 mb-1'>Criptomoeda</p>
-                  <p className='text-xl font-bold text-gray-900 dark:text-white'>
-                    {tradeData.amount} {tradeData.coin}
-                  </p>
+                  <p className='text-xl font-bold text-gray-900 dark:text-white'>{trade.amount}</p>
                 </div>
                 <div>
                   <p className='text-sm text-gray-600 dark:text-gray-400 mb-1'>Preço Unitário</p>
                   <p className='text-xl font-bold text-gray-900 dark:text-white'>
-                    {formatCurrency(tradeData.price)}
+                    {formatCurrency(Number.parseFloat(trade.price))}
                   </p>
                 </div>
                 <div>
                   <p className='text-sm text-gray-600 dark:text-gray-400 mb-1'>Valor Total</p>
                   <p className='text-2xl font-bold text-green-600'>
-                    {formatCurrency(tradeData.total)}
+                    {formatCurrency(Number.parseFloat(trade.total))}
                   </p>
                 </div>
                 <div>
@@ -238,7 +243,7 @@ const P2PTradeProcess: React.FC = () => {
                     Método de Pagamento
                   </p>
                   <p className='text-xl font-bold text-gray-900 dark:text-white'>
-                    {tradeData.payment_method}
+                    {trade.paymentMethod?.type || 'PIX'}
                   </p>
                 </div>
               </div>
@@ -256,9 +261,9 @@ const P2PTradeProcess: React.FC = () => {
                   <div className='flex flex-col items-center'>
                     <div
                       className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                        tradeData.status !== 'pending'
-                          ? 'bg-green-500'
-                          : 'bg-gray-300 dark:bg-gray-600'
+                        trade.status === 'payment_pending'
+                          ? 'bg-gray-300 dark:bg-gray-600'
+                          : 'bg-green-500'
                       }`}
                     >
                       <CheckCircle className='w-6 h-6 text-white' />
@@ -280,12 +285,16 @@ const P2PTradeProcess: React.FC = () => {
                   <div className='flex flex-col items-center'>
                     <div
                       className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                        tradeData.status === 'paid' || tradeData.status === 'completed'
+                        trade.status === 'payment_sent' ||
+                        trade.status === 'payment_confirmed' ||
+                        trade.status === 'completed'
                           ? 'bg-green-500'
                           : 'bg-gray-300 dark:bg-gray-600'
                       }`}
                     >
-                      {tradeData.status === 'paid' || tradeData.status === 'completed' ? (
+                      {trade.status === 'payment_sent' ||
+                      trade.status === 'payment_confirmed' ||
+                      trade.status === 'completed' ? (
                         <CheckCircle className='w-6 h-6 text-white' />
                       ) : (
                         <span className='text-white font-bold'>2</span>
@@ -310,12 +319,12 @@ const P2PTradeProcess: React.FC = () => {
                   <div className='flex flex-col items-center'>
                     <div
                       className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                        tradeData.status === 'completed'
+                        trade.status === 'completed'
                           ? 'bg-green-500'
                           : 'bg-gray-300 dark:bg-gray-600'
                       }`}
                     >
-                      {tradeData.status === 'completed' ? (
+                      {trade.status === 'completed' ? (
                         <CheckCircle className='w-6 h-6 text-white' />
                       ) : (
                         <span className='text-white font-bold'>3</span>
@@ -336,37 +345,38 @@ const P2PTradeProcess: React.FC = () => {
               </div>
             </div>
 
-            {/* Payment Instructions */}
-            {tradeData.status === 'pending' && isBuyer && (
-              <div className='bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6'>
-                <h3 className='text-lg font-bold text-blue-900 dark:text-blue-200 mb-4'>
-                  Instruções de Pagamento
-                </h3>
-                <div className='space-y-3 text-sm text-blue-800 dark:text-blue-300'>
-                  <p>
-                    <strong>1.</strong> Faça o pagamento de {formatCurrency(tradeData.total)} via{' '}
-                    {tradeData.payment_method}
-                  </p>
-                  <p>
-                    <strong>2.</strong> Após enviar o pagamento, clique em "Confirmei o Pagamento"
-                  </p>
-                  <p>
-                    <strong>3.</strong> Aguarde o vendedor confirmar o recebimento
-                  </p>
-                  <p>
-                    <strong>4.</strong> As criptomoedas serão liberadas automaticamente após
-                    confirmação
-                  </p>
-                </div>
-              </div>
+            {/* Payment Details com QR Code PIX */}
+            {trade.status === 'payment_pending' && isBuyer && (
+              <P2PPaymentDetails
+                tradeId={tradeId!}
+                orderId={trade.orderId}
+                sellerPaymentMethods={[
+                  {
+                    id: '1',
+                    type: trade.paymentMethod?.type || 'pix',
+                    details: {
+                      pix_key: trade.paymentMethod?.details?.pixKey || '',
+                      pix_key_type: trade.paymentMethod?.details?.pixKeyType || 'cpf',
+                      holder_name: trade.seller?.username || 'Vendedor',
+                    },
+                  },
+                ]}
+                amount={Number.parseFloat(trade.total)}
+                fiatCurrency='BRL'
+                cryptoAmount={trade.amount}
+                cryptoCoin='USDT'
+                sellerName={trade.seller?.username || 'Vendedor'}
+                timeLimit={Math.ceil(timeRemaining / 60)}
+                onPaymentSent={handleMarkPaymentSent}
+              />
             )}
 
             {/* Chat Box - Integrado com Backend */}
             <P2PTradeChatBox
               tradeId={tradeId!}
-              counterpartyName={isBuyer ? tradeData.seller?.username || 'Vendedor' : 'Comprador'}
-              counterpartyId={isBuyer ? tradeData.seller_id : tradeData.buyer_id}
-              orderId={tradeData.order_id}
+              counterpartyName={isBuyer ? trade.seller?.username || 'Vendedor' : 'Comprador'}
+              counterpartyId={isBuyer ? trade.sellerId : trade.buyerId}
+              orderId={trade.orderId}
             />
           </div>
 
@@ -381,50 +391,33 @@ const P2PTradeProcess: React.FC = () => {
               <div className='flex items-center gap-3 mb-4'>
                 <div className='relative'>
                   <div className='w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-lg font-bold'>
-                    {tradeData.seller?.username?.charAt(0) || 'U'}
+                    {trade.seller?.username?.charAt(0) || 'U'}
                   </div>
-                  {tradeData.seller?.is_online && (
+                  {trade.seller?.isOnline && (
                     <div className='absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white dark:border-gray-800 rounded-full'></div>
                   )}
                 </div>
                 <div>
                   <div className='flex items-center gap-2'>
                     <p className='font-bold text-gray-900 dark:text-white'>
-                      {tradeData.seller?.username || 'Anônimo'}
+                      {trade.seller?.username || 'Anônimo'}
                     </p>
-                    {tradeData.seller?.is_verified && (
-                      <CheckCircle className='w-4 h-4 text-blue-500' />
-                    )}
+                    {trade.seller?.isVerified && <CheckCircle className='w-4 h-4 text-blue-500' />}
                   </div>
                   <div className='flex items-center gap-1 mt-1'>
                     <Star className='w-3 h-3 text-yellow-500 fill-current' />
                     <span className='text-sm text-gray-600 dark:text-gray-400'>
-                      {tradeData.seller?.reputation || 0}% (
-                      {tradeData.seller?.completed_trades || 0} trades)
+                      {trade.seller?.reputation?.score || 0}% (
+                      {trade.seller?.stats?.totalTrades || trade.seller?.total_trades || 0} trades)
                     </span>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Action Buttons */}
-            {tradeData.status === 'pending' && isBuyer && (
+            {/* Action Buttons - Comprador (apenas cancelar, pagamento está no componente) */}
+            {trade.status === 'payment_pending' && isBuyer && (
               <div className='bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 space-y-3'>
-                <button
-                  onClick={handleMarkPaymentSent}
-                  disabled={markPaymentSent.isPending}
-                  className='w-full py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold transition-colors disabled:opacity-50'
-                >
-                  {markPaymentSent.isPending ? (
-                    <span className='flex items-center justify-center gap-2'>
-                      <Loader2 className='w-5 h-5 animate-spin' />
-                      Processando...
-                    </span>
-                  ) : (
-                    '✓ Confirmei o Pagamento'
-                  )}
-                </button>
-
                 <button
                   onClick={() => setShowCancelConfirm(true)}
                   className='w-full py-3 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-bold transition-colors'
@@ -434,7 +427,7 @@ const P2PTradeProcess: React.FC = () => {
               </div>
             )}
 
-            {tradeData.status === 'paid' && !isBuyer && (
+            {trade.status === 'payment_sent' && !isBuyer && (
               <div className='bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 space-y-3'>
                 <button
                   onClick={handleConfirmPayment}
