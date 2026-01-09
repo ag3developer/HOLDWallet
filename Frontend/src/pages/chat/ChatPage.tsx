@@ -204,9 +204,9 @@ export const ChatPage = () => {
     const handleResize = () => {
       // Quando o teclado abre, o viewport diminui - fazer scroll para o input
       if (document.activeElement === inputRef.current) {
-        setTimeout(() => {
-          inputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
-        }, 100)
+        requestAnimationFrame(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+        })
       }
     }
 
@@ -220,16 +220,11 @@ export const ChatPage = () => {
 
   // Handler para quando o input recebe foco (teclado vai aparecer)
   const handleInputFocus = () => {
-    // Pequeno delay para esperar o teclado abrir
+    // Delay para esperar o teclado abrir completamente
     setTimeout(() => {
-      // Scroll para o final das mensagens primeiro
+      // Scroll para o final das mensagens
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-
-      // Depois garantir que o input está visível
-      setTimeout(() => {
-        inputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
-      }, 150)
-    }, 100)
+    }, 300)
   }
 
   // ✅ NOVO: Usar dados do hook ao invés de URL params
@@ -1262,6 +1257,12 @@ Digite "ajuda" ou "menu" para começar!`,
     setMessages(prev => [...prev, userMessage])
     const messageContent = newMessage
     setNewMessage('')
+
+    // ✅ Manter foco no input e fazer scroll após enviar
+    requestAnimationFrame(() => {
+      inputRef.current?.focus()
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    })
 
     try {
       // ✅ Se for o bot, simular resposta automática
@@ -2305,7 +2306,11 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
                     onChange={e => setNewMessage(e.target.value)}
                     onFocus={handleInputFocus}
                     onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
-                    className='w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all pr-16 sm:pr-20'
+                    autoComplete='off'
+                    autoCorrect='off'
+                    autoCapitalize='sentences'
+                    enterKeyHint='send'
+                    className='w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl text-base text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all pr-16 sm:pr-20'
                   />
 
                   {/* Botões dentro do input */}
