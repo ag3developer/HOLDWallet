@@ -13,13 +13,17 @@ import {
   Users,
   Eye,
   Zap,
-  Award,
-  CheckCircle,
   RefreshCw,
   Wallet,
   CreditCard,
   Banknote,
-  Loader2,
+  ArrowRight,
+  Globe,
+  Lock,
+  BadgeCheck,
+  Sparkles,
+  Crown,
+  ChevronRight,
 } from 'lucide-react'
 import { useP2POrders, useMarketStats } from '@/hooks/useP2POrders'
 import { usePaymentMethods } from '@/hooks/usePaymentMethods'
@@ -28,678 +32,618 @@ export const P2PPage = () => {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<'buy' | 'sell' | 'all'>('all')
   const [selectedCrypto, setSelectedCrypto] = useState<string | null>(null)
-  const [selectedFiat, setSelectedFiat] = useState('BRL')
   const [searchTerm, setSearchTerm] = useState('')
   const [showFilters, setShowFilters] = useState(false)
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('')
   const [minAmount, setMinAmount] = useState<string>('')
   const [maxAmount, setMaxAmount] = useState<string>('')
 
-  // Fetch real data from backend
-  // ✅ LÓGICA CORRETA:
-  // - Aba "Comprar" = busca anúncios de VENDA (sell) → você compra de quem vende
-  // - Aba "Vender" = busca anúncios de COMPRA (buy) → você vende para quem compra
-  const getApiFilterType = () => {
+  const getApiFilterType = (): 'buy' | 'sell' | undefined => {
     if (activeTab === 'all') return undefined
-    // Inverte: "buy" na UI → busca "sell" na API, e vice-versa
     return activeTab === 'buy' ? 'sell' : 'buy'
   }
+
+  const filters: {
+    type?: 'buy' | 'sell'
+    coin?: string
+    paymentMethod?: string
+    minAmount?: string
+    maxAmount?: string
+  } = {}
+
+  const filterType = getApiFilterType()
+  if (filterType) filters.type = filterType
+  if (selectedCrypto) filters.coin = selectedCrypto
+  if (selectedPaymentMethod) filters.paymentMethod = selectedPaymentMethod
+  if (minAmount) filters.minAmount = minAmount
+  if (maxAmount) filters.maxAmount = maxAmount
 
   const {
     data: ordersData,
     isLoading: ordersLoading,
     error: ordersError,
     refetch: refetchOrders,
-  } = useP2POrders({
-    type: getApiFilterType(),
-    coin: selectedCrypto || undefined,
-    paymentMethod: selectedPaymentMethod || undefined,
-    minAmount: minAmount || undefined,
-    maxAmount: maxAmount || undefined,
-  })
+  } = useP2POrders(filters)
 
   const { data: marketStats } = useMarketStats(selectedCrypto || undefined)
   const { data: paymentMethodsData } = usePaymentMethods()
 
   const cryptoOptions = [
-    { symbol: 'BTC', name: 'Bitcoin', price: 251500 },
-    { symbol: 'ETH', name: 'Ethereum', price: 15800 },
-    { symbol: 'USDT', name: 'Tether', price: 5.85 },
-    { symbol: 'BNB', name: 'BNB', price: 1450 },
+    { symbol: 'BTC', name: 'Bitcoin', icon: '₿' },
+    { symbol: 'ETH', name: 'Ethereum', icon: 'Ξ' },
+    { symbol: 'USDT', name: 'Tether', icon: '₮' },
+    { symbol: 'BNB', name: 'BNB', icon: 'B' },
   ]
 
   const formatCurrency = (amount: number, currency: string = 'BRL') => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: currency,
+      maximumFractionDigits: 0,
     }).format(amount)
+  }
+
+  const formatCompact = (amount: number) => {
+    if (amount >= 1000000) return `${(amount / 1000000).toFixed(1)}M`
+    if (amount >= 1000) return `${(amount / 1000).toFixed(0)}K`
+    return amount.toString()
   }
 
   const getPaymentMethodIcon = (method: string) => {
     switch (method) {
       case 'PIX':
-        return <Zap className='w-4 h-4' />
-      case 'TED':
-        return <Banknote className='w-4 h-4' />
-      case 'Mercado Pago':
-        return <CreditCard className='w-4 h-4' />
-      default:
-        return <Wallet className='w-4 h-4' />
-    }
-  }
-
-  const getBadgeIcon = (badge: string) => {
-    switch (badge) {
-      case 'pro_trader':
-        return <Award className='w-3 h-3' />
-      case 'verified':
-        return <CheckCircle className='w-3 h-3' />
-      case 'fast_response':
         return <Zap className='w-3 h-3' />
-      case 'quick_pay':
-        return <Clock className='w-3 h-3' />
+      case 'TED':
+        return <Banknote className='w-3 h-3' />
+      case 'Mercado Pago':
+        return <CreditCard className='w-3 h-3' />
       default:
-        return <Star className='w-3 h-3' />
+        return <Wallet className='w-3 h-3' />
     }
   }
 
-  // Handler para abrir chat com o trader
   const handleOpenChat = (order: any) => {
     const traderId = order.user?.id || order.user_id
     const orderId = order.id
+    if (!traderId || !orderId) return
+    navigate(`/chat?context=p2p&orderId=${orderId}&userId=${traderId}`)
+  }
 
-    console.log('🔍 [P2PPage] handleOpenChat chamado')
-    console.log('📦 [P2PPage] Dados da ordem:', order)
-    console.log('👤 [P2PPage] traderId:', traderId)
-    console.log('🆔 [P2PPage] orderId:', orderId)
-
-    if (!traderId) {
-      console.error('❌ ID do trader não encontrado')
-      alert('❌ Erro: ID do trader não encontrado. Não é possível abrir o chat.')
-      return
+  const renderContent = () => {
+    if (ordersLoading) {
+      return (
+        <div className='flex flex-col items-center justify-center py-16'>
+          <div className='relative'>
+            <div className='w-16 h-16 border-4 border-blue-200 dark:border-blue-900 rounded-full' />
+            <div className='w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin absolute top-0 left-0' />
+          </div>
+          <p className='mt-4 text-sm text-gray-500 dark:text-gray-400'>
+            Buscando as melhores ofertas...
+          </p>
+        </div>
+      )
     }
 
-    if (!orderId) {
-      console.error('❌ ID da ordem não encontrado')
-      alert('❌ Erro: ID da ordem não encontrado. Não é possível abrir o chat.')
-      return
+    if (ordersError) {
+      return (
+        <div className='flex flex-col items-center justify-center py-16'>
+          <div className='w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-4'>
+            <Shield className='w-8 h-8 text-red-500' />
+          </div>
+          <p className='text-sm font-medium text-gray-900 dark:text-white mb-1'>
+            Erro ao carregar ofertas
+          </p>
+          <p className='text-xs text-gray-500 mb-4'>Tente novamente em alguns segundos</p>
+          <button
+            onClick={() => refetchOrders()}
+            className='px-4 py-2 bg-blue-600 text-white text-xs font-medium rounded-lg'
+          >
+            Tentar novamente
+          </button>
+        </div>
+      )
     }
 
-    // Navegar para a página do chat com contexto P2P
-    const chatUrl = `/chat?context=p2p&orderId=${orderId}&userId=${traderId}`
-    console.log('🔗 [P2PPage] Navegando para:', chatUrl)
-    navigate(chatUrl)
+    if (!ordersData?.data || ordersData.data.length === 0) {
+      return (
+        <div className='flex flex-col items-center justify-center py-16'>
+          <div className='w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4'>
+            <Search className='w-8 h-8 text-gray-400' />
+          </div>
+          <p className='text-sm font-medium text-gray-900 dark:text-white mb-1'>
+            Nenhuma oferta encontrada
+          </p>
+          <p className='text-xs text-gray-500'>Tente ajustar seus filtros</p>
+        </div>
+      )
+    }
+
+    return ordersData.data.map((order: any) => (
+      <PremiumOrderCard
+        key={order.id}
+        order={order}
+        formatCurrency={formatCurrency}
+        getPaymentMethodIcon={getPaymentMethodIcon}
+        onNavigate={navigate}
+        onOpenChat={handleOpenChat}
+      />
+    ))
   }
 
   return (
-    <div className='space-y-4 md:space-y-6'>
-      {/* Header */}
-      <div className='flex flex-col lg:flex-row lg:items-center justify-between gap-3 md:gap-4'>
-        <div>
-          <h1 className='text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white'>
-            P2P Trading
-          </h1>
-          <p className='text-sm md:text-base text-gray-600 dark:text-gray-400 mt-1'>
-            Negocie criptomoedas diretamente com outros usuários
-          </p>
+    <div className='space-y-4 pb-24'>
+      {/* Hero Header - Identidade do Marketplace */}
+      <div className='relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-blue-900 to-purple-900'>
+        {/* Background Pattern */}
+        <div className='absolute inset-0 opacity-10'>
+          <div className='absolute top-0 left-0 w-40 h-40 bg-blue-500 rounded-full blur-3xl' />
+          <div className='absolute bottom-0 right-0 w-60 h-60 bg-purple-500 rounded-full blur-3xl' />
+          <div className='absolute top-1/2 left-1/2 w-32 h-32 bg-cyan-500 rounded-full blur-2xl' />
         </div>
-        <div className='flex flex-col sm:flex-row gap-2 md:gap-3'>
-          <button
-            onClick={() => navigate('/p2p/create-order')}
-            className='bg-blue-600 hover:bg-blue-700 text-white px-4 md:px-6 py-2.5 md:py-2 rounded-lg text-sm md:text-base font-medium transition-colors inline-flex items-center justify-center gap-2'
-          >
-            <Plus className='w-4 h-4' />
-            Criar Ordem
-          </button>
-          <button
-            onClick={() => navigate('/p2p/my-orders')}
-            className='bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2.5 md:py-2 rounded-lg text-sm md:text-base font-medium transition-colors inline-flex items-center justify-center gap-2'
-          >
-            <Eye className='w-4 h-4' />
-            Minhas Ordens
-          </button>
+
+        <div className='relative p-4'>
+          {/* Top Bar */}
+          <div className='flex items-center justify-between mb-4'>
+            <div className='flex items-center gap-2'>
+              <div className='w-8 h-8 bg-gradient-to-br from-amber-400 to-orange-500 rounded-lg flex items-center justify-center'>
+                <Crown className='w-4 h-4 text-white' />
+              </div>
+              <div>
+                <p className='text-[10px] text-amber-400 font-semibold uppercase tracking-wider'>
+                  #1 América Latina
+                </p>
+                <h1 className='text-lg font-bold text-white leading-tight'>P2P Marketplace</h1>
+              </div>
+            </div>
+            <div className='flex gap-2'>
+              <button
+                onClick={() => navigate('/p2p/my-orders')}
+                className='p-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-xl transition-all border border-white/10'
+                aria-label='Minhas ordens'
+              >
+                <Eye className='w-4 h-4 text-white' />
+              </button>
+              <button
+                onClick={() => navigate('/p2p/create-order')}
+                className='px-3 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-orange-500/25 transition-all'
+              >
+                <Plus className='w-3.5 h-3.5' />
+                Anunciar
+              </button>
+            </div>
+          </div>
+
+          {/* Trust Badges */}
+          <div className='flex items-center gap-3 mb-4 overflow-x-auto pb-1 scrollbar-hide'>
+            <div className='flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-500/20 backdrop-blur-sm rounded-lg border border-emerald-500/30 whitespace-nowrap'>
+              <Lock className='w-3 h-3 text-emerald-400' />
+              <span className='text-[10px] text-emerald-300 font-medium'>100% Seguro</span>
+            </div>
+            <div className='flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-500/20 backdrop-blur-sm rounded-lg border border-blue-500/30 whitespace-nowrap'>
+              <MessageCircle className='w-3 h-3 text-blue-400' />
+              <span className='text-[10px] text-blue-300 font-medium'>Chat em Tempo Real</span>
+            </div>
+            <div className='flex items-center gap-1.5 px-2.5 py-1.5 bg-purple-500/20 backdrop-blur-sm rounded-lg border border-purple-500/30 whitespace-nowrap'>
+              <Shield className='w-3 h-3 text-purple-400' />
+              <span className='text-[10px] text-purple-300 font-medium'>Escrow Protegido</span>
+            </div>
+          </div>
+
+          {/* Live Stats */}
+          <div className='grid grid-cols-4 gap-2'>
+            <div className='bg-white/5 backdrop-blur-sm rounded-xl p-2.5 border border-white/10'>
+              <div className='flex items-center gap-1.5 mb-1'>
+                <TrendingUp className='w-3 h-3 text-emerald-400' />
+                <span className='text-[9px] text-gray-400 uppercase'>Volume 24h</span>
+              </div>
+              <p className='text-sm font-bold text-white'>
+                R$ {formatCompact(Number(marketStats?.totalVolume24h || 0))}
+              </p>
+            </div>
+            <div className='bg-white/5 backdrop-blur-sm rounded-xl p-2.5 border border-white/10'>
+              <div className='flex items-center gap-1.5 mb-1'>
+                <Users className='w-3 h-3 text-blue-400' />
+                <span className='text-[9px] text-gray-400 uppercase'>Trades</span>
+              </div>
+              <p className='text-sm font-bold text-white'>{marketStats?.totalTrades24h || 0}</p>
+            </div>
+            <div className='bg-white/5 backdrop-blur-sm rounded-xl p-2.5 border border-white/10'>
+              <div className='flex items-center gap-1.5 mb-1'>
+                <Globe className='w-3 h-3 text-cyan-400' />
+                <span className='text-[9px] text-gray-400 uppercase'>Online</span>
+              </div>
+              <p className='text-sm font-bold text-white'>
+                {(marketStats?.buyOrders || 0) + (marketStats?.sellOrders || 0)}
+              </p>
+            </div>
+            <div className='bg-white/5 backdrop-blur-sm rounded-xl p-2.5 border border-white/10'>
+              <div className='flex items-center gap-1.5 mb-1'>
+                <Sparkles className='w-3 h-3 text-amber-400' />
+                <span className='text-[9px] text-gray-400 uppercase'>Taxa</span>
+              </div>
+              <p className='text-sm font-bold text-emerald-400'>0%</p>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Trading Stats */}
-      <div className='grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4'>
-        <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-3 md:p-4'>
-          <div className='flex items-center justify-between'>
-            <div>
-              <p className='text-xs md:text-sm text-gray-600 dark:text-gray-400'>Volume 24h</p>
-              <p className='text-base md:text-lg lg:text-xl font-bold text-gray-900 dark:text-white'>
-                {formatCurrency(Number(marketStats?.totalVolume24h || 0))}
-              </p>
-            </div>
-            <div className='w-8 h-8 md:w-10 md:h-10 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center'>
-              <TrendingUp className='w-4 h-4 md:w-5 md:h-5 text-green-600' />
-            </div>
-          </div>
-        </div>
-
-        <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-3 md:p-4'>
-          <div className='flex items-center justify-between'>
-            <div>
-              <p className='text-xs md:text-sm text-gray-600 dark:text-gray-400'>Trades Ativos</p>
-              <p className='text-base md:text-lg lg:text-xl font-bold text-gray-900 dark:text-white'>
-                {marketStats?.totalTrades24h || 0}
-              </p>
-            </div>
-            <div className='w-8 h-8 md:w-10 md:h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center'>
-              <Users className='w-4 h-4 md:w-5 md:h-5 text-blue-600' />
-            </div>
-          </div>
-        </div>
-
-        <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-3 md:p-4'>
-          <div className='flex items-center justify-between'>
-            <div>
-              <p className='text-xs md:text-sm text-gray-600 dark:text-gray-400'>Ordens Compra</p>
-              <p className='text-base md:text-lg lg:text-xl font-bold text-gray-900 dark:text-white'>
-                {marketStats?.buyOrders || 0}
-              </p>
-            </div>
-            <div className='w-8 h-8 md:w-10 md:h-10 bg-yellow-100 dark:bg-yellow-900 rounded-lg flex items-center justify-center'>
-              <Shield className='w-4 h-4 md:w-5 md:h-5 text-yellow-600' />
-            </div>
-          </div>
-        </div>
-
-        <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-3 md:p-4'>
-          <div className='flex items-center justify-between'>
-            <div>
-              <p className='text-xs md:text-sm text-gray-600 dark:text-gray-400'>Ordens Venda</p>
-              <p className='text-base md:text-lg lg:text-xl font-bold text-gray-900 dark:text-white'>
-                {marketStats?.sellOrders || 0}
-              </p>
-            </div>
-            <div className='w-8 h-8 md:w-10 md:h-10 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center'>
-              <CheckCircle className='w-4 h-4 md:w-5 md:h-5 text-purple-600' />
-            </div>
-          </div>
-        </div>
+      {/* Quick Crypto Selection */}
+      <div className='flex gap-2 overflow-x-auto pb-1 scrollbar-hide'>
+        <button
+          onClick={() => setSelectedCrypto(null)}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+            selectedCrypto === null
+              ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/25'
+              : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700'
+          }`}
+        >
+          <Sparkles className='w-3.5 h-3.5' />
+          Todas
+        </button>
+        {cryptoOptions.map(crypto => (
+          <button
+            key={crypto.symbol}
+            onClick={() => setSelectedCrypto(crypto.symbol)}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+              selectedCrypto === crypto.symbol
+                ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/25'
+                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700'
+            }`}
+          >
+            <span className='w-5 h-5 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white'>
+              {crypto.icon}
+            </span>
+            {crypto.symbol}
+          </button>
+        ))}
       </div>
 
       {/* Trading Interface */}
-      <div className='bg-white dark:bg-gray-800 rounded-lg shadow'>
-        {/* Tabs and Controls */}
-        <div className='p-3 md:p-6 border-b border-gray-200 dark:border-gray-700'>
-          <div className='flex flex-col lg:flex-row lg:items-center justify-between gap-3 md:gap-4'>
-            {/* Buy/Sell Tabs */}
-            <div className='flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1'>
-              <button
-                onClick={() => setActiveTab('buy')}
-                className={`flex-1 sm:flex-none px-4 sm:px-6 py-2 rounded-md text-sm md:text-base font-medium transition-colors ${
-                  activeTab === 'buy'
-                    ? 'bg-green-600 text-white shadow'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                <TrendingUp className='w-4 h-4 inline mr-1 sm:mr-2' />
-                Comprar
-              </button>
-              <button
-                onClick={() => setActiveTab('sell')}
-                className={`flex-1 sm:flex-none px-4 sm:px-6 py-2 rounded-md text-sm md:text-base font-medium transition-colors ${
-                  activeTab === 'sell'
-                    ? 'bg-red-600 text-white shadow'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                <TrendingDown className='w-4 h-4 inline mr-1 sm:mr-2' />
-                Vender
-              </button>
-            </div>
+      <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden'>
+        {/* Tabs */}
+        <div className='flex border-b border-gray-100 dark:border-gray-700'>
+          <button
+            onClick={() => setActiveTab('all')}
+            className={`flex-1 py-3 px-4 text-xs font-semibold transition-all relative ${
+              activeTab === 'all'
+                ? 'text-blue-600 dark:text-blue-400'
+                : 'text-gray-500 dark:text-gray-400'
+            }`}
+          >
+            Todas Ofertas
+            {activeTab === 'all' && (
+              <div className='absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600' />
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('buy')}
+            className={`flex-1 py-3 px-4 text-xs font-semibold transition-all relative flex items-center justify-center gap-1.5 ${
+              activeTab === 'buy'
+                ? 'text-emerald-600 dark:text-emerald-400'
+                : 'text-gray-500 dark:text-gray-400'
+            }`}
+          >
+            <TrendingUp className='w-3.5 h-3.5' />
+            Comprar
+            {activeTab === 'buy' && (
+              <div className='absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-500' />
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('sell')}
+            className={`flex-1 py-3 px-4 text-xs font-semibold transition-all relative flex items-center justify-center gap-1.5 ${
+              activeTab === 'sell'
+                ? 'text-red-600 dark:text-red-400'
+                : 'text-gray-500 dark:text-gray-400'
+            }`}
+          >
+            <TrendingDown className='w-3.5 h-3.5' />
+            Vender
+            {activeTab === 'sell' && (
+              <div className='absolute bottom-0 left-0 right-0 h-0.5 bg-red-500' />
+            )}
+          </button>
+        </div>
 
-            {/* Crypto/Fiat Selection */}
-            <div className='flex flex-col sm:flex-row gap-2 md:gap-3'>
-              <select
-                value={selectedCrypto || ''}
-                onChange={e => setSelectedCrypto(e.target.value || null)}
-                aria-label='Selecionar criptomoeda'
-                className='bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-3 md:px-4 py-2 text-sm md:text-base text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-              >
-                <option value=''>Todas as moedas</option>
-                {cryptoOptions.map(crypto => (
-                  <option key={crypto.symbol} value={crypto.symbol}>
-                    {crypto.symbol} - {crypto.name}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={selectedFiat}
-                onChange={e => setSelectedFiat(e.target.value)}
-                aria-label='Selecionar moeda fiat'
-                className='bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-3 md:px-4 py-2 text-sm md:text-base text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-              >
-                <option value='BRL'>BRL - Real Brasileiro</option>
-                <option value='USD'>USD - Dólar Americano</option>
-                <option value='EUR'>EUR - Euro</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Search and Filters */}
-          <div className='flex flex-col lg:flex-row gap-2 md:gap-4 mt-3 md:mt-4'>
+        {/* Search & Filters */}
+        <div className='p-3 border-b border-gray-100 dark:border-gray-700'>
+          <div className='flex gap-2'>
             <div className='relative flex-1'>
-              <Search className='w-4 h-4 md:w-5 md:h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400' />
+              <Search className='w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400' />
               <input
                 type='text'
-                placeholder='Buscar por trader, método de pagamento...'
+                placeholder='Buscar por trader ou método...'
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                className='w-full pl-9 md:pl-10 pr-3 md:pr-4 py-2 text-sm md:text-base border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+                className='w-full pl-9 pr-3 py-2.5 text-xs border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700/50 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all'
               />
             </div>
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className={`px-4 py-2 text-sm md:text-base rounded-lg font-medium transition-colors inline-flex items-center justify-center gap-2 ${
+              className={`p-2.5 rounded-xl transition-all ${
                 showFilters
                   ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600'
               }`}
+              aria-label='Filtros'
             >
               <Filter className='w-4 h-4' />
-              Filtros
             </button>
             <button
               onClick={() => refetchOrders()}
               disabled={ordersLoading}
-              className='bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 text-sm md:text-base rounded-lg font-medium transition-colors inline-flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed'
+              className='p-2.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-xl border border-gray-200 dark:border-gray-600 disabled:opacity-50 transition-all'
+              aria-label='Atualizar'
             >
               <RefreshCw className={`w-4 h-4 ${ordersLoading ? 'animate-spin' : ''}`} />
-              <span className='hidden sm:inline'>Atualizar</span>
             </button>
           </div>
 
           {/* Advanced Filters */}
           {showFilters && (
-            <div className='mt-3 md:mt-4 p-3 md:p-4 bg-gray-50 dark:bg-gray-700 rounded-lg'>
-              <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4'>
+            <div className='mt-3 p-3 bg-gray-50 dark:bg-gray-700/30 rounded-xl space-y-3'>
+              <div className='grid grid-cols-2 gap-2'>
                 <div>
-                  <label className='block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
-                    Valor Mínimo (BRL)
-                  </label>
+                  <span className='block text-[10px] text-gray-500 uppercase font-medium mb-1.5'>
+                    Valor Mínimo
+                  </span>
                   <input
                     type='number'
-                    placeholder='0'
+                    placeholder='R$ 0'
                     value={minAmount}
                     onChange={e => setMinAmount(e.target.value)}
-                    className='w-full px-3 py-2 text-sm md:text-base border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
+                    aria-label='Valor mínimo'
+                    className='w-full px-3 py-2 text-xs border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
                   />
                 </div>
                 <div>
-                  <label className='block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
-                    Valor Máximo (BRL)
-                  </label>
+                  <span className='block text-[10px] text-gray-500 uppercase font-medium mb-1.5'>
+                    Valor Máximo
+                  </span>
                   <input
                     type='number'
-                    placeholder='100000'
+                    placeholder='R$ 100.000'
                     value={maxAmount}
                     onChange={e => setMaxAmount(e.target.value)}
-                    className='w-full px-3 py-2 text-sm md:text-base border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
+                    aria-label='Valor máximo'
+                    className='w-full px-3 py-2 text-xs border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
                   />
                 </div>
-                <div>
-                  <label className='block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
-                    Método de Pagamento
-                  </label>
-                  <select
-                    aria-label='Filtrar por método de pagamento'
-                    value={selectedPaymentMethod}
-                    onChange={e => setSelectedPaymentMethod(e.target.value)}
-                    className='w-full px-3 py-2 text-sm md:text-base border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
-                  >
-                    <option value=''>Todos</option>
-                    {paymentMethodsData?.map((method: any) => (
-                      <option key={method.id} value={method.type}>
-                        {method.type}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className='block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
-                    Status do Trader
-                  </label>
-                  <select
-                    aria-label='Filtrar por status do trader'
-                    className='w-full px-3 py-2 text-sm md:text-base border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
-                  >
-                    <option value=''>Todos</option>
-                    <option value='online'>Online</option>
-                    <option value='verified'>Verificados</option>
-                  </select>
-                </div>
+              </div>
+              <div>
+                <span className='block text-[10px] text-gray-500 uppercase font-medium mb-1.5'>
+                  Método de Pagamento
+                </span>
+                <select
+                  aria-label='Filtrar por método de pagamento'
+                  value={selectedPaymentMethod}
+                  onChange={e => setSelectedPaymentMethod(e.target.value)}
+                  className='w-full px-3 py-2 text-xs border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
+                >
+                  <option value=''>Todos os métodos</option>
+                  {paymentMethodsData?.map((method: any) => (
+                    <option key={method.id} value={method.type}>
+                      {method.type}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className='flex gap-2'>
+                <button
+                  onClick={() => {
+                    setMinAmount('')
+                    setMaxAmount('')
+                    setSelectedPaymentMethod('')
+                  }}
+                  className='flex-1 py-2 text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 font-medium'
+                >
+                  Limpar
+                </button>
+                <button
+                  onClick={() => setShowFilters(false)}
+                  className='flex-1 py-2 bg-blue-600 text-white text-xs font-semibold rounded-lg'
+                >
+                  Aplicar
+                </button>
               </div>
             </div>
           )}
         </div>
 
-        {/* Orders Table */}
-        <div className='overflow-x-auto'>
-          {ordersLoading ? (
-            <div className='flex items-center justify-center py-12'>
-              <Loader2 className='w-6 h-6 md:w-8 md:h-8 animate-spin text-blue-600' />
-              <span className='ml-3 text-sm md:text-base text-gray-600 dark:text-gray-400'>
-                Carregando ordens...
-              </span>
-            </div>
-          ) : ordersError ? (
-            <div className='flex items-center justify-center py-12'>
-              <div className='text-center px-4'>
-                <p className='text-red-600 dark:text-red-400 font-medium text-sm md:text-base'>
-                  Erro ao carregar ordens
-                </p>
-                <p className='text-gray-600 dark:text-gray-400 text-xs md:text-sm mt-2'>
-                  {ordersError instanceof Error ? ordersError.message : 'Erro desconhecido'}
-                </p>
+        {/* Orders List */}
+        <div className='divide-y divide-gray-100 dark:divide-gray-700'>{renderContent()}</div>
+      </div>
+
+      {/* Bottom CTA - Become a Trader */}
+      <div className='relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600'>
+        <div className='absolute inset-0 opacity-20'>
+          <div className='absolute top-0 right-0 w-32 h-32 bg-white rounded-full blur-2xl' />
+        </div>
+        <div className='relative p-4'>
+          <div className='flex items-center justify-between'>
+            <div className='flex items-center gap-3'>
+              <div className='w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center'>
+                <Zap className='w-5 h-5 text-white' />
+              </div>
+              <div>
+                <h3 className='text-sm font-bold text-white'>Seja um Trader Verificado</h3>
+                <p className='text-emerald-100 text-xs'>Ganhe até 5% em cada negociação</p>
               </div>
             </div>
-          ) : !ordersData?.data || ordersData.data.length === 0 ? (
-            <div className='flex items-center justify-center py-12'>
-              <p className='text-gray-600 dark:text-gray-400 text-sm md:text-base'>
-                Nenhuma ordem encontrada
-              </p>
-            </div>
-          ) : (
-            <>
-              {/* Mobile Card View */}
-              <div className='block lg:hidden space-y-3 p-3'>
-                {ordersData.data.map((order: any) => (
-                  <div
-                    key={order.id}
-                    className='bg-gray-50 dark:bg-gray-700 rounded-lg p-4 space-y-3'
-                  >
-                    {/* Trader Info */}
-                    <div className='flex items-center justify-between'>
-                      <div className='flex items-center space-x-3'>
-                        <div className='relative'>
-                          <div className='w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-sm'>
-                            {(order.user?.display_name || order.user?.username)?.charAt(0) || 'U'}
-                          </div>
-                          {order.user?.is_online && (
-                            <div className='absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 border-2 border-gray-50 dark:border-gray-700 rounded-full'></div>
-                          )}
-                        </div>
-                        <div>
-                          <div className='flex items-center gap-2'>
-                            <p className='font-medium text-sm text-gray-900 dark:text-white'>
-                              {order.user?.display_name || order.user?.username || 'Anônimo'}
-                            </p>
-                            {(order.user?.is_verified || order.user?.verified) && (
-                              <CheckCircle className='w-3 h-3 text-blue-500' />
-                            )}
-                          </div>
-                          <div className='flex items-center gap-2 mt-0.5'>
-                            <div className='flex items-center gap-1'>
-                              <Star className='w-3 h-3 text-yellow-500 fill-current' />
-                              <span className='text-xs text-gray-600 dark:text-gray-400'>
-                                {order.user?.reputation || order.user?.success_rate || 0}%
-                              </span>
-                            </div>
-                            <span className='text-xs text-gray-500'>•</span>
-                            <span className='text-xs text-gray-600 dark:text-gray-400'>
-                              {order.user?.completed_trades || order.user?.total_trades || 0} trades
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Price and Amount */}
-                    <div className='flex justify-between items-center py-2 border-t border-gray-200 dark:border-gray-600'>
-                      <div>
-                        <p className='text-xs text-gray-600 dark:text-gray-400'>Preço</p>
-                        <p className='font-bold text-base text-gray-900 dark:text-white'>
-                          {formatCurrency(Number(order.price || 0))}
-                        </p>
-                      </div>
-                      <div className='text-right'>
-                        <p className='text-xs text-gray-600 dark:text-gray-400'>Quantidade</p>
-                        <p className='text-sm text-gray-900 dark:text-white'>
-                          {order.amount || order.total_amount || 0}{' '}
-                          {order.coin || order.cryptocurrency}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Limits */}
-                    <div className='flex justify-between items-center py-2 border-t border-gray-200 dark:border-gray-600'>
-                      <div>
-                        <p className='text-xs text-gray-600 dark:text-gray-400'>Limites</p>
-                        <p className='text-sm text-gray-900 dark:text-white'>
-                          {formatCurrency(Number(order.minAmount || order.min_order_limit || 0))} -{' '}
-                          {formatCurrency(Number(order.maxAmount || order.max_order_limit || 0))}
-                        </p>
-                      </div>
-                      <div className='flex items-center gap-1'>
-                        <Clock className='w-3 h-3 text-gray-400' />
-                        <span className='text-xs text-gray-600 dark:text-gray-400'>
-                          {order.timeLimit || order.time_limit || 30} min
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Payment Methods */}
-                    <div className='py-2 border-t border-gray-200 dark:border-gray-600'>
-                      <p className='text-xs text-gray-600 dark:text-gray-400 mb-2'>Pagamento</p>
-                      <div className='flex flex-wrap gap-1'>
-                        {order.payment_methods?.map((method: string, index: number) => (
-                          <div
-                            key={index}
-                            className='inline-flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded text-xs'
-                          >
-                            {getPaymentMethodIcon(method)}
-                            {method}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className='flex items-center gap-2 pt-2'>
-                      <button
-                        onClick={() => navigate(`/p2p/order/${order.id}`)}
-                        className={`flex-1 px-4 py-2.5 rounded-lg font-medium transition-colors text-white text-sm ${
-                          order.type === 'sell' || order.order_type === 'sell'
-                            ? 'bg-green-600 hover:bg-green-700'
-                            : 'bg-red-600 hover:bg-red-700'
-                        }`}
-                      >
-                        {/* Se anúncio é de VENDA, usuário vai COMPRAR. Se é de COMPRA, usuário vai VENDER */}
-                        {order.type === 'sell' || order.order_type === 'sell'
-                          ? 'Comprar'
-                          : 'Vender'}
-                      </button>
-                      <button
-                        onClick={() => handleOpenChat(order)}
-                        aria-label='Enviar mensagem para o trader'
-                        className='p-2.5 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors bg-gray-100 dark:bg-gray-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg'
-                      >
-                        <MessageCircle className='w-4 h-4' />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Desktop Table View */}
-              <table className='w-full hidden lg:table'>
-                <thead className='bg-gray-50 dark:bg-gray-700'>
-                  <tr>
-                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider'>
-                      Trader
-                    </th>
-                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider'>
-                      Preço/Quantidade
-                    </th>
-                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider'>
-                      Limites
-                    </th>
-                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider'>
-                      Pagamento
-                    </th>
-                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider'>
-                      Ações
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className='divide-y divide-gray-200 dark:divide-gray-700'>
-                  {ordersData.data.map((order: any) => (
-                    <tr
-                      key={order.id}
-                      className='hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors'
-                    >
-                      {/* Trader Info */}
-                      <td className='px-6 py-4'>
-                        <div className='flex items-center space-x-3'>
-                          <div className='relative'>
-                            <div className='w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold'>
-                              {(order.user?.display_name || order.user?.username)?.charAt(0) || 'U'}
-                            </div>
-                            {order.user?.is_online && (
-                              <div className='absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white dark:border-gray-800 rounded-full'></div>
-                            )}
-                          </div>
-                          <div>
-                            <div className='flex items-center gap-2'>
-                              <p className='font-medium text-gray-900 dark:text-white'>
-                                {order.user?.display_name || order.user?.username || 'Anônimo'}
-                              </p>
-                              {(order.user?.is_verified || order.user?.verified) && (
-                                <CheckCircle className='w-4 h-4 text-blue-500' />
-                              )}
-                            </div>
-                            <div className='flex items-center gap-2 mt-1'>
-                              <div className='flex items-center gap-1'>
-                                <Star className='w-3 h-3 text-yellow-500 fill-current' />
-                                <span className='text-xs text-gray-600 dark:text-gray-400'>
-                                  {order.user?.reputation || order.user?.success_rate || 0}%
-                                </span>
-                              </div>
-                              <span className='text-xs text-gray-500'>•</span>
-                              <span className='text-xs text-gray-600 dark:text-gray-400'>
-                                {order.user?.completed_trades || order.user?.total_trades || 0}{' '}
-                                trades
-                              </span>
-                            </div>
-                            {order.user?.badges && order.user.badges.length > 0 && (
-                              <div className='flex items-center gap-1 mt-1'>
-                                {order.user.badges
-                                  .slice(0, 2)
-                                  .map((badge: string, index: number) => (
-                                    <div
-                                      key={index}
-                                      className='inline-flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full text-xs'
-                                    >
-                                      {getBadgeIcon(badge)}
-                                      <span className='capitalize'>{badge.replace('_', ' ')}</span>
-                                    </div>
-                                  ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Price/Quantity */}
-                      <td className='px-6 py-4'>
-                        <div>
-                          <p className='font-bold text-lg text-gray-900 dark:text-white'>
-                            {formatCurrency(Number(order.price || 0))}
-                          </p>
-                          <p className='text-sm text-gray-600 dark:text-gray-400'>
-                            {order.amount || order.total_amount || 0}{' '}
-                            {order.coin || order.cryptocurrency}
-                          </p>
-                        </div>
-                      </td>
-
-                      {/* Limits */}
-                      <td className='px-6 py-4'>
-                        <div>
-                          <p className='text-sm text-gray-900 dark:text-white'>
-                            {formatCurrency(Number(order.minAmount || order.min_order_limit || 0))}{' '}
-                            -{' '}
-                            {formatCurrency(Number(order.maxAmount || order.max_order_limit || 0))}
-                          </p>
-                          <div className='flex items-center gap-1 mt-1'>
-                            <Clock className='w-3 h-3 text-gray-400' />
-                            <span className='text-xs text-gray-600 dark:text-gray-400'>
-                              {order.timeLimit || order.time_limit || 30} min
-                            </span>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Payment Methods */}
-                      <td className='px-6 py-4'>
-                        <div className='flex flex-wrap gap-1'>
-                          {order.payment_methods?.map((method: string, index: number) => (
-                            <div
-                              key={index}
-                              className='inline-flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded text-xs'
-                            >
-                              {getPaymentMethodIcon(method)}
-                              {method}
-                            </div>
-                          ))}
-                        </div>
-                      </td>
-
-                      {/* Actions */}
-                      <td className='px-6 py-4'>
-                        <div className='flex items-center gap-2'>
-                          <button
-                            onClick={() => navigate(`/p2p/order/${order.id}`)}
-                            className={`px-4 py-2 rounded-lg font-medium transition-colors text-white ${
-                              order.type === 'sell' || order.order_type === 'sell'
-                                ? 'bg-green-600 hover:bg-green-700'
-                                : 'bg-red-600 hover:bg-red-700'
-                            }`}
-                          >
-                            {/* Se anúncio é de VENDA, usuário vai COMPRAR. Se é de COMPRA, usuário vai VENDER */}
-                            {order.type === 'sell' || order.order_type === 'sell'
-                              ? 'Comprar'
-                              : 'Vender'}
-                          </button>
-                          <button
-                            onClick={() => handleOpenChat(order)}
-                            aria-label='Enviar mensagem para o trader'
-                            className='p-2 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors'
-                          >
-                            <MessageCircle className='w-4 h-4' />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </>
-          )}
+            <button
+              onClick={() => navigate('/p2p/create-order')}
+              className='p-2.5 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-xl transition-all'
+              aria-label='Começar a vender'
+            >
+              <ChevronRight className='w-5 h-5 text-white' />
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Quick Trade Card */}
-      <div className='bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg shadow p-4 md:p-6 text-white'>
-        <div className='flex flex-col lg:flex-row lg:items-center justify-between gap-3 md:gap-4'>
+      {/* Security Footer */}
+      <div className='flex items-center justify-center gap-6 py-2'>
+        <div className='flex items-center gap-1.5 text-gray-400'>
+          <Lock className='w-3.5 h-3.5' />
+          <span className='text-[10px] font-medium'>SSL Seguro</span>
+        </div>
+        <div className='flex items-center gap-1.5 text-gray-400'>
+          <Shield className='w-3.5 h-3.5' />
+          <span className='text-[10px] font-medium'>Escrow 100%</span>
+        </div>
+        <div className='flex items-center gap-1.5 text-gray-400'>
+          <BadgeCheck className='w-3.5 h-3.5' />
+          <span className='text-[10px] font-medium'>KYC Verificado</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================
+// PREMIUM ORDER CARD COMPONENT
+// ============================================
+interface PremiumOrderCardProps {
+  order: any
+  formatCurrency: (amount: number, currency?: string) => string
+  getPaymentMethodIcon: (method: string) => React.ReactNode
+  onNavigate: (path: string) => void
+  onOpenChat: (order: any) => void
+}
+
+const PremiumOrderCard: React.FC<PremiumOrderCardProps> = ({
+  order,
+  formatCurrency,
+  getPaymentMethodIcon,
+  onNavigate,
+  onOpenChat,
+}) => {
+  const isSell = order.type === 'sell' || order.order_type === 'sell'
+  const username = order.user?.display_name || order.user?.username || 'Anônimo'
+  const isVerified = order.user?.is_verified || order.user?.verified
+  const isOnline = order.user?.is_online
+  const reputation = order.user?.reputation || order.user?.success_rate || 0
+  const trades = order.user?.completed_trades || order.user?.total_trades || 0
+  const paymentMethods = order.payment_methods || []
+
+  return (
+    <div className='p-4 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-all'>
+      {/* Top Row: Trader Info + Price */}
+      <div className='flex items-start justify-between mb-3'>
+        {/* Trader */}
+        <div className='flex items-center gap-3'>
+          <div className='relative'>
+            <div className='w-11 h-11 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-lg'>
+              {username.charAt(0).toUpperCase()}
+            </div>
+            {isOnline && (
+              <div className='absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 border-2 border-white dark:border-gray-800 rounded-full flex items-center justify-center'>
+                <div className='w-1.5 h-1.5 bg-white rounded-full animate-pulse' />
+              </div>
+            )}
+          </div>
           <div>
-            <h3 className='text-lg md:text-xl font-bold mb-1 md:mb-2'>Trade Rápido</h3>
-            <p className='opacity-90 text-sm md:text-base'>
-              Encontre a melhor cotação automaticamente e execute trades em segundos
-            </p>
+            <div className='flex items-center gap-1.5'>
+              <span className='text-sm font-semibold text-gray-900 dark:text-white'>
+                {username}
+              </span>
+              {isVerified && <BadgeCheck className='w-4 h-4 text-blue-500' />}
+            </div>
+            <div className='flex items-center gap-2 mt-0.5'>
+              <div className='flex items-center gap-1'>
+                <Star className='w-3 h-3 text-amber-500 fill-amber-500' />
+                <span className='text-xs text-gray-600 dark:text-gray-400 font-medium'>
+                  {reputation}%
+                </span>
+              </div>
+              <span className='text-gray-300 dark:text-gray-600'>•</span>
+              <span className='text-xs text-gray-500 dark:text-gray-400'>{trades} trades</span>
+              {isOnline && (
+                <>
+                  <span className='text-gray-300 dark:text-gray-600'>•</span>
+                  <span className='text-xs text-emerald-600 dark:text-emerald-400 font-medium'>
+                    Online
+                  </span>
+                </>
+              )}
+            </div>
           </div>
-          <div className='flex flex-col sm:flex-row gap-2 md:gap-3'>
-            <button className='bg-white bg-opacity-20 hover:bg-opacity-30 px-4 md:px-6 py-2 md:py-2.5 rounded-lg text-sm md:text-base font-medium transition-colors'>
-              Compra Rápida
-            </button>
-            <button className='bg-white text-blue-600 hover:bg-gray-100 px-4 md:px-6 py-2 md:py-2.5 rounded-lg text-sm md:text-base font-medium transition-colors'>
-              Venda Rápida
-            </button>
-          </div>
+        </div>
+
+        {/* Price */}
+        <div className='text-right'>
+          <p className='text-lg font-bold text-gray-900 dark:text-white'>
+            {formatCurrency(Number(order.price || 0))}
+          </p>
+          <p className='text-xs text-gray-500 dark:text-gray-400'>
+            por {order.coin || order.cryptocurrency}
+          </p>
+        </div>
+      </div>
+
+      {/* Middle Row: Details */}
+      <div className='flex items-center justify-between mb-3 py-2 px-3 bg-gray-50 dark:bg-gray-700/30 rounded-xl'>
+        <div>
+          <p className='text-[10px] text-gray-400 uppercase font-medium'>Disponível</p>
+          <p className='text-xs font-semibold text-gray-900 dark:text-white'>
+            {order.amount || order.total_amount || 0} {order.coin || order.cryptocurrency}
+          </p>
+        </div>
+        <div className='h-8 w-px bg-gray-200 dark:bg-gray-600' />
+        <div>
+          <p className='text-[10px] text-gray-400 uppercase font-medium'>Limites</p>
+          <p className='text-xs font-semibold text-gray-900 dark:text-white'>
+            {formatCurrency(Number(order.minAmount || order.min_order_limit || 0))} -{' '}
+            {formatCurrency(Number(order.maxAmount || order.max_order_limit || 0))}
+          </p>
+        </div>
+        <div className='h-8 w-px bg-gray-200 dark:bg-gray-600' />
+        <div className='flex items-center gap-1 text-gray-500'>
+          <Clock className='w-3.5 h-3.5' />
+          <span className='text-xs font-medium'>
+            {order.timeLimit || order.time_limit || 30} min
+          </span>
+        </div>
+      </div>
+
+      {/* Bottom Row: Payment Methods + Actions */}
+      <div className='flex items-center justify-between'>
+        {/* Payment Methods */}
+        <div className='flex items-center gap-1.5 flex-wrap'>
+          {paymentMethods.slice(0, 3).map((method: string) => (
+            <div
+              key={`${order.id}-${method}`}
+              className='flex items-center gap-1 px-2 py-1 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-lg text-[10px] font-medium'
+            >
+              {getPaymentMethodIcon(method)}
+              {method}
+            </div>
+          ))}
+          {paymentMethods.length > 3 && (
+            <span className='text-[10px] text-gray-400'>+{paymentMethods.length - 3}</span>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className='flex items-center gap-2'>
+          <button
+            onClick={() => onOpenChat(order)}
+            className='p-2.5 bg-gray-100 dark:bg-gray-700 hover:bg-blue-50 dark:hover:bg-blue-900/30 text-gray-500 hover:text-blue-600 rounded-xl transition-all'
+            aria-label='Chat em tempo real'
+          >
+            <MessageCircle className='w-4 h-4' />
+          </button>
+          <button
+            onClick={() => onNavigate(`/p2p/order/${order.id}`)}
+            className={`px-4 py-2.5 rounded-xl font-bold text-xs text-white transition-all flex items-center gap-1.5 shadow-lg ${
+              isSell
+                ? 'bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-400 hover:to-green-400 shadow-emerald-500/25'
+                : 'bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-400 hover:to-rose-400 shadow-red-500/25'
+            }`}
+          >
+            {isSell ? 'Comprar' : 'Vender'}
+            <ArrowRight className='w-3.5 h-3.5' />
+          </button>
         </div>
       </div>
     </div>
