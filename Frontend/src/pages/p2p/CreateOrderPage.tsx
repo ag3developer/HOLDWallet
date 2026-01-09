@@ -22,12 +22,10 @@ import {
 } from 'lucide-react'
 import { useCreateP2POrder } from '@/hooks/useP2POrders'
 import { usePaymentMethods } from '@/hooks/usePaymentMethods'
-import { useAuthStore } from '@/stores/useAuthStore'
 import { usePrices } from '@/hooks/usePrices'
 import { useWalletBalances } from '@/hooks/useWalletBalances'
 import { useUserWallet } from '@/hooks/useUserWallet'
 import { CryptoIcon } from '@/components/CryptoIcon'
-import { UserProfileSection } from '@/components/trader/UserProfileSection'
 import { ExchangeRateDisplay } from '@/components/ExchangeRateDisplay'
 import { toast } from 'react-hot-toast'
 import { currencyConverterService } from '@/services/currency-converter-service'
@@ -37,7 +35,6 @@ export const CreateOrderPage = () => {
   const navigate = useNavigate()
   const createOrderMutation = useCreateP2POrder()
   const { data: paymentMethodsData } = usePaymentMethods()
-  const { token } = useAuthStore()
   const { data: wallet, isLoading: walletLoading } = useUserWallet()
 
   // Form state
@@ -827,14 +824,6 @@ export const CreateOrderPage = () => {
           </div>
         )}
       </form>
-
-      {/* User Profile Section */}
-      <UserProfileSection
-        token={token}
-        onEdit={() => navigate('/p2p/trader-profile/edit')}
-        showEditButton={true}
-        showProfileLink={true}
-      />
     </div>
   )
 }
