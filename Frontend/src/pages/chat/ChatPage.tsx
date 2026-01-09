@@ -36,11 +36,15 @@ import {
   Wallet,
 } from 'lucide-react'
 import { chatP2PService, ChatMessageP2P } from '@/services/chatP2P'
+import { useChatRooms } from '@/hooks/useChatRooms'
 import { p2pService } from '@/services/p2p'
 import { webrtcService } from '@/services/webrtcService'
 import { CallModal } from '@/components/chat/CallModal'
 import { AudioMessageInput } from '@/components/chat/AudioMessageInput'
 import { AudioMessage } from '@/components/chat/AudioMessage'
+import { EmojiPicker } from '@/components/chat/EmojiPicker'
+import { MessageSearch } from '@/components/chat/MessageSearch'
+import { MessageContextMenu } from '@/components/chat/MessageContextMenu'
 import { useMediaCapture } from '@/hooks/useMediaCapture'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useP2PChat } from '@/hooks/chat/useP2PChat'
@@ -86,6 +90,7 @@ interface Contact {
   rating?: number
   isBot?: boolean
   botId?: string
+  roomId?: string // ID real da sala para WebSocket
 }
 
 interface Message {
@@ -117,6 +122,16 @@ export const ChatPage = () => {
     urlParams,
   } = useP2PChat()
 
+  // ✅ NOVO: Hook para carregar conversas da API
+  const {
+    contacts: apiContacts,
+    totalUnread,
+    isLoading: isLoadingRooms,
+    markRoomAsRead,
+    refresh: refreshRooms,
+    getRoomIdByContactId,
+  } = useChatRooms({ pollingInterval: 30000, activeOnly: false })
+
   const [selectedContact, setSelectedContact] = useState<number>(1)
   const [newMessage, setNewMessage] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
@@ -129,6 +144,17 @@ export const ChatPage = () => {
   const [isTyping, setIsTyping] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<number>(0)
   const [isUploading, setIsUploading] = useState(false)
+
+  // ✅ NOVOS: Estados para Emoji Picker, Busca e Menu de Contexto
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const [showMessageSearch, setShowMessageSearch] = useState(false)
+  const [contextMenu, setContextMenu] = useState<{
+    messageId: string
+    content: string
+    isOwn: boolean
+    isSystem: boolean
+    position: { x: number; y: number }
+  } | null>(null)
 
   // ✅ Pegar token do Zustand store (auth state)
   const authToken = useAuthStore(state => state.token)
@@ -496,9 +522,20 @@ Digite "ajuda" ou "menu" para começar!`,
     loadChatHistory()
   }, [chatRoomId, selectedContact])
 
-  // ✅ Buscar contatos reais da API (P2P matches)
-  // Temporariamente usando bot para testes
+  // ✅ Marcar como lido quando selecionar um contato
+  useEffect(() => {
+    if (selectedContact > 1000) {
+      // É um contato da API (ID >= 1000)
+      const roomId = getRoomIdByContactId(selectedContact)
+      if (roomId) {
+        markRoomAsRead(roomId).catch(err => console.error('❌ Erro ao marcar como lido:', err))
+      }
+    }
+  }, [selectedContact, getRoomIdByContactId, markRoomAsRead])
+
+  // ✅ Buscar contatos reais da API (P2P matches) + Bot + conversas existentes
   const contacts: Contact[] = [
+    // Bot de suporte sempre primeiro
     {
       id: 1,
       name: 'Agent Wolk Now',
@@ -513,13 +550,28 @@ Digite "ajuda" ou "menu" para começar!`,
       isBot: true,
       botId: 'agent-wolk-now',
     },
-    // Adiciona contato P2P se existir
+    // Adiciona contato P2P ativo se existir
     ...(p2pContact ? [p2pContact] : []),
+    // Adiciona conversas da API (histórico)
+    ...apiContacts.map(contact => ({
+      id: contact.id,
+      name: contact.name,
+      avatar: contact.avatar,
+      avatarColor: contact.avatarColor,
+      lastMessage: contact.lastMessage,
+      timestamp: contact.timestamp,
+      unread: contact.unread,
+      isOnline: contact.isOnline,
+      isSupport: contact.isSupport,
+      rating: contact.rating,
+      roomId: contact.roomId,
+    })),
   ]
 
-  console.log('📋 [ChatPage] Contacts array:', contacts)
+  console.log('📋 [ChatPage] Contacts array:', contacts.length, 'contatos')
   console.log('🎯 [ChatPage] p2pContact:', p2pContact)
   console.log('🔢 [ChatPage] selectedContact:', selectedContact)
+  console.log('🔔 [ChatPage] totalUnread:', totalUnread)
 
   const currentContact = contacts.find(c => c.id === selectedContact)
   let currentMessages: Message[] = messages || []
@@ -1096,6 +1148,54 @@ Digite "ajuda" ou "menu" para começar!`,
   const handleToggleVideo = (enabled: boolean) => {
     webrtcService.toggleVideo(enabled)
     setIsVideoEnabled(enabled)
+  }
+
+  // ✅ NOVOS: Handlers para Emoji, Busca e Menu de Contexto
+
+  // Handler para selecionar emoji
+  const handleEmojiSelect = (emoji: string) => {
+    setNewMessage(prev => prev + emoji)
+    setShowEmojiPicker(false)
+  }
+
+  // Handler para abrir menu de contexto em uma mensagem
+  const handleMessageContextMenu = (e: React.MouseEvent, message: Message) => {
+    e.preventDefault()
+    setContextMenu({
+      messageId: message.id,
+      content: message.content,
+      isOwn: message.isOwn,
+      isSystem: message.type === 'system',
+      position: { x: e.clientX, y: e.clientY },
+    })
+  }
+
+  // Handler para editar mensagem
+  const handleEditMessage = (messageId: string, newContent: string) => {
+    setMessages(prev =>
+      prev.map(msg =>
+        msg.id === messageId ? { ...msg, content: newContent, status: 'delivered' as const } : msg
+      )
+    )
+  }
+
+  // Handler para deletar mensagem
+  const handleDeleteMessage = (messageId: string) => {
+    setMessages(prev =>
+      prev.map(msg => (msg.id === messageId ? { ...msg, content: '[Mensagem apagada]' } : msg))
+    )
+  }
+
+  // Handler para scroll até mensagem (da busca)
+  const handleScrollToMessage = (messageId: string) => {
+    const element = document.getElementById(`message-${messageId}`)
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      element.classList.add('bg-yellow-100', 'dark:bg-yellow-900/30')
+      setTimeout(() => {
+        element.classList.remove('bg-yellow-100', 'dark:bg-yellow-900/30')
+      }, 2000)
+    }
   }
 
   const handleSendMessage = async () => {
@@ -1767,6 +1867,20 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
 
                 {/* Botões de ação */}
                 <div className='flex items-center'>
+                  {/* Botão de busca */}
+                  <button
+                    onClick={() => setShowMessageSearch(!showMessageSearch)}
+                    aria-label='Buscar mensagens'
+                    title='Buscar mensagens'
+                    className={`p-2 transition-all rounded-xl
+                              ${
+                                showMessageSearch
+                                  ? 'text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-500/10'
+                                  : 'text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10'
+                              }`}
+                  >
+                    <Search className='w-[18px] h-[18px] sm:w-5 sm:h-5' />
+                  </button>
                   <button
                     onClick={handleInitiateAudioCall}
                     aria-label='Ligar'
@@ -1792,6 +1906,15 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
                   </button>
                 </div>
               </div>
+
+              {/* Componente de busca */}
+              {showMessageSearch && chatRoomId && (
+                <MessageSearch
+                  roomId={chatRoomId}
+                  onResultClick={handleScrollToMessage}
+                  onClose={() => setShowMessageSearch(false)}
+                />
+              )}
             </div>
 
             {/* Card de Contexto P2P - Design Compacto */}
@@ -1933,6 +2056,8 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
               {currentMessages.map(message => (
                 <div
                   key={message.id}
+                  id={`message-${message.id}`}
+                  role='article'
                   className={`flex ${
                     message.type === 'system'
                       ? 'justify-center'
@@ -1940,6 +2065,7 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
                         ? 'justify-end'
                         : 'justify-start'
                   }`}
+                  onContextMenu={e => handleMessageContextMenu(e, message)}
                 >
                   {message.type === 'system' ? (
                     // Mensagem do Sistema - Clean Design
@@ -2129,9 +2255,11 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
                   {/* Botões dentro do input */}
                   <div className='absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5'>
                     <button
+                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                       aria-label='Adicionar emoji'
                       title='Emoji'
-                      className='p-1.5 text-gray-400 hover:text-yellow-500 transition-colors rounded-lg hover:bg-yellow-50 dark:hover:bg-yellow-500/10'
+                      className={`p-1.5 transition-colors rounded-lg hover:bg-yellow-50 dark:hover:bg-yellow-500/10
+                                ${showEmojiPicker ? 'text-yellow-500' : 'text-gray-400 hover:text-yellow-500'}`}
                     >
                       <Smile className='w-5 h-5' />
                     </button>
@@ -2151,6 +2279,15 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
                       )}
                     </button>
                   </div>
+
+                  {/* Emoji Picker */}
+                  {showEmojiPicker && (
+                    <EmojiPicker
+                      onSelect={handleEmojiSelect}
+                      onClose={() => setShowEmojiPicker(false)}
+                      position='top'
+                    />
+                  )}
                 </div>
 
                 {/* Botão de Áudio com Gravação */}
@@ -2265,6 +2402,21 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
           )
         )
       })()}
+
+      {/* Menu de contexto para mensagens */}
+      {contextMenu && chatRoomId && (
+        <MessageContextMenu
+          messageId={contextMenu.messageId}
+          roomId={chatRoomId}
+          content={contextMenu.content}
+          isOwn={contextMenu.isOwn}
+          isSystem={contextMenu.isSystem}
+          position={contextMenu.position}
+          onClose={() => setContextMenu(null)}
+          onEdit={handleEditMessage}
+          onDelete={handleDeleteMessage}
+        />
+      )}
     </div>
   )
 }

@@ -243,8 +243,17 @@ class ChatService:
                 "is_system": message.is_system_message
             }
             
-            # Enviar para todos na sala
+            # Enviar para todos na sala via WebSocket
             await self.broadcast_to_room(chat_room_id, message_data, db)
+            
+            # ✅ NOVO: Enviar Push Notification para usuário offline
+            await self._send_offline_notification(
+                db=db,
+                chat_room=chat_room,
+                sender_id=sender_id,
+                content=content,
+                chat_room_id=chat_room_id
+            )
             
             # Coletar taxa se for mensagem premium (com anexos)
             revenue = 0
@@ -800,6 +809,57 @@ class ChatService:
         # Implementar limites se necessário
         # Por exemplo: usuários free têm limite de mensagens por dia
         pass
+    
+    def _is_user_online(self, user_id: str) -> bool:
+        """Verifica se usuário tem conexão WebSocket ativa"""
+        return user_id in self.user_sessions and len(self.user_sessions.get(user_id, [])) > 0
+    
+    async def _send_offline_notification(
+        self,
+        db: Session,
+        chat_room: ChatRoom,
+        sender_id: str,
+        content: str,
+        chat_room_id: str
+    ):
+        """Envia push notification para usuário offline quando recebe mensagem"""
+        try:
+            # Importar aqui para evitar circular import
+            from app.services.push_notification_service import push_notification_service
+            from app.models.user import User
+            
+            # Determinar quem é o destinatário
+            recipient_id = chat_room.seller_id if sender_id == chat_room.buyer_id else chat_room.buyer_id
+            
+            # Verificar se destinatário está offline (não tem WebSocket ativo)
+            if self._is_user_online(str(recipient_id)):
+                logger.debug(f"👤 User {recipient_id} is online, skipping push notification")
+                return
+            
+            # Buscar nome do remetente
+            sender = db.query(User).filter(User.id == sender_id).first()
+            sender_name = sender.name if sender and sender.name else "Usuário"
+            
+            # Criar preview da mensagem (máx 100 caracteres)
+            message_preview = content[:100] + ("..." if len(content) > 100 else "")
+            
+            # Enviar push notification
+            result = push_notification_service.notify_new_chat_message(
+                db=db,
+                user_id=str(recipient_id),
+                sender_name=sender_name,
+                message_preview=message_preview,
+                chat_id=chat_room_id
+            )
+            
+            if result.get("success"):
+                logger.info(f"📱 Push notification sent to offline user {recipient_id}")
+            else:
+                logger.warning(f"⚠️ Failed to send push: {result.get('reason', 'unknown')}")
+                
+        except Exception as e:
+            # Não falhar a mensagem por causa de erro na notificação
+            logger.error(f"❌ Error sending offline notification: {e}")
 
 # Instância global
 chat_service = ChatService()

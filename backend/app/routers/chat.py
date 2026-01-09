@@ -154,6 +154,166 @@ async def create_chat_room(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/rooms")
+async def get_user_chat_rooms(
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user),
+    limit: int = 20,
+    offset: int = 0,
+    active_only: bool = True
+):
+    """
+    Listar todas as conversas do usuário.
+    Retorna salas de chat com última mensagem e contagem de não lidas.
+    """
+    try:
+        from app.models.chat import ChatRoom, ChatMessage
+        from app.models.user import User
+        from sqlalchemy import or_, func, desc
+        
+        user_id = str(current_user.id)
+        
+        # Query base - salas onde o usuário é comprador ou vendedor
+        query = db.query(ChatRoom).filter(
+            or_(
+                ChatRoom.buyer_id == user_id,
+                ChatRoom.seller_id == user_id
+            )
+        )
+        
+        # Filtrar apenas ativas se solicitado
+        if active_only:
+            query = query.filter(ChatRoom.is_active == True)
+        
+        # Ordenar por última atividade (mais recente primeiro)
+        query = query.order_by(desc(ChatRoom.created_at))
+        
+        # Paginação
+        total_count = query.count()
+        rooms = query.offset(offset).limit(limit).all()
+        
+        # Montar resposta com informações adicionais
+        rooms_data = []
+        for room in rooms:
+            # Determinar o outro participante
+            other_user_id = room.seller_id if room.buyer_id == user_id else room.buyer_id
+            
+            # Buscar dados do outro usuário
+            other_user = db.query(User).filter(User.id == other_user_id).first()
+            other_user_name = other_user.name if other_user and other_user.name else f"Usuário {str(other_user_id)[:8]}"
+            
+            # Buscar última mensagem
+            last_message = db.query(ChatMessage).filter(
+                ChatMessage.chat_room_id == str(room.id)
+            ).order_by(desc(ChatMessage.created_at)).first()
+            
+            # Contar mensagens não lidas (mensagens do outro usuário que não foram lidas)
+            unread_count = db.query(func.count(ChatMessage.id)).filter(
+                ChatMessage.chat_room_id == str(room.id),
+                ChatMessage.sender_id == other_user_id,
+                ChatMessage.is_read == False
+            ).scalar() or 0
+            
+            rooms_data.append({
+                "room_id": str(room.id),
+                "match_id": str(room.match_id) if room.match_id else None,
+                "is_active": room.is_active,
+                "created_at": room.created_at.isoformat() if room.created_at else None,
+                "closed_at": room.closed_at.isoformat() if room.closed_at else None,
+                "other_user": {
+                    "id": str(other_user_id),
+                    "name": other_user_name,
+                    "avatar": getattr(other_user, 'avatar', None),
+                },
+                "last_message": {
+                    "content": last_message.content[:100] if last_message else None,
+                    "sender_id": str(last_message.sender_id) if last_message else None,
+                    "created_at": last_message.created_at.isoformat() if last_message else None,
+                    "is_own": str(last_message.sender_id) == user_id if last_message else False,
+                    "message_type": last_message.message_type.value if last_message else None,
+                } if last_message else None,
+                "unread_count": unread_count,
+            })
+        
+        return {
+            "success": True,
+            "rooms": rooms_data,
+            "total": total_count,
+            "has_more": (offset + limit) < total_count
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get user chat rooms: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/unread-total")
+async def get_total_unread_messages(
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """
+    Obter total de mensagens não lidas em todas as salas do usuário.
+    Útil para exibir badge no ícone de chat.
+    """
+    try:
+        from app.models.chat import ChatRoom, ChatMessage
+        from app.models.user import User
+        from sqlalchemy import func, or_
+        
+        user_id = str(current_user.id)
+        
+        # Subquery para encontrar todas as salas do usuário
+        user_rooms = db.query(ChatRoom.id).filter(
+            or_(
+                ChatRoom.buyer_id == user_id,
+                ChatRoom.seller_id == user_id
+            ),
+            ChatRoom.is_active == True
+        ).subquery()
+        
+        # Para cada sala, contar mensagens não lidas do outro usuário
+        # Precisamos fazer um join mais complexo para saber quem é o "outro" em cada sala
+        
+        # Alternativa mais simples: buscar todas as salas e calcular
+        rooms = db.query(ChatRoom).filter(
+            or_(
+                ChatRoom.buyer_id == user_id,
+                ChatRoom.seller_id == user_id
+            ),
+            ChatRoom.is_active == True
+        ).all()
+        
+        total_unread = 0
+        rooms_with_unread = []
+        
+        for room in rooms:
+            other_user_id = str(room.seller_id) if str(room.buyer_id) == user_id else str(room.buyer_id)
+            
+            unread = db.query(func.count(ChatMessage.id)).filter(
+                ChatMessage.chat_room_id == str(room.id),
+                ChatMessage.sender_id == other_user_id,
+                ChatMessage.is_read == False
+            ).scalar() or 0
+            
+            if unread > 0:
+                total_unread += unread
+                rooms_with_unread.append({
+                    "room_id": str(room.id),
+                    "unread_count": unread
+                })
+        
+        return {
+            "success": True,
+            "total_unread": total_unread,
+            "rooms_with_unread": rooms_with_unread
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get total unread messages: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/p2p/order/{order_id}/start-chat")
 async def start_chat_from_order(
     order_id: str,
@@ -342,6 +502,305 @@ async def get_chat_history(
     except Exception as e:
         logger.error(f"Failed to get chat history: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.put("/rooms/{chat_room_id}/read")
+async def mark_messages_as_read(
+    chat_room_id: str,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """
+    Marcar todas as mensagens de uma sala como lidas.
+    Marca apenas as mensagens enviadas pelo outro usuário.
+    """
+    try:
+        from app.models.chat import ChatRoom, ChatMessage
+        from sqlalchemy import and_
+        
+        user_id = str(current_user.id)
+        
+        # Verificar se a sala existe e o usuário tem acesso
+        chat_room = db.query(ChatRoom).filter(ChatRoom.id == chat_room_id).first()
+        if not chat_room:
+            raise HTTPException(status_code=404, detail="Chat room not found")
+        
+        if user_id not in [str(chat_room.buyer_id), str(chat_room.seller_id)]:
+            raise HTTPException(status_code=403, detail="Unauthorized access to chat room")
+        
+        # Determinar o ID do outro usuário
+        other_user_id = str(chat_room.seller_id) if str(chat_room.buyer_id) == user_id else str(chat_room.buyer_id)
+        
+        # Atualizar mensagens não lidas do outro usuário
+        updated_count = db.query(ChatMessage).filter(
+            and_(
+                ChatMessage.chat_room_id == chat_room_id,
+                ChatMessage.sender_id == other_user_id,
+                ChatMessage.is_read == False
+            )
+        ).update({"is_read": True})
+        
+        db.commit()
+        
+        logger.info(f"✅ Marked {updated_count} messages as read in room {chat_room_id}")
+        
+        return {
+            "success": True,
+            "messages_marked": updated_count,
+            "room_id": chat_room_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to mark messages as read: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/rooms/{chat_room_id}/unread-count")
+async def get_unread_count(
+    chat_room_id: str,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """
+    Obter contagem de mensagens não lidas em uma sala.
+    """
+    try:
+        from app.models.chat import ChatRoom, ChatMessage
+        from sqlalchemy import func
+        
+        user_id = str(current_user.id)
+        
+        # Verificar acesso
+        chat_room = db.query(ChatRoom).filter(ChatRoom.id == chat_room_id).first()
+        if not chat_room:
+            raise HTTPException(status_code=404, detail="Chat room not found")
+        
+        if user_id not in [str(chat_room.buyer_id), str(chat_room.seller_id)]:
+            raise HTTPException(status_code=403, detail="Unauthorized access")
+        
+        # Contar mensagens não lidas do outro usuário
+        other_user_id = str(chat_room.seller_id) if str(chat_room.buyer_id) == user_id else str(chat_room.buyer_id)
+        
+        unread_count = db.query(func.count(ChatMessage.id)).filter(
+            ChatMessage.chat_room_id == chat_room_id,
+            ChatMessage.sender_id == other_user_id,
+            ChatMessage.is_read == False
+        ).scalar() or 0
+        
+        return {
+            "success": True,
+            "unread_count": unread_count,
+            "room_id": chat_room_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get unread count: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/rooms/{chat_room_id}/search")
+async def search_messages(
+    chat_room_id: str,
+    q: str,
+    limit: int = 20,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """
+    Buscar mensagens no histórico de uma sala.
+    Retorna mensagens que contêm o termo de busca.
+    """
+    try:
+        from app.models.chat import ChatRoom, ChatMessage
+        from app.models.user import User
+        
+        user_id = str(current_user.id)
+        
+        # Verificar acesso
+        chat_room = db.query(ChatRoom).filter(ChatRoom.id == chat_room_id).first()
+        if not chat_room:
+            raise HTTPException(status_code=404, detail="Chat room not found")
+        
+        if user_id not in [str(chat_room.buyer_id), str(chat_room.seller_id)]:
+            raise HTTPException(status_code=403, detail="Unauthorized access")
+        
+        # Buscar mensagens que contêm o termo
+        messages = db.query(ChatMessage).filter(
+            ChatMessage.chat_room_id == chat_room_id,
+            ChatMessage.content.ilike(f"%{q}%")
+        ).order_by(ChatMessage.created_at.desc()).limit(limit).all()
+        
+        # Formatar resultados
+        results = []
+        for msg in messages:
+            # Buscar nome do sender
+            sender = db.query(User).filter(User.id == msg.sender_id).first()
+            sender_name = sender.name if sender else "Usuário"
+            
+            results.append({
+                "id": str(msg.id),
+                "content": msg.content,
+                "sender_id": str(msg.sender_id),
+                "sender_name": sender_name,
+                "is_own": str(msg.sender_id) == user_id,
+                "created_at": msg.created_at.isoformat() if msg.created_at else None,
+                "message_type": msg.message_type.value if msg.message_type else "text",
+            })
+        
+        logger.info(f"🔍 Search found {len(results)} messages for '{q}' in room {chat_room_id}")
+        
+        return {
+            "success": True,
+            "query": q,
+            "results": results,
+            "count": len(results)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to search messages: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.put("/rooms/{chat_room_id}/messages/{message_id}")
+async def edit_message(
+    chat_room_id: str,
+    message_id: str,
+    content: str,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """
+    Editar uma mensagem própria.
+    Só é possível editar mensagens enviadas pelo próprio usuário.
+    """
+    try:
+        from app.models.chat import ChatRoom, ChatMessage
+        from datetime import datetime
+        
+        user_id = str(current_user.id)
+        
+        # Verificar acesso à sala
+        chat_room = db.query(ChatRoom).filter(ChatRoom.id == chat_room_id).first()
+        if not chat_room:
+            raise HTTPException(status_code=404, detail="Chat room not found")
+        
+        if user_id not in [str(chat_room.buyer_id), str(chat_room.seller_id)]:
+            raise HTTPException(status_code=403, detail="Unauthorized access")
+        
+        # Buscar a mensagem
+        message = db.query(ChatMessage).filter(
+            ChatMessage.id == message_id,
+            ChatMessage.chat_room_id == chat_room_id
+        ).first()
+        
+        if not message:
+            raise HTTPException(status_code=404, detail="Message not found")
+        
+        # Verificar se é o autor da mensagem
+        if str(message.sender_id) != user_id:
+            raise HTTPException(status_code=403, detail="You can only edit your own messages")
+        
+        # Verificar se é mensagem de sistema
+        if message.is_system_message:
+            raise HTTPException(status_code=400, detail="Cannot edit system messages")
+        
+        # Atualizar a mensagem
+        old_content = message.content
+        message.content = content
+        message.edited_at = datetime.utcnow()
+        
+        db.commit()
+        
+        logger.info(f"✏️ Message {message_id} edited by user {user_id}")
+        
+        # Notificar via WebSocket se o outro usuário estiver online
+        # (implementar broadcast de edição)
+        
+        return {
+            "success": True,
+            "message": {
+                "id": str(message.id),
+                "content": message.content,
+                "edited_at": message.edited_at.isoformat(),
+                "old_content": old_content
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to edit message: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/rooms/{chat_room_id}/messages/{message_id}")
+async def delete_message(
+    chat_room_id: str,
+    message_id: str,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """
+    Deletar uma mensagem própria.
+    A mensagem não é removida do banco, apenas marcada como deletada.
+    """
+    try:
+        from app.models.chat import ChatRoom, ChatMessage
+        from datetime import datetime
+        
+        user_id = str(current_user.id)
+        
+        # Verificar acesso à sala
+        chat_room = db.query(ChatRoom).filter(ChatRoom.id == chat_room_id).first()
+        if not chat_room:
+            raise HTTPException(status_code=404, detail="Chat room not found")
+        
+        if user_id not in [str(chat_room.buyer_id), str(chat_room.seller_id)]:
+            raise HTTPException(status_code=403, detail="Unauthorized access")
+        
+        # Buscar a mensagem
+        message = db.query(ChatMessage).filter(
+            ChatMessage.id == message_id,
+            ChatMessage.chat_room_id == chat_room_id
+        ).first()
+        
+        if not message:
+            raise HTTPException(status_code=404, detail="Message not found")
+        
+        # Verificar se é o autor da mensagem
+        if str(message.sender_id) != user_id:
+            raise HTTPException(status_code=403, detail="You can only delete your own messages")
+        
+        # Verificar se é mensagem de sistema
+        if message.is_system_message:
+            raise HTTPException(status_code=400, detail="Cannot delete system messages")
+        
+        # Soft delete - substituir conteúdo
+        message.content = "[Mensagem apagada]"
+        message.edited_at = datetime.utcnow()
+        
+        db.commit()
+        
+        logger.info(f"🗑️ Message {message_id} deleted by user {user_id}")
+        
+        return {
+            "success": True,
+            "message_id": message_id,
+            "deleted": True
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete message: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.post("/disputes/create")
 async def create_dispute(
