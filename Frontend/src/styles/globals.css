@@ -88,10 +88,14 @@
 
   /* ✅ Mobile PWA - Keyboard behavior */
   /* Garantir que o layout se ajuste quando o teclado mobile aparecer */
-  html,
+  html {
+    height: 100%;
+  }
+
   body {
     height: 100%;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
   }
 
   /* ✅ Prevenir zoom automático em inputs no iOS (fonte mínima 16px) */
@@ -108,25 +112,37 @@
     /* Usar transform para aparência menor mantendo 16px real */
   }
 
-  /* ✅ Prevenir comportamentos indesejados de touch/zoom */
+  /* ✅ Prevenir highlight de tap no mobile */
   * {
     -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
   }
 
   /* ✅ Garantir que SVG icons (lucide-react) apareçam corretamente no Safari/iOS */
   svg {
-    display: block;
+    display: inline-block;
+    vertical-align: middle;
     flex-shrink: 0;
-    -webkit-transform: translateZ(0);
-    transform: translateZ(0);
   }
 
-  /* ✅ Botões no Safari/iOS - garantir clicabilidade e visibilidade */
+  /* ✅ Botões no Safari/iOS - garantir clicabilidade */
   button {
+    cursor: pointer;
+  }
+
+  /* ✅ Inputs no Safari - garantir interatividade */
+  input,
+  textarea,
+  select {
     -webkit-appearance: none;
     appearance: none;
-    -webkit-touch-callout: none;
+  }
+
+  /* ✅ Manter border-radius em inputs com classe específica */
+  input.rounded-2xl,
+  input[type='text'],
+  input[type='email'],
+  input[type='password'] {
+    border-radius: 1rem; /* rounded-2xl */
   }
 
   /* ✅ iOS Safari - Garantir que headers fiquem visíveis abaixo do notch */
@@ -135,12 +151,6 @@
     .ios-safe-header {
       padding-top: max(0.5rem, env(safe-area-inset-top));
     }
-  }
-
-  /* ✅ Desabilitar zoom via gesture em toda a página */
-  html {
-    touch-action: pan-x pan-y;
-    -ms-touch-action: pan-x pan-y;
   }
 
   /* Usar dvh (dynamic viewport height) para suportar teclado mobile */
