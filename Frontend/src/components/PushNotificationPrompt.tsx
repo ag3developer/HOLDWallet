@@ -4,11 +4,13 @@
  *
  * Componente elegante para solicitar permissão de Push Notifications.
  * Aparece de forma não intrusiva e explica os benefícios.
+ * SÓ APARECE QUANDO O USUÁRIO ESTÁ AUTENTICADO.
  */
 
 import { useState, useEffect } from 'react'
 import { Bell, X, Smartphone, Shield, ArrowRightLeft, CheckCircle, AlertCircle } from 'lucide-react'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
+import { useAuthStore } from '@/stores/useAuthStore'
 
 interface PushNotificationPromptProps {
   /** Delay antes de mostrar (ms) */
@@ -26,6 +28,9 @@ export const PushNotificationPrompt = ({
 }: PushNotificationPromptProps) => {
   const [isVisible, setIsVisible] = useState(false)
   const [isDismissed, setIsDismissed] = useState(false)
+
+  // Verificar se usuário está autenticado
+  const { isAuthenticated, token } = useAuthStore()
 
   const { isSupported, permission, isSubscribed, isLoading, subscribe, isPWA, error } =
     usePushNotifications()
@@ -45,8 +50,14 @@ export const PushNotificationPrompt = ({
     }
   }, [])
 
-  // Mostrar após delay
+  // Mostrar após delay - APENAS SE AUTENTICADO
   useEffect(() => {
+    // NÃO MOSTRAR se não está autenticado
+    if (!isAuthenticated || !token) {
+      setIsVisible(false)
+      return
+    }
+
     if (!isSupported || isSubscribed || permission === 'denied' || isDismissed) {
       return
     }
@@ -56,7 +67,7 @@ export const PushNotificationPrompt = ({
     }, delay)
 
     return () => clearTimeout(timer)
-  }, [isSupported, isSubscribed, permission, isDismissed, delay])
+  }, [isSupported, isSubscribed, permission, isDismissed, delay, isAuthenticated, token])
 
   // Handler para ativar
   const handleSubscribe = async () => {
@@ -91,7 +102,14 @@ export const PushNotificationPrompt = ({
   }
 
   // Não mostrar se condições não atendidas
-  if (!isVisible || !isSupported || isSubscribed || permission === 'denied') {
+  if (
+    !isAuthenticated ||
+    !token ||
+    !isVisible ||
+    !isSupported ||
+    isSubscribed ||
+    permission === 'denied'
+  ) {
     return null
   }
 
