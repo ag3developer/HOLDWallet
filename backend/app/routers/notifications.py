@@ -169,16 +169,20 @@ async def update_preferences(
 
 @router.post("/test")
 async def send_test_notification(
-    request: TestNotificationRequest,
+    request: Optional[TestNotificationRequest] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Envia uma notificação de teste para o usuário."""
+    # Usar valores padrão se não enviados
+    title = request.title if request else "Notificação de Teste"
+    body = request.body if request else "Esta é uma notificação de teste do WOLK NOW!"
+    
     result = push_notification_service.send_push(
         db=db,
         user_id=str(current_user.id),
-        title=request.title,
-        body=request.body,
+        title=title,
+        body=body,
         data={"link": "/settings/notifications", "test": True},
         category="system",
         force=True  # Força envio ignorando preferências

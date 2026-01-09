@@ -257,7 +257,11 @@ export const usePushNotifications = () => {
    */
   const sendTestNotification = useCallback(async (): Promise<boolean> => {
     try {
-      await apiClient.post('/notifications/test')
+      // Enviar título e body para compatibilidade com backend
+      await apiClient.post('/notifications/test', {
+        title: 'Notificação de Teste',
+        body: 'Esta é uma notificação de teste do WOLK NOW!'
+      })
       return true
     } catch (error) {
       console.error('[PushNotifications] Erro ao enviar teste:', error)
