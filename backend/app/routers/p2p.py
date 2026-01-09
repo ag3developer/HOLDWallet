@@ -76,6 +76,38 @@ def parse_json_details(details):
         return {}
 
 
+def normalize_payment_details(details: dict) -> dict:
+    """
+    Normalize payment method details to frontend expected format.
+    Maps keyValue -> pix_key, keyType -> pix_key_type, holderName -> holder_name
+    """
+    if not details:
+        return {}
+    
+    normalized = {}
+    
+    # Map keyValue to pix_key
+    if 'keyValue' in details:
+        normalized['pix_key'] = details['keyValue']
+    if 'keyType' in details:
+        normalized['pix_key_type'] = details['keyType'].lower() if details['keyType'] else 'cpf'
+    if 'holderName' in details:
+        normalized['holder_name'] = details['holderName']
+    if 'bankName' in details:
+        normalized['bank_name'] = details['bankName']
+    if 'agency' in details:
+        normalized['agency'] = details['agency']
+    if 'accountNumber' in details:
+        normalized['account_number'] = details['accountNumber']
+    if 'accountType' in details:
+        normalized['account_type'] = details['accountType']
+    
+    # Also keep original fields for backward compatibility
+    normalized.update(details)
+    
+    return normalized
+
+
 @router.post("/payment-methods")
 async def create_payment_method(
     payment_data: Dict[str, Any] = Body(...),
@@ -1305,27 +1337,35 @@ async def get_trade_details(
         # Buscar método de pagamento se existir
         payment_method = None
         if trade.payment_method_id:
+            print(f"[DEBUG] Trade has payment_method_id: {trade.payment_method_id}")
             pm_query = text("SELECT * FROM payment_methods WHERE id = CAST(:id AS UUID)")
             pm_result = db.execute(pm_query, {"id": str(trade.payment_method_id)}).fetchone()
             if pm_result:
+                raw_details = parse_json_details(pm_result.details)
+                print(f"[DEBUG] Raw payment method details: {raw_details}")
                 payment_method = {
                     "id": str(pm_result.id),
                     "type": pm_result.type,
-                    "details": parse_json_details(pm_result.details)
+                    "details": normalize_payment_details(raw_details)
                 }
+                print(f"[DEBUG] Normalized payment method: {payment_method}")
         
         # Se não tem payment_method do trade, pega o primeiro da ordem
         if not payment_method and order and order.payment_methods:
             pm_ids = json.loads(order.payment_methods)
+            print(f"[DEBUG] Order payment_methods IDs: {pm_ids}")
             if pm_ids:
                 pm_query = text("SELECT * FROM payment_methods WHERE id = CAST(:id AS UUID)")
                 pm_result = db.execute(pm_query, {"id": str(pm_ids[0])}).fetchone()
                 if pm_result:
+                    raw_details = parse_json_details(pm_result.details)
+                    print(f"[DEBUG] Raw payment method details from order: {raw_details}")
                     payment_method = {
                         "id": str(pm_result.id),
                         "type": pm_result.type,
-                        "details": parse_json_details(pm_result.details)
+                        "details": normalize_payment_details(raw_details)
                     }
+                    print(f"[DEBUG] Normalized payment method from order: {payment_method}")
         
         # Determinar total_fiat (pode ser total_fiat ou total_price dependendo do schema)
         total_fiat = getattr(trade, 'total_fiat', None) or getattr(trade, 'total_price', None) or 0

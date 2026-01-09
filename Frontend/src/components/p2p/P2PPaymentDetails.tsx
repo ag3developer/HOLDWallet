@@ -120,34 +120,113 @@ export const P2PPaymentDetails = ({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
   }
 
-  // Gerar PIX Copia e Cola (EMV format simplificado)
-  const generatePixPayload = (pixKey: string, value: number, identifier: string) => {
-    // Gerar string PIX EMV (simplificado)
-    // Em produção, usar pix-payload ou biblioteca oficial do Banco Central
-    const merchantName = sellerName.substring(0, 25)
-    const valueStr = value.toFixed(2)
-    const pixString = [
-      '000201',
-      `26${String(26 + pixKey.length).padStart(2, '0')}`,
-      '0014BR.GOV.BCB.PIX',
-      `01${String(pixKey.length).padStart(2, '0')}${pixKey}`,
-      '52040000',
-      '5303986',
-      `54${String(valueStr.length).padStart(2, '0')}${valueStr}`,
-      '5802BR',
-      `59${String(merchantName.length).padStart(2, '0')}${merchantName}`,
-      `60${String(identifier.length).padStart(2, '0')}${identifier}`,
-      '6304',
-    ].join('')
+  // Função para calcular CRC16-CCITT
+  const calculateCRC16 = (str: string): string => {
+    let crc = 0xffff
+    for (let i = 0; i < str.length; i++) {
+      crc ^= str.charCodeAt(i) << 8
+      for (let j = 0; j < 8; j++) {
+        if (crc & 0x8000) {
+          crc = (crc << 1) ^ 0x1021
+        } else {
+          crc <<= 1
+        }
+      }
+      crc &= 0xffff
+    }
+    return crc.toString(16).toUpperCase().padStart(4, '0')
+  }
 
-    // Adicionar CRC16 (simplificado - em produção, calcular CRC16 real)
-    return pixString + 'A1B2'
+  // Função auxiliar para formatar campo TLV (Tag-Length-Value)
+  const formatTLV = (tag: string, value: string): string => {
+    const length = value.length.toString().padStart(2, '0')
+    return `${tag}${length}${value}`
+  }
+
+  // Gerar PIX Copia e Cola (formato EMV oficial do Banco Central)
+  const generatePixPayload = (pixKey: string, value: number, txId: string): string => {
+    // Remove espaços e caracteres especiais da chave PIX
+    const cleanPixKey = pixKey.trim()
+
+    // Formatar valor com 2 casas decimais
+    const formattedValue = value.toFixed(2)
+
+    // Limpar nome do vendedor (máx 25 caracteres, sem acentos)
+    const cleanSellerName =
+      sellerName
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9 ]/g, '')
+        .substring(0, 25)
+        .trim() || 'Vendedor'
+
+    // Cidade (máx 15 caracteres)
+    const city = 'SAO PAULO'
+
+    // Transaction ID (máx 25 caracteres, sem espaços)
+    const cleanTxId = txId.replace(/[^a-zA-Z0-9]/g, '').substring(0, 25) || '***'
+
+    // Construir Merchant Account Information (ID 26)
+    // GUI do PIX: BR.GOV.BCB.PIX
+    const gui = formatTLV('00', 'BR.GOV.BCB.PIX')
+    const key = formatTLV('01', cleanPixKey)
+    const merchantAccountInfo = formatTLV('26', gui + key)
+
+    // Construir o payload PIX EMV
+    let payload = ''
+
+    // 00 - Payload Format Indicator (obrigatório)
+    payload += formatTLV('00', '01')
+
+    // 26 - Merchant Account Information - PIX (obrigatório)
+    payload += merchantAccountInfo
+
+    // 52 - Merchant Category Code (obrigatório) - 0000 = não informado
+    payload += formatTLV('52', '0000')
+
+    // 53 - Transaction Currency (obrigatório) - 986 = BRL
+    payload += formatTLV('53', '986')
+
+    // 54 - Transaction Amount (opcional, mas recomendado)
+    payload += formatTLV('54', formattedValue)
+
+    // 58 - Country Code (obrigatório)
+    payload += formatTLV('58', 'BR')
+
+    // 59 - Merchant Name (obrigatório)
+    payload += formatTLV('59', cleanSellerName)
+
+    // 60 - Merchant City (obrigatório)
+    payload += formatTLV('60', city)
+
+    // 62 - Additional Data Field Template (opcional)
+    const txIdField = formatTLV('05', cleanTxId)
+    payload += formatTLV('62', txIdField)
+
+    // 63 - CRC16 (obrigatório) - adicionar placeholder primeiro
+    payload += '6304'
+
+    // Calcular CRC16 e adicionar ao final
+    const crc = calculateCRC16(payload)
+    payload = payload.slice(0, -4) + '6304' + crc
+
+    console.log('[PIX] Generated payload:', payload)
+    console.log('[PIX] Key:', cleanPixKey)
+    console.log('[PIX] Amount:', formattedValue)
+    console.log('[PIX] TxID:', cleanTxId)
+
+    return payload
   }
 
   // Gerar QR Code
   useEffect(() => {
     const generateQR = async () => {
+      console.log('[PIX] selectedMethod:', selectedMethod)
+      console.log('[PIX] selectedMethod?.details:', selectedMethod?.details)
+      console.log('[PIX] pix_key:', selectedMethod?.details?.pix_key)
+
       if (!selectedMethod?.details?.pix_key) {
+        console.warn('[PIX] No pix_key found in payment method details')
         setQrCodeUrl(null)
         return
       }

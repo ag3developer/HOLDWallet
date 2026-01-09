@@ -193,6 +193,7 @@ export interface Trade {
 }
 
 export type TradeStatus =
+  | 'pending'
   | 'payment_pending'
   | 'payment_sent'
   | 'payment_confirmed'

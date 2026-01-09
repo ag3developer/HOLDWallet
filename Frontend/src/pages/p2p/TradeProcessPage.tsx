@@ -329,9 +329,19 @@ export const TradeProcessPage = () => {
     )
   }
 
+  // Debug: verificar se usuário é comprador
+  console.log('[TradeProcessPage] Debug:', {
+    'trade.buyerId': trade.buyerId,
+    'user?.id': user?.id,
+    'trade.status': trade.status,
+    isBuyer: trade.buyerId === user?.id,
+    paymentMethod: trade.paymentMethod,
+  })
+
   const steps = getTimelineSteps(trade.status)
   const isBuyer = trade.buyerId === user?.id // Verificar se usuário atual é o comprador
-  const canMarkPayment = isBuyer && trade.status === 'payment_pending'
+  const canMarkPayment =
+    isBuyer && (trade.status === 'payment_pending' || trade.status === 'pending')
   const canConfirmPayment = !isBuyer && trade.status === 'payment_sent'
   const canReleaseEscrow = !isBuyer && trade.status === 'payment_confirmed'
   const isCompleted = trade.status === 'completed'
