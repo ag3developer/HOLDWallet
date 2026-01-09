@@ -1599,7 +1599,7 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
   }
 
   return (
-    <div className='flex flex-col lg:flex-row h-[100dvh] lg:h-full w-full bg-gray-50 dark:bg-[#0a0a0a] overflow-hidden'>
+    <div className='flex flex-col lg:flex-row h-[100dvh] lg:h-full w-full bg-gray-50 dark:bg-[#0a0a0a] overflow-hidden pt-[env(safe-area-inset-top)]'>
       {/* Backdrop para Mobile - z-30 */}
       {isSidebarOpen && (
         <div
@@ -1827,7 +1827,7 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
         {currentContact ? (
           <>
             {/* Header do Chat - Compacto */}
-            <div className='flex-shrink-0 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 px-3 py-2'>
+            <div className='flex-shrink-0 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 px-3 py-2 z-10 relative'>
               <div className='flex items-center justify-between gap-2'>
                 {/* Botão toggle mobile */}
                 <button
