@@ -1,21 +1,20 @@
 /**
- * 🌍 i18n Configuration - Safari iOS PWA Compatible
- * ==================================================
+ * 🌍 i18n Configuration - PWA Compatible (iOS + Android)
+ * ======================================================
  *
- * Configuração otimizada para funcionar em:
- * - Safari iOS PWA (standalone mode)
- * - Safari iOS browser
- * - Chrome/Firefox desktop e mobile
- * - Android WebView
+ * Configuração 100% síncrona e defensiva para funcionar em:
+ * - Safari iOS PWA (standalone mode) ✅
+ * - Android PWA (Chrome/Firefox) ✅
+ * - Safari iOS browser ✅
+ * - Chrome/Firefox desktop e mobile ✅
  *
- * IMPORTANTE: Esta configuração NÃO usa localStorage diretamente
- * no LanguageDetector para evitar crashes no Safari iOS PWA.
+ * IMPORTANTE: Inicialização SÍNCRONA sem promises que podem falhar
  */
 
 import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
 
-// Importar traduções diretamente (bundled)
+// Importar traduções diretamente (bundled - sem lazy loading)
 import ptBR from '@/locales/pt-BR.json'
 import enUS from '@/locales/en-US.json'
 import esES from '@/locales/es-ES.json'
@@ -24,81 +23,121 @@ import jaJP from '@/locales/ja-JP.json'
 import koKR from '@/locales/ko-KR.json'
 
 // ============================================
-// STORAGE HELPERS (Safari iOS Safe)
+// CONSTANTES
 // ============================================
 
-const LANGUAGE_KEY = 'wolknow_language'
+const LANGUAGE_KEY = 'wolknow_lang'
+const SUPPORTED_LANGUAGES = ['pt-BR', 'en-US', 'es-ES', 'zh-CN', 'ja-JP', 'ko-KR'] as const
+const DEFAULT_LANGUAGE = 'pt-BR'
 
-// Verifica se localStorage está disponível de forma segura
-const isStorageAvailable = (): boolean => {
+// ============================================
+// STORAGE HELPERS (PWA Safe - Síncrono)
+// ============================================
+
+/**
+ * Verifica se storage está disponível
+ * Funciona em PWA iOS/Android
+ */
+function checkStorageAvailable(): boolean {
   try {
-    if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
-      return false
-    }
-    const testKey = '__storage_test__'
-    localStorage.setItem(testKey, testKey)
-    localStorage.removeItem(testKey)
+    const storage = globalThis.localStorage
+    if (!storage) return false
+    const x = '__storage_test__'
+    storage.setItem(x, x)
+    storage.removeItem(x)
     return true
   } catch {
     return false
   }
 }
 
-// Obtém idioma salvo de forma segura
-const getSavedLanguage = (): string | null => {
+// Cache do resultado para não testar repetidamente
+let storageAvailable: boolean | null = null
+
+function isStorageAvailable(): boolean {
+  if (storageAvailable === null) {
+    storageAvailable = checkStorageAvailable()
+  }
+  return storageAvailable
+}
+
+/**
+ * Obtém valor do storage de forma segura
+ */
+function safeGetItem(key: string): string | null {
   try {
     if (!isStorageAvailable()) return null
-    return localStorage.getItem(LANGUAGE_KEY)
+    return globalThis.localStorage.getItem(key)
   } catch {
     return null
   }
 }
 
-// Salva idioma de forma segura
-const saveLanguage = (lang: string): void => {
+/**
+ * Salva valor no storage de forma segura
+ */
+function safeSetItem(key: string, value: string): void {
   try {
     if (!isStorageAvailable()) return
-    localStorage.setItem(LANGUAGE_KEY, lang)
-    // Também salva no i18nextLng para compatibilidade
-    localStorage.setItem('i18nextLng', lang)
+    globalThis.localStorage.setItem(key, value)
   } catch {
-    // Silently fail
+    // Falha silenciosa
   }
 }
 
-// Detecta idioma do navegador de forma segura
-const detectBrowserLanguage = (): string => {
+// ============================================
+// DETECÇÃO DE IDIOMA
+// ============================================
+
+/**
+ * Detecta idioma do navegador
+ */
+function detectBrowserLanguage(): string {
   try {
-    if (typeof navigator === 'undefined') return 'pt-BR'
+    const nav = globalThis.navigator
+    if (!nav) return DEFAULT_LANGUAGE
 
-    const browserLang =
-      navigator.language || (navigator as { userLanguage?: string }).userLanguage || ''
-    const langLower = browserLang.toLowerCase()
+    const browserLang = nav.language || (nav as { userLanguage?: string }).userLanguage || ''
+    const lang = browserLang.toLowerCase()
 
-    // Mapeamento de idiomas
-    if (langLower.startsWith('pt')) return 'pt-BR'
-    if (langLower.startsWith('en')) return 'en-US'
-    if (langLower.startsWith('es')) return 'es-ES'
-    if (langLower.startsWith('zh')) return 'zh-CN'
-    if (langLower.startsWith('ja')) return 'ja-JP'
-    if (langLower.startsWith('ko')) return 'ko-KR'
+    if (lang.startsWith('pt')) return 'pt-BR'
+    if (lang.startsWith('en')) return 'en-US'
+    if (lang.startsWith('es')) return 'es-ES'
+    if (lang.startsWith('zh')) return 'zh-CN'
+    if (lang.startsWith('ja')) return 'ja-JP'
+    if (lang.startsWith('ko')) return 'ko-KR'
 
-    return 'pt-BR' // fallback
+    return DEFAULT_LANGUAGE
   } catch {
-    return 'pt-BR'
+    return DEFAULT_LANGUAGE
   }
 }
 
-// Determina o idioma inicial
-const getInitialLanguage = (): string => {
-  // 1. Tenta pegar do localStorage
-  const saved = getSavedLanguage()
-  if (saved && ['pt-BR', 'en-US', 'es-ES', 'zh-CN', 'ja-JP', 'ko-KR'].includes(saved)) {
-    return saved
-  }
+/**
+ * Obtém o idioma inicial de forma síncrona e segura
+ */
+function getInitialLanguage(): string {
+  try {
+    // 1. Tenta do localStorage
+    const saved = safeGetItem(LANGUAGE_KEY)
+    if (saved && SUPPORTED_LANGUAGES.includes(saved as (typeof SUPPORTED_LANGUAGES)[number])) {
+      return saved
+    }
 
-  // 2. Detecta do navegador
-  return detectBrowserLanguage()
+    // 2. Tenta do i18nextLng (compatibilidade)
+    const i18nextLng = safeGetItem('i18nextLng')
+    if (
+      i18nextLng &&
+      SUPPORTED_LANGUAGES.includes(i18nextLng as (typeof SUPPORTED_LANGUAGES)[number])
+    ) {
+      return i18nextLng
+    }
+
+    // 3. Detecta do navegador
+    return detectBrowserLanguage()
+  } catch {
+    return DEFAULT_LANGUAGE
+  }
 }
 
 // ============================================
@@ -112,83 +151,76 @@ const resources = {
   'zh-CN': { translation: zhCN },
   'ja-JP': { translation: jaJP },
   'ko-KR': { translation: koKR },
-} as const
+}
 
 // ============================================
-// INICIALIZAÇÃO DO i18next
+// INICIALIZAÇÃO SÍNCRONA DO i18next
 // ============================================
 
 const initialLanguage = getInitialLanguage()
 
-// Inicializa SEM o LanguageDetector plugin (evita problemas no Safari iOS)
-i18n
-  .use(initReactI18next)
-  .init({
-    resources,
-    lng: initialLanguage,
-    fallbackLng: 'pt-BR',
+// Log para debug
+if (typeof console !== 'undefined') {
+  console.log('[i18n] Inicializando com idioma:', initialLanguage)
+}
 
-    // Debug apenas em desenvolvimento
-    debug: false,
+// Configuração do i18next - SÍNCRONA
+i18n.use(initReactI18next).init({
+  resources,
+  lng: initialLanguage,
+  fallbackLng: DEFAULT_LANGUAGE,
 
-    // Interpolação
-    interpolation: {
-      escapeValue: false,
-      formatSeparator: ',',
-    },
+  // CRÍTICO: Desabilita debug em produção
+  debug: false,
 
-    // Configurações do React
-    react: {
-      useSuspense: false, // IMPORTANTE: Desabilita Suspense para evitar problemas
-      bindI18n: 'languageChanged',
-      bindI18nStore: '',
-      transEmptyNodeValue: '',
-      transSupportBasicHtmlNodes: true,
-      transKeepBasicHtmlNodesFor: ['br', 'strong', 'i', 'p', 'span'],
-    },
+  // Interpolação
+  interpolation: {
+    escapeValue: false,
+  },
 
-    // Namespace
-    defaultNS: 'translation',
-    ns: ['translation'],
+  // React - CRÍTICO: useSuspense DEVE ser false para PWA
+  react: {
+    useSuspense: false,
+    bindI18n: 'languageChanged',
+    bindI18nStore: '',
+  },
 
-    // Carregamento
-    load: 'currentOnly',
+  // Namespace
+  defaultNS: 'translation',
+  ns: ['translation'],
 
-    // Desabilita funcionalidades que podem causar problemas
-    saveMissing: false,
-    updateMissing: false,
+  // Carregamento
+  load: 'currentOnly',
 
-    // Retorno
-    returnEmptyString: false,
-    returnNull: false,
-    returnObjects: false,
+  // Desabilita features que podem causar problemas
+  saveMissing: false,
+  updateMissing: false,
 
-    // Inicialização síncrona (IMPORTANTE para Safari iOS)
-    initImmediate: true,
+  // Retorno
+  returnEmptyString: false,
+  returnNull: false,
 
-    // Handler para keys não encontradas
-    parseMissingKeyHandler: (key: string) => {
-      if (import.meta.env.DEV) {
-        console.warn(`[i18n] Missing key: ${key}`)
-      }
-      return key
-    },
-  })
-  .then(() => {
-    console.log(`[i18n] ✅ Inicializado com idioma: ${initialLanguage}`)
-  })
-  .catch(error => {
-    console.error('[i18n] ❌ Erro na inicialização:', error)
-  })
+  // CRÍTICO: Inicialização SÍNCRONA
+  initImmediate: true,
+
+  // Não usa backend (tudo bundled)
+  partialBundledLanguages: false,
+})
 
 // ============================================
-// TIPOS E EXPORTS
+// TIPOS
 // ============================================
 
+export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number]
 export type TranslationKey = keyof typeof ptBR
-export type SupportedLanguage = 'pt-BR' | 'en-US' | 'es-ES' | 'zh-CN' | 'ja-JP' | 'ko-KR'
 
-// Lista de idiomas disponíveis
+// ============================================
+// API PÚBLICA
+// ============================================
+
+/**
+ * Lista de idiomas disponíveis
+ */
 export const availableLanguages: Array<{
   code: SupportedLanguage
   name: string
@@ -205,33 +237,61 @@ export const availableLanguages: Array<{
 
 /**
  * Muda o idioma da aplicação
- * Esta função é segura para usar no Safari iOS PWA
+ * Salva no storage e atualiza o i18next
  */
-export const changeLanguage = async (language: SupportedLanguage): Promise<void> => {
-  try {
-    // Salva no storage ANTES de mudar (para garantir persistência)
-    saveLanguage(language)
+export function changeLanguage(language: SupportedLanguage): Promise<void> {
+  return new Promise(resolve => {
+    try {
+      // Salva no storage PRIMEIRO
+      safeSetItem(LANGUAGE_KEY, language)
+      safeSetItem('i18nextLng', language)
 
-    // Muda o idioma no i18next
-    await i18n.changeLanguage(language)
+      // Muda no i18next
+      i18n
+        .changeLanguage(language)
+        .then(() => {
+          // Atualiza o HTML lang
+          try {
+            if (globalThis.document) {
+              globalThis.document.documentElement.lang = language
+            }
+          } catch {
+            // Ignora
+          }
 
-    // Atualiza o atributo lang do HTML
-    if (typeof document !== 'undefined') {
-      document.documentElement.lang = language
+          console.log('[i18n] ✅ Idioma alterado para:', language)
+          resolve()
+        })
+        .catch(() => {
+          // Mesmo se falhar, resolve para não quebrar a UI
+          resolve()
+        })
+    } catch {
+      resolve()
     }
-
-    console.log(`[i18n] ✅ Idioma alterado para: ${language}`)
-  } catch (error) {
-    console.error('[i18n] ❌ Erro ao mudar idioma:', error)
-    // Não lança erro para não quebrar a UI
-  }
+  })
 }
 
 /**
  * Obtém o idioma atual
  */
-export const getCurrentLanguage = (): SupportedLanguage => {
-  return (i18n.language || 'pt-BR') as SupportedLanguage
+export function getCurrentLanguage(): SupportedLanguage {
+  try {
+    const lang = i18n.language
+    if (lang && SUPPORTED_LANGUAGES.includes(lang as SupportedLanguage)) {
+      return lang as SupportedLanguage
+    }
+  } catch {
+    // Ignora
+  }
+  return DEFAULT_LANGUAGE
+}
+
+/**
+ * Verifica se um idioma é suportado
+ */
+export function isLanguageSupported(lang: string): lang is SupportedLanguage {
+  return SUPPORTED_LANGUAGES.includes(lang as SupportedLanguage)
 }
 
 /**
@@ -239,4 +299,5 @@ export const getCurrentLanguage = (): SupportedLanguage => {
  */
 export const getAvailableLanguages = () => availableLanguages
 
+// Export default
 export default i18n

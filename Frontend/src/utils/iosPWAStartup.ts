@@ -1,173 +1,224 @@
 /**
- * iOS PWA Startup Check
- * =========================
+ * PWA Startup Check (iOS + Android)
+ * ==================================
  *
  * Script que roda no início para detectar e resolver problemas
- * de tela branca no iOS Safari PWA.
+ * de tela branca em PWAs (iOS Safari e Android Chrome).
  *
- * DEVE ser importado no main.tsx antes do React render.
+ * DEVE ser importado no main.tsx ANTES do React render.
  */
 
-// Verifica se localStorage está disponível
-const isLocalStorageAvailable = (): boolean => {
+// ============================================
+// STORAGE HELPERS
+// ============================================
+
+function checkStorage(): boolean {
   try {
-    const testKey = '__ios_pwa_test__'
-    localStorage.setItem(testKey, 'test')
-    localStorage.removeItem(testKey)
+    const storage = globalThis.localStorage
+    if (!storage) return false
+    const x = '__pwa_test__'
+    storage.setItem(x, x)
+    storage.removeItem(x)
     return true
   } catch {
     return false
   }
 }
 
-// Safe localStorage helpers
-const safeGetItem = (key: string): string | null => {
+let storageOk: boolean | null = null
+
+function hasStorage(): boolean {
+  if (storageOk === null) {
+    storageOk = checkStorage()
+  }
+  return storageOk
+}
+
+function getItem(key: string): string | null {
   try {
-    return isLocalStorageAvailable() ? localStorage.getItem(key) : null
+    return hasStorage() ? globalThis.localStorage.getItem(key) : null
   } catch {
     return null
   }
 }
 
-const safeSetItem = (key: string, value: string): void => {
+function setItem(key: string, value: string): void {
   try {
-    if (isLocalStorageAvailable()) {
-      localStorage.setItem(key, value)
-    }
+    if (hasStorage()) globalThis.localStorage.setItem(key, value)
   } catch {
-    // Silently fail
+    // Ignora
   }
 }
 
-const safeRemoveItem = (key: string): void => {
+function removeItem(key: string): void {
   try {
-    if (isLocalStorageAvailable()) {
-      localStorage.removeItem(key)
-    }
+    if (hasStorage()) globalThis.localStorage.removeItem(key)
   } catch {
-    // Silently fail
+    // Ignora
   }
 }
 
-// Detecta se é iOS PWA
-const isIOSPWA = (): boolean => {
+// ============================================
+// DETECÇÃO DE AMBIENTE
+// ============================================
+
+/**
+ * Detecta se está rodando como PWA (standalone)
+ */
+function isPWAMode(): boolean {
   try {
-    if (globalThis.window === undefined) return false
-    const userAgent = globalThis.navigator?.userAgent?.toLowerCase() || ''
-    const isIOS = /iphone|ipad|ipod/.test(userAgent)
-    const isStandalone =
-      (globalThis.navigator as Navigator & { standalone?: boolean }).standalone === true
-    const isDisplayModeStandalone =
-      globalThis.matchMedia?.('(display-mode: standalone)')?.matches || false
-    return isIOS && (isStandalone || isDisplayModeStandalone)
+    if (typeof globalThis.window === 'undefined') return false
+
+    // iOS Safari PWA
+    const nav = globalThis.navigator as Navigator & { standalone?: boolean }
+    if (nav.standalone === true) return true
+
+    // Android Chrome PWA / outros
+    if (globalThis.matchMedia?.('(display-mode: standalone)')?.matches) return true
+    if (globalThis.matchMedia?.('(display-mode: fullscreen)')?.matches) return true
+
+    return false
   } catch {
     return false
   }
 }
 
-// Chave para detectar loop de reload
-const STARTUP_KEY = 'wolknow_ios_startup'
-const STARTUP_COUNT_KEY = 'wolknow_ios_startup_count'
-
-// Função principal de verificação
-export const checkIOSPWAStartup = (): void => {
+/**
+ * Detecta se é iOS
+ */
+function isIOS(): boolean {
   try {
-    if (!isIOSPWA()) return
+    const ua = globalThis.navigator?.userAgent?.toLowerCase() || ''
+    return /iphone|ipad|ipod/.test(ua)
+  } catch {
+    return false
+  }
+}
 
-    console.log('[iOS PWA Startup] Verificando estado do PWA...')
+// ============================================
+// CONSTANTES
+// ============================================
 
-    const now = Date.now()
-    const lastStartup = safeGetItem(STARTUP_KEY)
-    const startupCount = Number.parseInt(safeGetItem(STARTUP_COUNT_KEY) || '0', 10)
+const STARTUP_KEY = 'wolknow_pwa_startup'
+const COUNT_KEY = 'wolknow_pwa_count'
 
-    // Se teve mais de 3 tentativas em 30 segundos, limpa tudo
-    if (lastStartup && now - Number.parseInt(lastStartup, 10) < 30000) {
-      const newCount = startupCount + 1
-      safeSetItem(STARTUP_COUNT_KEY, newCount.toString())
+// ============================================
+// FUNÇÕES PRINCIPAIS
+// ============================================
 
-      if (newCount >= 3) {
-        console.log('[iOS PWA Startup] ⚠️ Detectado loop de reload! Limpando caches...')
-        clearAllAndReload()
-        return
+/**
+ * Limpa todos os caches e recarrega
+ */
+async function clearAndReload(): Promise<void> {
+  console.log('[PWA Startup] Limpando caches...')
+
+  try {
+    // 1. Limpar Cache Storage
+    if ('caches' in globalThis) {
+      const names = await caches.keys()
+      await Promise.all(names.map(n => caches.delete(n)))
+      console.log('[PWA Startup] Caches limpos:', names.length)
+    }
+  } catch (e) {
+    console.error('[PWA Startup] Erro limpando caches:', e)
+  }
+
+  try {
+    // 2. Desregistrar Service Workers
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations()
+      for (const reg of regs) {
+        await reg.unregister()
       }
-    } else {
-      // Reset contador se passou mais de 30 segundos
-      safeSetItem(STARTUP_COUNT_KEY, '0')
+      console.log('[PWA Startup] SWs desregistrados:', regs.length)
+    }
+  } catch (e) {
+    console.error('[PWA Startup] Erro desregistrando SW:', e)
+  }
+
+  // 3. Limpar contadores
+  removeItem(STARTUP_KEY)
+  removeItem(COUNT_KEY)
+
+  // 4. Reload com parâmetro único
+  try {
+    const url = new URL(globalThis.location.href)
+    url.searchParams.set('_v', Date.now().toString())
+    globalThis.location.replace(url.toString())
+  } catch {
+    globalThis.location.reload()
+  }
+}
+
+/**
+ * Verifica e tenta resolver problemas de inicialização
+ */
+export function checkPWAStartup(): void {
+  // Só executa em modo PWA
+  if (!isPWAMode()) {
+    console.log('[PWA Startup] Não é PWA, pulando verificação')
+    return
+  }
+
+  console.log('[PWA Startup] Verificando PWA...', isIOS() ? '(iOS)' : '(Android/Outro)')
+
+  try {
+    const now = Date.now()
+    const lastStartup = getItem(STARTUP_KEY)
+    const count = Number.parseInt(getItem(COUNT_KEY) || '0', 10)
+
+    // Detecta loop de reload (mais de 3 tentativas em 30 segundos)
+    if (lastStartup) {
+      const elapsed = now - Number.parseInt(lastStartup, 10)
+
+      if (elapsed < 30000) {
+        const newCount = count + 1
+        setItem(COUNT_KEY, newCount.toString())
+
+        if (newCount >= 3) {
+          console.log('[PWA Startup] ⚠️ Loop detectado! Forçando limpeza...')
+          void clearAndReload()
+          return
+        }
+      } else {
+        // Reset contador após 30 segundos
+        setItem(COUNT_KEY, '0')
+      }
     }
 
-    // Salva timestamp do startup
-    safeSetItem(STARTUP_KEY, now.toString())
+    // Salva timestamp atual
+    setItem(STARTUP_KEY, now.toString())
 
-    // Verifica se há Service Worker com estado problemático
+    // Verifica Service Workers problemáticos
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker
         .getRegistrations()
-        .then(registrations => {
-          for (const reg of registrations) {
-            // Se tem SW esperando há muito tempo, força atualização
+        .then(regs => {
+          for (const reg of regs) {
             if (reg.waiting) {
-              console.log('[iOS PWA Startup] SW waiting detectado, enviando SKIP_WAITING')
+              console.log('[PWA Startup] SW esperando, enviando SKIP_WAITING')
               reg.waiting.postMessage({ type: 'SKIP_WAITING' })
             }
           }
         })
-        .catch(err => {
-          console.error('[iOS PWA Startup] Erro ao verificar SW:', err)
+        .catch(() => {
+          // Ignora erros
         })
     }
   } catch (error) {
-    console.error('[iOS PWA Startup] Erro crítico:', error)
-    // Não lança exceção para não quebrar a app
+    console.error('[PWA Startup] Erro:', error)
   }
 }
 
-// Limpa tudo e recarrega (último recurso)
-const clearAllAndReload = async (): Promise<void> => {
-  try {
-    // 1. Limpar caches
-    if ('caches' in globalThis) {
-      try {
-        const cacheNames = await caches.keys()
-        await Promise.all(cacheNames.map(name => caches.delete(name)))
-      } catch (e) {
-        console.error('[iOS PWA Startup] Erro ao limpar caches:', e)
-      }
-    }
+// Alias para compatibilidade
+export const checkIOSPWAStartup = checkPWAStartup
 
-    // 2. Desregistrar SWs
-    if ('serviceWorker' in navigator) {
-      try {
-        const registrations = await navigator.serviceWorker.getRegistrations()
-        for (const reg of registrations) {
-          await reg.unregister()
-        }
-      } catch (e) {
-        console.error('[iOS PWA Startup] Erro ao desregistrar SW:', e)
-      }
-    }
+// ============================================
+// AUTO-EXECUÇÃO
+// ============================================
 
-    // 3. Limpar contadores
-    safeRemoveItem(STARTUP_KEY)
-    safeRemoveItem(STARTUP_COUNT_KEY)
-
-    // 4. Reload forçado
-    const url = new URL(globalThis.location.href)
-    url.searchParams.set('force', Date.now().toString())
-    globalThis.location.replace(url.toString())
-  } catch (error) {
-    console.error('[iOS PWA Startup] Erro em clearAllAndReload:', error)
-    // Tenta reload simples como fallback
-    try {
-      globalThis.location.reload()
-    } catch {
-      // Último recurso - não faz nada para não crashar
-    }
-  }
-}
-
-// Auto-executa ao importar (com proteção contra erros)
 try {
-  checkIOSPWAStartup()
+  checkPWAStartup()
 } catch (error) {
-  console.error('[iOS PWA Startup] Erro na inicialização:', error)
+  console.error('[PWA Startup] Falha na inicialização:', error)
 }
