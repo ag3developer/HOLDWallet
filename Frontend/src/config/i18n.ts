@@ -1,6 +1,5 @@
 import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
-import LanguageDetector from 'i18next-browser-languagedetector'
 
 // Importar traduções
 import ptBR from '@/locales/pt-BR.json'
@@ -20,74 +19,54 @@ const resources = {
   'ko-KR': { translation: koKR },
 } as const
 
-// Configuração do i18next
-i18n
-  .use(LanguageDetector)
-  .use(initReactI18next)
-  .init({
-    resources,
-    fallbackLng: 'pt-BR',
-    debug: false, // Desabilitar debug em produção
+// Lista de idiomas suportados
+const supportedLanguages = ['pt-BR', 'en-US', 'es-ES', 'zh-CN', 'ja-JP', 'ko-KR']
 
-    detection: {
-      order: ['localStorage', 'navigator', 'htmlTag'],
-      caches: ['localStorage'],
-      lookupLocalStorage: 'i18nextLng',
-    },
-
-    interpolation: {
-      escapeValue: false, // React já faz escape automático
-      formatSeparator: ',',
-    },
-
-    react: {
-      useSuspense: false,
-      bindI18n: 'languageChanged loaded',
-      bindI18nStore: 'added removed',
-      transEmptyNodeValue: '',
-      transSupportBasicHtmlNodes: true,
-      transKeepBasicHtmlNodesFor: ['br', 'strong', 'i', 'p'],
-    },
-
-    // Configurações de namespace
-    defaultNS: 'translation',
-    ns: ['translation'],
-
-    // Configurações de carregamento - usar 'currentOnly' para códigos com região (pt-BR, en-US)
-    load: 'currentOnly',
-    preload: ['pt-BR', 'en-US', 'es-ES'],
-    partialBundledLanguages: true,
-
-    // Configurações de cache
-    updateMissing: false,
-    saveMissing: false,
-
-    // Configurações de formato
-    returnEmptyString: false,
-    returnNull: false,
-    returnObjects: false,
-
-    // Configurações de pluralização
-    pluralSeparator: '_',
-    contextSeparator: '_',
-
-    // Garantir que as keys sejam exibidas se não houver tradução
-    missingKeyHandler: false,
-
-    // Configurações de parsing
-    parseMissingKeyHandler: (key: string) => {
-      if (import.meta.env.DEV) {
-        console.warn(`Missing translation key: ${key}`)
+// Função segura para detectar idioma - compatível com PWA iOS/Android
+function getSavedLanguage(): string {
+  try {
+    // Tenta ler do localStorage de forma segura
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const saved = localStorage.getItem('i18nextLng')
+      if (saved && supportedLanguages.includes(saved)) {
+        return saved
       }
-      return key
-    },
+    }
+  } catch {
+    // localStorage bloqueado no PWA - ignora silenciosamente
+  }
+  return 'pt-BR' // Idioma padrão
+}
 
-    // Configurações específicas para cada idioma
-    // lng é detectado automaticamente pelo LanguageDetector ou pelo localStorage
+// Configuração do i18next - SEM LanguageDetector para compatibilidade PWA
+i18n.use(initReactI18next).init({
+  resources,
+  lng: getSavedLanguage(), // Idioma detectado manualmente
+  fallbackLng: 'pt-BR',
+  debug: false,
 
-    // Forçar inicialização síncrona
-    initImmediate: false,
-  })
+  interpolation: {
+    escapeValue: false,
+  },
+
+  react: {
+    useSuspense: false,
+  },
+
+  // Configurações básicas
+  defaultNS: 'translation',
+  ns: ['translation'],
+  load: 'currentOnly',
+
+  // Desabilitar funcionalidades que podem causar problemas
+  saveMissing: false,
+  updateMissing: false,
+  returnEmptyString: false,
+  returnNull: false,
+
+  // Inicialização síncrona
+  initImmediate: false,
+})
 
 export default i18n
 
@@ -95,8 +74,15 @@ export default i18n
 export type TranslationKey = keyof typeof ptBR
 export type SupportedLanguage = 'pt-BR' | 'en-US' | 'es-ES' | 'zh-CN' | 'ja-JP' | 'ko-KR'
 
-// Utilitário para mudar idioma
+// Utilitário para mudar idioma - salva no localStorage de forma segura
 export const changeLanguage = (language: SupportedLanguage) => {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      localStorage.setItem('i18nextLng', language)
+    }
+  } catch {
+    // localStorage bloqueado - ignora
+  }
   return i18n.changeLanguage(language)
 }
 
