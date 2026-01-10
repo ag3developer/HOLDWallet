@@ -12,7 +12,7 @@ import {
   FiBarChart2,
   FiDollarSign,
   FiCheckCircle,
-  FiZap,
+  FiLogIn,
 } from 'react-icons/fi'
 
 // Import crypto icons
@@ -740,7 +740,19 @@ export const LoginPage = () => {
             </p>
           </div>
         </div>
-        <LanguageSelector />
+        <div className='flex items-center gap-2 md:gap-3'>
+          <LanguageSelector />
+          {/* Botão Login - visível apenas no mobile */}
+          <button
+            onClick={() => {
+              document.getElementById('login-form')?.scrollIntoView({ behavior: 'smooth' })
+            }}
+            className='flex md:hidden items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white text-xs font-medium rounded-full shadow-lg shadow-purple-500/30 transition-all hover:scale-105'
+          >
+            <FiLogIn className='w-3.5 h-3.5' />
+            <span>Login</span>
+          </button>
+        </div>
       </header>
 
       {/* Main Content */}
@@ -845,7 +857,8 @@ export const LoginPage = () => {
 
           {/* Right Side - Login Card */}
           <div
-            className='w-full max-w-md mx-auto lg:ml-auto'
+            id='login-form'
+            className='w-full max-w-md mx-auto lg:ml-auto scroll-mt-4'
             style={{ animation: 'cardSlideIn 0.8s ease-out' }}
           >
             {step === 'login' ? (
