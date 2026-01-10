@@ -22,6 +22,33 @@ import App from './App'
 import './config/i18n'
 import './styles/globals.css'
 
+// Tratamento global de erros não capturados (útil para debug em Safari iOS)
+if (globalThis.window !== undefined) {
+  globalThis.onerror = (message, source, lineno, colno, error) => {
+    console.error('[Global Error]', { message, source, lineno, colno, error })
+    // Se for erro fatal que impede renderização, mostra alerta
+    const msgStr = typeof message === 'string' ? message : ''
+    if (msgStr.includes('ChunkLoadError') || msgStr.includes('Loading chunk')) {
+      // Erro de cache, força reload
+      if ('caches' in globalThis) {
+        caches
+          .keys()
+          .then(names => {
+            names.forEach(name => caches.delete(name))
+          })
+          .finally(() => {
+            globalThis.location.reload()
+          })
+      }
+    }
+    return false
+  }
+
+  globalThis.onunhandledrejection = (event: PromiseRejectionEvent) => {
+    console.error('[Unhandled Promise Rejection]', event.reason)
+  }
+}
+
 // Configuração do React Query
 const queryClient = new QueryClient({
   defaultOptions: {

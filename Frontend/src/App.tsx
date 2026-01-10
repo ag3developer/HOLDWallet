@@ -169,16 +169,34 @@ function App() {
         // Initialize theme
         initializeTheme()
 
-        // Initialize language from store
+        // Initialize language from store - com tratamento de erro
         if (language) {
-          const languageMap: { [key: string]: string } = {
-            pt: 'pt-BR',
-            en: 'en-US',
-            es: 'es-ES',
-          }
-          const fullLanguageCode = languageMap[language] || language
-          if (i18n.language !== fullLanguageCode) {
-            await i18n.changeLanguage(fullLanguageCode)
+          try {
+            const languageMap: { [key: string]: string } = {
+              pt: 'pt-BR',
+              en: 'en-US',
+              es: 'es-ES',
+              zh: 'zh-CN',
+              ja: 'ja-JP',
+              ko: 'ko-KR',
+            }
+            const fullLanguageCode = languageMap[language] || language
+            // Verifica se o idioma é suportado antes de mudar
+            const supportedLanguages = ['pt-BR', 'en-US', 'es-ES', 'zh-CN', 'ja-JP', 'ko-KR']
+            if (
+              supportedLanguages.includes(fullLanguageCode) &&
+              i18n.language !== fullLanguageCode
+            ) {
+              await i18n.changeLanguage(fullLanguageCode)
+            }
+          } catch (langError) {
+            console.warn('[App] Erro ao mudar idioma, usando padrão:', langError)
+            // Fallback para português
+            try {
+              await i18n.changeLanguage('pt-BR')
+            } catch {
+              // Ignora se falhar
+            }
           }
         }
 
