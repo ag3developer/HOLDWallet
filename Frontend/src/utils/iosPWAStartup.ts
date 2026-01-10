@@ -29,44 +29,71 @@ export const checkIOSPWAStartup = (): void => {
 
   console.log('[iOS PWA Startup] Verificando estado do PWA...')
 
-  const now = Date.now()
-  const lastStartup = localStorage.getItem(STARTUP_KEY)
-  const startupCount = Number.parseInt(localStorage.getItem(STARTUP_COUNT_KEY) || '0', 10)
+  try {
+    const now = Date.now()
+    let lastStartup: string | null = null
+    let startupCount = 0
 
-  // Se teve mais de 3 tentativas em 30 segundos, limpa tudo
-  if (lastStartup && now - Number.parseInt(lastStartup, 10) < 30000) {
-    const newCount = startupCount + 1
-    localStorage.setItem(STARTUP_COUNT_KEY, newCount.toString())
-
-    if (newCount >= 3) {
-      console.log('[iOS PWA Startup] ⚠️ Detectado loop de reload! Limpando caches...')
-      clearAllAndReload()
+    // Tentar ler localStorage de forma segura
+    try {
+      if (typeof localStorage !== 'undefined') {
+        lastStartup = localStorage.getItem(STARTUP_KEY)
+        startupCount = Number.parseInt(localStorage.getItem(STARTUP_COUNT_KEY) || '0', 10)
+      }
+    } catch {
+      // localStorage indisponível - ignora
       return
     }
-  } else {
-    // Reset contador se passou mais de 30 segundos
-    localStorage.setItem(STARTUP_COUNT_KEY, '0')
-  }
 
-  // Salva timestamp do startup
-  localStorage.setItem(STARTUP_KEY, now.toString())
+    // Se teve mais de 3 tentativas em 30 segundos, limpa tudo
+    if (lastStartup && now - Number.parseInt(lastStartup, 10) < 30000) {
+      const newCount = startupCount + 1
+      try {
+        localStorage.setItem(STARTUP_COUNT_KEY, newCount.toString())
+      } catch {
+        // ignora
+      }
 
-  // Verifica se há Service Worker com estado problemático
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker
-      .getRegistrations()
-      .then(registrations => {
-        for (const reg of registrations) {
-          // Se tem SW esperando há muito tempo, força atualização
-          if (reg.waiting) {
-            console.log('[iOS PWA Startup] SW waiting detectado, enviando SKIP_WAITING')
-            reg.waiting.postMessage({ type: 'SKIP_WAITING' })
+      if (newCount >= 3) {
+        console.log('[iOS PWA Startup] ⚠️ Detectado loop de reload! Limpando caches...')
+        clearAllAndReload()
+        return
+      }
+    } else {
+      // Reset contador se passou mais de 30 segundos
+      try {
+        localStorage.setItem(STARTUP_COUNT_KEY, '0')
+      } catch {
+        // ignora
+      }
+    }
+
+    // Salva timestamp do startup
+    try {
+      localStorage.setItem(STARTUP_KEY, now.toString())
+    } catch {
+      // ignora
+    }
+
+    // Verifica se há Service Worker com estado problemático
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker
+        .getRegistrations()
+        .then(registrations => {
+          for (const reg of registrations) {
+            // Se tem SW esperando há muito tempo, força atualização
+            if (reg.waiting) {
+              console.log('[iOS PWA Startup] SW waiting detectado, enviando SKIP_WAITING')
+              reg.waiting.postMessage({ type: 'SKIP_WAITING' })
+            }
           }
-        }
-      })
-      .catch(err => {
-        console.error('[iOS PWA Startup] Erro ao verificar SW:', err)
-      })
+        })
+        .catch(err => {
+          console.error('[iOS PWA Startup] Erro ao verificar SW:', err)
+        })
+    }
+  } catch (e) {
+    console.error('[iOS PWA Startup] Erro geral:', e)
   }
 }
 
@@ -94,9 +121,15 @@ const clearAllAndReload = async (): Promise<void> => {
     }
   }
 
-  // 3. Limpar contadores
-  localStorage.removeItem(STARTUP_KEY)
-  localStorage.removeItem(STARTUP_COUNT_KEY)
+  // 3. Limpar contadores de forma segura
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem(STARTUP_KEY)
+      localStorage.removeItem(STARTUP_COUNT_KEY)
+    }
+  } catch {
+    // ignora
+  }
 
   // 4. Reload forçado
   const url = new URL(globalThis.location.href)
