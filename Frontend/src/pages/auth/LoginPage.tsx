@@ -37,6 +37,15 @@ interface TwoFactorForm {
   code: string
 }
 
+// Detectar Safari Mobile para desabilitar animações pesadas
+const isSafariMobile = (): boolean => {
+  if (typeof navigator === 'undefined') return false
+  const ua = navigator.userAgent
+  const isSafari = /^((?!chrome|android).)*safari/i.test(ua)
+  const isMobile = /iPhone|iPad|iPod/i.test(ua)
+  return isSafari && isMobile
+}
+
 // Language Selector Component
 const LanguageSelector = () => {
   const { i18n } = useTranslation()
@@ -242,304 +251,309 @@ export const LoginPage = () => {
     { value: '24/7', label: t('landing.stats.support', 'Support') },
   ]
 
+  // Detectar Safari Mobile para versão simplificada
+  const isLiteMode = isSafariMobile()
+
   return (
     <div
       key={i18n.language}
       className='min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden'
     >
-      {/* Advanced Animated Background */}
-      <div className='absolute inset-0 overflow-hidden'>
-        {/* Gradient Orbs */}
-        <div className='absolute -top-1/2 -left-1/2 w-full h-full bg-gradient-to-br from-purple-500/10 to-transparent rounded-full blur-3xl animate-pulse' />
-        <div
-          className='absolute -bottom-1/2 -right-1/2 w-full h-full bg-gradient-to-tl from-blue-500/10 to-transparent rounded-full blur-3xl animate-pulse'
-          style={{ animationDelay: '1s' }}
-        />
-
-        {/* Floating Crypto Coins with Real Icons - Star Effect - Ocultar em mobile */}
-        <div className='hidden md:block'>
-          {[
-            {
-              icon: btcIcon,
-              name: 'BTC',
-              gradient: 'from-orange-400 to-orange-600',
-              glow: 'rgba(251, 146, 60, 0.8)',
-              brightness: 'bright',
-            },
-            {
-              icon: ethIcon,
-              name: 'ETH',
-              gradient: 'from-blue-400 to-purple-600',
-              glow: 'rgba(96, 165, 250, 0.6)',
-              brightness: 'medium',
-            },
-            {
-              icon: usdtIcon,
-              name: 'USDT',
-              gradient: 'from-green-400 to-emerald-600',
-              glow: 'rgba(52, 211, 153, 0.7)',
-              brightness: 'bright',
-            },
-            {
-              icon: bnbIcon,
-              name: 'BNB',
-              gradient: 'from-yellow-400 to-yellow-600',
-              glow: 'rgba(251, 191, 36, 0.5)',
-              brightness: 'dim',
-            },
-          ].map((coin, i) => {
-            const sizeMap = { bright: 18, medium: 14, dim: 10 }
-            const size = sizeMap[coin.brightness as keyof typeof sizeMap]
-            const opacityMap = { bright: '0.4', medium: '0.25', dim: '0.15' }
-            const opacity = opacityMap[coin.brightness as keyof typeof opacityMap]
-
-            return (
-              <div
-                key={`coin-${i}`}
-                className={`absolute rounded-full bg-gradient-to-br ${coin.gradient} backdrop-blur-md border-2 shadow-2xl hover:scale-150 transition-all duration-500 group`}
-                style={{
-                  width: `${size * 4}px`,
-                  height: `${size * 4}px`,
-                  left: `${10 + i * 25}%`,
-                  top: `${8 + (i % 2) * 15}%`,
-                  animationName:
-                    coin.brightness === 'bright'
-                      ? 'starPulse'
-                      : coin.brightness === 'medium'
-                        ? 'starBlink'
-                        : 'starGlow',
-                  animationDuration: `${2 + Math.random() * 3}s`,
-                  animationTimingFunction: 'ease-in-out',
-                  animationIterationCount: 'infinite',
-                  animationDelay: `${Math.random() * 2}s`,
-                  borderColor: coin.glow,
-                  boxShadow: `0 0 ${size * 2}px ${coin.glow}, 0 0 ${size * 4}px ${coin.glow}, 0 0 ${size * 6}px ${coin.glow}`,
-                  opacity: opacity,
-                }}
-              >
-                <div className='w-full h-full flex items-center justify-center p-3 relative'>
-                  <img
-                    src={coin.icon}
-                    alt={coin.name}
-                    className='w-full h-full object-contain drop-shadow-2xl group-hover:rotate-12 transition-transform duration-300'
-                    style={{
-                      filter: `drop-shadow(0 0 ${size}px ${coin.glow})`,
-                    }}
-                  />
-                  {/* Glow effect around the icon */}
-                  <div
-                    className='absolute inset-0 rounded-full'
-                    style={{
-                      background: `radial-gradient(circle, ${coin.glow} 0%, transparent 70%)`,
-                      animationName: 'pulse',
-                      animationDuration: '2s',
-                      animationTimingFunction: 'ease-in-out',
-                      animationIterationCount: 'infinite',
-                    }}
-                  />
-                </div>
-              </div>
-            )
-          })}
-
-          {/* Additional smaller floating coins for density - Reduzido para 6 */}
-          {[...Array(6)].map((_, i) => {
-            const coinData = [
-              {
-                icon: solIcon,
-                name: 'SOL',
-                gradient: 'from-purple-400/30 to-pink-600/30',
-                glow: 'rgba(192, 132, 252, 0.2)',
-              },
-              {
-                icon: maticIcon,
-                name: 'MATIC',
-                gradient: 'from-purple-500/30 to-indigo-600/30',
-                glow: 'rgba(139, 92, 246, 0.2)',
-              },
-              {
-                icon: adaIcon,
-                name: 'ADA',
-                gradient: 'from-blue-500/30 to-blue-700/30',
-                glow: 'rgba(59, 130, 246, 0.2)',
-              },
-              {
-                icon: xrpIcon,
-                name: 'XRP',
-                gradient: 'from-gray-400/30 to-gray-600/30',
-                glow: 'rgba(156, 163, 175, 0.15)',
-              },
-              {
-                icon: dogeIcon,
-                name: 'DOGE',
-                gradient: 'from-yellow-300/30 to-yellow-500/30',
-                glow: 'rgba(253, 224, 71, 0.2)',
-              },
-              {
-                icon: dotIcon,
-                name: 'DOT',
-                gradient: 'from-pink-400/30 to-pink-600/30',
-                glow: 'rgba(244, 114, 182, 0.2)',
-              },
-            ]
-            const coin = coinData[i % coinData.length]!
-
-            return (
-              <div
-                key={`small-coin-${i}`}
-                className={`absolute w-8 h-8 rounded-full bg-gradient-to-br ${coin.gradient} backdrop-blur-md border border-white/10 hover:scale-110 transition-transform duration-300`}
-                style={{
-                  left: `${15 + i * 15}%`,
-                  top: `${70 + (i % 3) * 8}%`,
-                  animationName: 'starGlow',
-                  animationDuration: `${4 + Math.random() * 4}s`,
-                  animationTimingFunction: 'ease-in-out',
-                  animationIterationCount: 'infinite',
-                  animationDelay: `${Math.random() * 3}s`,
-                  boxShadow: `0 4px 15px ${coin.glow}`,
-                  opacity: 0.3,
-                }}
-              >
-                <div className='w-full h-full flex items-center justify-center p-1.5'>
-                  <img
-                    src={coin.icon}
-                    alt={coin.name}
-                    className='w-full h-full object-contain drop-shadow-lg'
-                  />
-                </div>
-              </div>
-            )
-          })}
-        </div>
-
-        {/* Animated Grid Lines */}
-        <svg className='absolute inset-0 w-full h-full opacity-10'>
-          <defs>
-            <pattern id='grid' width='50' height='50' patternUnits='userSpaceOnUse'>
-              <path
-                d='M 50 0 L 0 0 0 50'
-                fill='none'
-                stroke='rgba(139, 92, 246, 0.3)'
-                strokeWidth='0.5'
-              />
-            </pattern>
-          </defs>
-          <rect width='100%' height='100%' fill='url(#grid)' />
-        </svg>
-
-        {/* Chart Lines Animation */}
-        {[...Array(3)].map((_, i) => (
+      {/* Background - Simplificado para Safari Mobile */}
+      {!isLiteMode && (
+        <div className='absolute inset-0 overflow-hidden'>
+          {/* Gradient Orbs */}
+          <div className='absolute -top-1/2 -left-1/2 w-full h-full bg-gradient-to-br from-purple-500/10 to-transparent rounded-full blur-3xl animate-pulse' />
           <div
-            key={`chart-${i}`}
-            className='absolute h-px bg-gradient-to-r from-transparent via-purple-500/30 to-transparent'
-            style={{
-              width: '200%',
-              top: `${20 + i * 30}%`,
-              left: '-50%',
-              animationName: 'slideRight',
-              animationDuration: `${8 + i * 2}s`,
-              animationTimingFunction: 'linear',
-              animationIterationCount: 'infinite',
-              animationDelay: `${i * 1}s`,
-            }}
+            className='absolute -bottom-1/2 -right-1/2 w-full h-full bg-gradient-to-tl from-blue-500/10 to-transparent rounded-full blur-3xl animate-pulse'
+            style={{ animationDelay: '1s' }}
           />
-        ))}
 
-        {/* Floating Particles */}
-        {[...Array(30)].map((_, i) => (
-          <div
-            key={`particle-${i}`}
-            className='absolute w-1 h-1 bg-purple-400/50 rounded-full'
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationName: 'twinkle',
-              animationDuration: `${2 + Math.random() * 3}s`,
-              animationTimingFunction: 'ease-in-out',
-              animationIterationCount: 'infinite',
-              animationDelay: `${Math.random() * 3}s`,
-            }}
-          />
-        ))}
+          {/* Floating Crypto Coins with Real Icons - Star Effect - Ocultar em mobile */}
+          <div className='hidden md:block'>
+            {[
+              {
+                icon: btcIcon,
+                name: 'BTC',
+                gradient: 'from-orange-400 to-orange-600',
+                glow: 'rgba(251, 146, 60, 0.8)',
+                brightness: 'bright',
+              },
+              {
+                icon: ethIcon,
+                name: 'ETH',
+                gradient: 'from-blue-400 to-purple-600',
+                glow: 'rgba(96, 165, 250, 0.6)',
+                brightness: 'medium',
+              },
+              {
+                icon: usdtIcon,
+                name: 'USDT',
+                gradient: 'from-green-400 to-emerald-600',
+                glow: 'rgba(52, 211, 153, 0.7)',
+                brightness: 'bright',
+              },
+              {
+                icon: bnbIcon,
+                name: 'BNB',
+                gradient: 'from-yellow-400 to-yellow-600',
+                glow: 'rgba(251, 191, 36, 0.5)',
+                brightness: 'dim',
+              },
+            ].map((coin, i) => {
+              const sizeMap = { bright: 18, medium: 14, dim: 10 }
+              const size = sizeMap[coin.brightness as keyof typeof sizeMap]
+              const opacityMap = { bright: '0.4', medium: '0.25', dim: '0.15' }
+              const opacity = opacityMap[coin.brightness as keyof typeof opacityMap]
 
-        {/* Animated Candlestick Chart */}
-        <div className='absolute right-0 bottom-0 w-1/3 h-1/3 opacity-10'>
-          <div className='relative w-full h-full'>
-            {[...Array(8)].map((_, i) => (
-              <div
-                key={`candle-${i}`}
-                className='absolute bottom-0'
-                style={{
-                  left: `${i * 12}%`,
-                  width: '8%',
-                  height: `${30 + Math.random() * 70}%`,
-                  animationName: 'grow',
-                  animationDuration: `${2 + Math.random() * 2}s`,
-                  animationTimingFunction: 'ease-in-out',
-                  animationIterationCount: 'infinite',
-                  animationDelay: `${i * 0.2}s`,
-                }}
-              >
+              return (
                 <div
-                  className={`w-full h-full ${Math.random() > 0.5 ? 'bg-green-500/30' : 'bg-red-500/30'} rounded-t`}
-                />
-              </div>
-            ))}
-          </div>
-        </div>
+                  key={`coin-${i}`}
+                  className={`absolute rounded-full bg-gradient-to-br ${coin.gradient} backdrop-blur-md border-2 shadow-2xl hover:scale-150 transition-all duration-500 group`}
+                  style={{
+                    width: `${size * 4}px`,
+                    height: `${size * 4}px`,
+                    left: `${10 + i * 25}%`,
+                    top: `${8 + (i % 2) * 15}%`,
+                    animationName:
+                      coin.brightness === 'bright'
+                        ? 'starPulse'
+                        : coin.brightness === 'medium'
+                          ? 'starBlink'
+                          : 'starGlow',
+                    animationDuration: `${2 + Math.random() * 3}s`,
+                    animationTimingFunction: 'ease-in-out',
+                    animationIterationCount: 'infinite',
+                    animationDelay: `${Math.random() * 2}s`,
+                    borderColor: coin.glow,
+                    boxShadow: `0 0 ${size * 2}px ${coin.glow}, 0 0 ${size * 4}px ${coin.glow}, 0 0 ${size * 6}px ${coin.glow}`,
+                    opacity: opacity,
+                  }}
+                >
+                  <div className='w-full h-full flex items-center justify-center p-3 relative'>
+                    <img
+                      src={coin.icon}
+                      alt={coin.name}
+                      className='w-full h-full object-contain drop-shadow-2xl group-hover:rotate-12 transition-transform duration-300'
+                      style={{
+                        filter: `drop-shadow(0 0 ${size}px ${coin.glow})`,
+                      }}
+                    />
+                    {/* Glow effect around the icon */}
+                    <div
+                      className='absolute inset-0 rounded-full'
+                      style={{
+                        background: `radial-gradient(circle, ${coin.glow} 0%, transparent 70%)`,
+                        animationName: 'pulse',
+                        animationDuration: '2s',
+                        animationTimingFunction: 'ease-in-out',
+                        animationIterationCount: 'infinite',
+                      }}
+                    />
+                  </div>
+                </div>
+              )
+            })}
 
-        {/* Animated Wave Lines */}
-        <svg className='absolute bottom-0 left-0 w-full opacity-5' viewBox='0 0 1440 320'>
-          <path
-            fill='none'
-            stroke='rgba(139, 92, 246, 0.5)'
-            strokeWidth='3'
-            d='M0,160L48,176C96,192,192,224,288,224C384,224,480,192,576,165.3C672,139,768,117,864,128C960,139,1056,181,1152,186.7C1248,192,1344,160,1392,144L1440,128'
-          >
-            <animate
-              attributeName='d'
-              dur='10s'
-              repeatCount='indefinite'
-              values='
+            {/* Additional smaller floating coins for density - Reduzido para 6 */}
+            {[...Array(6)].map((_, i) => {
+              const coinData = [
+                {
+                  icon: solIcon,
+                  name: 'SOL',
+                  gradient: 'from-purple-400/30 to-pink-600/30',
+                  glow: 'rgba(192, 132, 252, 0.2)',
+                },
+                {
+                  icon: maticIcon,
+                  name: 'MATIC',
+                  gradient: 'from-purple-500/30 to-indigo-600/30',
+                  glow: 'rgba(139, 92, 246, 0.2)',
+                },
+                {
+                  icon: adaIcon,
+                  name: 'ADA',
+                  gradient: 'from-blue-500/30 to-blue-700/30',
+                  glow: 'rgba(59, 130, 246, 0.2)',
+                },
+                {
+                  icon: xrpIcon,
+                  name: 'XRP',
+                  gradient: 'from-gray-400/30 to-gray-600/30',
+                  glow: 'rgba(156, 163, 175, 0.15)',
+                },
+                {
+                  icon: dogeIcon,
+                  name: 'DOGE',
+                  gradient: 'from-yellow-300/30 to-yellow-500/30',
+                  glow: 'rgba(253, 224, 71, 0.2)',
+                },
+                {
+                  icon: dotIcon,
+                  name: 'DOT',
+                  gradient: 'from-pink-400/30 to-pink-600/30',
+                  glow: 'rgba(244, 114, 182, 0.2)',
+                },
+              ]
+              const coin = coinData[i % coinData.length]!
+
+              return (
+                <div
+                  key={`small-coin-${i}`}
+                  className={`absolute w-8 h-8 rounded-full bg-gradient-to-br ${coin.gradient} backdrop-blur-md border border-white/10 hover:scale-110 transition-transform duration-300`}
+                  style={{
+                    left: `${15 + i * 15}%`,
+                    top: `${70 + (i % 3) * 8}%`,
+                    animationName: 'starGlow',
+                    animationDuration: `${4 + Math.random() * 4}s`,
+                    animationTimingFunction: 'ease-in-out',
+                    animationIterationCount: 'infinite',
+                    animationDelay: `${Math.random() * 3}s`,
+                    boxShadow: `0 4px 15px ${coin.glow}`,
+                    opacity: 0.3,
+                  }}
+                >
+                  <div className='w-full h-full flex items-center justify-center p-1.5'>
+                    <img
+                      src={coin.icon}
+                      alt={coin.name}
+                      className='w-full h-full object-contain drop-shadow-lg'
+                    />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Animated Grid Lines */}
+          <svg className='absolute inset-0 w-full h-full opacity-10'>
+            <defs>
+              <pattern id='grid' width='50' height='50' patternUnits='userSpaceOnUse'>
+                <path
+                  d='M 50 0 L 0 0 0 50'
+                  fill='none'
+                  stroke='rgba(139, 92, 246, 0.3)'
+                  strokeWidth='0.5'
+                />
+              </pattern>
+            </defs>
+            <rect width='100%' height='100%' fill='url(#grid)' />
+          </svg>
+
+          {/* Chart Lines Animation */}
+          {[...Array(3)].map((_, i) => (
+            <div
+              key={`chart-${i}`}
+              className='absolute h-px bg-gradient-to-r from-transparent via-purple-500/30 to-transparent'
+              style={{
+                width: '200%',
+                top: `${20 + i * 30}%`,
+                left: '-50%',
+                animationName: 'slideRight',
+                animationDuration: `${8 + i * 2}s`,
+                animationTimingFunction: 'linear',
+                animationIterationCount: 'infinite',
+                animationDelay: `${i * 1}s`,
+              }}
+            />
+          ))}
+
+          {/* Floating Particles */}
+          {[...Array(30)].map((_, i) => (
+            <div
+              key={`particle-${i}`}
+              className='absolute w-1 h-1 bg-purple-400/50 rounded-full'
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+                animationName: 'twinkle',
+                animationDuration: `${2 + Math.random() * 3}s`,
+                animationTimingFunction: 'ease-in-out',
+                animationIterationCount: 'infinite',
+                animationDelay: `${Math.random() * 3}s`,
+              }}
+            />
+          ))}
+
+          {/* Animated Candlestick Chart */}
+          <div className='absolute right-0 bottom-0 w-1/3 h-1/3 opacity-10'>
+            <div className='relative w-full h-full'>
+              {[...Array(8)].map((_, i) => (
+                <div
+                  key={`candle-${i}`}
+                  className='absolute bottom-0'
+                  style={{
+                    left: `${i * 12}%`,
+                    width: '8%',
+                    height: `${30 + Math.random() * 70}%`,
+                    animationName: 'grow',
+                    animationDuration: `${2 + Math.random() * 2}s`,
+                    animationTimingFunction: 'ease-in-out',
+                    animationIterationCount: 'infinite',
+                    animationDelay: `${i * 0.2}s`,
+                  }}
+                >
+                  <div
+                    className={`w-full h-full ${Math.random() > 0.5 ? 'bg-green-500/30' : 'bg-red-500/30'} rounded-t`}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Animated Wave Lines */}
+          <svg className='absolute bottom-0 left-0 w-full opacity-5' viewBox='0 0 1440 320'>
+            <path
+              fill='none'
+              stroke='rgba(139, 92, 246, 0.5)'
+              strokeWidth='3'
+              d='M0,160L48,176C96,192,192,224,288,224C384,224,480,192,576,165.3C672,139,768,117,864,128C960,139,1056,181,1152,186.7C1248,192,1344,160,1392,144L1440,128'
+            >
+              <animate
+                attributeName='d'
+                dur='10s'
+                repeatCount='indefinite'
+                values='
                 M0,160L48,176C96,192,192,224,288,224C384,224,480,192,576,165.3C672,139,768,117,864,128C960,139,1056,181,1152,186.7C1248,192,1344,160,1392,144L1440,128;
                 M0,128L48,149.3C96,171,192,213,288,208C384,203,480,149,576,138.7C672,128,768,160,864,165.3C960,171,1056,149,1152,133.3C1248,117,1344,107,1392,101.3L1440,96;
                 M0,160L48,176C96,192,192,224,288,224C384,224,480,192,576,165.3C672,139,768,117,864,128C960,139,1056,181,1152,186.7C1248,192,1344,160,1392,144L1440,128
               '
-            />
-          </path>
-        </svg>
-
-        {/* Large Crypto Icons Floating in Background */}
-        {[
-          { icon: btcIcon, name: 'BITCOIN', left: 10, top: 8 },
-          { icon: ethIcon, name: 'ETHEREUM', left: 30, top: 18 },
-          { icon: usdtIcon, name: 'TETHER', left: 50, top: 12 },
-          { icon: bnbIcon, name: 'BINANCE', left: 70, top: 22 },
-          { icon: solIcon, name: 'SOLANA', left: 85, top: 15 },
-        ].map((crypto, i) => (
-          <div
-            key={`symbol-${i}`}
-            className='absolute select-none opacity-5 hover:opacity-20 transition-opacity duration-500'
-            style={{
-              left: `${crypto.left}%`,
-              top: `${crypto.top}%`,
-              animation: `floatSlow ${10 + i * 2}s ease-in-out infinite`,
-              animationDelay: `${i * 1.5}s`,
-            }}
-          >
-            <div className='relative'>
-              <img
-                src={crypto.icon}
-                alt={crypto.name}
-                className='w-32 h-32 object-contain filter grayscale'
               />
-              <div className='absolute -bottom-4 left-1/2 -translate-x-1/2 text-xs font-bold text-purple-400/60 whitespace-nowrap tracking-wider'>
-                {crypto.name}
+            </path>
+          </svg>
+
+          {/* Large Crypto Icons Floating in Background */}
+          {[
+            { icon: btcIcon, name: 'BITCOIN', left: 10, top: 8 },
+            { icon: ethIcon, name: 'ETHEREUM', left: 30, top: 18 },
+            { icon: usdtIcon, name: 'TETHER', left: 50, top: 12 },
+            { icon: bnbIcon, name: 'BINANCE', left: 70, top: 22 },
+            { icon: solIcon, name: 'SOLANA', left: 85, top: 15 },
+          ].map((crypto, i) => (
+            <div
+              key={`symbol-${i}`}
+              className='absolute select-none opacity-5 hover:opacity-20 transition-opacity duration-500'
+              style={{
+                left: `${crypto.left}%`,
+                top: `${crypto.top}%`,
+                animation: `floatSlow ${10 + i * 2}s ease-in-out infinite`,
+                animationDelay: `${i * 1.5}s`,
+              }}
+            >
+              <div className='relative'>
+                <img
+                  src={crypto.icon}
+                  alt={crypto.name}
+                  className='w-32 h-32 object-contain filter grayscale'
+                />
+                <div className='absolute -bottom-4 left-1/2 -translate-x-1/2 text-xs font-bold text-purple-400/60 whitespace-nowrap tracking-wider'>
+                  {crypto.name}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* CSS Animations */}
       <style>{`
