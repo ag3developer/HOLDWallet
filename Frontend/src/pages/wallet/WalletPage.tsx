@@ -545,20 +545,309 @@ export const WalletPage = () => {
     }
 
     return (
-      <div className='flex items-center justify-center min-h-screen'>
-        <div className='text-center'>
-          <Wallet className='w-16 h-16 text-gray-400 mx-auto mb-4' />
-          <h2 className='text-2xl font-bold text-gray-900 dark:text-white mb-2'>
-            Nenhuma carteira encontrada
+      <div className='min-h-screen pb-24'>
+        {/* Premium Hero Section */}
+        <div className='relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-slate-900 via-blue-900 to-purple-900 mb-4 sm:mb-6'>
+          {/* Animated Background Effects */}
+          <div className='absolute inset-0'>
+            <div className='absolute top-0 left-0 w-32 sm:w-48 h-32 sm:h-48 bg-blue-500 rounded-full blur-3xl opacity-20 animate-pulse' />
+            <div
+              className='absolute bottom-0 right-0 w-40 sm:w-64 h-40 sm:h-64 bg-purple-500 rounded-full blur-3xl opacity-20 animate-pulse'
+              style={{ animationDelay: '1s' }}
+            />
+            <div
+              className='absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 sm:w-40 h-24 sm:h-40 bg-cyan-500 rounded-full blur-2xl opacity-15 animate-pulse'
+              style={{ animationDelay: '0.5s' }}
+            />
+          </div>
+
+          {/* Grid Pattern Overlay */}
+          <div className='absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px]' />
+
+          <div className='relative p-4 sm:p-6 md:p-8'>
+            {/* Top Badge */}
+            <div className='flex justify-center mb-4 sm:mb-6'>
+              <div className='inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-amber-500/20 to-orange-500/20 backdrop-blur-sm rounded-full border border-amber-500/30'>
+                <Sparkles className='w-3 h-3 sm:w-4 sm:h-4 text-amber-400' />
+                <span className='text-[10px] sm:text-xs font-semibold text-amber-300 uppercase tracking-wider'>
+                  Carteira WOLK Multi Chain
+                </span>
+              </div>
+            </div>
+
+            {/* Main Icon */}
+            <div className='flex justify-center mb-4 sm:mb-6'>
+              <div className='relative'>
+                <div className='w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-2xl sm:rounded-3xl flex items-center justify-center shadow-2xl shadow-purple-500/30'>
+                  <Wallet className='w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-white' />
+                </div>
+                <div className='absolute -bottom-1 -right-1 sm:-bottom-2 sm:-right-2 w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-r from-emerald-500 to-green-500 rounded-lg sm:rounded-xl flex items-center justify-center shadow-lg'>
+                  <Shield className='w-3 h-3 sm:w-4 sm:h-4 text-white' />
+                </div>
+              </div>
+            </div>
+
+            {/* Title */}
+            <div className='text-center mb-4 sm:mb-6'>
+              <h1 className='text-xl sm:text-2xl md:text-3xl font-bold text-white mb-2 sm:mb-3'>
+                Crie sua Carteira Principal
+              </h1>
+              <p className='text-sm sm:text-base text-blue-200/80 max-w-md mx-auto px-2'>
+                Uma frase de recuperação para todas as suas criptomoedas
+              </p>
+            </div>
+
+            {/* Feature Pills */}
+            <div className='flex flex-wrap justify-center gap-2 sm:gap-3 mb-6 sm:mb-8'>
+              <div className='flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 bg-white/10 backdrop-blur-sm rounded-lg border border-white/10'>
+                <Globe className='w-3 h-3 sm:w-3.5 sm:h-3.5 text-cyan-400' />
+                <span className='text-[10px] sm:text-xs text-white/80'>13 Blockchains</span>
+              </div>
+              <div className='flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 bg-white/10 backdrop-blur-sm rounded-lg border border-white/10'>
+                <Lock className='w-3 h-3 sm:w-3.5 sm:h-3.5 text-emerald-400' />
+                <span className='text-[10px] sm:text-xs text-white/80'>100% Seguro</span>
+              </div>
+              <div className='flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 bg-white/10 backdrop-blur-sm rounded-lg border border-white/10'>
+                <Zap className='w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-400' />
+                <span className='text-[10px] sm:text-xs text-white/80'>Instantâneo</span>
+              </div>
+            </div>
+
+            {/* CTA Button */}
+            <div className='flex justify-center'>
+              <Link
+                to='/wallet/create'
+                className='group inline-flex items-center gap-2 sm:gap-3 px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 hover:from-blue-400 hover:via-purple-400 hover:to-pink-400 text-white rounded-xl sm:rounded-2xl font-semibold text-sm sm:text-base shadow-xl shadow-purple-500/30 transition-all hover:scale-105 hover:shadow-2xl hover:shadow-purple-500/40'
+              >
+                <Plus className='w-4 h-4 sm:w-5 sm:h-5' />
+                <span>Criar Carteira Principal</span>
+                <ArrowUpRight className='w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform' />
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* Important Information Cards */}
+        <div className='space-y-3 sm:space-y-4 mb-4 sm:mb-6'>
+          <h2 className='text-sm sm:text-base font-bold text-gray-900 dark:text-white flex items-center gap-2 px-1'>
+            <AlertCircle className='w-4 h-4 sm:w-5 sm:h-5 text-amber-500' />
+            Antes de Criar sua Carteira
           </h2>
-          <p className='text-gray-600 dark:text-gray-400 mb-6'>
-            Comece criando sua primeira carteira
+
+          {/* Security Card */}
+          <div className='bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-xl sm:rounded-2xl p-4 sm:p-5 border border-emerald-200 dark:border-emerald-800'>
+            <div className='flex gap-3 sm:gap-4'>
+              <div className='w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg shadow-emerald-500/25'>
+                <Shield className='w-5 h-5 sm:w-6 sm:h-6 text-white' />
+              </div>
+              <div className='flex-1 min-w-0'>
+                <h3 className='text-sm sm:text-base font-bold text-emerald-900 dark:text-emerald-300 mb-1 sm:mb-2'>
+                  Frase de Recuperação é Sagrada
+                </h3>
+                <p className='text-xs sm:text-sm text-emerald-700 dark:text-emerald-400 leading-relaxed'>
+                  Você receberá uma frase de 12 ou 24 palavras. <strong>Anote em papel</strong> e
+                  guarde em local seguro. Esta é a única forma de recuperar sua carteira se perder o
+                  acesso.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Warning Card */}
+          <div className='bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 rounded-xl sm:rounded-2xl p-4 sm:p-5 border border-red-200 dark:border-red-800'>
+            <div className='flex gap-3 sm:gap-4'>
+              <div className='w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-red-500 to-orange-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg shadow-red-500/25'>
+                <AlertCircle className='w-5 h-5 sm:w-6 sm:h-6 text-white' />
+              </div>
+              <div className='flex-1 min-w-0'>
+                <h3 className='text-sm sm:text-base font-bold text-red-900 dark:text-red-300 mb-1 sm:mb-2'>
+                  Nunca Compartilhe suas Palavras
+                </h3>
+                <p className='text-xs sm:text-sm text-red-700 dark:text-red-400 leading-relaxed'>
+                  <strong>Nenhum suporte legítimo</strong> pedirá sua frase de recuperação. Quem
+                  tiver essas palavras tem controle total sobre seus fundos.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Info Card */}
+          <div className='bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl sm:rounded-2xl p-4 sm:p-5 border border-blue-200 dark:border-blue-800'>
+            <div className='flex gap-3 sm:gap-4'>
+              <div className='w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-500/25'>
+                <Lock className='w-5 h-5 sm:w-6 sm:h-6 text-white' />
+              </div>
+              <div className='flex-1 min-w-0'>
+                <h3 className='text-sm sm:text-base font-bold text-blue-900 dark:text-blue-300 mb-1 sm:mb-2'>
+                  Suas Chaves, Suas Moedas
+                </h3>
+                <p className='text-xs sm:text-sm text-blue-700 dark:text-blue-400 leading-relaxed'>
+                  Diferente de exchanges, você tem <strong>custódia total</strong> dos seus ativos.
+                  Ninguém pode congelar ou bloquear seus fundos.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Supported Networks */}
+        <div className='bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl p-4 sm:p-5 border border-gray-200 dark:border-gray-700 mb-4 sm:mb-6'>
+          <h3 className='text-sm sm:text-base font-bold text-gray-900 dark:text-white mb-3 sm:mb-4 flex items-center gap-2'>
+            <Globe className='w-4 h-4 sm:w-5 sm:h-5 text-blue-500' />
+            Redes Suportadas
+          </h3>
+          <div className='grid grid-cols-4 sm:grid-cols-5 md:grid-cols-7 gap-2 sm:gap-3'>
+            {[
+              {
+                symbol: 'BTC',
+                name: 'Bitcoin',
+                logo: 'https://assets.coingecko.com/coins/images/1/small/bitcoin.png',
+              },
+              {
+                symbol: 'ETH',
+                name: 'Ethereum',
+                logo: 'https://assets.coingecko.com/coins/images/279/small/ethereum.png',
+              },
+              {
+                symbol: 'BNB',
+                name: 'BNB Chain',
+                logo: 'https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png',
+              },
+              {
+                symbol: 'MATIC',
+                name: 'Polygon',
+                logo: 'https://assets.coingecko.com/coins/images/4713/small/polygon.png',
+              },
+              {
+                symbol: 'SOL',
+                name: 'Solana',
+                logo: 'https://assets.coingecko.com/coins/images/4128/small/solana.png',
+              },
+              {
+                symbol: 'TRX',
+                name: 'Tron',
+                logo: 'https://assets.coingecko.com/coins/images/1094/small/tron-logo.png',
+              },
+              {
+                symbol: 'AVAX',
+                name: 'Avalanche',
+                logo: 'https://assets.coingecko.com/coins/images/12559/small/Avalanche_Circle_RedWhite_Trans.png',
+              },
+              {
+                symbol: 'DOT',
+                name: 'Polkadot',
+                logo: 'https://assets.coingecko.com/coins/images/12171/small/polkadot.png',
+              },
+              {
+                symbol: 'ADA',
+                name: 'Cardano',
+                logo: 'https://assets.coingecko.com/coins/images/975/small/cardano.png',
+              },
+              {
+                symbol: 'LTC',
+                name: 'Litecoin',
+                logo: 'https://assets.coingecko.com/coins/images/2/small/litecoin.png',
+              },
+              {
+                symbol: 'DOGE',
+                name: 'Dogecoin',
+                logo: 'https://assets.coingecko.com/coins/images/5/small/dogecoin.png',
+              },
+              {
+                symbol: 'XRP',
+                name: 'Ripple',
+                logo: 'https://assets.coingecko.com/coins/images/44/small/xrp-symbol-white-128.png',
+              },
+              {
+                symbol: 'LINK',
+                name: 'Chainlink',
+                logo: 'https://assets.coingecko.com/coins/images/877/small/chainlink-new-logo.png',
+              },
+              {
+                symbol: 'BASE',
+                name: 'Base',
+                logo: 'https://assets.coingecko.com/asset_platforms/images/131/small/base.jpeg',
+              },
+            ].map(network => (
+              <div
+                key={network.symbol}
+                className='flex flex-col items-center gap-1.5 sm:gap-2 p-2 sm:p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg sm:rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors'
+              >
+                <img
+                  src={network.logo}
+                  alt={network.name}
+                  className='w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover'
+                  onError={e => {
+                    const target = e.target as HTMLImageElement
+                    target.style.display = 'none'
+                    const parent = target.parentElement
+                    if (parent) {
+                      const fallback = document.createElement('div')
+                      fallback.className =
+                        'w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center'
+                      fallback.innerHTML = `<span class="text-[10px] sm:text-xs font-bold text-white">${network.symbol.slice(0, 2)}</span>`
+                      parent.insertBefore(fallback, target)
+                    }
+                  }}
+                />
+                <span className='text-[9px] sm:text-[10px] font-medium text-gray-600 dark:text-gray-400 text-center truncate w-full'>
+                  {network.name}
+                </span>
+              </div>
+            ))}
+          </div>
+          <p className='text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 mt-3 sm:mt-4 text-center'>
+            + Suporte a tokens USDT, USDC e outros em múltiplas redes
           </p>
+        </div>
+
+        {/* FAQ Section */}
+        <div className='bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl p-4 sm:p-5 border border-gray-200 dark:border-gray-700'>
+          <h3 className='text-sm sm:text-base font-bold text-gray-900 dark:text-white mb-3 sm:mb-4 flex items-center gap-2'>
+            <AlertCircle className='w-4 h-4 sm:w-5 sm:h-5 text-purple-500' />
+            Perguntas Frequentes
+          </h3>
+          <div className='space-y-3 sm:space-y-4'>
+            <div className='p-3 sm:p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg sm:rounded-xl'>
+              <h4 className='text-xs sm:text-sm font-semibold text-gray-900 dark:text-white mb-1'>
+                O que é a Carteira WOLK Multi Chain?
+              </h4>
+              <p className='text-[10px] sm:text-xs text-gray-600 dark:text-gray-400 leading-relaxed'>
+                A Carteira WOLK Multi Chain gera todos os seus endereços a partir de uma única frase
+                de recuperação, permitindo backup simples e suporte a múltiplas criptomoedas em
+                diferentes blockchains.
+              </p>
+            </div>
+            <div className='p-3 sm:p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg sm:rounded-xl'>
+              <h4 className='text-xs sm:text-sm font-semibold text-gray-900 dark:text-white mb-1'>
+                Posso restaurar minha carteira depois?
+              </h4>
+              <p className='text-[10px] sm:text-xs text-gray-600 dark:text-gray-400 leading-relaxed'>
+                Sim! Desde que você tenha sua frase de recuperação, pode restaurar sua carteira em
+                qualquer dispositivo, a qualquer momento. Por isso é essencial guardar suas palavras
+                em local seguro.
+              </p>
+            </div>
+            <div className='p-3 sm:p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg sm:rounded-xl'>
+              <h4 className='text-xs sm:text-sm font-semibold text-gray-900 dark:text-white mb-1'>
+                Meus fundos estão seguros?
+              </h4>
+              <p className='text-[10px] sm:text-xs text-gray-600 dark:text-gray-400 leading-relaxed'>
+                Suas chaves privadas são criptografadas e armazenadas localmente. Nunca são enviadas
+                para nossos servidores. Você tem controle total sobre seus ativos - é autocustódia
+                real.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom CTA */}
+        <div className='mt-4 sm:mt-6'>
           <Link
             to='/wallet/create'
-            className='inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all'
+            className='flex items-center justify-center gap-2 w-full py-3 sm:py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white rounded-xl sm:rounded-2xl font-semibold text-sm sm:text-base shadow-lg shadow-purple-500/25 transition-all'
           >
-            <Plus className='w-5 h-5 mr-2' />
+            <Plus className='w-4 h-4 sm:w-5 sm:h-5' />
             Criar Carteira Principal
           </Link>
         </div>

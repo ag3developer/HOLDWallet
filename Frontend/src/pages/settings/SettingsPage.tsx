@@ -381,20 +381,61 @@ export const SettingsPage = () => {
   }
 
   return (
-    <div className='space-y-4 md:space-y-6'>
-      <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-2'>
-        <h1 className='text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white'>
-          {t('settings.title', 'Configurações')}
-        </h1>
-        <p className='text-xs md:text-sm text-gray-500 dark:text-gray-400'>
-          Gerencie suas preferências e segurança
-        </p>
+    <div className='space-y-3 sm:space-y-4 md:space-y-6 pb-24'>
+      {/* Hero Header - Similar to P2P */}
+      <div className='relative overflow-hidden rounded-xl sm:rounded-2xl bg-gradient-to-br from-slate-900 via-indigo-900 to-purple-900'>
+        {/* Background Pattern */}
+        <div className='absolute inset-0 opacity-10'>
+          <div className='absolute top-0 left-0 w-32 h-32 bg-indigo-500 rounded-full blur-3xl' />
+          <div className='absolute bottom-0 right-0 w-48 h-48 bg-purple-500 rounded-full blur-3xl' />
+        </div>
+
+        <div className='relative p-3 sm:p-4'>
+          {/* Top Bar */}
+          <div className='flex items-center justify-between mb-3'>
+            <div className='flex items-center gap-2 sm:gap-3'>
+              <div className='w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-lg sm:rounded-xl flex items-center justify-center shadow-lg'>
+                <Settings className='w-4 h-4 sm:w-5 sm:h-5 text-white' />
+              </div>
+              <div>
+                <p className='text-[9px] sm:text-[10px] text-indigo-400 font-semibold uppercase tracking-wider'>
+                  {t('settings.title', 'Configurações')}
+                </p>
+                <h1 className='text-base sm:text-lg font-bold text-white leading-tight'>
+                  Preferências & Segurança
+                </h1>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Stats */}
+          <div className='flex items-center gap-2 sm:gap-3 overflow-x-auto pb-1 scrollbar-hide'>
+            <div className='flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 bg-emerald-500/20 backdrop-blur-sm rounded-lg border border-emerald-500/30 whitespace-nowrap flex-shrink-0'>
+              <Shield className='w-3 h-3 text-emerald-400' />
+              <span className='text-[9px] sm:text-[10px] text-emerald-300 font-medium'>
+                {is2FAEnabled ? '2FA Ativo' : '2FA Inativo'}
+              </span>
+            </div>
+            <div className='flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 bg-blue-500/20 backdrop-blur-sm rounded-lg border border-blue-500/30 whitespace-nowrap flex-shrink-0'>
+              <User className='w-3 h-3 text-blue-400' />
+              <span className='text-[9px] sm:text-[10px] text-blue-300 font-medium'>
+                {user?.isVerified ? 'Verificado' : 'Não Verificado'}
+              </span>
+            </div>
+            <div className='flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 bg-purple-500/20 backdrop-blur-sm rounded-lg border border-purple-500/30 whitespace-nowrap flex-shrink-0'>
+              <DollarSign className='w-3 h-3 text-purple-400' />
+              <span className='text-[9px] sm:text-[10px] text-purple-300 font-medium'>
+                {currency}
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Tabs */}
-      <div className='bg-white dark:bg-gray-800 rounded-lg shadow'>
+      {/* Tabs - Compact Pills Style */}
+      <div className='bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-md sm:shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden'>
         <div className='border-b border-gray-200 dark:border-gray-700'>
-          <nav className='-mb-px flex overflow-x-auto space-x-4 md:space-x-8 px-4 md:px-6 scrollbar-hide'>
+          <nav className='-mb-px flex overflow-x-auto gap-1 sm:gap-2 p-2 sm:p-3 scrollbar-hide'>
             {tabs.map(tab => {
               const IconComponent = tab.icon
               return (
@@ -407,68 +448,68 @@ export const SettingsPage = () => {
                       setActiveTab(tab.id)
                     }
                   }}
-                  className={`py-3 md:py-4 px-1 border-b-2 font-medium text-xs md:text-sm whitespace-nowrap flex items-center gap-1 md:gap-2 ${
+                  className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-semibold whitespace-nowrap transition-all flex-shrink-0 ${
                     activeTab === tab.id
-                      ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-                      : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+                      ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/25'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
                   }`}
                 >
-                  <IconComponent className='w-3 h-3 md:w-4 md:h-4' />
-                  <span className='hidden sm:inline'>{tab.name}</span>
+                  <IconComponent className='w-3 h-3 sm:w-3.5 sm:h-3.5' />
+                  <span className='hidden xs:inline sm:inline'>{tab.name}</span>
                 </button>
               )
             })}
           </nav>
         </div>
 
-        <div className='p-4 md:p-6'>
+        <div className='p-3 sm:p-4 md:p-6'>
           {/* General Tab */}
           {activeTab === 'general' && (
-            <div className='space-y-4 md:space-y-6'>
+            <div className='space-y-3 sm:space-y-4 md:space-y-6'>
               <div>
-                <h3 className='text-base md:text-lg font-medium text-gray-900 dark:text-white mb-3 md:mb-4'>
+                <h3 className='text-sm sm:text-base md:text-lg font-semibold text-gray-900 dark:text-white mb-2 sm:mb-3 md:mb-4'>
                   Configurações Gerais
                 </h3>
 
-                <div className='grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6'>
+                <div className='grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6'>
                   <LanguageDemo />
 
-                  <div className='bg-gray-50 dark:bg-gray-700 rounded-lg p-3 md:p-4'>
+                  <div className='bg-gray-50 dark:bg-gray-700/50 rounded-lg sm:rounded-xl p-3 sm:p-4 border border-gray-100 dark:border-gray-600'>
                     <div className='flex items-center mb-2'>
-                      <Palette className='w-4 h-4 md:w-5 md:h-5 mr-2 text-gray-700 dark:text-gray-300' />
-                      <h4 className='text-sm md:text-base font-medium text-gray-900 dark:text-white'>
+                      <Palette className='w-4 h-4 sm:w-5 sm:h-5 mr-2 text-gray-700 dark:text-gray-300' />
+                      <h4 className='text-xs sm:text-sm md:text-base font-medium text-gray-900 dark:text-white'>
                         Tema da Interface
                       </h4>
                     </div>
-                    <p className='text-xs md:text-sm text-gray-600 dark:text-gray-300 mb-3'>
+                    <p className='text-[10px] sm:text-xs md:text-sm text-gray-600 dark:text-gray-300 mb-2 sm:mb-3'>
                       Escolha entre modo claro ou escuro
                     </p>
-                    <div className='flex flex-col sm:flex-row gap-2 md:gap-3'>
-                      <button className='flex items-center justify-center px-3 py-2 text-xs md:text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg'>
-                        <Sun className='w-3 h-3 md:w-4 md:h-4 mr-1' />
+                    <div className='flex flex-wrap gap-1.5 sm:gap-2 md:gap-3'>
+                      <button className='flex items-center justify-center px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs md:text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg'>
+                        <Sun className='w-3 h-3 sm:w-4 sm:h-4 mr-1' />
                         Claro
                       </button>
-                      <button className='flex items-center justify-center px-3 py-2 text-xs md:text-sm bg-gray-800 text-white border border-gray-600 rounded-lg'>
-                        <Moon className='w-3 h-3 md:w-4 md:h-4 mr-1' />
+                      <button className='flex items-center justify-center px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs md:text-sm bg-gray-800 text-white border border-gray-600 rounded-lg'>
+                        <Moon className='w-3 h-3 sm:w-4 sm:h-4 mr-1' />
                         Escuro
                       </button>
-                      <button className='flex items-center justify-center px-3 py-2 text-xs md:text-sm bg-blue-500 text-white rounded-lg'>
-                        <Palette className='w-3 h-3 md:w-4 md:h-4 mr-1' />
-                        Automático
+                      <button className='flex items-center justify-center px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs md:text-sm bg-blue-500 text-white rounded-lg'>
+                        <Palette className='w-3 h-3 sm:w-4 sm:h-4 mr-1' />
+                        Auto
                       </button>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className='bg-gray-50 dark:bg-gray-700 rounded-lg p-3 md:p-4'>
+              <div className='bg-gray-50 dark:bg-gray-700/50 rounded-lg sm:rounded-xl p-3 sm:p-4 border border-gray-100 dark:border-gray-600'>
                 <div className='flex items-center mb-2'>
-                  <DollarSign className='w-4 h-4 md:w-5 md:h-5 mr-2 text-gray-700 dark:text-gray-300' />
-                  <h4 className='text-sm md:text-base font-medium text-gray-900 dark:text-white'>
+                  <DollarSign className='w-4 h-4 sm:w-5 sm:h-5 mr-2 text-gray-700 dark:text-gray-300' />
+                  <h4 className='text-xs sm:text-sm md:text-base font-medium text-gray-900 dark:text-white'>
                     Moeda Preferencial
                   </h4>
                 </div>
-                <p className='text-xs md:text-sm text-gray-600 dark:text-gray-300 mb-3'>
+                <p className='text-[10px] sm:text-xs md:text-sm text-gray-600 dark:text-gray-300 mb-2 sm:mb-3'>
                   Moeda usada para exibir valores
                 </p>
                 <label htmlFor='currency-select' className='sr-only'>
@@ -482,7 +523,7 @@ export const SettingsPage = () => {
                     setCurrency(newCurrency)
                     toast.success(`Moeda alterada para ${newCurrency}`)
                   }}
-                  className='block w-full sm:w-48 px-3 py-2 text-sm md:text-base border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 rounded-lg text-gray-900 dark:text-white'
+                  className='block w-full sm:w-48 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm md:text-base border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 rounded-lg text-gray-900 dark:text-white'
                 >
                   <option value='BRL'>Real Brasileiro (BRL)</option>
                   <option value='USD'>Dólar Americano (USD)</option>
@@ -494,36 +535,36 @@ export const SettingsPage = () => {
 
           {/* Security Tab */}
           {activeTab === 'security' && (
-            <div className='space-y-4 md:space-y-6'>
+            <div className='space-y-3 sm:space-y-4 md:space-y-6'>
               <div>
-                <h3 className='text-base md:text-lg font-medium text-gray-900 dark:text-white mb-3 md:mb-4'>
+                <h3 className='text-sm sm:text-base md:text-lg font-semibold text-gray-900 dark:text-white mb-2 sm:mb-3 md:mb-4'>
                   Configurações de Segurança
                 </h3>
 
                 {/* Account Info */}
-                <div className='bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 md:p-4 mb-4 md:mb-6'>
-                  <div className='flex items-start gap-3'>
-                    <User className='w-5 h-5 md:w-6 md:h-6 mt-0.5 text-blue-400 flex-shrink-0' />
+                <div className='bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg sm:rounded-xl p-2.5 sm:p-3 md:p-4 mb-3 sm:mb-4 md:mb-6'>
+                  <div className='flex items-start gap-2 sm:gap-3'>
+                    <User className='w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 mt-0.5 text-blue-400 flex-shrink-0' />
                     <div className='flex-1 min-w-0'>
-                      <h4 className='text-sm md:text-base font-medium text-blue-900 dark:text-blue-100'>
+                      <h4 className='text-xs sm:text-sm md:text-base font-medium text-blue-900 dark:text-blue-100'>
                         Informações da Conta
                       </h4>
-                      <p className='text-xs md:text-sm text-blue-700 dark:text-blue-200 break-words'>
+                      <p className='text-[10px] sm:text-xs md:text-sm text-blue-700 dark:text-blue-200 break-words'>
                         {user?.email} • Membro desde{' '}
                         {user?.createdAt
                           ? new Date(user.createdAt).toLocaleDateString('pt-BR')
                           : 'N/A'}
                       </p>
-                      <p className='text-xs md:text-sm text-blue-700 dark:text-blue-200 flex items-center'>
+                      <p className='text-[10px] sm:text-xs md:text-sm text-blue-700 dark:text-blue-200 flex items-center mt-0.5'>
                         Status:{' '}
                         {user?.isVerified ? (
                           <>
-                            <CheckCircle className='w-3 h-3 md:w-4 md:h-4 mr-1 text-green-500' />
+                            <CheckCircle className='w-3 h-3 sm:w-4 sm:h-4 ml-1 mr-1 text-green-500' />
                             Verificado
                           </>
                         ) : (
                           <>
-                            <AlertTriangle className='w-4 h-4 mr-1 text-yellow-500' />
+                            <AlertTriangle className='w-3 h-3 sm:w-4 sm:h-4 ml-1 mr-1 text-yellow-500' />
                             Não verificado
                           </>
                         )}
@@ -533,31 +574,33 @@ export const SettingsPage = () => {
                 </div>
 
                 {/* Change Password */}
-                <div className='border border-gray-200 dark:border-gray-600 rounded-lg p-4'>
-                  <div className='flex items-center justify-between mb-4'>
+                <div className='border border-gray-200 dark:border-gray-600 rounded-lg sm:rounded-xl p-3 sm:p-4'>
+                  <div className='flex items-center justify-between mb-3 sm:mb-4'>
                     <div>
-                      <div className='flex items-center mb-2'>
-                        <Key className='w-5 h-5 mr-2 text-gray-700 dark:text-gray-300' />
-                        <h4 className='font-medium text-gray-900 dark:text-white'>Alterar Senha</h4>
+                      <div className='flex items-center mb-1 sm:mb-2'>
+                        <Key className='w-4 h-4 sm:w-5 sm:h-5 mr-2 text-gray-700 dark:text-gray-300' />
+                        <h4 className='text-xs sm:text-sm font-medium text-gray-900 dark:text-white'>
+                          Alterar Senha
+                        </h4>
                       </div>
-                      <p className='text-sm text-gray-600 dark:text-gray-300'>
+                      <p className='text-[10px] sm:text-xs text-gray-600 dark:text-gray-300'>
                         Atualize sua senha para manter sua conta segura
                       </p>
                     </div>
                     <button
                       onClick={() => setShowChangePassword(!showChangePassword)}
-                      className='px-4 py-2 text-sm font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400'
+                      className='px-2 sm:px-4 py-1.5 sm:py-2 text-[10px] sm:text-sm font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400'
                     >
                       {showChangePassword ? 'Cancelar' : 'Alterar'}
                     </button>
                   </div>
 
                   {showChangePassword && (
-                    <form onSubmit={handleChangePassword} className='space-y-4'>
+                    <form onSubmit={handleChangePassword} className='space-y-3 sm:space-y-4'>
                       <div>
                         <label
                           htmlFor='current-password'
-                          className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1'
+                          className='block text-[10px] sm:text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1'
                         >
                           Senha Atual
                         </label>
@@ -566,12 +609,12 @@ export const SettingsPage = () => {
                           id='current-password'
                           name='currentPassword'
                           required
-                          className='block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white'
+                          className='block w-full px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white'
                           value={passwordData.currentPassword}
                           onChange={handlePasswordChange}
                         />
                         {passwordErrors.currentPassword && (
-                          <p className='mt-1 text-sm text-red-600'>
+                          <p className='mt-1 text-[10px] sm:text-xs text-red-600'>
                             {passwordErrors.currentPassword}
                           </p>
                         )}
@@ -580,7 +623,7 @@ export const SettingsPage = () => {
                       <div>
                         <label
                           htmlFor='new-password'
-                          className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1'
+                          className='block text-[10px] sm:text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1'
                         >
                           Nova Senha
                         </label>
@@ -589,19 +632,21 @@ export const SettingsPage = () => {
                           id='new-password'
                           name='newPassword'
                           required
-                          className='block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white'
+                          className='block w-full px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white'
                           value={passwordData.newPassword}
                           onChange={handlePasswordChange}
                         />
                         {passwordErrors.newPassword && (
-                          <p className='mt-1 text-sm text-red-600'>{passwordErrors.newPassword}</p>
+                          <p className='mt-1 text-[10px] sm:text-xs text-red-600'>
+                            {passwordErrors.newPassword}
+                          </p>
                         )}
                       </div>
 
                       <div>
                         <label
                           htmlFor='confirm-password'
-                          className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1'
+                          className='block text-[10px] sm:text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1'
                         >
                           Confirmar Nova Senha
                         </label>
@@ -610,29 +655,29 @@ export const SettingsPage = () => {
                           id='confirm-password'
                           name='confirmPassword'
                           required
-                          className='block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white'
+                          className='block w-full px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white'
                           value={passwordData.confirmPassword}
                           onChange={handlePasswordChange}
                         />
                         {passwordErrors.confirmPassword && (
-                          <p className='mt-1 text-sm text-red-600'>
+                          <p className='mt-1 text-[10px] sm:text-xs text-red-600'>
                             {passwordErrors.confirmPassword}
                           </p>
                         )}
                       </div>
 
-                      <div className='flex space-x-3'>
+                      <div className='flex flex-wrap gap-2 sm:gap-3'>
                         <button
                           type='submit'
                           disabled={changePasswordMutation.isPending}
-                          className='px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50'
+                          className='px-3 sm:px-4 py-1.5 sm:py-2 text-[10px] sm:text-xs bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50'
                         >
                           {changePasswordMutation.isPending ? 'Alterando...' : 'Alterar Senha'}
                         </button>
                         <button
                           type='button'
                           onClick={() => setShowChangePassword(false)}
-                          className='px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                          className='px-3 sm:px-4 py-1.5 sm:py-2 text-[10px] sm:text-xs text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
                         >
                           Cancelar
                         </button>
@@ -642,38 +687,38 @@ export const SettingsPage = () => {
                 </div>
 
                 {/* Session Security */}
-                <div className='border border-gray-200 dark:border-gray-600 rounded-lg p-4'>
+                <div className='border border-gray-200 dark:border-gray-600 rounded-lg sm:rounded-xl p-3 sm:p-4 mt-3 sm:mt-4'>
                   <div className='flex items-center mb-2'>
-                    <Shield className='w-5 h-5 mr-2 text-gray-700 dark:text-gray-300' />
-                    <h4 className='font-medium text-gray-900 dark:text-white'>
+                    <Shield className='w-4 h-4 sm:w-5 sm:h-5 mr-2 text-gray-700 dark:text-gray-300' />
+                    <h4 className='text-xs sm:text-sm font-medium text-gray-900 dark:text-white'>
                       Segurança de Sessão
                     </h4>
                   </div>
-                  <div className='space-y-3'>
+                  <div className='space-y-2 sm:space-y-3'>
                     <div className='flex items-center justify-between'>
                       <div className='flex items-center'>
-                        <Clock className='w-4 h-4 mr-2 text-gray-500' />
-                        <span className='text-sm text-gray-600 dark:text-gray-300'>
+                        <Clock className='w-3 h-3 sm:w-4 sm:h-4 mr-2 text-gray-500' />
+                        <span className='text-[10px] sm:text-xs text-gray-600 dark:text-gray-300'>
                           Timeout automático
                         </span>
                       </div>
-                      <span className='text-sm text-gray-900 dark:text-white font-medium'>
+                      <span className='text-[10px] sm:text-xs text-gray-900 dark:text-white font-medium'>
                         30 minutos
                       </span>
                     </div>
                     <div className='flex items-center justify-between'>
                       <div className='flex items-center'>
-                        <History className='w-4 h-4 mr-2 text-gray-500' />
-                        <span className='text-sm text-gray-600 dark:text-gray-300'>
+                        <History className='w-3 h-3 sm:w-4 sm:h-4 mr-2 text-gray-500' />
+                        <span className='text-[10px] sm:text-xs text-gray-600 dark:text-gray-300'>
                           Últimos logins
                         </span>
                       </div>
-                      <button className='text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400'>
+                      <button className='text-[10px] sm:text-xs text-primary-600 hover:text-primary-700 dark:text-primary-400'>
                         Ver histórico
                       </button>
                     </div>
-                    <button className='w-full flex items-center justify-center px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700'>
-                      <LogOut className='w-4 h-4 mr-2' />
+                    <button className='w-full flex items-center justify-center px-3 sm:px-4 py-1.5 sm:py-2 text-[10px] sm:text-xs bg-red-600 text-white rounded-lg hover:bg-red-700'>
+                      <LogOut className='w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2' />
                       Encerrar todas as sessões
                     </button>
                   </div>
@@ -684,50 +729,53 @@ export const SettingsPage = () => {
 
           {/* 2FA Tab */}
           {activeTab === '2fa' && (
-            <div className='space-y-6'>
+            <div className='space-y-4 sm:space-y-6'>
               <div>
-                <h3 className='text-lg font-medium text-gray-900 dark:text-white mb-4'>
+                <h3 className='text-sm sm:text-base md:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4'>
                   Autenticação de Dois Fatores (2FA)
                 </h3>
 
-                <div className='bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-6'>
+                <div className='bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg sm:rounded-xl p-3 sm:p-4 mb-4 sm:mb-6'>
                   <div className='flex items-center'>
-                    <ShieldCheck className='w-6 h-6 mr-3 text-yellow-400' />
+                    <ShieldCheck className='w-5 h-5 sm:w-6 sm:h-6 mr-2 sm:mr-3 text-yellow-400 flex-shrink-0' />
                     <div>
-                      <h4 className='font-medium text-yellow-900 dark:text-yellow-100 flex items-center'>
+                      <h4 className='text-xs sm:text-sm font-medium text-yellow-900 dark:text-yellow-100 flex items-center flex-wrap gap-1'>
                         Status do 2FA:{' '}
                         {is2FAEnabled ? (
                           <>
-                            <CheckCircle className='w-4 h-4 ml-2 mr-1 text-green-500' />
-                            Habilitado
+                            <CheckCircle className='w-3 h-3 sm:w-4 sm:h-4 text-green-500' />
+                            <span>Habilitado</span>
                           </>
                         ) : (
                           <>
-                            <XCircle className='w-4 h-4 ml-2 mr-1 text-red-500' />
-                            Desabilitado
+                            <XCircle className='w-3 h-3 sm:w-4 sm:h-4 text-red-500' />
+                            <span>Desabilitado</span>
                           </>
                         )}
                       </h4>
-                      <p className='text-sm text-yellow-700 dark:text-yellow-200'>
-                        A autenticação de dois fatores adiciona uma camada extra de segurança à sua
-                        conta
+                      <p className='text-[10px] sm:text-xs text-yellow-700 dark:text-yellow-200 mt-0.5'>
+                        A autenticação de dois fatores adiciona uma camada extra de segurança
                       </p>
                     </div>
                   </div>
                 </div>
 
                 {!is2FAEnabled ? (
-                  <div className='border border-gray-200 dark:border-gray-600 rounded-lg p-6'>
-                    <div className='flex items-center mb-4'>
-                      <Smartphone className='w-6 h-6 mr-3 text-gray-700 dark:text-gray-300' />
-                      <h4 className='font-medium text-gray-900 dark:text-white'>Configurar 2FA</h4>
+                  <div className='border border-gray-200 dark:border-gray-600 rounded-lg sm:rounded-xl p-4 sm:p-6'>
+                    <div className='flex items-center mb-3 sm:mb-4'>
+                      <Smartphone className='w-5 h-5 sm:w-6 sm:h-6 mr-2 sm:mr-3 text-gray-700 dark:text-gray-300' />
+                      <h4 className='text-sm sm:text-base font-medium text-gray-900 dark:text-white'>
+                        Configurar 2FA
+                      </h4>
                     </div>
 
-                    <div className='space-y-4'>
-                      <div className='text-sm text-gray-600 dark:text-gray-300'>
-                        <p className='mb-2'>Para configurar a autenticação de dois fatores:</p>
-                        <ol className='list-decimal list-inside space-y-1 ml-2'>
-                          <li>Baixe um app autenticador (Google Authenticator, Authy, etc.)</li>
+                    <div className='space-y-3 sm:space-y-4'>
+                      <div className='text-[10px] sm:text-xs md:text-sm text-gray-600 dark:text-gray-300'>
+                        <p className='mb-1.5 sm:mb-2'>
+                          Para configurar a autenticação de dois fatores:
+                        </p>
+                        <ol className='list-decimal list-inside space-y-0.5 sm:space-y-1 ml-2'>
+                          <li>Baixe um app autenticador (Google Authenticator, Authy)</li>
                           <li>Clique em "Habilitar 2FA" para gerar o código QR</li>
                           <li>Escaneie o QR code com seu app autenticador</li>
                           <li>Digite o código de 6 dígitos para confirmar</li>
@@ -738,46 +786,45 @@ export const SettingsPage = () => {
                         <button
                           onClick={handleEnable2FA}
                           disabled={enable2FAMutation.isPending}
-                          className='flex items-center px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50'
+                          className='flex items-center px-4 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50'
                         >
-                          <CheckCircle className='w-5 h-5 mr-2' />
+                          <CheckCircle className='w-4 h-4 sm:w-5 sm:h-5 mr-2' />
                           {enable2FAMutation.isPending ? 'Gerando QR...' : 'Habilitar 2FA'}
                         </button>
                       ) : (
-                        <div className='space-y-4'>
+                        <div className='space-y-3 sm:space-y-4'>
                           {qrCodeData && (
                             <>
                               <div className='text-center'>
-                                <div className='inline-block p-4 bg-white rounded-lg'>
+                                <div className='inline-block p-3 sm:p-4 bg-white rounded-lg'>
                                   <img
                                     src={qrCodeData.qr_code}
                                     alt='QR Code 2FA'
-                                    className='w-64 h-64 mx-auto'
+                                    className='w-48 h-48 sm:w-64 sm:h-64 mx-auto'
                                   />
                                 </div>
-                                <p className='mt-2 text-sm text-gray-600 dark:text-gray-300'>
+                                <p className='mt-2 text-[10px] sm:text-xs text-gray-600 dark:text-gray-300'>
                                   Escaneie este QR code com seu app autenticador
                                 </p>
-                                <p className='mt-2 text-xs text-gray-500 dark:text-gray-400'>
-                                  Ou digite manualmente:{' '}
+                                <p className='mt-1 sm:mt-2 text-[9px] sm:text-xs text-gray-500 dark:text-gray-400'>
+                                  Ou digite:{' '}
                                   <span className='font-mono font-semibold'>
                                     {qrCodeData.secret}
                                   </span>
                                 </p>
                               </div>
 
-                              <div className='bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4'>
-                                <div className='flex items-center mb-2'>
-                                  <AlertTriangle className='w-5 h-5 mr-2 text-red-600' />
-                                  <h5 className='font-medium text-red-900 dark:text-red-100'>
+                              <div className='bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 sm:p-4'>
+                                <div className='flex items-center mb-1.5 sm:mb-2'>
+                                  <AlertTriangle className='w-4 h-4 sm:w-5 sm:h-5 mr-2 text-red-600' />
+                                  <h5 className='text-xs sm:text-sm font-medium text-red-900 dark:text-red-100'>
                                     Códigos de Backup
                                   </h5>
                                 </div>
-                                <p className='text-sm text-red-700 dark:text-red-200 mb-2'>
-                                  Guarde estes códigos em lugar seguro. Use-os se perder acesso ao
-                                  seu celular:
+                                <p className='text-[9px] sm:text-xs text-red-700 dark:text-red-200 mb-2'>
+                                  Guarde estes códigos em lugar seguro:
                                 </p>
-                                <div className='bg-white dark:bg-gray-800 rounded p-3 font-mono text-xs grid grid-cols-2 gap-2'>
+                                <div className='bg-white dark:bg-gray-800 rounded p-2 sm:p-3 font-mono text-[10px] sm:text-xs grid grid-cols-2 gap-1 sm:gap-2'>
                                   {qrCodeData.backup_codes.map((code, index) => (
                                     <div key={index} className='text-gray-900 dark:text-gray-100'>
                                       {code}
@@ -790,7 +837,7 @@ export const SettingsPage = () => {
                                     navigator.clipboard.writeText(text)
                                     alert('Códigos copiados para a área de transferência!')
                                   }}
-                                  className='mt-3 text-xs text-red-700 dark:text-red-300 hover:underline'
+                                  className='mt-2 sm:mt-3 text-[10px] sm:text-xs text-red-700 dark:text-red-300 hover:underline'
                                 >
                                   📋 Copiar códigos
                                 </button>
@@ -799,16 +846,16 @@ export const SettingsPage = () => {
                               <div>
                                 <label
                                   htmlFor='verification-code'
-                                  className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'
+                                  className='block text-[10px] sm:text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2'
                                 >
                                   Digite o código de 6 dígitos para confirmar:
                                 </label>
-                                <div className='flex space-x-3'>
+                                <div className='flex gap-2 sm:gap-3'>
                                   <input
                                     type='text'
                                     id='verification-code'
                                     maxLength={6}
-                                    className='block w-32 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-center font-mono text-lg'
+                                    className='block w-24 sm:w-32 px-2.5 sm:px-3 py-1.5 sm:py-2 text-sm sm:text-lg border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-center font-mono'
                                     placeholder='000000'
                                     value={verificationCode}
                                     onChange={e =>
@@ -820,7 +867,7 @@ export const SettingsPage = () => {
                                     disabled={
                                       verify2FAMutation.isPending || verificationCode.length !== 6
                                     }
-                                    className='px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50'
+                                    className='px-3 sm:px-4 py-1.5 sm:py-2 text-[10px] sm:text-xs bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50'
                                   >
                                     {verify2FAMutation.isPending ? 'Verificando...' : 'Confirmar'}
                                   </button>
@@ -833,19 +880,20 @@ export const SettingsPage = () => {
                     </div>
                   </div>
                 ) : (
-                  <div className='border border-gray-200 dark:border-gray-600 rounded-lg p-6'>
-                    <div className='flex items-center mb-4'>
-                      <XCircle className='w-6 h-6 mr-3 text-red-600' />
-                      <h4 className='font-medium text-gray-900 dark:text-white'>Desabilitar 2FA</h4>
+                  <div className='border border-gray-200 dark:border-gray-600 rounded-lg sm:rounded-xl p-4 sm:p-6'>
+                    <div className='flex items-center mb-3 sm:mb-4'>
+                      <XCircle className='w-5 h-5 sm:w-6 sm:h-6 mr-2 sm:mr-3 text-red-600' />
+                      <h4 className='text-sm sm:text-base font-medium text-gray-900 dark:text-white'>
+                        Desabilitar 2FA
+                      </h4>
                     </div>
 
-                    <div className='space-y-4'>
-                      <p className='text-sm text-gray-600 dark:text-gray-300'>
-                        Para desabilitar a autenticação de dois fatores, digite o código de
-                        verificação do seu app:
+                    <div className='space-y-3 sm:space-y-4'>
+                      <p className='text-[10px] sm:text-xs text-gray-600 dark:text-gray-300'>
+                        Para desabilitar, digite o código de verificação do seu app:
                       </p>
 
-                      <div className='flex space-x-3'>
+                      <div className='flex gap-2 sm:gap-3'>
                         <label htmlFor='disable-2fa-code' className='sr-only'>
                           Código de verificação para desabilitar 2FA
                         </label>
@@ -853,7 +901,7 @@ export const SettingsPage = () => {
                           type='text'
                           id='disable-2fa-code'
                           maxLength={6}
-                          className='block w-32 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-center font-mono'
+                          className='block w-24 sm:w-32 px-2.5 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-center font-mono'
                           placeholder='000000'
                           value={verificationCode}
                           onChange={e => setVerificationCode(e.target.value.replace(/\D/g, ''))}
@@ -861,15 +909,15 @@ export const SettingsPage = () => {
                         <button
                           onClick={handleDisable2FA}
                           disabled={disable2FAMutation.isPending || verificationCode.length !== 6}
-                          className='flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50'
+                          className='flex items-center px-3 sm:px-4 py-1.5 sm:py-2 text-[10px] sm:text-xs bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50'
                         >
-                          <XCircle className='w-4 h-4 mr-2' />
-                          {disable2FAMutation.isPending ? 'Desabilitando...' : 'Desabilitar 2FA'}
+                          <XCircle className='w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2' />
+                          {disable2FAMutation.isPending ? 'Desabilitando...' : 'Desabilitar'}
                         </button>
                       </div>
 
-                      <div className='flex items-center text-sm text-red-600 dark:text-red-400'>
-                        <AlertTriangle className='w-4 h-4 mr-1' />
+                      <div className='flex items-center text-[10px] sm:text-xs text-red-600 dark:text-red-400'>
+                        <AlertTriangle className='w-3 h-3 sm:w-4 sm:h-4 mr-1' />
                         Desabilitar 2FA tornará sua conta menos segura
                       </div>
                     </div>
@@ -881,52 +929,53 @@ export const SettingsPage = () => {
 
           {/* Payment Methods Tab */}
           {activeTab === 'payment-methods' && (
-            <div className='space-y-6'>
-              <div className='flex items-center justify-between mb-6'>
+            <div className='space-y-4 sm:space-y-6'>
+              <div className='flex items-center justify-between mb-4 sm:mb-6'>
                 <div>
-                  <h3 className='text-lg font-medium text-gray-900 dark:text-white'>
+                  <h3 className='text-sm sm:text-base md:text-lg font-semibold text-gray-900 dark:text-white'>
                     Métodos de Pagamento
                   </h3>
-                  <p className='text-sm text-gray-500 dark:text-gray-400 mt-1'>
-                    Gerencie suas formas de pagamento para transações P2P
+                  <p className='text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 mt-0.5 sm:mt-1'>
+                    Gerencie suas formas de pagamento para P2P
                   </p>
                 </div>
                 <button
                   onClick={handleAddPaymentMethod}
-                  className='flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors'
+                  className='flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 text-[10px] sm:text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors'
                 >
-                  <Plus className='w-4 h-4' />
-                  Adicionar Método
+                  <Plus className='w-3 h-3 sm:w-4 sm:h-4' />
+                  <span className='hidden xs:inline'>Adicionar</span>
+                  <span className='xs:hidden'>+</span>
                 </button>
               </div>
 
               {/* Payment Method Form Modal */}
               {showPaymentMethodForm && (
-                <div className='bg-white dark:bg-gray-800 rounded-lg p-6 border-2 border-blue-500 dark:border-blue-400 shadow-lg'>
-                  <h4 className='text-lg font-medium text-gray-900 dark:text-white mb-6'>
+                <div className='bg-white dark:bg-gray-800 rounded-lg sm:rounded-xl p-4 sm:p-6 border-2 border-blue-500 dark:border-blue-400 shadow-lg'>
+                  <h4 className='text-sm sm:text-base md:text-lg font-medium text-gray-900 dark:text-white mb-4 sm:mb-6'>
                     {editingPaymentMethod
                       ? 'Editar Método de Pagamento'
                       : 'Novo Método de Pagamento'}
                   </h4>
 
-                  <form onSubmit={handleSavePaymentMethod} className='space-y-6'>
+                  <form onSubmit={handleSavePaymentMethod} className='space-y-4 sm:space-y-6'>
                     {/* Payment Type Selection */}
                     <div>
-                      <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3'>
+                      <label className='block text-[10px] sm:text-xs font-medium text-gray-700 dark:text-gray-300 mb-2 sm:mb-3'>
                         Tipo de Pagamento *
                       </label>
-                      <div className='grid grid-cols-2 md:grid-cols-4 gap-3'>
+                      <div className='grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 sm:gap-3'>
                         {[
                           { value: 'PIX', label: 'PIX', icon: QrCode },
                           {
                             value: 'Transferência Bancária',
-                            label: 'Transferência',
+                            label: 'TED',
                             icon: Building,
                           },
                           { value: 'PayPal', label: 'PayPal', icon: Wallet },
                           { value: 'PicPay', label: 'PicPay', icon: Wallet },
-                          { value: 'Mercado Pago', label: 'Mercado Pago', icon: Wallet },
-                          { value: 'PagSeguro', label: 'PagSeguro', icon: Wallet },
+                          { value: 'Mercado Pago', label: 'MP', icon: Wallet },
+                          { value: 'PagSeguro', label: 'PagSeg', icon: Wallet },
                         ].map(type => {
                           const IconComponent = type.icon
                           return (
@@ -934,14 +983,16 @@ export const SettingsPage = () => {
                               key={type.value}
                               type='button'
                               onClick={() => setSelectedPaymentType(type.value)}
-                              className={`p-4 border-2 rounded-lg transition-all ${
+                              className={`p-2 sm:p-4 border-2 rounded-lg transition-all ${
                                 selectedPaymentType === type.value
                                   ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
                                   : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 text-gray-700 dark:text-gray-300'
                               }`}
                             >
-                              <IconComponent className='w-6 h-6 mx-auto mb-2' />
-                              <p className='text-sm font-medium'>{type.label}</p>
+                              <IconComponent className='w-4 h-4 sm:w-6 sm:h-6 mx-auto mb-1 sm:mb-2' />
+                              <p className='text-[9px] sm:text-xs font-medium truncate'>
+                                {type.label}
+                              </p>
                             </button>
                           )
                         })}
@@ -950,16 +1001,16 @@ export const SettingsPage = () => {
 
                     {/* PIX Form */}
                     {selectedPaymentType === 'PIX' && (
-                      <div className='space-y-4 bg-blue-50 dark:bg-blue-900/10 p-4 rounded-lg border border-blue-200 dark:border-blue-800'>
-                        <div className='flex items-center gap-2 mb-3'>
-                          <QrCode className='w-5 h-5 text-blue-600 dark:text-blue-400' />
-                          <h5 className='font-medium text-gray-900 dark:text-white'>
+                      <div className='space-y-3 sm:space-y-4 bg-blue-50 dark:bg-blue-900/10 p-3 sm:p-4 rounded-lg border border-blue-200 dark:border-blue-800'>
+                        <div className='flex items-center gap-2 mb-2 sm:mb-3'>
+                          <QrCode className='w-4 h-4 sm:w-5 sm:h-5 text-blue-600 dark:text-blue-400' />
+                          <h5 className='text-xs sm:text-sm font-medium text-gray-900 dark:text-white'>
                             Dados do PIX
                           </h5>
                         </div>
 
                         <div>
-                          <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                          <label className='block text-[10px] sm:text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2'>
                             Tipo de Chave PIX *
                           </label>
                           <select
@@ -968,7 +1019,7 @@ export const SettingsPage = () => {
                             onChange={e =>
                               setPixData(prev => ({ ...prev, keyType: e.target.value }))
                             }
-                            className='w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
+                            className='w-full px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
                             required
                           >
                             <option value=''>Selecione o tipo de chave</option>
@@ -981,7 +1032,7 @@ export const SettingsPage = () => {
                         </div>
 
                         <div>
-                          <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                          <label className='block text-[10px] sm:text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2'>
                             Chave PIX *
                           </label>
                           <input
@@ -1003,13 +1054,13 @@ export const SettingsPage = () => {
                                         ? 'cole sua chave aleatória'
                                         : 'Selecione o tipo de chave primeiro'
                             }
-                            className='w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
+                            className='w-full px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
                             required
                           />
                         </div>
 
                         <div>
-                          <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                          <label className='block text-[10px] sm:text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2'>
                             Nome do Titular *
                           </label>
                           <input
@@ -1018,8 +1069,8 @@ export const SettingsPage = () => {
                             onChange={e =>
                               setPixData(prev => ({ ...prev, holderName: e.target.value }))
                             }
-                            placeholder='Nome completo do titular da conta'
-                            className='w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
+                            placeholder='Nome completo do titular'
+                            className='w-full px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
                             required
                           />
                         </div>
@@ -1028,23 +1079,23 @@ export const SettingsPage = () => {
 
                     {/* Bank Transfer Form */}
                     {selectedPaymentType === 'Transferência Bancária' && (
-                      <div className='space-y-4 bg-green-50 dark:bg-green-900/10 p-4 rounded-lg border border-green-200 dark:border-green-800'>
-                        <div className='flex items-center gap-2 mb-3'>
-                          <Building className='w-5 h-5 text-green-600 dark:text-green-400' />
-                          <h5 className='font-medium text-gray-900 dark:text-white'>
+                      <div className='space-y-3 sm:space-y-4 bg-green-50 dark:bg-green-900/10 p-3 sm:p-4 rounded-lg border border-green-200 dark:border-green-800'>
+                        <div className='flex items-center gap-2 mb-2 sm:mb-3'>
+                          <Building className='w-4 h-4 sm:w-5 sm:h-5 text-green-600 dark:text-green-400' />
+                          <h5 className='text-xs sm:text-sm font-medium text-gray-900 dark:text-white'>
                             Dados Bancários
                           </h5>
                         </div>
 
                         <div>
-                          <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                          <label className='block text-[10px] sm:text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2'>
                             Banco *
                           </label>
                           <select
                             aria-label='Selecione o banco'
                             value={bankData.bank}
                             onChange={e => setBankData(prev => ({ ...prev, bank: e.target.value }))}
-                            className='w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
+                            className='w-full px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
                             required
                           >
                             <option value=''>Selecione o banco</option>
@@ -1067,9 +1118,9 @@ export const SettingsPage = () => {
                           </select>
                         </div>
 
-                        <div className='grid grid-cols-2 gap-4'>
+                        <div className='grid grid-cols-2 gap-2 sm:gap-4'>
                           <div>
-                            <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                            <label className='block text-[10px] sm:text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2'>
                               Tipo de Conta *
                             </label>
                             <select
@@ -1078,18 +1129,18 @@ export const SettingsPage = () => {
                               onChange={e =>
                                 setBankData(prev => ({ ...prev, accountType: e.target.value }))
                               }
-                              className='w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
+                              className='w-full px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
                               required
                             >
                               <option value=''>Selecione</option>
-                              <option value='Conta Corrente'>Conta Corrente</option>
-                              <option value='Conta Poupança'>Conta Poupança</option>
-                              <option value='Conta Pagamento'>Conta Pagamento</option>
+                              <option value='Conta Corrente'>Corrente</option>
+                              <option value='Conta Poupança'>Poupança</option>
+                              <option value='Conta Pagamento'>Pagamento</option>
                             </select>
                           </div>
 
                           <div>
-                            <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                            <label className='block text-[10px] sm:text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2'>
                               Agência *
                             </label>
                             <input
@@ -1099,14 +1150,14 @@ export const SettingsPage = () => {
                                 setBankData(prev => ({ ...prev, agency: e.target.value }))
                               }
                               placeholder='0001'
-                              className='w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
+                              className='w-full px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
                               required
                             />
                           </div>
                         </div>
 
                         <div>
-                          <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                          <label className='block text-[10px] sm:text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2'>
                             Número da Conta *
                           </label>
                           <input
@@ -1116,13 +1167,13 @@ export const SettingsPage = () => {
                               setBankData(prev => ({ ...prev, account: e.target.value }))
                             }
                             placeholder='12345-6'
-                            className='w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
+                            className='w-full px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
                             required
                           />
                         </div>
 
                         <div>
-                          <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                          <label className='block text-[10px] sm:text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2'>
                             Nome do Titular *
                           </label>
                           <input
@@ -1131,14 +1182,14 @@ export const SettingsPage = () => {
                             onChange={e =>
                               setBankData(prev => ({ ...prev, holderName: e.target.value }))
                             }
-                            placeholder='Nome completo como consta no banco'
-                            className='w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
+                            placeholder='Nome completo'
+                            className='w-full px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
                             required
                           />
                         </div>
 
                         <div>
-                          <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                          <label className='block text-[10px] sm:text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2'>
                             CPF/CNPJ do Titular *
                           </label>
                           <input
@@ -1147,8 +1198,8 @@ export const SettingsPage = () => {
                             onChange={e =>
                               setBankData(prev => ({ ...prev, holderDocument: e.target.value }))
                             }
-                            placeholder='123.456.789-00 ou 12.345.678/0001-00'
-                            className='w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
+                            placeholder='123.456.789-00'
+                            className='w-full px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
                             required
                           />
                         </div>
@@ -1159,16 +1210,16 @@ export const SettingsPage = () => {
                     {['PayPal', 'PicPay', 'Mercado Pago', 'PagSeguro'].includes(
                       selectedPaymentType
                     ) && (
-                      <div className='space-y-4 bg-purple-50 dark:bg-purple-900/10 p-4 rounded-lg border border-purple-200 dark:border-purple-800'>
-                        <div className='flex items-center gap-2 mb-3'>
-                          <Wallet className='w-5 h-5 text-purple-600 dark:text-purple-400' />
-                          <h5 className='font-medium text-gray-900 dark:text-white'>
+                      <div className='space-y-3 sm:space-y-4 bg-purple-50 dark:bg-purple-900/10 p-3 sm:p-4 rounded-lg border border-purple-200 dark:border-purple-800'>
+                        <div className='flex items-center gap-2 mb-2 sm:mb-3'>
+                          <Wallet className='w-4 h-4 sm:w-5 sm:h-5 text-purple-600 dark:text-purple-400' />
+                          <h5 className='text-xs sm:text-sm font-medium text-gray-900 dark:text-white'>
                             Dados da Carteira Digital
                           </h5>
                         </div>
 
                         <div>
-                          <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                          <label className='block text-[10px] sm:text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2'>
                             Tipo de Identificador *
                           </label>
                           <select
@@ -1177,7 +1228,7 @@ export const SettingsPage = () => {
                             onChange={e =>
                               setWalletData(prev => ({ ...prev, walletType: e.target.value }))
                             }
-                            className='w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
+                            className='w-full px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
                             required
                           >
                             <option value=''>Selecione o tipo</option>
@@ -1189,7 +1240,7 @@ export const SettingsPage = () => {
                         </div>
 
                         <div>
-                          <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                          <label className='block text-[10px] sm:text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2'>
                             {walletData.walletType || 'Identificador'} *
                           </label>
                           <input
@@ -1205,17 +1256,15 @@ export const SettingsPage = () => {
                                   ? '(11) 98765-4321'
                                   : walletData.walletType === 'CPF'
                                     ? '123.456.789-00'
-                                    : walletData.walletType === 'ID da Conta'
-                                      ? 'ID123456'
-                                      : 'Digite o identificador'
+                                    : 'Digite'
                             }
-                            className='w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
+                            className='w-full px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
                             required
                           />
                         </div>
 
                         <div>
-                          <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                          <label className='block text-[10px] sm:text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2'>
                             Nome do Titular *
                           </label>
                           <input
@@ -1224,8 +1273,8 @@ export const SettingsPage = () => {
                             onChange={e =>
                               setWalletData(prev => ({ ...prev, holderName: e.target.value }))
                             }
-                            placeholder='Nome completo do titular da conta'
-                            className='w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
+                            placeholder='Nome completo'
+                            className='w-full px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
                             required
                           />
                         </div>
@@ -1233,21 +1282,21 @@ export const SettingsPage = () => {
                     )}
 
                     {/* Action Buttons */}
-                    <div className='flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700'>
+                    <div className='flex gap-2 sm:gap-3 pt-3 sm:pt-4 border-t border-gray-200 dark:border-gray-700'>
                       <button
                         type='submit'
                         disabled={
                           createPaymentMethodMutation.isPending ||
                           updatePaymentMethodMutation.isPending
                         }
-                        className='flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors font-medium'
+                        className='flex-1 px-4 sm:px-6 py-2 sm:py-3 text-[10px] sm:text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors font-medium'
                       >
                         {createPaymentMethodMutation.isPending ||
                         updatePaymentMethodMutation.isPending
                           ? 'Salvando...'
                           : editingPaymentMethod
-                            ? 'Atualizar Método'
-                            : 'Adicionar Método'}
+                            ? 'Atualizar'
+                            : 'Adicionar'}
                       </button>
                       <button
                         type='button'
@@ -1266,7 +1315,7 @@ export const SettingsPage = () => {
                           setWalletData({ walletType: '', identifier: '', holderName: '' })
                           setEditingPaymentMethod(null)
                         }}
-                        className='px-6 py-3 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium'
+                        className='px-4 sm:px-6 py-2 sm:py-3 text-[10px] sm:text-xs border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium'
                       >
                         Cancelar
                       </button>
@@ -1276,9 +1325,8 @@ export const SettingsPage = () => {
               )}
 
               {/* Payment Methods List */}
-              {console.log('[SettingsPage] paymentMethodsData:', paymentMethodsData)}
               {paymentMethodsData && paymentMethodsData.length > 0 ? (
-                <div className='grid grid-cols-1 lg:grid-cols-2 gap-4'>
+                <div className='grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4'>
                   {paymentMethodsData.map((method: any) => {
                     // Details is already an object from backend, no need to parse
                     const detailsObj =
@@ -1308,19 +1356,19 @@ export const SettingsPage = () => {
                     return (
                       <div
                         key={method.id}
-                        className='bg-white dark:bg-gray-700 border-2 border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden hover:shadow-lg transition-all'
+                        className='bg-white dark:bg-gray-700 border-2 border-gray-200 dark:border-gray-600 rounded-lg sm:rounded-xl overflow-hidden hover:shadow-lg transition-all'
                       >
                         {/* Header */}
-                        <div className={`px-4 py-3 border-b ${getColorScheme()}`}>
-                          <div className='flex items-center gap-3'>
-                            <div className='p-2 bg-white/50 dark:bg-gray-900/30 rounded-lg'>
-                              <IconComponent className='w-5 h-5' />
+                        <div className={`px-3 sm:px-4 py-2 sm:py-3 border-b ${getColorScheme()}`}>
+                          <div className='flex items-center gap-2 sm:gap-3'>
+                            <div className='p-1.5 sm:p-2 bg-white/50 dark:bg-gray-900/30 rounded-lg'>
+                              <IconComponent className='w-4 h-4 sm:w-5 sm:h-5' />
                             </div>
-                            <div className='flex-1'>
-                              <h4 className='font-semibold text-gray-900 dark:text-white'>
+                            <div className='flex-1 min-w-0'>
+                              <h4 className='text-xs sm:text-sm font-semibold text-gray-900 dark:text-white truncate'>
                                 {method.type}
                               </h4>
-                              <p className='text-xs text-gray-600 dark:text-gray-400'>
+                              <p className='text-[10px] sm:text-xs text-gray-600 dark:text-gray-400 truncate'>
                                 {detailsObj.holderName || 'Titular não informado'}
                               </p>
                             </div>
@@ -1328,23 +1376,23 @@ export const SettingsPage = () => {
                         </div>
 
                         {/* Details Body */}
-                        <div className='px-4 py-4 space-y-2'>
+                        <div className='px-3 sm:px-4 py-2.5 sm:py-4 space-y-1.5 sm:space-y-2'>
                           {/* PIX Details */}
                           {method.type === 'PIX' && (
                             <>
-                              <div className='flex items-center gap-2 text-sm'>
+                              <div className='flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs'>
                                 <span className='text-gray-500 dark:text-gray-400 font-medium'>
-                                  Tipo de Chave:
+                                  Tipo:
                                 </span>
                                 <span className='text-gray-900 dark:text-white'>
                                   {detailsObj.keyType}
                                 </span>
                               </div>
-                              <div className='flex items-center gap-2 text-sm'>
+                              <div className='flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs'>
                                 <span className='text-gray-500 dark:text-gray-400 font-medium'>
                                   Chave:
                                 </span>
-                                <span className='text-gray-900 dark:text-white font-mono'>
+                                <span className='text-gray-900 dark:text-white font-mono truncate'>
                                   {detailsObj.keyValue}
                                 </span>
                               </div>
@@ -1354,26 +1402,18 @@ export const SettingsPage = () => {
                           {/* Bank Transfer Details */}
                           {method.type === 'Transferência Bancária' && (
                             <>
-                              <div className='flex items-center gap-2 text-sm'>
+                              <div className='flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs'>
                                 <span className='text-gray-500 dark:text-gray-400 font-medium'>
                                   Banco:
                                 </span>
-                                <span className='text-gray-900 dark:text-white'>
+                                <span className='text-gray-900 dark:text-white truncate'>
                                   {detailsObj.bank}
                                 </span>
                               </div>
-                              <div className='flex items-center gap-2 text-sm'>
-                                <span className='text-gray-500 dark:text-gray-400 font-medium'>
-                                  Tipo:
-                                </span>
-                                <span className='text-gray-900 dark:text-white'>
-                                  {detailsObj.accountType}
-                                </span>
-                              </div>
-                              <div className='grid grid-cols-2 gap-2 text-sm'>
+                              <div className='grid grid-cols-2 gap-1.5 sm:gap-2 text-[10px] sm:text-xs'>
                                 <div>
                                   <span className='text-gray-500 dark:text-gray-400 font-medium'>
-                                    Agência:
+                                    Ag:
                                   </span>
                                   <span className='ml-1 text-gray-900 dark:text-white font-mono'>
                                     {detailsObj.agency}
@@ -1388,7 +1428,7 @@ export const SettingsPage = () => {
                                   </span>
                                 </div>
                               </div>
-                              <div className='flex items-center gap-2 text-sm'>
+                              <div className='flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs'>
                                 <span className='text-gray-500 dark:text-gray-400 font-medium'>
                                   CPF/CNPJ:
                                 </span>
@@ -1404,7 +1444,7 @@ export const SettingsPage = () => {
                             method.type
                           ) && (
                             <>
-                              <div className='flex items-center gap-2 text-sm'>
+                              <div className='flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs'>
                                 <span className='text-gray-500 dark:text-gray-400 font-medium'>
                                   Tipo:
                                 </span>
@@ -1412,11 +1452,11 @@ export const SettingsPage = () => {
                                   {detailsObj.walletType}
                                 </span>
                               </div>
-                              <div className='flex items-center gap-2 text-sm'>
+                              <div className='flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs'>
                                 <span className='text-gray-500 dark:text-gray-400 font-medium'>
                                   Identificador:
                                 </span>
-                                <span className='text-gray-900 dark:text-white font-mono'>
+                                <span className='text-gray-900 dark:text-white font-mono truncate'>
                                   {detailsObj.identifier}
                                 </span>
                               </div>
@@ -1425,27 +1465,27 @@ export const SettingsPage = () => {
 
                           {/* Fallback for unknown format */}
                           {detailsObj.raw && (
-                            <p className='text-sm text-gray-600 dark:text-gray-400'>
+                            <p className='text-[10px] sm:text-xs text-gray-600 dark:text-gray-400'>
                               {detailsObj.raw}
                             </p>
                           )}
                         </div>
 
                         {/* Actions Footer */}
-                        <div className='px-4 py-3 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-600 flex gap-2'>
+                        <div className='px-3 sm:px-4 py-2 sm:py-3 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-600 flex gap-2'>
                           <button
                             onClick={() => handleEditPaymentMethod(method)}
-                            className='flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors'
+                            className='flex-1 flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors'
                           >
-                            <Edit className='w-4 h-4' />
+                            <Edit className='w-3.5 h-3.5 sm:w-4 sm:h-4' />
                             Editar
                           </button>
                           <button
                             onClick={() => handleDeletePaymentMethod(method.id)}
                             disabled={deletePaymentMethodMutation.isPending}
-                            className='flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50'
+                            className='flex-1 flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50'
                           >
-                            <Trash2 className='w-4 h-4' />
+                            <Trash2 className='w-3.5 h-3.5 sm:w-4 sm:h-4' />
                             Excluir
                           </button>
                         </div>
@@ -1454,16 +1494,16 @@ export const SettingsPage = () => {
                   })}
                 </div>
               ) : (
-                <div className='text-center py-12 bg-gray-50 dark:bg-gray-700/50 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600'>
-                  <CreditCard className='w-16 h-16 mx-auto text-gray-400 mb-4' />
-                  <p className='text-gray-600 dark:text-gray-400 mb-4'>
+                <div className='text-center py-6 sm:py-8 md:py-12 bg-gray-50 dark:bg-gray-700/50 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600'>
+                  <CreditCard className='w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 mx-auto text-gray-400 mb-2 sm:mb-4' />
+                  <p className='text-xs sm:text-sm md:text-base text-gray-600 dark:text-gray-400 mb-2 sm:mb-4 px-4'>
                     Você ainda não tem métodos de pagamento cadastrados
                   </p>
                   <button
                     onClick={handleAddPaymentMethod}
-                    className='inline-flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors'
+                    className='inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 md:px-6 py-1.5 sm:py-2 text-xs sm:text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors'
                   >
-                    <Plus className='w-4 h-4' />
+                    <Plus className='w-3.5 h-3.5 sm:w-4 sm:h-4' />
                     Adicionar Primeiro Método
                   </button>
                 </div>

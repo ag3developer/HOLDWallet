@@ -291,23 +291,23 @@ export const P2PPage = () => {
       </div>
 
       {/* Quick Crypto Selection */}
-      <div className='flex gap-2 overflow-x-auto pb-1 scrollbar-hide'>
+      <div className='flex gap-2 overflow-x-auto pb-1 scrollbar-hide px-1'>
         <button
           onClick={() => setSelectedCrypto(null)}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+          className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all min-w-fit ${
             selectedCrypto === null
               ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/25'
               : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700'
           }`}
         >
-          <Sparkles className='w-3.5 h-3.5' />
-          Todas
+          <Sparkles className='w-3.5 h-3.5 flex-shrink-0' />
+          <span>Todas</span>
         </button>
         {cryptoOptions.map(crypto => (
           <button
             key={crypto.symbol}
             onClick={() => setSelectedCrypto(crypto.symbol)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+            className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all min-w-fit ${
               selectedCrypto === crypto.symbol
                 ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/25'
                 : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700'
@@ -316,13 +316,13 @@ export const P2PPage = () => {
             <img
               src={crypto.logo}
               alt={crypto.name}
-              className='w-5 h-5 rounded-full object-cover'
+              className='w-5 h-5 rounded-full object-cover flex-shrink-0'
               onError={e => {
                 ;(e.target as HTMLImageElement).src =
                   'https://assets.coingecko.com/coins/images/1/small/bitcoin.png'
               }}
             />
-            {crypto.symbol}
+            <span className='flex-shrink-0'>{crypto.symbol}</span>
           </button>
         ))}
       </div>
