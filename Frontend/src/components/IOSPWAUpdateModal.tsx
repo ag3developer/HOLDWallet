@@ -14,81 +14,27 @@
 import { useEffect, useState, useCallback } from 'react'
 import { RefreshCw, Download, AlertTriangle, CheckCircle2, Rocket } from 'lucide-react'
 
-// Verifica se localStorage está disponível
-const isLocalStorageAvailable = (): boolean => {
-  try {
-    const testKey = '__ios_modal_test__'
-    localStorage.setItem(testKey, 'test')
-    localStorage.removeItem(testKey)
-    return true
-  } catch {
-    return false
-  }
-}
-
-// Safe localStorage helpers
-const safeGetItem = (key: string): string | null => {
-  try {
-    return isLocalStorageAvailable() ? localStorage.getItem(key) : null
-  } catch {
-    return null
-  }
-}
-
-const safeSetItem = (key: string, value: string): void => {
-  try {
-    if (isLocalStorageAvailable()) {
-      localStorage.setItem(key, value)
-    }
-  } catch {
-    // Silently fail
-  }
-}
-
-const safeRemoveItem = (key: string): void => {
-  try {
-    if (isLocalStorageAvailable()) {
-      localStorage.removeItem(key)
-    }
-  } catch {
-    // Silently fail
-  }
-}
-
 // Detecta se é iOS
 const isIOS = (): boolean => {
-  try {
-    if (globalThis.window === undefined) return false
-    const userAgent = globalThis.navigator?.userAgent?.toLowerCase() || ''
-    return /iphone|ipad|ipod/.test(userAgent)
-  } catch {
-    return false
-  }
+  if (globalThis.window === undefined) return false
+  const userAgent = globalThis.navigator.userAgent.toLowerCase()
+  return /iphone|ipad|ipod/.test(userAgent)
 }
 
 // Detecta se está em modo standalone (PWA instalada)
 const isPWAStandalone = (): boolean => {
-  try {
-    if (globalThis.window === undefined) return false
-    // Safari iOS
-    const isStandalone =
-      (globalThis.navigator as Navigator & { standalone?: boolean }).standalone === true
-    // Fallback para outras formas de detecção
-    const isDisplayModeStandalone =
-      globalThis.matchMedia?.('(display-mode: standalone)')?.matches || false
-    return isStandalone || isDisplayModeStandalone
-  } catch {
-    return false
-  }
+  if (globalThis.window === undefined) return false
+  // Safari iOS
+  const isStandalone =
+    (globalThis.navigator as Navigator & { standalone?: boolean }).standalone === true
+  // Fallback para outras formas de detecção
+  const isDisplayModeStandalone = globalThis.matchMedia('(display-mode: standalone)').matches
+  return isStandalone || isDisplayModeStandalone
 }
 
 // Detecta se é iOS PWA
 const isIOSPWA = (): boolean => {
-  try {
-    return isIOS() && isPWAStandalone()
-  } catch {
-    return false
-  }
+  return isIOS() && isPWAStandalone()
 }
 
 // Chaves para localStorage
@@ -178,7 +124,7 @@ export const IOSPWAUpdateModal = ({ forceShow = false }: IOSPWAUpdateModalProps)
 
       const data = await response.json()
       const newVersion = data.version || data.buildTime
-      const storedVersion = safeGetItem(IOS_VERSION_KEY)
+      const storedVersion = localStorage.getItem(IOS_VERSION_KEY)
 
       console.log('[PWA Update] Versão servidor:', newVersion, '| Local:', storedVersion)
 
@@ -190,7 +136,7 @@ export const IOSPWAUpdateModal = ({ forceShow = false }: IOSPWAUpdateModalProps)
         console.log('[PWA Update] 🚀 Nova versão detectada!')
       } else if (!storedVersion) {
         // Primeira vez - salva versão atual
-        safeSetItem(IOS_VERSION_KEY, newVersion)
+        localStorage.setItem(IOS_VERSION_KEY, newVersion)
       }
     } catch (error) {
       console.error('[PWA Update] Erro ao verificar versão:', error)
@@ -232,12 +178,12 @@ export const IOSPWAUpdateModal = ({ forceShow = false }: IOSPWAUpdateModalProps)
       'wolknow_last_update_check',
       IOS_FORCE_UPDATE_KEY,
     ]
-    keysToRemove.forEach(key => safeRemoveItem(key))
+    keysToRemove.forEach(key => localStorage.removeItem(key))
 
     // 4. Salvar nova versão
     if (serverVersion) {
-      safeSetItem(IOS_VERSION_KEY, serverVersion)
-      safeSetItem(IOS_LAST_UPDATE_KEY, Date.now().toString())
+      localStorage.setItem(IOS_VERSION_KEY, serverVersion)
+      localStorage.setItem(IOS_LAST_UPDATE_KEY, Date.now().toString())
     }
 
     console.log('[PWA Update] ✅ Caches limpos com sucesso!')
@@ -268,7 +214,7 @@ export const IOSPWAUpdateModal = ({ forceShow = false }: IOSPWAUpdateModalProps)
   const handleDismiss = () => {
     setShowModal(false)
     // Não mostra novamente por 1 hora
-    safeSetItem(IOS_FORCE_UPDATE_KEY, (Date.now() + 60 * 60 * 1000).toString())
+    localStorage.setItem(IOS_FORCE_UPDATE_KEY, (Date.now() + 60 * 60 * 1000).toString())
   }
 
   // Verifica ao montar e a cada 2 minutos

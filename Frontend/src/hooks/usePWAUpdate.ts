@@ -24,47 +24,6 @@ const SERVER_VERSION_KEY = 'wolknow_server_version'
 // Intervalo de verificação (30 segundos)
 const CHECK_INTERVAL = 30 * 1000
 
-// Verifica se localStorage está disponível
-const isLocalStorageAvailable = (): boolean => {
-  try {
-    const testKey = '__pwa_update_test__'
-    localStorage.setItem(testKey, 'test')
-    localStorage.removeItem(testKey)
-    return true
-  } catch {
-    return false
-  }
-}
-
-// Safe localStorage helpers
-const safeGetItem = (key: string): string | null => {
-  try {
-    return isLocalStorageAvailable() ? localStorage.getItem(key) : null
-  } catch {
-    return null
-  }
-}
-
-const safeSetItem = (key: string, value: string): void => {
-  try {
-    if (isLocalStorageAvailable()) {
-      localStorage.setItem(key, value)
-    }
-  } catch {
-    // Silently fail
-  }
-}
-
-const safeRemoveItem = (key: string): void => {
-  try {
-    if (isLocalStorageAvailable()) {
-      localStorage.removeItem(key)
-    }
-  } catch {
-    // Silently fail
-  }
-}
-
 interface PWAUpdateState {
   needRefresh: boolean
   offlineReady: boolean
@@ -132,8 +91,8 @@ export function usePWAUpdate() {
     await clearAllCaches()
     await unregisterOldSW()
 
-    safeSetItem(VERSION_KEY, APP_VERSION)
-    safeSetItem(LAST_CHECK_KEY, Date.now().toString())
+    localStorage.setItem(VERSION_KEY, APP_VERSION)
+    localStorage.setItem(LAST_CHECK_KEY, Date.now().toString())
 
     globalThis.location.reload()
   }, [clearAllCaches, unregisterOldSW])
@@ -158,13 +117,13 @@ export function usePWAUpdate() {
       }
 
       const serverVersion: VersionInfo = await response.json()
-      const storedServerVersion = safeGetItem(SERVER_VERSION_KEY)
+      const storedServerVersion = localStorage.getItem(SERVER_VERSION_KEY)
 
       console.log('[PWA] Versão servidor:', serverVersion.version, '| Local:', storedServerVersion)
 
       if (storedServerVersion && storedServerVersion !== serverVersion.version) {
         console.log('[PWA] 🚀 Nova versão detectada! Atualizando...')
-        safeSetItem(SERVER_VERSION_KEY, serverVersion.version)
+        localStorage.setItem(SERVER_VERSION_KEY, serverVersion.version)
 
         // Aguarda um pouco para o usuário ver a mensagem (se houver UI)
         setTimeout(async () => {
@@ -178,7 +137,7 @@ export function usePWAUpdate() {
 
       // Salva versão se é primeira vez
       if (!storedServerVersion) {
-        safeSetItem(SERVER_VERSION_KEY, serverVersion.version)
+        localStorage.setItem(SERVER_VERSION_KEY, serverVersion.version)
       }
 
       return false
@@ -195,10 +154,10 @@ export function usePWAUpdate() {
 
   // Verificar se há nova versão
   const checkVersion = useCallback((): boolean => {
-    const storedVersion = safeGetItem(VERSION_KEY)
+    const storedVersion = localStorage.getItem(VERSION_KEY)
 
     if (!storedVersion) {
-      safeSetItem(VERSION_KEY, APP_VERSION)
+      localStorage.setItem(VERSION_KEY, APP_VERSION)
       return false
     }
 
@@ -287,12 +246,12 @@ export function usePWAUpdate() {
     const onVisibilityChange = async () => {
       if (document.visibilityState !== 'visible') return
 
-      const lastCheck = safeGetItem(LAST_CHECK_KEY)
+      const lastCheck = localStorage.getItem(LAST_CHECK_KEY)
       const now = Date.now()
       const fiveMinutes = 5 * 60 * 1000
 
       if (!lastCheck || now - Number.parseInt(lastCheck, 10) > fiveMinutes) {
-        safeSetItem(LAST_CHECK_KEY, now.toString())
+        localStorage.setItem(LAST_CHECK_KEY, now.toString())
         await checkForSWUpdates()
         // Também verifica version.json
         await checkServerVersion()
