@@ -245,7 +245,7 @@ export const LoginPage = () => {
   return (
     <div
       key={i18n.language}
-      className='min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden'
+      className='min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-x-hidden overflow-y-auto'
     >
       {/* Background */}
       <div className='absolute inset-0 overflow-hidden'>
@@ -543,6 +543,12 @@ export const LoginPage = () => {
 
       {/* CSS Animations */}
       <style>{`
+        /* Fix scroll para iOS Safari */
+        html, body {
+          overflow-x: hidden;
+          -webkit-overflow-scrolling: touch;
+        }
+        
         @keyframes float {
           0%, 100% {
             transform: translateY(0px) translateX(0px) rotate(0deg);
