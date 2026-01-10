@@ -23,8 +23,8 @@ const resources = {
 // O idioma será carregado do localStorage DEPOIS pelo App.tsx
 i18n.use(initReactI18next).init({
   resources,
-  lng: 'pt-BR', // Idioma fixo padrão - mudança via changeLanguage depois
-  fallbackLng: 'pt-BR',
+  lng: 'en-US', // Idioma padrão: Inglês
+  fallbackLng: 'en-US',
   debug: false,
   interpolation: {
     escapeValue: false,
