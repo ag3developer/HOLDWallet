@@ -14,17 +14,34 @@
 // Cache em memória para quando localStorage falha
 const memoryCache: Map<string, string> = new Map()
 
+// Cache do resultado do teste de localStorage (undefined = não testado ainda)
+let storageAvailableCache: boolean | undefined = undefined
+
 // Verifica se localStorage está disponível de forma 100% segura
+// O resultado é cacheado para evitar testes repetidos (causa lentidão no Safari Mobile)
 const isStorageAvailable = (): boolean => {
+  // Retorna resultado cacheado se já testou
+  if (storageAvailableCache !== undefined) {
+    return storageAvailableCache
+  }
+
   try {
-    if (typeof globalThis === 'undefined') return false
-    if (typeof globalThis.localStorage === 'undefined') return false
-    // Teste real de escrita/leitura
+    if (typeof globalThis === 'undefined') {
+      storageAvailableCache = false
+      return false
+    }
+    if (typeof globalThis.localStorage === 'undefined') {
+      storageAvailableCache = false
+      return false
+    }
+    // Teste real de escrita/leitura (executado apenas uma vez)
     const testKey = '__storage_test__'
     globalThis.localStorage.setItem(testKey, testKey)
     globalThis.localStorage.removeItem(testKey)
+    storageAvailableCache = true
     return true
   } catch {
+    storageAvailableCache = false
     return false
   }
 }
