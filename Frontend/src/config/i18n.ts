@@ -19,52 +19,19 @@ const resources = {
   'ko-KR': { translation: koKR },
 } as const
 
-// Lista de idiomas suportados
-const supportedLanguages = ['pt-BR', 'en-US', 'es-ES', 'zh-CN', 'ja-JP', 'ko-KR']
-
-// Função segura para detectar idioma - compatível com PWA iOS/Android
-function getSavedLanguage(): string {
-  try {
-    // Tenta ler do localStorage de forma segura
-    if (typeof window !== 'undefined' && window.localStorage) {
-      const saved = localStorage.getItem('i18nextLng')
-      if (saved && supportedLanguages.includes(saved)) {
-        return saved
-      }
-    }
-  } catch {
-    // localStorage bloqueado no PWA - ignora silenciosamente
-  }
-  return 'pt-BR' // Idioma padrão
-}
-
-// Configuração do i18next - SEM LanguageDetector para compatibilidade PWA
+// ⚠️ ULTRA SIMPLES - SEM localStorage na inicialização
+// O idioma será carregado do localStorage DEPOIS pelo App.tsx
 i18n.use(initReactI18next).init({
   resources,
-  lng: getSavedLanguage(), // Idioma detectado manualmente
+  lng: 'pt-BR', // Idioma fixo padrão - mudança via changeLanguage depois
   fallbackLng: 'pt-BR',
   debug: false,
-
   interpolation: {
     escapeValue: false,
   },
-
   react: {
     useSuspense: false,
   },
-
-  // Configurações básicas
-  defaultNS: 'translation',
-  ns: ['translation'],
-  load: 'currentOnly',
-
-  // Desabilitar funcionalidades que podem causar problemas
-  saveMissing: false,
-  updateMissing: false,
-  returnEmptyString: false,
-  returnNull: false,
-
-  // Inicialização síncrona
   initImmediate: false,
 })
 

@@ -6,17 +6,15 @@ import { BrowserRouter } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { HelmetProvider } from 'react-helmet-async'
 
-// ⚠️ IMPORTANTE: iOS PWA Startup Check - DEVE ser importado antes do App
-// Detecta e resolve problemas de tela branca no Safari iOS PWA
-import './utils/iosPWAStartup'
+// ⚠️ REMOVIDO: iOS PWA Startup Check - causava travamento
+// import './utils/iosPWAStartup'
 
-// 🍎 Safari iOS Compatibility - Inicializa fixes para Safari iOS 12-17+
-import { initSafariIOSCompat } from './utils/iosSafariCompat'
-initSafariIOSCompat()
+// ⚠️ REMOVIDO: Safari iOS Compatibility na inicialização - adiado para depois do render
+// import { initSafariIOSCompat } from './utils/iosSafariCompat'
+// initSafariIOSCompat()
 
-// 🗄️ IndexedDB Storage - Auto-inicializa (não bloqueia)
-// Apenas importar já ativa o storage - não precisa chamar init()
-import './utils/indexedDBStorage'
+// ⚠️ REMOVIDO: IndexedDB Storage auto-inicialização - adiado
+// import './utils/indexedDBStorage'
 
 import App from './App'
 import './config/i18n'

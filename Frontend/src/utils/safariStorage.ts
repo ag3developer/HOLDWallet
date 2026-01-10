@@ -11,36 +11,55 @@
  * 3. SecurityError quando localStorage está bloqueado
  */
 
+// Cache em memória para quando localStorage falha
+const memoryCache: Map<string, string> = new Map()
+
+// Verifica se localStorage está disponível de forma 100% segura
+const isStorageAvailable = (): boolean => {
+  try {
+    if (typeof globalThis === 'undefined') return false
+    if (typeof globalThis.localStorage === 'undefined') return false
+    // Teste real de escrita/leitura
+    const testKey = '__storage_test__'
+    globalThis.localStorage.setItem(testKey, testKey)
+    globalThis.localStorage.removeItem(testKey)
+    return true
+  } catch {
+    return false
+  }
+}
+
 export const safariSafeStorage = {
   getItem: (name: string): string | null => {
     try {
-      if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
-        return null
+      if (isStorageAvailable()) {
+        return globalThis.localStorage.getItem(name)
       }
-      return localStorage.getItem(name)
-    } catch (e) {
-      console.warn('[SafariStorage] getItem error:', e)
-      return null
+    } catch {
+      // Ignora erro
     }
+    // Fallback para memória
+    return memoryCache.get(name) ?? null
   },
   setItem: (name: string, value: string): void => {
+    // Sempre salva em memória primeiro
+    memoryCache.set(name, value)
     try {
-      if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
-        return
+      if (isStorageAvailable()) {
+        globalThis.localStorage.setItem(name, value)
       }
-      localStorage.setItem(name, value)
-    } catch (e) {
-      console.warn('[SafariStorage] setItem error:', e)
+    } catch {
+      // Ignora erro - já está em memória
     }
   },
   removeItem: (name: string): void => {
+    memoryCache.delete(name)
     try {
-      if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
-        return
+      if (isStorageAvailable()) {
+        globalThis.localStorage.removeItem(name)
       }
-      localStorage.removeItem(name)
-    } catch (e) {
-      console.warn('[SafariStorage] removeItem error:', e)
+    } catch {
+      // Ignora erro
     }
   },
 }

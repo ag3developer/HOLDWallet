@@ -216,67 +216,79 @@
     <script>
       // PWA Cache Clearing - Force update on version mismatch
       // NOTA: Todas as operações de storage envolvidas em try-catch para PWA iOS/Android
-      (function() {
+      ;(function () {
         try {
-          var APP_VERSION = '2.0.1';
-          var STORED_VERSION = null;
-          
+          var APP_VERSION = '2.0.1'
+          var STORED_VERSION = null
+
           // Tentar ler localStorage de forma segura
           try {
             if (typeof localStorage !== 'undefined') {
-              STORED_VERSION = localStorage.getItem('app_version');
+              STORED_VERSION = localStorage.getItem('app_version')
             }
-          } catch(e) {
-            console.log('[PWA] localStorage indisponível');
+          } catch (e) {
+            console.log('[PWA] localStorage indisponível')
           }
 
           if (STORED_VERSION !== APP_VERSION) {
-            console.log('[PWA] New version detected, clearing caches...');
+            console.log('[PWA] New version detected, clearing caches...')
 
             // Clear all caches
             if ('caches' in window) {
-              caches.keys().then(function(names) {
-                names.forEach(function(name) {
-                  console.log('[PWA] Deleting cache:', name);
-                  caches.delete(name);
-                });
-              }).catch(function(e) { console.log('[PWA] Error clearing caches:', e); });
+              caches
+                .keys()
+                .then(function (names) {
+                  names.forEach(function (name) {
+                    console.log('[PWA] Deleting cache:', name)
+                    caches.delete(name)
+                  })
+                })
+                .catch(function (e) {
+                  console.log('[PWA] Error clearing caches:', e)
+                })
             }
 
             // Unregister all service workers
             if ('serviceWorker' in navigator) {
-              navigator.serviceWorker.getRegistrations().then(function(registrations) {
-                registrations.forEach(function(registration) {
-                  console.log('[PWA] Unregistering service worker');
-                  registration.unregister();
-                });
-              }).catch(function(e) { console.log('[PWA] Error unregistering SW:', e); });
+              navigator.serviceWorker
+                .getRegistrations()
+                .then(function (registrations) {
+                  registrations.forEach(function (registration) {
+                    console.log('[PWA] Unregistering service worker')
+                    registration.unregister()
+                  })
+                })
+                .catch(function (e) {
+                  console.log('[PWA] Error unregistering SW:', e)
+                })
             }
 
             // Update stored version de forma segura
             try {
               if (typeof localStorage !== 'undefined') {
-                localStorage.setItem('app_version', APP_VERSION);
+                localStorage.setItem('app_version', APP_VERSION)
               }
-            } catch(e) {
-              console.log('[PWA] Erro ao salvar versão');
+            } catch (e) {
+              console.log('[PWA] Erro ao salvar versão')
             }
           }
-        } catch(e) {
-          console.log('[PWA] Erro no script de inicialização:', e);
+        } catch (e) {
+          console.log('[PWA] Erro no script de inicialização:', e)
         }
-      })();
+      })()
 
       // Remove loading screen when React loads
-      window.addEventListener('DOMContentLoaded', function() {
-        setTimeout(function() {
-          var loading = document.querySelector('.initial-loading');
+      window.addEventListener('DOMContentLoaded', function () {
+        setTimeout(function () {
+          var loading = document.querySelector('.initial-loading')
           if (loading) {
-            loading.classList.add('fade-out');
-            setTimeout(function() { loading.remove(); }, 500);
+            loading.classList.add('fade-out')
+            setTimeout(function () {
+              loading.remove()
+            }, 500)
           }
-        }, 1000);
-      });
+        }, 1000)
+      })
     </script>
   </body>
 </html>
