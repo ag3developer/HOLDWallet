@@ -1134,8 +1134,9 @@ WOLK NOW - Sua plataforma P2P segura
                           <CheckCircleIcon className='w-3 h-3 sm:w-4 sm:h-4 text-white' />
                         </div>
                         <div>
-                          <p className='text-xs sm:text-sm font-medium text-gray-900 dark:text-white'>
-                            Frase de recuperação salva ✓
+                          <p className='text-xs sm:text-sm font-medium text-gray-900 dark:text-white flex items-center gap-1'>
+                            Frase de recuperação salva
+                            <CheckCircleIcon className='w-3.5 h-3.5 text-emerald-500' />
                           </p>
                           <p className='text-[10px] sm:text-xs text-gray-500 dark:text-gray-400'>
                             Guarde-a em local muito seguro
@@ -1152,15 +1153,59 @@ WOLK NOW - Sua plataforma P2P segura
                     Ativos disponíveis na sua carteira
                   </h4>
                   <div className='flex flex-wrap gap-2'>
-                    {['BTC', 'ETH', 'BNB', 'SOL', 'MATIC', 'TRX', 'USDT', 'USDC'].map(coin => (
-                      <span
-                        key={coin}
-                        className='px-2 sm:px-3 py-1 sm:py-1.5 bg-white dark:bg-gray-800 rounded-lg text-[10px] sm:text-xs font-medium text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600'
+                    {[
+                      {
+                        symbol: 'BTC',
+                        logo: 'https://assets.coingecko.com/coins/images/1/small/bitcoin.png',
+                      },
+                      {
+                        symbol: 'ETH',
+                        logo: 'https://assets.coingecko.com/coins/images/279/small/ethereum.png',
+                      },
+                      {
+                        symbol: 'BNB',
+                        logo: 'https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png',
+                      },
+                      {
+                        symbol: 'SOL',
+                        logo: 'https://assets.coingecko.com/coins/images/4128/small/solana.png',
+                      },
+                      {
+                        symbol: 'MATIC',
+                        logo: 'https://assets.coingecko.com/coins/images/4713/small/polygon.png',
+                      },
+                      {
+                        symbol: 'TRX',
+                        logo: 'https://assets.coingecko.com/coins/images/1094/small/tron-logo.png',
+                      },
+                      {
+                        symbol: 'USDT',
+                        logo: 'https://assets.coingecko.com/coins/images/325/small/Tether.png',
+                      },
+                      {
+                        symbol: 'USDC',
+                        logo: 'https://assets.coingecko.com/coins/images/6319/small/usdc.png',
+                      },
+                    ].map(coin => (
+                      <div
+                        key={coin.symbol}
+                        className='flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600'
                       >
-                        {coin}
-                      </span>
+                        <img
+                          src={coin.logo}
+                          alt={coin.symbol}
+                          className='w-4 h-4 sm:w-5 sm:h-5 rounded-full'
+                          onError={e => {
+                            ;(e.target as HTMLImageElement).src =
+                              'https://assets.coingecko.com/coins/images/1/small/bitcoin.png'
+                          }}
+                        />
+                        <span className='text-[10px] sm:text-xs font-medium text-gray-700 dark:text-gray-300'>
+                          {coin.symbol}
+                        </span>
+                      </div>
                     ))}
-                    <span className='px-2 sm:px-3 py-1 sm:py-1.5 bg-blue-100 dark:bg-blue-900/40 rounded-lg text-[10px] sm:text-xs font-medium text-blue-700 dark:text-blue-300'>
+                    <span className='flex items-center px-2 sm:px-3 py-1 sm:py-1.5 bg-blue-100 dark:bg-blue-900/40 rounded-lg text-[10px] sm:text-xs font-medium text-blue-700 dark:text-blue-300'>
                       +10 mais
                     </span>
                   </div>
