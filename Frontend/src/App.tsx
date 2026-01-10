@@ -169,34 +169,34 @@ function App() {
         // Initialize theme
         initializeTheme()
 
-        // Initialize language from store - com tratamento de erro
+        // Initialize language from store - com tratamento de erro robusto
         if (language) {
           try {
-            const languageMap: { [key: string]: string } = {
+            const languageMap: Record<string, string> = {
               pt: 'pt-BR',
               en: 'en-US',
               es: 'es-ES',
               zh: 'zh-CN',
               ja: 'ja-JP',
               ko: 'ko-KR',
+              'pt-BR': 'pt-BR',
+              'en-US': 'en-US',
+              'es-ES': 'es-ES',
+              'zh-CN': 'zh-CN',
+              'ja-JP': 'ja-JP',
+              'ko-KR': 'ko-KR',
             }
-            const fullLanguageCode = languageMap[language] || language
-            // Verifica se o idioma é suportado antes de mudar
-            const supportedLanguages = ['pt-BR', 'en-US', 'es-ES', 'zh-CN', 'ja-JP', 'ko-KR']
-            if (
-              supportedLanguages.includes(fullLanguageCode) &&
-              i18n.language !== fullLanguageCode
-            ) {
+            const fullLanguageCode = languageMap[language] || 'pt-BR'
+
+            // Só muda se for diferente do atual
+            if (i18n.language !== fullLanguageCode) {
               await i18n.changeLanguage(fullLanguageCode)
+              // Atualiza o atributo lang do HTML
+              document.documentElement.lang = fullLanguageCode
             }
           } catch (langError) {
-            console.warn('[App] Erro ao mudar idioma, usando padrão:', langError)
-            // Fallback para português
-            try {
-              await i18n.changeLanguage('pt-BR')
-            } catch {
-              // Ignora se falhar
-            }
+            console.warn('[App] Erro ao mudar idioma:', langError)
+            // Não tenta fallback para evitar loops
           }
         }
 
