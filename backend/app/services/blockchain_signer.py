@@ -7,7 +7,22 @@ Supports: Ethereum, Polygon, BSC, Base, and other EVM chains + Bitcoin.
 """
 
 from web3 import Web3
-from web3.middleware import geth_poa_middleware
+# web3 v7+ removed geth_poa_middleware completely, using ExtraDataToPOAMiddleware instead
+try:
+    from web3.middleware import ExtraDataToPOAMiddleware
+    POA_MIDDLEWARE = ExtraDataToPOAMiddleware
+except ImportError:
+    try:
+        from web3.middleware.geth_poa import geth_poa_middleware
+        POA_MIDDLEWARE = geth_poa_middleware
+    except ImportError:
+        try:
+            from web3.middleware import geth_poa_middleware
+            POA_MIDDLEWARE = geth_poa_middleware
+        except ImportError:
+            # If none available, create a dummy middleware
+            POA_MIDDLEWARE = None
+
 from eth_account import Account
 from decimal import Decimal
 from typing import Dict, Optional, Tuple
@@ -49,9 +64,9 @@ class BlockchainSigner:
             try:
                 w3 = Web3(Web3.HTTPProvider(endpoint))
                 
-                # Add PoA middleware for BSC and Polygon
-                if network in ['bsc', 'bsc-testnet', 'polygon', 'polygon-mumbai']:
-                    w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+                # Add PoA middleware for BSC and Polygon (compatible with web3 v6+ and v7+)
+                if network in ['bsc', 'bsc-testnet', 'polygon', 'polygon-mumbai'] and POA_MIDDLEWARE:
+                    w3.middleware_onion.inject(POA_MIDDLEWARE, layer=0)
                 
                 providers[network] = w3
                 logger.info(f"✅ Connected to {network}: {w3.is_connected()}")

@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useCurrentUser } from '@/hooks/useAuth'
 import { useWallets, useMultipleWalletBalances } from '@/hooks/useWallet'
 import { useMarketPrices } from '@/hooks/useMarketPrices'
@@ -131,6 +132,7 @@ const MarketCardSkeleton = () => (
 
 export const DashboardPage = () => {
   const navigate = useNavigate()
+  const { t, i18n } = useTranslation()
   const { data: user, isLoading: userLoading } = useCurrentUser()
   // useWallets retorna { data, isLoading, isFetching, isError, etc } do React Query
   const {
@@ -409,7 +411,7 @@ export const DashboardPage = () => {
   }
 
   return (
-    <div className='min-h-screen bg-gray-50 dark:bg-gray-900'>
+    <div key={i18n.language} className='min-h-screen bg-gray-50 dark:bg-gray-900'>
       {/* Conteúdo */}
       <div className='relative z-10 p-4 md:p-6 space-y-6'>
         {/* Header */}
@@ -417,7 +419,7 @@ export const DashboardPage = () => {
           <div>
             <div className='flex items-center gap-3 mb-1'>
               <h1 className='text-2xl md:text-3xl font-bold text-gray-900 dark:text-white'>
-                Dashboard
+                {t('dashboard.title')}
               </h1>
               <div className='flex items-center gap-1.5 px-2.5 py-1 bg-green-100 dark:bg-green-900/30 rounded-full'>
                 <span className='w-2 h-2 bg-green-500 rounded-full animate-pulse' />
@@ -425,8 +427,10 @@ export const DashboardPage = () => {
               </div>
             </div>
             <p className='text-gray-500 dark:text-gray-400 text-sm'>
-              {new Date().toLocaleDateString('pt-BR')}
-              {user && ` • Olá, ${user.username}`}
+              {new Date().toLocaleDateString(
+                i18n.language === 'pt-BR' ? 'pt-BR' : i18n.language === 'es-ES' ? 'es-ES' : 'en-US'
+              )}
+              {user && ` • ${t('dashboard.welcome')}, ${user.username}`}
             </p>
           </div>
 
@@ -437,14 +441,16 @@ export const DashboardPage = () => {
               className='flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all'
             >
               <Wallet className='w-4 h-4 text-blue-500' />
-              <span className='text-sm font-medium text-gray-900 dark:text-white'>Carteira</span>
+              <span className='text-sm font-medium text-gray-900 dark:text-white'>
+                {t('navigation.wallet')}
+              </span>
             </button>
             <button
               onClick={() => navigate('/instant-trade')}
               className='flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl shadow-sm hover:shadow-md transition-all'
             >
               <TrendingUp className='w-4 h-4 text-white' />
-              <span className='text-sm font-medium text-white'>Trade</span>
+              <span className='text-sm font-medium text-white'>{t('dashboard.trade')}</span>
             </button>
           </div>
         </div>
@@ -481,7 +487,7 @@ export const DashboardPage = () => {
                   {formatCurrency(totalBalanceUSD)}
                 </p>
                 <p className='text-xs text-blue-200'>
-                  Saldo Total • {wallets?.length || 0} carteira(s)
+                  {t('dashboard.totalBalance')} • {wallets?.length || 0} {t('dashboard.wallets')}
                 </p>
               </div>
             </div>
@@ -504,7 +510,9 @@ export const DashboardPage = () => {
                   </div>
                 </div>
                 <p className='text-2xl font-bold text-white mb-1'>0</p>
-                <p className='text-xs text-purple-200'>Ordens Ativas • Pronto para negociar</p>
+                <p className='text-xs text-purple-200'>
+                  {t('dashboard.activeOrders')} • {t('dashboard.readyToTrade')}
+                </p>
               </div>
             </div>
 
@@ -526,7 +534,7 @@ export const DashboardPage = () => {
                       className={`w-1.5 h-1.5 rounded-full ${user?.isVerified ? 'bg-green-400' : 'bg-yellow-400'} animate-pulse`}
                     ></span>
                     <span className='text-[10px] font-medium text-white/90'>
-                      {user?.isVerified ? 'Verificado' : 'Novo'}
+                      {user?.isVerified ? t('dashboard.verified') : t('dashboard.new')}
                     </span>
                   </div>
                 </div>
@@ -534,7 +542,8 @@ export const DashboardPage = () => {
                   {user?.isVerified ? '100%' : '--'}
                 </p>
                 <p className='text-xs text-amber-100'>
-                  Reputação • {user?.isVerified ? 'Excelente' : 'Complete seu perfil'}
+                  {t('dashboard.reputation')} •{' '}
+                  {user?.isVerified ? t('dashboard.excellent') : t('dashboard.completeProfile')}
                 </p>
               </div>
             </div>
@@ -563,7 +572,7 @@ export const DashboardPage = () => {
                 <p className='text-xl font-bold text-white mb-1'>
                   {marketPrices.BTC?.price ? formatCurrency(marketPrices.BTC.price) : '--'}
                 </p>
-                <p className='text-xs text-orange-100'>Bitcoin • Preço atual</p>
+                <p className='text-xs text-orange-100'>Bitcoin • {t('dashboard.currentPrice')}</p>
               </div>
             </div>
           </div>
@@ -592,21 +601,23 @@ export const DashboardPage = () => {
                       <Wallet className='w-5 h-5 text-white' />
                     </div>
                     <div>
-                      <h3 className='font-bold text-gray-900 dark:text-white'>Suas Carteiras</h3>
+                      <h3 className='font-bold text-gray-900 dark:text-white'>
+                        {t('dashboard.yourWallets')}
+                      </h3>
                       <p className='text-xs text-gray-500 dark:text-gray-400'>
-                        Gerencie suas criptomoedas
+                        {t('dashboard.manageYourCrypto')}
                       </p>
                     </div>
                   </div>
                   <div className='flex items-center gap-1'>
                     {walletsFetching && (
                       <span className='text-xs text-gray-400 dark:text-gray-500 mr-1'>
-                        Atualizando...
+                        {t('dashboard.updating')}
                       </span>
                     )}
                     <button
                       onClick={() => refetchWallets()}
-                      title='Atualizar carteiras'
+                      title={t('dashboard.refreshWallets')}
                       disabled={walletsFetching}
                       className='p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors disabled:opacity-50'
                     >
@@ -616,7 +627,7 @@ export const DashboardPage = () => {
                     </button>
                     <button
                       onClick={handleCreateWallet}
-                      title='Adicionar carteira'
+                      title={t('dashboard.addWallet')}
                       className='p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors'
                     >
                       <Plus className='w-5 h-5 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400' />
@@ -642,17 +653,17 @@ export const DashboardPage = () => {
                             <RefreshCw className='w-8 h-8 text-red-500 dark:text-red-400' />
                           </div>
                           <p className='text-gray-600 dark:text-gray-400 mb-2'>
-                            Erro ao carregar carteiras
+                            {t('dashboard.errorLoadingWallets')}
                           </p>
                           <p className='text-xs text-gray-500 dark:text-gray-500 mb-4'>
-                            Verifique sua conexão e tente novamente
+                            {t('dashboard.checkConnectionTryAgain')}
                           </p>
                           <button
                             onClick={() => refetchWallets()}
                             className='bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-5 py-2.5 rounded-xl font-medium text-sm transition-all inline-flex items-center gap-2 shadow-lg'
                           >
                             <RefreshCw className='w-4 h-4' />
-                            Tentar Novamente
+                            {t('dashboard.tryAgain')}
                           </button>
                         </div>
                       )
@@ -680,7 +691,7 @@ export const DashboardPage = () => {
                             </div>
                           ))}
                           <p className='text-center text-xs text-gray-500 dark:text-gray-400 mt-2'>
-                            Carregando carteiras...
+                            {t('dashboard.loadingWallets')}
                           </p>
                         </div>
                       )
@@ -693,14 +704,14 @@ export const DashboardPage = () => {
                             <Wallet className='w-8 h-8 text-gray-400 dark:text-gray-500' />
                           </div>
                           <p className='text-gray-600 dark:text-gray-400 mb-4'>
-                            Nenhuma carteira encontrada
+                            {t('dashboard.noWalletsFound')}
                           </p>
                           <button
                             onClick={handleCreateWallet}
                             className='bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-5 py-2.5 rounded-xl font-medium text-sm transition-all inline-flex items-center gap-2 shadow-lg'
                           >
                             <Plus className='w-4 h-4' />
-                            Criar Carteira
+                            {t('dashboard.createWallet')}
                           </button>
                         </div>
                       )
@@ -732,7 +743,7 @@ export const DashboardPage = () => {
                                       {wallet.name}
                                     </h4>
                                     <p className='text-xs text-gray-500 dark:text-gray-400'>
-                                      Multi • {networks.length} redes
+                                      Multi • {networks.length} {t('dashboard.networks')}
                                     </p>
                                   </div>
                                 </div>
@@ -781,13 +792,15 @@ export const DashboardPage = () => {
                                         <>
                                           <p className='font-bold text-gray-900 dark:text-white text-sm'>
                                             {hasLoadingPrice ? (
-                                              <span className='animate-pulse'>Atualizando...</span>
+                                              <span className='animate-pulse'>
+                                                {t('dashboard.updating')}
+                                              </span>
                                             ) : (
                                               formatCurrency(totalBRL)
                                             )}
                                           </p>
                                           <p className='text-xs text-gray-500 dark:text-gray-400'>
-                                            Saldo
+                                            {t('dashboard.balance')}
                                           </p>
                                         </>
                                       )
@@ -869,7 +882,7 @@ export const DashboardPage = () => {
                                                     <p className='text-xs text-gray-500 dark:text-gray-400'>
                                                       {priceLoading ? (
                                                         <span className='animate-pulse'>
-                                                          Carregando...
+                                                          {t('dashboard.loading')}
                                                         </span>
                                                       ) : (
                                                         formatCurrency(totalUSD)
@@ -942,7 +955,7 @@ export const DashboardPage = () => {
                                         if (tokens.length === 0) {
                                           return (
                                             <p className='text-xs text-gray-500 dark:text-gray-400 col-span-full'>
-                                              Nenhum stablecoin encontrado
+                                              {t('dashboard.noStablecoinsFound')}
                                             </p>
                                           )
                                         }
@@ -1022,9 +1035,11 @@ export const DashboardPage = () => {
                     <Sparkles className='w-5 h-5 text-white' />
                   </div>
                   <div>
-                    <h3 className='font-bold text-gray-900 dark:text-white'>Ações Rápidas</h3>
+                    <h3 className='font-bold text-gray-900 dark:text-white'>
+                      {t('dashboard.quickActions')}
+                    </h3>
                     <p className='text-xs text-gray-500 dark:text-gray-400'>
-                      Acesso rápido às funções
+                      {t('dashboard.quickAccessFunctions')}
                     </p>
                   </div>
                 </div>
@@ -1039,7 +1054,9 @@ export const DashboardPage = () => {
                     <p className='font-semibold text-gray-900 dark:text-white text-sm'>
                       P2P Trading
                     </p>
-                    <p className='text-xs text-gray-500 dark:text-gray-400 mt-0.5'>Criar ordem</p>
+                    <p className='text-xs text-gray-500 dark:text-gray-400 mt-0.5'>
+                      {t('dashboard.createOrder')}
+                    </p>
                   </button>
 
                   <button
@@ -1049,9 +1066,11 @@ export const DashboardPage = () => {
                     <div className='w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform shadow-lg'>
                       <Send className='w-5 h-5 text-white' />
                     </div>
-                    <p className='font-semibold text-gray-900 dark:text-white text-sm'>Enviar</p>
+                    <p className='font-semibold text-gray-900 dark:text-white text-sm'>
+                      {t('dashboard.send')}
+                    </p>
                     <p className='text-xs text-gray-500 dark:text-gray-400 mt-0.5'>
-                      Transferir cripto
+                      {t('dashboard.transferCrypto')}
                     </p>
                   </button>
 
@@ -1062,9 +1081,11 @@ export const DashboardPage = () => {
                     <div className='w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform shadow-lg'>
                       <Download className='w-5 h-5 text-white' />
                     </div>
-                    <p className='font-semibold text-gray-900 dark:text-white text-sm'>Receber</p>
+                    <p className='font-semibold text-gray-900 dark:text-white text-sm'>
+                      {t('dashboard.receive')}
+                    </p>
                     <p className='text-xs text-gray-500 dark:text-gray-400 mt-0.5'>
-                      Endereço de depósito
+                      {t('dashboard.depositAddress')}
                     </p>
                   </button>
 
@@ -1077,7 +1098,7 @@ export const DashboardPage = () => {
                     </div>
                     <p className='font-semibold text-gray-900 dark:text-white text-sm'>Chat</p>
                     <p className='text-xs text-gray-500 dark:text-gray-400 mt-0.5'>
-                      Negociar com outros
+                      {t('dashboard.negotiateWithOthers')}
                     </p>
                   </button>
                 </div>
@@ -1094,9 +1115,11 @@ export const DashboardPage = () => {
                       <TrendingUp className='w-5 h-5 text-white' />
                     </div>
                     <div>
-                      <h3 className='font-bold text-gray-900 dark:text-white'>Mercado</h3>
+                      <h3 className='font-bold text-gray-900 dark:text-white'>
+                        {t('dashboard.market')}
+                      </h3>
                       <p className='text-xs text-gray-500 dark:text-gray-400'>
-                        Preços em tempo real
+                        {t('dashboard.realTimePrices')}
                       </p>
                     </div>
                   </div>
@@ -1107,7 +1130,7 @@ export const DashboardPage = () => {
                     }}
                     disabled={loadingPrices}
                     className='p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors disabled:opacity-50'
-                    title='Preços atualizando automaticamente'
+                    title={t('dashboard.pricesUpdatingAutomatically')}
                   >
                     <RefreshCw
                       className={`w-4 h-4 text-gray-500 dark:text-gray-400 ${loadingPrices ? 'animate-spin' : ''}`}
@@ -1197,8 +1220,12 @@ export const DashboardPage = () => {
                     <Shield className='w-5 h-5 text-white' />
                   </div>
                   <div>
-                    <h3 className='font-bold text-gray-900 dark:text-white'>Segurança</h3>
-                    <p className='text-xs text-gray-500 dark:text-gray-400'>Status da sua conta</p>
+                    <h3 className='font-bold text-gray-900 dark:text-white'>
+                      {t('dashboard.security')}
+                    </h3>
+                    <p className='text-xs text-gray-500 dark:text-gray-400'>
+                      {t('dashboard.accountStatus')}
+                    </p>
                   </div>
                 </div>
                 <div className='p-4 space-y-3'>
@@ -1206,10 +1233,10 @@ export const DashboardPage = () => {
                     <div className='w-3 h-3 bg-green-500 rounded-full animate-pulse'></div>
                     <div className='flex-1'>
                       <p className='text-sm font-semibold text-gray-900 dark:text-white'>
-                        2FA Ativado
+                        {t('dashboard.twoFAEnabled')}
                       </p>
                       <p className='text-xs text-gray-500 dark:text-gray-400'>
-                        {user?.isVerified ? 'Verificado' : 'Pendente'}
+                        {user?.isVerified ? t('dashboard.verified') : t('dashboard.pending')}
                       </p>
                     </div>
                     <CheckCircle className='w-5 h-5 text-green-500' />
@@ -1218,9 +1245,11 @@ export const DashboardPage = () => {
                     <div className='w-3 h-3 bg-blue-500 rounded-full'></div>
                     <div className='flex-1'>
                       <p className='text-sm font-semibold text-gray-900 dark:text-white'>
-                        Senha Forte
+                        {t('dashboard.strongPassword')}
                       </p>
-                      <p className='text-xs text-gray-500 dark:text-gray-400'>Bem protegido</p>
+                      <p className='text-xs text-gray-500 dark:text-gray-400'>
+                        {t('dashboard.wellProtected')}
+                      </p>
                     </div>
                     <CheckCircle className='w-5 h-5 text-blue-500' />
                   </div>

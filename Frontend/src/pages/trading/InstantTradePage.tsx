@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useCurrencyStore } from '@/stores/useCurrencyStore'
 import { usePrices } from '@/hooks/usePrices'
 import { TradingForm } from './components/TradingForm'
@@ -14,11 +15,16 @@ import {
   Zap,
   Clock,
   Globe,
+  ArrowUpRight,
+  ArrowDownRight,
   Sparkles,
   Shield,
   History,
   Activity,
   Flame,
+  BarChart3,
+  Wallet,
+  RefreshCw,
 } from 'lucide-react'
 
 interface Quote {
@@ -91,6 +97,7 @@ const generatePriceVariation = (
 }
 
 export function InstantTradePage() {
+  const { t, i18n } = useTranslation()
   const { currency } = useCurrencyStore()
   const { prices: priceData } = usePrices(
     SUPPORTED_CRYPTOS.map(c => c.symbol),
@@ -228,8 +235,10 @@ export function InstantTradePage() {
       <div className='space-y-6'>
         {/* Header */}
         <div>
-          <h1 className='text-3xl font-bold text-gray-900 dark:text-white'>Instant Trade OTC</h1>
-          <p className='text-gray-600 dark:text-gray-400 mt-1'>Detalhes da sua ordem</p>
+          <h1 className='text-3xl font-bold text-gray-900 dark:text-white'>
+            {t('instantTrade.title')} OTC
+          </h1>
+          <p className='text-gray-600 dark:text-gray-400 mt-1'>{t('instantTrade.orderDetails')}</p>
         </div>
 
         <TradeDetailsPage
@@ -242,57 +251,42 @@ export function InstantTradePage() {
   }
 
   return (
-    <div className='space-y-4 sm:space-y-6 pb-20'>
-      {/* Clean Header - Compact on mobile */}
-      <div className='flex flex-col gap-3 sm:gap-4'>
-        <div className='flex items-center justify-between'>
-          <div>
-            <div className='flex items-center gap-2 sm:gap-3 mb-0.5 sm:mb-1'>
-              <h1 className='text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-white'>
-                Instant Trade
-              </h1>
-              <div className='flex items-center gap-1 sm:gap-1.5 px-2 py-0.5 sm:py-1 bg-green-100 dark:bg-green-900/30 rounded-full'>
-                <span className='w-1.5 h-1.5 sm:w-2 sm:h-2 bg-green-500 rounded-full animate-pulse' />
-                <span className='text-[10px] sm:text-xs font-medium text-green-700 dark:text-green-400'>
-                  Live
-                </span>
-              </div>
+    <div className='space-y-6' key={i18n.language}>
+      {/* Clean Header */}
+      <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4'>
+        <div>
+          <div className='flex items-center gap-3 mb-1'>
+            <h1 className='text-2xl md:text-3xl font-bold text-gray-900 dark:text-white'>
+              {t('instantTrade.title')}
+            </h1>
+            <div className='flex items-center gap-1.5 px-2.5 py-1 bg-green-100 dark:bg-green-900/30 rounded-full'>
+              <span className='w-2 h-2 bg-green-500 rounded-full animate-pulse' />
+              <span className='text-xs font-medium text-green-700 dark:text-green-400'>
+                {t('instantTrade.live')}
+              </span>
             </div>
-            <p className='text-gray-500 dark:text-gray-400 text-xs sm:text-sm'>
-              Compre e venda crypto com as melhores taxas OTC
-            </p>
           </div>
+          <p className='text-gray-500 dark:text-gray-400 text-sm'>{t('instantTrade.subtitle')}</p>
         </div>
 
-        {/* Stats Pills - Horizontal scroll on mobile */}
-        <div className='flex gap-2 overflow-x-auto pb-1 scrollbar-hide -mx-1 px-1'>
-          <div className='flex items-center gap-2 px-3 sm:px-4 py-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex-shrink-0'>
-            <Activity className='w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-500' />
+        {/* Stats Pills */}
+        <div className='flex gap-2'>
+          <div className='flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm'>
+            <Activity className='w-4 h-4 text-blue-500' />
             <div>
-              <p className='text-[9px] sm:text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wide'>
-                Volume 24h
+              <p className='text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wide'>
+                {t('instantTrade.volume24h')}
               </p>
-              <p className='text-xs sm:text-sm font-bold text-gray-900 dark:text-white'>$2.4M</p>
+              <p className='text-sm font-bold text-gray-900 dark:text-white'>$2.4M</p>
             </div>
           </div>
-          <div className='flex items-center gap-2 px-3 sm:px-4 py-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex-shrink-0'>
-            <Flame className='w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-500' />
+          <div className='flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm'>
+            <Flame className='w-4 h-4 text-orange-500' />
             <div>
-              <p className='text-[9px] sm:text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wide'>
-                Trades
+              <p className='text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wide'>
+                {t('instantTrade.trades')}
               </p>
-              <p className='text-xs sm:text-sm font-bold text-gray-900 dark:text-white'>847</p>
-            </div>
-          </div>
-          <div className='flex items-center gap-2 px-3 sm:px-4 py-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex-shrink-0'>
-            <Shield className='w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-500' />
-            <div>
-              <p className='text-[9px] sm:text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wide'>
-                Seguro
-              </p>
-              <p className='text-xs sm:text-sm font-bold text-green-600 dark:text-green-400'>
-                100%
-              </p>
+              <p className='text-sm font-bold text-gray-900 dark:text-white'>847</p>
             </div>
           </div>
         </div>
@@ -342,9 +336,11 @@ export function InstantTradePage() {
                       <Sparkles className='w-5 h-5 text-white' />
                     </div>
                     <div>
-                      <h3 className='font-bold text-gray-900 dark:text-white'>Dicas Rápidas</h3>
+                      <h3 className='font-bold text-gray-900 dark:text-white'>
+                        {t('instantTrade.quickTips')}
+                      </h3>
                       <p className='text-xs text-gray-500 dark:text-gray-400'>
-                        Maximize seus ganhos
+                        {t('instantTrade.maximizeGains')}
                       </p>
                     </div>
                   </div>
@@ -357,10 +353,10 @@ export function InstantTradePage() {
                         </div>
                         <div>
                           <p className='font-semibold text-sm text-gray-900 dark:text-white'>
-                            Melhores Taxas
+                            {t('instantTrade.bestRates')}
                           </p>
                           <p className='text-xs text-gray-600 dark:text-gray-400'>
-                            Valores maiores = melhores preços
+                            {t('instantTrade.bestRatesDesc')}
                           </p>
                         </div>
                       </div>
@@ -373,10 +369,10 @@ export function InstantTradePage() {
                         </div>
                         <div>
                           <p className='font-semibold text-sm text-gray-900 dark:text-white'>
-                            Execução Rápida
+                            {t('instantTrade.fastExecution')}
                           </p>
                           <p className='text-xs text-gray-600 dark:text-gray-400'>
-                            Maioria das trades em minutos
+                            {t('instantTrade.fastExecutionDesc')}
                           </p>
                         </div>
                       </div>
@@ -389,10 +385,10 @@ export function InstantTradePage() {
                         </div>
                         <div>
                           <p className='font-semibold text-sm text-gray-900 dark:text-white'>
-                            Cotação Expira
+                            {t('instantTrade.quoteExpires')}
                           </p>
                           <p className='text-xs text-gray-600 dark:text-gray-400'>
-                            Atualize se o tempo acabar
+                            {t('instantTrade.quoteExpiresDesc')}
                           </p>
                         </div>
                       </div>
@@ -405,10 +401,10 @@ export function InstantTradePage() {
                         </div>
                         <div>
                           <p className='font-semibold text-sm text-gray-900 dark:text-white'>
-                            24/7 Trading
+                            {t('instantTrade.trading247')}
                           </p>
                           <p className='text-xs text-gray-600 dark:text-gray-400'>
-                            Negocie a qualquer hora
+                            {t('instantTrade.trading247Desc')}
                           </p>
                         </div>
                       </div>
@@ -419,7 +415,7 @@ export function InstantTradePage() {
                   <div className='mt-4 pt-4 border-t border-gray-100 dark:border-gray-700'>
                     <div className='flex items-center justify-center gap-2 text-xs text-gray-500 dark:text-gray-400'>
                       <Shield className='w-4 h-4 text-green-500' />
-                      <span>Transações 100% seguras e criptografadas</span>
+                      <span>{t('instantTrade.secureTransactions')}</span>
                     </div>
                   </div>
                 </div>
@@ -456,8 +452,12 @@ export function InstantTradePage() {
                     <Zap className='w-5 h-5 text-white' />
                   </div>
                   <div>
-                    <h3 className='font-bold text-gray-900 dark:text-white'>Dicas Rápidas</h3>
-                    <p className='text-xs text-gray-500 dark:text-gray-400'>Maximize seus ganhos</p>
+                    <h3 className='font-bold text-gray-900 dark:text-white'>
+                      {t('instantTrade.quickTips')}
+                    </h3>
+                    <p className='text-xs text-gray-500 dark:text-gray-400'>
+                      {t('instantTrade.maximizeGains')}
+                    </p>
                   </div>
                 </div>
                 <div className='space-y-3'>
@@ -468,10 +468,10 @@ export function InstantTradePage() {
                       </div>
                       <div>
                         <p className='font-semibold text-sm text-gray-900 dark:text-white'>
-                          Melhores Taxas
+                          {t('instantTrade.bestRates')}
                         </p>
                         <p className='text-xs text-gray-600 dark:text-gray-400'>
-                          Valores maiores = melhores preços
+                          {t('instantTrade.bestRatesDesc')}
                         </p>
                       </div>
                     </div>
@@ -483,10 +483,10 @@ export function InstantTradePage() {
                       </div>
                       <div>
                         <p className='font-semibold text-sm text-gray-900 dark:text-white'>
-                          Execução Rápida
+                          {t('instantTrade.fastExecution')}
                         </p>
                         <p className='text-xs text-gray-600 dark:text-gray-400'>
-                          Maioria das trades em minutos
+                          {t('instantTrade.fastExecutionDesc')}
                         </p>
                       </div>
                     </div>
@@ -498,10 +498,10 @@ export function InstantTradePage() {
                       </div>
                       <div>
                         <p className='font-semibold text-sm text-gray-900 dark:text-white'>
-                          Cotação Expira
+                          {t('instantTrade.quoteExpires')}
                         </p>
                         <p className='text-xs text-gray-600 dark:text-gray-400'>
-                          Atualize se o tempo acabar
+                          {t('instantTrade.quoteExpiresDesc')}
                         </p>
                       </div>
                     </div>
@@ -513,10 +513,10 @@ export function InstantTradePage() {
                       </div>
                       <div>
                         <p className='font-semibold text-sm text-gray-900 dark:text-white'>
-                          24/7 Trading
+                          {t('instantTrade.trading247')}
                         </p>
                         <p className='text-xs text-gray-600 dark:text-gray-400'>
-                          Negocie a qualquer hora
+                          {t('instantTrade.trading247Desc')}
                         </p>
                       </div>
                     </div>
@@ -529,8 +529,8 @@ export function InstantTradePage() {
             <BenefitsSidebar />
           </div>
 
-          {/* Mobile Layout: Full width stacked - Compact */}
-          <div className='md:hidden space-y-4'>
+          {/* Mobile Layout: Full width stacked */}
+          <div className='md:hidden space-y-6'>
             {/* Trading Form */}
             <TradingForm
               cryptoPrices={cryptoPrices}
@@ -543,92 +543,116 @@ export function InstantTradePage() {
               convertFromBRL={convertFromBRL}
             />
 
-            {/* Quote or Compact Tips */}
+            {/* Quote or Tips */}
             {quote ? (
               <QuoteDisplay quote={quote} onConfirmClick={() => setShowConfirmation(true)} />
             ) : (
-              <div className='bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-100 dark:border-gray-700 p-4'>
-                <div className='flex items-center gap-2 mb-3'>
-                  <div className='p-1.5 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg'>
-                    <Zap className='w-4 h-4 text-white' />
+              <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 p-5 space-y-4'>
+                <div className='flex items-center gap-3 mb-4'>
+                  <div className='p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-md'>
+                    <Zap className='w-5 h-5 text-white' />
                   </div>
                   <div>
-                    <h3 className='font-bold text-sm text-gray-900 dark:text-white'>
-                      Dicas Rápidas
+                    <h3 className='font-bold text-gray-900 dark:text-white'>
+                      {t('instantTrade.quickTips')}
                     </h3>
+                    <p className='text-xs text-gray-500 dark:text-gray-400'>
+                      {t('instantTrade.maximizeGains')}
+                    </p>
                   </div>
                 </div>
-                {/* Compact horizontal scroll tips */}
-                <div className='flex gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-1 px-1'>
-                  <div className='flex items-center gap-2 p-2.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg border-l-3 border-blue-500 flex-shrink-0 min-w-[140px]'>
-                    <TrendingUp className='w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0' />
-                    <div>
-                      <p className='font-semibold text-xs text-gray-900 dark:text-white'>
-                        Melhores Taxas
-                      </p>
-                      <p className='text-[10px] text-gray-600 dark:text-gray-400'>
-                        Valores maiores
-                      </p>
+                <div className='space-y-3'>
+                  <div className='group p-3 bg-gradient-to-r from-blue-50 to-transparent dark:from-blue-900/20 rounded-xl border-l-4 border-blue-500 hover:scale-[1.02] transition-transform'>
+                    <div className='flex items-start gap-3'>
+                      <div className='p-1.5 bg-blue-100 dark:bg-blue-900/50 rounded-lg'>
+                        <TrendingUp className='w-4 h-4 text-blue-600 dark:text-blue-400' />
+                      </div>
+                      <div>
+                        <p className='font-semibold text-sm text-gray-900 dark:text-white'>
+                          {t('instantTrade.bestRates')}
+                        </p>
+                        <p className='text-xs text-gray-600 dark:text-gray-400'>
+                          {t('instantTrade.bestRatesDesc')}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                  <div className='flex items-center gap-2 p-2.5 bg-green-50 dark:bg-green-900/20 rounded-lg border-l-3 border-green-500 flex-shrink-0 min-w-[140px]'>
-                    <Zap className='w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0' />
-                    <div>
-                      <p className='font-semibold text-xs text-gray-900 dark:text-white'>
-                        Execução Rápida
-                      </p>
-                      <p className='text-[10px] text-gray-600 dark:text-gray-400'>Em minutos</p>
+                  <div className='group p-3 bg-gradient-to-r from-green-50 to-transparent dark:from-green-900/20 rounded-xl border-l-4 border-green-500 hover:scale-[1.02] transition-transform'>
+                    <div className='flex items-start gap-3'>
+                      <div className='p-1.5 bg-green-100 dark:bg-green-900/50 rounded-lg'>
+                        <Zap className='w-4 h-4 text-green-600 dark:text-green-400' />
+                      </div>
+                      <div>
+                        <p className='font-semibold text-sm text-gray-900 dark:text-white'>
+                          {t('instantTrade.fastExecution')}
+                        </p>
+                        <p className='text-xs text-gray-600 dark:text-gray-400'>
+                          {t('instantTrade.fastExecutionDesc')}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                  <div className='flex items-center gap-2 p-2.5 bg-amber-50 dark:bg-amber-900/20 rounded-lg border-l-3 border-amber-500 flex-shrink-0 min-w-[140px]'>
-                    <Clock className='w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0' />
-                    <div>
-                      <p className='font-semibold text-xs text-gray-900 dark:text-white'>
-                        Cotação Expira
-                      </p>
-                      <p className='text-[10px] text-gray-600 dark:text-gray-400'>Atualize</p>
+                  <div className='group p-3 bg-gradient-to-r from-amber-50 to-transparent dark:from-amber-900/20 rounded-xl border-l-4 border-amber-500 hover:scale-[1.02] transition-transform'>
+                    <div className='flex items-start gap-3'>
+                      <div className='p-1.5 bg-amber-100 dark:bg-amber-900/50 rounded-lg'>
+                        <Clock className='w-4 h-4 text-amber-600 dark:text-amber-400' />
+                      </div>
+                      <div>
+                        <p className='font-semibold text-sm text-gray-900 dark:text-white'>
+                          {t('instantTrade.quoteExpires')}
+                        </p>
+                        <p className='text-xs text-gray-600 dark:text-gray-400'>
+                          {t('instantTrade.quoteExpiresDesc')}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                  <div className='flex items-center gap-2 p-2.5 bg-purple-50 dark:bg-purple-900/20 rounded-lg border-l-3 border-purple-500 flex-shrink-0 min-w-[140px]'>
-                    <Globe className='w-4 h-4 text-purple-600 dark:text-purple-400 flex-shrink-0' />
-                    <div>
-                      <p className='font-semibold text-xs text-gray-900 dark:text-white'>
-                        24/7 Trading
-                      </p>
-                      <p className='text-[10px] text-gray-600 dark:text-gray-400'>Sempre</p>
+                  <div className='group p-3 bg-gradient-to-r from-purple-50 to-transparent dark:from-purple-900/20 rounded-xl border-l-4 border-purple-500 hover:scale-[1.02] transition-transform'>
+                    <div className='flex items-start gap-3'>
+                      <div className='p-1.5 bg-purple-100 dark:bg-purple-900/50 rounded-lg'>
+                        <Globe className='w-4 h-4 text-purple-600 dark:text-purple-400' />
+                      </div>
+                      <div>
+                        <p className='font-semibold text-sm text-gray-900 dark:text-white'>
+                          {t('instantTrade.trading247')}
+                        </p>
+                        <p className='text-xs text-gray-600 dark:text-gray-400'>
+                          {t('instantTrade.trading247Desc')}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Benefits - Compact for mobile */}
+            {/* Benefits */}
             <BenefitsSidebar />
           </div>
         </div>
       )}
 
-      {/* Trade History Section - Compact */}
-      <div className='bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-md sm:shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden'>
+      {/* Trade History Section */}
+      <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden'>
         <button
           onClick={() => setShowHistory(!showHistory)}
-          className='w-full flex items-center justify-between p-3 sm:p-5 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors'
+          className='w-full flex items-center justify-between p-5 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors'
         >
-          <div className='flex items-center gap-2 sm:gap-3'>
-            <div className='p-1.5 sm:p-2 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg sm:rounded-xl shadow-md'>
-              <History className='w-4 h-4 sm:w-5 sm:h-5 text-white' />
+          <div className='flex items-center gap-3'>
+            <div className='p-2 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl shadow-md'>
+              <History className='w-5 h-5 text-white' />
             </div>
             <div className='text-left'>
-              <h2 className='text-sm sm:text-lg font-bold text-gray-900 dark:text-white'>
-                Histórico de Trades
+              <h2 className='text-lg font-bold text-gray-900 dark:text-white'>
+                {t('instantTrade.tradeHistory')}
               </h2>
-              <p className='text-[10px] sm:text-xs text-gray-500 dark:text-gray-400'>
-                Suas negociações anteriores
+              <p className='text-xs text-gray-500 dark:text-gray-400'>
+                {t('instantTrade.previousTrades')}
               </p>
             </div>
           </div>
           <ChevronDown
-            className={`w-4 h-4 sm:w-5 sm:h-5 text-gray-600 dark:text-gray-400 transition-transform duration-200 ${
+            className={`w-5 h-5 text-gray-600 dark:text-gray-400 transition-transform duration-200 ${
               showHistory ? 'rotate-180' : ''
             }`}
           />

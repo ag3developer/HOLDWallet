@@ -1,11 +1,10 @@
 /**
  * 🎙️ Audio Message Input Component
  * Componente moderno para gravar e enviar áudio (estilo WhatsApp/Telegram)
- * Press and hold para gravar, solte para enviar
  */
 
-import { useState, useRef, useEffect, useCallback } from 'react'
-import { Mic } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
+import { Mic, X, Send, Trash2 } from 'lucide-react'
 import { useAudioRecorder } from '@/hooks/useAudioRecorder'
 
 export interface AudioMessageInputProps {
@@ -16,7 +15,6 @@ export interface AudioMessageInputProps {
 export function AudioMessageInput({ onAudioSend, isDisabled = false }: AudioMessageInputProps) {
   const [isHolding, setIsHolding] = useState(false)
   const isHoldingRef = useRef(false)
-  const hasStartedRef = useRef(false)
   const { isRecording, recordingTime, startRecording, stopRecording, clearRecording } =
     useAudioRecorder()
 
@@ -26,119 +24,149 @@ export function AudioMessageInput({ onAudioSend, isDisabled = false }: AudioMess
     return `${mins}:${String(secs).padStart(2, '0')}`
   }
 
-  // Função para parar gravação e enviar
-  const handleStopAndSend = useCallback(async () => {
-    if (!isHoldingRef.current && !isRecording) return
-
-    console.log('🎙️ Parando gravação e enviando...')
-    isHoldingRef.current = false
-    hasStartedRef.current = false
-    setIsHolding(false)
-
-    try {
-      const audioBlob = await stopRecording()
-      console.log('📦 AudioBlob recebido:', audioBlob?.size, 'bytes')
-
-      if (audioBlob && audioBlob.size > 0) {
-        console.log('📤 Enviando áudio automaticamente:', audioBlob.size, 'bytes')
-        onAudioSend(audioBlob)
-      } else {
-        console.warn('⚠️ Áudio vazio ou nulo')
-        clearRecording()
-      }
-    } catch (error) {
-      console.error('❌ Erro ao parar gravação:', error)
-      clearRecording()
-    }
-  }, [onAudioSend, stopRecording, clearRecording, isRecording])
-
   // Setup global mouse up / touch end listeners
   useEffect(() => {
-    const handleMouseUp = () => {
-      if (isHoldingRef.current || isRecording) {
-        handleStopAndSend()
-      }
-    }
+    const handleStopRecording = async () => {
+      if (!isHoldingRef.current) return
 
-    const handleTouchEnd = (e: TouchEvent) => {
-      // Prevenir comportamento padrão para evitar cliques fantasma
-      if (isHoldingRef.current || isRecording) {
-        e.preventDefault()
-        handleStopAndSend()
-      }
-    }
+      isHoldingRef.current = false
+      setIsHolding(false)
 
-    // Cancelar com ESC
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isRecording) {
-        isHoldingRef.current = false
-        hasStartedRef.current = false
-        setIsHolding(false)
+      console.log('🎙️ Parando gravação e enviando...')
+      try {
+        const audioBlob = await stopRecording()
+        console.log('📦 AudioBlob recebido:', audioBlob?.size, 'bytes')
+
+        if (audioBlob && audioBlob.size > 0) {
+          console.log('📤 Enviando áudio automaticamente:', audioBlob.size, 'bytes')
+          onAudioSend(audioBlob)
+        } else {
+          console.warn('⚠️ Áudio vazio ou nulo')
+          clearRecording()
+        }
+      } catch (error) {
+        console.error('❌ Erro ao parar gravação:', error)
         clearRecording()
       }
     }
 
+    const handleMouseUp = () => handleStopRecording()
+    const handleTouchEnd = () => handleStopRecording()
+
     document.addEventListener('mouseup', handleMouseUp)
-    document.addEventListener('touchend', handleTouchEnd, { passive: false })
-    document.addEventListener('keydown', handleKeyDown)
+    document.addEventListener('touchend', handleTouchEnd)
 
     return () => {
       document.removeEventListener('mouseup', handleMouseUp)
       document.removeEventListener('touchend', handleTouchEnd)
-      document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [handleStopAndSend, isRecording, clearRecording])
+  }, [onAudioSend, stopRecording, clearRecording])
 
   /**
    * Inicia gravação quando pressiona o botão
    */
-  const handleStart = async (e: React.MouseEvent | React.TouchEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-
-    if (isDisabled || hasStartedRef.current) return
-
+  const handleMouseDown = async () => {
+    if (isDisabled) return
     isHoldingRef.current = true
-    hasStartedRef.current = true
     setIsHolding(true)
     console.log('🎙️ Press and hold iniciado')
-
-    try {
-      await startRecording()
-    } catch (error) {
-      console.error('❌ Erro ao iniciar gravação:', error)
-      isHoldingRef.current = false
-      hasStartedRef.current = false
-      setIsHolding(false)
-    }
+    await startRecording()
   }
 
-  // Se estiver gravando, mostrar indicador compacto inline
-  if (isRecording || isHolding) {
+  // Se estiver gravando, mostrar visualização moderna integrada
+  if (isRecording) {
     return (
-      <div className='flex items-center gap-2'>
-        {/* Indicador de gravação compacto */}
-        <div className='flex items-center gap-2 px-3 py-2 bg-red-500/10 dark:bg-red-500/20 border border-red-500/30 rounded-xl animate-pulse'>
-          {/* Dot pulsante */}
-          <div className='relative'>
-            <div className='w-2.5 h-2.5 bg-red-500 rounded-full animate-ping absolute'></div>
-            <div className='w-2.5 h-2.5 bg-red-500 rounded-full relative'></div>
+      <div className='absolute inset-0 bg-gradient-to-r from-red-500/10 via-pink-500/10 to-red-500/10 dark:from-red-900/30 dark:via-pink-900/30 dark:to-red-900/30 backdrop-blur-sm z-50 flex items-center justify-center'>
+        <div className='w-full max-w-2xl mx-auto px-4'>
+          {/* Card de Gravação - Design Moderno */}
+          <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border-2 border-red-500/20 dark:border-red-400/30 p-6 animate-fadeIn'>
+            {/* Header com Status */}
+            <div className='flex items-center justify-between mb-6'>
+              <div className='flex items-center gap-3'>
+                {/* Ícone de Microfone Pulsante */}
+                <div className='relative'>
+                  <div className='absolute inset-0 bg-red-500 rounded-full animate-ping opacity-75'></div>
+                  <div className='relative w-12 h-12 bg-gradient-to-br from-red-500 to-pink-600 rounded-full flex items-center justify-center shadow-lg'>
+                    <Mic className='w-6 h-6 text-white' />
+                  </div>
+                </div>
+
+                {/* Texto de Status */}
+                <div>
+                  <h3 className='text-lg font-bold text-gray-900 dark:text-white'>
+                    Gravando áudio
+                  </h3>
+                  <p className='text-sm text-gray-500 dark:text-gray-400'>
+                    Solte para enviar ou cancele para descartar
+                  </p>
+                </div>
+              </div>
+
+              {/* Timer - Grande e Visível */}
+              <div className='text-right'>
+                <div className='text-3xl font-bold text-red-600 dark:text-red-400 tabular-nums'>
+                  {formatTime(recordingTime)}
+                </div>
+                <div className='text-xs text-gray-500 dark:text-gray-400 mt-1'>duração</div>
+              </div>
+            </div>
+
+            {/* Waveform Visual (Barra de Progresso Animada) */}
+            <div className='mb-6'>
+              <div className='flex items-center gap-1 h-16 justify-center'>
+                {[...Array(40)].map((_, i) => (
+                  <div
+                    key={i}
+                    className='w-1 bg-gradient-to-t from-red-500 to-pink-500 rounded-full transition-all duration-150'
+                    style={{
+                      height: `${Math.random() * 60 + 20}%`,
+                      animationDelay: `${i * 0.05}s`,
+                      animation: 'pulse 0.8s ease-in-out infinite',
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Instruções - Mobile e Desktop */}
+            <div className='space-y-3'>
+              {/* Desktop */}
+              <div className='hidden sm:flex items-center justify-center gap-4 text-sm text-gray-600 dark:text-gray-400'>
+                <div className='flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg'>
+                  <Send className='w-4 h-4 text-green-500' />
+                  <span>Solte o mouse para enviar</span>
+                </div>
+                <div className='flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg'>
+                  <X className='w-4 h-4 text-red-500' />
+                  <span>ESC para cancelar</span>
+                </div>
+              </div>
+
+              {/* Mobile */}
+              <div className='sm:hidden text-center'>
+                <div className='inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-full shadow-lg animate-bounce'>
+                  <Send className='w-4 h-4' />
+                  <span className='font-medium'>Solte para enviar →</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Progress Bar */}
+            <div className='mt-4'>
+              <div className='h-1 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden'>
+                <div
+                  className='h-full bg-gradient-to-r from-red-500 via-pink-500 to-red-500 rounded-full transition-all duration-1000'
+                  style={{
+                    width: `${Math.min((recordingTime / 60) * 100, 100)}%`,
+                  }}
+                />
+              </div>
+              <div className='flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1'>
+                <span>0:00</span>
+                <span>1:00 máximo</span>
+              </div>
+            </div>
           </div>
-
-          {/* Timer */}
-          <span className='text-sm font-mono font-semibold text-red-600 dark:text-red-400 min-w-[40px]'>
-            {formatTime(recordingTime)}
-          </span>
-
-          {/* Texto */}
-          <span className='text-xs text-red-600 dark:text-red-400 hidden sm:inline'>
-            Solte para enviar
-          </span>
-        </div>
-
-        {/* Botão de mic (pressionado) */}
-        <div className='flex items-center justify-center p-2.5 sm:p-3 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-xl shadow-lg shadow-red-500/30 scale-110'>
-          <Mic className='w-5 h-5 animate-pulse' />
         </div>
       </div>
     )
@@ -147,10 +175,10 @@ export function AudioMessageInput({ onAudioSend, isDisabled = false }: AudioMess
   // Modo normal - botão de mic com press-and-hold
   return (
     <button
-      onMouseDown={handleStart}
-      onTouchStart={handleStart}
+      onMouseDown={handleMouseDown}
+      onTouchStart={handleMouseDown}
       disabled={isDisabled}
-      className='flex items-center justify-center p-2.5 sm:p-3 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-xl hover:from-red-600 hover:to-pink-600 transition-all transform hover:scale-105 active:scale-95 shadow-lg shadow-red-500/25 disabled:opacity-50 disabled:cursor-not-allowed'
+      className='flex items-center justify-center p-3 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-full hover:from-red-600 hover:to-pink-600 transition-all transform hover:scale-110 active:scale-95 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed'
       title='Segure para gravar áudio'
       aria-label='Gravar áudio'
     >

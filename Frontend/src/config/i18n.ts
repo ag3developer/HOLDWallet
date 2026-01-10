@@ -53,8 +53,8 @@ i18n
     defaultNS: 'translation',
     ns: ['translation'],
 
-    // Configurações de carregamento
-    load: 'languageOnly',
+    // Configurações de carregamento - usar 'currentOnly' para códigos com região (pt-BR, en-US)
+    load: 'currentOnly',
     preload: ['pt-BR', 'en-US', 'es-ES'],
     partialBundledLanguages: true,
 
@@ -83,7 +83,7 @@ i18n
     },
 
     // Configurações específicas para cada idioma
-    lng: 'pt-BR',
+    // lng é detectado automaticamente pelo LanguageDetector ou pelo localStorage
 
     // Forçar inicialização síncrona
     initImmediate: false,

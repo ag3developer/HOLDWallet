@@ -42,33 +42,29 @@ const BENEFITS = [
 
 export function BenefitsSidebar() {
   return (
-    <div className='bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-md sm:shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden'>
-      {/* Header - Compact on mobile */}
-      <div className='px-3 sm:px-5 py-3 sm:py-4 border-b border-gray-100 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-800'>
-        <div className='flex items-center gap-2 sm:gap-3'>
-          <div className='p-1.5 sm:p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg sm:rounded-xl shadow-md'>
-            <Award className='w-4 h-4 sm:w-5 sm:h-5 text-white' />
+    <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden'>
+      {/* Header */}
+      <div className='px-5 py-4 border-b border-gray-100 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-800'>
+        <div className='flex items-center gap-3'>
+          <div className='p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-md'>
+            <Award className='w-5 h-5 text-white' />
           </div>
           <div>
-            <h2 className='text-sm sm:text-lg font-bold text-gray-900 dark:text-white'>
-              Why Trade Here
-            </h2>
-            <p className='text-[10px] sm:text-xs text-gray-500 dark:text-gray-400'>
-              Vantagens exclusivas
-            </p>
+            <h2 className='text-lg font-bold text-gray-900 dark:text-white'>Why Trade Here</h2>
+            <p className='text-xs text-gray-500 dark:text-gray-400'>Vantagens exclusivas</p>
           </div>
         </div>
       </div>
 
-      {/* Benefits Grid - 2x2 compact on mobile */}
-      <div className='p-3 sm:p-4'>
-        <div className='grid grid-cols-2 gap-2 sm:gap-3'>
+      {/* Benefits Grid */}
+      <div className='p-4'>
+        <div className='grid grid-cols-2 gap-3'>
           {BENEFITS.map(benefit => {
             const Icon = benefit.icon
             return (
               <div
                 key={benefit.title}
-                className={`group relative flex flex-col items-center justify-center p-2.5 sm:p-4 ${benefit.bgLight} ${benefit.bgDark} rounded-lg sm:rounded-xl border border-gray-100 dark:border-gray-700 hover:shadow-lg hover:scale-[1.02] transition-all duration-300 cursor-default overflow-hidden`}
+                className={`group relative flex flex-col items-center justify-center p-4 ${benefit.bgLight} ${benefit.bgDark} rounded-xl border border-gray-100 dark:border-gray-700 hover:shadow-lg hover:scale-[1.02] transition-all duration-300 cursor-default overflow-hidden`}
               >
                 {/* Gradient overlay on hover */}
                 <div
@@ -76,14 +72,14 @@ export function BenefitsSidebar() {
                 />
 
                 <div
-                  className={`relative mb-1.5 sm:mb-2 p-1.5 sm:p-2.5 rounded-lg sm:rounded-xl bg-white dark:bg-gray-800 shadow-sm group-hover:shadow-md transition-shadow`}
+                  className={`relative mb-2 p-2.5 rounded-xl bg-white dark:bg-gray-800 shadow-sm group-hover:shadow-md transition-shadow`}
                 >
-                  <Icon className={`w-4 h-4 sm:w-6 sm:h-6 ${benefit.iconColor}`} />
+                  <Icon className={`w-6 h-6 ${benefit.iconColor}`} />
                 </div>
-                <h3 className='font-semibold text-gray-900 dark:text-white text-[11px] sm:text-sm text-center leading-tight'>
+                <h3 className='font-semibold text-gray-900 dark:text-white text-sm text-center'>
                   {benefit.title}
                 </h3>
-                <p className='text-[9px] sm:text-[10px] text-gray-500 dark:text-gray-400 text-center mt-0.5 hidden sm:block'>
+                <p className='text-[10px] text-gray-500 dark:text-gray-400 text-center mt-0.5'>
                   {benefit.description}
                 </p>
               </div>
@@ -92,11 +88,11 @@ export function BenefitsSidebar() {
         </div>
       </div>
 
-      {/* Trust Badge - Compact */}
-      <div className='px-3 sm:px-4 pb-3 sm:pb-4'>
-        <div className='flex items-center justify-center gap-1.5 sm:gap-2 p-2 sm:p-3 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-lg sm:rounded-xl border border-green-100 dark:border-green-800/30'>
-          <Shield className='w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-600 dark:text-green-400' />
-          <span className='text-[10px] sm:text-xs font-medium text-green-700 dark:text-green-300'>
+      {/* Trust Badge */}
+      <div className='px-4 pb-4'>
+        <div className='flex items-center justify-center gap-2 p-3 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl border border-green-100 dark:border-green-800/30'>
+          <Shield className='w-4 h-4 text-green-600 dark:text-green-400' />
+          <span className='text-xs font-medium text-green-700 dark:text-green-300'>
             100% Seguro & Criptografado
           </span>
         </div>

@@ -56,30 +56,28 @@
     box-sizing: border-box;
     margin: 0;
     padding: 0;
-    -webkit-tap-highlight-color: transparent;
   }
 
   html {
-    height: -webkit-fill-available;
-    height: 100%;
+    scroll-behavior: smooth;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    font-variant-ligatures: normal;
   }
 
   body {
     font-family:
       'Inter',
+      system-ui,
       -apple-system,
       BlinkMacSystemFont,
-      system-ui,
       sans-serif;
     font-weight: 400;
     line-height: 1.5;
     color: theme('colors.gray.900');
     background-color: theme('colors.gray.50');
     -webkit-font-smoothing: antialiased;
-    height: -webkit-fill-available;
-    height: 100%;
-    overflow-x: hidden;
-    overflow-y: auto;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
 
   /* Dark mode */
@@ -88,25 +86,38 @@
     background-color: theme('colors.gray.900');
   }
 
-  #root {
-    height: -webkit-fill-available;
+  /* ✅ Mobile PWA - Keyboard behavior */
+  /* Garantir que o layout se ajuste quando o teclado mobile aparecer */
+  html,
+  body {
     height: 100%;
+    overflow: hidden;
+  }
+
+  /* Usar dvh (dynamic viewport height) para suportar teclado mobile */
+  @supports (height: 100dvh) {
+    html,
+    body,
+    #root {
+      height: 100dvh;
+    }
+  }
+
+  /* Fallback para navegadores antigos */
+  @supports not (height: 100dvh) {
+    html,
+    body,
+    #root {
+      height: -webkit-fill-available;
+      height: 100vh;
+    }
+  }
+
+  /* Transição suave quando o viewport muda (teclado sobe/desce) */
+  #root {
     display: flex;
     flex-direction: column;
-  }
-
-  /* ✅ Prevenir zoom automático em inputs no iOS (fonte mínima 16px) */
-  input,
-  textarea,
-  select {
-    font-size: 16px !important;
-  }
-
-  /* ✅ Botões clicáveis */
-  button {
-    cursor: pointer;
-    -webkit-appearance: none;
-    appearance: none;
+    transition: height 0.2s ease-out;
   }
 
   /* Scrollbar customization */
@@ -374,6 +385,7 @@
   /* Hide scrollbar but keep functionality */
   .no-scrollbar {
     -ms-overflow-style: none;
+    scrollbar-width: none;
   }
 
   .no-scrollbar::-webkit-scrollbar {
@@ -382,7 +394,6 @@
 
   /* Glassmorphism effect */
   .glass {
-    -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
     background: rgba(255, 255, 255, 0.1);
     border: 1px solid rgba(255, 255, 255, 0.2);

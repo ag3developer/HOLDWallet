@@ -416,7 +416,7 @@ export function CryptoSelector({
       {/* Label */}
       <span
         id='crypto-selector-label'
-        className='block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2'
+        className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'
       >
         Criptomoeda
       </span>
@@ -427,43 +427,43 @@ export function CryptoSelector({
         type='button'
         aria-labelledby='crypto-selector-label'
         onClick={() => setIsOpen(!isOpen)}
-        className='w-full flex items-center justify-between gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-lg sm:rounded-xl hover:border-blue-400 dark:hover:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 group'
+        className='w-full flex items-center justify-between gap-3 px-4 py-3 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl hover:border-blue-400 dark:hover:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 group'
       >
-        <div className='flex items-center gap-2 sm:gap-3'>
+        <div className='flex items-center gap-3'>
           {/* Crypto Logo */}
           <div className='relative'>
             <img
               src={CRYPTO_LOGOS[selectedSymbol]}
               alt={selectedSymbol}
-              className='w-8 h-8 sm:w-10 sm:h-10 rounded-full ring-2 ring-gray-100 dark:ring-gray-700'
+              className='w-10 h-10 rounded-full ring-2 ring-gray-100 dark:ring-gray-700'
               onError={e => {
                 e.currentTarget.src = `https://ui-avatars.com/api/?name=${selectedSymbol}&background=6366f1&color=fff&size=40`
               }}
             />
             {/* Live indicator */}
-            <span className='absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-800' />
+            <span className='absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-800' />
           </div>
 
           {/* Crypto Info */}
           <div className='flex flex-col items-start'>
-            <div className='flex items-center gap-1.5 sm:gap-2'>
-              <span className='font-bold text-gray-900 dark:text-white text-base sm:text-lg'>
+            <div className='flex items-center gap-2'>
+              <span className='font-bold text-gray-900 dark:text-white text-lg'>
                 {selectedSymbol}
               </span>
               {STABLECOINS.has(selectedSymbol) && (
-                <span className='px-1 sm:px-1.5 py-0.5 text-[8px] sm:text-[10px] font-semibold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded'>
+                <span className='px-1.5 py-0.5 text-[10px] font-semibold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded'>
                   STABLE
                 </span>
               )}
             </div>
-            <span className='text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 truncate max-w-[100px] sm:max-w-[150px]'>
+            <span className='text-xs text-gray-500 dark:text-gray-400 truncate max-w-[150px]'>
               {selectedCrypto?.name || selectedSymbol}
             </span>
           </div>
         </div>
 
         {/* Price & Change */}
-        <div className='flex items-center gap-2 sm:gap-4'>
+        <div className='flex items-center gap-4'>
           {selectedCrypto && selectedCrypto.price > 0 && (
             <div className='hidden sm:flex flex-col items-end'>
               <span className='font-semibold text-gray-900 dark:text-white'>
@@ -493,7 +493,7 @@ export function CryptoSelector({
 
           {/* Chevron */}
           <ChevronDown
-            className={`w-4 h-4 sm:w-5 sm:h-5 text-gray-400 transition-transform duration-200 ${
+            className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${
               isOpen ? 'rotate-180' : ''
             }`}
           />

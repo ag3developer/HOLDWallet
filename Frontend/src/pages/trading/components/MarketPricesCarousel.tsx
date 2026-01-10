@@ -263,18 +263,18 @@ export function MarketPricesCarousel({
   }
 
   return (
-    <div className='bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-md sm:shadow-lg border border-gray-100 dark:border-gray-700 p-3 sm:p-5'>
+    <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 p-4 sm:p-5'>
       {/* Header */}
-      <div className='flex items-center justify-between mb-3 sm:mb-4'>
-        <div className='flex items-center gap-2 sm:gap-3'>
-          <div className='p-1.5 sm:p-2.5 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg sm:rounded-xl shadow-md sm:shadow-lg'>
-            <Activity className='w-3.5 h-3.5 sm:w-5 sm:h-5 text-white' />
+      <div className='flex items-center justify-between mb-4'>
+        <div className='flex items-center gap-3'>
+          <div className='p-2 sm:p-2.5 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg'>
+            <Activity className='w-4 h-4 sm:w-5 sm:h-5 text-white' />
           </div>
           <div>
-            <h2 className='text-sm sm:text-lg font-bold text-gray-900 dark:text-white'>
+            <h2 className='text-base sm:text-lg font-bold text-gray-900 dark:text-white'>
               Market Prices
             </h2>
-            <p className='text-[9px] sm:text-xs text-gray-500 dark:text-gray-400'>
+            <p className='text-[10px] sm:text-xs text-gray-500 dark:text-gray-400'>
               Live cryptocurrency rates
             </p>
           </div>

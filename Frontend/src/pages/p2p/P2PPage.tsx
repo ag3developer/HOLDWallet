@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import {
   Search,
@@ -29,6 +30,7 @@ import { useP2POrders, useMarketStats } from '@/hooks/useP2POrders'
 import { usePaymentMethods } from '@/hooks/usePaymentMethods'
 
 export const P2PPage = () => {
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<'buy' | 'sell' | 'all'>('all')
   const [selectedCrypto, setSelectedCrypto] = useState<string | null>(null)
@@ -69,33 +71,11 @@ export const P2PPage = () => {
   const { data: paymentMethodsData } = usePaymentMethods()
 
   const cryptoOptions = [
-    {
-      symbol: 'BTC',
-      name: 'Bitcoin',
-      logo: 'https://assets.coingecko.com/coins/images/1/small/bitcoin.png',
-    },
-    {
-      symbol: 'ETH',
-      name: 'Ethereum',
-      logo: 'https://assets.coingecko.com/coins/images/279/small/ethereum.png',
-    },
-    {
-      symbol: 'USDT',
-      name: 'Tether',
-      logo: 'https://assets.coingecko.com/coins/images/325/small/Tether.png',
-    },
-    {
-      symbol: 'BNB',
-      name: 'BNB',
-      logo: 'https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png',
-    },
+    { symbol: 'BTC', name: 'Bitcoin', icon: '₿' },
+    { symbol: 'ETH', name: 'Ethereum', icon: 'Ξ' },
+    { symbol: 'USDT', name: 'Tether', icon: '₮' },
+    { symbol: 'BNB', name: 'BNB', icon: 'B' },
   ]
-
-  // Função para obter logo da moeda
-  const getCryptoLogo = (symbol: string) => {
-    const crypto = cryptoOptions.find(c => c.symbol === symbol)
-    return crypto?.logo || 'https://assets.coingecko.com/coins/images/1/small/bitcoin.png'
-  }
 
   const formatCurrency = (amount: number, currency: string = 'BRL') => {
     return new Intl.NumberFormat('pt-BR', {
@@ -140,7 +120,7 @@ export const P2PPage = () => {
             <div className='w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin absolute top-0 left-0' />
           </div>
           <p className='mt-4 text-sm text-gray-500 dark:text-gray-400'>
-            Buscando as melhores ofertas...
+            {t('p2pPage.searchingBestOffers')}
           </p>
         </div>
       )
@@ -153,14 +133,14 @@ export const P2PPage = () => {
             <Shield className='w-8 h-8 text-red-500' />
           </div>
           <p className='text-sm font-medium text-gray-900 dark:text-white mb-1'>
-            Erro ao carregar ofertas
+            {t('p2pPage.errorLoadingOffers')}
           </p>
-          <p className='text-xs text-gray-500 mb-4'>Tente novamente em alguns segundos</p>
+          <p className='text-xs text-gray-500 mb-4'>{t('p2pPage.tryAgainSeconds')}</p>
           <button
             onClick={() => refetchOrders()}
             className='px-4 py-2 bg-blue-600 text-white text-xs font-medium rounded-lg'
           >
-            Tentar novamente
+            {t('p2pPage.tryAgain')}
           </button>
         </div>
       )
@@ -173,9 +153,9 @@ export const P2PPage = () => {
             <Search className='w-8 h-8 text-gray-400' />
           </div>
           <p className='text-sm font-medium text-gray-900 dark:text-white mb-1'>
-            Nenhuma oferta encontrada
+            {t('p2pPage.noOffersFound')}
           </p>
-          <p className='text-xs text-gray-500'>Tente ajustar seus filtros</p>
+          <p className='text-xs text-gray-500'>{t('p2pPage.tryAdjustFilters')}</p>
         </div>
       )
     }
@@ -186,15 +166,15 @@ export const P2PPage = () => {
         order={order}
         formatCurrency={formatCurrency}
         getPaymentMethodIcon={getPaymentMethodIcon}
-        getCryptoLogo={getCryptoLogo}
         onNavigate={navigate}
         onOpenChat={handleOpenChat}
+        t={t}
       />
     ))
   }
 
   return (
-    <div className='space-y-4 pb-24'>
+    <div key={i18n.language} className='space-y-4 pb-24'>
       {/* Hero Header - Identidade do Marketplace */}
       <div className='relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-blue-900 to-purple-900'>
         {/* Background Pattern */}
@@ -213,16 +193,16 @@ export const P2PPage = () => {
               </div>
               <div>
                 <p className='text-[10px] text-amber-400 font-semibold uppercase tracking-wider'>
-                  #1 América Latina
+                  {t('p2pPage.ranking')}
                 </p>
-                <h1 className='text-lg font-bold text-white leading-tight'>P2P Marketplace</h1>
+                <h1 className='text-lg font-bold text-white leading-tight'>{t('p2pPage.title')}</h1>
               </div>
             </div>
             <div className='flex gap-2'>
               <button
                 onClick={() => navigate('/p2p/my-orders')}
                 className='p-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-xl transition-all border border-white/10'
-                aria-label='Minhas ordens'
+                aria-label={t('p2pPage.myOrders')}
               >
                 <Eye className='w-4 h-4 text-white' />
               </button>
@@ -231,7 +211,7 @@ export const P2PPage = () => {
                 className='px-3 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-orange-500/25 transition-all'
               >
                 <Plus className='w-3.5 h-3.5' />
-                Anunciar
+                {t('p2pPage.advertise')}
               </button>
             </div>
           </div>
@@ -240,15 +220,21 @@ export const P2PPage = () => {
           <div className='flex items-center gap-3 mb-4 overflow-x-auto pb-1 scrollbar-hide'>
             <div className='flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-500/20 backdrop-blur-sm rounded-lg border border-emerald-500/30 whitespace-nowrap'>
               <Lock className='w-3 h-3 text-emerald-400' />
-              <span className='text-[10px] text-emerald-300 font-medium'>100% Seguro</span>
+              <span className='text-[10px] text-emerald-300 font-medium'>
+                {t('p2pPage.secure100')}
+              </span>
             </div>
             <div className='flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-500/20 backdrop-blur-sm rounded-lg border border-blue-500/30 whitespace-nowrap'>
               <MessageCircle className='w-3 h-3 text-blue-400' />
-              <span className='text-[10px] text-blue-300 font-medium'>Chat em Tempo Real</span>
+              <span className='text-[10px] text-blue-300 font-medium'>
+                {t('p2pPage.realTimeChat')}
+              </span>
             </div>
             <div className='flex items-center gap-1.5 px-2.5 py-1.5 bg-purple-500/20 backdrop-blur-sm rounded-lg border border-purple-500/30 whitespace-nowrap'>
               <Shield className='w-3 h-3 text-purple-400' />
-              <span className='text-[10px] text-purple-300 font-medium'>Escrow Protegido</span>
+              <span className='text-[10px] text-purple-300 font-medium'>
+                {t('p2pPage.escrowProtected')}
+              </span>
             </div>
           </div>
 
@@ -257,7 +243,7 @@ export const P2PPage = () => {
             <div className='bg-white/5 backdrop-blur-sm rounded-xl p-2.5 border border-white/10'>
               <div className='flex items-center gap-1.5 mb-1'>
                 <TrendingUp className='w-3 h-3 text-emerald-400' />
-                <span className='text-[9px] text-gray-400 uppercase'>Volume 24h</span>
+                <span className='text-[9px] text-gray-400 uppercase'>{t('p2pPage.volume24h')}</span>
               </div>
               <p className='text-sm font-bold text-white'>
                 R$ {formatCompact(Number(marketStats?.totalVolume24h || 0))}
@@ -266,14 +252,14 @@ export const P2PPage = () => {
             <div className='bg-white/5 backdrop-blur-sm rounded-xl p-2.5 border border-white/10'>
               <div className='flex items-center gap-1.5 mb-1'>
                 <Users className='w-3 h-3 text-blue-400' />
-                <span className='text-[9px] text-gray-400 uppercase'>Trades</span>
+                <span className='text-[9px] text-gray-400 uppercase'>{t('p2pPage.trades')}</span>
               </div>
               <p className='text-sm font-bold text-white'>{marketStats?.totalTrades24h || 0}</p>
             </div>
             <div className='bg-white/5 backdrop-blur-sm rounded-xl p-2.5 border border-white/10'>
               <div className='flex items-center gap-1.5 mb-1'>
                 <Globe className='w-3 h-3 text-cyan-400' />
-                <span className='text-[9px] text-gray-400 uppercase'>Online</span>
+                <span className='text-[9px] text-gray-400 uppercase'>{t('p2pPage.online')}</span>
               </div>
               <p className='text-sm font-bold text-white'>
                 {(marketStats?.buyOrders || 0) + (marketStats?.sellOrders || 0)}
@@ -282,7 +268,7 @@ export const P2PPage = () => {
             <div className='bg-white/5 backdrop-blur-sm rounded-xl p-2.5 border border-white/10'>
               <div className='flex items-center gap-1.5 mb-1'>
                 <Sparkles className='w-3 h-3 text-amber-400' />
-                <span className='text-[9px] text-gray-400 uppercase'>Taxa</span>
+                <span className='text-[9px] text-gray-400 uppercase'>{t('p2pPage.fee')}</span>
               </div>
               <p className='text-sm font-bold text-emerald-400'>0%</p>
             </div>
@@ -291,38 +277,32 @@ export const P2PPage = () => {
       </div>
 
       {/* Quick Crypto Selection */}
-      <div className='flex gap-2 overflow-x-auto pb-1 scrollbar-hide px-1'>
+      <div className='flex gap-2 overflow-x-auto pb-1 scrollbar-hide'>
         <button
           onClick={() => setSelectedCrypto(null)}
-          className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all min-w-fit ${
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
             selectedCrypto === null
               ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/25'
               : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700'
           }`}
         >
-          <Sparkles className='w-3.5 h-3.5 flex-shrink-0' />
-          <span>Todas</span>
+          <Sparkles className='w-3.5 h-3.5' />
+          {t('p2pPage.all')}
         </button>
         {cryptoOptions.map(crypto => (
           <button
             key={crypto.symbol}
             onClick={() => setSelectedCrypto(crypto.symbol)}
-            className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all min-w-fit ${
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
               selectedCrypto === crypto.symbol
                 ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/25'
                 : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700'
             }`}
           >
-            <img
-              src={crypto.logo}
-              alt={crypto.name}
-              className='w-5 h-5 rounded-full object-cover flex-shrink-0'
-              onError={e => {
-                ;(e.target as HTMLImageElement).src =
-                  'https://assets.coingecko.com/coins/images/1/small/bitcoin.png'
-              }}
-            />
-            <span className='flex-shrink-0'>{crypto.symbol}</span>
+            <span className='w-5 h-5 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white'>
+              {crypto.icon}
+            </span>
+            {crypto.symbol}
           </button>
         ))}
       </div>
@@ -339,7 +319,7 @@ export const P2PPage = () => {
                 : 'text-gray-500 dark:text-gray-400'
             }`}
           >
-            Todas Ofertas
+            {t('p2pPage.allOffers')}
             {activeTab === 'all' && (
               <div className='absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600' />
             )}
@@ -353,7 +333,7 @@ export const P2PPage = () => {
             }`}
           >
             <TrendingUp className='w-3.5 h-3.5' />
-            Comprar
+            {t('p2pPage.buy')}
             {activeTab === 'buy' && (
               <div className='absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-500' />
             )}
@@ -367,7 +347,7 @@ export const P2PPage = () => {
             }`}
           >
             <TrendingDown className='w-3.5 h-3.5' />
-            Vender
+            {t('p2pPage.sell')}
             {activeTab === 'sell' && (
               <div className='absolute bottom-0 left-0 right-0 h-0.5 bg-red-500' />
             )}
@@ -381,7 +361,7 @@ export const P2PPage = () => {
               <Search className='w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400' />
               <input
                 type='text'
-                placeholder='Buscar por trader ou método...'
+                placeholder={t('p2pPage.searchPlaceholder')}
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
                 className='w-full pl-9 pr-3 py-2.5 text-xs border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700/50 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all'
@@ -394,7 +374,7 @@ export const P2PPage = () => {
                   ? 'bg-blue-600 text-white'
                   : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600'
               }`}
-              aria-label='Filtros'
+              aria-label={t('p2pPage.filters')}
             >
               <Filter className='w-4 h-4' />
             </button>
@@ -402,7 +382,7 @@ export const P2PPage = () => {
               onClick={() => refetchOrders()}
               disabled={ordersLoading}
               className='p-2.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-xl border border-gray-200 dark:border-gray-600 disabled:opacity-50 transition-all'
-              aria-label='Atualizar'
+              aria-label={t('p2pPage.refresh')}
             >
               <RefreshCw className={`w-4 h-4 ${ordersLoading ? 'animate-spin' : ''}`} />
             </button>
@@ -414,42 +394,42 @@ export const P2PPage = () => {
               <div className='grid grid-cols-2 gap-2'>
                 <div>
                   <span className='block text-[10px] text-gray-500 uppercase font-medium mb-1.5'>
-                    Valor Mínimo
+                    {t('p2pPage.minValue')}
                   </span>
                   <input
                     type='number'
                     placeholder='R$ 0'
                     value={minAmount}
                     onChange={e => setMinAmount(e.target.value)}
-                    aria-label='Valor mínimo'
+                    aria-label={t('p2pPage.minValue')}
                     className='w-full px-3 py-2 text-xs border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
                   />
                 </div>
                 <div>
                   <span className='block text-[10px] text-gray-500 uppercase font-medium mb-1.5'>
-                    Valor Máximo
+                    {t('p2pPage.maxValue')}
                   </span>
                   <input
                     type='number'
                     placeholder='R$ 100.000'
                     value={maxAmount}
                     onChange={e => setMaxAmount(e.target.value)}
-                    aria-label='Valor máximo'
+                    aria-label={t('p2pPage.maxValue')}
                     className='w-full px-3 py-2 text-xs border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
                   />
                 </div>
               </div>
               <div>
                 <span className='block text-[10px] text-gray-500 uppercase font-medium mb-1.5'>
-                  Método de Pagamento
+                  {t('p2pPage.paymentMethod')}
                 </span>
                 <select
-                  aria-label='Filtrar por método de pagamento'
+                  aria-label={t('p2pPage.filterByPayment')}
                   value={selectedPaymentMethod}
                   onChange={e => setSelectedPaymentMethod(e.target.value)}
                   className='w-full px-3 py-2 text-xs border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
                 >
-                  <option value=''>Todos os métodos</option>
+                  <option value=''>{t('p2pPage.allMethods')}</option>
                   {paymentMethodsData?.map((method: any) => (
                     <option key={method.id} value={method.type}>
                       {method.type}
@@ -466,13 +446,13 @@ export const P2PPage = () => {
                   }}
                   className='flex-1 py-2 text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 font-medium'
                 >
-                  Limpar
+                  {t('p2pPage.clear')}
                 </button>
                 <button
                   onClick={() => setShowFilters(false)}
                   className='flex-1 py-2 bg-blue-600 text-white text-xs font-semibold rounded-lg'
                 >
-                  Aplicar
+                  {t('p2pPage.apply')}
                 </button>
               </div>
             </div>
@@ -495,14 +475,16 @@ export const P2PPage = () => {
                 <Zap className='w-5 h-5 text-white' />
               </div>
               <div>
-                <h3 className='text-sm font-bold text-white'>Seja um Trader Verificado</h3>
-                <p className='text-emerald-100 text-xs'>Ganhe até 5% em cada negociação</p>
+                <h3 className='text-sm font-bold text-white'>
+                  {t('p2pPage.becomeVerifiedTrader')}
+                </h3>
+                <p className='text-emerald-100 text-xs'>{t('p2pPage.earn5Percent')}</p>
               </div>
             </div>
             <button
               onClick={() => navigate('/p2p/create-order')}
               className='p-2.5 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-xl transition-all'
-              aria-label='Começar a vender'
+              aria-label={t('p2pPage.startSelling')}
             >
               <ChevronRight className='w-5 h-5 text-white' />
             </button>
@@ -514,15 +496,15 @@ export const P2PPage = () => {
       <div className='flex items-center justify-center gap-6 py-2'>
         <div className='flex items-center gap-1.5 text-gray-400'>
           <Lock className='w-3.5 h-3.5' />
-          <span className='text-[10px] font-medium'>SSL Seguro</span>
+          <span className='text-[10px] font-medium'>{t('p2pPage.sslSecure')}</span>
         </div>
         <div className='flex items-center gap-1.5 text-gray-400'>
           <Shield className='w-3.5 h-3.5' />
-          <span className='text-[10px] font-medium'>Escrow 100%</span>
+          <span className='text-[10px] font-medium'>{t('p2pPage.escrow100')}</span>
         </div>
         <div className='flex items-center gap-1.5 text-gray-400'>
           <BadgeCheck className='w-3.5 h-3.5' />
-          <span className='text-[10px] font-medium'>KYC Verificado</span>
+          <span className='text-[10px] font-medium'>{t('p2pPage.kycVerified')}</span>
         </div>
       </div>
     </div>
@@ -536,21 +518,21 @@ interface PremiumOrderCardProps {
   order: any
   formatCurrency: (amount: number, currency?: string) => string
   getPaymentMethodIcon: (method: string) => React.ReactNode
-  getCryptoLogo: (symbol: string) => string
   onNavigate: (path: string) => void
   onOpenChat: (order: any) => void
+  t: (key: string) => string
 }
 
 const PremiumOrderCard: React.FC<PremiumOrderCardProps> = ({
   order,
   formatCurrency,
   getPaymentMethodIcon,
-  getCryptoLogo,
   onNavigate,
   onOpenChat,
+  t,
 }) => {
   const isSell = order.type === 'sell' || order.order_type === 'sell'
-  const username = order.user?.display_name || order.user?.username || 'Anônimo'
+  const username = order.user?.display_name || order.user?.username || t('p2pPage.anonymous')
   const isVerified = order.user?.is_verified || order.user?.verified
   const isOnline = order.user?.is_online
   const reputation = order.user?.reputation || order.user?.success_rate || 0
@@ -599,7 +581,9 @@ const PremiumOrderCard: React.FC<PremiumOrderCardProps> = ({
               {isOnline && (
                 <>
                   <span className='text-gray-300 dark:text-gray-600'>•</span>
-                  <span className='text-[11px] text-emerald-500 font-medium'>Online</span>
+                  <span className='text-[11px] text-emerald-500 font-medium'>
+                    {t('p2pPage.online')}
+                  </span>
                 </>
               )}
             </div>
@@ -611,43 +595,27 @@ const PremiumOrderCard: React.FC<PremiumOrderCardProps> = ({
           <p className='text-xl font-bold text-gray-900 dark:text-white'>
             {formatCurrency(Number(order.price || 0))}
           </p>
-          <div className='flex items-center justify-end gap-1'>
-            <img
-              src={getCryptoLogo(coin)}
-              alt={coin}
-              className='w-3.5 h-3.5 rounded-full'
-              onError={e => {
-                ;(e.target as HTMLImageElement).src =
-                  'https://assets.coingecko.com/coins/images/1/small/bitcoin.png'
-              }}
-            />
-            <p className='text-[11px] text-gray-400'>por {coin}</p>
-          </div>
+          <p className='text-[11px] text-gray-400'>
+            {t('p2pPage.per')} {coin}
+          </p>
         </div>
       </div>
 
       {/* Stats Row */}
       <div className='flex items-center gap-4 mb-3 py-2.5 px-3 bg-gray-50 dark:bg-gray-700/30 rounded-xl'>
         <div className='flex-1'>
-          <p className='text-[10px] text-gray-400 uppercase font-medium mb-0.5'>Disponível</p>
-          <div className='flex items-center gap-1'>
-            <img
-              src={getCryptoLogo(coin)}
-              alt={coin}
-              className='w-4 h-4 rounded-full'
-              onError={e => {
-                ;(e.target as HTMLImageElement).src =
-                  'https://assets.coingecko.com/coins/images/1/small/bitcoin.png'
-              }}
-            />
-            <p className='text-xs font-semibold text-gray-900 dark:text-white'>
-              {availableAmount} {coin}
-            </p>
-          </div>
+          <p className='text-[10px] text-gray-400 uppercase font-medium mb-0.5'>
+            {t('p2pPage.available')}
+          </p>
+          <p className='text-xs font-semibold text-gray-900 dark:text-white'>
+            {availableAmount} {coin}
+          </p>
         </div>
         <div className='h-8 w-px bg-gray-200 dark:bg-gray-600' />
         <div className='flex-1'>
-          <p className='text-[10px] text-gray-400 uppercase font-medium mb-0.5'>Limites</p>
+          <p className='text-[10px] text-gray-400 uppercase font-medium mb-0.5'>
+            {t('p2pPage.limits')}
+          </p>
           <p className='text-xs font-semibold text-gray-900 dark:text-white'>
             {formatCurrency(minLimit)} - {formatCurrency(maxLimit)}
           </p>
@@ -696,7 +664,7 @@ const PremiumOrderCard: React.FC<PremiumOrderCardProps> = ({
                 : 'bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-400 hover:to-rose-400 shadow-red-500/25'
             }`}
           >
-            {isSell ? 'Comprar' : 'Vender'}
+            {isSell ? t('p2pPage.buy') : t('p2pPage.sell')}
             <ArrowRight className='w-3.5 h-3.5' />
           </button>
         </div>

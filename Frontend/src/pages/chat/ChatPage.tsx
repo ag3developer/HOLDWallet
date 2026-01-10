@@ -204,9 +204,9 @@ export const ChatPage = () => {
     const handleResize = () => {
       // Quando o teclado abre, o viewport diminui - fazer scroll para o input
       if (document.activeElement === inputRef.current) {
-        requestAnimationFrame(() => {
-          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-        })
+        setTimeout(() => {
+          inputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+        }, 100)
       }
     }
 
@@ -220,11 +220,16 @@ export const ChatPage = () => {
 
   // Handler para quando o input recebe foco (teclado vai aparecer)
   const handleInputFocus = () => {
-    // Delay para esperar o teclado abrir completamente
+    // Pequeno delay para esperar o teclado abrir
     setTimeout(() => {
-      // Scroll para o final das mensagens
+      // Scroll para o final das mensagens primeiro
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-    }, 300)
+
+      // Depois garantir que o input está visível
+      setTimeout(() => {
+        inputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+      }, 150)
+    }, 100)
   }
 
   // ✅ NOVO: Usar dados do hook ao invés de URL params
@@ -1258,12 +1263,6 @@ Digite "ajuda" ou "menu" para começar!`,
     const messageContent = newMessage
     setNewMessage('')
 
-    // ✅ Manter foco no input e fazer scroll após enviar
-    requestAnimationFrame(() => {
-      inputRef.current?.focus()
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-    })
-
     try {
       // ✅ Se for o bot, simular resposta automática
       if (contact.isBot) {
@@ -1626,9 +1625,7 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
         `}
       >
         {/* Header da Sidebar */}
-        <div
-          className={`flex-shrink-0 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 pt-[max(0.75rem,env(safe-area-inset-top))] ${!isSidebarOpen ? 'hidden lg:block' : ''}`}
-        >
+        <div className={`flex-shrink-0 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 ${!isSidebarOpen ? 'hidden lg:block' : ''}`}>
           <div className='p-3'>
             <div className='flex items-center justify-between'>
               {isSidebarOpen ? (
@@ -1827,8 +1824,8 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
         {currentContact ? (
           <>
             {/* Header do Chat - Compacto */}
-            <div className='flex-shrink-0 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 px-3 py-2 pt-[max(0.5rem,env(safe-area-inset-top))] z-10 relative'>
-              <div className='flex items-center justify-between gap-2 w-full'>
+            <div className='flex-shrink-0 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 px-3 py-2'>
+              <div className='flex items-center justify-between gap-2'>
                 {/* Botão toggle mobile */}
                 <button
                   onClick={toggleSidebar}
@@ -1838,7 +1835,7 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
                   <Menu className='w-5 h-5' />
                 </button>
 
-                <div className='flex items-center gap-2 flex-1 min-w-0 overflow-hidden'>
+                <div className='flex items-center gap-2 flex-1 min-w-0'>
                   {/* Avatar Compacto */}
                   <div className='relative flex-shrink-0'>
                     <div
@@ -1911,43 +1908,43 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
                 </div>
 
                 {/* Botões de ação - Compactos */}
-                <div className='flex items-center gap-1 flex-shrink-0'>
+                <div className='flex items-center gap-0.5'>
                   {/* Botão de busca */}
                   <button
                     onClick={() => setShowMessageSearch(!showMessageSearch)}
                     aria-label='Buscar mensagens'
                     title='Buscar mensagens'
-                    className={`p-2 transition-all rounded-lg flex-shrink-0
+                    className={`p-1.5 transition-all rounded-lg
                               ${
                                 showMessageSearch
                                   ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10'
                                   : 'text-gray-500 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'
                               }`}
                   >
-                    <Search className='w-5 h-5' />
+                    <Search className='w-4 h-4' />
                   </button>
                   <button
                     onClick={handleInitiateAudioCall}
                     aria-label='Ligar'
                     title='Chamada de voz'
-                    className='p-2 text-gray-500 hover:text-emerald-500 transition-all hover:bg-emerald-50 dark:hover:bg-emerald-500/10 rounded-lg flex-shrink-0'
+                    className='p-1.5 text-gray-500 hover:text-emerald-500 transition-all hover:bg-emerald-50 dark:hover:bg-emerald-500/10 rounded-lg'
                   >
-                    <Phone className='w-5 h-5' />
+                    <Phone className='w-4 h-4' />
                   </button>
                   <button
                     onClick={handleInitiateVideoCall}
                     aria-label='Videochamada'
                     title='Chamada de vídeo'
-                    className='p-2 text-gray-500 hover:text-blue-500 transition-all hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg flex-shrink-0'
+                    className='p-1.5 text-gray-500 hover:text-blue-500 transition-all hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg'
                   >
-                    <Video className='w-5 h-5' />
+                    <Video className='w-4 h-4' />
                   </button>
                   <button
                     aria-label='Mais opções'
                     title='Mais opções'
-                    className='p-2 text-gray-500 hover:text-gray-700 dark:hover:text-white transition-all hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg flex-shrink-0'
+                    className='p-1.5 text-gray-500 hover:text-gray-700 dark:hover:text-white transition-all hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg'
                   >
-                    <MoreVertical className='w-5 h-5' />
+                    <MoreVertical className='w-4 h-4' />
                   </button>
                 </div>
               </div>
@@ -2306,11 +2303,7 @@ Tamanho: ${(file.size / 1024).toFixed(1)} KB
                     onChange={e => setNewMessage(e.target.value)}
                     onFocus={handleInputFocus}
                     onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
-                    autoComplete='off'
-                    autoCorrect='off'
-                    autoCapitalize='sentences'
-                    enterKeyHint='send'
-                    className='w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl text-base text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all pr-16 sm:pr-20'
+                    className='w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all pr-16 sm:pr-20'
                   />
 
                   {/* Botões dentro do input */}
