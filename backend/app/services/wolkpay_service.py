@@ -18,7 +18,7 @@ from datetime import datetime, timezone, timedelta
 from decimal import Decimal
 from typing import Optional, Tuple, List
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, func
+from sqlalchemy import and_, func, or_
 
 from app.models.wolkpay import (
     WolkPayInvoice, WolkPayPayer, WolkPayPayment, WolkPayApproval,
@@ -308,18 +308,25 @@ class WolkPayService:
             return None  # Documento muito curto, ainda não completo
         
         # 3. Buscar pagador mais recente com este documento
-        # Procurar por CPF ou CNPJ
+        # O banco pode ter CPF/CNPJ com ou sem formatação, então buscar ambos
         payer = None
         
         if len(doc_clean) == 11:
-            # CPF - buscar PF
+            # CPF - formatar para busca
+            cpf_formatted = f"{doc_clean[:3]}.{doc_clean[3:6]}.{doc_clean[6:9]}-{doc_clean[9:]}"
+            
+            # Buscar por CPF (com ou sem formatação)
             payer = self.db.query(WolkPayPayer).filter(
-                WolkPayPayer.cpf == doc_clean
+                or_(WolkPayPayer.cpf == doc_clean, WolkPayPayer.cpf == cpf_formatted)
             ).order_by(WolkPayPayer.created_at.desc()).first()
+            
         elif len(doc_clean) == 14:
-            # CNPJ - buscar PJ
+            # CNPJ - formatar para busca
+            cnpj_formatted = f"{doc_clean[:2]}.{doc_clean[2:5]}.{doc_clean[5:8]}/{doc_clean[8:12]}-{doc_clean[12:]}"
+            
+            # Buscar por CNPJ (com ou sem formatação)
             payer = self.db.query(WolkPayPayer).filter(
-                WolkPayPayer.cnpj == doc_clean
+                or_(WolkPayPayer.cnpj == doc_clean, WolkPayPayer.cnpj == cnpj_formatted)
             ).order_by(WolkPayPayer.created_at.desc()).first()
         
         if not payer:
