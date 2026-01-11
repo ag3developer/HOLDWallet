@@ -73,15 +73,15 @@ export function WolkPayWelcomePage() {
   }
 
   return (
-    <div className='min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 overflow-hidden'>
+    <div className='min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 overflow-x-hidden overflow-y-auto touch-auto'>
       {/* Background Effects */}
-      <div className='absolute inset-0 overflow-hidden'>
+      <div className='fixed inset-0 overflow-hidden pointer-events-none'>
         <div className='absolute -top-40 -right-40 w-80 h-80 bg-blue-500/20 rounded-full blur-3xl' />
         <div className='absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500/20 rounded-full blur-3xl' />
         <div className='absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl' />
       </div>
 
-      <div className='relative z-10 min-h-screen flex flex-col items-center justify-center p-4'>
+      <div className='relative z-10 min-h-screen flex flex-col items-center py-8 px-4'>
         <div
           className={`max-w-2xl w-full transition-all duration-700 ${
             showContent ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
@@ -175,14 +175,14 @@ export function WolkPayWelcomePage() {
               'Use o email e senha cadastrados para fazer login. Recomendamos ativar o 2FA para maior segurança.'
             )}
           </p>
-        </div>
 
-        {/* Logo */}
-        <div className='absolute bottom-6 flex items-center gap-2 text-white/30'>
-          <div className='w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center'>
-            <span className='text-white font-bold text-sm'>W</span>
+          {/* Logo */}
+          <div className='flex items-center justify-center gap-2 text-white/30 mt-8 pb-4'>
+            <div className='w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center'>
+              <span className='text-white font-bold text-sm'>W</span>
+            </div>
+            <span className='font-semibold'>WolkNow</span>
           </div>
-          <span className='font-semibold'>WolkNow</span>
         </div>
       </div>
     </div>
