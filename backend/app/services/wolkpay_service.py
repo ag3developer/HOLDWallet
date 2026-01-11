@@ -532,9 +532,10 @@ class WolkPayService:
             raise ValueError("Dados do pagador não encontrados")
         
         # 3. Gerar código PIX (conta estática)
+        # O TXID aparece nos apps de banco como identificador da transação
         pix_code = self._generate_pix_static_code(
             amount=invoice.total_amount_brl,
-            description=f"WolkPay {invoice.invoice_number}"
+            description=invoice.invoice_number  # Ex: WP2026011100001
         )
         
         # 4. Gerar QR Code
@@ -1191,7 +1192,8 @@ class WolkPayService:
         country = _format_tlv("58", "BR")
         
         # 7. Merchant Name (máx 25 caracteres, sem acentos, uppercase)
-        merchant_name = _normalize_text("HOLD DIGITAL ASSETS")[:25]
+        # Este nome aparece nos apps de banco como beneficiário
+        merchant_name = _normalize_text("HOLD DIGITAL WOLKPAY")[:25]
         name_field = _format_tlv("59", merchant_name)
         
         # 8. Merchant City (máx 15 caracteres, sem acentos, uppercase)
@@ -1199,7 +1201,8 @@ class WolkPayService:
         city_field = _format_tlv("60", city)
         
         # 9. Additional Data Field Template - ID 62
-        # Reference Label (txid) - apenas alfanuméricos, máx 25 caracteres
+        # Reference Label (txid) - este é o identificador que alguns bancos mostram
+        # Formato: Número da fatura (ex: WP2026011100001)
         txid = re.sub(r'[^A-Za-z0-9]', '', description)[:25].upper()
         if not txid:
             txid = "***"  # Placeholder se vazio
