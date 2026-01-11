@@ -201,7 +201,7 @@ export const Sidebar = () => {
                   WOLK NOW
                 </span>
                 <p className='text-[10px] text-gray-500 dark:text-gray-400 font-medium'>
-                  Trading Platform
+                  {t('landing.slogan')}
                 </p>
               </div>
             </Link>
