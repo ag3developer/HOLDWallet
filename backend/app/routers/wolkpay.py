@@ -36,10 +36,40 @@ from app.schemas.wolkpay import (
     PixPaymentResponse,
     PaymentStatusResponse
 )
+from app.services.platform_settings_service import platform_settings_service
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/wolkpay", tags=["WolkPay"])
+
+
+# ==========================================
+# CONFIGURAÇÕES PÚBLICAS (TAXAS/LIMITES)
+# ==========================================
+
+@router.get("/config")
+async def get_wolkpay_config(db: Session = Depends(get_db)):
+    """
+    Retorna configurações públicas do WolkPay (taxas, limites, etc.)
+    
+    Endpoint público para que o frontend possa exibir as taxas corretas.
+    """
+    service_fee = platform_settings_service.get_wolkpay_service_fee(db)
+    network_fee = platform_settings_service.get_wolkpay_network_fee(db)
+    
+    # Limites podem vir do platform_settings também
+    min_brl = platform_settings_service.get(db, "wolkpay_min_brl", 100.0)
+    max_brl = platform_settings_service.get(db, "wolkpay_max_brl", 15000.0)
+    expiry_minutes = platform_settings_service.get(db, "wolkpay_expiry_minutes", 15)
+    
+    return {
+        "service_fee_percentage": service_fee,
+        "network_fee_percentage": network_fee,
+        "total_fee_percentage": round(service_fee + network_fee, 2),
+        "min_amount_brl": min_brl,
+        "max_amount_brl": max_brl,
+        "expiry_minutes": expiry_minutes
+    }
 
 
 # ==========================================

@@ -196,8 +196,33 @@ export interface CreateAccountResponse {
 // SERVICE
 // ============================================
 
+/**
+ * Configurações/taxas do WolkPay retornadas pelo backend
+ */
+export interface WolkPayConfig {
+  service_fee_percentage: number
+  network_fee_percentage: number
+  total_fee_percentage: number
+  min_amount_brl: number
+  max_amount_brl: number
+  expiry_minutes: number
+}
+
 class WolkPayService {
   private readonly baseUrl = '/wolkpay'
+
+  // ==========================================
+  // CONFIGURAÇÕES (PÚBLICO)
+  // ==========================================
+
+  /**
+   * Obtém configurações/taxas do WolkPay
+   * Endpoint público para exibir taxas corretas no frontend
+   */
+  async getConfig(): Promise<WolkPayConfig> {
+    const response = await apiClient.get<WolkPayConfig>(`${this.baseUrl}/config`)
+    return response.data
+  }
 
   // ==========================================
   // BENEFICIÁRIO (AUTENTICADO)

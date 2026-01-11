@@ -139,6 +139,27 @@ DEFAULT_PLATFORM_SETTINGS = [
         "category": "limits",
         "description": "Valor máximo para ordens P2P em BRL"
     },
+    {
+        "key": "wolkpay_min_brl",
+        "value": "100.0",
+        "value_type": "float",
+        "category": "limits",
+        "description": "Valor mínimo para faturas WolkPay em BRL"
+    },
+    {
+        "key": "wolkpay_max_brl",
+        "value": "15000.0",
+        "value_type": "float",
+        "category": "limits",
+        "description": "Valor máximo para faturas WolkPay em BRL"
+    },
+    {
+        "key": "wolkpay_expiry_minutes",
+        "value": "15",
+        "value_type": "int",
+        "category": "limits",
+        "description": "Tempo em minutos para expiração de faturas WolkPay"
+    },
     
     # === TRADING ===
     {

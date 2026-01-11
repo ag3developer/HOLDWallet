@@ -30,7 +30,11 @@ import {
 } from 'lucide-react'
 import { usePrices } from '@/hooks/usePrices'
 import { useCurrencyStore } from '@/stores/useCurrencyStore'
-import wolkPayService, { CreateInvoiceRequest, InvoiceCreatedResponse } from '@/services/wolkpay'
+import wolkPayService, {
+  CreateInvoiceRequest,
+  InvoiceCreatedResponse,
+  WolkPayConfig,
+} from '@/services/wolkpay'
 
 // Logos das cryptos - usando CoinGecko
 const CRYPTO_LOGOS: Record<string, string> = {
@@ -77,8 +81,8 @@ const SUPPORTED_CRYPTOS = [
   { symbol: 'DAI', name: 'Dai Stablecoin', network: 'ethereum', category: 'Stablecoin' },
 ]
 
-// Constantes de limites
-const LIMITS = {
+// Constantes de limites - VALORES PADRÃO (serão sobrescritos pelo backend)
+const DEFAULT_LIMITS = {
   MIN_BRL: 100,
   MAX_BRL: 15000,
   SERVICE_FEE: 3.65,
@@ -109,6 +113,34 @@ export function WolkPayPage() {
 
   // WolkPay sempre trabalha em BRL (PIX é brasileiro)
   // Mas mostramos equivalência na moeda do usuário para conveniência
+
+  // Estado das configurações (taxas/limites) do backend
+  const [config, setConfig] = useState<WolkPayConfig | null>(null)
+
+  // Valores efetivos (do backend ou padrão)
+  const LIMITS = {
+    MIN_BRL: config?.min_amount_brl ?? DEFAULT_LIMITS.MIN_BRL,
+    MAX_BRL: config?.max_amount_brl ?? DEFAULT_LIMITS.MAX_BRL,
+    SERVICE_FEE: config?.service_fee_percentage ?? DEFAULT_LIMITS.SERVICE_FEE,
+    NETWORK_FEE: config?.network_fee_percentage ?? DEFAULT_LIMITS.NETWORK_FEE,
+    TOTAL_FEE: config?.total_fee_percentage ?? DEFAULT_LIMITS.TOTAL_FEE,
+    EXPIRY_MINUTES: config?.expiry_minutes ?? DEFAULT_LIMITS.EXPIRY_MINUTES,
+  }
+
+  // Buscar configurações do backend ao montar o componente
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const configData = await wolkPayService.getConfig()
+        console.log('📊 WolkPay config loaded:', configData)
+        setConfig(configData)
+      } catch (err) {
+        console.error('⚠️ Failed to load WolkPay config, using defaults:', err)
+        // Continua usando os valores padrão
+      }
+    }
+    fetchConfig()
+  }, [])
 
   // Buscar preços em BRL (cotação real do mercado - base para PIX)
   const { prices: pricesBRL } = usePrices(
