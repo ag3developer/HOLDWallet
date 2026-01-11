@@ -217,15 +217,15 @@ export const AdminTransactionsPage: React.FC = () => {
   }
 
   return (
-    <div className='min-h-screen bg-[#0a0a0a] p-3 sm:p-4 lg:p-6 space-y-4'>
+    <div className='min-h-screen bg-gray-50 dark:bg-[#0a0a0a] p-3 sm:p-4 lg:p-6 space-y-4'>
       {/* Header Compacto */}
       <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-3'>
         <div className='flex items-center gap-3'>
           <div className='p-2 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-blue-500/20'>
-            <Activity className='h-5 w-5 text-blue-400' />
+            <Activity className='h-5 w-5 text-blue-500 dark:text-blue-400' />
           </div>
           <div>
-            <h1 className='text-lg sm:text-xl font-bold text-white'>Transacoes Blockchain</h1>
+            <h1 className='text-lg sm:text-xl font-bold text-gray-900 dark:text-white'>Transacoes Blockchain</h1>
             <p className='text-gray-500 text-xs sm:text-sm'>Depositos e saques on-chain</p>
           </div>
         </div>
@@ -235,7 +235,7 @@ export const AdminTransactionsPage: React.FC = () => {
             onClick={handleSyncBlockchain}
             disabled={syncMutation.isPending || statsLoading}
             title='Sincronizar status das transações pendentes com a blockchain'
-            className='flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-green-500/20 to-emerald-500/20 hover:from-green-500/30 hover:to-emerald-500/30 text-green-400 border border-green-500/20 transition-all text-sm disabled:opacity-50'
+            className='flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-green-500/20 to-emerald-500/20 hover:from-green-500/30 hover:to-emerald-500/30 text-green-600 dark:text-green-400 border border-green-500/20 transition-all text-sm disabled:opacity-50'
           >
             <RefreshCcw className={`h-4 w-4 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
             <span className='hidden sm:inline'>
@@ -246,7 +246,7 @@ export const AdminTransactionsPage: React.FC = () => {
           <button
             onClick={handleRefresh}
             disabled={statsLoading || transactionsLoading}
-            className='flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-white border border-white/10 transition-all text-sm disabled:opacity-50'
+            className='flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-900 dark:text-white border border-gray-200 dark:border-white/10 transition-all text-sm disabled:opacity-50'
           >
             <RefreshCw
               className={`h-4 w-4 ${statsLoading || transactionsLoading ? 'animate-spin' : ''}`}
@@ -259,21 +259,21 @@ export const AdminTransactionsPage: React.FC = () => {
       {/* Stats Cards - Grid Responsivo */}
       <div className='grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3'>
         {/* Total */}
-        <div className='bg-gradient-to-br from-[#111] to-[#0d0d0d] border border-white/5 rounded-xl p-3 sm:p-4'>
+        <div className='bg-gradient-to-br from-white dark:from-[#111] to-gray-50 dark:to-[#0d0d0d] border border-gray-200 dark:border-white/5 rounded-xl p-3 sm:p-4'>
           <div className='flex items-center justify-between mb-2'>
-            <Activity className='h-4 w-4 text-gray-500' />
-            <span className='text-[10px] sm:text-xs text-gray-600 bg-white/5 px-1.5 py-0.5 rounded'>
+            <Activity className='h-4 w-4 text-gray-400 dark:text-gray-500' />
+            <span className='text-[10px] sm:text-xs text-gray-500 dark:text-gray-600 bg-gray-100 dark:bg-white/5 px-1.5 py-0.5 rounded'>
               24h: {stats?.last_24h || 0}
             </span>
           </div>
-          <div className='text-xl sm:text-2xl font-bold text-white'>
+          <div className='text-xl sm:text-2xl font-bold text-gray-900 dark:text-white'>
             {statsLoading ? '...' : (stats?.total || 0).toLocaleString()}
           </div>
           <p className='text-[10px] sm:text-xs text-gray-500 mt-1'>Total de transacoes</p>
         </div>
 
         {/* Pendentes */}
-        <div className='bg-gradient-to-br from-[#111] to-[#0d0d0d] border border-yellow-500/10 rounded-xl p-3 sm:p-4'>
+        <div className='bg-gradient-to-br from-white dark:from-[#111] to-gray-50 dark:to-[#0d0d0d] border border-yellow-200 dark:border-yellow-500/10 rounded-xl p-3 sm:p-4'>
           <div className='flex items-center justify-between mb-2'>
             <Clock className='h-4 w-4 text-yellow-500/70' />
             {(stats?.pending || 0) > 0 && (
@@ -283,31 +283,31 @@ export const AdminTransactionsPage: React.FC = () => {
               </span>
             )}
           </div>
-          <div className='text-xl sm:text-2xl font-bold text-yellow-500'>
+          <div className='text-xl sm:text-2xl font-bold text-yellow-600 dark:text-yellow-500'>
             {statsLoading ? '...' : (stats?.pending || 0).toLocaleString()}
           </div>
           <p className='text-[10px] sm:text-xs text-gray-500 mt-1'>Pendentes</p>
         </div>
 
         {/* Depositos */}
-        <div className='bg-gradient-to-br from-[#111] to-[#0d0d0d] border border-green-500/10 rounded-xl p-3 sm:p-4'>
+        <div className='bg-gradient-to-br from-white dark:from-[#111] to-gray-50 dark:to-[#0d0d0d] border border-green-200 dark:border-green-500/10 rounded-xl p-3 sm:p-4'>
           <div className='flex items-center justify-between mb-2'>
             <TrendingDown className='h-4 w-4 text-green-500/70' />
             <ArrowDownLeft className='h-3 w-3 text-green-500/50' />
           </div>
-          <div className='text-xl sm:text-2xl font-bold text-green-500'>
+          <div className='text-xl sm:text-2xl font-bold text-green-600 dark:text-green-500'>
             {statsLoading ? '...' : (stats?.deposits || 0).toLocaleString()}
           </div>
           <p className='text-[10px] sm:text-xs text-gray-500 mt-1'>Depositos</p>
         </div>
 
         {/* Saques */}
-        <div className='bg-gradient-to-br from-[#111] to-[#0d0d0d] border border-blue-500/10 rounded-xl p-3 sm:p-4'>
+        <div className='bg-gradient-to-br from-white dark:from-[#111] to-gray-50 dark:to-[#0d0d0d] border border-blue-200 dark:border-blue-500/10 rounded-xl p-3 sm:p-4'>
           <div className='flex items-center justify-between mb-2'>
             <TrendingUp className='h-4 w-4 text-blue-500/70' />
             <ArrowUpRight className='h-3 w-3 text-blue-500/50' />
           </div>
-          <div className='text-xl sm:text-2xl font-bold text-blue-500'>
+          <div className='text-xl sm:text-2xl font-bold text-blue-600 dark:text-blue-500'>
             {statsLoading ? '...' : (stats?.withdrawals || 0).toLocaleString()}
           </div>
           <p className='text-[10px] sm:text-xs text-gray-500 mt-1'>Saques</p>
@@ -315,17 +315,17 @@ export const AdminTransactionsPage: React.FC = () => {
       </div>
 
       {/* Barra de Busca e Filtros */}
-      <div className='bg-[#111] border border-white/5 rounded-xl p-3'>
+      <div className='bg-white dark:bg-[#111] border border-gray-200 dark:border-white/5 rounded-xl p-3'>
         <div className='flex flex-col sm:flex-row gap-2'>
           {/* Search */}
           <div className='relative flex-1'>
-            <Search className='absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500' />
+            <Search className='absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500' />
             <input
               type='text'
               placeholder='Buscar hash, endereco...'
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className='w-full pl-9 pr-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50'
+              className='w-full pl-9 pr-3 py-2 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg text-gray-900 dark:text-white text-sm placeholder:text-gray-400 dark:placeholder:text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50'
             />
           </div>
 
@@ -336,7 +336,7 @@ export const AdminTransactionsPage: React.FC = () => {
               onChange={e => setStatusFilter(e.target.value)}
               title='Filtrar por status'
               aria-label='Filtrar por status'
-              className='px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/50 cursor-pointer'
+              className='px-3 py-2 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/50 cursor-pointer'
             >
               <option value='all'>Status</option>
               <option value='pending'>Pendente</option>
@@ -349,7 +349,7 @@ export const AdminTransactionsPage: React.FC = () => {
               onChange={e => setTypeFilter(e.target.value)}
               title='Filtrar por tipo'
               aria-label='Filtrar por tipo'
-              className='px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/50 cursor-pointer'
+              className='px-3 py-2 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/50 cursor-pointer'
             >
               <option value='all'>Tipo</option>
               <option value='deposit'>Deposito</option>
@@ -360,7 +360,7 @@ export const AdminTransactionsPage: React.FC = () => {
           {/* Filtros Mobile Toggle */}
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className='sm:hidden flex items-center justify-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-gray-400'
+            className='sm:hidden flex items-center justify-center gap-2 px-3 py-2 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg text-gray-500 dark:text-gray-400'
           >
             <Filter className='h-4 w-4' />
             Filtros
@@ -375,7 +375,7 @@ export const AdminTransactionsPage: React.FC = () => {
               onChange={e => setStatusFilter(e.target.value)}
               title='Filtrar por status'
               aria-label='Filtrar por status'
-              className='flex-1 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm'
+              className='flex-1 px-3 py-2 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg text-gray-900 dark:text-white text-sm'
             >
               <option value='all'>Status</option>
               <option value='pending'>Pendente</option>
@@ -388,7 +388,7 @@ export const AdminTransactionsPage: React.FC = () => {
               onChange={e => setTypeFilter(e.target.value)}
               title='Filtrar por tipo'
               aria-label='Filtrar por tipo'
-              className='flex-1 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm'
+              className='flex-1 px-3 py-2 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg text-gray-900 dark:text-white text-sm'
             >
               <option value='all'>Tipo</option>
               <option value='deposit'>Deposito</option>
@@ -399,7 +399,7 @@ export const AdminTransactionsPage: React.FC = () => {
       </div>
 
       {/* Lista de Transacoes - Cards Mobile / Tabela Desktop */}
-      <div className='bg-[#111] border border-white/5 rounded-xl overflow-hidden'>
+      <div className='bg-white dark:bg-[#111] border border-gray-200 dark:border-white/5 rounded-xl overflow-hidden'>
         {transactionsLoading ? (
           <div className='flex flex-col items-center justify-center py-12'>
             <RefreshCw className='h-8 w-8 animate-spin text-blue-500 mb-3' />
@@ -407,7 +407,7 @@ export const AdminTransactionsPage: React.FC = () => {
           </div>
         ) : transactions.length === 0 ? (
           <div className='flex flex-col items-center justify-center py-12'>
-            <Activity className='h-10 w-10 text-gray-700 mb-3' />
+            <Activity className='h-10 w-10 text-gray-400 dark:text-gray-700 mb-3' />
             <p className='text-gray-500 text-sm'>Nenhuma transacao encontrada</p>
           </div>
         ) : (
@@ -416,7 +416,7 @@ export const AdminTransactionsPage: React.FC = () => {
             <div className='hidden lg:block overflow-x-auto'>
               <table className='w-full'>
                 <thead>
-                  <tr className='border-b border-white/5 bg-white/[0.02]'>
+                  <tr className='border-b border-gray-200 dark:border-white/5 bg-gray-50 dark:bg-white/[0.02]'>
                     <th className='text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider'>
                       Moeda
                     </th>
@@ -448,7 +448,7 @@ export const AdminTransactionsPage: React.FC = () => {
                     const explorerUrl = getExplorerUrl(tx.network, tx.tx_hash)
 
                     return (
-                      <tr key={tx.id} className='hover:bg-white/[0.02] transition-colors'>
+                      <tr key={tx.id} className='hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors'>
                         {/* Moeda */}
                         <td className='px-4 py-3'>
                           <div className='flex items-center gap-2'>
@@ -459,12 +459,12 @@ export const AdminTransactionsPage: React.FC = () => {
                                 className='w-7 h-7 rounded-full'
                               />
                             ) : (
-                              <div className='w-7 h-7 rounded-full bg-gray-700 flex items-center justify-center'>
-                                <Wallet className='h-3.5 w-3.5 text-gray-400' />
+                              <div className='w-7 h-7 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center'>
+                                <Wallet className='h-3.5 w-3.5 text-gray-500 dark:text-gray-400' />
                               </div>
                             )}
                             <div>
-                              <span className='text-white font-medium text-sm'>
+                              <span className='text-gray-900 dark:text-white font-medium text-sm'>
                                 {tx.cryptocurrency || 'N/A'}
                               </span>
                               {tx.network && (
@@ -479,17 +479,17 @@ export const AdminTransactionsPage: React.FC = () => {
                         {/* Tipo */}
                         <td className='px-4 py-3'>
                           {tx.tx_type === 'deposit' ? (
-                            <span className='inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-green-500/10 text-green-400 border border-green-500/20'>
+                            <span className='inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20'>
                               <ArrowDownLeft className='h-3 w-3' />
                               Depósito
                             </span>
                           ) : tx.tx_type === 'withdrawal' ? (
-                            <span className='inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20'>
+                            <span className='inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20'>
                               <ArrowUpRight className='h-3 w-3' />
                               Saque
                             </span>
                           ) : (
-                            <span className='inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-gray-500/10 text-gray-400 border border-gray-500/20'>
+                            <span className='inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-gray-500/10 text-gray-600 dark:text-gray-400 border border-gray-500/20'>
                               {tx.tx_type || 'transfer'}
                             </span>
                           )}
@@ -499,7 +499,7 @@ export const AdminTransactionsPage: React.FC = () => {
                         <td className='px-4 py-3 text-right'>
                           <span
                             className={`font-mono text-sm font-medium ${
-                              tx.tx_type === 'deposit' ? 'text-green-400' : 'text-white'
+                              tx.tx_type === 'deposit' ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-white'
                             }`}
                           >
                             {tx.tx_type === 'deposit' ? '+' : '-'}
@@ -510,10 +510,10 @@ export const AdminTransactionsPage: React.FC = () => {
                         {/* Usuario */}
                         <td className='px-4 py-3'>
                           <div className='flex items-center gap-2'>
-                            <div className='w-6 h-6 rounded-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center text-[10px] font-medium text-blue-300'>
+                            <div className='w-6 h-6 rounded-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center text-[10px] font-medium text-blue-600 dark:text-blue-300'>
                               {tx.username?.charAt(0).toUpperCase() || '?'}
                             </div>
-                            <span className='text-gray-300 text-sm'>
+                            <span className='text-gray-600 dark:text-gray-300 text-sm'>
                               {tx.username || 'Unknown'}
                             </span>
                           </div>
@@ -522,8 +522,8 @@ export const AdminTransactionsPage: React.FC = () => {
                         {/* Hash */}
                         <td className='px-4 py-3'>
                           <div className='flex items-center gap-1.5'>
-                            <Hash className='h-3 w-3 text-gray-600' />
-                            <span className='text-gray-400 font-mono text-xs'>
+                            <Hash className='h-3 w-3 text-gray-400 dark:text-gray-600' />
+                            <span className='text-gray-500 dark:text-gray-400 font-mono text-xs'>
                               {shortenHash(tx.tx_hash)}
                             </span>
                             {tx.tx_hash && (
@@ -531,7 +531,7 @@ export const AdminTransactionsPage: React.FC = () => {
                                 onClick={() => copyToClipboard(tx.tx_hash!)}
                                 title='Copiar hash'
                                 aria-label='Copiar hash da transacao'
-                                className='text-gray-600 hover:text-white transition-colors p-0.5'
+                                className='text-gray-400 dark:text-gray-600 hover:text-gray-900 dark:hover:text-white transition-colors p-0.5'
                               >
                                 <Copy className='h-3 w-3' />
                               </button>
@@ -542,21 +542,21 @@ export const AdminTransactionsPage: React.FC = () => {
                         {/* Status */}
                         <td className='px-4 py-3 text-center'>
                           {tx.status === 'confirmed' ? (
-                            <span className='inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium bg-green-500/10 text-green-400'>
+                            <span className='inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium bg-green-500/10 text-green-600 dark:text-green-400'>
                               <CheckCircle className='h-3 w-3' />
                               OK
                             </span>
                           ) : tx.status === 'pending' ? (
-                            <span className='inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium bg-yellow-500/10 text-yellow-400'>
+                            <span className='inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium bg-yellow-500/10 text-yellow-600 dark:text-yellow-400'>
                               <Clock className='h-3 w-3' />
                               Pend.
                             </span>
                           ) : (
-                            <span className='inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium bg-red-500/10 text-red-400'>
+                            <span className='inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium bg-red-500/10 text-red-600 dark:text-red-400'>
                               <XCircle className='h-3 w-3' />
                               Erro
                             </span>
-                          )}
+                          )}}
                         </td>
 
                         {/* Data */}
@@ -573,7 +573,7 @@ export const AdminTransactionsPage: React.FC = () => {
                               rel='noopener noreferrer'
                               title='Ver no explorer'
                               aria-label='Ver transacao no blockchain explorer'
-                              className='inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 transition-all'
+                              className='inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 hover:bg-blue-500/10 transition-all'
                             >
                               <ExternalLink className='h-3 w-3' />
                             </a>
@@ -587,7 +587,7 @@ export const AdminTransactionsPage: React.FC = () => {
             </div>
 
             {/* Cards Mobile */}
-            <div className='lg:hidden divide-y divide-white/5'>
+            <div className='lg:hidden divide-y divide-gray-200 dark:divide-white/5'>
               {transactions.map((tx: Transaction) => {
                 const logo = getCryptoLogo(tx.cryptocurrency)
                 const networkStyle = getNetworkStyle(tx.network)
@@ -595,7 +595,7 @@ export const AdminTransactionsPage: React.FC = () => {
                 const isDeposit = tx.tx_type === 'deposit'
 
                 return (
-                  <div key={tx.id} className='p-3 hover:bg-white/[0.02] transition-colors'>
+                  <div key={tx.id} className='p-3 hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors'>
                     <div className='flex items-start justify-between gap-3'>
                       {/* Left: Coin + Info */}
                       <div className='flex items-center gap-3'>
@@ -608,8 +608,8 @@ export const AdminTransactionsPage: React.FC = () => {
                               className='w-10 h-10 rounded-full'
                             />
                           ) : (
-                            <div className='w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center'>
-                              <Wallet className='h-5 w-5 text-gray-400' />
+                            <div className='w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center'>
+                              <Wallet className='h-5 w-5 text-gray-500 dark:text-gray-400' />
                             </div>
                           )}
                           {/* Direction indicator */}
@@ -629,7 +629,7 @@ export const AdminTransactionsPage: React.FC = () => {
                         {/* Info */}
                         <div>
                           <div className='flex items-center gap-2'>
-                            <span className='text-white font-medium'>
+                            <span className='text-gray-900 dark:text-white font-medium'>
                               {tx.cryptocurrency || 'N/A'}
                             </span>
                             <span
@@ -639,12 +639,12 @@ export const AdminTransactionsPage: React.FC = () => {
                             </span>
                           </div>
                           <div className='flex items-center gap-2 mt-0.5'>
-                            <User className='h-3 w-3 text-gray-600' />
+                            <User className='h-3 w-3 text-gray-400 dark:text-gray-600' />
                             <span className='text-gray-500 text-xs'>
                               {tx.username || 'Unknown'}
                             </span>
-                            <span className='text-gray-700'>|</span>
-                            <span className='text-gray-600 text-xs'>
+                            <span className='text-gray-300 dark:text-gray-700'>|</span>
+                            <span className='text-gray-400 dark:text-gray-600 text-xs'>
                               {formatDate(tx.created_at)}
                             </span>
                           </div>
@@ -654,37 +654,37 @@ export const AdminTransactionsPage: React.FC = () => {
                       {/* Right: Amount + Status */}
                       <div className='text-right'>
                         <div
-                          className={`font-mono font-medium ${isDeposit ? 'text-green-400' : 'text-white'}`}
+                          className={`font-mono font-medium ${isDeposit ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-white'}`}
                         >
                           {isDeposit ? '+' : '-'}
                           {formatAmount(tx.amount)}
                         </div>
                         <div className='mt-1'>
                           {tx.status === 'confirmed' ? (
-                            <span className='inline-flex items-center gap-1 text-[10px] text-green-400'>
+                            <span className='inline-flex items-center gap-1 text-[10px] text-green-600 dark:text-green-400'>
                               <CheckCircle className='h-3 w-3' />
                               Confirmada
                             </span>
                           ) : tx.status === 'pending' ? (
-                            <span className='inline-flex items-center gap-1 text-[10px] text-yellow-400'>
+                            <span className='inline-flex items-center gap-1 text-[10px] text-yellow-600 dark:text-yellow-400'>
                               <Clock className='h-3 w-3' />
                               Pendente
                             </span>
                           ) : (
-                            <span className='inline-flex items-center gap-1 text-[10px] text-red-400'>
+                            <span className='inline-flex items-center gap-1 text-[10px] text-red-600 dark:text-red-400'>
                               <XCircle className='h-3 w-3' />
                               Falhou
                             </span>
-                          )}
+                          )}}
                         </div>
                       </div>
                     </div>
 
                     {/* Hash Row */}
                     {tx.tx_hash && (
-                      <div className='flex items-center justify-between mt-2 pt-2 border-t border-white/5'>
+                      <div className='flex items-center justify-between mt-2 pt-2 border-t border-gray-200 dark:border-white/5'>
                         <div className='flex items-center gap-2'>
-                          <Hash className='h-3 w-3 text-gray-600' />
+                          <Hash className='h-3 w-3 text-gray-400 dark:text-gray-600' />
                           <span className='text-gray-500 font-mono text-xs'>
                             {shortenHash(tx.tx_hash)}
                           </span>
@@ -692,7 +692,7 @@ export const AdminTransactionsPage: React.FC = () => {
                             onClick={() => copyToClipboard(tx.tx_hash!)}
                             title='Copiar hash'
                             aria-label='Copiar hash da transacao'
-                            className='text-gray-600 hover:text-white transition-colors'
+                            className='text-gray-400 dark:text-gray-600 hover:text-gray-900 dark:hover:text-white transition-colors'
                           >
                             <Copy className='h-3 w-3' />
                           </button>
@@ -703,7 +703,7 @@ export const AdminTransactionsPage: React.FC = () => {
                             target='_blank'
                             rel='noopener noreferrer'
                             title='Ver no explorer'
-                            className='flex items-center gap-1 text-blue-400 text-xs'
+                            className='flex items-center gap-1 text-blue-600 dark:text-blue-400 text-xs'
                           >
                             <ExternalLink className='h-3 w-3' />
                             Ver
@@ -720,7 +720,7 @@ export const AdminTransactionsPage: React.FC = () => {
 
         {/* Paginacao */}
         {totalPages > 1 && (
-          <div className='flex items-center justify-between px-3 sm:px-4 py-3 border-t border-white/5 bg-white/[0.01]'>
+          <div className='flex items-center justify-between px-3 sm:px-4 py-3 border-t border-gray-200 dark:border-white/5 bg-gray-50 dark:bg-white/[0.01]'>
             <p className='text-xs text-gray-500'>
               <span className='hidden sm:inline'>Mostrando </span>
               {(page - 1) * limit + 1}-{Math.min(page * limit, total)} de {total}
@@ -731,11 +731,11 @@ export const AdminTransactionsPage: React.FC = () => {
                 disabled={page === 1}
                 title='Pagina anterior'
                 aria-label='Ir para pagina anterior'
-                className='p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors'
+                className='p-1.5 rounded-lg bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-900 dark:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors'
               >
                 <ChevronLeft className='h-4 w-4' />
               </button>
-              <span className='px-3 text-xs text-gray-400'>
+              <span className='px-3 text-xs text-gray-500 dark:text-gray-400'>
                 {page}/{totalPages}
               </span>
               <button
@@ -743,7 +743,7 @@ export const AdminTransactionsPage: React.FC = () => {
                 disabled={page >= totalPages}
                 title='Proxima pagina'
                 aria-label='Ir para proxima pagina'
-                className='p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors'
+                className='p-1.5 rounded-lg bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-900 dark:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors'
               >
                 <ChevronRight className='h-4 w-4' />
               </button>

@@ -329,7 +329,9 @@ HOLD Wallet - Sistema de Taxas e Comissões
             <React.Fragment key={`step-${step}-${index}`}>
               <div
                 className={`flex items-center justify-center w-8 h-8 rounded-full ${
-                  index <= currentStepIndex ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-500'
+                  index <= currentStepIndex
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-200 dark:bg-gray-700 text-gray-500'
                 }`}
               >
                 {index < currentStepIndex ? (
@@ -341,7 +343,7 @@ HOLD Wallet - Sistema de Taxas e Comissões
               {index < steps.length - 1 && (
                 <div
                   className={`w-12 h-1 mx-2 ${
-                    index < currentStepIndex ? 'bg-blue-600' : 'bg-gray-700'
+                    index < currentStepIndex ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
                   }`}
                 />
               )}
@@ -354,31 +356,33 @@ HOLD Wallet - Sistema de Taxas e Comissões
 
   if (isLoading) {
     return (
-      <div className='min-h-screen bg-gray-900 flex items-center justify-center'>
+      <div className='min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center'>
         <div className='text-center'>
           <RefreshCwIcon className='w-12 h-12 text-blue-600 animate-spin mx-auto mb-4' />
-          <p className='text-gray-400'>Verificando status da carteira...</p>
+          <p className='text-gray-500 dark:text-gray-400'>Verificando status da carteira...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className='p-6 space-y-6 bg-gray-900 min-h-screen'>
+    <div className='p-6 space-y-6 bg-gray-50 dark:bg-gray-900 min-h-screen'>
       {/* Header */}
       <div className='flex flex-col md:flex-row md:items-center justify-between gap-4'>
         <div>
-          <h1 className='text-2xl font-bold text-white flex items-center gap-2'>
-            <WalletIcon className='w-7 h-7 text-green-400' />
+          <h1 className='text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2'>
+            <WalletIcon className='w-7 h-7 text-green-600 dark:text-green-400' />
             Carteira Blockchain do Sistema
           </h1>
-          <p className='text-gray-400'>Carteira para receber taxas e comissões em 16 redes</p>
+          <p className='text-gray-500 dark:text-gray-400'>
+            Carteira para receber taxas e comissões em 16 redes
+          </p>
         </div>
         {walletStatus?.exists && (
           <div className='flex gap-3'>
             <button
               onClick={() => refetch()}
-              className='flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors'
+              className='flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-900 dark:text-white rounded-lg transition-colors'
             >
               <RefreshCwIcon className='w-4 h-4' />
               Atualizar
@@ -403,22 +407,24 @@ HOLD Wallet - Sistema de Taxas e Comissões
           {/* Stats Cards */}
           <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4'>
             {/* Card: Redes Ativas */}
-            <div className='bg-gradient-to-br from-blue-900/30 to-blue-800/20 border border-blue-700/30 rounded-xl p-4 hover:border-blue-600/50 transition-all'>
+            <div className='bg-gradient-to-br from-blue-100 dark:from-blue-900/30 to-blue-50 dark:to-blue-800/20 border border-blue-200 dark:border-blue-700/30 rounded-xl p-4 hover:border-blue-400 dark:hover:border-blue-600/50 transition-all'>
               <div className='flex items-center justify-between'>
                 <div className='p-2.5 bg-blue-500/20 rounded-lg'>
-                  <NetworkIcon className='w-5 h-5 text-blue-400' />
+                  <NetworkIcon className='w-5 h-5 text-blue-600 dark:text-blue-400' />
                 </div>
-                <p className='text-2xl font-bold text-white'>{walletStatus.networks_count || 16}</p>
+                <p className='text-2xl font-bold text-gray-900 dark:text-white'>
+                  {walletStatus.networks_count || 16}
+                </p>
               </div>
-              <p className='text-sm text-gray-400 mt-3'>Redes Ativas</p>
-              <p className='text-xs text-gray-500'>Blockchains configuradas</p>
+              <p className='text-sm text-gray-500 dark:text-gray-400 mt-3'>Redes Ativas</p>
+              <p className='text-xs text-gray-400 dark:text-gray-500'>Blockchains configuradas</p>
             </div>
 
             {/* Card: Total Stablecoins */}
-            <div className='bg-gradient-to-br from-green-900/30 to-green-800/20 border border-green-700/30 rounded-xl p-4 hover:border-green-600/50 transition-all'>
+            <div className='bg-gradient-to-br from-green-100 dark:from-green-900/30 to-green-50 dark:to-green-800/20 border border-green-200 dark:border-green-700/30 rounded-xl p-4 hover:border-green-400 dark:hover:border-green-600/50 transition-all'>
               <div className='flex items-center justify-between'>
-                <p className='text-sm text-gray-400'>Stablecoins</p>
-                <p className='text-xl font-bold text-green-400'>
+                <p className='text-sm text-gray-500 dark:text-gray-400'>Stablecoins</p>
+                <p className='text-xl font-bold text-green-600 dark:text-green-400'>
                   $
                   {(
                     (walletStatus.cached_balances?.USDT || 0) +
@@ -427,23 +433,23 @@ HOLD Wallet - Sistema de Taxas e Comissões
                 </p>
               </div>
               <div className='flex items-center gap-4 mt-3'>
-                <div className='flex items-center gap-2 bg-black/20 px-2 py-1 rounded-lg'>
+                <div className='flex items-center gap-2 bg-black/10 dark:bg-black/20 px-2 py-1 rounded-lg'>
                   <img
                     src='https://cryptologos.cc/logos/tether-usdt-logo.png'
                     alt='USDT'
                     className='w-4 h-4'
                   />
-                  <span className='text-xs text-gray-300 font-medium'>
+                  <span className='text-xs text-gray-700 dark:text-gray-300 font-medium'>
                     ${(walletStatus.cached_balances?.USDT || 0).toFixed(2)}
                   </span>
                 </div>
-                <div className='flex items-center gap-2 bg-black/20 px-2 py-1 rounded-lg'>
+                <div className='flex items-center gap-2 bg-black/10 dark:bg-black/20 px-2 py-1 rounded-lg'>
                   <img
                     src='https://cryptologos.cc/logos/usd-coin-usdc-logo.png'
                     alt='USDC'
                     className='w-4 h-4'
                   />
-                  <span className='text-xs text-gray-300 font-medium'>
+                  <span className='text-xs text-gray-700 dark:text-gray-300 font-medium'>
                     ${(walletStatus.cached_balances?.USDC || 0).toFixed(2)}
                   </span>
                 </div>
@@ -451,19 +457,19 @@ HOLD Wallet - Sistema de Taxas e Comissões
             </div>
 
             {/* Card: Gas Fees (Nativos) */}
-            <div className='bg-gradient-to-br from-purple-900/30 to-purple-800/20 border border-purple-700/30 rounded-xl p-4 hover:border-purple-600/50 transition-all'>
-              <p className='text-sm text-gray-400 mb-3'>Gas Fees</p>
+            <div className='bg-gradient-to-br from-purple-100 dark:from-purple-900/30 to-purple-50 dark:to-purple-800/20 border border-purple-200 dark:border-purple-700/30 rounded-xl p-4 hover:border-purple-400 dark:hover:border-purple-600/50 transition-all'>
+              <p className='text-sm text-gray-500 dark:text-gray-400 mb-3'>Gas Fees</p>
               <div className='space-y-2'>
-                <div className='flex items-center justify-between bg-black/20 px-2 py-1.5 rounded-lg'>
+                <div className='flex items-center justify-between bg-black/10 dark:bg-black/20 px-2 py-1.5 rounded-lg'>
                   <div className='flex items-center gap-2'>
                     <img
                       src='https://cryptologos.cc/logos/ethereum-eth-logo.png'
                       alt='ETH'
                       className='w-4 h-4'
                     />
-                    <span className='text-xs text-gray-400'>ETH</span>
+                    <span className='text-xs text-gray-500 dark:text-gray-400'>ETH</span>
                   </div>
-                  <span className='text-xs text-white font-medium'>
+                  <span className='text-xs text-gray-900 dark:text-white font-medium'>
                     {(
                       walletStatus.cached_balances?.ETHEREUM ||
                       walletStatus.cached_balances?.ETH ||
@@ -471,16 +477,16 @@ HOLD Wallet - Sistema de Taxas e Comissões
                     ).toFixed(4)}
                   </span>
                 </div>
-                <div className='flex items-center justify-between bg-black/20 px-2 py-1.5 rounded-lg'>
+                <div className='flex items-center justify-between bg-black/10 dark:bg-black/20 px-2 py-1.5 rounded-lg'>
                   <div className='flex items-center gap-2'>
                     <img
                       src='https://cryptologos.cc/logos/polygon-matic-logo.png'
                       alt='MATIC'
                       className='w-4 h-4'
                     />
-                    <span className='text-xs text-gray-400'>MATIC</span>
+                    <span className='text-xs text-gray-500 dark:text-gray-400'>MATIC</span>
                   </div>
-                  <span className='text-xs text-white font-medium'>
+                  <span className='text-xs text-gray-900 dark:text-white font-medium'>
                     {(
                       walletStatus.cached_balances?.POLYGON ||
                       walletStatus.cached_balances?.MATIC ||
@@ -488,16 +494,16 @@ HOLD Wallet - Sistema de Taxas e Comissões
                     ).toFixed(4)}
                   </span>
                 </div>
-                <div className='flex items-center justify-between bg-black/20 px-2 py-1.5 rounded-lg'>
+                <div className='flex items-center justify-between bg-black/10 dark:bg-black/20 px-2 py-1.5 rounded-lg'>
                   <div className='flex items-center gap-2'>
                     <img
                       src='https://cryptologos.cc/logos/bnb-bnb-logo.png'
                       alt='BNB'
                       className='w-4 h-4'
                     />
-                    <span className='text-xs text-gray-400'>BNB</span>
+                    <span className='text-xs text-gray-500 dark:text-gray-400'>BNB</span>
                   </div>
-                  <span className='text-xs text-white font-medium'>
+                  <span className='text-xs text-gray-900 dark:text-white font-medium'>
                     {(
                       walletStatus.cached_balances?.BSC ||
                       walletStatus.cached_balances?.BNB ||
@@ -509,18 +515,22 @@ HOLD Wallet - Sistema de Taxas e Comissões
             </div>
 
             {/* Card: Status */}
-            <div className='bg-gradient-to-br from-emerald-900/30 to-emerald-800/20 border border-emerald-700/30 rounded-xl p-4 hover:border-emerald-600/50 transition-all'>
+            <div className='bg-gradient-to-br from-emerald-100 dark:from-emerald-900/30 to-emerald-50 dark:to-emerald-800/20 border border-emerald-200 dark:border-emerald-700/30 rounded-xl p-4 hover:border-emerald-400 dark:hover:border-emerald-600/50 transition-all'>
               <div className='flex items-center justify-between'>
                 <div className='p-2.5 bg-emerald-500/20 rounded-lg'>
-                  <ActivityIcon className='w-5 h-5 text-emerald-400' />
+                  <ActivityIcon className='w-5 h-5 text-emerald-600 dark:text-emerald-400' />
                 </div>
                 <div className='flex items-center gap-2'>
                   <span className='w-2 h-2 bg-emerald-500 rounded-full animate-pulse' />
-                  <span className='text-lg font-bold text-emerald-400'>Ativa</span>
+                  <span className='text-lg font-bold text-emerald-600 dark:text-emerald-400'>
+                    Ativa
+                  </span>
                 </div>
               </div>
-              <p className='text-sm text-gray-400 mt-3'>Status do Sistema</p>
-              <p className='text-xs text-emerald-500/80'>100% operacional</p>
+              <p className='text-sm text-gray-500 dark:text-gray-400 mt-3'>Status do Sistema</p>
+              <p className='text-xs text-emerald-600/80 dark:text-emerald-500/80'>
+                100% operacional
+              </p>
             </div>
           </div>
 
@@ -529,16 +539,18 @@ HOLD Wallet - Sistema de Taxas e Comissões
             {/* Coluna Principal - Informações da Carteira */}
             <div className='lg:col-span-2 space-y-6'>
               {/* Card: Status da Carteira */}
-              <div className='bg-gray-800 rounded-xl p-6 border border-gray-700'>
+              <div className='bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700'>
                 <div className='flex items-center justify-between mb-6'>
                   <div className='flex items-center gap-3'>
                     <div className='w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center'>
                       <WalletIcon className='w-6 h-6 text-white' />
                     </div>
                     <div>
-                      <h2 className='text-xl font-bold text-white'>Carteira do Sistema</h2>
+                      <h2 className='text-xl font-bold text-gray-900 dark:text-white'>
+                        Carteira do Sistema
+                      </h2>
                       <div className='flex items-center gap-2 mt-1'>
-                        <span className='flex items-center gap-1 px-2 py-0.5 bg-green-900/30 text-green-400 rounded-full text-xs font-medium'>
+                        <span className='flex items-center gap-1 px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-full text-xs font-medium'>
                           <span className='w-2 h-2 bg-green-500 rounded-full animate-pulse' /> Ativa
                         </span>
                         <span className='text-gray-500 text-sm'>{walletStatus.name}</span>
@@ -550,47 +562,49 @@ HOLD Wallet - Sistema de Taxas e Comissões
                       navigator.clipboard.writeText(walletStatus.wallet_id || '')
                       toast.success('ID copiado!')
                     }}
-                    className='p-2 hover:bg-gray-700 rounded-lg transition-colors'
+                    className='p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors'
                     title='Copiar ID'
                   >
-                    <CopyIcon className='w-5 h-5 text-gray-400' />
+                    <CopyIcon className='w-5 h-5 text-gray-500 dark:text-gray-400' />
                   </button>
                 </div>
 
                 {/* Detalhes */}
                 <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-                  <div className='bg-gray-700/30 rounded-lg p-4'>
-                    <div className='flex items-center gap-2 text-gray-400 text-sm mb-1'>
+                  <div className='bg-gray-100 dark:bg-gray-700/30 rounded-lg p-4'>
+                    <div className='flex items-center gap-2 text-gray-500 dark:text-gray-400 text-sm mb-1'>
                       <DatabaseIcon className='w-4 h-4' />
                       ID da Carteira
                     </div>
-                    <p className='text-white font-mono text-sm'>
+                    <p className='text-gray-900 dark:text-white font-mono text-sm'>
                       {walletStatus.wallet_id?.slice(0, 16)}...
                     </p>
                   </div>
-                  <div className='bg-gray-700/30 rounded-lg p-4'>
-                    <div className='flex items-center gap-2 text-gray-400 text-sm mb-1'>
+                  <div className='bg-gray-100 dark:bg-gray-700/30 rounded-lg p-4'>
+                    <div className='flex items-center gap-2 text-gray-500 dark:text-gray-400 text-sm mb-1'>
                       <NetworkIcon className='w-4 h-4' />
                       Redes Configuradas
                     </div>
-                    <p className='text-white font-semibold'>{walletStatus.networks_count} redes</p>
+                    <p className='text-gray-900 dark:text-white font-semibold'>
+                      {walletStatus.networks_count} redes
+                    </p>
                   </div>
-                  <div className='bg-gray-700/30 rounded-lg p-4'>
-                    <div className='flex items-center gap-2 text-gray-400 text-sm mb-1'>
+                  <div className='bg-gray-100 dark:bg-gray-700/30 rounded-lg p-4'>
+                    <div className='flex items-center gap-2 text-gray-500 dark:text-gray-400 text-sm mb-1'>
                       <ShieldIcon className='w-4 h-4' />
                       Segurança
                     </div>
-                    <p className='text-green-400 font-semibold flex items-center gap-1'>
+                    <p className='text-green-600 dark:text-green-400 font-semibold flex items-center gap-1'>
                       <CheckCircleIcon className='w-4 h-4' />
                       AES-256 Encrypted
                     </p>
                   </div>
-                  <div className='bg-gray-700/30 rounded-lg p-4'>
-                    <div className='flex items-center gap-2 text-gray-400 text-sm mb-1'>
+                  <div className='bg-gray-100 dark:bg-gray-700/30 rounded-lg p-4'>
+                    <div className='flex items-center gap-2 text-gray-500 dark:text-gray-400 text-sm mb-1'>
                       <KeyIcon className='w-4 h-4' />
                       Tipo
                     </div>
-                    <p className='text-white font-semibold'>HD Wallet (BIP39)</p>
+                    <p className='text-gray-900 dark:text-white font-semibold'>HD Wallet (BIP39)</p>
                   </div>
                 </div>
               </div>
@@ -598,13 +612,15 @@ HOLD Wallet - Sistema de Taxas e Comissões
               {/* Card: Saldos em Cache */}
               {walletStatus.cached_balances &&
                 Object.keys(walletStatus.cached_balances).length > 0 && (
-                  <div className='bg-gray-800 rounded-xl p-6 border border-gray-700'>
+                  <div className='bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700'>
                     <div className='flex items-center justify-between mb-4'>
-                      <h3 className='text-lg font-semibold text-white flex items-center gap-2'>
-                        <TrendingUpIcon className='w-5 h-5 text-green-400' />
+                      <h3 className='text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2'>
+                        <TrendingUpIcon className='w-5 h-5 text-green-600 dark:text-green-400' />
                         Saldos em Cache
                       </h3>
-                      <span className='text-xs text-gray-500'>Última sincronização: agora</span>
+                      <span className='text-xs text-gray-400 dark:text-gray-500'>
+                        Última sincronização: agora
+                      </span>
                     </div>
                     <div className='grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3'>
                       {Object.entries(walletStatus.cached_balances)
@@ -646,13 +662,15 @@ HOLD Wallet - Sistema de Taxas e Comissões
                           return (
                             <div
                               key={symbol}
-                              className='bg-gray-700/50 rounded-lg p-3 border border-gray-600/50 hover:border-gray-500/50 transition-all'
+                              className='bg-gray-100 dark:bg-gray-700/50 rounded-lg p-3 border border-gray-200 dark:border-gray-600/50 hover:border-gray-300 dark:hover:border-gray-500/50 transition-all'
                             >
                               <div className='flex items-center gap-2 mb-1'>
                                 {logo && <img src={logo} alt={symbol} className='w-5 h-5' />}
-                                <span className='text-xs text-gray-400'>{symbol}</span>
+                                <span className='text-xs text-gray-500 dark:text-gray-400'>
+                                  {symbol}
+                                </span>
                               </div>
-                              <div className='text-lg font-bold text-white'>
+                              <div className='text-lg font-bold text-gray-900 dark:text-white'>
                                 {symbol.includes('USD') && '$'}
                                 {balance.toLocaleString('en-US', {
                                   minimumFractionDigits: symbol.includes('USD') ? 2 : 4,
@@ -667,35 +685,47 @@ HOLD Wallet - Sistema de Taxas e Comissões
                 )}
 
               {/* Card: Fluxo de Taxas */}
-              <div className='bg-gradient-to-br from-amber-900/20 to-orange-900/20 border border-amber-700/30 rounded-xl p-6'>
-                <h3 className='text-lg font-semibold text-amber-200 mb-4 flex items-center gap-2'>
+              <div className='bg-gradient-to-br from-amber-100 dark:from-amber-900/20 to-orange-100 dark:to-orange-900/20 border border-amber-200 dark:border-amber-700/30 rounded-xl p-6'>
+                <h3 className='text-lg font-semibold text-amber-800 dark:text-amber-200 mb-4 flex items-center gap-2'>
                   <TrendingUpIcon className='w-5 h-5' />
                   Como as Taxas são Coletadas
                 </h3>
                 <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
-                  <div className='bg-black/20 rounded-lg p-4'>
+                  <div className='bg-black/10 dark:bg-black/20 rounded-lg p-4'>
                     <div className='flex items-center gap-2 mb-2'>
-                      <ArrowDownLeftIcon className='w-5 h-5 text-green-400' />
-                      <span className='font-semibold text-white'>Trade P2P</span>
+                      <ArrowDownLeftIcon className='w-5 h-5 text-green-600 dark:text-green-400' />
+                      <span className='font-semibold text-gray-900 dark:text-white'>Trade P2P</span>
                     </div>
-                    <div className='text-2xl font-bold text-green-400'>0.5%</div>
-                    <div className='text-xs text-gray-400 mt-1'>Por transação completa</div>
+                    <div className='text-2xl font-bold text-green-600 dark:text-green-400'>
+                      0.5%
+                    </div>
+                    <div className='text-xs text-gray-500 dark:text-gray-400 mt-1'>
+                      Por transação completa
+                    </div>
                   </div>
-                  <div className='bg-black/20 rounded-lg p-4'>
+                  <div className='bg-black/10 dark:bg-black/20 rounded-lg p-4'>
                     <div className='flex items-center gap-2 mb-2'>
-                      <ArrowUpRightIcon className='w-5 h-5 text-blue-400' />
-                      <span className='font-semibold text-white'>Trade OTC</span>
+                      <ArrowUpRightIcon className='w-5 h-5 text-blue-600 dark:text-blue-400' />
+                      <span className='font-semibold text-gray-900 dark:text-white'>Trade OTC</span>
                     </div>
-                    <div className='text-2xl font-bold text-blue-400'>3%</div>
-                    <div className='text-xs text-gray-400 mt-1'>Spread embutido</div>
+                    <div className='text-2xl font-bold text-blue-600 dark:text-blue-400'>3%</div>
+                    <div className='text-xs text-gray-500 dark:text-gray-400 mt-1'>
+                      Spread embutido
+                    </div>
                   </div>
-                  <div className='bg-black/20 rounded-lg p-4'>
+                  <div className='bg-black/10 dark:bg-black/20 rounded-lg p-4'>
                     <div className='flex items-center gap-2 mb-2'>
-                      <ZapIcon className='w-5 h-5 text-purple-400' />
-                      <span className='font-semibold text-white'>Taxa de Rede</span>
+                      <ZapIcon className='w-5 h-5 text-purple-600 dark:text-purple-400' />
+                      <span className='font-semibold text-gray-900 dark:text-white'>
+                        Taxa de Rede
+                      </span>
                     </div>
-                    <div className='text-2xl font-bold text-purple-400'>0.25%</div>
-                    <div className='text-xs text-gray-400 mt-1'>Saques externos</div>
+                    <div className='text-2xl font-bold text-purple-600 dark:text-purple-400'>
+                      0.25%
+                    </div>
+                    <div className='text-xs text-gray-500 dark:text-gray-400 mt-1'>
+                      Saques externos
+                    </div>
                   </div>
                 </div>
               </div>
@@ -704,9 +734,9 @@ HOLD Wallet - Sistema de Taxas e Comissões
             {/* Coluna Lateral - Ações Rápidas */}
             <div className='space-y-6'>
               {/* Card: Ações Rápidas */}
-              <div className='bg-gray-800 rounded-xl p-6 border border-gray-700'>
-                <h3 className='text-lg font-semibold text-white mb-4 flex items-center gap-2'>
-                  <SettingsIcon className='w-5 h-5 text-gray-400' />
+              <div className='bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700'>
+                <h3 className='text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2'>
+                  <SettingsIcon className='w-5 h-5 text-gray-500 dark:text-gray-400' />
                   Ações Rápidas
                 </h3>
                 <div className='space-y-3'>
@@ -771,27 +801,27 @@ HOLD Wallet - Sistema de Taxas e Comissões
               </div>
 
               {/* Card: Informações Técnicas */}
-              <div className='bg-gray-800 rounded-xl p-6 border border-gray-700'>
-                <h3 className='text-lg font-semibold text-white mb-4 flex items-center gap-2'>
-                  <ServerIcon className='w-5 h-5 text-gray-400' />
+              <div className='bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700'>
+                <h3 className='text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2'>
+                  <ServerIcon className='w-5 h-5 text-gray-500 dark:text-gray-400' />
                   Informações Técnicas
                 </h3>
                 <div className='space-y-3 text-sm'>
-                  <div className='flex justify-between py-2 border-b border-gray-700'>
-                    <span className='text-gray-400'>Propósito</span>
-                    <span className='text-blue-400'>Taxas & Comissões</span>
+                  <div className='flex justify-between py-2 border-b border-gray-200 dark:border-gray-700'>
+                    <span className='text-gray-500 dark:text-gray-400'>Propósito</span>
+                    <span className='text-blue-600 dark:text-blue-400'>Taxas & Comissões</span>
                   </div>
-                  <div className='flex justify-between py-2 border-b border-gray-700'>
-                    <span className='text-gray-400'>Criptografia</span>
-                    <span className='text-white'>AES-256</span>
+                  <div className='flex justify-between py-2 border-b border-gray-200 dark:border-gray-700'>
+                    <span className='text-gray-500 dark:text-gray-400'>Criptografia</span>
+                    <span className='text-gray-900 dark:text-white'>AES-256</span>
                   </div>
-                  <div className='flex justify-between py-2 border-b border-gray-700'>
-                    <span className='text-gray-400'>Derivação</span>
-                    <span className='text-white'>BIP39/BIP44</span>
+                  <div className='flex justify-between py-2 border-b border-gray-200 dark:border-gray-700'>
+                    <span className='text-gray-500 dark:text-gray-400'>Derivação</span>
+                    <span className='text-gray-900 dark:text-white'>BIP39/BIP44</span>
                   </div>
                   <div className='flex justify-between py-2'>
-                    <span className='text-gray-400'>Backup</span>
-                    <span className='text-green-400 flex items-center gap-1'>
+                    <span className='text-gray-500 dark:text-gray-400'>Backup</span>
+                    <span className='text-green-600 dark:text-green-400 flex items-center gap-1'>
                       <CheckCircleIcon className='w-4 h-4' />
                       Configurado
                     </span>
@@ -800,12 +830,14 @@ HOLD Wallet - Sistema de Taxas e Comissões
               </div>
 
               {/* Card: Aviso de Segurança */}
-              <div className='bg-amber-900/20 border border-amber-700/30 rounded-xl p-4'>
+              <div className='bg-amber-100 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/30 rounded-xl p-4'>
                 <div className='flex gap-3'>
-                  <AlertTriangleIcon className='w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5' />
+                  <AlertTriangleIcon className='w-5 h-5 text-amber-600 dark:text-amber-500 flex-shrink-0 mt-0.5' />
                   <div>
-                    <h4 className='font-semibold text-amber-200 text-sm'>Segurança</h4>
-                    <p className='text-amber-300/70 text-xs mt-1'>
+                    <h4 className='font-semibold text-amber-800 dark:text-amber-200 text-sm'>
+                      Segurança
+                    </h4>
+                    <p className='text-amber-700/70 dark:text-amber-300/70 text-xs mt-1'>
                       A frase de recuperação desta carteira deve estar guardada em local seguro.
                       Nunca compartilhe ou armazene digitalmente.
                     </p>
@@ -819,27 +851,31 @@ HOLD Wallet - Sistema de Taxas e Comissões
 
       {/* Content - Carteira não existe */}
       {!walletStatus?.exists && (
-        <div className='bg-gray-800 rounded-xl p-6 lg:p-8'>
+        <div className='bg-white dark:bg-gray-800 rounded-xl p-6 lg:p-8 border border-gray-200 dark:border-transparent'>
           {/* Step: Info - Sem carteira */}
           {currentStep === 'info' && (
             <div className='space-y-8'>
               <div className='text-center'>
-                <div className='w-20 h-20 bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4'>
+                <div className='w-20 h-20 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4'>
                   <ServerIcon className='w-12 h-12 text-blue-600' />
                 </div>
-                <h2 className='text-2xl font-bold text-white mb-2'>Criar Carteira do Sistema</h2>
-                <p className='text-gray-400'>
+                <h2 className='text-2xl font-bold text-gray-900 dark:text-white mb-2'>
+                  Criar Carteira do Sistema
+                </h2>
+                <p className='text-gray-500 dark:text-gray-400'>
                   Crie a carteira blockchain para receber taxas e comissões da plataforma
                 </p>
               </div>
 
               {/* Aviso de Segurança */}
-              <div className='bg-amber-900/20 border border-amber-800 rounded-xl p-4'>
+              <div className='bg-amber-100 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4'>
                 <div className='flex gap-3'>
                   <AlertTriangleIcon className='w-6 h-6 text-amber-600 flex-shrink-0' />
                   <div>
-                    <h3 className='font-semibold text-amber-200'>Atenção: Operação Crítica</h3>
-                    <p className='text-amber-300 text-sm mt-1'>
+                    <h3 className='font-semibold text-amber-800 dark:text-amber-200'>
+                      Atenção: Operação Crítica
+                    </h3>
+                    <p className='text-amber-700 dark:text-amber-300 text-sm mt-1'>
                       Esta carteira armazenará todas as taxas coletadas. A frase de recuperação de{' '}
                       <strong>12 palavras</strong> será exibida <strong>apenas uma vez</strong>.
                       Você DEVE salvá-la em local seguro antes de continuar.
@@ -850,31 +886,35 @@ HOLD Wallet - Sistema de Taxas e Comissões
 
               {/* Recursos */}
               <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-                <div className='bg-gray-700/50 rounded-xl p-4'>
+                <div className='bg-gray-100 dark:bg-gray-700/50 rounded-xl p-4'>
                   <NetworkIcon className='w-8 h-8 text-blue-600 mb-2' />
-                  <h4 className='font-semibold text-white'>16 Redes Suportadas</h4>
-                  <p className='text-sm text-gray-400'>
+                  <h4 className='font-semibold text-gray-900 dark:text-white'>
+                    16 Redes Suportadas
+                  </h4>
+                  <p className='text-sm text-gray-500 dark:text-gray-400'>
                     Bitcoin, Ethereum, Polygon, BSC, Solana, Tron e mais
                   </p>
                 </div>
-                <div className='bg-gray-700/50 rounded-xl p-4'>
+                <div className='bg-gray-100 dark:bg-gray-700/50 rounded-xl p-4'>
                   <KeyIcon className='w-8 h-8 text-green-600 mb-2' />
-                  <h4 className='font-semibold text-white'>12 Palavras (BIP39)</h4>
-                  <p className='text-sm text-gray-400'>
+                  <h4 className='font-semibold text-gray-900 dark:text-white'>
+                    12 Palavras (BIP39)
+                  </h4>
+                  <p className='text-sm text-gray-500 dark:text-gray-400'>
                     Mesmo padrão de segurança das carteiras dos clientes
                   </p>
                 </div>
-                <div className='bg-gray-700/50 rounded-xl p-4'>
+                <div className='bg-gray-100 dark:bg-gray-700/50 rounded-xl p-4'>
                   <LockIcon className='w-8 h-8 text-purple-600 mb-2' />
-                  <h4 className='font-semibold text-white'>Criptografia AES</h4>
-                  <p className='text-sm text-gray-400'>
+                  <h4 className='font-semibold text-gray-900 dark:text-white'>Criptografia AES</h4>
+                  <p className='text-sm text-gray-500 dark:text-gray-400'>
                     Chaves privadas criptografadas com segurança máxima
                   </p>
                 </div>
-                <div className='bg-gray-700/50 rounded-xl p-4'>
+                <div className='bg-gray-100 dark:bg-gray-700/50 rounded-xl p-4'>
                   <ShieldIcon className='w-8 h-8 text-red-600 mb-2' />
-                  <h4 className='font-semibold text-white'>Apenas Admins</h4>
-                  <p className='text-sm text-gray-400'>
+                  <h4 className='font-semibold text-gray-900 dark:text-white'>Apenas Admins</h4>
+                  <p className='text-sm text-gray-500 dark:text-gray-400'>
                     Somente administradores têm acesso a esta carteira
                   </p>
                 </div>
@@ -901,8 +941,12 @@ HOLD Wallet - Sistema de Taxas e Comissões
           {currentStep === 'creating' && (
             <div className='text-center py-12'>
               <RefreshCwIcon className='w-16 h-16 text-blue-600 animate-spin mx-auto mb-6' />
-              <h2 className='text-2xl font-bold text-white mb-2'>Criando Carteira do Sistema</h2>
-              <p className='text-gray-400'>Gerando chaves seguras para 16 redes...</p>
+              <h2 className='text-2xl font-bold text-gray-900 dark:text-white mb-2'>
+                Criando Carteira do Sistema
+              </h2>
+              <p className='text-gray-500 dark:text-gray-400'>
+                Gerando chaves seguras para 16 redes...
+              </p>
             </div>
           )}
 
@@ -910,22 +954,26 @@ HOLD Wallet - Sistema de Taxas e Comissões
           {currentStep === 'mnemonic-display' && walletData && (
             <div className='space-y-6'>
               <div className='text-center'>
-                <div className='w-16 h-16 bg-amber-900/30 rounded-full flex items-center justify-center mx-auto mb-4'>
+                <div className='w-16 h-16 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mx-auto mb-4'>
                   <KeyIcon className='w-10 h-10 text-amber-600' />
                 </div>
-                <h2 className='text-2xl font-bold text-white mb-2'>Sua Frase de Recuperação</h2>
-                <p className='text-gray-400'>
+                <h2 className='text-2xl font-bold text-gray-900 dark:text-white mb-2'>
+                  Sua Frase de Recuperação
+                </h2>
+                <p className='text-gray-500 dark:text-gray-400'>
                   Estas 12 palavras são a ÚNICA forma de recuperar esta carteira
                 </p>
               </div>
 
               {/* Aviso Crítico */}
-              <div className='bg-red-900/20 border border-red-800 rounded-xl p-4'>
+              <div className='bg-red-100 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4'>
                 <div className='flex gap-3'>
                   <AlertTriangleIcon className='w-6 h-6 text-red-600 flex-shrink-0' />
                   <div>
-                    <h3 className='font-semibold text-red-200'>⚠️ AVISO CRÍTICO</h3>
-                    <ul className='text-red-300 text-sm mt-1 space-y-1'>
+                    <h3 className='font-semibold text-red-700 dark:text-red-200'>
+                      ⚠️ AVISO CRÍTICO
+                    </h3>
+                    <ul className='text-red-600 dark:text-red-300 text-sm mt-1 space-y-1'>
                       <li>• Esta frase será exibida APENAS AGORA</li>
                       <li>• Anote em papel e guarde em cofre físico</li>
                       <li>• NUNCA salve em computador ou nuvem</li>
@@ -936,17 +984,19 @@ HOLD Wallet - Sistema de Taxas e Comissões
               </div>
 
               {/* Mnemonic Display */}
-              <div className='bg-gray-950 rounded-xl p-6'>
+              <div className='bg-gray-100 dark:bg-gray-950 rounded-xl p-6'>
                 <div className='flex justify-between items-center mb-4'>
-                  <span className='text-gray-400 text-sm'>Frase de Recuperação (12 palavras)</span>
+                  <span className='text-gray-500 dark:text-gray-400 text-sm'>
+                    Frase de Recuperação (12 palavras)
+                  </span>
                   <div className='flex gap-2'>
                     <button
                       onClick={() => setShowMnemonic(!showMnemonic)}
-                      className='p-2 hover:bg-gray-800 rounded-lg transition-colors'
+                      className='p-2 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors'
                       title={showMnemonic ? 'Ocultar' : 'Mostrar'}
                     >
                       {showMnemonic ? (
-                        <EyeOffIcon className='w-5 h-5 text-gray-400' />
+                        <EyeOffIcon className='w-5 h-5 text-gray-500 dark:text-gray-400' />
                       ) : (
                         <EyeIcon className='w-5 h-5 text-gray-400' />
                       )}

@@ -207,16 +207,16 @@ export default function AdminFeesPage() {
 
   // Loading skeleton
   const Skeleton = ({ className = '' }: { className?: string }) => (
-    <div className={`animate-pulse bg-gray-700 rounded ${className}`}></div>
+    <div className={`animate-pulse bg-gray-200 dark:bg-gray-700 rounded ${className}`}></div>
   )
 
   return (
-    <div className='p-4 space-y-4 bg-gray-900 min-h-screen'>
+    <div className='p-4 space-y-4 bg-gray-50 dark:bg-gray-900 min-h-screen'>
       {/* Header Compacto */}
       <div className='flex items-center justify-between gap-2'>
         <div>
-          <h1 className='text-base font-semibold text-white flex items-center gap-2'>
-            <DollarSign className='h-4 w-4 text-green-400' />
+          <h1 className='text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2'>
+            <DollarSign className='h-4 w-4 text-green-500 dark:text-green-400' />
             Platform Revenue
           </h1>
         </div>
@@ -224,7 +224,7 @@ export default function AdminFeesPage() {
           <select
             value={period}
             onChange={e => setPeriod(e.target.value)}
-            className='bg-gray-800 border border-gray-700 text-white rounded text-xs px-2 py-1'
+            className='bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded text-xs px-2 py-1'
             title='Período'
           >
             <option value='day'>24h</option>
@@ -235,10 +235,10 @@ export default function AdminFeesPage() {
           </select>
           <button
             onClick={() => refetchSummary()}
-            className='p-1.5 bg-gray-800 border border-gray-700 rounded hover:bg-gray-700'
+            className='p-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded hover:bg-gray-100 dark:hover:bg-gray-700'
             title='Atualizar'
           >
-            <RefreshCw className='h-4 w-4 text-gray-400' />
+            <RefreshCw className='h-4 w-4 text-gray-500 dark:text-gray-400' />
           </button>
         </div>
       </div>
@@ -246,17 +246,17 @@ export default function AdminFeesPage() {
       {/* Summary Cards - Compactos */}
       <div className='grid grid-cols-2 lg:grid-cols-4 gap-3'>
         {/* Total Fees */}
-        <div className='bg-gradient-to-br from-green-900/30 to-green-800/20 border border-green-700/30 rounded-lg p-3'>
+        <div className='bg-gradient-to-br from-green-100 dark:from-green-900/30 to-green-50 dark:to-green-800/20 border border-green-200 dark:border-green-700/30 rounded-lg p-3'>
           <div className='flex items-center gap-2'>
             <div className='p-2 bg-green-500/20 rounded-full'>
-              <DollarSign className='h-4 w-4 text-green-400' />
+              <DollarSign className='h-4 w-4 text-green-600 dark:text-green-400' />
             </div>
             <div>
-              <p className='text-xs text-gray-400'>Total Fees</p>
+              <p className='text-xs text-gray-500 dark:text-gray-400'>Total Fees</p>
               {summaryLoading ? (
                 <Skeleton className='h-5 w-20' />
               ) : (
-                <p className='text-base font-bold text-white'>
+                <p className='text-base font-bold text-gray-900 dark:text-white'>
                   {formatUSD(summary.total_fees_brl)}
                 </p>
               )}
@@ -265,51 +265,55 @@ export default function AdminFeesPage() {
         </div>
 
         {/* Transactions */}
-        <div className='bg-gradient-to-br from-blue-900/30 to-blue-800/20 border border-blue-700/30 rounded-lg p-3'>
+        <div className='bg-gradient-to-br from-blue-100 dark:from-blue-900/30 to-blue-50 dark:to-blue-800/20 border border-blue-200 dark:border-blue-700/30 rounded-lg p-3'>
           <div className='flex items-center gap-2'>
             <div className='p-2 bg-blue-500/20 rounded-full'>
-              <Activity className='h-4 w-4 text-blue-400' />
+              <Activity className='h-4 w-4 text-blue-600 dark:text-blue-400' />
             </div>
             <div>
-              <p className='text-xs text-gray-400'>Transactions</p>
+              <p className='text-xs text-gray-500 dark:text-gray-400'>Transactions</p>
               {summaryLoading ? (
                 <Skeleton className='h-5 w-16' />
               ) : (
-                <p className='text-base font-bold text-white'>{summary.total_transactions || 0}</p>
+                <p className='text-base font-bold text-gray-900 dark:text-white'>
+                  {summary.total_transactions || 0}
+                </p>
               )}
             </div>
           </div>
         </div>
 
         {/* Average Fee */}
-        <div className='bg-gradient-to-br from-purple-900/30 to-purple-800/20 border border-purple-700/30 rounded-lg p-3'>
+        <div className='bg-gradient-to-br from-purple-100 dark:from-purple-900/30 to-purple-50 dark:to-purple-800/20 border border-purple-200 dark:border-purple-700/30 rounded-lg p-3'>
           <div className='flex items-center gap-2'>
             <div className='p-2 bg-purple-500/20 rounded-full'>
-              <TrendingUp className='h-4 w-4 text-purple-400' />
+              <TrendingUp className='h-4 w-4 text-purple-600 dark:text-purple-400' />
             </div>
             <div>
-              <p className='text-xs text-gray-400'>Avg Fee</p>
+              <p className='text-xs text-gray-500 dark:text-gray-400'>Avg Fee</p>
               {summaryLoading ? (
                 <Skeleton className='h-5 w-16' />
               ) : (
-                <p className='text-base font-bold text-white'>{formatUSD(summary.avg_fee_brl)}</p>
+                <p className='text-base font-bold text-gray-900 dark:text-white'>
+                  {formatUSD(summary.avg_fee_brl)}
+                </p>
               )}
             </div>
           </div>
         </div>
 
         {/* Volume Processed */}
-        <div className='bg-gradient-to-br from-orange-900/30 to-orange-800/20 border border-orange-700/30 rounded-lg p-3'>
+        <div className='bg-gradient-to-br from-orange-100 dark:from-orange-900/30 to-orange-50 dark:to-orange-800/20 border border-orange-200 dark:border-orange-700/30 rounded-lg p-3'>
           <div className='flex items-center gap-2'>
             <div className='p-2 bg-orange-500/20 rounded-full'>
-              <BarChart3 className='h-4 w-4 text-orange-400' />
+              <BarChart3 className='h-4 w-4 text-orange-600 dark:text-orange-400' />
             </div>
             <div>
-              <p className='text-xs text-gray-400'>Volume</p>
+              <p className='text-xs text-gray-500 dark:text-gray-400'>Volume</p>
               {summaryLoading ? (
                 <Skeleton className='h-5 w-20' />
               ) : (
-                <p className='text-base font-bold text-white'>
+                <p className='text-base font-bold text-gray-900 dark:text-white'>
                   {formatUSD(summary.total_volume_processed)}
                 </p>
               )}
@@ -321,14 +325,14 @@ export default function AdminFeesPage() {
       {/* System Wallet & Breakdown */}
       <div className='grid grid-cols-1 lg:grid-cols-3 gap-3'>
         {/* System Wallet Balance - Compacto */}
-        <div className='lg:col-span-2 bg-gray-800/50 border border-gray-700 rounded-lg'>
-          <div className='p-2 border-b border-gray-700 flex items-center justify-between'>
-            <h2 className='text-xs font-medium text-white flex items-center gap-1.5'>
-              <Wallet className='h-3.5 w-3.5 text-yellow-400' />
+        <div className='lg:col-span-2 bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg'>
+          <div className='p-2 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between'>
+            <h2 className='text-xs font-medium text-gray-900 dark:text-white flex items-center gap-1.5'>
+              <Wallet className='h-3.5 w-3.5 text-yellow-500 dark:text-yellow-400' />
               System Wallet
             </h2>
             {systemWallet?.total_stables > 0 && (
-              <span className='text-xs text-green-400 font-medium'>
+              <span className='text-xs text-green-600 dark:text-green-400 font-medium'>
                 Stables: ${systemWallet.total_stables?.toFixed(2)}
               </span>
             )}
@@ -358,18 +362,20 @@ export default function AdminFeesPage() {
                     return (
                       <div
                         key={crypto}
-                        className='flex items-center gap-1.5 p-1.5 bg-gray-900/50 rounded border border-gray-700/50'
+                        className='flex items-center gap-1.5 p-1.5 bg-gray-100 dark:bg-gray-900/50 rounded border border-gray-200 dark:border-gray-700/50'
                       >
                         {logoMap[crypto] ? (
                           <img src={logoMap[crypto]} alt={crypto} className='w-4 h-4' />
                         ) : (
-                          <div className='w-4 h-4 bg-gray-600 rounded-full flex items-center justify-center text-[8px] font-bold'>
+                          <div className='w-4 h-4 bg-gray-400 dark:bg-gray-600 rounded-full flex items-center justify-center text-[8px] font-bold text-white'>
                             {crypto.slice(0, 2)}
                           </div>
                         )}
                         <div className='flex flex-col'>
-                          <span className='text-[10px] text-gray-400'>{crypto}</span>
-                          <span className='text-xs font-medium text-white'>
+                          <span className='text-[10px] text-gray-500 dark:text-gray-400'>
+                            {crypto}
+                          </span>
+                          <span className='text-xs font-medium text-gray-900 dark:text-white'>
                             {crypto.includes('USD') ? '$' : ''}
                             {(balance as number).toFixed(crypto.includes('USD') ? 2 : 4)}
                           </span>
@@ -384,16 +390,18 @@ export default function AdminFeesPage() {
                 )}
               </div>
             ) : (
-              <p className='text-gray-400 text-center py-3 text-xs'>Wallet not found</p>
+              <p className='text-gray-500 dark:text-gray-400 text-center py-3 text-xs'>
+                Wallet not found
+              </p>
             )}
           </div>
         </div>
 
         {/* Fee Breakdown by Type - Compacto */}
-        <div className='bg-gray-800/50 border border-gray-700 rounded-lg'>
-          <div className='p-2 border-b border-gray-700'>
-            <h2 className='text-xs font-medium text-white flex items-center gap-1.5'>
-              <BarChart3 className='h-3.5 w-3.5 text-blue-400' />
+        <div className='bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg'>
+          <div className='p-2 border-b border-gray-200 dark:border-gray-700'>
+            <h2 className='text-xs font-medium text-gray-900 dark:text-white flex items-center gap-1.5'>
+              <BarChart3 className='h-3.5 w-3.5 text-blue-500 dark:text-blue-400' />
               Revenue by Type
             </h2>
           </div>
@@ -409,7 +417,7 @@ export default function AdminFeesPage() {
                 {breakdown.map((item: any) => (
                   <div
                     key={item.fee_type}
-                    className='flex items-center justify-between p-2 bg-gray-900/50 rounded'
+                    className='flex items-center justify-between p-2 bg-gray-100 dark:bg-gray-900/50 rounded'
                   >
                     <div className='flex items-center gap-2'>
                       <span
@@ -422,7 +430,7 @@ export default function AdminFeesPage() {
                       </span>
                     </div>
                     <div className='text-right'>
-                      <span className='text-green-400 font-bold text-xs'>
+                      <span className='text-green-600 dark:text-green-400 font-bold text-xs'>
                         {formatUSD(item.total_fees)}
                       </span>
                       <span className='text-[10px] text-gray-500 ml-1.5'>
@@ -433,17 +441,19 @@ export default function AdminFeesPage() {
                 ))}
               </div>
             ) : (
-              <p className='text-gray-400 text-center py-3 text-xs'>No fees yet</p>
+              <p className='text-gray-500 dark:text-gray-400 text-center py-3 text-xs'>
+                No fees yet
+              </p>
             )}
           </div>
         </div>
       </div>
 
       {/* Daily Revenue Chart - Mais compacto */}
-      <div className='bg-gray-800/50 border border-gray-700 rounded-lg'>
-        <div className='p-2 border-b border-gray-700'>
-          <h2 className='text-xs font-medium text-white flex items-center gap-1.5'>
-            <Clock className='h-3.5 w-3.5 text-purple-400' />
+      <div className='bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg'>
+        <div className='p-2 border-b border-gray-200 dark:border-gray-700'>
+          <h2 className='text-xs font-medium text-gray-900 dark:text-white flex items-center gap-1.5'>
+            <Clock className='h-3.5 w-3.5 text-purple-500 dark:text-purple-400' />
             Daily Revenue (30d)
           </h2>
         </div>
@@ -469,42 +479,46 @@ export default function AdminFeesPage() {
               </div>
 
               {/* Summary */}
-              <div className='grid grid-cols-4 gap-3 mt-3 pt-3 border-t border-gray-700'>
+              <div className='grid grid-cols-4 gap-3 mt-3 pt-3 border-t border-gray-200 dark:border-gray-700'>
                 <div className='text-center'>
-                  <p className='text-gray-400 text-xs'>Revenue</p>
-                  <p className='text-white font-bold text-sm'>
+                  <p className='text-gray-500 dark:text-gray-400 text-xs'>Revenue</p>
+                  <p className='text-gray-900 dark:text-white font-bold text-sm'>
                     {formatUSD(revenueTotals.total_revenue)}
                   </p>
                 </div>
                 <div className='text-center'>
-                  <p className='text-gray-400 text-xs'>Txs</p>
-                  <p className='text-white font-bold text-sm'>{revenueTotals.total_transactions}</p>
+                  <p className='text-gray-500 dark:text-gray-400 text-xs'>Txs</p>
+                  <p className='text-gray-900 dark:text-white font-bold text-sm'>
+                    {revenueTotals.total_transactions}
+                  </p>
                 </div>
                 <div className='text-center'>
-                  <p className='text-gray-400 text-xs'>Volume</p>
-                  <p className='text-white font-bold text-sm'>
+                  <p className='text-gray-500 dark:text-gray-400 text-xs'>Volume</p>
+                  <p className='text-gray-900 dark:text-white font-bold text-sm'>
                     {formatUSD(revenueTotals.total_volume)}
                   </p>
                 </div>
                 <div className='text-center'>
-                  <p className='text-gray-400 text-[10px]'>Avg/Day</p>
-                  <p className='text-white font-bold text-xs'>
+                  <p className='text-gray-500 dark:text-gray-400 text-[10px]'>Avg/Day</p>
+                  <p className='text-gray-900 dark:text-white font-bold text-xs'>
                     {formatUSD(revenueTotals.avg_daily_revenue)}
                   </p>
                 </div>
               </div>
             </div>
           ) : (
-            <p className='text-gray-400 text-center py-3 text-xs'>No revenue data yet</p>
+            <p className='text-gray-500 dark:text-gray-400 text-center py-3 text-xs'>
+              No revenue data yet
+            </p>
           )}
         </div>
       </div>
 
       {/* Recent Fee History - Compacto */}
-      <div className='bg-gray-800/50 border border-gray-700 rounded-lg'>
-        <div className='p-2 border-b border-gray-700'>
-          <h2 className='text-xs font-medium text-white flex items-center gap-1.5'>
-            <Receipt className='h-3.5 w-3.5 text-orange-400' />
+      <div className='bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg'>
+        <div className='p-2 border-b border-gray-200 dark:border-gray-700'>
+          <h2 className='text-xs font-medium text-gray-900 dark:text-white flex items-center gap-1.5'>
+            <Receipt className='h-3.5 w-3.5 text-orange-500 dark:text-orange-400' />
             Recent Fees
           </h2>
         </div>
@@ -519,17 +533,28 @@ export default function AdminFeesPage() {
             <div className='overflow-x-auto'>
               <table className='w-full text-[11px]'>
                 <thead>
-                  <tr className='border-b border-gray-700'>
-                    <th className='text-left py-1.5 px-2 text-gray-400 font-medium'>Date</th>
-                    <th className='text-left py-1.5 px-2 text-gray-400 font-medium'>Type</th>
-                    <th className='text-right py-1.5 px-2 text-gray-400 font-medium'>Fee</th>
-                    <th className='text-left py-1.5 px-2 text-gray-400 font-medium'>Status</th>
+                  <tr className='border-b border-gray-200 dark:border-gray-700'>
+                    <th className='text-left py-1.5 px-2 text-gray-500 dark:text-gray-400 font-medium'>
+                      Date
+                    </th>
+                    <th className='text-left py-1.5 px-2 text-gray-500 dark:text-gray-400 font-medium'>
+                      Type
+                    </th>
+                    <th className='text-right py-1.5 px-2 text-gray-500 dark:text-gray-400 font-medium'>
+                      Fee
+                    </th>
+                    <th className='text-left py-1.5 px-2 text-gray-500 dark:text-gray-400 font-medium'>
+                      Status
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {feeHistory.slice(0, 5).map((fee: any) => (
-                    <tr key={fee.id} className='border-b border-gray-800/50 hover:bg-gray-800/30'>
-                      <td className='py-1.5 px-2 text-gray-400'>
+                    <tr
+                      key={fee.id}
+                      className='border-b border-gray-100 dark:border-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800/30'
+                    >
+                      <td className='py-1.5 px-2 text-gray-500 dark:text-gray-400'>
                         {new Date(fee.created_at).toLocaleDateString('pt-BR')}
                       </td>
                       <td className='py-1.5 px-2'>
@@ -539,7 +564,7 @@ export default function AdminFeesPage() {
                           {getFeeTypeLabel(fee.fee_type)}
                         </span>
                       </td>
-                      <td className='py-1.5 px-2 text-green-400 font-medium text-right'>
+                      <td className='py-1.5 px-2 text-green-600 dark:text-green-400 font-medium text-right'>
                         {formatUSD(fee.fee_amount_brl || fee.fee_amount)}
                       </td>
                       <td className='py-1.5 px-2'>
@@ -555,32 +580,32 @@ export default function AdminFeesPage() {
               </table>
             </div>
           ) : (
-            <p className='text-gray-400 text-center py-3 text-xs'>
+            <p className='text-gray-500 dark:text-gray-400 text-center py-3 text-xs'>
               No fee transactions recorded yet.
             </p>
           )}
 
           {/* Pagination */}
           {pagination.pages > 1 && (
-            <div className='flex justify-center items-center gap-2 mt-2 pt-2 border-t border-gray-700'>
+            <div className='flex justify-center items-center gap-2 mt-2 pt-2 border-t border-gray-200 dark:border-gray-700'>
               <button
                 onClick={() => setHistoryPage(p => Math.max(1, p - 1))}
                 disabled={historyPage === 1}
-                className='p-1 bg-gray-800 rounded disabled:opacity-50 hover:bg-gray-700'
+                className='p-1 bg-gray-100 dark:bg-gray-800 rounded disabled:opacity-50 hover:bg-gray-200 dark:hover:bg-gray-700'
                 title='Página anterior'
               >
-                <ChevronLeft className='h-3 w-3 text-gray-400' />
+                <ChevronLeft className='h-3 w-3 text-gray-500 dark:text-gray-400' />
               </button>
-              <span className='text-gray-400 text-[10px]'>
+              <span className='text-gray-500 dark:text-gray-400 text-[10px]'>
                 {historyPage}/{pagination.pages}
               </span>
               <button
                 onClick={() => setHistoryPage(p => Math.min(pagination.pages, p + 1))}
                 disabled={historyPage === pagination.pages}
-                className='p-1 bg-gray-800 rounded disabled:opacity-50 hover:bg-gray-700'
+                className='p-1 bg-gray-100 dark:bg-gray-800 rounded disabled:opacity-50 hover:bg-gray-200 dark:hover:bg-gray-700'
                 title='Próxima página'
               >
-                <ChevronRight className='h-3 w-3 text-gray-400' />
+                <ChevronRight className='h-3 w-3 text-gray-500 dark:text-gray-400' />
               </button>
             </div>
           )}
@@ -588,52 +613,52 @@ export default function AdminFeesPage() {
       </div>
 
       {/* OTC Trade Commissions - Mais compacto */}
-      <div className='bg-gradient-to-r from-purple-900/20 to-blue-900/20 border border-purple-700/30 rounded-lg'>
-        <div className='p-2 border-b border-purple-700/30'>
-          <h2 className='text-xs font-semibold text-white flex items-center gap-1.5'>
-            <Calculator className='h-3.5 w-3.5 text-purple-400' />
+      <div className='bg-gradient-to-r from-purple-100 dark:from-purple-900/20 to-blue-100 dark:to-blue-900/20 border border-purple-200 dark:border-purple-700/30 rounded-lg'>
+        <div className='p-2 border-b border-purple-200 dark:border-purple-700/30'>
+          <h2 className='text-xs font-semibold text-gray-900 dark:text-white flex items-center gap-1.5'>
+            <Calculator className='h-3.5 w-3.5 text-purple-500 dark:text-purple-400' />
             Comissões OTC (Instant Trades)
           </h2>
         </div>
 
         {/* Summary Cards - Grid compacto */}
         <div className='p-2 grid grid-cols-4 gap-2'>
-          <div className='bg-purple-900/20 border border-purple-700/20 rounded p-2'>
-            <p className='text-[10px] text-gray-400'>Spread</p>
+          <div className='bg-purple-200/50 dark:bg-purple-900/20 border border-purple-300/50 dark:border-purple-700/20 rounded p-2'>
+            <p className='text-[10px] text-gray-500 dark:text-gray-400'>Spread</p>
             {accountingSummaryLoading ? (
               <Skeleton className='h-4 w-16 mt-0.5' />
             ) : (
-              <p className='text-base font-bold text-purple-400'>
+              <p className='text-base font-bold text-purple-600 dark:text-purple-400'>
                 {formatUSD(accountingTotals.spread)}
               </p>
             )}
           </div>
-          <div className='bg-blue-900/20 border border-blue-700/20 rounded p-2'>
-            <p className='text-[10px] text-gray-400'>Taxa de Rede</p>
+          <div className='bg-blue-200/50 dark:bg-blue-900/20 border border-blue-300/50 dark:border-blue-700/20 rounded p-2'>
+            <p className='text-[10px] text-gray-500 dark:text-gray-400'>Taxa de Rede</p>
             {accountingSummaryLoading ? (
               <Skeleton className='h-4 w-16 mt-0.5' />
             ) : (
-              <p className='text-base font-bold text-blue-400'>
+              <p className='text-base font-bold text-blue-600 dark:text-blue-400'>
                 {formatUSD(accountingTotals.network_fee)}
               </p>
             )}
           </div>
-          <div className='bg-green-900/20 border border-green-700/20 rounded p-2'>
-            <p className='text-[10px] text-gray-400'>Total Comissões</p>
+          <div className='bg-green-200/50 dark:bg-green-900/20 border border-green-300/50 dark:border-green-700/20 rounded p-2'>
+            <p className='text-[10px] text-gray-500 dark:text-gray-400'>Total Comissões</p>
             {accountingSummaryLoading ? (
               <Skeleton className='h-4 w-16 mt-0.5' />
             ) : (
-              <p className='text-base font-bold text-green-400'>
+              <p className='text-base font-bold text-green-600 dark:text-green-400'>
                 {formatUSD(accountingTotals.grand_total)}
               </p>
             )}
           </div>
-          <div className='bg-gray-800/30 border border-gray-700/30 rounded p-2'>
-            <p className='text-[10px] text-gray-400'>Trades</p>
+          <div className='bg-gray-200/50 dark:bg-gray-800/30 border border-gray-300/50 dark:border-gray-700/30 rounded p-2'>
+            <p className='text-[10px] text-gray-500 dark:text-gray-400'>Trades</p>
             {accountingSummaryLoading ? (
               <Skeleton className='h-4 w-12 mt-0.5' />
             ) : (
-              <p className='text-base font-bold text-white'>
+              <p className='text-base font-bold text-gray-900 dark:text-white'>
                 {accountingSummary.totals?.unique_trades || 0}
               </p>
             )}
@@ -652,7 +677,7 @@ export default function AdminFeesPage() {
             <div className='overflow-x-auto'>
               <table className='w-full text-[11px]'>
                 <thead>
-                  <tr className='border-b border-gray-700/50'>
+                  <tr className='border-b border-gray-300/50 dark:border-gray-700/50'>
                     <th className='text-left py-1 px-2 text-gray-500 font-medium'>Data</th>
                     <th className='text-left py-1 px-2 text-gray-500 font-medium'>Tipo</th>
                     <th className='text-left py-1 px-2 text-gray-500 font-medium'>Ref</th>
@@ -665,8 +690,11 @@ export default function AdminFeesPage() {
                 </thead>
                 <tbody>
                   {accountingEntries.map((entry: any) => (
-                    <tr key={entry.id} className='border-b border-gray-800/50 hover:bg-gray-800/30'>
-                      <td className='py-1 px-2 text-gray-400'>
+                    <tr
+                      key={entry.id}
+                      className='border-b border-gray-200/50 dark:border-gray-800/50 hover:bg-gray-100/50 dark:hover:bg-gray-800/30'
+                    >
+                      <td className='py-1 px-2 text-gray-500 dark:text-gray-400'>
                         {entry.created_at
                           ? new Date(entry.created_at).toLocaleDateString('pt-BR')
                           : '-'}
@@ -678,14 +706,16 @@ export default function AdminFeesPage() {
                           {getAccountingTypeLabel(entry.entry_type)}
                         </span>
                       </td>
-                      <td className='py-1 px-2 font-mono text-gray-400 text-[10px]'>
+                      <td className='py-1 px-2 font-mono text-gray-500 dark:text-gray-400 text-[10px]'>
                         {entry.reference_code || '-'}
                       </td>
-                      <td className='py-1 px-2 text-gray-400'>
+                      <td className='py-1 px-2 text-gray-500 dark:text-gray-400'>
                         {entry.user_name || entry.user_id?.substring(0, 8) || '-'}
                       </td>
-                      <td className='py-1 px-2 text-gray-400'>{entry.percentage?.toFixed(1)}%</td>
-                      <td className='py-1 px-2 text-green-400 font-medium'>
+                      <td className='py-1 px-2 text-gray-500 dark:text-gray-400'>
+                        {entry.percentage?.toFixed(1)}%
+                      </td>
+                      <td className='py-1 px-2 text-green-600 dark:text-green-400 font-medium'>
                         {formatUSD(entry.amount)}
                       </td>
                       <td className='py-1 px-2'>
@@ -703,7 +733,7 @@ export default function AdminFeesPage() {
                         {entry.trade_id && (
                           <a
                             href={`/admin/trades/${entry.trade_id}`}
-                            className='text-blue-400 hover:text-blue-300'
+                            className='text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300'
                             title='Ver trade'
                           >
                             <ExternalLink className='h-3 w-3' />
@@ -717,21 +747,23 @@ export default function AdminFeesPage() {
             </div>
           ) : (
             <div className='text-center py-4'>
-              <Receipt className='h-6 w-6 text-gray-600 mx-auto mb-2' />
-              <p className='text-gray-400 text-xs'>Nenhuma comissão registrada.</p>
+              <Receipt className='h-6 w-6 text-gray-400 dark:text-gray-600 mx-auto mb-2' />
+              <p className='text-gray-500 dark:text-gray-400 text-xs'>
+                Nenhuma comissão registrada.
+              </p>
             </div>
           )}
 
           {/* Pagination */}
           {accountingPagination.pages > 1 && (
-            <div className='flex justify-center items-center gap-1 mt-2 pt-2 border-t border-gray-700/50'>
+            <div className='flex justify-center items-center gap-1 mt-2 pt-2 border-t border-gray-300/50 dark:border-gray-700/50'>
               <button
                 onClick={() => setAccountingPage(p => Math.max(1, p - 1))}
                 disabled={accountingPage === 1}
-                className='p-1 bg-gray-800/50 rounded disabled:opacity-50 hover:bg-gray-700 transition-colors'
+                className='p-1 bg-gray-200/50 dark:bg-gray-800/50 rounded disabled:opacity-50 hover:bg-gray-300/50 dark:hover:bg-gray-700 transition-colors'
                 title='Página anterior'
               >
-                <ChevronLeft className='h-3 w-3 text-gray-400' />
+                <ChevronLeft className='h-3 w-3 text-gray-500 dark:text-gray-400' />
               </button>
               <span className='px-2 text-gray-500 text-[10px]'>
                 {accountingPage}/{accountingPagination.pages}
@@ -739,10 +771,10 @@ export default function AdminFeesPage() {
               <button
                 onClick={() => setAccountingPage(p => Math.min(accountingPagination.pages, p + 1))}
                 disabled={accountingPage === accountingPagination.pages}
-                className='p-1 bg-gray-800/50 rounded disabled:opacity-50 hover:bg-gray-700 transition-colors'
+                className='p-1 bg-gray-200/50 dark:bg-gray-800/50 rounded disabled:opacity-50 hover:bg-gray-300/50 dark:hover:bg-gray-700 transition-colors'
                 title='Próxima página'
               >
-                <ChevronRight className='h-3 w-3 text-gray-400' />
+                <ChevronRight className='h-3 w-3 text-gray-500 dark:text-gray-400' />
               </button>
             </div>
           )}
