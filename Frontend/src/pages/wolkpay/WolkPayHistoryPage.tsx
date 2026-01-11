@@ -38,6 +38,44 @@ const STATUS_CONFIG: Record<
   REJECTED: { color: 'red', icon: <X className='w-4 h-4' />, label: 'Rejeitado' },
 }
 
+// Skeleton Components
+const SkeletonBox = ({ className = '' }: { className?: string }) => (
+  <div className={`bg-gray-200 dark:bg-gray-700 rounded animate-pulse ${className}`} />
+)
+
+const InvoiceCardSkeleton = () => (
+  <div className='bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-200 dark:border-gray-700'>
+    <div className='flex items-center justify-between mb-3'>
+      <div className='flex items-center gap-3'>
+        <SkeletonBox className='w-10 h-10 rounded-xl' />
+        <div>
+          <SkeletonBox className='h-4 w-24 mb-1' />
+          <SkeletonBox className='h-3 w-32' />
+        </div>
+      </div>
+      <SkeletonBox className='h-6 w-20 rounded-full' />
+    </div>
+    <div className='flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-700'>
+      <div>
+        <SkeletonBox className='h-3 w-16 mb-1' />
+        <SkeletonBox className='h-5 w-24' />
+      </div>
+      <div className='text-right'>
+        <SkeletonBox className='h-3 w-12 mb-1' />
+        <SkeletonBox className='h-5 w-20' />
+      </div>
+    </div>
+  </div>
+)
+
+const LoadingSkeleton = () => (
+  <div className='space-y-3'>
+    {[1, 2, 3, 4].map(i => (
+      <InvoiceCardSkeleton key={`skeleton-${i}`} />
+    ))}
+  </div>
+)
+
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
@@ -55,8 +93,10 @@ const formatDate = (dateStr: string) => {
   })
 }
 
-const formatCrypto = (amount: number | string, symbol: string) => {
+const formatCrypto = (amount: number | string | null | undefined, symbol: string) => {
+  if (amount === null || amount === undefined) return `0.00 ${symbol}`
   const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount
+  if (isNaN(numAmount)) return `0.00 ${symbol}`
   const decimals = ['BTC'].includes(symbol) ? 8 : ['ETH', 'BNB'].includes(symbol) ? 6 : 2
   return `${numAmount.toFixed(decimals)} ${symbol}`
 }
@@ -220,14 +260,7 @@ export function WolkPayHistoryPage() {
 
       {/* Content */}
       {isLoading ? (
-        <div className='flex flex-col items-center justify-center py-16'>
-          <div className='w-16 h-16 border-4 border-blue-200 dark:border-blue-900 rounded-full relative'>
-            <div className='w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin absolute top-0 left-0' />
-          </div>
-          <p className='mt-4 text-sm text-gray-500 dark:text-gray-400'>
-            {t('wolkpay.history.loading')}
-          </p>
-        </div>
+        <LoadingSkeleton />
       ) : error ? (
         <div className='flex flex-col items-center justify-center py-16'>
           <div className='w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-4'>

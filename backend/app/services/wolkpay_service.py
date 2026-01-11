@@ -1030,63 +1030,61 @@ class WolkPayService:
             "state": payer.state,
         })
         
-        # 4. Criar usuário
+        # 4. Verificar se já existe usuário com esse email
+        existing_user = self.db.query(User).filter(
+            User.email == user_data["email"]
+        ).first()
+        
+        if existing_user:
+            raise ValueError("Já existe uma conta com este e-mail. Faça login para continuar.")
+        
+        # Gerar username único a partir do nome
+        name_str = str(user_data.get("name") or "user")
+        base_username = name_str.lower().split()[0] if name_str else "user"
+        base_username = ''.join(c for c in base_username if c.isalnum())[:20]
+        if not base_username:
+            base_username = "user"
+        username = base_username
+        
+        # Se username já existe, adicionar número
+        counter = 1
+        while self.db.query(User).filter(User.username == username).first():
+            username = f"{base_username}{counter}"
+            counter += 1
+        
+        # 5. Criar usuário com campos corretos do modelo
         new_user = User(
             id=uuid.uuid4(),
             email=user_data["email"],
-            name=user_data["name"],
-            hashed_password=get_password_hash(password),
-            
-            # Dados pessoais
-            cpf=user_data.get("cpf"),
-            phone=user_data.get("phone"),
-            birth_date=user_data.get("birth_date"),
-            
-            # Dados PJ (se aplicável)
-            company_name=user_data.get("company_name"),
-            cnpj=user_data.get("cnpj"),
-            
-            # Endereço
-            zip_code=user_data.get("zip_code"),
-            street=user_data.get("street"),
-            address_number=user_data.get("number"),
-            complement=user_data.get("complement"),
-            neighborhood=user_data.get("neighborhood"),
-            city=user_data.get("city"),
-            state=user_data.get("state"),
-            
-            # Flags
+            username=username,
+            password_hash=get_password_hash(password),
             is_active=True,
-            is_verified=False,  # Precisará verificar email
-            accept_marketing=accept_marketing,
-            
-            # Metadados
-            registration_ip=ip_address,
-            registration_source="wolkpay_conversion",
-            
+            is_email_verified=False,  # Precisará verificar email
+            is_admin=False,
             created_at=datetime.now(timezone.utc),
         )
         
         self.db.add(new_user)
         
-        # 5. Log de auditoria
-        self._log_audit(
-            invoice_id=str(invoice.id),
-            actor_type="system",
-            action="payer_converted_to_user",
-            description=f"Pagador {payer.id} convertido em usuário {new_user.id}",
-            actor_ip=ip_address
-        )
+        # 6. Log de auditoria
+        if invoice:
+            self._log_audit(
+                invoice_id=str(invoice.id),
+                actor_type="system",
+                action="payer_converted_to_user",
+                description=f"Pagador convertido em usuário {new_user.id}",
+                actor_ip=ip_address
+            )
         
         self.db.commit()
         
-        # 6. TODO: Enviar email de boas-vindas
-        # await send_welcome_email(new_user.email, new_user.name)
+        # 7. TODO: Enviar email de boas-vindas
+        # await send_welcome_email(new_user.email, username)
         
-        # 7. TODO: Adicionar bônus de boas-vindas
+        # 8. TODO: Adicionar bônus de boas-vindas
         # await add_welcome_bonus(new_user.id)
         
-        logger.info(f"✅ Pagador convertido em usuário: {new_user.email}")
+        logger.info(f"✅ Pagador convertido em usuário: {new_user.email} ({username})")
         
         return new_user, "Conta criada com sucesso! Verifique seu e-mail para confirmar."
     
