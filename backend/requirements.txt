@@ -38,3 +38,6 @@ python-magic==0.4.27
 aiohttp==3.9.1
 webauthn>=2.0.0
 user-agents==2.2.0
+
+# AWS S3
+boto3==1.34.0
