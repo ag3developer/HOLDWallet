@@ -30,6 +30,11 @@ import {
   MessageSquare,
 } from 'lucide-react'
 
+// URL da API - usa proxy em dev, URL direta em produção
+const API_URL = import.meta.env.PROD
+  ? import.meta.env.VITE_API_URL || 'https://api.wolknow.com/v1'
+  : '/api' // Em dev, usa o proxy do Vite
+
 // Helper para obter token de autenticação
 const getAuthToken = (): string | null => {
   try {
@@ -239,10 +244,12 @@ const AdminKYCPage: React.FC = () => {
       if (statusFilter !== 'all') params.append('status', statusFilter)
       if (levelFilter !== 'all') params.append('level', levelFilter)
 
-      const response = await fetch(`/api/admin/kyc?${params}`, {
+      const response = await fetch(`${API_URL}/admin/kyc?${params}`, {
         headers: {
           Authorization: `Bearer ${getAuthToken()}`,
         },
+        // Bypass Service Worker cache
+        cache: 'no-store',
       })
 
       if (!response.ok) {
@@ -282,7 +289,7 @@ const AdminKYCPage: React.FC = () => {
   // Fetch stats
   const fetchStats = async () => {
     try {
-      const response = await fetch('/api/admin/kyc/stats', {
+      const response = await fetch(`${API_URL}/admin/kyc/stats`, {
         headers: {
           Authorization: `Bearer ${getAuthToken()}`,
         },
@@ -308,7 +315,7 @@ const AdminKYCPage: React.FC = () => {
     setLoadingDetails(true)
 
     try {
-      const response = await fetch(`/api/admin/kyc/${verificationId}`, {
+      const response = await fetch(`${API_URL}/admin/kyc/${verificationId}`, {
         headers: {
           Authorization: `Bearer ${getAuthToken()}`,
         },
@@ -368,8 +375,8 @@ const AdminKYCPage: React.FC = () => {
     try {
       const endpoint =
         type === 'approve'
-          ? `/api/admin/kyc/${reviewModal.verificationId}/approve`
-          : `/api/admin/kyc/${reviewModal.verificationId}/reject`
+          ? `${API_URL}/admin/kyc/${reviewModal.verificationId}/approve`
+          : `${API_URL}/admin/kyc/${reviewModal.verificationId}/reject`
 
       const body: { rejection_reason?: string } = {}
       if (type === 'reject' && rejectionReason) {

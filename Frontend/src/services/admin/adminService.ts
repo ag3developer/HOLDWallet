@@ -7,7 +7,10 @@
 
 import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+// Em dev usa proxy do Vite (/api), em produção usa URL direta
+const API_URL = import.meta.env.PROD
+  ? import.meta.env.VITE_API_URL || 'https://api.wolknow.com/v1'
+  : '/api'
 
 // Criar instância do axios com configurações padrão
 // Nota: O backend registra as rotas admin em /admin (sem /api/v1)
@@ -177,7 +180,8 @@ export const disable2FA = async (userId: string): Promise<{ message: string }> =
 }
 
 export const setAdminStatus = async (userId: string, isAdmin: boolean): Promise<User> => {
-  const response = await adminApi.post(`/users/${userId}/admin-status`, { is_admin: isAdmin })
+  // Backend usa PUT /users/{user_id} para atualizar usuário
+  const response = await adminApi.put(`/users/${userId}`, { is_admin: isAdmin })
   return response.data
 }
 

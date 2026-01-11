@@ -9,6 +9,11 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 
+// URL da API - usa proxy em dev, URL direta em produção
+const API_URL = import.meta.env.PROD
+  ? import.meta.env.VITE_API_URL || 'https://api.wolknow.com/v1'
+  : '/api' // Em dev, usa o proxy do Vite
+
 // Helper function to get auth token from localStorage
 const getAuthToken = (): string | null => {
   try {
@@ -142,7 +147,7 @@ const KYCPage: React.FC = () => {
       if (prefillLoaded) return
 
       try {
-        const response = await fetch('/api/kyc/prefill-data', {
+        const response = await fetch(`${API_URL}/kyc/prefill-data`, {
           headers: {
             Authorization: `Bearer ${getAuthToken()}`,
           },
