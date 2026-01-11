@@ -270,14 +270,12 @@ export function useKYC(): UseKYCState & UseKYCActions {
 
   // Obter documentos faltantes
   const getMissingDocuments = useCallback((): DocumentType[] => {
-    if (!verification) return []
-    return verification.missing_documents
+    return verification?.missing_documents ?? []
   }, [verification])
 
   // Obter documentos enviados
   const getUploadedDocuments = useCallback((): KYCDocument[] => {
-    if (!verification) return []
-    return verification.documents
+    return verification?.documents ?? []
   }, [verification])
 
   // Carregar status inicial

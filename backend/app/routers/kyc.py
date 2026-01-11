@@ -8,13 +8,15 @@ Author: HOLD Wallet Team
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request, UploadFile, File, Form
 from sqlalchemy.orm import Session
+from sqlalchemy import desc
 from typing import Optional
 import uuid
 
 from app.core.db import get_db
 from app.core.security import get_current_user
 from app.models.user import User
-from app.models.kyc import KYCLevel, DocumentType
+from app.models.kyc import KYCLevel, DocumentType, KYCPersonalData
+from app.models.wolkpay import WolkPayPayer, WolkPayInvoice, PersonType
 from app.schemas.kyc import (
     KYCStartRequest, KYCPersonalDataRequest, KYCSubmitRequest,
     KYCStatusResponse, KYCVerificationResponse, KYCDocumentResponse,
@@ -35,6 +37,88 @@ def get_client_info(request: Request) -> tuple:
 # ============================================================
 # ENDPOINTS DO USUÁRIO
 # ============================================================
+
+@router.get("/prefill-data")
+async def get_prefill_data(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Busca dados já existentes do usuário para pré-preencher o formulário KYC.
+    
+    Fontes de dados:
+    1. KYC anterior (se existir)
+    2. Dados de pagamentos WolkPay anteriores
+    3. Dados do perfil do usuário
+    
+    Retorna dados parciais para facilitar o preenchimento.
+    """
+    prefill_data = {}
+    
+    # 1. Tentar buscar de KYC anterior
+    kyc_data = db.query(KYCPersonalData).filter(
+        KYCPersonalData.user_id == current_user.id
+    ).order_by(desc(KYCPersonalData.created_at)).first()
+    
+    if kyc_data:
+        prefill_data = {
+            "full_name": kyc_data.full_name,
+            "document_number": kyc_data.document_number,
+            "birth_date": str(kyc_data.birth_date) if kyc_data.birth_date else None,
+            "phone": kyc_data.phone,
+            "mother_name": kyc_data.mother_name,
+            "zip_code": kyc_data.zip_code,
+            "street": kyc_data.street,
+            "number": kyc_data.number,
+            "complement": kyc_data.complement,
+            "neighborhood": kyc_data.neighborhood,
+            "city": kyc_data.city,
+            "state": kyc_data.state,
+            "source": "kyc"
+        }
+        return {"success": True, "data": prefill_data, "source": "kyc"}
+    
+    # 2. Tentar buscar de pagamentos WolkPay anteriores
+    payer_data = db.query(WolkPayPayer).join(
+        WolkPayInvoice,
+        WolkPayInvoice.id == WolkPayPayer.invoice_id
+    ).filter(
+        WolkPayInvoice.beneficiary_id == str(current_user.id),
+        WolkPayPayer.person_type == PersonType.PF  # Só pessoa física
+    ).order_by(desc(WolkPayPayer.created_at)).first()
+    
+    if payer_data:
+        prefill_data = {
+            "full_name": payer_data.full_name,
+            "document_number": payer_data.cpf,
+            "birth_date": str(payer_data.birth_date) if payer_data.birth_date else None,
+            "phone": payer_data.phone,
+            "zip_code": payer_data.zip_code,
+            "street": payer_data.street,
+            "number": payer_data.number,
+            "complement": payer_data.complement,
+            "neighborhood": payer_data.neighborhood,
+            "city": payer_data.city,
+            "state": payer_data.state,
+            "source": "wolkpay"
+        }
+        return {"success": True, "data": prefill_data, "source": "wolkpay"}
+    
+    # 3. Dados básicos do perfil do usuário
+    user_data = {
+        "full_name": f"{current_user.first_name or ''} {current_user.last_name or ''}".strip() or None,
+        "phone": current_user.phone_number,
+        "source": "profile"
+    }
+    
+    # Filtrar None
+    prefill_data = {k: v for k, v in user_data.items() if v}
+    
+    if prefill_data:
+        return {"success": True, "data": prefill_data, "source": "profile"}
+    
+    return {"success": True, "data": {}, "source": None}
+
 
 @router.post("/start", response_model=KYCVerificationResponse)
 async def start_verification(

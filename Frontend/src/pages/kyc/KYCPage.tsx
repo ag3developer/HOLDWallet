@@ -66,6 +66,11 @@ const KYCPage: React.FC = () => {
   const [selectedLevel, setSelectedLevel] = useState<KYCLevel>(KYCLevel.BASIC)
   const [consent, setConsent] = useState(false)
 
+  // CEP lookup state
+  const [loadingCep, setLoadingCep] = useState(false)
+  const [prefillLoaded, setPrefillLoaded] = useState(false)
+  const [prefillSource, setPrefillSource] = useState<string | null>(null)
+
   // Form data
   const [personalData, setPersonalData] = useState<Partial<KYCPersonalData>>({
     nationality: 'BR',
@@ -77,6 +82,7 @@ const KYCPage: React.FC = () => {
   // Effect to sync step with verification status
   useEffect(() => {
     if (verification) {
+      // Se já existe verificação, ajustar o step baseado no status
       if (verification.status === KYCStatus.APPROVED) {
         setCurrentStep(5)
       } else if (
@@ -84,12 +90,29 @@ const KYCPage: React.FC = () => {
         verification.status === KYCStatus.UNDER_REVIEW
       ) {
         setCurrentStep(5)
-      } else if (verification.consent_given && verification.documents.length > 0) {
+      } else if (verification.status === KYCStatus.REJECTED) {
+        // Rejeitado - pode tentar novamente
+        setCurrentStep(1)
+      } else if (verification.consent_given && (verification.documents?.length ?? 0) > 0) {
+        // Tem consentimento e documentos - ir para step 4 (documentos)
         setCurrentStep(4)
       } else if (verification.consent_given) {
+        // Tem consentimento mas não tem documentos - ir para step 3 (dados pessoais)
         setCurrentStep(3)
       } else {
-        setCurrentStep(2)
+        // Verificação existe mas sem consentimento - ir para step 2 (consentimento)
+        // Mas como já existe, pular para step 3 (dados pessoais)
+        setCurrentStep(3)
+      }
+
+      // Sincronizar o nível selecionado com o da verificação existente
+      if (verification.level) {
+        setSelectedLevel(verification.level)
+      }
+
+      // Se já deu consentimento, marcar
+      if (verification.consent_given) {
+        setConsent(true)
       }
     }
   }, [verification])
@@ -99,12 +122,120 @@ const KYCPage: React.FC = () => {
     loadRequirements(selectedLevel)
   }, [selectedLevel, loadRequirements])
 
+  // Load prefill data on mount
+  useEffect(() => {
+    const loadPrefillData = async () => {
+      if (prefillLoaded) return
+
+      try {
+        const response = await fetch('/api/kyc/prefill-data', {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+          },
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          if (data.success && data.data && Object.keys(data.data).length > 0) {
+            setPersonalData(prev => ({
+              ...prev,
+              full_name: data.data.full_name || prev.full_name,
+              document_number: data.data.document_number || prev.document_number,
+              birth_date: data.data.birth_date || prev.birth_date,
+              phone: data.data.phone || prev.phone,
+              mother_name: data.data.mother_name || prev.mother_name,
+              zip_code: data.data.zip_code || prev.zip_code,
+              street: data.data.street || prev.street,
+              number: data.data.number || prev.number,
+              complement: data.data.complement || prev.complement,
+              neighborhood: data.data.neighborhood || prev.neighborhood,
+              city: data.data.city || prev.city,
+              state: data.data.state || prev.state,
+            }))
+            setPrefillSource(data.source)
+          }
+        }
+      } catch (err) {
+        console.error('Erro ao carregar dados pré-preenchidos:', err)
+      } finally {
+        setPrefillLoaded(true)
+      }
+    }
+
+    loadPrefillData()
+  }, [prefillLoaded])
+
+  // ============================================================
+  // CEP LOOKUP FUNCTION
+  // ============================================================
+
+  const handleCepLookup = async (cep: string) => {
+    // Remove caracteres não numéricos
+    const cleanCep = cep.replace(/\D/g, '')
+
+    // CEP precisa ter 8 dígitos
+    if (cleanCep.length !== 8) return
+
+    setLoadingCep(true)
+
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`)
+      const data = await response.json()
+
+      if (!data.erro) {
+        setPersonalData(prev => ({
+          ...prev,
+          street: data.logradouro || prev.street,
+          neighborhood: data.bairro || prev.neighborhood,
+          city: data.localidade || prev.city,
+          state: data.uf || prev.state,
+          complement: data.complemento || prev.complement,
+        }))
+      }
+    } catch (err) {
+      console.error('Erro ao buscar CEP:', err)
+    } finally {
+      setLoadingCep(false)
+    }
+  }
+
+  // Format CPF as 000.000.000-00
+  const formatCpf = (value: string): string => {
+    const numbers = value.replace(/\D/g, '').slice(0, 11)
+    if (numbers.length <= 3) return numbers
+    if (numbers.length <= 6) return `${numbers.slice(0, 3)}.${numbers.slice(3)}`
+    if (numbers.length <= 9)
+      return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(6)}`
+    return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(6, 9)}-${numbers.slice(9)}`
+  }
+
+  // Format CEP as 00000-000
+  const formatCep = (value: string): string => {
+    const numbers = value.replace(/\D/g, '').slice(0, 8)
+    if (numbers.length <= 5) return numbers
+    return `${numbers.slice(0, 5)}-${numbers.slice(5)}`
+  }
+
+  // Format phone as (00) 00000-0000
+  const formatPhone = (value: string): string => {
+    const numbers = value.replace(/\D/g, '').slice(0, 11)
+    if (numbers.length <= 2) return numbers.length ? `(${numbers}` : ''
+    if (numbers.length <= 7) return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`
+    return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7)}`
+  }
+
   // ============================================================
   // HANDLERS
   // ============================================================
 
   const handleStartVerification = async () => {
     if (!consent) return
+
+    // Se já existe uma verificação em andamento, apenas avançar para o próximo step
+    if (verification && verification.status === KYCStatus.PENDING) {
+      setCurrentStep(3)
+      return
+    }
 
     const success = await startVerification(selectedLevel, consent)
     if (success) {
@@ -313,6 +444,15 @@ const KYCPage: React.FC = () => {
               <p className='text-gray-500 mt-1'>Leia e aceite os termos para continuar</p>
             </div>
 
+            {/* Mostrar aviso se já existe verificação em andamento */}
+            {verification && verification.status === KYCStatus.PENDING && (
+              <KYCInfoCard
+                type='info'
+                title='Verificação em andamento'
+                message='Você já iniciou uma verificação. Continue de onde parou preenchendo seus dados.'
+              />
+            )}
+
             <KYCInfoCard
               type='info'
               title='Por que precisamos verificar sua identidade?'
@@ -339,6 +479,11 @@ const KYCPage: React.FC = () => {
                   <>
                     <Loader2 className='w-4 h-4 animate-spin' />
                     Iniciando...
+                  </>
+                ) : verification && verification.status === KYCStatus.PENDING ? (
+                  <>
+                    Continuar Verificação
+                    <ArrowRight className='w-4 h-4' />
                   </>
                 ) : (
                   <>
@@ -383,8 +528,9 @@ const KYCPage: React.FC = () => {
                 <input
                   type='text'
                   value={personalData.document_number || ''}
-                  onChange={e => handleInputChange('document_number', e.target.value)}
+                  onChange={e => handleInputChange('document_number', formatCpf(e.target.value))}
                   placeholder='000.000.000-00'
+                  maxLength={14}
                   className='w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 focus:ring-2 focus:ring-primary focus:border-transparent'
                 />
               </div>
@@ -410,8 +556,9 @@ const KYCPage: React.FC = () => {
                 <input
                   type='tel'
                   value={personalData.phone || ''}
-                  onChange={e => handleInputChange('phone', e.target.value)}
+                  onChange={e => handleInputChange('phone', formatPhone(e.target.value))}
                   placeholder='(11) 99999-9999'
+                  maxLength={15}
                   className='w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 focus:ring-2 focus:ring-primary focus:border-transparent'
                 />
               </div>
@@ -432,7 +579,14 @@ const KYCPage: React.FC = () => {
 
               {/* Separador de endereço */}
               <div className='md:col-span-2 border-t border-gray-200 dark:border-gray-700 pt-4 mt-2'>
-                <h3 className='font-medium text-gray-900 dark:text-white'>Endereço</h3>
+                <h3 className='font-medium text-gray-900 dark:text-white'>
+                  Endereço
+                  {prefillSource && (
+                    <span className='ml-2 text-xs font-normal text-green-600 dark:text-green-400'>
+                      ✓ Dados pré-preenchidos
+                    </span>
+                  )}
+                </h3>
               </div>
 
               {/* CEP */}
@@ -440,13 +594,28 @@ const KYCPage: React.FC = () => {
                 <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1'>
                   CEP *
                 </label>
-                <input
-                  type='text'
-                  value={personalData.zip_code || ''}
-                  onChange={e => handleInputChange('zip_code', e.target.value)}
-                  placeholder='00000-000'
-                  className='w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 focus:ring-2 focus:ring-primary focus:border-transparent'
-                />
+                <div className='relative'>
+                  <input
+                    type='text'
+                    value={personalData.zip_code || ''}
+                    onChange={e => {
+                      const formatted = formatCep(e.target.value)
+                      handleInputChange('zip_code', formatted)
+                      handleCepLookup(formatted)
+                    }}
+                    placeholder='00000-000'
+                    maxLength={9}
+                    className='w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 focus:ring-2 focus:ring-primary focus:border-transparent'
+                  />
+                  {loadingCep && (
+                    <div className='absolute right-3 top-1/2 -translate-y-1/2'>
+                      <Loader2 className='w-4 h-4 animate-spin text-primary' />
+                    </div>
+                  )}
+                </div>
+                <p className='text-xs text-gray-500 mt-1'>
+                  Digite o CEP para preencher o endereço automaticamente
+                </p>
               </div>
 
               {/* Rua */}
