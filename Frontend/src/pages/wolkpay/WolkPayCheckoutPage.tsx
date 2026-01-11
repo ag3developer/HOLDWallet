@@ -570,6 +570,34 @@ export function WolkPayCheckoutPage() {
 
   // Renderizar pago + conversão
   if (step === 'paid') {
+    // Fallback benefits caso API falhe
+    const defaultBenefits: BenefitsInfo = {
+      show_conversion_offer: true,
+      headline: t('wolkpay.checkout.createAccountTitle'),
+      subheadline: t('wolkpay.checkout.createAccountSubtitle'),
+      benefits: [
+        {
+          icon: 'wallet',
+          title: t('wolkpay.checkout.benefit1Title'),
+          description: t('wolkpay.checkout.benefit1Desc'),
+        },
+        {
+          icon: 'zap',
+          title: t('wolkpay.checkout.benefit2Title'),
+          description: t('wolkpay.checkout.benefit2Desc'),
+        },
+        {
+          icon: 'shield',
+          title: t('wolkpay.checkout.benefit3Title'),
+          description: t('wolkpay.checkout.benefit3Desc'),
+        },
+      ],
+      cta_text: t('wolkpay.checkout.createAccountBtn'),
+      cta_subtitle: t('wolkpay.checkout.createAccountNote'),
+    }
+
+    const displayBenefits = benefitsInfo || defaultBenefits
+
     return (
       <div
         key={i18n.language}
@@ -584,148 +612,144 @@ export function WolkPayCheckoutPage() {
               </div>
               <div>
                 <p className='text-green-100 text-sm'>{checkout?.invoice_number}</p>
-                <h2 className='text-xl font-bold'>{t('wolkpay.checkout.paymentReceived')}</h2>
+                <h2 className='text-xl font-bold'>{t('wolkpay.checkout.paymentConfirmedTitle')}</h2>
               </div>
             </div>
-            <p className='text-green-100 text-sm'>
-              {t('wolkpay.checkout.beneficiaryWillReceive', { name: checkout?.beneficiary_name })}
-            </p>
+            <p className='text-green-100 text-sm'>{t('wolkpay.checkout.paymentConfirmedDesc')}</p>
           </div>
 
-          {/* Conversion Offer */}
-          {showConversion && conversionEligibility?.can_convert && benefitsInfo && (
-            <div className='bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-700'>
-              <div className='text-center mb-6'>
-                <div className='w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4'>
-                  <Gift className='w-8 h-8 text-white' />
-                </div>
-                <h3 className='text-xl font-bold text-gray-900 dark:text-white'>
-                  {benefitsInfo.headline}
-                </h3>
-                <p className='text-gray-600 dark:text-gray-400 mt-1'>{benefitsInfo.subheadline}</p>
+          {/* Conversion Offer - SEMPRE mostrar */}
+          <div className='bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-700'>
+            <div className='text-center mb-6'>
+              <div className='w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4'>
+                <Gift className='w-8 h-8 text-white' />
               </div>
-
-              {/* Benefits */}
-              <div className='space-y-3 mb-6'>
-                {benefitsInfo.benefits.map((benefit, index) => {
-                  const IconComponent =
-                    {
-                      wallet: Wallet,
-                      trending_up: TrendingUp,
-                      zap: Zap,
-                      shield: Shield,
-                    }[benefit.icon] || BadgeCheck
-
-                  return (
-                    <div
-                      key={index}
-                      className='flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl'
-                    >
-                      <div className='w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center shrink-0'>
-                        <IconComponent className='w-5 h-5 text-blue-600 dark:text-blue-400' />
-                      </div>
-                      <div>
-                        <p className='font-medium text-gray-900 dark:text-white'>{benefit.title}</p>
-                        <p className='text-sm text-gray-500 dark:text-gray-400'>
-                          {benefit.description}
-                        </p>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-
-              {/* Create Account Form */}
-              <div className='space-y-4'>
-                <div className='space-y-3'>
-                  <div className='relative'>
-                    <Lock className='absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400' />
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      value={password}
-                      onChange={e => setPassword(e.target.value)}
-                      placeholder={t('wolkpay.checkout.password')}
-                      className='w-full pl-10 pr-12 py-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white'
-                    />
-                    <button
-                      type='button'
-                      onClick={() => setShowPassword(!showPassword)}
-                      className='absolute right-3 top-1/2 -translate-y-1/2 text-gray-400'
-                    >
-                      {showPassword ? <EyeOff className='w-5 h-5' /> : <Eye className='w-5 h-5' />}
-                    </button>
-                  </div>
-                  <div className='relative'>
-                    <Lock className='absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400' />
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      value={confirmPassword}
-                      onChange={e => setConfirmPassword(e.target.value)}
-                      placeholder={t('wolkpay.checkout.confirmPassword')}
-                      className='w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white'
-                    />
-                  </div>
-                </div>
-
-                <div className='space-y-2'>
-                  <label className='flex items-start gap-2 cursor-pointer'>
-                    <input
-                      type='checkbox'
-                      checked={acceptAccountTerms}
-                      onChange={e => setAcceptAccountTerms(e.target.checked)}
-                      className='w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 mt-0.5'
-                    />
-                    <span className='text-sm text-gray-600 dark:text-gray-400'>
-                      {t('wolkpay.checkout.acceptTerms')}
-                    </span>
-                  </label>
-                  <label className='flex items-start gap-2 cursor-pointer'>
-                    <input
-                      type='checkbox'
-                      checked={acceptPrivacy}
-                      onChange={e => setAcceptPrivacy(e.target.checked)}
-                      className='w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 mt-0.5'
-                    />
-                    <span className='text-sm text-gray-600 dark:text-gray-400'>
-                      {t('wolkpay.checkout.acceptPrivacy')}
-                    </span>
-                  </label>
-                </div>
-
-                {error && (
-                  <div className='p-3 bg-red-50 dark:bg-red-900/20 rounded-xl text-sm text-red-600 dark:text-red-400 flex items-center gap-2'>
-                    <AlertCircle className='w-4 h-4' />
-                    {error}
-                  </div>
-                )}
-
-                <button
-                  onClick={handleCreateAccount}
-                  disabled={
-                    isLoading ||
-                    !password ||
-                    password !== confirmPassword ||
-                    !acceptAccountTerms ||
-                    !acceptPrivacy
-                  }
-                  className='w-full flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed'
-                >
-                  {isLoading ? (
-                    <div className='w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin' />
-                  ) : (
-                    <>
-                      <UserPlus className='w-5 h-5' />
-                      {benefitsInfo.cta_text}
-                    </>
-                  )}
-                </button>
-
-                <p className='text-xs text-center text-gray-500 dark:text-gray-400'>
-                  {benefitsInfo.cta_subtitle}
-                </p>
-              </div>
+              <h3 className='text-xl font-bold text-gray-900 dark:text-white'>
+                {displayBenefits.headline}
+              </h3>
+              <p className='text-gray-600 dark:text-gray-400 mt-1'>{displayBenefits.subheadline}</p>
             </div>
-          )}
+
+            {/* Benefits */}
+            <div className='space-y-3 mb-6'>
+              {displayBenefits.benefits.map((benefit, index) => {
+                const IconComponent =
+                  {
+                    wallet: Wallet,
+                    trending_up: TrendingUp,
+                    zap: Zap,
+                    shield: Shield,
+                  }[benefit.icon] || BadgeCheck
+
+                return (
+                  <div
+                    key={index}
+                    className='flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl'
+                  >
+                    <div className='w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center shrink-0'>
+                      <IconComponent className='w-5 h-5 text-blue-600 dark:text-blue-400' />
+                    </div>
+                    <div>
+                      <p className='font-medium text-gray-900 dark:text-white'>{benefit.title}</p>
+                      <p className='text-sm text-gray-500 dark:text-gray-400'>
+                        {benefit.description}
+                      </p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Create Account Form */}
+            <div className='space-y-4'>
+              <div className='space-y-3'>
+                <div className='relative'>
+                  <Lock className='absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400' />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    placeholder={t('wolkpay.checkout.password')}
+                    className='w-full pl-10 pr-12 py-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white'
+                  />
+                  <button
+                    type='button'
+                    onClick={() => setShowPassword(!showPassword)}
+                    className='absolute right-3 top-1/2 -translate-y-1/2 text-gray-400'
+                  >
+                    {showPassword ? <EyeOff className='w-5 h-5' /> : <Eye className='w-5 h-5' />}
+                  </button>
+                </div>
+                <div className='relative'>
+                  <Lock className='absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400' />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={confirmPassword}
+                    onChange={e => setConfirmPassword(e.target.value)}
+                    placeholder={t('wolkpay.checkout.confirmPassword')}
+                    className='w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white'
+                  />
+                </div>
+              </div>
+
+              <div className='space-y-2'>
+                <label className='flex items-start gap-2 cursor-pointer'>
+                  <input
+                    type='checkbox'
+                    checked={acceptAccountTerms}
+                    onChange={e => setAcceptAccountTerms(e.target.checked)}
+                    className='w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 mt-0.5'
+                  />
+                  <span className='text-sm text-gray-600 dark:text-gray-400'>
+                    {t('wolkpay.checkout.acceptTerms')}
+                  </span>
+                </label>
+                <label className='flex items-start gap-2 cursor-pointer'>
+                  <input
+                    type='checkbox'
+                    checked={acceptPrivacy}
+                    onChange={e => setAcceptPrivacy(e.target.checked)}
+                    className='w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 mt-0.5'
+                  />
+                  <span className='text-sm text-gray-600 dark:text-gray-400'>
+                    {t('wolkpay.checkout.acceptPrivacy')}
+                  </span>
+                </label>
+              </div>
+
+              {error && (
+                <div className='p-3 bg-red-50 dark:bg-red-900/20 rounded-xl text-sm text-red-600 dark:text-red-400 flex items-center gap-2'>
+                  <AlertCircle className='w-4 h-4' />
+                  {error}
+                </div>
+              )}
+
+              <button
+                onClick={handleCreateAccount}
+                disabled={
+                  isLoading ||
+                  !password ||
+                  password !== confirmPassword ||
+                  !acceptAccountTerms ||
+                  !acceptPrivacy
+                }
+                className='w-full flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed'
+              >
+                {isLoading ? (
+                  <div className='w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin' />
+                ) : (
+                  <>
+                    <UserPlus className='w-5 h-5' />
+                    {displayBenefits.cta_text}
+                  </>
+                )}
+              </button>
+
+              <p className='text-xs text-center text-gray-500 dark:text-gray-400'>
+                {displayBenefits.cta_subtitle}
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     )

@@ -883,11 +883,13 @@ class WolkPayService:
                 "document_masked": ""
             }
         
-        # Verificar se pagamento foi confirmado
-        if invoice.status not in [InvoiceStatus.PAID, InvoiceStatus.APPROVED, InvoiceStatus.COMPLETED]:
+        # Permitir conversão mesmo que pagamento não esteja confirmado pelo admin
+        # O pagador pode criar conta após informar que pagou
+        # (status AWAITING_PAYMENT também é válido)
+        if invoice.status in [InvoiceStatus.EXPIRED, InvoiceStatus.CANCELLED, InvoiceStatus.REJECTED]:
             return {
                 "can_convert": False,
-                "reason": "Pagamento ainda não confirmado",
+                "reason": "Fatura não está disponível",
                 "email": "",
                 "name": "",
                 "document_type": "",
