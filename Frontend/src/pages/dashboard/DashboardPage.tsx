@@ -235,7 +235,10 @@ export const DashboardPage = () => {
   )
 
   // Hook para buscar preços via backend aggregator
-  const { prices: marketPrices, isLoading: loadingPrices } = useMarketPrices(priceSymbols, currency)
+  // ⚠️ IMPORTANTE: Sempre buscar preços em USD!
+  // O formatCurrency do useCurrencyStore converte USD → moeda do usuário
+  // Se buscar em BRL e depois usar formatCurrency, o valor será multiplicado 2x
+  const { prices: marketPrices, isLoading: loadingPrices } = useMarketPrices(priceSymbols, 'USD')
 
   // Debug log
   useEffect(() => {

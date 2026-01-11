@@ -99,9 +99,12 @@ const generatePriceVariation = (
 export function InstantTradePage() {
   const { t, i18n } = useTranslation()
   const { currency } = useCurrencyStore()
+  // ⚠️ IMPORTANTE: Sempre buscar preços em USD!
+  // O formatCurrency do useCurrencyStore converte USD → moeda do usuário
+  // Se buscar em BRL e depois usar formatCurrency, o valor será multiplicado 2x
   const { prices: priceData } = usePrices(
     SUPPORTED_CRYPTOS.map(c => c.symbol),
-    currency
+    'USD'
   )
 
   // Inicializar com SUPPORTED_CRYPTOS para garantir que as moedas apareçam mesmo antes dos preços carregarem

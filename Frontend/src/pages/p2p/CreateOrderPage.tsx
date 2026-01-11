@@ -55,9 +55,12 @@ export const CreateOrderPage = () => {
   const [currentStep, setCurrentStep] = useState(1)
 
   const availableCryptos = Object.keys(allBalances).length > 0 ? Object.keys(allBalances) : []
+  // ⚠️ IMPORTANTE: Sempre buscar preços em USD!
+  // A conversão para fiatCurrency é feita manualmente abaixo usando currencyConverterService
+  // Se buscar em BRL e depois converter de USD→BRL, o valor será multiplicado 2x
   const { prices: cryptoPrices, loading: pricesLoading } = usePrices(
     coin ? [coin] : availableCryptos,
-    fiatCurrency
+    'USD'
   )
   const { balances, loading: balancesHookLoading, refreshBalances } = useWalletBalances(wallet?.id)
 
@@ -75,8 +78,10 @@ export const CreateOrderPage = () => {
 
   useEffect(() => {
     if (coin && cryptoPrices?.[coin]?.price) {
-      let priceInUSD = cryptoPrices[coin].price
+      // cryptoPrices já vem em USD (buscamos com 'USD' acima)
+      const priceInUSD = cryptoPrices[coin].price
       let convertedPrice = priceInUSD
+      // Converter de USD para a moeda fiat selecionada
       if (fiatCurrency === 'BRL') {
         convertedPrice = currencyConverterService.convert(priceInUSD, 'USD', 'BRL')
       } else if (fiatCurrency === 'EUR') {
