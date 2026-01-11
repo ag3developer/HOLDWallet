@@ -988,16 +988,22 @@ class WolkPayService:
         # 1. Verificar elegibilidade
         eligibility = await self.check_payer_conversion_eligibility(checkout_token)
         if not eligibility["can_convert"]:
-            raise ValueError(eligibility["reason"])
+            raise ValueError(eligibility.get("reason", "Não elegível para conversão"))
         
         # 2. Buscar dados do pagador
         invoice = self.db.query(WolkPayInvoice).filter(
             WolkPayInvoice.checkout_token == checkout_token
         ).first()
         
+        if not invoice:
+            raise ValueError("Fatura não encontrada")
+        
         payer = self.db.query(WolkPayPayer).filter(
             WolkPayPayer.invoice_id == invoice.id
         ).first()
+        
+        if not payer:
+            raise ValueError("Dados do pagador não encontrados. Complete o formulário de checkout primeiro.")
         
         # 3. Preparar dados do usuário
         if payer.person_type == PersonType.PF:

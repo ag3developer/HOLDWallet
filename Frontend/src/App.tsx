@@ -54,6 +54,7 @@ import { NotFoundPage } from '@/pages/NotFoundPage'
 import { WolkPayPage } from '@/pages/wolkpay/WolkPayPage'
 import { WolkPayCheckoutPage } from '@/pages/wolkpay/WolkPayCheckoutPage'
 import { WolkPayHistoryPage } from '@/pages/wolkpay/WolkPayHistoryPage'
+import { WolkPayWelcomePage } from '@/pages/wolkpay/WolkPayWelcomePage'
 
 // Admin Pages
 import {
@@ -332,6 +333,7 @@ function App() {
 
           {/* WolkPay Public Checkout (no auth required) */}
           <Route path='/wolkpay/checkout/:token' element={<WolkPayCheckoutPage />} />
+          <Route path='/wolkpay/welcome' element={<WolkPayWelcomePage />} />
 
           {/* Admin Routes with Admin Layout */}
           <Route

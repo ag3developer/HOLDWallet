@@ -701,6 +701,13 @@
         "accountFailed": "Erro ao criar conta",
         "checkFailed": "Erro ao verificar pagamento"
       }
+    },
+    "welcome": {
+      "title": "Bem-vindo à WolkNow!",
+      "subtitle": "Sua conta foi criada com sucesso",
+      "loginButton": "Acessar minha conta",
+      "loginMessage": "Faça login com seu email e senha para começar",
+      "note": "Use o email e senha cadastrados para fazer login. Recomendamos ativar o 2FA para maior segurança."
     }
   }
 }

@@ -689,6 +689,13 @@
         "accountFailed": "Error creating account",
         "checkFailed": "Error checking payment"
       }
+    },
+    "welcome": {
+      "title": "Welcome to WolkNow!",
+      "subtitle": "Your account was created successfully",
+      "loginButton": "Access my account",
+      "loginMessage": "Login with your email and password to get started",
+      "note": "Use the email and password you registered to login. We recommend enabling 2FA for better security."
     }
   }
 }

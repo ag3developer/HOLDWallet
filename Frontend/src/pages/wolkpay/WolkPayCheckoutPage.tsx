@@ -472,10 +472,9 @@ export function WolkPayCheckoutPage() {
         false
       )
 
-      // Redirecionar para login
-      navigate('/auth/login', {
+      // Redirecionar para página de boas-vindas da WolkNow
+      navigate('/wolkpay/welcome', {
         state: {
-          message: t('wolkpay.checkout.accountCreated'),
           email: response.email,
         },
       })
