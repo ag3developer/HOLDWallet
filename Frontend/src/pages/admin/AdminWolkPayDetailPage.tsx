@@ -7,6 +7,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { QRCodeSVG } from 'qrcode.react'
 import {
   ArrowLeft,
   User,
@@ -544,6 +545,46 @@ export const AdminWolkPayDetailPage: React.FC = () => {
               />
             </div>
 
+            {/* Checkout Link */}
+            {invoice.checkout_url && (
+              <div className='p-3 bg-purple-900/30 rounded-lg border border-purple-700/50'>
+                <p className='text-xs text-purple-400 mb-2 flex items-center gap-1'>
+                  <ExternalLink className='w-3 h-3' /> Link de Checkout
+                </p>
+                <div className='flex items-start gap-4'>
+                  {/* QR Code do Checkout */}
+                  <div className='bg-white p-2 rounded-lg shrink-0'>
+                    <QRCodeSVG value={invoice.checkout_url} size={100} />
+                  </div>
+                  <div className='flex-1 min-w-0'>
+                    <p className='text-xs text-gray-500 mb-2'>
+                      Compartilhe este link ou QR Code com o pagador
+                    </p>
+                    <div className='flex items-center gap-2'>
+                      <a
+                        href={invoice.checkout_url}
+                        target='_blank'
+                        rel='noopener noreferrer'
+                        className='text-sm text-purple-300 hover:text-purple-100 underline truncate flex-1'
+                      >
+                        {invoice.checkout_url}
+                      </a>
+                      <CopyButton text={invoice.checkout_url} />
+                      <a
+                        href={invoice.checkout_url}
+                        target='_blank'
+                        rel='noopener noreferrer'
+                        className='p-2 bg-purple-600/30 rounded-lg hover:bg-purple-600/50 transition-colors'
+                        title='Abrir checkout'
+                      >
+                        <ExternalLink className='w-4 h-4 text-purple-400' />
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Beneficiary */}
             <div className='p-3 bg-gray-900/50 rounded-lg'>
               <p className='text-xs text-gray-500 mb-1'>Beneficiario</p>
@@ -732,6 +773,55 @@ export const AdminWolkPayDetailPage: React.FC = () => {
                   </span>
                 }
               />
+
+              {/* PIX QR Code e Copia-e-Cola */}
+              {payment.pix_qrcode && (
+                <div className='pt-3 border-t border-gray-700/50'>
+                  <p className='text-xs text-gray-500 mb-2 flex items-center gap-1'>
+                    <Hash className='w-3 h-3' /> PIX Copia e Cola
+                  </p>
+                  <div className='bg-gray-900/50 rounded-lg p-3'>
+                    <div className='flex items-start gap-2'>
+                      <p className='text-xs text-gray-400 font-mono break-all flex-1'>
+                        {payment.pix_qrcode.substring(0, 100)}...
+                      </p>
+                      <CopyButton text={payment.pix_qrcode} />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* QR Code Image */}
+              {payment.pix_qrcode_image && (
+                <div className='pt-3 border-t border-gray-700/50'>
+                  <p className='text-xs text-gray-500 mb-2 flex items-center gap-1'>
+                    <Hash className='w-3 h-3' /> QR Code PIX
+                  </p>
+                  <div className='bg-white p-3 rounded-lg inline-block'>
+                    <img
+                      src={
+                        payment.pix_qrcode_image.startsWith('data:')
+                          ? payment.pix_qrcode_image
+                          : `data:image/png;base64,${payment.pix_qrcode_image}`
+                      }
+                      alt='QR Code PIX'
+                      className='w-40 h-40'
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Pagador confirmou pagamento */}
+              {payment.payer_confirmed_at && (
+                <InfoRow
+                  icon={<CheckCircle className='w-4 h-4 text-blue-400' />}
+                  label='Pagador confirmou em'
+                  value={
+                    <span className='text-blue-400'>{formatDate(payment.payer_confirmed_at)}</span>
+                  }
+                />
+              )}
+
               {payment.bank_transaction_id && (
                 <InfoRow
                   icon={<Hash className='w-4 h-4 text-gray-400' />}

@@ -132,9 +132,12 @@ export interface WolkPayPayment {
   id: string
   pix_key?: string
   pix_txid?: string
+  pix_qrcode?: string
+  pix_qrcode_image?: string
   amount_brl: number
   status: string
   paid_at?: string
+  payer_confirmed_at?: string
   bank_transaction_id?: string
   payer_bank?: string
   payer_name_from_bank?: string
