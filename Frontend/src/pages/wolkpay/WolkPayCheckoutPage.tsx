@@ -912,9 +912,12 @@ export function WolkPayCheckoutPage() {
               {t('wolkpay.checkout.beneficiary')}
             </span>
             <div className='flex items-center gap-2'>
-              <span className='text-sm font-medium text-gray-900 dark:text-white'>
-                {checkout?.beneficiary_name}
-              </span>
+              <div className='text-right'>
+                <span className='text-sm font-medium text-gray-900 dark:text-white block'>
+                  {checkout?.beneficiary_name}
+                </span>
+                <span className='text-xs text-gray-400'>{checkout?.beneficiary_uid}</span>
+              </div>
               {checkout?.beneficiary_verified && <BadgeCheck className='w-4 h-4 text-blue-500' />}
             </div>
           </div>

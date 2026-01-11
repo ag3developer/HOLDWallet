@@ -187,9 +187,15 @@ class WolkPayService:
             invoice.status = InvoiceStatus.EXPIRED
             self.db.commit()
         
-        # Buscar nome do beneficiário (parcial)
+        # Buscar dados do beneficiário
         user = self.db.query(User).filter(User.id == invoice.beneficiary_id).first()
+        
+        # Nome mascarado (parcial por privacidade)
         beneficiary_name = self._mask_name(user.username if user else "Usuário")
+        
+        # Gerar UID a partir do ID do usuário (primeiros 8 chars)
+        user_id_str = str(user.id) if user else "00000000"
+        beneficiary_uid = f"WK-{user_id_str[:8].upper()}"
         
         # Calcular tempo restante
         now = datetime.now(timezone.utc)
@@ -204,6 +210,7 @@ class WolkPayService:
             invoice_number=invoice.invoice_number,
             status=invoice.status.value,
             beneficiary_name=beneficiary_name,
+            beneficiary_uid=beneficiary_uid,
             beneficiary_verified=True,
             crypto_currency=invoice.crypto_currency,
             crypto_amount=invoice.crypto_amount,

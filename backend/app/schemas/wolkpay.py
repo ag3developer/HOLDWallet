@@ -294,7 +294,8 @@ class CheckoutDataResponse(BaseModel):
     status: str
     
     # Beneficiário (dados parciais por privacidade)
-    beneficiary_name: str  # J***o M***s
+    beneficiary_name: str  # Nome completo mascarado: J***o M***s
+    beneficiary_uid: str  # UID da conta: WK-XXXX
     beneficiary_verified: bool = True
     
     # Valores

@@ -71,6 +71,7 @@ export interface CheckoutData {
   invoice_number: string
   status: string
   beneficiary_name: string
+  beneficiary_uid: string
   beneficiary_verified: boolean
   crypto_currency: string
   crypto_amount: number
