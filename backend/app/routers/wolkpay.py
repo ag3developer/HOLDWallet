@@ -320,8 +320,10 @@ async def save_payer_data(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
+        import traceback
         logger.error(f"Erro ao salvar dados do pagador: {e}")
-        raise HTTPException(status_code=500, detail="Erro ao salvar dados")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Erro ao salvar dados: {str(e)}")
 
 
 @router.post("/checkout/{token}/pay", response_model=PixPaymentResponse)
@@ -349,8 +351,10 @@ async def generate_payment(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
+        import traceback
         logger.error(f"Erro ao gerar PIX: {e}")
-        raise HTTPException(status_code=500, detail="Erro ao gerar PIX")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Erro ao gerar PIX: {str(e)}")
 
 
 @router.get("/checkout/{token}/status", response_model=PaymentStatusResponse)
