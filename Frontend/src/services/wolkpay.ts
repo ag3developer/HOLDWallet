@@ -326,6 +326,17 @@ class WolkPayService {
     )
     return response.data
   }
+
+  /**
+   * Pagador informa que realizou o pagamento
+   * Não muda status para PAID - apenas notifica admin para verificação manual
+   */
+  async confirmPayerPaid(token: string): Promise<{ success: boolean }> {
+    const response = await apiClient.post<{ success: boolean }>(
+      `${this.baseUrl}/checkout/${token}/payer-confirmed`
+    )
+    return response.data
+  }
 }
 
 export const wolkPayService = new WolkPayService()

@@ -413,6 +413,73 @@ async def get_payment_status(
 
 
 # ==========================================
+# PAGADOR CONFIRMA QUE PAGOU
+# ==========================================
+
+@router.post("/checkout/{token}/payer-confirmed")
+async def payer_confirmed_payment(
+    token: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Pagador informa que realizou o pagamento PIX.
+    
+    IMPORTANTE: Este endpoint NÃO muda o status da fatura para PAID.
+    Apenas registra que o pagador confirmou ter pago, para que o admin
+    possa verificar manualmente se o PIX foi recebido.
+    
+    O status só muda para PAID quando o admin confirmar.
+    """
+    from app.models.wolkpay import WolkPayInvoice, WolkPayPayment, InvoiceStatus
+    from datetime import datetime, timezone
+    
+    invoice = db.query(WolkPayInvoice).filter(
+        WolkPayInvoice.checkout_token == token
+    ).first()
+    
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Fatura não encontrada")
+    
+    # Verificar se já expirou
+    if invoice.is_expired() and invoice.status in [InvoiceStatus.PENDING, InvoiceStatus.AWAITING_PAYMENT]:
+        invoice.status = InvoiceStatus.EXPIRED
+        db.commit()
+        raise HTTPException(status_code=400, detail="Fatura expirada")
+    
+    # Buscar payment
+    payment = db.query(WolkPayPayment).filter(
+        WolkPayPayment.invoice_id == invoice.id
+    ).first()
+    
+    if payment:
+        # Registrar que o pagador confirmou (se o campo existir)
+        try:
+            payment.payer_confirmed_at = datetime.now(timezone.utc)
+            db.commit()
+        except Exception:
+            # Se o campo não existir ainda, continua sem erro
+            pass
+    
+    # Log de auditoria
+    service = WolkPayService(db)
+    service._log_audit(
+        invoice_id=str(invoice.id),
+        actor_type="payer",
+        actor_id=str(invoice.payer.id) if invoice.payer else "unknown",
+        action="payer_confirmed",
+        description=f"Pagador informou que realizou o pagamento PIX da fatura {invoice.invoice_number}. Aguardando verificação manual do admin."
+    )
+    db.commit()
+    
+    logger.info(f"Pagador confirmou pagamento da fatura {invoice.invoice_number}")
+    
+    return {
+        "success": True,
+        "message": "Confirmação recebida. O admin irá verificar o pagamento."
+    }
+
+
+# ==========================================
 # CANCELAMENTO
 # ==========================================
 

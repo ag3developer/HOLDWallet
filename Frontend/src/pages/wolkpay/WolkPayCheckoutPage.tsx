@@ -420,26 +420,28 @@ export function WolkPayCheckoutPage() {
     }
   }
 
-  // Verificar pagamento manualmente (botão "Já paguei")
-  const handleCheckPayment = async () => {
+  // Pagador informa que pagou - vai para tela de conversão
+  // NOTA: Isso NÃO muda o status da fatura. O admin verifica manualmente se o PIX chegou.
+  const handlePayerConfirmed = async () => {
     if (!token) return
 
     setIsLoading(true)
     setError(null)
 
     try {
-      const status = await wolkPayService.checkPaymentStatus(token)
-      if (status.paid) {
-        setStep('paid')
-        // Verificar elegibilidade para conversão
-        checkConversionEligibility()
-      } else {
-        // Pagamento ainda não detectado
-        setError(t('wolkpay.checkout.paymentNotDetected'))
-      }
+      // Notificar backend que pagador confirmou (para o admin ver)
+      await wolkPayService.confirmPayerPaid(token)
+
+      // Ir para tela de sucesso/conversão
+      setStep('paid')
+
+      // Verificar se pode criar conta
+      checkConversionEligibility()
     } catch (err: any) {
-      console.error('Error checking payment:', err)
-      setError(err.response?.data?.detail || t('wolkpay.checkout.errors.checkFailed'))
+      console.error('Error confirming payment:', err)
+      // Mesmo se der erro, deixa ir para a tela de conversão
+      setStep('paid')
+      checkConversionEligibility()
     } finally {
       setIsLoading(false)
     }
@@ -808,7 +810,7 @@ export function WolkPayCheckoutPage() {
 
           {/* Já Paguei Button */}
           <button
-            onClick={handleCheckPayment}
+            onClick={handlePayerConfirmed}
             disabled={isLoading}
             className='w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl font-semibold text-lg transition-all shadow-lg shadow-green-500/25 disabled:opacity-50'
           >

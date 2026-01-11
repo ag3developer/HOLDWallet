@@ -257,6 +257,7 @@ class WolkPayPayment(Base):
     
     # Confirmação
     paid_at = Column(DateTime(timezone=True), nullable=True)
+    payer_confirmed_at = Column(DateTime(timezone=True), nullable=True)  # Quando pagador informou que pagou
     bank_transaction_id = Column(String(100), nullable=True)  # ID transação bancária
     payer_bank = Column(String(100), nullable=True)  # Banco do pagador
     payer_name_from_bank = Column(String(200), nullable=True)  # Nome no banco
