@@ -30,11 +30,7 @@ import {
 } from 'lucide-react'
 import { usePrices } from '@/hooks/usePrices'
 import { useCurrencyStore } from '@/stores/useCurrencyStore'
-import wolkPayService, {
-  CreateInvoiceRequest,
-  InvoiceCreatedResponse,
-  FeePayer,
-} from '@/services/wolkpay'
+import wolkPayService, { CreateInvoiceRequest, InvoiceCreatedResponse } from '@/services/wolkpay'
 
 // Logos das cryptos - usando CoinGecko
 const CRYPTO_LOGOS: Record<string, string> = {
@@ -92,7 +88,8 @@ const LIMITS = {
 }
 
 const formatCurrency = (amount: number, currency = 'BRL') => {
-  return new Intl.NumberFormat('pt-BR', {
+  const locale = currency === 'BRL' ? 'pt-BR' : currency === 'EUR' ? 'de-DE' : 'en-US'
+  return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency,
     minimumFractionDigits: 2,
@@ -108,17 +105,38 @@ const formatCrypto = (amount: number | string, symbol: string) => {
 export function WolkPayPage() {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
-  const { currency } = useCurrencyStore()
+  const { currency: userCurrency } = useCurrencyStore()
 
-  // Buscar preços em BRL (cotação real do mercado)
+  // WolkPay sempre trabalha em BRL (PIX é brasileiro)
+  // Mas mostramos equivalência na moeda do usuário para conveniência
+
+  // Buscar preços em BRL (cotação real do mercado - base para PIX)
   const { prices: pricesBRL } = usePrices(
     SUPPORTED_CRYPTOS.map(c => c.symbol),
     'BRL'
   )
 
-  // Buscar cotação USD/BRL usando USDT como referência
-  const { prices: usdtPrice } = usePrices(['USDT'], 'BRL')
-  const usdBrlRate = usdtPrice?.['USDT']?.price || 5.5 // Fallback caso não consiga obter
+  // Buscar cotação USD/BRL e na moeda do usuário usando USDT como referência
+  const { prices: usdtPriceBRL } = usePrices(['USDT'], 'BRL')
+  const { prices: usdtPriceUser } = usePrices(userCurrency !== 'BRL' ? ['USDT'] : [], userCurrency)
+
+  // Taxa de conversão BRL → moeda do usuário
+  const usdBrlRate = usdtPriceBRL?.['USDT']?.price || 5.5
+  const usdUserRate = usdtPriceUser?.['USDT']?.price || 1
+  // BRL para moeda do usuário: BRL / (USDT em BRL) * (USDT em moeda do usuário)
+  const brlToUserRate = userCurrency === 'BRL' ? 1 : (1 / usdBrlRate) * usdUserRate
+
+  // Função para converter BRL para moeda do usuário
+  const convertBRLtoUserCurrency = (brlAmount: number) => {
+    if (userCurrency === 'BRL') return brlAmount
+    return brlAmount * brlToUserRate
+  }
+
+  // Função para formatar na moeda do usuário
+  const formatUserCurrency = (brlAmount: number) => {
+    const converted = convertBRLtoUserCurrency(brlAmount)
+    return formatCurrency(converted, userCurrency)
+  }
 
   // Estado do formulário
   const [selectedCrypto, setSelectedCrypto] = useState(SUPPORTED_CRYPTOS[0])
@@ -608,8 +626,16 @@ export function WolkPayPage() {
           </div>
 
           <div className='relative'>
-            <div className='absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 font-medium'>
-              {inputMode === 'fiat' ? 'R$' : selectedCrypto.symbol}
+            <div className='absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 font-medium flex items-center gap-1'>
+              {inputMode === 'fiat' ? (
+                <span>R$</span>
+              ) : (
+                <>
+                  <span className='text-sm bg-gray-200 dark:bg-gray-600 px-2 py-0.5 rounded'>
+                    {selectedCrypto.symbol}
+                  </span>
+                </>
+              )}
             </div>
             <input
               type='number'
@@ -620,7 +646,9 @@ export function WolkPayPage() {
                   : setCryptoAmount(e.target.value)
               }
               placeholder='0,00'
-              className='w-full pl-14 pr-4 py-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600 text-xl font-semibold text-gray-900 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all'
+              className={`w-full pr-4 py-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600 text-xl font-semibold text-gray-900 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all ${
+                inputMode === 'fiat' ? 'pl-14' : 'pl-20'
+              }`}
             />
           </div>
 
@@ -629,11 +657,12 @@ export function WolkPayPage() {
             <span className='text-gray-500 dark:text-gray-400'>
               {inputMode === 'fiat'
                 ? `≈ ${formatCrypto(calculatedCryptoAmount || 0, selectedCrypto.symbol)}`
-                : `≈ ${formatCurrency(calculatedFiatAmount || 0)}`}
+                : `≈ ${formatCurrency(calculatedFiatAmount || 0)}${userCurrency !== 'BRL' ? ` (${formatUserCurrency(calculatedFiatAmount || 0)})` : ''}`}
             </span>
             {currentPriceBRL > 0 && (
               <span className='text-xs text-gray-400'>
                 1 {selectedCrypto.symbol} = {formatCurrency(brlRate)}
+                {userCurrency !== 'BRL' && ` (${formatUserCurrency(brlRate)})`}
               </span>
             )}
           </div>
@@ -672,6 +701,11 @@ export function WolkPayPage() {
                   <div className='font-medium'>Eu (Beneficiário)</div>
                   <div className='text-xs opacity-70'>
                     Pagador paga {formatCurrency(calculatedFiatAmount)}
+                    {userCurrency !== 'BRL' && (
+                      <span className='ml-1 text-gray-400'>
+                        ({formatUserCurrency(calculatedFiatAmount)})
+                      </span>
+                    )}
                   </div>
                 </button>
                 <button
@@ -686,6 +720,11 @@ export function WolkPayPage() {
                   <div className='font-medium'>Pagador</div>
                   <div className='text-xs opacity-70'>
                     Pagador paga {formatCurrency(totalAmount)}
+                    {userCurrency !== 'BRL' && (
+                      <span className='ml-1 text-gray-400'>
+                        ({formatUserCurrency(totalAmount)})
+                      </span>
+                    )}
                   </div>
                 </button>
               </div>
@@ -695,6 +734,11 @@ export function WolkPayPage() {
               <span className='text-gray-500 dark:text-gray-400'>{t('wolkpay.baseAmount')}</span>
               <span className='text-gray-900 dark:text-white'>
                 {formatCurrency(calculatedFiatAmount)}
+                {userCurrency !== 'BRL' && (
+                  <span className='text-xs text-gray-400 ml-1'>
+                    ({formatUserCurrency(calculatedFiatAmount)})
+                  </span>
+                )}
               </span>
             </div>
             <div className='flex justify-between text-sm'>
@@ -716,9 +760,16 @@ export function WolkPayPage() {
                 <span className='font-semibold text-gray-900 dark:text-white'>
                   Pagador vai pagar:
                 </span>
-                <span className='font-bold text-lg text-blue-600 dark:text-blue-400'>
-                  {formatCurrency(totalAmount)}
-                </span>
+                <div className='text-right'>
+                  <span className='font-bold text-lg text-blue-600 dark:text-blue-400'>
+                    {formatCurrency(totalAmount)}
+                  </span>
+                  {userCurrency !== 'BRL' && (
+                    <span className='text-xs text-gray-400 block'>
+                      ≈ {formatUserCurrency(totalAmount)}
+                    </span>
+                  )}
+                </div>
               </div>
               <div className='flex justify-between items-start'>
                 <span className='text-sm text-gray-500 dark:text-gray-400'>Você vai receber:</span>
@@ -727,6 +778,11 @@ export function WolkPayPage() {
                     className={`font-semibold block ${feePayer === 'PAYER' ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'}`}
                   >
                     {formatCurrency(beneficiaryReceives)}
+                    {userCurrency !== 'BRL' && (
+                      <span className='text-xs text-gray-400 ml-1'>
+                        ({formatUserCurrency(beneficiaryReceives)})
+                      </span>
+                    )}
                     <span className='text-xs ml-1'>
                       (
                       {feePayer === 'PAYER'

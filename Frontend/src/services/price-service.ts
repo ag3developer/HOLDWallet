@@ -6,12 +6,13 @@
  *
  * 📐 PADRÃO TRADING EM TEMPO REAL:
  * ─────────────────────────────────
- * 1. Backend → SEMPRE retorna preços em USD
- * 2. Conversão → Feita via CurrencyManager centralizado
- * 3. ⚠️ SEM CACHE → Preços sempre frescos para evitar prejuízos
- * 4. Deduplicação → Requisições em paralelo são mescladas
+ * 1. Backend → Retorna preços na moeda solicitada (USD, BRL, EUR)
+ * 2. Fonte primária → Binance (preços mais precisos)
+ * 3. Fallback → CoinGecko (se Binance falhar)
+ * 4. ⚠️ SEM CACHE → Preços sempre frescos para evitar prejuízos
+ * 5. Deduplicação → Requisições em paralelo são mescladas
  *
- * @version 3.0.0 - Removido cache para trading em tempo real
+ * @version 4.0.0 - Suporte multi-moeda via backend
  * @enterprise true
  */
 
@@ -102,18 +103,18 @@ class PriceService {
   /**
    * Buscar preços do backend
    * Usa apenas o endpoint /prices/batch (único endpoint funcional)
-   * SEMPRE busca em USD - conversão para outra moeda é feita no frontend
+   * Respeita o parâmetro currency para buscar na moeda correta
    * ⚠️ SEM FALLBACK - Retorna erro se backend indisponível para evitar preços incorretos
    */
   private static async fetchFromBackend(
     symbols: string[],
-    _currency: string = 'USD'
+    currency: string = 'USD'
   ): Promise<PriceData> {
     if (symbols.length === 0) return {}
 
     const symbolsQuery = symbols.join(',')
-    // SEMPRE usar USD - conversão será feita no frontend
-    const currencyCode = 'usd'
+    // Usar a moeda solicitada (USD, BRL, EUR, etc.)
+    const currencyCode = currency.toLowerCase()
 
     const client = axios.create({
       baseURL: APP_CONFIG.api.baseUrl,
@@ -122,7 +123,9 @@ class PriceService {
     })
 
     try {
-      console.log(`[PriceService] Fetching from /prices/batch: ${symbolsQuery} (in USD)`)
+      console.log(
+        `[PriceService] Fetching from /prices/batch: ${symbolsQuery} (in ${currency.toUpperCase()})`
+      )
       const response = await client.get('/prices/batch', {
         params: {
           symbols: symbolsQuery,
@@ -156,9 +159,8 @@ class PriceService {
   /**
    * Parse resposta do backend
    *
-   * ⚠️ PADRÃO TRADING: Retorna preços em USD!
-   * A conversão para moeda do usuário é feita pelo formatCurrency() na exibição.
-   * Isso evita conversão dupla e mantém consistência.
+   * Retorna preços na moeda solicitada (USD, BRL, EUR, etc.)
+   * O backend já faz a conversão via Binance/CoinGecko
    */
   private static parseResponse(data: Record<string, any>): PriceData {
     const result: PriceData = {}
@@ -167,11 +169,11 @@ class PriceService {
       const symbolUpper = symbol.toUpperCase()
       const infoObj = info as Record<string, any>
 
-      // Preço em USD (sem conversão)
-      const priceUSD = infoObj.price || infoObj.value || 0
+      // Preço na moeda solicitada
+      const price = infoObj.price || infoObj.value || 0
 
       result[symbolUpper] = {
-        price: priceUSD, // Mantém em USD!
+        price: price,
         change_24h: infoObj.change_24h || 0,
         high_24h: infoObj.high_24h || 0,
         low_24h: infoObj.low_24h || 0,
