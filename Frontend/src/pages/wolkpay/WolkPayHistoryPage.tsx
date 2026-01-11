@@ -20,8 +20,36 @@ import {
   ExternalLink,
   Filter,
   Search,
+  Sparkles,
+  Plus,
+  TrendingUp,
+  CircleDollarSign,
+  FileText,
+  Timer,
+  Coins,
 } from 'lucide-react'
 import wolkPayService, { Invoice, InvoiceStatus } from '@/services/wolkpay'
+
+// Logos das cryptos
+const CRYPTO_LOGOS: Record<string, string> = {
+  BTC: 'https://assets.coingecko.com/coins/images/1/small/bitcoin.png',
+  ETH: 'https://assets.coingecko.com/coins/images/279/small/ethereum.png',
+  MATIC: 'https://assets.coingecko.com/coins/images/4713/small/matic-token-icon.png',
+  BNB: 'https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png',
+  TRX: 'https://assets.coingecko.com/coins/images/1094/small/tron-logo.png',
+  SOL: 'https://assets.coingecko.com/coins/images/4128/small/solana.png',
+  LTC: 'https://assets.coingecko.com/coins/images/2/small/litecoin.png',
+  DOGE: 'https://assets.coingecko.com/coins/images/5/small/dogecoin.png',
+  ADA: 'https://assets.coingecko.com/coins/images/975/small/cardano.png',
+  AVAX: 'https://assets.coingecko.com/coins/images/12559/small/Avalanche_Circle_RedWhite_Trans.png',
+  DOT: 'https://assets.coingecko.com/coins/images/12171/small/polkadot.png',
+  LINK: 'https://assets.coingecko.com/coins/images/877/small/chainlink-new-logo.png',
+  SHIB: 'https://assets.coingecko.com/coins/images/11939/small/shiba.png',
+  XRP: 'https://assets.coingecko.com/coins/images/44/small/xrp-symbol-white-128.png',
+  USDT: 'https://assets.coingecko.com/coins/images/325/small/Tether.png',
+  USDC: 'https://assets.coingecko.com/coins/images/6319/small/usdc.png',
+  DAI: 'https://assets.coingecko.com/coins/images/9956/small/Badge_Dai.png',
+}
 
 // Status config
 const STATUS_CONFIG: Record<
@@ -183,78 +211,130 @@ export function WolkPayHistoryPage() {
   }
 
   return (
-    <div key={i18n.language} className='space-y-6 pb-24'>
-      {/* Header */}
-      <div className='flex items-center justify-between'>
-        <div className='flex items-center gap-4'>
-          <button
-            onClick={() => navigate('/wolkpay')}
-            className='p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors'
-          >
-            <ArrowLeft className='w-5 h-5 text-gray-600 dark:text-gray-400' />
-          </button>
-          <div>
-            <h1 className='text-2xl font-bold text-gray-900 dark:text-white'>
-              {t('wolkpay.history.title')}
-            </h1>
-            <p className='text-sm text-gray-500 dark:text-gray-400'>
-              {t('wolkpay.history.subtitle', { total })}
-            </p>
+    <div key={i18n.language} className='space-y-5 pb-24'>
+      {/* ============================================ */}
+      {/* HERO HEADER - Premium Design */}
+      {/* ============================================ */}
+      <div className='relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 p-5'>
+        {/* Background decorations */}
+        <div className='absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2' />
+        <div className='absolute bottom-0 left-0 w-32 h-32 bg-pink-400/20 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2' />
+
+        <div className='relative'>
+          {/* Back + Title */}
+          <div className='flex items-center gap-3 mb-4'>
+            <button
+              onClick={() => navigate('/wolkpay')}
+              className='p-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors'
+            >
+              <ArrowLeft className='w-5 h-5 text-white' />
+            </button>
+            <div className='flex-1'>
+              <h1 className='text-xl font-bold text-white flex items-center gap-2'>
+                <FileText className='w-5 h-5' />
+                Minhas Faturas
+              </h1>
+              <p className='text-white/70 text-xs'>
+                {total} {total === 1 ? 'fatura' : 'faturas'} no total
+              </p>
+            </div>
+            <button
+              onClick={loadInvoices}
+              disabled={isLoading}
+              className='p-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors'
+            >
+              <RefreshCw className={`w-5 h-5 text-white ${isLoading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+
+          {/* Quick Stats */}
+          <div className='grid grid-cols-3 gap-2'>
+            <div className='bg-white/10 backdrop-blur-sm rounded-xl p-2.5 text-center'>
+              <div className='flex items-center justify-center gap-1 text-white/70 text-[10px] mb-0.5'>
+                <Clock className='w-3 h-3' /> PENDENTES
+              </div>
+              <p className='text-white font-bold text-lg'>
+                {invoices.filter(i => ['PENDING', 'AWAITING_PAYMENT'].includes(i.status)).length}
+              </p>
+            </div>
+            <div className='bg-white/10 backdrop-blur-sm rounded-xl p-2.5 text-center'>
+              <div className='flex items-center justify-center gap-1 text-white/70 text-[10px] mb-0.5'>
+                <Check className='w-3 h-3' /> CONCLUÍDAS
+              </div>
+              <p className='text-green-300 font-bold text-lg'>
+                {invoices.filter(i => ['PAID', 'APPROVED', 'COMPLETED'].includes(i.status)).length}
+              </p>
+            </div>
+            <div className='bg-white/10 backdrop-blur-sm rounded-xl p-2.5 text-center'>
+              <div className='flex items-center justify-center gap-1 text-white/70 text-[10px] mb-0.5'>
+                <TrendingUp className='w-3 h-3' /> VOLUME
+              </div>
+              <p className='text-white font-bold text-sm'>
+                {formatCurrency(
+                  invoices
+                    .filter(i => ['PAID', 'APPROVED', 'COMPLETED'].includes(i.status))
+                    .reduce((acc, i) => acc + i.total_amount_brl, 0)
+                )}
+              </p>
+            </div>
           </div>
         </div>
-
-        <button
-          onClick={loadInvoices}
-          disabled={isLoading}
-          className='p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors'
-        >
-          <RefreshCw
-            className={`w-5 h-5 text-gray-600 dark:text-gray-400 ${isLoading ? 'animate-spin' : ''}`}
-          />
-        </button>
       </div>
 
-      {/* Filter */}
-      <div className='flex gap-2 overflow-x-auto pb-2'>
+      {/* Nova Fatura CTA */}
+      <button
+        onClick={() => navigate('/wolkpay')}
+        className='w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/25 transition-all'
+      >
+        <Plus className='w-5 h-5' />
+        Criar Nova Fatura
+      </button>
+
+      {/* Filter Pills */}
+      <div className='flex gap-2 overflow-x-auto pb-1 -mx-1 px-1'>
         <button
           onClick={() => setStatusFilter('')}
-          className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors ${
+          className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all flex items-center gap-1.5 ${
             !statusFilter
-              ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
-              : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+              ? 'bg-blue-600 text-white shadow-md'
+              : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
           }`}
         >
-          {t('wolkpay.history.all')}
+          <Sparkles className='w-4 h-4' />
+          Todas
         </button>
         <button
           onClick={() => setStatusFilter('PENDING,AWAITING_PAYMENT')}
-          className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors ${
+          className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all flex items-center gap-1.5 ${
             statusFilter === 'PENDING,AWAITING_PAYMENT'
-              ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
-              : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+              ? 'bg-yellow-500 text-white shadow-md'
+              : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
           }`}
         >
-          {t('wolkpay.history.pending')}
+          <Timer className='w-4 h-4' />
+          Pendentes
         </button>
         <button
           onClick={() => setStatusFilter('PAID,APPROVED,COMPLETED')}
-          className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors ${
+          className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all flex items-center gap-1.5 ${
             statusFilter === 'PAID,APPROVED,COMPLETED'
-              ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-              : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+              ? 'bg-green-500 text-white shadow-md'
+              : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
           }`}
         >
-          {t('wolkpay.history.completed')}
+          <Check className='w-4 h-4' />
+          Concluídas
         </button>
         <button
           onClick={() => setStatusFilter('EXPIRED,CANCELLED,REJECTED')}
-          className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors ${
+          className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all flex items-center gap-1.5 ${
             statusFilter === 'EXPIRED,CANCELLED,REJECTED'
-              ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-              : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+              ? 'bg-gray-500 text-white shadow-md'
+              : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
           }`}
         >
-          {t('wolkpay.history.cancelled')}
+          <X className='w-4 h-4' />
+          Canceladas
         </button>
       </div>
 
@@ -298,37 +378,51 @@ export function WolkPayHistoryPage() {
           {invoices.map(invoice => (
             <div
               key={invoice.id}
-              className='bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-200 dark:border-gray-700'
+              className='bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all'
             >
-              {/* Header */}
+              {/* Header com Logo da Crypto */}
               <div className='flex items-center justify-between mb-3'>
-                <div>
-                  <p className='text-sm font-medium text-gray-900 dark:text-white'>
-                    #{invoice.invoice_number}
-                  </p>
-                  <p className='text-xs text-gray-500 dark:text-gray-400'>
-                    {formatDate(invoice.created_at)}
-                  </p>
+                <div className='flex items-center gap-3'>
+                  {/* Crypto Logo */}
+                  {CRYPTO_LOGOS[invoice.crypto_currency] ? (
+                    <img
+                      src={CRYPTO_LOGOS[invoice.crypto_currency]}
+                      alt={invoice.crypto_currency}
+                      className='w-10 h-10 rounded-full'
+                    />
+                  ) : (
+                    <div className='w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center'>
+                      <Coins className='w-5 h-5 text-white' />
+                    </div>
+                  )}
+                  <div>
+                    <p className='font-semibold text-gray-900 dark:text-white flex items-center gap-2'>
+                      {formatCrypto(invoice.crypto_amount, invoice.crypto_currency)}
+                    </p>
+                    <p className='text-xs text-gray-500 dark:text-gray-400'>
+                      #{invoice.invoice_number} • {formatDate(invoice.created_at)}
+                    </p>
+                  </div>
                 </div>
                 {renderStatusBadge(invoice.status)}
               </div>
 
-              {/* Amount */}
-              <div className='flex items-center justify-between mb-3 pb-3 border-b border-gray-100 dark:border-gray-700'>
+              {/* Amount Row */}
+              <div className='flex items-center justify-between py-3 px-3 mb-3 bg-gray-50 dark:bg-gray-700/30 rounded-xl'>
                 <div>
-                  <p className='text-xs text-gray-500 dark:text-gray-400'>
-                    {t('wolkpay.history.crypto')}
+                  <p className='text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wide'>
+                    Total em BRL
                   </p>
-                  <p className='font-semibold text-gray-900 dark:text-white'>
-                    {formatCrypto(invoice.crypto_amount, invoice.crypto_currency)}
+                  <p className='font-bold text-xl text-blue-600 dark:text-blue-400'>
+                    {formatCurrency(invoice.total_amount_brl)}
                   </p>
                 </div>
                 <div className='text-right'>
-                  <p className='text-xs text-gray-500 dark:text-gray-400'>
-                    {t('wolkpay.history.total')}
+                  <p className='text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wide'>
+                    Você recebe
                   </p>
-                  <p className='font-bold text-lg text-blue-600 dark:text-blue-400'>
-                    {formatCurrency(invoice.total_amount_brl)}
+                  <p className='font-semibold text-green-600 dark:text-green-400'>
+                    {formatCurrency(invoice.beneficiary_receives_brl || invoice.base_amount_brl)}
                   </p>
                 </div>
               </div>
