@@ -1006,23 +1006,102 @@ class WolkPayService:
     
     def _generate_pix_static_code(self, amount: Decimal, description: str) -> str:
         """
-        Gera código PIX estático (copia e cola)
+        Gera código PIX estático (copia e cola) no padrão EMV do Banco Central
         
-        Formato simplificado - em produção usar biblioteca pix-python
+        Estrutura EMV PIX:
+        - 00: Payload Format Indicator (fixo "01")
+        - 26: Merchant Account Information (PIX)
+          - 00: GUI (br.gov.bcb.pix)
+          - 01: Chave PIX
+        - 52: Merchant Category Code (0000 = não informado)
+        - 53: Transaction Currency (986 = BRL)
+        - 54: Transaction Amount
+        - 58: Country Code (BR)
+        - 59: Merchant Name
+        - 60: Merchant City
+        - 62: Additional Data Field Template
+          - 05: Reference Label (txid)
+        - 63: CRC16
         """
-        # Formato EMV simplificado
-        # Em produção, usar biblioteca como python-pix
         
-        pix_data = f"""
-00020126580014br.gov.bcb.pix0136{self.PIX_KEY}
-52040000530398654{float(amount):.2f}5802BR
-5913HOLD DIGITAL6008BRASILIA62070503***6304
-""".replace("\n", "").strip()
+        def _format_tlv(tag: str, value: str) -> str:
+            """Formata um campo TLV (Tag-Length-Value)"""
+            length = str(len(value)).zfill(2)
+            return f"{tag}{length}{value}"
         
-        # Calcular CRC16 (simplificado)
-        # Em produção, calcular CRC16-CCITT corretamente
+        def _calculate_crc16(payload: str) -> str:
+            """Calcula CRC16-CCITT (padrão EMV)"""
+            # Polinômio CRC16-CCITT: 0x1021
+            crc = 0xFFFF
+            
+            for char in payload:
+                crc ^= ord(char) << 8
+                for _ in range(8):
+                    if crc & 0x8000:
+                        crc = (crc << 1) ^ 0x1021
+                    else:
+                        crc = crc << 1
+                    crc &= 0xFFFF
+            
+            return format(crc, '04X')
         
-        return pix_data
+        # 1. Payload Format Indicator (fixo)
+        pfi = _format_tlv("00", "01")
+        
+        # 2. Merchant Account Information (PIX)
+        # GUI do PIX
+        gui = _format_tlv("00", "br.gov.bcb.pix")
+        # Chave PIX (CNPJ sem pontuação)
+        pix_key = _format_tlv("01", self.PIX_KEY)
+        # Merchant Account completo
+        mai_content = gui + pix_key
+        mai = _format_tlv("26", mai_content)
+        
+        # 3. Merchant Category Code (0000 = não informado)
+        mcc = _format_tlv("52", "0000")
+        
+        # 4. Transaction Currency (986 = BRL)
+        currency = _format_tlv("53", "986")
+        
+        # 5. Transaction Amount
+        amount_str = f"{float(amount):.2f}"
+        transaction_amount = _format_tlv("54", amount_str)
+        
+        # 6. Country Code
+        country = _format_tlv("58", "BR")
+        
+        # 7. Merchant Name (máx 25 caracteres)
+        merchant_name = "HOLD DIGITAL"[:25]
+        name_field = _format_tlv("59", merchant_name)
+        
+        # 8. Merchant City (máx 15 caracteres)
+        city = "BRASILIA"[:15]
+        city_field = _format_tlv("60", city)
+        
+        # 9. Additional Data Field Template
+        # Reference Label (txid) - máx 25 caracteres
+        txid = description[:25].replace(" ", "")
+        reference = _format_tlv("05", txid)
+        additional_data = _format_tlv("62", reference)
+        
+        # 10. Montar payload sem CRC
+        payload_without_crc = (
+            pfi + mai + mcc + currency + transaction_amount + 
+            country + name_field + city_field + additional_data
+        )
+        
+        # 11. Adicionar tag do CRC (63) com tamanho 04
+        payload_for_crc = payload_without_crc + "6304"
+        
+        # 12. Calcular CRC16
+        crc = _calculate_crc16(payload_for_crc)
+        
+        # 13. Payload final
+        final_payload = payload_for_crc + crc
+        
+        logger.info(f"PIX EMV gerado: {final_payload[:50]}...")
+        
+        return final_payload
     
     def _generate_qr_code_base64(self, data: str) -> str:
         """Gera QR Code em base64"""
