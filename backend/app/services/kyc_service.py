@@ -783,7 +783,9 @@ class KYCService:
         
         status_dict = {s.value: 0 for s in KYCStatus}
         for status, count in status_counts:
-            status_dict[status.value] = count
+            # status pode ser enum ou string
+            status_key = status.value if hasattr(status, 'value') else str(status)
+            status_dict[status_key] = count
         
         # Contagens por nível (apenas aprovados)
         level_counts = self.db.query(
@@ -795,8 +797,10 @@ class KYCService:
         
         level_dict = {l.value: 0 for l in KYCLevel if l != KYCLevel.NONE}
         for level, count in level_counts:
-            if level.value in level_dict:
-                level_dict[level.value] = count
+            # level pode ser enum ou string
+            level_key = level.value if hasattr(level, 'value') else str(level)
+            if level_key in level_dict:
+                level_dict[level_key] = count
         
         # Hoje
         today_start = datetime.combine(today, datetime.min.time())

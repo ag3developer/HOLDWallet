@@ -2,6 +2,7 @@
  * 🛡️ Admin KYC Management Page
  * =============================
  * Página para gerenciar verificações KYC dos usuários.
+ * Inclui visualização de documentos, aprovação e rejeição.
  *
  * Author: HOLD Wallet Team
  */
@@ -11,43 +12,30 @@ import { useNavigate } from 'react-router-dom'
 import {
   Shield,
   Search,
-  Filter,
   Eye,
   CheckCircle,
   XCircle,
   Clock,
   AlertTriangle,
   RefreshCw,
-  Download,
   ChevronLeft,
   ChevronRight,
   User,
   FileText,
-  Calendar,
   Loader2,
-  Check,
   X,
-  MessageSquare,
+  Download,
+  Image,
+  MapPin,
+  Phone,
+  Mail,
+  Calendar,
+  CreditCard,
+  FileCheck,
+  ExternalLink,
+  ZoomIn,
 } from 'lucide-react'
-
-// URL da API - usa proxy em dev, URL direta em produção
-const API_URL = import.meta.env.PROD
-  ? import.meta.env.VITE_API_URL || 'https://api.wolknow.com/v1'
-  : '/api' // Em dev, usa o proxy do Vite
-
-// Helper para obter token de autenticação
-const getAuthToken = (): string | null => {
-  try {
-    const stored = localStorage.getItem('hold-wallet-auth')
-    if (stored) {
-      const parsed = JSON.parse(stored)
-      return parsed?.state?.token || null
-    }
-  } catch {
-    return null
-  }
-  return null
-}
+import { adminApi } from '@/services/admin/adminService'
 
 // Types
 interface KYCVerification {
@@ -69,10 +57,15 @@ interface KYCVerification {
 interface KYCDocument {
   id: string
   document_type: string
-  status: 'pending' | 'approved' | 'rejected'
+  status: string
   file_url?: string
+  original_name?: string
+  mime_type?: string
   uploaded_at: string
   rejection_reason?: string
+  ocr_processed?: boolean
+  extracted_name?: string
+  extracted_cpf?: string
 }
 
 interface KYCPersonalData {
@@ -99,14 +92,11 @@ interface KYCStats {
 }
 
 // Status badge component
-const StatusBadge: React.FC<{ status: KYCVerification['status'] }> = ({ status }) => {
-  const styles: Record<
-    KYCVerification['status'],
-    { bg: string; text: string; icon: React.ReactNode }
-  > = {
+const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
+  const styles: Record<string, { bg: string; text: string; icon: React.ReactNode }> = {
     pending: {
-      bg: 'bg-gray-100 dark:bg-gray-800',
-      text: 'text-gray-600 dark:text-gray-400',
+      bg: 'bg-gray-100 dark:bg-gray-700',
+      text: 'text-gray-600 dark:text-gray-300',
       icon: <Clock className='w-3 h-3' />,
     },
     submitted: {
@@ -136,7 +126,7 @@ const StatusBadge: React.FC<{ status: KYCVerification['status'] }> = ({ status }
     },
   }
 
-  const statusLabels: Record<KYCVerification['status'], string> = {
+  const statusLabels: Record<string, string> = {
     pending: 'Pendente',
     submitted: 'Enviado',
     under_review: 'Em Análise',
@@ -145,22 +135,22 @@ const StatusBadge: React.FC<{ status: KYCVerification['status'] }> = ({ status }
     expired: 'Expirado',
   }
 
-  const style = styles[status]
+  const style = styles[status] || styles.pending
 
   return (
     <span
-      className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${style.bg} ${style.text}`}
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${style.bg} ${style.text}`}
     >
       {style.icon}
-      {statusLabels[status]}
+      {statusLabels[status] || status}
     </span>
   )
 }
 
 // Level badge component
-const LevelBadge: React.FC<{ level: KYCVerification['level'] }> = ({ level }) => {
-  const styles: Record<KYCVerification['level'], { bg: string; text: string }> = {
-    basic: { bg: 'bg-gray-100 dark:bg-gray-800', text: 'text-gray-600 dark:text-gray-400' },
+const LevelBadge: React.FC<{ level: string }> = ({ level }) => {
+  const styles: Record<string, { bg: string; text: string }> = {
+    basic: { bg: 'bg-gray-100 dark:bg-gray-700', text: 'text-gray-600 dark:text-gray-300' },
     intermediate: {
       bg: 'bg-blue-100 dark:bg-blue-900/30',
       text: 'text-blue-600 dark:text-blue-400',
@@ -171,19 +161,35 @@ const LevelBadge: React.FC<{ level: KYCVerification['level'] }> = ({ level }) =>
     },
   }
 
-  const labels: Record<KYCVerification['level'], string> = {
+  const labels: Record<string, string> = {
     basic: 'Básico',
     intermediate: 'Intermediário',
     advanced: 'Avançado',
   }
 
-  const style = styles[level]
+  const style = styles[level] || styles.basic
 
   return (
-    <span className={`px-2 py-1 rounded-full text-xs font-medium ${style.bg} ${style.text}`}>
-      {labels[level]}
+    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${style.bg} ${style.text}`}>
+      {labels[level] || level}
     </span>
   )
+}
+
+// Document type labels
+const documentTypeLabels: Record<string, string> = {
+  rg_front: 'RG (Frente)',
+  rg_back: 'RG (Verso)',
+  cnh_front: 'CNH (Frente)',
+  cnh_back: 'CNH (Verso)',
+  cnh: 'CNH',
+  passport: 'Passaporte',
+  selfie: 'Selfie',
+  selfie_with_document: 'Selfie com Documento',
+  proof_of_address: 'Comprovante de Residência',
+  proof_of_income: 'Comprovante de Renda',
+  cpf: 'CPF',
+  other: 'Outro',
 }
 
 // Main component
@@ -204,8 +210,8 @@ const AdminKYCPage: React.FC = () => {
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState<KYCVerification['status'] | 'all'>('all')
-  const [levelFilter, setLevelFilter] = useState<KYCVerification['level'] | 'all'>('all')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [levelFilter, setLevelFilter] = useState<string>('all')
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
@@ -219,6 +225,14 @@ const AdminKYCPage: React.FC = () => {
     personal_data: KYCPersonalData | null
   } | null>(null)
   const [loadingDetails, setLoadingDetails] = useState(false)
+
+  // Document preview modal
+  const [documentPreview, setDocumentPreview] = useState<{
+    open: boolean
+    url: string
+    title: string
+  }>({ open: false, url: '', title: '' })
+  const [loadingDocUrl, setLoadingDocUrl] = useState<string | null>(null)
 
   // Review modal
   const [reviewModal, setReviewModal] = useState<{
@@ -235,30 +249,18 @@ const AdminKYCPage: React.FC = () => {
     setError(null)
 
     try {
-      const params = new URLSearchParams({
+      const params: Record<string, string> = {
         page: String(currentPage),
-        limit: String(itemsPerPage),
-      })
-
-      if (searchTerm) params.append('search', searchTerm)
-      if (statusFilter !== 'all') params.append('status', statusFilter)
-      if (levelFilter !== 'all') params.append('level', levelFilter)
-
-      const response = await fetch(`${API_URL}/admin/kyc?${params}`, {
-        headers: {
-          Authorization: `Bearer ${getAuthToken()}`,
-        },
-        // Bypass Service Worker cache
-        cache: 'no-store',
-      })
-
-      if (!response.ok) {
-        throw new Error('Erro ao carregar verificações')
+        per_page: String(itemsPerPage),
       }
 
-      const data = await response.json()
+      if (searchTerm) params.search = searchTerm
+      if (statusFilter !== 'all') params.status = statusFilter
+      if (levelFilter !== 'all') params.level = levelFilter
 
-      // Mapeia os dados do backend para o formato do frontend
+      const response = await adminApi.get('/kyc', { params })
+      const data = response.data
+
       const mappedVerifications = (data.items || []).map((item: any) => ({
         id: item.id,
         user_id: item.user_id,
@@ -277,10 +279,10 @@ const AdminKYCPage: React.FC = () => {
       setVerifications(mappedVerifications)
       setTotalPages(data.pages || Math.ceil((data.total || 0) / itemsPerPage))
 
-      // Fetch stats separately
       fetchStats()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro desconhecido')
+    } catch (err: any) {
+      console.error('Erro ao carregar verificações:', err)
+      setError(err?.response?.data?.detail || err?.message || 'Erro desconhecido')
     } finally {
       setLoading(false)
     }
@@ -289,22 +291,15 @@ const AdminKYCPage: React.FC = () => {
   // Fetch stats
   const fetchStats = async () => {
     try {
-      const response = await fetch(`${API_URL}/admin/kyc/stats`, {
-        headers: {
-          Authorization: `Bearer ${getAuthToken()}`,
-        },
+      const response = await adminApi.get('/kyc/stats')
+      const statsData = response.data
+      setStats({
+        total: statsData.total_verifications || 0,
+        pending: statsData.pending || 0,
+        under_review: statsData.under_review || 0,
+        approved: statsData.approved || 0,
+        rejected: statsData.rejected || 0,
       })
-
-      if (response.ok) {
-        const statsData = await response.json()
-        setStats({
-          total: statsData.total_count || 0,
-          pending: statsData.by_status?.pending || 0,
-          under_review: statsData.by_status?.under_review || 0,
-          approved: statsData.by_status?.approved || 0,
-          rejected: statsData.by_status?.rejected || 0,
-        })
-      }
     } catch (err) {
       console.error('Erro ao carregar estatísticas:', err)
     }
@@ -315,29 +310,23 @@ const AdminKYCPage: React.FC = () => {
     setLoadingDetails(true)
 
     try {
-      const response = await fetch(`${API_URL}/admin/kyc/${verificationId}`, {
-        headers: {
-          Authorization: `Bearer ${getAuthToken()}`,
-        },
-      })
+      const response = await adminApi.get(`/kyc/${verificationId}`)
+      const data = response.data
 
-      if (!response.ok) {
-        throw new Error('Erro ao carregar detalhes')
-      }
-
-      const data = await response.json()
-
-      // Mapeia os documentos
       const mappedDocuments = (data.documents || []).map((doc: any) => ({
         id: doc.id,
         document_type: doc.document_type,
         status: doc.status,
         file_url: doc.file_url || doc.s3_url,
+        original_name: doc.original_name,
+        mime_type: doc.mime_type,
         uploaded_at: doc.uploaded_at,
         rejection_reason: doc.rejection_reason,
+        ocr_processed: doc.ocr_processed,
+        extracted_name: doc.extracted_name,
+        extracted_cpf: doc.extracted_cpf,
       }))
 
-      // Mapeia os dados pessoais
       const personalData = data.personal_data_full
         ? {
             full_name: data.personal_data_full.full_name,
@@ -366,6 +355,24 @@ const AdminKYCPage: React.FC = () => {
     }
   }
 
+  // Get document URL for viewing
+  const getDocumentUrl = async (verificationId: string, documentId: string, docType: string) => {
+    setLoadingDocUrl(documentId)
+    try {
+      const response = await adminApi.get(`/kyc/${verificationId}/documents/${documentId}/url`)
+      const url = response.data.url
+      setDocumentPreview({
+        open: true,
+        url,
+        title: documentTypeLabels[docType] || docType,
+      })
+    } catch (err: any) {
+      alert('Erro ao carregar documento: ' + (err?.response?.data?.detail || err?.message))
+    } finally {
+      setLoadingDocUrl(null)
+    }
+  }
+
   // Handle approve/reject
   const handleReview = async (type: 'approve' | 'reject') => {
     if (!reviewModal.verificationId) return
@@ -375,37 +382,28 @@ const AdminKYCPage: React.FC = () => {
     try {
       const endpoint =
         type === 'approve'
-          ? `${API_URL}/admin/kyc/${reviewModal.verificationId}/approve`
-          : `${API_URL}/admin/kyc/${reviewModal.verificationId}/reject`
+          ? `/kyc/${reviewModal.verificationId}/approve`
+          : `/kyc/${reviewModal.verificationId}/reject`
 
-      const body: { rejection_reason?: string } = {}
+      const body: any = {}
       if (type === 'reject' && rejectionReason) {
-        body.rejection_reason = rejectionReason
+        body.reason = rejectionReason
+      }
+      if (type === 'approve') {
+        body.notes = ''
+        body.expiration_months = 24
       }
 
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${getAuthToken()}`,
-        },
-        body: JSON.stringify(body),
-      })
+      await adminApi.post(endpoint, body)
 
-      if (!response.ok) {
-        throw new Error(`Erro ao ${type === 'approve' ? 'aprovar' : 'rejeitar'} verificação`)
-      }
-
-      // Refresh list
       await fetchVerifications()
 
-      // Close modal and detail panel
       setReviewModal({ open: false, type: null, verificationId: null })
       setRejectionReason('')
       setSelectedVerification(null)
       setVerificationDetails(null)
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erro desconhecido')
+    } catch (err: any) {
+      alert(err?.response?.data?.detail || err?.message || 'Erro desconhecido')
     } finally {
       setProcessing(false)
     }
@@ -424,6 +422,7 @@ const AdminKYCPage: React.FC = () => {
 
   // Format date
   const formatDate = (dateStr: string) => {
+    if (!dateStr) return '-'
     return new Date(dateStr).toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: '2-digit',
@@ -433,21 +432,26 @@ const AdminKYCPage: React.FC = () => {
     })
   }
 
-  // Document type labels
-  const documentTypeLabels: Record<string, string> = {
-    rg_front: 'RG (Frente)',
-    rg_back: 'RG (Verso)',
-    cnh_front: 'CNH (Frente)',
-    cnh_back: 'CNH (Verso)',
-    passport: 'Passaporte',
-    selfie: 'Selfie',
-    selfie_with_document: 'Selfie com Documento',
-    proof_of_address: 'Comprovante de Residência',
-    proof_of_income: 'Comprovante de Renda',
+  // Format CPF
+  const formatCPF = (cpf: string) => {
+    if (!cpf) return '-'
+    const cleaned = cpf.replace(/\D/g, '')
+    if (cleaned.length !== 11) return cpf
+    return `${cleaned.slice(0, 3)}.${cleaned.slice(3, 6)}.${cleaned.slice(6, 9)}-${cleaned.slice(9)}`
+  }
+
+  // Format phone
+  const formatPhone = (phone: string) => {
+    if (!phone) return '-'
+    const cleaned = phone.replace(/\D/g, '')
+    if (cleaned.length === 11) {
+      return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7)}`
+    }
+    return phone
   }
 
   return (
-    <div className='p-6'>
+    <div className='min-h-screen bg-gray-50 dark:bg-gray-900 p-4 lg:p-6'>
       {/* Header */}
       <div className='mb-6'>
         <h1 className='text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2'>
@@ -458,33 +462,32 @@ const AdminKYCPage: React.FC = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className='grid grid-cols-2 md:grid-cols-5 gap-4 mb-6'>
-        <div className='bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700'>
+      <div className='grid grid-cols-2 md:grid-cols-5 gap-3 mb-6'>
+        <div className='bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700 shadow-sm'>
           <div className='text-2xl font-bold text-gray-900 dark:text-white'>{stats.total}</div>
           <div className='text-sm text-gray-500'>Total</div>
         </div>
-        <div className='bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700'>
+        <div className='bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700 shadow-sm'>
           <div className='text-2xl font-bold text-yellow-600'>{stats.pending}</div>
           <div className='text-sm text-gray-500'>Pendentes</div>
         </div>
-        <div className='bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700'>
+        <div className='bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700 shadow-sm'>
           <div className='text-2xl font-bold text-blue-600'>{stats.under_review}</div>
           <div className='text-sm text-gray-500'>Em Análise</div>
         </div>
-        <div className='bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700'>
+        <div className='bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700 shadow-sm'>
           <div className='text-2xl font-bold text-green-600'>{stats.approved}</div>
           <div className='text-sm text-gray-500'>Aprovados</div>
         </div>
-        <div className='bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700'>
+        <div className='bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700 shadow-sm'>
           <div className='text-2xl font-bold text-red-600'>{stats.rejected}</div>
           <div className='text-sm text-gray-500'>Rejeitados</div>
         </div>
       </div>
 
       {/* Filters */}
-      <div className='bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 mb-6'>
+      <div className='bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 mb-6 shadow-sm'>
         <div className='flex flex-col md:flex-row gap-4'>
-          {/* Search */}
           <div className='flex-1'>
             <div className='relative'>
               <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400' />
@@ -493,16 +496,16 @@ const AdminKYCPage: React.FC = () => {
                 placeholder='Buscar por nome, email ou CPF...'
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                className='w-full pl-10 pr-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 focus:ring-2 focus:ring-primary focus:border-transparent'
+                className='w-full pl-10 pr-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent'
               />
             </div>
           </div>
 
-          {/* Status Filter */}
           <select
             value={statusFilter}
-            onChange={e => setStatusFilter(e.target.value as KYCVerification['status'] | 'all')}
-            className='px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 focus:ring-2 focus:ring-primary focus:border-transparent'
+            onChange={e => setStatusFilter(e.target.value)}
+            title='Filtrar por status'
+            className='px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent'
           >
             <option value='all'>Todos os Status</option>
             <option value='pending'>Pendente</option>
@@ -510,14 +513,13 @@ const AdminKYCPage: React.FC = () => {
             <option value='under_review'>Em Análise</option>
             <option value='approved'>Aprovado</option>
             <option value='rejected'>Rejeitado</option>
-            <option value='expired'>Expirado</option>
           </select>
 
-          {/* Level Filter */}
           <select
             value={levelFilter}
-            onChange={e => setLevelFilter(e.target.value as KYCVerification['level'] | 'all')}
-            className='px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 focus:ring-2 focus:ring-primary focus:border-transparent'
+            onChange={e => setLevelFilter(e.target.value)}
+            title='Filtrar por nível'
+            className='px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent'
           >
             <option value='all'>Todos os Níveis</option>
             <option value='basic'>Básico</option>
@@ -525,21 +527,21 @@ const AdminKYCPage: React.FC = () => {
             <option value='advanced'>Avançado</option>
           </select>
 
-          {/* Refresh Button */}
           <button
-            onClick={fetchVerifications}
+            onClick={() => fetchVerifications()}
             disabled={loading}
-            className='px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50'
+            title='Atualizar lista'
+            className='px-4 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 transition-colors'
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className='flex gap-6'>
+      <div className='flex flex-col lg:flex-row gap-6'>
         {/* Table */}
-        <div className='flex-1 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden'>
+        <div className='flex-1 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm'>
           {loading ? (
             <div className='flex items-center justify-center h-64'>
               <Loader2 className='w-8 h-8 animate-spin text-primary' />
@@ -556,82 +558,88 @@ const AdminKYCPage: React.FC = () => {
             </div>
           ) : (
             <>
-              <table className='w-full'>
-                <thead className='bg-gray-50 dark:bg-gray-900'>
-                  <tr>
-                    <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                      Usuário
-                    </th>
-                    <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                      Nível
-                    </th>
-                    <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                      Status
-                    </th>
-                    <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                      Docs
-                    </th>
-                    <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                      Data
-                    </th>
-                    <th className='px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                      Ações
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className='divide-y divide-gray-200 dark:divide-gray-700'>
-                  {verifications.map(verification => (
-                    <tr
-                      key={verification.id}
-                      className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer ${
-                        selectedVerification?.id === verification.id ? 'bg-primary/5' : ''
-                      }`}
-                      onClick={() => setSelectedVerification(verification)}
-                    >
-                      <td className='px-4 py-3'>
-                        <div className='flex items-center gap-3'>
-                          <div className='w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center'>
-                            <User className='w-4 h-4 text-gray-500' />
-                          </div>
-                          <div>
-                            <div className='text-sm font-medium text-gray-900 dark:text-white'>
-                              {verification.username}
-                            </div>
-                            <div className='text-xs text-gray-500'>{verification.email}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className='px-4 py-3'>
-                        <LevelBadge level={verification.level} />
-                      </td>
-                      <td className='px-4 py-3'>
-                        <StatusBadge status={verification.status} />
-                      </td>
-                      <td className='px-4 py-3'>
-                        <span className='text-sm text-gray-600 dark:text-gray-400'>
-                          {verification.documents_count}
-                        </span>
-                      </td>
-                      <td className='px-4 py-3'>
-                        <span className='text-sm text-gray-500'>
-                          {formatDate(verification.created_at)}
-                        </span>
-                      </td>
-                      <td className='px-4 py-3 text-right'>
-                        <button
-                          onClick={e => {
-                            e.stopPropagation()
-                            setSelectedVerification(verification)
-                          }}
-                          className='p-2 text-gray-500 hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg'
-                        >
-                          <Eye className='w-4 h-4' />
-                        </button>
-                      </td>
+              <div className='overflow-x-auto'>
+                <table className='w-full'>
+                  <thead className='bg-gray-50 dark:bg-gray-900/50'>
+                    <tr>
+                      <th className='px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider'>
+                        Usuário
+                      </th>
+                      <th className='px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider'>
+                        Nível
+                      </th>
+                      <th className='px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider'>
+                        Status
+                      </th>
+                      <th className='px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider'>
+                        Docs
+                      </th>
+                      <th className='px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider'>
+                        Data
+                      </th>
+                      <th className='px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider'>
+                        Ações
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className='divide-y divide-gray-200 dark:divide-gray-700'>
+                    {verifications.map(verification => (
+                      <tr
+                        key={verification.id}
+                        className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors ${
+                          selectedVerification?.id === verification.id
+                            ? 'bg-primary/5 dark:bg-primary/10'
+                            : ''
+                        }`}
+                        onClick={() => setSelectedVerification(verification)}
+                      >
+                        <td className='px-4 py-3'>
+                          <div className='flex items-center gap-3'>
+                            <div className='w-9 h-9 bg-gradient-to-br from-primary/20 to-primary/10 rounded-full flex items-center justify-center'>
+                              <User className='w-4 h-4 text-primary' />
+                            </div>
+                            <div>
+                              <div className='text-sm font-medium text-gray-900 dark:text-white'>
+                                {verification.username}
+                              </div>
+                              <div className='text-xs text-gray-500'>{verification.email}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className='px-4 py-3'>
+                          <LevelBadge level={verification.level} />
+                        </td>
+                        <td className='px-4 py-3'>
+                          <StatusBadge status={verification.status} />
+                        </td>
+                        <td className='px-4 py-3'>
+                          <span className='inline-flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400'>
+                            <FileText className='w-4 h-4' />
+                            {verification.documents_count}
+                          </span>
+                        </td>
+                        <td className='px-4 py-3'>
+                          <span className='text-sm text-gray-500'>
+                            {formatDate(verification.created_at)}
+                          </span>
+                        </td>
+                        <td className='px-4 py-3 text-right'>
+                          <button
+                            onClick={e => {
+                              e.stopPropagation()
+                              setSelectedVerification(verification)
+                            }}
+                            title='Ver detalhes'
+                            className='p-2 text-gray-500 hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors'
+                          >
+                            <Eye className='w-4 h-4' />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
               {/* Pagination */}
               <div className='flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-gray-700'>
@@ -642,14 +650,16 @@ const AdminKYCPage: React.FC = () => {
                   <button
                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
-                    className='p-2 text-gray-500 hover:text-gray-700 disabled:opacity-50'
+                    title='Página anterior'
+                    className='p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg disabled:opacity-50 transition-colors'
                   >
                     <ChevronLeft className='w-4 h-4' />
                   </button>
                   <button
                     onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                     disabled={currentPage === totalPages}
-                    className='p-2 text-gray-500 hover:text-gray-700 disabled:opacity-50'
+                    title='Próxima página'
+                    className='p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg disabled:opacity-50 transition-colors'
                   >
                     <ChevronRight className='w-4 h-4' />
                   </button>
@@ -661,11 +671,12 @@ const AdminKYCPage: React.FC = () => {
 
         {/* Detail Panel */}
         {selectedVerification && (
-          <div className='w-96 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden'>
+          <div className='w-full lg:w-[480px] bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm'>
             {/* Header */}
-            <div className='p-4 border-b border-gray-200 dark:border-gray-700'>
+            <div className='p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50'>
               <div className='flex items-center justify-between'>
-                <h3 className='font-semibold text-gray-900 dark:text-white'>
+                <h3 className='font-semibold text-gray-900 dark:text-white flex items-center gap-2'>
+                  <FileCheck className='w-5 h-5 text-primary' />
                   Detalhes da Verificação
                 </h3>
                 <button
@@ -673,7 +684,8 @@ const AdminKYCPage: React.FC = () => {
                     setSelectedVerification(null)
                     setVerificationDetails(null)
                   }}
-                  className='p-1 text-gray-500 hover:text-gray-700'
+                  title='Fechar'
+                  className='p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors'
                 >
                   <X className='w-4 h-4' />
                 </button>
@@ -685,21 +697,23 @@ const AdminKYCPage: React.FC = () => {
                 <Loader2 className='w-6 h-6 animate-spin text-primary' />
               </div>
             ) : (
-              <div className='p-4 space-y-4 max-h-[600px] overflow-y-auto'>
+              <div className='p-4 space-y-5 max-h-[calc(100vh-280px)] overflow-y-auto'>
                 {/* User Info */}
-                <div>
-                  <h4 className='text-sm font-medium text-gray-500 mb-2'>Usuário</h4>
-                  <div className='bg-gray-50 dark:bg-gray-900 rounded-lg p-3'>
-                    <div className='font-medium text-gray-900 dark:text-white'>
-                      {selectedVerification.username}
+                <div className='bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl p-4'>
+                  <div className='flex items-center gap-3 mb-3'>
+                    <div className='w-12 h-12 bg-white dark:bg-gray-800 rounded-full flex items-center justify-center shadow-sm'>
+                      <User className='w-6 h-6 text-primary' />
                     </div>
-                    <div className='text-sm text-gray-500'>{selectedVerification.email}</div>
+                    <div>
+                      <div className='font-semibold text-gray-900 dark:text-white'>
+                        {selectedVerification.username}
+                      </div>
+                      <div className='text-sm text-gray-500 flex items-center gap-1'>
+                        <Mail className='w-3 h-3' />
+                        {selectedVerification.email}
+                      </div>
+                    </div>
                   </div>
-                </div>
-
-                {/* Status */}
-                <div>
-                  <h4 className='text-sm font-medium text-gray-500 mb-2'>Status</h4>
                   <div className='flex items-center gap-2'>
                     <StatusBadge status={selectedVerification.status} />
                     <LevelBadge level={selectedVerification.level} />
@@ -709,35 +723,47 @@ const AdminKYCPage: React.FC = () => {
                 {/* Personal Data */}
                 {verificationDetails?.personal_data && (
                   <div>
-                    <h4 className='text-sm font-medium text-gray-500 mb-2'>Dados Pessoais</h4>
-                    <div className='bg-gray-50 dark:bg-gray-900 rounded-lg p-3 space-y-2 text-sm'>
-                      <div className='flex justify-between'>
-                        <span className='text-gray-500'>Nome:</span>
-                        <span className='text-gray-900 dark:text-white'>
-                          {verificationDetails.personal_data.full_name}
-                        </span>
+                    <h4 className='text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2'>
+                      <CreditCard className='w-4 h-4 text-primary' />
+                      Dados Pessoais
+                    </h4>
+                    <div className='bg-gray-50 dark:bg-gray-900/50 rounded-xl p-4 space-y-3'>
+                      <div className='grid grid-cols-2 gap-3'>
+                        <div>
+                          <div className='text-xs text-gray-500 mb-0.5'>Nome Completo</div>
+                          <div className='text-sm font-medium text-gray-900 dark:text-white'>
+                            {verificationDetails.personal_data.full_name || '-'}
+                          </div>
+                        </div>
+                        <div>
+                          <div className='text-xs text-gray-500 mb-0.5'>CPF</div>
+                          <div className='text-sm font-medium text-gray-900 dark:text-white'>
+                            {formatCPF(verificationDetails.personal_data.document_number)}
+                          </div>
+                        </div>
+                        <div>
+                          <div className='text-xs text-gray-500 mb-0.5'>Data de Nascimento</div>
+                          <div className='text-sm font-medium text-gray-900 dark:text-white flex items-center gap-1'>
+                            <Calendar className='w-3 h-3 text-gray-400' />
+                            {verificationDetails.personal_data.birth_date || '-'}
+                          </div>
+                        </div>
+                        <div>
+                          <div className='text-xs text-gray-500 mb-0.5'>Telefone</div>
+                          <div className='text-sm font-medium text-gray-900 dark:text-white flex items-center gap-1'>
+                            <Phone className='w-3 h-3 text-gray-400' />
+                            {formatPhone(verificationDetails.personal_data.phone)}
+                          </div>
+                        </div>
                       </div>
-                      <div className='flex justify-between'>
-                        <span className='text-gray-500'>CPF:</span>
-                        <span className='text-gray-900 dark:text-white'>
-                          {verificationDetails.personal_data.document_number}
-                        </span>
-                      </div>
-                      <div className='flex justify-between'>
-                        <span className='text-gray-500'>Nascimento:</span>
-                        <span className='text-gray-900 dark:text-white'>
-                          {verificationDetails.personal_data.birth_date}
-                        </span>
-                      </div>
-                      <div className='flex justify-between'>
-                        <span className='text-gray-500'>Telefone:</span>
-                        <span className='text-gray-900 dark:text-white'>
-                          {verificationDetails.personal_data.phone}
-                        </span>
-                      </div>
-                      <div className='pt-2 border-t border-gray-200 dark:border-gray-700'>
-                        <div className='text-gray-500 mb-1'>Endereço:</div>
-                        <div className='text-gray-900 dark:text-white'>
+
+                      {/* Address */}
+                      <div className='pt-3 border-t border-gray-200 dark:border-gray-700'>
+                        <div className='text-xs text-gray-500 mb-1 flex items-center gap-1'>
+                          <MapPin className='w-3 h-3' />
+                          Endereço
+                        </div>
+                        <div className='text-sm text-gray-900 dark:text-white'>
                           {verificationDetails.personal_data.street},{' '}
                           {verificationDetails.personal_data.number}
                           {verificationDetails.personal_data.complement &&
@@ -747,7 +773,9 @@ const AdminKYCPage: React.FC = () => {
                           {verificationDetails.personal_data.city}/
                           {verificationDetails.personal_data.state}
                           <br />
-                          CEP: {verificationDetails.personal_data.zip_code}
+                          <span className='text-gray-500'>
+                            CEP: {verificationDetails.personal_data.zip_code}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -757,31 +785,50 @@ const AdminKYCPage: React.FC = () => {
                 {/* Documents */}
                 {verificationDetails?.documents && verificationDetails.documents.length > 0 && (
                   <div>
-                    <h4 className='text-sm font-medium text-gray-500 mb-2'>Documentos</h4>
+                    <h4 className='text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2'>
+                      <Image className='w-4 h-4 text-primary' />
+                      Documentos Enviados ({verificationDetails.documents.length})
+                    </h4>
                     <div className='space-y-2'>
                       {verificationDetails.documents.map(doc => (
                         <div
                           key={doc.id}
-                          className='bg-gray-50 dark:bg-gray-900 rounded-lg p-3 flex items-center justify-between'
+                          className='bg-gray-50 dark:bg-gray-900/50 rounded-xl p-3 flex items-center justify-between'
                         >
-                          <div>
-                            <div className='text-sm font-medium text-gray-900 dark:text-white'>
-                              {documentTypeLabels[doc.document_type] || doc.document_type}
+                          <div className='flex items-center gap-3'>
+                            <div className='w-10 h-10 bg-white dark:bg-gray-800 rounded-lg flex items-center justify-center shadow-sm'>
+                              <FileText className='w-5 h-5 text-primary' />
                             </div>
-                            <div className='text-xs text-gray-500'>
-                              {formatDate(doc.uploaded_at)}
+                            <div>
+                              <div className='text-sm font-medium text-gray-900 dark:text-white'>
+                                {documentTypeLabels[doc.document_type] || doc.document_type}
+                              </div>
+                              <div className='text-xs text-gray-500'>
+                                {formatDate(doc.uploaded_at)}
+                              </div>
                             </div>
                           </div>
-                          {doc.file_url && (
-                            <a
-                              href={doc.file_url}
-                              target='_blank'
-                              rel='noopener noreferrer'
-                              className='p-2 text-primary hover:bg-primary/10 rounded-lg'
+                          <div className='flex items-center gap-2'>
+                            <StatusBadge status={doc.status} />
+                            <button
+                              onClick={() =>
+                                getDocumentUrl(
+                                  selectedVerification.id,
+                                  doc.id,
+                                  doc.document_type
+                                )
+                              }
+                              disabled={loadingDocUrl === doc.id}
+                              title='Visualizar documento'
+                              className='p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors disabled:opacity-50'
                             >
-                              <Eye className='w-4 h-4' />
-                            </a>
-                          )}
+                              {loadingDocUrl === doc.id ? (
+                                <Loader2 className='w-4 h-4 animate-spin' />
+                              ) : (
+                                <ZoomIn className='w-4 h-4' />
+                              )}
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -792,8 +839,10 @@ const AdminKYCPage: React.FC = () => {
                 {selectedVerification.status === 'rejected' &&
                   selectedVerification.rejection_reason && (
                     <div>
-                      <h4 className='text-sm font-medium text-gray-500 mb-2'>Motivo da Rejeição</h4>
-                      <div className='bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg p-3 text-sm'>
+                      <h4 className='text-sm font-semibold text-gray-900 dark:text-white mb-2'>
+                        Motivo da Rejeição
+                      </h4>
+                      <div className='bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl p-3 text-sm'>
                         {selectedVerification.rejection_reason}
                       </div>
                     </div>
@@ -801,41 +850,44 @@ const AdminKYCPage: React.FC = () => {
 
                 {/* Action Buttons */}
                 {(selectedVerification.status === 'submitted' ||
-                  selectedVerification.status === 'under_review') && (
-                  <div className='pt-4 border-t border-gray-200 dark:border-gray-700 flex gap-2'>
-                    <button
-                      onClick={() =>
-                        setReviewModal({
-                          open: true,
-                          type: 'reject',
-                          verificationId: selectedVerification.id,
-                        })
-                      }
-                      className='flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-100 text-red-600 hover:bg-red-200 rounded-lg font-medium'
-                    >
-                      <XCircle className='w-4 h-4' />
-                      Rejeitar
-                    </button>
-                    <button
-                      onClick={() =>
-                        setReviewModal({
-                          open: true,
-                          type: 'approve',
-                          verificationId: selectedVerification.id,
-                        })
-                      }
-                      className='flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white hover:bg-green-700 rounded-lg font-medium'
-                    >
-                      <CheckCircle className='w-4 h-4' />
-                      Aprovar
-                    </button>
+                  selectedVerification.status === 'under_review' ||
+                  selectedVerification.status === 'pending') && (
+                  <div className='pt-4 border-t border-gray-200 dark:border-gray-700'>
+                    <div className='flex gap-3'>
+                      <button
+                        onClick={() =>
+                          setReviewModal({
+                            open: true,
+                            type: 'reject',
+                            verificationId: selectedVerification.id,
+                          })
+                        }
+                        className='flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-xl font-medium transition-colors'
+                      >
+                        <XCircle className='w-4 h-4' />
+                        Rejeitar
+                      </button>
+                      <button
+                        onClick={() =>
+                          setReviewModal({
+                            open: true,
+                            type: 'approve',
+                            verificationId: selectedVerification.id,
+                          })
+                        }
+                        className='flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white hover:bg-green-700 rounded-xl font-medium transition-colors'
+                      >
+                        <CheckCircle className='w-4 h-4' />
+                        Aprovar
+                      </button>
+                    </div>
                   </div>
                 )}
 
                 {/* View User Button */}
                 <button
                   onClick={() => navigate(`/admin/users/${selectedVerification.user_id}`)}
-                  className='w-full flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg font-medium'
+                  className='w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl font-medium transition-colors'
                 >
                   <User className='w-4 h-4' />
                   Ver Perfil do Usuário
@@ -848,31 +900,41 @@ const AdminKYCPage: React.FC = () => {
 
       {/* Review Modal */}
       {reviewModal.open && (
-        <div className='fixed inset-0 bg-black/50 flex items-center justify-center z-50'>
-          <div className='bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full mx-4'>
-            <h3 className='text-lg font-bold text-gray-900 dark:text-white mb-4'>
-              {reviewModal.type === 'approve' ? 'Aprovar Verificação' : 'Rejeitar Verificação'}
+        <div className='fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4'>
+          <div className='bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full shadow-2xl'>
+            <h3 className='text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2'>
+              {reviewModal.type === 'approve' ? (
+                <>
+                  <CheckCircle className='w-5 h-5 text-green-600' />
+                  Aprovar Verificação
+                </>
+              ) : (
+                <>
+                  <XCircle className='w-5 h-5 text-red-600' />
+                  Rejeitar Verificação
+                </>
+              )}
             </h3>
 
             {reviewModal.type === 'reject' && (
               <div className='mb-4'>
-                <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1'>
+                <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
                   Motivo da Rejeição *
                 </label>
                 <textarea
                   value={rejectionReason}
                   onChange={e => setRejectionReason(e.target.value)}
                   placeholder='Descreva o motivo da rejeição...'
-                  rows={3}
-                  className='w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 focus:ring-2 focus:ring-primary focus:border-transparent'
+                  rows={4}
+                  className='w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent resize-none'
                 />
               </div>
             )}
 
             <p className='text-gray-500 mb-6'>
               {reviewModal.type === 'approve'
-                ? 'Tem certeza que deseja aprovar esta verificação KYC?'
-                : 'Tem certeza que deseja rejeitar esta verificação KYC?'}
+                ? 'Tem certeza que deseja aprovar esta verificação KYC? O usuário receberá acesso aos serviços do nível correspondente.'
+                : 'Tem certeza que deseja rejeitar esta verificação KYC? O usuário será notificado e poderá enviar novamente.'}
             </p>
 
             <div className='flex gap-3'>
@@ -882,14 +944,14 @@ const AdminKYCPage: React.FC = () => {
                   setRejectionReason('')
                 }}
                 disabled={processing}
-                className='flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50'
+                className='flex-1 px-4 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 transition-colors'
               >
                 Cancelar
               </button>
               <button
                 onClick={() => handleReview(reviewModal.type!)}
-                disabled={processing || (reviewModal.type === 'reject' && !rejectionReason)}
-                className={`flex-1 px-4 py-2 rounded-lg font-medium disabled:opacity-50 ${
+                disabled={processing || (reviewModal.type === 'reject' && !rejectionReason.trim())}
+                className={`flex-1 px-4 py-2.5 rounded-xl font-medium disabled:opacity-50 transition-colors ${
                   reviewModal.type === 'approve'
                     ? 'bg-green-600 text-white hover:bg-green-700'
                     : 'bg-red-600 text-white hover:bg-red-700'
@@ -898,11 +960,67 @@ const AdminKYCPage: React.FC = () => {
                 {processing ? (
                   <Loader2 className='w-4 h-4 animate-spin mx-auto' />
                 ) : reviewModal.type === 'approve' ? (
-                  'Aprovar'
+                  'Confirmar Aprovação'
                 ) : (
-                  'Rejeitar'
+                  'Confirmar Rejeição'
                 )}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Document Preview Modal */}
+      {documentPreview.open && (
+        <div className='fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4'>
+          <div className='bg-white dark:bg-gray-800 rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl'>
+            <div className='flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700'>
+              <h3 className='font-semibold text-gray-900 dark:text-white flex items-center gap-2'>
+                <Image className='w-5 h-5 text-primary' />
+                {documentPreview.title}
+              </h3>
+              <div className='flex items-center gap-2'>
+                <a
+                  href={documentPreview.url}
+                  target='_blank'
+                  rel='noopener noreferrer'
+                  title='Abrir em nova aba'
+                  className='p-2 text-gray-500 hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors'
+                >
+                  <ExternalLink className='w-4 h-4' />
+                </a>
+                <a
+                  href={documentPreview.url}
+                  download
+                  title='Baixar documento'
+                  className='p-2 text-gray-500 hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors'
+                >
+                  <Download className='w-4 h-4' />
+                </a>
+                <button
+                  onClick={() => setDocumentPreview({ open: false, url: '', title: '' })}
+                  title='Fechar'
+                  className='p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors'
+                >
+                  <X className='w-4 h-4' />
+                </button>
+              </div>
+            </div>
+            <div className='p-4 overflow-auto max-h-[calc(90vh-80px)] bg-gray-100 dark:bg-gray-900'>
+              <img
+                src={documentPreview.url}
+                alt={documentPreview.title}
+                className='max-w-full h-auto mx-auto rounded-lg shadow-lg'
+                onError={e => {
+                  // Se não for imagem, mostra como iframe (PDF)
+                  const target = e.target as HTMLImageElement
+                  target.style.display = 'none'
+                  const iframe = document.createElement('iframe')
+                  iframe.src = documentPreview.url
+                  iframe.className = 'w-full h-[70vh] rounded-lg'
+                  target.parentNode?.appendChild(iframe)
+                }}
+              />
             </div>
           </div>
         </div>

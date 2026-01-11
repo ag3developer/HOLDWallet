@@ -79,11 +79,15 @@ async def list_verifications(
     for v in verifications:
         user = db.query(User).filter(User.id == v.user_id).first()
         
+        # Converte status/level - pode ser enum ou string dependendo do ORM
+        status_value = v.status.value if hasattr(v.status, 'value') else str(v.status)
+        level_value = v.level.value if hasattr(v.level, 'value') else str(v.level)
+        
         item = {
             "id": v.id,
             "user_id": v.user_id,
-            "status": KYCStatusEnum(v.status.value),
-            "level": KYCLevelEnum(v.level.value),
+            "status": KYCStatusEnum(status_value),
+            "level": KYCLevelEnum(level_value),
             "created_at": v.created_at,
             "updated_at": v.updated_at,
             "submitted_at": v.submitted_at,
@@ -99,8 +103,8 @@ async def list_verifications(
             "documents": [
                 {
                     "id": d.id,
-                    "document_type": DocumentTypeEnum(d.document_type.value),
-                    "status": d.status.value,
+                    "document_type": DocumentTypeEnum(d.document_type.value if hasattr(d.document_type, 'value') else str(d.document_type)),
+                    "status": d.status.value if hasattr(d.status, 'value') else str(d.status),
                     "original_name": d.original_name,
                     "mime_type": d.mime_type,
                     "file_size": d.file_size,
@@ -196,36 +200,41 @@ async def get_verification_detail(
     if personal_data:
         from app.services.encryption_service import encryption_service
         
+        def safe_decrypt(value):
+            """Tenta descriptografar, retorna valor original se falhar"""
+            if not value:
+                return value
+            try:
+                decrypted = encryption_service.decrypt(str(value))
+                return decrypted
+            except Exception:
+                # Valor pode não estar criptografado ou ser inválido
+                return value
+        
         personal_data_dict = {
             "full_name": personal_data.full_name,
             "social_name": personal_data.social_name,
-            "birth_date": str(personal_data.birth_date),
+            "birth_date": str(personal_data.birth_date) if personal_data.birth_date else None,
             "nationality": personal_data.nationality,
             "gender": personal_data.gender,
             "mother_name": personal_data.mother_name,
             "document_type": personal_data.document_type,
             # Descriptografados
-            "document_number": getattr(personal_data, '_document_number_decrypted', 
-                                       encryption_service.decrypt(personal_data.document_number) if personal_data.document_number else None),
-            "rg_number": getattr(personal_data, '_rg_number_decrypted',
-                                encryption_service.decrypt(personal_data.rg_number) if personal_data.rg_number else None),
+            "document_number": safe_decrypt(personal_data.document_number),
+            "rg_number": safe_decrypt(personal_data.rg_number),
             "rg_issuer": personal_data.rg_issuer,
             "rg_state": personal_data.rg_state,
-            # Endereço
-            "zip_code": getattr(personal_data, '_zip_code_decrypted',
-                               encryption_service.decrypt(personal_data.zip_code) if personal_data.zip_code else None),
-            "street": getattr(personal_data, '_street_decrypted',
-                             encryption_service.decrypt(personal_data.street) if personal_data.street else None),
-            "number": getattr(personal_data, '_number_decrypted',
-                             encryption_service.decrypt(personal_data.number) if personal_data.number else None),
-            "complement": personal_data.complement,
-            "neighborhood": personal_data.neighborhood,
+            # Endereço - todos os campos criptografados
+            "zip_code": safe_decrypt(personal_data.zip_code),
+            "street": safe_decrypt(personal_data.street),
+            "number": safe_decrypt(personal_data.number),
+            "complement": safe_decrypt(personal_data.complement),
+            "neighborhood": safe_decrypt(personal_data.neighborhood),
             "city": personal_data.city,
             "state": personal_data.state,
             "country": personal_data.country,
             # Contato
-            "phone": getattr(personal_data, '_phone_decrypted',
-                            encryption_service.decrypt(personal_data.phone) if personal_data.phone else None),
+            "phone": safe_decrypt(personal_data.phone),
             "email": personal_data.email,
             # Financeiro
             "occupation": personal_data.occupation,
@@ -254,8 +263,8 @@ async def get_verification_detail(
     audit_logs = [
         {
             "id": str(log.id),
-            "action": log.action.value,
-            "actor_type": log.actor_type.value,
+            "action": log.action.value if hasattr(log.action, 'value') else str(log.action),
+            "actor_type": log.actor_type.value if hasattr(log.actor_type, 'value') else str(log.actor_type),
             "actor_id": str(log.actor_id) if log.actor_id else None,
             "old_status": log.old_status,
             "new_status": log.new_status,
@@ -269,8 +278,8 @@ async def get_verification_detail(
     return {
         "id": verification.id,
         "user_id": verification.user_id,
-        "status": verification.status.value,
-        "level": verification.level.value,
+        "status": verification.status.value if hasattr(verification.status, 'value') else str(verification.status),
+        "level": verification.level.value if hasattr(verification.level, 'value') else str(verification.level),
         "created_at": verification.created_at,
         "updated_at": verification.updated_at,
         "submitted_at": verification.submitted_at,
@@ -287,8 +296,8 @@ async def get_verification_detail(
         "documents": [
             {
                 "id": d.id,
-                "document_type": d.document_type.value,
-                "status": d.status.value,
+                "document_type": d.document_type.value if hasattr(d.document_type, 'value') else str(d.document_type),
+                "status": d.status.value if hasattr(d.status, 'value') else str(d.status),
                 "original_name": d.original_name,
                 "mime_type": d.mime_type,
                 "file_size": d.file_size,

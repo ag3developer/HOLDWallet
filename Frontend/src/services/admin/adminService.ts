@@ -14,7 +14,8 @@ const API_URL = import.meta.env.PROD
 
 // Criar instância do axios com configurações padrão
 // Nota: O backend registra as rotas admin em /admin (sem /api/v1)
-const adminApi = axios.create({
+// Exportamos para uso em outras páginas que precisam de chamadas admin personalizadas
+export const adminApi = axios.create({
   baseURL: `${API_URL}/admin`,
   headers: {
     'Content-Type': 'application/json',
