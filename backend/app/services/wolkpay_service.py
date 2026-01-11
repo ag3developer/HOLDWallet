@@ -527,6 +527,7 @@ class WolkPayService:
         self,
         invoice_id: str,
         admin_id: str,
+        network: Optional[str] = None,
         notes: Optional[str] = None
     ) -> WolkPayApproval:
         """
@@ -535,11 +536,16 @@ class WolkPayService:
         Args:
             invoice_id: ID da fatura
             admin_id: ID do admin
+            network: Rede blockchain para envio (polygon, ethereum, bitcoin, etc)
             notes: Observações
             
         Returns:
             WolkPayApproval criado
         """
+        from app.models.wallet import Wallet
+        from app.models.address import Address
+        from app.models.instant_trade import InstantTrade, TradeStatus, TradeType
+        
         # 1. Buscar fatura
         invoice = self.db.query(WolkPayInvoice).filter(
             WolkPayInvoice.id == invoice_id
@@ -563,46 +569,97 @@ class WolkPayService:
         if not payer or not payment:
             raise ValueError("Dados incompletos para aprovação")
         
-        # 3. Enviar crypto para o beneficiário
-        # TODO: Integrar com WalletService para enviar crypto
-        crypto_tx_hash = None
-        wallet_address = None
+        # 3. Buscar dados do beneficiário
+        beneficiary = self.db.query(User).filter(User.id == invoice.beneficiary_id).first()
+        if not beneficiary:
+            raise ValueError("Beneficiário não encontrado")
         
+        # 4. Buscar wallet e endereço do beneficiário
+        beneficiary_wallet = self.db.query(Wallet).filter(
+            Wallet.user_id == invoice.beneficiary_id
+        ).first()
+        
+        if not beneficiary_wallet:
+            raise ValueError("Carteira do beneficiário não encontrada")
+        
+        # Determinar a rede a ser usada
+        symbol = invoice.crypto_currency.upper()
+        selected_network = network or invoice.crypto_network or self._get_default_network(symbol)
+        
+        # Buscar endereço do beneficiário para a rede
+        beneficiary_address = self.db.query(Address).filter(
+            Address.wallet_id == beneficiary_wallet.id,
+            Address.network.ilike(f"%{selected_network}%")
+        ).first()
+        
+        if not beneficiary_address:
+            raise ValueError(f"Endereço do beneficiário não encontrado para a rede {selected_network}")
+        
+        wallet_address = beneficiary_address.address
+        crypto_tx_hash = None
+        explorer_url = None
+        
+        # 5. Enviar crypto usando multi_chain_service
         try:
-            # wallet_service = WalletService(self.db)
-            # result = await wallet_service.send_crypto(
-            #     user_id=invoice.beneficiary_id,
-            #     currency=invoice.crypto_currency,
-            #     amount=invoice.crypto_amount,
-            #     network=invoice.crypto_network
-            # )
-            # crypto_tx_hash = result.tx_hash
-            # wallet_address = result.wallet_address
+            from app.services.multi_chain_service import multi_chain_service
             
-            # Placeholder até integrar
+            # Criar um objeto similar ao InstantTrade para compatibilidade
+            # O multi_chain_service espera um trade, então criamos uma estrutura compatível
+            class WolkPayTradeAdapter:
+                """Adapter para compatibilidade com multi_chain_service"""
+                def __init__(self, invoice, wallet_addr, network):
+                    self.id = invoice.id
+                    self.user_id = invoice.beneficiary_id
+                    self.symbol = invoice.crypto_currency.upper()
+                    self.crypto_amount = invoice.crypto_amount
+                    self.wallet_address = wallet_addr
+                    self.network = network
+                    self.reference_code = invoice.invoice_number
+            
+            trade_adapter = WolkPayTradeAdapter(invoice, wallet_address, selected_network)
+            
+            logger.info(f"🚀 WolkPay: Enviando {invoice.crypto_amount} {symbol} para {wallet_address} via {selected_network}")
+            
+            result = await multi_chain_service.send_crypto(
+                db=self.db,
+                trade=trade_adapter,
+                network=selected_network
+            )
+            
+            if result.success:
+                crypto_tx_hash = result.tx_hash
+                explorer_url = result.explorer_url
+                logger.info(f"✅ WolkPay: Crypto enviada! TX: {crypto_tx_hash}")
+            else:
+                error_msg = result.error or "Erro desconhecido no envio"
+                logger.error(f"❌ WolkPay: Erro ao enviar crypto: {error_msg}")
+                raise ValueError(f"Erro ao enviar crypto: {error_msg}")
+                
+        except ImportError:
+            # Fallback se multi_chain_service não estiver disponível
+            logger.warning(f"⚠️ WolkPay: multi_chain_service não disponível, marcando para envio manual")
             crypto_tx_hash = f"pending_manual_send_{invoice.invoice_number}"
-            logger.warning(f"WolkPay: Envio de crypto pendente de implementação para {invoice.invoice_number}")
             
         except Exception as e:
             logger.error(f"WolkPay: Erro ao enviar crypto: {e}")
             raise ValueError(f"Erro ao enviar crypto: {e}")
         
-        # 4. Criar registro de aprovação
+        # 6. Criar registro de aprovação
         approval = WolkPayApproval(
             invoice_id=invoice_id,
             approved_by=admin_id,
             action=ApprovalAction.APPROVED,
             crypto_tx_hash=crypto_tx_hash,
-            crypto_network=invoice.crypto_network,
+            crypto_network=selected_network,
             wallet_address=wallet_address,
             notes=notes
         )
         self.db.add(approval)
         
-        # 5. Atualizar status
+        # 7. Atualizar status
         invoice.status = InvoiceStatus.COMPLETED
         
-        # 6. Atualizar limite do pagador
+        # 8. Atualizar limite do pagador
         doc_type = "CPF" if payer.person_type == PersonType.PF else "CNPJ"
         doc_number = ''.join(filter(str.isdigit, payer.cpf if payer.person_type == PersonType.PF else payer.cnpj))
         await self.update_payer_limit(doc_type, doc_number, invoice.total_amount_brl)
@@ -610,13 +667,13 @@ class WolkPayService:
         self.db.commit()
         self.db.refresh(approval)
         
-        # 7. Log de auditoria
+        # 9. Log de auditoria
         self._log_audit(
             invoice_id=invoice_id,
             actor_type="admin",
             actor_id=admin_id,
             action="approve_invoice",
-            description=f"Fatura aprovada. TX: {crypto_tx_hash}"
+            description=f"Fatura aprovada. TX: {crypto_tx_hash}, Rede: {selected_network}, Destino: {wallet_address}"
         )
         
         # TODO: Enviar e-mail para beneficiário e pagador
@@ -624,6 +681,28 @@ class WolkPayService:
         logger.info(f"WolkPay: Fatura {invoice.invoice_number} aprovada por admin {admin_id}")
         
         return approval
+    
+    def _get_default_network(self, symbol: str) -> str:
+        """
+        Retorna a rede padrão para um símbolo
+        
+        IMPORTANTE: Apenas redes onde o sistema tem funds para gas
+        """
+        symbol_networks = {
+            # Redes nativas
+            'BTC': 'bitcoin',
+            'LTC': 'litecoin', 
+            'DOGE': 'dogecoin',
+            # EVM
+            'ETH': 'ethereum',
+            'MATIC': 'polygon',
+            'POL': 'polygon',
+            'BNB': 'bsc',
+            # Stablecoins - Polygon como default (gas mais barato)
+            'USDT': 'polygon',
+            'USDC': 'polygon',
+        }
+        return symbol_networks.get(symbol.upper(), 'polygon')
     
     async def reject_invoice(
         self,

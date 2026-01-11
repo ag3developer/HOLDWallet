@@ -207,6 +207,67 @@ export const AdminWolkPayDetailPage: React.FC = () => {
   const [rejectReason, setRejectReason] = useState('')
   const [rejectNotes, setRejectNotes] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
+  const [selectedNetwork, setSelectedNetwork] = useState('polygon')
+
+  // Network config - redes suportadas pelo sistema
+  const getDefaultNetworkForSymbol = (symbol: string): string => {
+    const symbolNetworks: Record<string, string> = {
+      // Redes nativas
+      BTC: 'bitcoin',
+      LTC: 'litecoin',
+      DOGE: 'dogecoin',
+      // EVM
+      ETH: 'ethereum',
+      MATIC: 'polygon',
+      POL: 'polygon',
+      BNB: 'bsc',
+      // Stablecoins - Polygon como default (mais barato)
+      USDT: 'polygon',
+      USDC: 'polygon',
+    }
+    return symbolNetworks[symbol?.toUpperCase()] || 'polygon'
+  }
+
+  const getAvailableNetworksForSymbol = (symbol: string): { value: string; label: string }[] => {
+    const s = symbol?.toUpperCase()
+
+    // =====================================================
+    // REDES SUPORTADAS PELO SISTEMA
+    // Baseado no multi_chain_service e system wallet
+    // Apenas redes onde temos funds para gas
+    // =====================================================
+
+    // Criptos nativas - só podem usar sua própria rede
+    if (s === 'BTC') return [{ value: 'bitcoin', label: 'Bitcoin' }]
+    if (s === 'LTC') return [{ value: 'litecoin', label: 'Litecoin' }]
+    if (s === 'DOGE') return [{ value: 'dogecoin', label: 'Dogecoin' }]
+
+    // ETH pode ser enviado em múltiplas redes EVM
+    if (s === 'ETH')
+      return [
+        { value: 'ethereum', label: 'Ethereum' },
+        { value: 'polygon', label: 'Polygon' },
+        { value: 'base', label: 'Base' },
+      ]
+
+    // MATIC/POL só na Polygon
+    if (s === 'MATIC' || s === 'POL') return [{ value: 'polygon', label: 'Polygon' }]
+
+    // BNB só na BSC
+    if (s === 'BNB') return [{ value: 'bsc', label: 'BSC' }]
+
+    // Stablecoins - APENAS redes EVM onde temos gas
+    // NÃO incluir TRON pois não temos TRX para gas
+    if (s === 'USDT' || s === 'USDC')
+      return [
+        { value: 'polygon', label: 'Polygon (Recomendado)' },
+        { value: 'ethereum', label: 'Ethereum' },
+        { value: 'base', label: 'Base' },
+      ]
+
+    // Default para outras criptos EVM
+    return [{ value: 'polygon', label: 'Polygon' }]
+  }
 
   const fetchData = async (isRefresh = false) => {
     if (!id) return
@@ -231,6 +292,15 @@ export const AdminWolkPayDetailPage: React.FC = () => {
   useEffect(() => {
     fetchData()
   }, [id])
+
+  // Set default network when data is loaded
+  useEffect(() => {
+    if (data?.invoice) {
+      const defaultNet =
+        data.invoice.crypto_network || getDefaultNetworkForSymbol(data.invoice.crypto_currency)
+      setSelectedNetwork(defaultNet)
+    }
+  }, [data?.invoice?.crypto_currency, data?.invoice?.crypto_network])
 
   // Action handlers
   const handleConfirmPayment = async () => {
@@ -258,7 +328,7 @@ export const AdminWolkPayDetailPage: React.FC = () => {
 
     try {
       setActionLoading(true)
-      const result = await approveInvoice(id, approveNotes || undefined)
+      const result = await approveInvoice(id, selectedNetwork, approveNotes || undefined)
       toast.success(result.message)
       setShowApproveModal(false)
       setApproveNotes('')
@@ -813,8 +883,11 @@ export const AdminWolkPayDetailPage: React.FC = () => {
             </p>
 
             <div className='mb-4'>
-              <label className='block text-sm text-gray-400 mb-2'>ID da Transacao Bancaria *</label>
+              <label htmlFor='bank-tx-id' className='block text-sm text-gray-400 mb-2'>
+                ID da Transacao Bancaria *
+              </label>
               <input
+                id='bank-tx-id'
                 type='text'
                 value={bankTransactionId}
                 onChange={e => setBankTransactionId(e.target.value)}
@@ -846,34 +919,95 @@ export const AdminWolkPayDetailPage: React.FC = () => {
         </div>
       )}
 
-      {/* Approve Modal */}
+      {/* Approve Modal - Assinar e Enviar Crypto */}
       {showApproveModal && (
         <div className='fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4'>
-          <div className='bg-gray-800 rounded-xl w-full max-w-md p-6'>
+          <div className='bg-gray-800 rounded-xl w-full max-w-lg p-6'>
             <div className='flex items-center gap-3 mb-4'>
               <div className='w-10 h-10 bg-emerald-600/20 rounded-full flex items-center justify-center'>
-                <CheckCircle className='w-5 h-5 text-emerald-400' />
+                <Wallet className='w-5 h-5 text-emerald-400' />
               </div>
-              <h3 className='text-lg font-semibold text-white'>Aprovar e Enviar Crypto</h3>
+              <div>
+                <h3 className='text-lg font-semibold text-white'>Assinar e Enviar Crypto</h3>
+                <p className='text-xs text-gray-400'>Transacao blockchain sera executada</p>
+              </div>
             </div>
 
-            <div className='p-4 bg-emerald-900/20 rounded-lg border border-emerald-700/50 mb-4'>
-              <p className='text-sm text-emerald-300'>Ao aprovar, sera enviado automaticamente:</p>
-              <p className='text-lg font-bold text-emerald-400 mt-1'>
-                {formatCrypto(invoice.crypto_amount)} {invoice.crypto_currency}
-              </p>
-              <p className='text-xs text-gray-400 mt-1'>
-                Para o beneficiario: {invoice.beneficiary_name}
-              </p>
+            {/* Transaction Summary */}
+            <div className='p-4 bg-gray-900/50 rounded-lg border border-gray-700/50 mb-4'>
+              <div className='flex items-center gap-3 mb-3'>
+                {cryptoLogo && (
+                  <img src={cryptoLogo} alt={invoice.crypto_currency} className='w-8 h-8' />
+                )}
+                <div>
+                  <p className='text-xl font-bold text-white'>
+                    {formatCrypto(invoice.crypto_amount)} {invoice.crypto_currency}
+                  </p>
+                  <p className='text-xs text-gray-400'>
+                    Valor: {formatBRL(invoice.total_amount_brl)}
+                  </p>
+                </div>
+              </div>
+
+              <div className='space-y-2 text-sm'>
+                <div className='flex justify-between'>
+                  <span className='text-gray-400'>Beneficiario:</span>
+                  <span className='text-white font-medium'>{invoice.beneficiary_name}</span>
+                </div>
+                <div className='flex justify-between'>
+                  <span className='text-gray-400'>Fatura:</span>
+                  <span className='text-white font-mono'>{invoice.invoice_number}</span>
+                </div>
+              </div>
             </div>
 
+            {/* Network Selection */}
             <div className='mb-4'>
-              <label className='block text-sm text-gray-400 mb-2'>Observacoes (opcional)</label>
+              <label htmlFor='network-select' className='block text-sm text-gray-400 mb-2'>
+                Rede Blockchain *
+              </label>
+              <select
+                id='network-select'
+                value={selectedNetwork}
+                onChange={e => setSelectedNetwork(e.target.value)}
+                className='w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50'
+              >
+                {getAvailableNetworksForSymbol(invoice.crypto_currency).map(net => (
+                  <option key={net.value} value={net.value}>
+                    {net.label}
+                  </option>
+                ))}
+              </select>
+              <p className='text-xs text-gray-500 mt-1'>
+                A crypto sera enviada pela rede {selectedNetwork.toUpperCase()}
+              </p>
+            </div>
+
+            {/* Warning Box */}
+            <div className='p-3 bg-yellow-900/20 rounded-lg border border-yellow-700/50 mb-4'>
+              <div className='flex items-start gap-2'>
+                <AlertCircle className='w-4 h-4 text-yellow-400 mt-0.5 flex-shrink-0' />
+                <div className='text-xs text-yellow-300'>
+                  <p className='font-medium'>Acao irreversivel</p>
+                  <p className='text-yellow-400/80 mt-1'>
+                    A transacao blockchain sera assinada e enviada automaticamente. Certifique-se de
+                    que o pagamento PIX foi confirmado.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Notes */}
+            <div className='mb-4'>
+              <label htmlFor='approve-notes' className='block text-sm text-gray-400 mb-2'>
+                Observacoes (opcional)
+              </label>
               <textarea
+                id='approve-notes'
                 value={approveNotes}
                 onChange={e => setApproveNotes(e.target.value)}
                 placeholder='Adicione observacoes se necessario...'
-                rows={3}
+                rows={2}
                 className='w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 resize-none'
               />
             </div>
@@ -892,9 +1026,19 @@ export const AdminWolkPayDetailPage: React.FC = () => {
               <button
                 onClick={handleApprove}
                 disabled={actionLoading}
-                className='flex-1 px-4 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-white font-medium transition-colors'
+                className='flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-white font-medium transition-colors'
               >
-                {actionLoading ? 'Aprovando...' : 'Aprovar'}
+                {actionLoading ? (
+                  <>
+                    <RefreshCw className='w-4 h-4 animate-spin' />
+                    Assinando...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className='w-4 h-4' />
+                    Assinar e Enviar
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -919,11 +1063,13 @@ export const AdminWolkPayDetailPage: React.FC = () => {
             </div>
 
             <div className='mb-4'>
-              <label className='block text-sm text-gray-400 mb-2'>Motivo da Rejeicao *</label>
+              <label htmlFor='reject-reason' className='block text-sm text-gray-400 mb-2'>
+                Motivo da Rejeicao *
+              </label>
               <select
+                id='reject-reason'
                 value={rejectReason}
                 onChange={e => setRejectReason(e.target.value)}
-                title='Motivo da rejeicao'
                 className='w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-red-500/50'
               >
                 <option value=''>Selecione um motivo...</option>
@@ -937,10 +1083,11 @@ export const AdminWolkPayDetailPage: React.FC = () => {
             </div>
 
             <div className='mb-4'>
-              <label className='block text-sm text-gray-400 mb-2'>
+              <label htmlFor='reject-notes' className='block text-sm text-gray-400 mb-2'>
                 Observacoes adicionais (opcional)
               </label>
               <textarea
+                id='reject-notes'
                 value={rejectNotes}
                 onChange={e => setRejectNotes(e.target.value)}
                 placeholder='Detalhes adicionais...'

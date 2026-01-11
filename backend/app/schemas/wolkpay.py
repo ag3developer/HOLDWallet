@@ -351,7 +351,8 @@ class AdminInvoiceListResponse(BaseModel):
 
 
 class ApproveInvoiceRequest(BaseModel):
-    """Request para aprovar uma fatura"""
+    """Request para aprovar uma fatura e enviar crypto"""
+    network: Optional[str] = Field(None, description="Rede blockchain para envio: polygon, ethereum, bitcoin, etc")
     notes: Optional[str] = Field(None, max_length=500, description="Observações do admin")
 
 

@@ -269,9 +269,10 @@ export const confirmPayment = async (
  */
 export const approveInvoice = async (
   invoiceId: string,
+  network?: string,
   notes?: string
 ): Promise<ApprovalResponse> => {
-  const response = await adminApi.post(`/${invoiceId}/approve`, { notes })
+  const response = await adminApi.post(`/${invoiceId}/approve`, { network, notes })
   return response.data
 }
 

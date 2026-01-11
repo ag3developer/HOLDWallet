@@ -368,6 +368,11 @@ async def approve_invoice(
     Aprova uma fatura e envia crypto para o beneficiário
     
     Só pode aprovar faturas no status PAID (pagamento confirmado)
+    
+    Args:
+        invoice_id: ID da fatura
+        request.network: Rede blockchain para envio (polygon, ethereum, bitcoin, etc)
+        request.notes: Observações do admin
     """
     require_admin(current_user)
     
@@ -376,6 +381,7 @@ async def approve_invoice(
         approval = await service.approve_invoice(
             invoice_id=invoice_id,
             admin_id=str(current_user.id),
+            network=request.network,
             notes=request.notes
         )
         
@@ -387,7 +393,7 @@ async def approve_invoice(
             invoice_id=invoice_id,
             invoice_number=invoice.invoice_number if invoice else "N/A",
             action="APPROVED",
-            message="Fatura aprovada! Crypto enviada para o beneficiário.",
+            message=f"Fatura aprovada! Crypto enviada via {approval.crypto_network or 'blockchain'}.",
             crypto_tx_hash=approval.crypto_tx_hash
         )
         

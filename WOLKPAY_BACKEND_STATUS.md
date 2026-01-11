@@ -1,7 +1,7 @@
 # WolkPay - Backend Implementation Status
 
 **Data:** 11 de Janeiro de 2026  
-**Status:** 100% Completo - Backend e Frontend Admin Prontos
+**Status:** 100% Completo - Backend e Frontend Admin com Envio Automatico de Crypto
 
 ---
 
@@ -21,11 +21,22 @@ Frontend/src/services/admin/adminWolkpay.ts        # Service API
 - [x] Lista de faturas aguardando aprovacao (envio crypto)
 - [x] Detalhes completos da fatura + dados do pagador
 - [x] Botao "Confirmar Recebimento PIX"
-- [x] Botao "Aprovar" (envia crypto para beneficiario)
+- [x] Botao "Assinar e Enviar Crypto" com selecao de rede
 - [x] Botao "Rejeitar" (com campo de motivo)
 - [x] Filtros por status
 - [x] Paginacao
 - [x] Cards de estatisticas
+- [x] **NOVO:** Integracao com multi_chain_service para envio automatico
+- [x] **NOVO:** Selecao de rede blockchain na aprovacao
+
+### Fluxo de Aprovacao:
+
+1. **Confirmar PIX** - Operador verifica pagamento no banco e clica em "Confirmar Pagamento PIX"
+2. **Assinar e Enviar** - Abre modal com:
+   - Resumo da transacao (crypto, valor, beneficiario)
+   - Selecao de rede blockchain (Polygon, Ethereum, Bitcoin, etc)
+   - Aviso de acao irreversivel
+   - Botao "Assinar e Enviar" que executa a transacao blockchain
 
 ### Adicionado ao AdminSidebar.tsx:
 
