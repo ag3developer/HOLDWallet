@@ -15,7 +15,7 @@ export const AdminLayout = () => {
       <AdminSidebar />
 
       {/* Main Content */}
-      <main className='lg:ml-64 min-h-screen'>
+      <main className='lg:ml-64 min-h-screen overflow-y-auto'>
         <Outlet />
       </main>
     </div>
