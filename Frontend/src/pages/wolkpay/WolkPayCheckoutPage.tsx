@@ -77,17 +77,25 @@ const formatCurrency = (amount: number) => {
 }
 
 // Formatador de crypto com decimais inteligentes
-const formatCryptoAmount = (amount: number, symbol: string) => {
+const formatCryptoAmount = (amount: number | string | undefined | null, symbol: string) => {
+  // Converter para número se necessário
+  const numAmount = typeof amount === 'string' ? parseFloat(amount) : Number(amount || 0)
+
+  // Verificar se é um número válido
+  if (isNaN(numAmount)) {
+    return '0'
+  }
+
   // Stablecoins: 2 decimais
   if (['USDT', 'USDC', 'DAI', 'BUSD'].includes(symbol.toUpperCase())) {
-    return amount.toFixed(2)
+    return numAmount.toFixed(2)
   }
   // BTC: até 8 decimais, mas remove zeros à direita
   if (symbol.toUpperCase() === 'BTC') {
-    return parseFloat(amount.toFixed(8)).toString()
+    return parseFloat(numAmount.toFixed(8)).toString()
   }
   // ETH e outros: até 6 decimais, remove zeros
-  return parseFloat(amount.toFixed(6)).toString()
+  return parseFloat(numAmount.toFixed(6)).toString()
 }
 
 const formatCpf = (value: string) => {
