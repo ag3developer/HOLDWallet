@@ -647,6 +647,10 @@
       "copied": "Copied!",
       "paymentReceived": "Payment received!",
       "beneficiaryWillReceive": "{{name}} will receive crypto",
+      "alreadyPaid": "I already paid",
+      "verifying": "Verifying...",
+      "paymentNotDetected": "Payment not detected yet. Wait a few seconds and try again.",
+      "paymentAutoDetect": "Payment will be detected automatically in a few seconds",
       "password": "Password",
       "confirmPassword": "Confirm password",
       "acceptTerms": "I accept the platform Terms of Service",
@@ -663,7 +667,8 @@
       },
       "errors": {
         "submitFailed": "Error processing data",
-        "accountFailed": "Error creating account"
+        "accountFailed": "Error creating account",
+        "checkFailed": "Error checking payment"
       }
     }
   }

@@ -659,6 +659,10 @@
       "copied": "Copiado!",
       "paymentReceived": "Pagamento recebido!",
       "beneficiaryWillReceive": "{{name}} receberá o valor em crypto",
+      "alreadyPaid": "Já paguei",
+      "verifying": "Verificando...",
+      "paymentNotDetected": "Pagamento ainda não detectado. Aguarde alguns segundos e tente novamente.",
+      "paymentAutoDetect": "O pagamento será detectado automaticamente em alguns segundos",
       "password": "Senha",
       "confirmPassword": "Confirmar senha",
       "acceptTerms": "Aceito os Termos de Uso da plataforma",
@@ -675,7 +679,8 @@
       },
       "errors": {
         "submitFailed": "Erro ao processar dados",
-        "accountFailed": "Erro ao criar conta"
+        "accountFailed": "Erro ao criar conta",
+        "checkFailed": "Erro ao verificar pagamento"
       }
     }
   }

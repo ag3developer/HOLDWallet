@@ -420,6 +420,31 @@ export function WolkPayCheckoutPage() {
     }
   }
 
+  // Verificar pagamento manualmente (botão "Já paguei")
+  const handleCheckPayment = async () => {
+    if (!token) return
+
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const status = await wolkPayService.checkPaymentStatus(token)
+      if (status.paid) {
+        setStep('paid')
+        // Verificar elegibilidade para conversão
+        checkConversionEligibility()
+      } else {
+        // Pagamento ainda não detectado
+        setError(t('wolkpay.checkout.paymentNotDetected'))
+      }
+    } catch (err: any) {
+      console.error('Error checking payment:', err)
+      setError(err.response?.data?.detail || t('wolkpay.checkout.errors.checkFailed'))
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   // Criar conta
   const handleCreateAccount = async () => {
     if (
@@ -777,9 +802,41 @@ export function WolkPayCheckoutPage() {
           </div>
 
           {/* Instructions */}
-          <div className='bg-amber-50 dark:bg-amber-900/20 rounded-xl p-4 border border-amber-200 dark:border-amber-800/50'>
+          <div className='bg-amber-50 dark:bg-amber-900/20 rounded-xl p-4 border border-amber-200 dark:border-amber-800/50 mb-6'>
             <p className='text-sm text-amber-800 dark:text-amber-300'>{pixData.instructions}</p>
           </div>
+
+          {/* Já Paguei Button */}
+          <button
+            onClick={handleCheckPayment}
+            disabled={isLoading}
+            className='w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl font-semibold text-lg transition-all shadow-lg shadow-green-500/25 disabled:opacity-50'
+          >
+            {isLoading ? (
+              <>
+                <div className='w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin' />
+                {t('wolkpay.checkout.verifying')}
+              </>
+            ) : (
+              <>
+                <Check className='w-5 h-5' />
+                {t('wolkpay.checkout.alreadyPaid')}
+              </>
+            )}
+          </button>
+
+          {/* Error */}
+          {error && (
+            <div className='mt-4 p-4 bg-red-50 dark:bg-red-900/20 rounded-xl flex items-center gap-3 text-red-600 dark:text-red-400'>
+              <AlertCircle className='w-5 h-5 shrink-0' />
+              <span className='text-sm'>{error}</span>
+            </div>
+          )}
+
+          {/* Info */}
+          <p className='mt-4 text-center text-xs text-gray-500 dark:text-gray-400'>
+            {t('wolkpay.checkout.paymentAutoDetect')}
+          </p>
         </div>
       </div>
     )
