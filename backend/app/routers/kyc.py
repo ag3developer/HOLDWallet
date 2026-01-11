@@ -15,7 +15,7 @@ import uuid
 from app.core.db import get_db
 from app.core.security import get_current_user
 from app.models.user import User
-from app.models.kyc import KYCLevel, DocumentType, KYCPersonalData
+from app.models.kyc import KYCLevel, DocumentType, KYCPersonalData, KYCVerification
 from app.models.wolkpay import WolkPayPayer, WolkPayInvoice, PersonType
 from app.schemas.kyc import (
     KYCStartRequest, KYCPersonalDataRequest, KYCSubmitRequest,
@@ -55,12 +55,13 @@ async def get_prefill_data(
     """
     prefill_data = {}
     
-    # 1. Tentar buscar de KYC anterior
-    kyc_data = db.query(KYCPersonalData).filter(
-        KYCPersonalData.user_id == current_user.id
-    ).order_by(desc(KYCPersonalData.created_at)).first()
+    # 1. Tentar buscar de KYC anterior (através da verificação)
+    verification = db.query(KYCVerification).filter(
+        KYCVerification.user_id == current_user.id
+    ).order_by(desc(KYCVerification.created_at)).first()
     
-    if kyc_data:
+    if verification and verification.personal_data:
+        kyc_data = verification.personal_data
         prefill_data = {
             "full_name": kyc_data.full_name,
             "document_number": kyc_data.document_number,

@@ -292,49 +292,110 @@ const KYCPage: React.FC = () => {
   // RENDER HELPERS
   // ============================================================
 
-  const renderApprovedStatus = () => (
-    <div className='text-center py-8'>
-      <div className='w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4'>
-        <CheckCircle className='w-10 h-10 text-green-500' />
-      </div>
-      <h2 className='text-2xl font-bold text-gray-900 dark:text-white mb-2 flex items-center justify-center gap-2'>
-        Verificação Aprovada!
-        <CheckCircle className='w-6 h-6 text-green-500' />
-      </h2>
-      <p className='text-gray-500 mb-6'>
-        Sua conta está verificada no nível{' '}
-        {verification?.level && <KYCLevelBadge level={verification.level} />}
-      </p>
+  const renderApprovedStatus = () => {
+    // Verificar se pode fazer upgrade
+    const canUpgrade = verification?.level && verification.level !== KYCLevel.ADVANCED
+    const nextLevel =
+      verification?.level === KYCLevel.BASIC ? KYCLevel.INTERMEDIATE : KYCLevel.ADVANCED
 
-      {verification?.limits && (
-        <KYCLimitsDisplay
-          level={verification.level}
-          limits={{
-            daily_limit_brl: verification.limits.limits?.instant_trade?.daily_limit_brl || 0,
-            monthly_limit_brl: verification.limits.limits?.instant_trade?.monthly_limit_brl || 0,
-            transaction_limit_brl:
-              verification.limits.limits?.instant_trade?.transaction_limit_brl || 0,
-          }}
-        />
-      )}
+    const nextLevelInfo = {
+      [KYCLevel.INTERMEDIATE]: {
+        name: 'Intermediário',
+        benefits: [
+          'Limites até R$ 50.000/tx',
+          'WolkPay habilitado',
+          'Transferências internacionais',
+        ],
+      },
+      [KYCLevel.ADVANCED]: {
+        name: 'Avançado',
+        benefits: ['Limites personalizados', 'Operações OTC', 'Conta empresarial'],
+      },
+    }
 
-      {verification?.expiration_date && (
-        <p className='text-sm text-gray-500 mt-4'>
-          Válido até: {new Date(verification.expiration_date).toLocaleDateString('pt-BR')}
+    const handleUpgradeRequest = () => {
+      // Resetar estado para permitir novo fluxo de upgrade
+      setSelectedLevel(nextLevel)
+      setCurrentStep(1)
+      setConsent(false)
+    }
+
+    return (
+      <div className='text-center py-8'>
+        <div className='w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4'>
+          <CheckCircle className='w-10 h-10 text-green-500' />
+        </div>
+        <h2 className='text-2xl font-bold text-gray-900 dark:text-white mb-2 flex items-center justify-center gap-2'>
+          Verificação Aprovada!
+          <CheckCircle className='w-6 h-6 text-green-500' />
+        </h2>
+        <p className='text-gray-500 mb-6'>
+          Sua conta está verificada no nível{' '}
+          {verification?.level && <KYCLevelBadge level={verification.level} />}
         </p>
-      )}
 
-      <div className='mt-6 flex justify-center gap-4'>
-        <KYCExportDataButton onExport={exportData} />
-        <button
-          onClick={() => navigate('/dashboard')}
-          className='px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90'
-        >
-          Ir para Dashboard
-        </button>
+        {verification?.limits && (
+          <KYCLimitsDisplay
+            level={verification.level}
+            limits={{
+              daily_limit_brl: verification.limits.limits?.instant_trade?.daily_limit_brl || 0,
+              monthly_limit_brl: verification.limits.limits?.instant_trade?.monthly_limit_brl || 0,
+              transaction_limit_brl:
+                verification.limits.limits?.instant_trade?.transaction_limit_brl || 0,
+            }}
+          />
+        )}
+
+        {verification?.expiration_date && (
+          <p className='text-sm text-gray-500 mt-4'>
+            Válido até: {new Date(verification.expiration_date).toLocaleDateString('pt-BR')}
+          </p>
+        )}
+
+        {/* Botão de Upgrade - aparece se não é ADVANCED */}
+        {canUpgrade && (
+          <div className='mt-8 p-6 bg-gradient-to-r from-primary/10 to-yellow-500/10 dark:from-primary/20 dark:to-yellow-500/20 rounded-xl border border-primary/20'>
+            <div className='flex items-center justify-center gap-2 mb-3'>
+              <Shield className='w-6 h-6 text-primary' />
+              <h3 className='text-lg font-bold text-gray-900 dark:text-white'>
+                Aumente seus Limites!
+              </h3>
+            </div>
+            <p className='text-gray-600 dark:text-gray-400 mb-4'>
+              Faça upgrade para o nível <strong>{nextLevelInfo[nextLevel]?.name}</strong> e
+              desbloqueie:
+            </p>
+            <div className='flex flex-wrap justify-center gap-2 mb-4'>
+              {nextLevelInfo[nextLevel]?.benefits.map((benefit, idx) => (
+                <span
+                  key={idx}
+                  className='text-xs bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-3 py-1.5 rounded-full border border-gray-200 dark:border-gray-700'
+                >
+                  ✓ {benefit}
+                </span>
+              ))}
+            </div>
+            <button
+              onClick={handleUpgradeRequest}
+              className='px-6 py-2.5 bg-gradient-to-r from-primary to-yellow-500 text-white rounded-lg font-medium hover:opacity-90 transition-opacity'
+            >
+              Solicitar Upgrade para {nextLevelInfo[nextLevel]?.name}
+            </button>
+          </div>
+        )}
+
+        <div className='mt-6 flex justify-center gap-4'>
+          <KYCExportDataButton onExport={exportData} />
+          <button
+            onClick={() => navigate('/dashboard')}
+            className='px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90'
+          >
+            Ir para Dashboard
+          </button>
+        </div>
       </div>
-    </div>
-  )
+    )
+  }
 
   const renderPendingReview = () => (
     <div className='text-center py-8'>
