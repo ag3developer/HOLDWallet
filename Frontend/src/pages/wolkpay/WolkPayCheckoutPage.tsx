@@ -1021,6 +1021,26 @@ export function WolkPayCheckoutPage() {
               {formatCurrency(checkout?.total_amount_brl || 0)}
             </span>
           </div>
+
+          {/* Fee Info */}
+          {checkout?.fee_payer && (
+            <div className='mt-2 pt-2 border-t border-gray-100 dark:border-gray-700/50'>
+              <div className='flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400'>
+                <Shield className='w-3 h-3' />
+                <span>
+                  {checkout.fee_payer_label ||
+                    (checkout.fee_payer === 'PAYER'
+                      ? 'Taxas incluídas no valor acima'
+                      : 'Taxas pagas pelo beneficiário')}
+                </span>
+              </div>
+              {checkout.total_fees_brl && checkout.fee_payer === 'PAYER' && (
+                <div className='mt-1 text-xs text-gray-400'>
+                  (Taxas: {formatCurrency(checkout.total_fees_brl)})
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Person Type Toggle */}

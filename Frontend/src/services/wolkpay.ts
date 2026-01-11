@@ -12,10 +12,13 @@ import { apiClient } from './api'
 // TYPES
 // ============================================
 
+export type FeePayer = 'BENEFICIARY' | 'PAYER'
+
 export interface CreateInvoiceRequest {
   crypto_currency: string
   crypto_amount: string | number
   crypto_network?: string
+  fee_payer?: FeePayer // Quem paga as taxas: BENEFICIARY (padrão) ou PAYER
 }
 
 export interface Invoice {
@@ -35,6 +38,8 @@ export interface Invoice {
   network_fee_percent: number
   network_fee_brl: number
   total_amount_brl: number
+  fee_payer?: FeePayer
+  beneficiary_receives_brl?: number
   checkout_token: string
   checkout_url?: string
   created_at: string
@@ -76,6 +81,13 @@ export interface CheckoutData {
   crypto_currency: string
   crypto_amount: number
   total_amount_brl: number
+  // Info de quem paga as taxas
+  fee_payer?: FeePayer
+  service_fee_brl?: number
+  network_fee_brl?: number
+  total_fees_brl?: number
+  fee_payer_label?: string
+  // Timestamps
   expires_at: string
   expires_in_seconds: number
   is_expired: boolean

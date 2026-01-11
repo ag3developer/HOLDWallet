@@ -1,7 +1,40 @@
 # WolkPay - Backend Implementation Status
 
 **Data:** 11 de Janeiro de 2026  
-**Status:** 100% Completo - Backend e Frontend Admin com Envio Automatico de Crypto
+**Status:** 100% Completo - Backend e Frontend Admin com Envio Automatico de Crypto + Escolha de Quem Paga Taxas
+
+---
+
+## 🆕 NOVA FEATURE: Escolha de Quem Paga as Taxas
+
+### Funcionalidade:
+
+O beneficiário agora pode escolher quem paga as taxas do WolkPay na criação da fatura:
+
+- **BENEFICIARY (Padrão):** Beneficiário paga as taxas
+
+  - Pagador paga: R$ 100,00 (valor base)
+  - Beneficiário recebe: R$ 96,20 (valor base - taxas)
+
+- **PAYER:** Pagador paga as taxas
+  - Pagador paga: R$ 103,80 (valor base + taxas)
+  - Beneficiário recebe: R$ 100,00 (valor cheio)
+
+### Arquivos Modificados:
+
+```
+Backend/app/models/wolkpay.py                 # Novo enum FeePayer + campos
+Backend/app/schemas/wolkpay.py                # Atualizado CreateInvoiceRequest
+Backend/app/services/wolkpay_service.py       # Lógica de cálculo atualizada
+Frontend/src/services/wolkpay.ts              # Types atualizados
+Frontend/src/pages/wolkpay/WolkPayPage.tsx    # UI de seleção
+```
+
+### Migração:
+
+```
+Backend/alembic/versions/20260111_add_wolkpay_fee_payer.py
+```
 
 ---
 
@@ -140,8 +173,8 @@ Endpoints públicos (checkout):
 
 ```python
 INVOICE_VALIDITY_MINUTES = 15  # Validade da cotação
-SERVICE_FEE_PERCENT = 3.65     # Taxa de serviço
-NETWORK_FEE_PERCENT = 0.15     # Taxa de rede
+SERVICE_FEE_PERCENT = 3.65     # Taxa de serviço (configurável em Admin Settings)
+NETWORK_FEE_PERCENT = 0.15     # Taxa de rede (configurável em Admin Settings)
 TOTAL_FEE = 3.80%              # Taxa total
 
 LIMIT_PER_OPERATION = R$ 15.000,00
@@ -150,6 +183,11 @@ LIMIT_PER_MONTH = R$ 300.000,00
 PIX_KEY = "24275355000151"     # CNPJ HOLD
 PIX_KEY_TYPE = "CNPJ"
 COMPANY_NAME = "HOLD DIGITAL ASSETS LTDA"
+
+# Quem paga as taxas (escolhido pelo beneficiário na criação)
+FEE_PAYER_OPTIONS = ["BENEFICIARY", "PAYER"]
+# BENEFICIARY: Pagador paga valor base, beneficiário recebe valor - taxas
+# PAYER: Pagador paga valor + taxas, beneficiário recebe valor cheio
 ```
 
 ---

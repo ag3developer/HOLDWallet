@@ -23,7 +23,7 @@ from sqlalchemy import and_, func
 from app.models.wolkpay import (
     WolkPayInvoice, WolkPayPayer, WolkPayPayment, WolkPayApproval,
     WolkPayPayerLimit, WolkPayAuditLog, WolkPayTermsVersion,
-    InvoiceStatus, PersonType, DocumentType, PaymentStatus, ApprovalAction
+    InvoiceStatus, PersonType, DocumentType, PaymentStatus, ApprovalAction, FeePayer
 )
 from app.models.user import User
 from app.schemas.wolkpay import (
@@ -117,24 +117,36 @@ class WolkPayService:
             service_fee_percent = self._get_service_fee_percent()
             network_fee_percent = self._get_network_fee_percent()
             
-            # 4. Calcular valores
+            # 4. Calcular valores base
             base_amount_brl = request.crypto_amount * crypto_price_usd * usd_brl_rate
             service_fee_brl = base_amount_brl * (service_fee_percent / 100)
             network_fee_brl = base_amount_brl * (network_fee_percent / 100)
-            total_amount_brl = base_amount_brl + service_fee_brl + network_fee_brl
+            total_fees_brl = service_fee_brl + network_fee_brl
             
-            # 5. Verificar limite por operação
+            # 5. Determinar quem paga as taxas e calcular valores finais
+            fee_payer = FeePayer(request.fee_payer.value)
+            
+            if fee_payer == FeePayer.PAYER:
+                # Pagador paga as taxas: total = base + taxas, beneficiário recebe base
+                total_amount_brl = base_amount_brl + total_fees_brl
+                beneficiary_receives_brl = base_amount_brl
+            else:
+                # Beneficiário paga as taxas (padrão): total = base, beneficiário recebe base - taxas
+                total_amount_brl = base_amount_brl
+                beneficiary_receives_brl = base_amount_brl - total_fees_brl
+            
+            # 6. Verificar limite por operação
             if total_amount_brl > self.LIMIT_PER_OPERATION:
                 raise ValueError(f"Valor excede limite por operação de R$ {self.LIMIT_PER_OPERATION:,.2f}")
             
-            # 6. Gerar identificadores
+            # 7. Gerar identificadores
             invoice_number = WolkPayInvoice.generate_invoice_number()
             checkout_token = WolkPayInvoice.generate_checkout_token()
             
-            # 7. Calcular expiração (15 minutos)
+            # 8. Calcular expiração (15 minutos)
             expires_at = datetime.now(timezone.utc) + timedelta(minutes=self.INVOICE_VALIDITY_MINUTES)
             
-            # 8. Criar fatura
+            # 9. Criar fatura
             invoice = WolkPayInvoice(
                 invoice_number=invoice_number,
                 beneficiary_id=user_id,
@@ -149,6 +161,8 @@ class WolkPayService:
                 network_fee_percent=network_fee_percent,
                 network_fee_brl=network_fee_brl,
                 total_amount_brl=total_amount_brl,
+                fee_payer=fee_payer,
+                beneficiary_receives_brl=beneficiary_receives_brl,
                 checkout_token=checkout_token,
                 status=InvoiceStatus.PENDING,
                 expires_at=expires_at
@@ -158,22 +172,23 @@ class WolkPayService:
             self.db.commit()
             self.db.refresh(invoice)
             
-            # 8. Gerar URL de checkout (usar FRONTEND_URL do settings)
+            # 10. Gerar URL de checkout (usar FRONTEND_URL do settings)
             frontend_url = settings.FRONTEND_URL.rstrip('/')
             checkout_url = f"{frontend_url}/wolkpay/checkout/{checkout_token}"
             invoice.checkout_url = checkout_url
             self.db.commit()
             
-            # 9. Log de auditoria
+            # 11. Log de auditoria
+            fee_payer_label = "pagador" if fee_payer == FeePayer.PAYER else "beneficiário"
             self._log_audit(
                 invoice_id=invoice.id,
                 actor_type="user",
                 actor_id=user_id,
                 action="create_invoice",
-                description=f"Fatura {invoice_number} criada: {request.crypto_amount} {request.crypto_currency}"
+                description=f"Fatura {invoice_number} criada: {request.crypto_amount} {request.crypto_currency} (taxas: {fee_payer_label})"
             )
             
-            logger.info(f"WolkPay: Fatura {invoice_number} criada por {user_id}")
+            logger.info(f"WolkPay: Fatura {invoice_number} criada por {user_id} (fee_payer={fee_payer.value})")
             
             return invoice, checkout_url
             
@@ -227,6 +242,16 @@ class WolkPayService:
             expires_at = invoice.expires_at
         expires_in_seconds = max(0, int((expires_at - now).total_seconds()))
         
+        # Determinar label de quem paga as taxas
+        fee_payer_value = invoice.fee_payer.value if invoice.fee_payer else "BENEFICIARY"
+        if fee_payer_value == "PAYER":
+            fee_payer_label = "Taxas incluídas no valor (pagas pelo pagador)"
+        else:
+            fee_payer_label = "Taxas pagas pelo beneficiário"
+        
+        # Calcular total de taxas
+        total_fees_brl = (invoice.service_fee_brl or Decimal('0')) + (invoice.network_fee_brl or Decimal('0'))
+        
         return CheckoutDataResponse(
             invoice_id=str(invoice.id),
             invoice_number=invoice.invoice_number,
@@ -237,6 +262,11 @@ class WolkPayService:
             crypto_currency=invoice.crypto_currency,
             crypto_amount=invoice.crypto_amount,
             total_amount_brl=invoice.total_amount_brl,
+            fee_payer=fee_payer_value,
+            service_fee_brl=invoice.service_fee_brl,
+            network_fee_brl=invoice.network_fee_brl,
+            total_fees_brl=total_fees_brl,
+            fee_payer_label=fee_payer_label,
             expires_at=invoice.expires_at,
             expires_in_seconds=expires_in_seconds,
             is_expired=is_expired,
@@ -566,7 +596,7 @@ class WolkPayService:
         """
         from app.models.wallet import Wallet
         from app.models.address import Address
-        from app.models.instant_trade import InstantTrade, TradeStatus, TradeType
+        # InstantTrade imports removidos - usando WolkPayTradeAdapter local
         
         # 1. Buscar fatura
         invoice = self.db.query(WolkPayInvoice).filter(
@@ -604,9 +634,17 @@ class WolkPayService:
         if not beneficiary_wallet:
             raise ValueError("Carteira do beneficiário não encontrada")
         
+        # Redes suportadas pelo sistema (onde temos gas para envio)
+        SUPPORTED_NETWORKS = ['polygon', 'ethereum', 'bsc', 'base', 'bitcoin', 'litecoin', 'dogecoin']
+        
         # Determinar a rede a ser usada
         symbol = invoice.crypto_currency.upper()
         selected_network = network or invoice.crypto_network or self._get_default_network(symbol)
+        
+        # Validar se a rede é suportada
+        if selected_network.lower() not in SUPPORTED_NETWORKS:
+            logger.warning(f"⚠️ WolkPay: Rede {selected_network} não suportada, usando rede padrão para {symbol}")
+            selected_network = self._get_default_network(symbol)
         
         # Buscar endereço do beneficiário para a rede
         beneficiary_address = self.db.query(Address).filter(
@@ -624,6 +662,7 @@ class WolkPayService:
         # 5. Enviar crypto usando multi_chain_service
         try:
             from app.services.multi_chain_service import multi_chain_service
+            from app.models.instant_trade import TradeStatus
             
             # Criar um objeto similar ao InstantTrade para compatibilidade
             # O multi_chain_service espera um trade, então criamos uma estrutura compatível
@@ -637,25 +676,37 @@ class WolkPayService:
                     self.wallet_address = wallet_addr
                     self.network = network
                     self.reference_code = invoice.invoice_number
+                    # Atributos necessários para blockchain_deposit_service
+                    self.status = TradeStatus.PAYMENT_CONFIRMED  # Simula status confirmado
+                    self.tx_hash = None  # Será preenchido após envio
             
             trade_adapter = WolkPayTradeAdapter(invoice, wallet_address, selected_network)
             
             logger.info(f"🚀 WolkPay: Enviando {invoice.crypto_amount} {symbol} para {wallet_address} via {selected_network}")
             
-            result = await multi_chain_service.send_crypto(
-                db=self.db,
-                trade=trade_adapter,
-                network=selected_network
-            )
-            
-            if result.success:
-                crypto_tx_hash = result.tx_hash
-                explorer_url = result.explorer_url
-                logger.info(f"✅ WolkPay: Crypto enviada! TX: {crypto_tx_hash}")
-            else:
-                error_msg = result.error or "Erro desconhecido no envio"
-                logger.error(f"❌ WolkPay: Erro ao enviar crypto: {error_msg}")
-                raise ValueError(f"Erro ao enviar crypto: {error_msg}")
+            try:
+                result = await multi_chain_service.send_crypto(
+                    db=self.db,
+                    trade=trade_adapter,
+                    network=selected_network
+                )
+                
+                if result.success:
+                    crypto_tx_hash = result.tx_hash
+                    explorer_url = result.explorer_url
+                    logger.info(f"✅ WolkPay: Crypto enviada! TX: {crypto_tx_hash}")
+                else:
+                    error_msg = result.error or "Erro desconhecido no envio"
+                    logger.error(f"❌ WolkPay: Erro ao enviar crypto: {error_msg}")
+                    raise ValueError(f"Erro ao enviar crypto: {error_msg}")
+            except Exception as send_error:
+                # Verifica se a transação foi enviada mesmo com erro de commit
+                # O blockchain_deposit_service atualiza trade_adapter.tx_hash após envio bem-sucedido
+                if trade_adapter.tx_hash and trade_adapter.tx_hash.startswith('0x'):
+                    crypto_tx_hash = trade_adapter.tx_hash
+                    logger.info(f"✅ WolkPay: Crypto enviada (recuperado do adapter)! TX: {crypto_tx_hash}")
+                else:
+                    raise send_error
                 
         except ImportError:
             # Fallback se multi_chain_service não estiver disponível
@@ -681,7 +732,10 @@ class WolkPayService:
         # 7. Atualizar status
         invoice.status = InvoiceStatus.COMPLETED
         
-        # 8. Atualizar limite do pagador
+        # 8. Registrar taxas na contabilidade (para aparecer em /admin/fees)
+        await self._register_accounting_entries(invoice, admin_id)
+        
+        # 9. Atualizar limite do pagador
         doc_type = "CPF" if payer.person_type == PersonType.PF else "CNPJ"
         doc_number = ''.join(filter(str.isdigit, payer.cpf if payer.person_type == PersonType.PF else payer.cnpj))
         await self.update_payer_limit(doc_type, doc_number, invoice.total_amount_brl)
@@ -689,7 +743,7 @@ class WolkPayService:
         self.db.commit()
         self.db.refresh(approval)
         
-        # 9. Log de auditoria
+        # 10. Log de auditoria
         self._log_audit(
             invoice_id=invoice_id,
             actor_type="admin",
@@ -703,6 +757,60 @@ class WolkPayService:
         logger.info(f"WolkPay: Fatura {invoice.invoice_number} aprovada por admin {admin_id}")
         
         return approval
+    
+    async def _register_accounting_entries(self, invoice: WolkPayInvoice, admin_id: str):
+        """
+        Registra as taxas da fatura WolkPay na contabilidade.
+        Isso faz com que apareçam em /admin/fees
+        """
+        from app.models.accounting import AccountingEntry
+        
+        try:
+            now = datetime.now(timezone.utc)
+            
+            # Registrar taxa de serviço (3.65%)
+            if invoice.service_fee_brl and float(invoice.service_fee_brl) > 0:
+                service_entry = AccountingEntry(
+                    trade_id=None,  # WolkPay não tem trade_id direto
+                    reference_code=invoice.invoice_number,
+                    entry_type="platform_fee",  # Tipo genérico de taxa da plataforma
+                    amount=invoice.service_fee_brl,
+                    currency="BRL",
+                    percentage=invoice.service_fee_percent,
+                    base_amount=invoice.base_amount_brl,
+                    description=f"Taxa de serviço WolkPay ({invoice.service_fee_percent}%) - Fatura {invoice.invoice_number}",
+                    status="processed",
+                    user_id=invoice.beneficiary_id,
+                    created_by=admin_id,
+                    created_at=now
+                )
+                self.db.add(service_entry)
+                logger.info(f"💰 WolkPay: Taxa de serviço registrada: R$ {invoice.service_fee_brl}")
+            
+            # Registrar taxa de rede (0.15%)
+            if invoice.network_fee_brl and float(invoice.network_fee_brl) > 0:
+                network_entry = AccountingEntry(
+                    trade_id=None,
+                    reference_code=invoice.invoice_number,
+                    entry_type="network_fee",
+                    amount=invoice.network_fee_brl,
+                    currency="BRL",
+                    percentage=invoice.network_fee_percent,
+                    base_amount=invoice.base_amount_brl,
+                    description=f"Taxa de rede WolkPay ({invoice.network_fee_percent}%) - Fatura {invoice.invoice_number}",
+                    status="processed",
+                    user_id=invoice.beneficiary_id,
+                    created_by=admin_id,
+                    created_at=now
+                )
+                self.db.add(network_entry)
+                logger.info(f"💰 WolkPay: Taxa de rede registrada: R$ {invoice.network_fee_brl}")
+            
+            logger.info(f"✅ WolkPay: Taxas registradas na contabilidade para fatura {invoice.invoice_number}")
+            
+        except Exception as e:
+            logger.error(f"❌ WolkPay: Erro ao registrar taxas na contabilidade: {e}")
+            # Não lança exceção para não impedir a aprovação
     
     def _get_default_network(self, symbol: str) -> str:
         """

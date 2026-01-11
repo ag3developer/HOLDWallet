@@ -148,31 +148,68 @@ class CoinGeckoSource(PriceSource):
 
 
 class BinanceSource(PriceSource):
-    """Binance API price source (fallback)"""
+    """Binance API price source (PRIMARY for BRL, supports USD)"""
     
-    # Mapeamento de símbolos para pares Binance
-    SYMBOL_MAP = {
+    # Mapeamento de símbolos para pares Binance USD
+    SYMBOL_MAP_USD = {
         'BTC': 'BTCUSDT', 'ETH': 'ETHUSDT', 'MATIC': 'MATICUSDT',
         'BNB': 'BNBUSDT', 'SOL': 'SOLUSDT', 'ADA': 'ADAUSDT',
         'AVAX': 'AVAXUSDT', 'DOT': 'DOTUSDT', 'LINK': 'LINKUSDT',
         'DOGE': 'DOGEUSDT', 'LTC': 'LTCUSDT', 'XRP': 'XRPUSDT',
+        'USDC': 'USDCUSDT', 'TRX': 'TRXUSDT',
+        # USDT e USDC não precisam de par USD - são stablecoins = $1.00
     }
+    
+    # Mapeamento de símbolos para pares Binance BRL
+    SYMBOL_MAP_BRL = {
+        'BTC': 'BTCBRL', 'ETH': 'ETHBRL', 'USDT': 'USDTBRL',
+        'BNB': 'BNBBRL', 'SOL': 'SOLBRL', 'XRP': 'XRPBRL',
+        'DOGE': 'DOGEBRL', 'ADA': 'ADABRL', 'DOT': 'DOTBRL',
+        'MATIC': 'MATICBRL', 'AVAX': 'AVAXBRL', 'LINK': 'LINKBRL',
+        'LTC': 'LTCBRL', 'USDC': 'USDCBRL',
+    }
+    
+    # Stablecoins - retornam preço fixo em USD
+    STABLECOINS = {'USDT', 'USDC', 'DAI', 'BUSD'}
     
     async def fetch_prices(
         self, 
         symbols: List[str], 
         currency: str = "usd"
     ) -> Dict[str, PriceData]:
-        """Fetch prices from Binance (only USD supported)"""
-        if currency.lower() != "usd":
-            logger.info(f"Binance: Only USD supported, requested {currency}")
+        """Fetch prices from Binance (supports USD and BRL)"""
+        currency_lower = currency.lower()
+        
+        # Selecionar mapeamento baseado na moeda
+        if currency_lower == "brl":
+            symbol_map = self.SYMBOL_MAP_BRL
+        elif currency_lower == "usd":
+            symbol_map = self.SYMBOL_MAP_USD
+        else:
+            logger.info(f"Binance: Currency {currency} not supported, only USD and BRL")
             return {}
         
         try:
             prices = {}
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 for symbol in symbols:
-                    pair = self.SYMBOL_MAP.get(symbol.upper())
+                    symbol_upper = symbol.upper()
+                    
+                    # Stablecoins em USD sempre retornam $1.00
+                    if currency_lower == "usd" and symbol_upper in self.STABLECOINS:
+                        prices[symbol_upper] = PriceData(
+                            symbol=symbol_upper,
+                            price=1.0,
+                            change_24h=0.0,
+                            high_24h=1.0,
+                            low_24h=1.0,
+                            volume_24h=0.0,
+                            source="binance",
+                            timestamp=datetime.now(timezone.utc)
+                        )
+                        continue
+                    
+                    pair = symbol_map.get(symbol_upper)
                     if not pair:
                         continue
                     
@@ -184,8 +221,8 @@ class BinanceSource(PriceSource):
                         response.raise_for_status()
                         data = response.json()
                         
-                        prices[symbol.upper()] = PriceData(
-                            symbol=symbol.upper(),
+                        prices[symbol_upper] = PriceData(
+                            symbol=symbol_upper,
                             price=float(data.get("lastPrice", 0)),
                             change_24h=float(data.get("priceChangePercent", 0)),
                             high_24h=float(data.get("highPrice", 0)),
@@ -199,7 +236,7 @@ class BinanceSource(PriceSource):
                         continue
             
             if prices:
-                logger.info(f"Binance: Fetched {len(prices)} prices successfully")
+                logger.info(f"Binance: Fetched {len(prices)} prices in {currency.upper()} successfully")
             return prices
             
         except Exception as e:
@@ -241,10 +278,10 @@ class PriceAggregator:
     """Aggregates prices from multiple sources with fallback strategy"""
     
     def __init__(self):
-        self.sources = [
-            CoinGeckoSource(),
-            BinanceSource(),
-        ]
+        # Binance é PRIMÁRIO (preços mais precisos, especialmente BRL)
+        # CoinGecko é FALLBACK (agregador, preços ~2% acima do mercado)
+        self.binance_source = BinanceSource()
+        self.coingecko_source = CoinGeckoSource()
         self.cache = PriceCache()
         self.cache_ttl = 60  # 60 segundos - evita rate limiting e timeouts
     
@@ -256,6 +293,10 @@ class PriceAggregator:
     ) -> Dict[str, PriceData]:
         """
         Get prices from cache or sources with fallback strategy
+        
+        Priority:
+        - BRL: Binance (primary) → CoinGecko (fallback)
+        - USD: Binance (primary) → CoinGecko (fallback)
         
         Args:
             symbols: List of crypto symbols (BTC, ETH, etc.)
@@ -275,31 +316,41 @@ class PriceAggregator:
                 # Filter to requested symbols
                 return {s: cached_prices[s] for s in symbols if s in cached_prices}
         
-        # Try sources in order (fallback strategy)
+        # Try sources in order: Binance (primary) → CoinGecko (fallback)
         all_prices = {}
         remaining_symbols = set(symbols)
         
-        for source in self.sources:
-            if not remaining_symbols:
-                break
-            
-            logger.info(f"Fetching from {source.__class__.__name__}: {remaining_symbols}")
-            source_prices = await source.fetch_prices(
+        # 1. Try Binance first (more accurate prices, especially for BRL)
+        if remaining_symbols:
+            logger.info(f"🔵 Binance (PRIMARY): Fetching {remaining_symbols} in {currency.upper()}")
+            binance_prices = await self.binance_source.fetch_prices(
                 list(remaining_symbols),
                 currency
             )
-            
-            if source_prices:
-                all_prices.update(source_prices)
-                remaining_symbols -= set(source_prices.keys())
+            if binance_prices:
+                all_prices.update(binance_prices)
+                remaining_symbols -= set(binance_prices.keys())
+                logger.info(f"✅ Binance: Got {len(binance_prices)} prices")
+        
+        # 2. Fallback to CoinGecko for remaining symbols
+        if remaining_symbols:
+            logger.info(f"🟡 CoinGecko (FALLBACK): Fetching {remaining_symbols} in {currency.upper()}")
+            coingecko_prices = await self.coingecko_source.fetch_prices(
+                list(remaining_symbols),
+                currency
+            )
+            if coingecko_prices:
+                all_prices.update(coingecko_prices)
+                remaining_symbols -= set(coingecko_prices.keys())
+                logger.info(f"✅ CoinGecko: Got {len(coingecko_prices)} prices (fallback)")
         
         # Cache successful prices
         if all_prices:
             await self.cache.set(currency, all_prices)
-            logger.info(f"Cached {len(all_prices)} prices for {currency}")
+            logger.info(f"📦 Cached {len(all_prices)} prices for {currency.upper()}")
         
         if remaining_symbols:
-            logger.warning(f"Failed to fetch prices for: {remaining_symbols}")
+            logger.warning(f"⚠️ Failed to fetch prices for: {remaining_symbols}")
         
         return all_prices
     

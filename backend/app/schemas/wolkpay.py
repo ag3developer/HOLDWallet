@@ -35,6 +35,12 @@ class InvoiceStatusEnum(str, Enum):
     REJECTED = "REJECTED"
 
 
+class FeePayerEnum(str, Enum):
+    """Quem paga as taxas"""
+    BENEFICIARY = "BENEFICIARY"  # Beneficiário paga (padrão)
+    PAYER = "PAYER"              # Pagador paga
+
+
 # ============================================
 # INVOICE SCHEMAS
 # ============================================
@@ -44,6 +50,10 @@ class CreateInvoiceRequest(BaseModel):
     crypto_currency: str = Field(..., min_length=2, max_length=20, description="Símbolo da crypto: BTC, ETH, USDT, etc")
     crypto_amount: Decimal = Field(..., gt=0, description="Quantidade de crypto desejada")
     crypto_network: Optional[str] = Field(None, description="Rede: ERC20, TRC20, etc")
+    fee_payer: FeePayerEnum = Field(
+        default=FeePayerEnum.BENEFICIARY, 
+        description="Quem paga as taxas: BENEFICIARY (padrão) ou PAYER"
+    )
     
     @validator('crypto_currency')
     def validate_crypto(cls, v):
@@ -54,7 +64,8 @@ class CreateInvoiceRequest(BaseModel):
             "example": {
                 "crypto_currency": "USDT",
                 "crypto_amount": "100.00",
-                "crypto_network": "TRC20"
+                "crypto_network": "TRC20",
+                "fee_payer": "BENEFICIARY"
             }
         }
 
@@ -83,6 +94,10 @@ class InvoiceResponse(BaseModel):
     network_fee_percent: Decimal
     network_fee_brl: Decimal
     total_amount_brl: Decimal
+    
+    # Quem paga as taxas
+    fee_payer: str = "BENEFICIARY"
+    beneficiary_receives_brl: Optional[Decimal] = None
     
     # Checkout
     checkout_token: str
@@ -301,7 +316,14 @@ class CheckoutDataResponse(BaseModel):
     # Valores
     crypto_currency: str
     crypto_amount: Decimal
-    total_amount_brl: Decimal
+    total_amount_brl: Decimal  # Valor que o pagador vai pagar
+    
+    # Quem paga as taxas - info transparente para o pagador
+    fee_payer: str = "BENEFICIARY"
+    service_fee_brl: Optional[Decimal] = None
+    network_fee_brl: Optional[Decimal] = None
+    total_fees_brl: Optional[Decimal] = None
+    fee_payer_label: str = "Taxas pagas pelo beneficiário"  # Texto amigável
     
     # Validade
     expires_at: datetime

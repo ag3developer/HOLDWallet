@@ -30,7 +30,11 @@ import {
 } from 'lucide-react'
 import { usePrices } from '@/hooks/usePrices'
 import { useCurrencyStore } from '@/stores/useCurrencyStore'
-import wolkPayService, { CreateInvoiceRequest, InvoiceCreatedResponse } from '@/services/wolkpay'
+import wolkPayService, {
+  CreateInvoiceRequest,
+  InvoiceCreatedResponse,
+  FeePayer,
+} from '@/services/wolkpay'
 
 // Logos das cryptos - usando CoinGecko
 const CRYPTO_LOGOS: Record<string, string> = {
@@ -105,10 +109,16 @@ export function WolkPayPage() {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const { currency } = useCurrencyStore()
-  const { prices } = usePrices(
+
+  // Buscar preços em BRL (cotação real do mercado)
+  const { prices: pricesBRL } = usePrices(
     SUPPORTED_CRYPTOS.map(c => c.symbol),
-    'USD'
+    'BRL'
   )
+
+  // Buscar cotação USD/BRL usando USDT como referência
+  const { prices: usdtPrice } = usePrices(['USDT'], 'BRL')
+  const usdBrlRate = usdtPrice?.['USDT']?.price || 5.5 // Fallback caso não consiga obter
 
   // Estado do formulário
   const [selectedCrypto, setSelectedCrypto] = useState(SUPPORTED_CRYPTOS[0])
@@ -116,6 +126,7 @@ export function WolkPayPage() {
   const [inputMode, setInputMode] = useState<'crypto' | 'fiat'>('fiat')
   const [fiatAmount, setFiatAmount] = useState('')
   const [cryptoAmount, setCryptoAmount] = useState('')
+  const [feePayer, setFeePayer] = useState<'BENEFICIARY' | 'PAYER'>('BENEFICIARY')
 
   // Estado de loading/error
   const [isLoading, setIsLoading] = useState(false)
@@ -125,9 +136,9 @@ export function WolkPayPage() {
   const [createdInvoice, setCreatedInvoice] = useState<InvoiceCreatedResponse | null>(null)
   const [copied, setCopied] = useState(false)
 
-  // Preço atual
-  const currentPrice = prices?.[selectedCrypto.symbol]?.price || 0
-  const brlRate = currentPrice * 5.5 // Aproximado USD->BRL
+  // Preço atual em BRL (cotação real)
+  const currentPriceBRL = pricesBRL?.[selectedCrypto?.symbol]?.price || 0
+  const brlRate = currentPriceBRL // Já está em BRL, não precisa converter
 
   // Cálculo de valores
   const calculatedFiatAmount =
@@ -141,7 +152,21 @@ export function WolkPayPage() {
   // Taxas
   const serviceFee = calculatedFiatAmount * (LIMITS.SERVICE_FEE / 100)
   const networkFee = calculatedFiatAmount * (LIMITS.NETWORK_FEE / 100)
-  const totalAmount = calculatedFiatAmount + serviceFee + networkFee
+  const totalFees = serviceFee + networkFee
+
+  // Cálculo baseado em quem paga as taxas
+  const totalAmount =
+    feePayer === 'PAYER'
+      ? calculatedFiatAmount + totalFees // Pagador paga: valor + taxas
+      : calculatedFiatAmount // Beneficiário paga: pagador só paga o valor
+
+  const beneficiaryReceives =
+    feePayer === 'PAYER'
+      ? calculatedFiatAmount // Pagador paga: beneficiário recebe valor cheio
+      : calculatedFiatAmount - totalFees // Beneficiário paga: recebe valor - taxas
+
+  // Crypto que o beneficiário vai receber
+  const beneficiaryReceivesCrypto = brlRate > 0 ? beneficiaryReceives / brlRate : 0
 
   // Validação
   const isAmountValid =
@@ -175,6 +200,7 @@ export function WolkPayPage() {
         crypto_currency: selectedCrypto.symbol,
         crypto_amount: calculatedCryptoAmount,
         crypto_network: selectedCrypto.network,
+        fee_payer: feePayer,
       }
 
       console.log('📤 Creating WolkPay invoice:', request)
@@ -605,7 +631,7 @@ export function WolkPayPage() {
                 ? `≈ ${formatCrypto(calculatedCryptoAmount || 0, selectedCrypto.symbol)}`
                 : `≈ ${formatCurrency(calculatedFiatAmount || 0)}`}
             </span>
-            {currentPrice > 0 && (
+            {currentPriceBRL > 0 && (
               <span className='text-xs text-gray-400'>
                 1 {selectedCrypto.symbol} = {formatCurrency(brlRate)}
               </span>
@@ -628,6 +654,43 @@ export function WolkPayPage() {
         {/* Fee Breakdown */}
         {calculatedFiatAmount > 0 && (
           <div className='mb-6 p-4 bg-gray-50 dark:bg-gray-700/30 rounded-xl space-y-3'>
+            {/* Fee Payer Selection */}
+            <div className='pb-3 border-b border-gray-200 dark:border-gray-600'>
+              <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                Quem paga as taxas?
+              </label>
+              <div className='grid grid-cols-2 gap-2'>
+                <button
+                  type='button'
+                  onClick={() => setFeePayer('BENEFICIARY')}
+                  className={`px-3 py-2 text-sm rounded-lg border transition-all ${
+                    feePayer === 'BENEFICIARY'
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                      : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-gray-300'
+                  }`}
+                >
+                  <div className='font-medium'>Eu (Beneficiário)</div>
+                  <div className='text-xs opacity-70'>
+                    Pagador paga {formatCurrency(calculatedFiatAmount)}
+                  </div>
+                </button>
+                <button
+                  type='button'
+                  onClick={() => setFeePayer('PAYER')}
+                  className={`px-3 py-2 text-sm rounded-lg border transition-all ${
+                    feePayer === 'PAYER'
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                      : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-gray-300'
+                  }`}
+                >
+                  <div className='font-medium'>Pagador</div>
+                  <div className='text-xs opacity-70'>
+                    Pagador paga {formatCurrency(totalAmount)}
+                  </div>
+                </button>
+              </div>
+            </div>
+
             <div className='flex justify-between text-sm'>
               <span className='text-gray-500 dark:text-gray-400'>{t('wolkpay.baseAmount')}</span>
               <span className='text-gray-900 dark:text-white'>
@@ -646,13 +709,37 @@ export function WolkPayPage() {
               </span>
               <span className='text-gray-900 dark:text-white'>{formatCurrency(networkFee)}</span>
             </div>
-            <div className='pt-3 border-t border-gray-200 dark:border-gray-600 flex justify-between'>
-              <span className='font-semibold text-gray-900 dark:text-white'>
-                {t('wolkpay.totalToPay')}
-              </span>
-              <span className='font-bold text-lg text-blue-600 dark:text-blue-400'>
-                {formatCurrency(totalAmount)}
-              </span>
+
+            {/* Summary based on fee payer */}
+            <div className='pt-3 border-t border-gray-200 dark:border-gray-600 space-y-2'>
+              <div className='flex justify-between'>
+                <span className='font-semibold text-gray-900 dark:text-white'>
+                  Pagador vai pagar:
+                </span>
+                <span className='font-bold text-lg text-blue-600 dark:text-blue-400'>
+                  {formatCurrency(totalAmount)}
+                </span>
+              </div>
+              <div className='flex justify-between items-start'>
+                <span className='text-sm text-gray-500 dark:text-gray-400'>Você vai receber:</span>
+                <div className='text-right'>
+                  <span
+                    className={`font-semibold block ${feePayer === 'PAYER' ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'}`}
+                  >
+                    {formatCurrency(beneficiaryReceives)}
+                    <span className='text-xs ml-1'>
+                      (
+                      {feePayer === 'PAYER'
+                        ? 'valor cheio'
+                        : `- ${formatCurrency(totalFees)} taxas`}
+                      )
+                    </span>
+                  </span>
+                  <span className='text-sm text-gray-500 dark:text-gray-400 block mt-0.5'>
+                    ≈ {formatCrypto(beneficiaryReceivesCrypto, selectedCrypto?.symbol || 'BTC')}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         )}

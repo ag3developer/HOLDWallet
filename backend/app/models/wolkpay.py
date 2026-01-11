@@ -72,6 +72,12 @@ class ApprovalAction(str, enum.Enum):
     REJECTED = "REJECTED"
 
 
+class FeePayer(str, enum.Enum):
+    """Quem paga as taxas da operação"""
+    BENEFICIARY = "BENEFICIARY"  # Beneficiário paga (padrão) - pagador paga valor cheio, beneficiário recebe menos
+    PAYER = "PAYER"              # Pagador paga - pagador paga valor + taxas, beneficiário recebe valor cheio
+
+
 # ============================================
 # MODELS
 # ============================================
@@ -109,7 +115,12 @@ class WolkPayInvoice(Base):
     service_fee_brl = Column(Numeric(18, 2), nullable=False)  # Valor da taxa serviço
     network_fee_percent = Column(Numeric(5, 2), default=0.15)  # Taxa rede: 0.15%
     network_fee_brl = Column(Numeric(18, 2), nullable=False)  # Valor da taxa rede
-    total_amount_brl = Column(Numeric(18, 2), nullable=False)  # Total a pagar
+    total_amount_brl = Column(Numeric(18, 2), nullable=False)  # Total a pagar pelo PAGADOR
+    
+    # Quem paga as taxas
+    fee_payer = Column(SQLEnum(FeePayer), default=FeePayer.BENEFICIARY, nullable=False)
+    # Valor que o beneficiário efetivamente recebe em crypto (descontadas as taxas se fee_payer=BENEFICIARY)
+    beneficiary_receives_brl = Column(Numeric(18, 2), nullable=True)
     
     # Checkout
     checkout_token = Column(String(64), unique=True, nullable=False, index=True)
