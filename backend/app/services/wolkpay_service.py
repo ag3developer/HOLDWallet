@@ -59,8 +59,9 @@ class WolkPayService:
     LIMIT_PER_OPERATION = Decimal('15000.00')  # Limite por operação
     LIMIT_PER_MONTH = Decimal('300000.00')  # Limite mensal por pagador
     
-    # Dados da conta para PIX
-    PIX_KEY = "24275355000151"  # CNPJ da HOLD
+    # Dados da conta para PIX - usa configuração do settings
+    # IMPORTANTE: Esta chave PIX DEVE estar cadastrada no banco da HOLD!
+    PIX_KEY = getattr(settings, 'BB_PIX_KEY', "24275355000151")  # Chave PIX (CNPJ)
     PIX_RECIPIENT_NAME = "HOLD DIGITAL ASSETS LTDA"
     PIX_RECIPIENT_DOCUMENT = "24.275.355/0001-51"
     
@@ -1114,11 +1115,11 @@ class WolkPayService:
         """
         Gera código PIX estático (copia e cola) no padrão EMV do Banco Central
         
-        Estrutura EMV PIX:
+        Estrutura EMV PIX (BR Code):
         - 00: Payload Format Indicator (fixo "01")
         - 26: Merchant Account Information (PIX)
-          - 00: GUI (br.gov.bcb.pix)
-          - 01: Chave PIX
+          - 00: GUI (br.gov.bcb.pix) - MINÚSCULAS conforme padrão BACEN
+          - 01: Chave PIX (CNPJ)
         - 52: Merchant Category Code (0000 = não informado)
         - 53: Transaction Currency (986 = BRL)
         - 54: Transaction Amount
@@ -1129,6 +1130,15 @@ class WolkPayService:
           - 05: Reference Label (txid)
         - 63: CRC16
         """
+        import re
+        import unicodedata
+        
+        def _normalize_text(text: str) -> str:
+            """Remove acentos e caracteres especiais"""
+            nfkd = unicodedata.normalize('NFKD', text)
+            ascii_text = nfkd.encode('ASCII', 'ignore').decode('ASCII')
+            clean_text = re.sub(r'[^A-Za-z0-9 ]', '', ascii_text)
+            return clean_text.upper()[:25]
         
         def _format_tlv(tag: str, value: str) -> str:
             """Formata um campo TLV (Tag-Length-Value)"""
@@ -1136,8 +1146,11 @@ class WolkPayService:
             return f"{tag}{length}{value}"
         
         def _calculate_crc16(payload: str) -> str:
-            """Calcula CRC16-CCITT (padrão EMV)"""
-            # Polinômio CRC16-CCITT: 0x1021
+            """
+            Calcula CRC16-CCITT-FALSE (padrão EMV/BR Code)
+            Polinômio: 0x1021
+            Valor inicial: 0xFFFF
+            """
             crc = 0xFFFF
             
             for char in payload:
@@ -1151,14 +1164,15 @@ class WolkPayService:
             
             return format(crc, '04X')
         
-        # 1. Payload Format Indicator (fixo)
+        # 1. Payload Format Indicator (fixo "01")
         pfi = _format_tlv("00", "01")
         
-        # 2. Merchant Account Information (PIX)
-        # GUI do PIX
+        # 2. Merchant Account Information (PIX) - ID 26
+        # GUI do PIX - MINÚSCULAS conforme padrão oficial BACEN
         gui = _format_tlv("00", "br.gov.bcb.pix")
-        # Chave PIX (CNPJ sem pontuação)
-        pix_key = _format_tlv("01", self.PIX_KEY)
+        # Chave PIX (CNPJ sem pontuação - apenas números)
+        pix_key_clean = re.sub(r'\D', '', self.PIX_KEY)
+        pix_key = _format_tlv("01", pix_key_clean)
         # Merchant Account completo
         mai_content = gui + pix_key
         mai = _format_tlv("26", mai_content)
@@ -1169,24 +1183,26 @@ class WolkPayService:
         # 4. Transaction Currency (986 = BRL)
         currency = _format_tlv("53", "986")
         
-        # 5. Transaction Amount
+        # 5. Transaction Amount (com 2 casas decimais)
         amount_str = f"{float(amount):.2f}"
         transaction_amount = _format_tlv("54", amount_str)
         
-        # 6. Country Code
+        # 6. Country Code (BR)
         country = _format_tlv("58", "BR")
         
-        # 7. Merchant Name (máx 25 caracteres)
-        merchant_name = "HOLD DIGITAL"[:25]
+        # 7. Merchant Name (máx 25 caracteres, sem acentos, uppercase)
+        merchant_name = _normalize_text("HOLD DIGITAL ASSETS")[:25]
         name_field = _format_tlv("59", merchant_name)
         
-        # 8. Merchant City (máx 15 caracteres)
-        city = "BRASILIA"[:15]
+        # 8. Merchant City (máx 15 caracteres, sem acentos, uppercase)
+        city = _normalize_text("BRASILIA")[:15]
         city_field = _format_tlv("60", city)
         
-        # 9. Additional Data Field Template
-        # Reference Label (txid) - máx 25 caracteres
-        txid = description[:25].replace(" ", "")
+        # 9. Additional Data Field Template - ID 62
+        # Reference Label (txid) - apenas alfanuméricos, máx 25 caracteres
+        txid = re.sub(r'[^A-Za-z0-9]', '', description)[:25].upper()
+        if not txid:
+            txid = "***"  # Placeholder se vazio
         reference = _format_tlv("05", txid)
         additional_data = _format_tlv("62", reference)
         
@@ -1205,7 +1221,8 @@ class WolkPayService:
         # 13. Payload final
         final_payload = payload_for_crc + crc
         
-        logger.info(f"PIX EMV gerado: {final_payload[:50]}...")
+        logger.info("PIX EMV gerado com sucesso - Chave: %s", pix_key_clean)
+        logger.debug("PIX EMV payload: %s", final_payload)
         
         return final_payload
     
