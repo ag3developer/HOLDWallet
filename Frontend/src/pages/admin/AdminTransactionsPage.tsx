@@ -225,7 +225,9 @@ export const AdminTransactionsPage: React.FC = () => {
             <Activity className='h-5 w-5 text-blue-500 dark:text-blue-400' />
           </div>
           <div>
-            <h1 className='text-lg sm:text-xl font-bold text-gray-900 dark:text-white'>Transacoes Blockchain</h1>
+            <h1 className='text-lg sm:text-xl font-bold text-gray-900 dark:text-white'>
+              Transacoes Blockchain
+            </h1>
             <p className='text-gray-500 text-xs sm:text-sm'>Depositos e saques on-chain</p>
           </div>
         </div>
@@ -448,7 +450,10 @@ export const AdminTransactionsPage: React.FC = () => {
                     const explorerUrl = getExplorerUrl(tx.network, tx.tx_hash)
 
                     return (
-                      <tr key={tx.id} className='hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors'>
+                      <tr
+                        key={tx.id}
+                        className='hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors'
+                      >
                         {/* Moeda */}
                         <td className='px-4 py-3'>
                           <div className='flex items-center gap-2'>
@@ -499,7 +504,9 @@ export const AdminTransactionsPage: React.FC = () => {
                         <td className='px-4 py-3 text-right'>
                           <span
                             className={`font-mono text-sm font-medium ${
-                              tx.tx_type === 'deposit' ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-white'
+                              tx.tx_type === 'deposit'
+                                ? 'text-green-600 dark:text-green-400'
+                                : 'text-gray-900 dark:text-white'
                             }`}
                           >
                             {tx.tx_type === 'deposit' ? '+' : '-'}
@@ -556,7 +563,7 @@ export const AdminTransactionsPage: React.FC = () => {
                               <XCircle className='h-3 w-3' />
                               Erro
                             </span>
-                          )}}
+                          )}
                         </td>
 
                         {/* Data */}
@@ -595,7 +602,10 @@ export const AdminTransactionsPage: React.FC = () => {
                 const isDeposit = tx.tx_type === 'deposit'
 
                 return (
-                  <div key={tx.id} className='p-3 hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors'>
+                  <div
+                    key={tx.id}
+                    className='p-3 hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors'
+                  >
                     <div className='flex items-start justify-between gap-3'>
                       {/* Left: Coin + Info */}
                       <div className='flex items-center gap-3'>
@@ -675,7 +685,7 @@ export const AdminTransactionsPage: React.FC = () => {
                               <XCircle className='h-3 w-3' />
                               Falhou
                             </span>
-                          )}}
+                          )}
                         </div>
                       </div>
                     </div>

@@ -90,15 +90,15 @@ async def create_invoice(
     O beneficiário (usuário logado) cria uma fatura que pode ser paga por terceiros.
     
     - Validade: 15 minutos (devido à volatilidade crypto)
-    - Limite por operação: R$ 15.000,00
+    - Limite por operação: Configurável pelo admin
     - Taxas: 3,65% serviço + 0,15% rede
-    - KYC: Requer nível INTERMEDIATE (para receber pagamentos)
+    - KYC: Requer nível BASIC (verificação básica)
     
     Retorna URL de checkout para compartilhar com o pagador.
     """
     try:
-        # Verificar KYC - WolkPay requer INTERMEDIATE para receber pagamentos
-        await check_user_kyc_level(current_user.id, KYCLevel.INTERMEDIATE, db)
+        # Verificar KYC - WolkPay requer BASIC para usar a ferramenta
+        await check_user_kyc_level(current_user.id, KYCLevel.BASIC, db)
         
         service = WolkPayService(db)
         invoice, checkout_url = await service.create_invoice(
