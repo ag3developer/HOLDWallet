@@ -28,8 +28,12 @@ import {
   Landmark,
   CreditCard,
   ShieldCheck,
+  Sun,
+  Moon,
+  Monitor,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/useAuthStore'
+import { useThemeStore } from '@/stores/useThemeStore'
 
 const adminNavigation = [
   // Dashboard
@@ -65,6 +69,7 @@ const groupLabels: Record<string, string> = {
 export const AdminSidebar = () => {
   const location = useLocation()
   const { logout, user } = useAuthStore()
+  const { theme, setTheme } = useThemeStore()
   const [isMobileOpen, setIsMobileOpen] = useState(false)
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
     overview: true,
@@ -172,6 +177,49 @@ export const AdminSidebar = () => {
             <p className='text-xs text-red-400 bg-red-900/30 px-2 py-0.5 rounded inline-block'>
               ADMIN
             </p>
+          </div>
+        </div>
+
+        {/* Theme Selector */}
+        <div className='px-3 py-2 mb-2'>
+          <p className='text-xs text-gray-500 mb-2'>Tema</p>
+          <div className='flex bg-gray-800 rounded-lg p-1'>
+            <button
+              onClick={() => setTheme('light')}
+              title='Tema Claro'
+              className={`flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-md text-xs font-medium transition-all ${
+                theme === 'light'
+                  ? 'bg-gradient-to-r from-red-600 to-orange-600 text-white shadow'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <Sun className='w-3.5 h-3.5' />
+              <span className='hidden sm:inline'>Claro</span>
+            </button>
+            <button
+              onClick={() => setTheme('dark')}
+              title='Tema Escuro'
+              className={`flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-md text-xs font-medium transition-all ${
+                theme === 'dark'
+                  ? 'bg-gradient-to-r from-red-600 to-orange-600 text-white shadow'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <Moon className='w-3.5 h-3.5' />
+              <span className='hidden sm:inline'>Escuro</span>
+            </button>
+            <button
+              onClick={() => setTheme('system')}
+              title='Tema do Sistema'
+              className={`flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-md text-xs font-medium transition-all ${
+                theme === 'system'
+                  ? 'bg-gradient-to-r from-red-600 to-orange-600 text-white shadow'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <Monitor className='w-3.5 h-3.5' />
+              <span className='hidden sm:inline'>Auto</span>
+            </button>
           </div>
         </div>
 

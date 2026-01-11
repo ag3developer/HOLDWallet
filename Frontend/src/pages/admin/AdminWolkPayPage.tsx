@@ -55,42 +55,42 @@ const getCryptoLogo = (symbol?: string) => {
 const STATUS_CONFIG: Record<string, { label: string; bgClass: string; icon: React.ReactNode }> = {
   PENDING: {
     label: 'Pendente',
-    bgClass: 'bg-gray-500/20 text-gray-400',
+    bgClass: 'bg-gray-100 dark:bg-gray-500/20 text-gray-600 dark:text-gray-400',
     icon: <Clock className='w-3 h-3' />,
   },
   AWAITING_PAYMENT: {
     label: 'Aguardando PIX',
-    bgClass: 'bg-yellow-500/20 text-yellow-400',
+    bgClass: 'bg-yellow-100 dark:bg-yellow-500/20 text-yellow-600 dark:text-yellow-400',
     icon: <Clock className='w-3 h-3' />,
   },
   PAID: {
     label: 'Pago - Aguardando Aprovacao',
-    bgClass: 'bg-blue-500/20 text-blue-400',
+    bgClass: 'bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400',
     icon: <ShieldCheck className='w-3 h-3' />,
   },
   APPROVED: {
     label: 'Aprovado',
-    bgClass: 'bg-emerald-500/20 text-emerald-400',
+    bgClass: 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400',
     icon: <CheckCircle className='w-3 h-3' />,
   },
   COMPLETED: {
     label: 'Concluido',
-    bgClass: 'bg-green-500/20 text-green-400',
+    bgClass: 'bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-400',
     icon: <CheckCircle className='w-3 h-3' />,
   },
   EXPIRED: {
     label: 'Expirado',
-    bgClass: 'bg-gray-500/20 text-gray-400',
+    bgClass: 'bg-gray-100 dark:bg-gray-500/20 text-gray-600 dark:text-gray-400',
     icon: <XCircle className='w-3 h-3' />,
   },
   CANCELLED: {
     label: 'Cancelado',
-    bgClass: 'bg-red-500/20 text-red-400',
+    bgClass: 'bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400',
     icon: <XCircle className='w-3 h-3' />,
   },
   REJECTED: {
     label: 'Rejeitado',
-    bgClass: 'bg-red-500/20 text-red-400',
+    bgClass: 'bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400',
     icon: <Ban className='w-3 h-3' />,
   },
 }
@@ -99,7 +99,7 @@ const getStatusConfig = (status: string) => {
   return (
     STATUS_CONFIG[status.toUpperCase()] || {
       label: status,
-      bgClass: 'bg-gray-500/20 text-gray-400',
+      bgClass: 'bg-gray-100 dark:bg-gray-500/20 text-gray-600 dark:text-gray-400',
       icon: null,
     }
   )
@@ -291,15 +291,17 @@ export const AdminWolkPayPage: React.FC = () => {
             <CreditCard className='w-6 h-6 text-white' />
           </div>
           <div>
-            <h1 className='text-xl font-bold text-white'>WolkPay Admin</h1>
-            <p className='text-xs text-gray-400'>Gestao de faturas e pagamentos</p>
+            <h1 className='text-xl font-bold text-gray-900 dark:text-white'>WolkPay Admin</h1>
+            <p className='text-xs text-gray-500 dark:text-gray-400'>
+              Gestao de faturas e pagamentos
+            </p>
           </div>
         </div>
 
         <button
           onClick={() => fetchData(true)}
           disabled={refreshing}
-          className='flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm text-gray-300 transition-colors'
+          className='flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300 transition-colors'
         >
           <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
           Atualizar
@@ -309,16 +311,19 @@ export const AdminWolkPayPage: React.FC = () => {
       {/* Stats Cards */}
       <div className='grid grid-cols-2 md:grid-cols-4 gap-3'>
         {statsCards.map(stat => (
-          <div key={stat.id} className='bg-gray-800/50 rounded-xl p-4 border border-gray-700/50'>
+          <div
+            key={stat.id}
+            className='bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700 shadow-sm'
+          >
             <div className='flex items-center justify-between mb-2'>
               <div
                 className={`w-9 h-9 bg-gradient-to-br ${stat.color} rounded-lg flex items-center justify-center`}
               >
                 {stat.icon}
               </div>
-              <span className='text-2xl font-bold text-white'>{stat.value}</span>
+              <span className='text-2xl font-bold text-gray-900 dark:text-white'>{stat.value}</span>
             </div>
-            <p className='text-xs text-gray-400'>{stat.label}</p>
+            <p className='text-xs text-gray-500 dark:text-gray-400'>{stat.label}</p>
           </div>
         ))}
       </div>
@@ -333,7 +338,7 @@ export const AdminWolkPayPage: React.FC = () => {
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
             viewMode === 'pending'
               ? 'bg-purple-600 text-white'
-              : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+              : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
           }`}
         >
           <span className='flex items-center gap-2'>
@@ -349,7 +354,7 @@ export const AdminWolkPayPage: React.FC = () => {
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
             viewMode === 'all'
               ? 'bg-purple-600 text-white'
-              : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+              : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
           }`}
         >
           <span className='flex items-center gap-2'>
@@ -363,13 +368,13 @@ export const AdminWolkPayPage: React.FC = () => {
       <div className='flex flex-col sm:flex-row gap-3'>
         {/* Search */}
         <div className='flex-1 relative'>
-          <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500' />
+          <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400' />
           <input
             type='text'
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder='Buscar por numero, pagador, beneficiario...'
-            className='w-full pl-10 pr-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50'
+            className='w-full pl-10 pr-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50'
           />
         </div>
 
@@ -381,8 +386,8 @@ export const AdminWolkPayPage: React.FC = () => {
               title='Filtros'
               className={`px-4 py-2.5 rounded-lg border transition-colors ${
                 showFilters
-                  ? 'bg-purple-600/20 border-purple-500 text-purple-400'
-                  : 'bg-gray-800 border-gray-700 text-gray-400 hover:bg-gray-700'
+                  ? 'bg-purple-600/20 border-purple-500 text-purple-600 dark:text-purple-400'
+                  : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
               }`}
             >
               <Filter className='w-4 h-4' />
@@ -395,7 +400,7 @@ export const AdminWolkPayPage: React.FC = () => {
                 setPage(1)
               }}
               title='Filtrar por status'
-              className='px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50'
+              className='px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50'
             >
               <option value='all'>Todos os Status</option>
               <option value='PENDING'>Pendente</option>
@@ -412,17 +417,19 @@ export const AdminWolkPayPage: React.FC = () => {
       </div>
 
       {/* Table */}
-      <div className='bg-gray-800/50 rounded-xl border border-gray-700/50 overflow-hidden'>
+      <div className='bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm'>
         {loading ? (
           <div className='p-8 flex justify-center'>
             <div className='animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500' />
           </div>
         ) : filteredInvoices.length === 0 ? (
           <div className='p-8 text-center'>
-            <FileText className='w-12 h-12 text-gray-600 mx-auto mb-4' />
-            <p className='text-gray-400'>Nenhuma fatura encontrada</p>
+            <FileText className='w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-4' />
+            <p className='text-gray-500 dark:text-gray-400'>Nenhuma fatura encontrada</p>
             {debouncedSearch && (
-              <p className='text-gray-500 text-sm mt-2'>Tente ajustar sua busca</p>
+              <p className='text-gray-400 dark:text-gray-500 text-sm mt-2'>
+                Tente ajustar sua busca
+              </p>
             )}
           </div>
         ) : (
@@ -431,34 +438,34 @@ export const AdminWolkPayPage: React.FC = () => {
             <div className='hidden md:block overflow-x-auto'>
               <table className='w-full'>
                 <thead>
-                  <tr className='border-b border-gray-700/50'>
-                    <th className='text-left py-3 px-4 text-xs font-semibold text-gray-400 uppercase'>
+                  <tr className='border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50'>
+                    <th className='text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase'>
                       Fatura
                     </th>
-                    <th className='text-left py-3 px-4 text-xs font-semibold text-gray-400 uppercase'>
+                    <th className='text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase'>
                       Pagador
                     </th>
-                    <th className='text-left py-3 px-4 text-xs font-semibold text-gray-400 uppercase'>
+                    <th className='text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase'>
                       Beneficiario
                     </th>
-                    <th className='text-right py-3 px-4 text-xs font-semibold text-gray-400 uppercase'>
+                    <th className='text-right py-3 px-4 text-xs font-semibold text-gray-500 uppercase'>
                       Crypto
                     </th>
-                    <th className='text-right py-3 px-4 text-xs font-semibold text-gray-400 uppercase'>
+                    <th className='text-right py-3 px-4 text-xs font-semibold text-gray-500 uppercase'>
                       Valor BRL
                     </th>
-                    <th className='text-center py-3 px-4 text-xs font-semibold text-gray-400 uppercase'>
+                    <th className='text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase'>
                       Status
                     </th>
-                    <th className='text-center py-3 px-4 text-xs font-semibold text-gray-400 uppercase'>
+                    <th className='text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase'>
                       Criado
                     </th>
-                    <th className='text-center py-3 px-4 text-xs font-semibold text-gray-400 uppercase'>
+                    <th className='text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase'>
                       Acao
                     </th>
                   </tr>
                 </thead>
-                <tbody className='divide-y divide-gray-700/30'>
+                <tbody className='divide-y divide-gray-200 dark:divide-gray-700'>
                   {viewMode === 'pending'
                     ? (filteredInvoices as WolkPayInvoiceListItem[]).map(item => {
                         const invoice = item.invoice
@@ -469,13 +476,13 @@ export const AdminWolkPayPage: React.FC = () => {
                         return (
                           <tr
                             key={invoice.id}
-                            className='hover:bg-gray-700/30 cursor-pointer transition-colors'
+                            className='hover:bg-gray-50 dark:hover:bg-gray-700/30 cursor-pointer transition-colors'
                             onClick={() => navigate(`/admin/wolkpay/${invoice.id}`)}
                           >
                             <td className='py-3 px-4'>
                               <div className='flex items-center gap-2'>
-                                <FileText className='w-4 h-4 text-gray-500' />
-                                <span className='font-mono text-sm text-white'>
+                                <FileText className='w-4 h-4 text-gray-400' />
+                                <span className='font-mono text-sm text-gray-900 dark:text-white'>
                                   {invoice.invoice_number}
                                 </span>
                               </div>
@@ -483,17 +490,17 @@ export const AdminWolkPayPage: React.FC = () => {
                             <td className='py-3 px-4'>
                               <div className='flex items-center gap-2'>
                                 {payer?.person_type === 'PJ' ? (
-                                  <Building className='w-4 h-4 text-gray-500' />
+                                  <Building className='w-4 h-4 text-gray-400' />
                                 ) : (
-                                  <User className='w-4 h-4 text-gray-500' />
+                                  <User className='w-4 h-4 text-gray-400' />
                                 )}
-                                <span className='text-sm text-gray-300'>
+                                <span className='text-sm text-gray-600 dark:text-gray-300'>
                                   {payer?.full_name || payer?.company_name || 'N/A'}
                                 </span>
                               </div>
                             </td>
                             <td className='py-3 px-4'>
-                              <span className='text-sm text-gray-300'>
+                              <span className='text-sm text-gray-600 dark:text-gray-300'>
                                 {invoice.beneficiary_name}
                               </span>
                             </td>
@@ -506,13 +513,13 @@ export const AdminWolkPayPage: React.FC = () => {
                                     className='w-4 h-4'
                                   />
                                 )}
-                                <span className='font-mono text-sm text-white'>
+                                <span className='font-mono text-sm text-gray-900 dark:text-white'>
                                   {formatCrypto(invoice.crypto_amount)} {invoice.crypto_currency}
                                 </span>
                               </div>
                             </td>
                             <td className='py-3 px-4 text-right'>
-                              <span className='font-mono text-sm text-emerald-400'>
+                              <span className='font-mono text-sm text-emerald-600 dark:text-emerald-400'>
                                 {formatBRL(invoice.total_amount_brl)}
                               </span>
                             </td>
@@ -527,7 +534,7 @@ export const AdminWolkPayPage: React.FC = () => {
                               </div>
                             </td>
                             <td className='py-3 px-4 text-center'>
-                              <span className='text-xs text-gray-400'>
+                              <span className='text-xs text-gray-500'>
                                 {formatRelativeDate(invoice.created_at)}
                               </span>
                             </td>
@@ -539,7 +546,7 @@ export const AdminWolkPayPage: React.FC = () => {
                                     navigate(`/admin/wolkpay/${invoice.id}`)
                                   }}
                                   title='Ver detalhes'
-                                  className='p-2 bg-purple-600/20 hover:bg-purple-600/30 rounded-lg text-purple-400 transition-colors'
+                                  className='p-2 bg-purple-100 dark:bg-purple-600/20 hover:bg-purple-200 dark:hover:bg-purple-600/30 rounded-lg text-purple-600 dark:text-purple-400 transition-colors'
                                 >
                                   <Eye className='w-4 h-4' />
                                 </button>
@@ -567,22 +574,24 @@ export const AdminWolkPayPage: React.FC = () => {
                         return (
                           <tr
                             key={invoice.id}
-                            className='hover:bg-gray-700/30 cursor-pointer transition-colors'
+                            className='hover:bg-gray-50 dark:hover:bg-gray-700/30 cursor-pointer transition-colors'
                             onClick={() => navigate(`/admin/wolkpay/${invoice.id}`)}
                           >
                             <td className='py-3 px-4'>
                               <div className='flex items-center gap-2'>
-                                <FileText className='w-4 h-4 text-gray-500' />
-                                <span className='font-mono text-sm text-white'>
+                                <FileText className='w-4 h-4 text-gray-400' />
+                                <span className='font-mono text-sm text-gray-900 dark:text-white'>
                                   {invoice.invoice_number}
                                 </span>
                               </div>
                             </td>
                             <td className='py-3 px-4'>
-                              <span className='text-sm text-gray-300'>{invoice.payer_name}</span>
+                              <span className='text-sm text-gray-600 dark:text-gray-300'>
+                                {invoice.payer_name}
+                              </span>
                             </td>
                             <td className='py-3 px-4'>
-                              <span className='text-sm text-gray-300'>
+                              <span className='text-sm text-gray-600 dark:text-gray-300'>
                                 {invoice.beneficiary_name}
                               </span>
                             </td>
@@ -595,13 +604,13 @@ export const AdminWolkPayPage: React.FC = () => {
                                     className='w-4 h-4'
                                   />
                                 )}
-                                <span className='font-mono text-sm text-white'>
+                                <span className='font-mono text-sm text-gray-900 dark:text-white'>
                                   {formatCrypto(invoice.crypto_amount)} {invoice.crypto_currency}
                                 </span>
                               </div>
                             </td>
                             <td className='py-3 px-4 text-right'>
-                              <span className='font-mono text-sm text-emerald-400'>
+                              <span className='font-mono text-sm text-emerald-600 dark:text-emerald-400'>
                                 {formatBRL(invoice.total_amount_brl)}
                               </span>
                             </td>
@@ -616,7 +625,7 @@ export const AdminWolkPayPage: React.FC = () => {
                               </div>
                             </td>
                             <td className='py-3 px-4 text-center'>
-                              <span className='text-xs text-gray-400'>
+                              <span className='text-xs text-gray-500'>
                                 {formatRelativeDate(invoice.created_at)}
                               </span>
                             </td>
@@ -628,7 +637,7 @@ export const AdminWolkPayPage: React.FC = () => {
                                     navigate(`/admin/wolkpay/${invoice.id}`)
                                   }}
                                   title='Ver detalhes'
-                                  className='p-2 bg-purple-600/20 hover:bg-purple-600/30 rounded-lg text-purple-400 transition-colors'
+                                  className='p-2 bg-purple-100 dark:bg-purple-600/20 hover:bg-purple-200 dark:hover:bg-purple-600/30 rounded-lg text-purple-600 dark:text-purple-400 transition-colors'
                                 >
                                   <Eye className='w-4 h-4' />
                                 </button>
@@ -642,7 +651,7 @@ export const AdminWolkPayPage: React.FC = () => {
             </div>
 
             {/* Mobile Cards */}
-            <div className='md:hidden divide-y divide-gray-700/30'>
+            <div className='md:hidden divide-y divide-gray-200 dark:divide-gray-700'>
               {viewMode === 'pending'
                 ? (filteredInvoices as WolkPayInvoiceListItem[]).map(item => {
                     const invoice = item.invoice
@@ -654,15 +663,15 @@ export const AdminWolkPayPage: React.FC = () => {
                       <button
                         key={invoice.id}
                         type='button'
-                        className='w-full p-4 hover:bg-gray-700/30 cursor-pointer transition-colors text-left'
+                        className='w-full p-4 hover:bg-gray-50 dark:hover:bg-gray-700/30 cursor-pointer transition-colors text-left'
                         onClick={() => navigate(`/admin/wolkpay/${invoice.id}`)}
                       >
                         <div className='flex items-start justify-between mb-3'>
                           <div>
-                            <span className='font-mono text-sm text-white'>
+                            <span className='font-mono text-sm text-gray-900 dark:text-white'>
                               {invoice.invoice_number}
                             </span>
-                            <p className='text-xs text-gray-400 mt-1'>
+                            <p className='text-xs text-gray-500 dark:text-gray-400 mt-1'>
                               {payer?.full_name || payer?.company_name || 'N/A'}
                             </p>
                           </div>
@@ -682,15 +691,15 @@ export const AdminWolkPayPage: React.FC = () => {
                                 className='w-4 h-4'
                               />
                             )}
-                            <span className='font-mono text-sm text-white'>
+                            <span className='font-mono text-sm text-gray-900 dark:text-white'>
                               {formatCrypto(invoice.crypto_amount)} {invoice.crypto_currency}
                             </span>
                           </div>
-                          <span className='font-mono text-sm text-emerald-400'>
+                          <span className='font-mono text-sm text-emerald-600 dark:text-emerald-400'>
                             {formatBRL(invoice.total_amount_brl)}
                           </span>
                         </div>
-                        <div className='flex items-center justify-between mt-2 pt-2 border-t border-gray-700/30'>
+                        <div className='flex items-center justify-between mt-2 pt-2 border-t border-gray-200 dark:border-gray-700'>
                           <span className='text-xs text-gray-500'>
                             Para: {invoice.beneficiary_name}
                           </span>
@@ -721,15 +730,17 @@ export const AdminWolkPayPage: React.FC = () => {
                       <button
                         key={invoice.id}
                         type='button'
-                        className='w-full p-4 hover:bg-gray-700/30 cursor-pointer transition-colors text-left'
+                        className='w-full p-4 hover:bg-gray-50 dark:hover:bg-gray-700/30 cursor-pointer transition-colors text-left'
                         onClick={() => navigate(`/admin/wolkpay/${invoice.id}`)}
                       >
                         <div className='flex items-start justify-between mb-3'>
                           <div>
-                            <span className='font-mono text-sm text-white'>
+                            <span className='font-mono text-sm text-gray-900 dark:text-white'>
                               {invoice.invoice_number}
                             </span>
-                            <p className='text-xs text-gray-400 mt-1'>{invoice.payer_name}</p>
+                            <p className='text-xs text-gray-500 dark:text-gray-400 mt-1'>
+                              {invoice.payer_name}
+                            </p>
                           </div>
                           <span
                             className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusConfig.bgClass}`}
@@ -747,15 +758,15 @@ export const AdminWolkPayPage: React.FC = () => {
                                 className='w-4 h-4'
                               />
                             )}
-                            <span className='font-mono text-sm text-white'>
+                            <span className='font-mono text-sm text-gray-900 dark:text-white'>
                               {formatCrypto(invoice.crypto_amount)} {invoice.crypto_currency}
                             </span>
                           </div>
-                          <span className='font-mono text-sm text-emerald-400'>
+                          <span className='font-mono text-sm text-emerald-600 dark:text-emerald-400'>
                             {formatBRL(invoice.total_amount_brl)}
                           </span>
                         </div>
-                        <div className='flex items-center justify-between mt-2 pt-2 border-t border-gray-700/30'>
+                        <div className='flex items-center justify-between mt-2 pt-2 border-t border-gray-200 dark:border-gray-700'>
                           <span className='text-xs text-gray-500'>
                             Para: {invoice.beneficiary_name}
                           </span>
@@ -773,8 +784,8 @@ export const AdminWolkPayPage: React.FC = () => {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className='flex items-center justify-between px-4 py-3 bg-gray-800/50 rounded-xl border border-gray-700/50'>
-          <span className='text-sm text-gray-400'>
+        <div className='flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm'>
+          <span className='text-sm text-gray-500 dark:text-gray-400'>
             Pagina {page} de {totalPages} ({total} faturas)
           </span>
           <div className='flex gap-2'>
@@ -782,17 +793,17 @@ export const AdminWolkPayPage: React.FC = () => {
               onClick={() => setPage(p => Math.max(1, p - 1))}
               disabled={page === 1}
               title='Pagina anterior'
-              className='p-2 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors'
+              className='p-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors'
             >
-              <ChevronLeft className='w-4 h-4 text-white' />
+              <ChevronLeft className='w-4 h-4 text-gray-700 dark:text-white' />
             </button>
             <button
               onClick={() => setPage(p => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
               title='Proxima pagina'
-              className='p-2 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors'
+              className='p-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors'
             >
-              <ChevronRight className='w-4 h-4 text-white' />
+              <ChevronRight className='w-4 h-4 text-gray-700 dark:text-white' />
             </button>
           </div>
         </div>
