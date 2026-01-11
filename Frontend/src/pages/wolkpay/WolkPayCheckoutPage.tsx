@@ -54,12 +54,40 @@ type CheckoutStep = 'loading' | 'form' | 'pix' | 'paid' | 'conversion' | 'error'
 // Tipo de pessoa
 type PersonType = 'PF' | 'PJ'
 
+// Logos das criptos
+const CRYPTO_LOGOS: Record<string, string> = {
+  BTC: 'https://assets.coingecko.com/coins/images/1/small/bitcoin.png',
+  ETH: 'https://assets.coingecko.com/coins/images/279/small/ethereum.png',
+  USDT: 'https://assets.coingecko.com/coins/images/325/small/Tether.png',
+  USDC: 'https://assets.coingecko.com/coins/images/6319/small/usdc.png',
+  MATIC: 'https://assets.coingecko.com/coins/images/4713/small/polygon.png',
+  POL: 'https://assets.coingecko.com/coins/images/4713/small/polygon.png',
+  BNB: 'https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png',
+  SOL: 'https://assets.coingecko.com/coins/images/4128/small/solana.png',
+  LTC: 'https://assets.coingecko.com/coins/images/2/small/litecoin.png',
+  DOGE: 'https://assets.coingecko.com/coins/images/5/small/dogecoin.png',
+}
+
 // Formatadores
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL',
   }).format(amount)
+}
+
+// Formatador de crypto com decimais inteligentes
+const formatCryptoAmount = (amount: number, symbol: string) => {
+  // Stablecoins: 2 decimais
+  if (['USDT', 'USDC', 'DAI', 'BUSD'].includes(symbol.toUpperCase())) {
+    return amount.toFixed(2)
+  }
+  // BTC: até 8 decimais, mas remove zeros à direita
+  if (symbol.toUpperCase() === 'BTC') {
+    return parseFloat(amount.toFixed(8)).toString()
+  }
+  // ETH e outros: até 6 decimais, remove zeros
+  return parseFloat(amount.toFixed(6)).toString()
 }
 
 const formatCpf = (value: string) => {
@@ -657,9 +685,20 @@ export function WolkPayCheckoutPage() {
                 <span className='text-gray-500 dark:text-gray-400'>
                   {t('wolkpay.checkout.crypto')}
                 </span>
-                <span className='font-medium text-gray-900 dark:text-white'>
-                  {checkout.crypto_amount} {checkout.crypto_currency}
-                </span>
+                <div className='flex items-center gap-2'>
+                  {checkout.crypto_currency &&
+                    CRYPTO_LOGOS[checkout.crypto_currency.toUpperCase()] && (
+                      <img
+                        src={CRYPTO_LOGOS[checkout.crypto_currency.toUpperCase()]}
+                        alt={checkout.crypto_currency}
+                        className='w-4 h-4 rounded-full'
+                      />
+                    )}
+                  <span className='font-medium text-gray-900 dark:text-white'>
+                    {formatCryptoAmount(checkout.crypto_amount, checkout.crypto_currency)}{' '}
+                    {checkout.crypto_currency}
+                  </span>
+                </div>
               </div>
               <div className='flex justify-between text-sm'>
                 <span className='text-gray-500 dark:text-gray-400'>
@@ -1085,9 +1124,22 @@ export function WolkPayCheckoutPage() {
             <span className='text-sm text-gray-500 dark:text-gray-400'>
               {t('wolkpay.checkout.crypto')}
             </span>
-            <span className='text-sm font-medium text-gray-900 dark:text-white'>
-              {checkout?.crypto_amount} {checkout?.crypto_currency}
-            </span>
+            <div className='flex items-center gap-2'>
+              {checkout?.crypto_currency &&
+                CRYPTO_LOGOS[checkout.crypto_currency.toUpperCase()] && (
+                  <img
+                    src={CRYPTO_LOGOS[checkout.crypto_currency.toUpperCase()]}
+                    alt={checkout.crypto_currency}
+                    className='w-5 h-5 rounded-full'
+                  />
+                )}
+              <span className='text-sm font-medium text-gray-900 dark:text-white'>
+                {checkout?.crypto_amount
+                  ? formatCryptoAmount(checkout.crypto_amount, checkout.crypto_currency || '')
+                  : '0'}{' '}
+                {checkout?.crypto_currency}
+              </span>
+            </div>
           </div>
           <div className='pt-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between'>
             <span className='font-medium text-gray-900 dark:text-white'>
