@@ -196,7 +196,7 @@ app.include_router(webhooks_bb.router, prefix="", tags=["webhooks-bb"])  # Webho
 app.include_router(wolkpay.router, prefix="", tags=["wolkpay"])  # WolkPay - Pagamento por terceiros
 app.include_router(wolkpay_admin_router, prefix="", tags=["wolkpay-admin"])  # WolkPay Admin
 app.include_router(kyc.router, prefix="", tags=["kyc"])  # KYC - Verificação de identidade
-app.include_router(kyc_admin.router, prefix="/admin", tags=["admin-kyc"])  # KYC Admin
+# KYC Admin já incluído via admin_router
 
 # Root endpoint
 @app.get("/")
