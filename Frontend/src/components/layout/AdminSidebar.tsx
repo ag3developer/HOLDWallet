@@ -26,6 +26,7 @@ import {
   Activity,
   Banknote,
   Landmark,
+  CreditCard,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/useAuthStore'
 
@@ -37,6 +38,7 @@ const adminNavigation = [
   { name: 'Usuários', href: '/admin/users', icon: Users, group: 'management' },
   { name: 'Trades OTC', href: '/admin/trades', icon: TrendingUp, group: 'management' },
   { name: 'P2P & Disputas', href: '/admin/p2p', icon: UserCheck, group: 'management' },
+  { name: 'WolkPay', href: '/admin/wolkpay', icon: CreditCard, group: 'management' },
   { name: 'Carteiras', href: '/admin/wallets', icon: Wallet, group: 'management' },
   { name: 'Transações', href: '/admin/transactions', icon: Activity, group: 'management' },
   { name: 'Taxas & Receita', href: '/admin/fees', icon: Banknote, group: 'management' },

@@ -1,8 +1,8 @@
 /**
- * 🛡️ HOLD Wallet - Admin Pages
+ * HOLD Wallet - Admin Pages
  * ============================
  *
- * Exportação central das páginas do módulo admin.
+ * Exportacao central das paginas do modulo admin.
  */
 
 export { AdminDashboardPage } from './AdminDashboardPage'
@@ -21,3 +21,5 @@ export { AdminSystemWalletPage } from './AdminSystemWalletPage'
 export { AdminSystemWalletAddressesPage } from './AdminSystemWalletAddressesPage'
 export { AdminAnalyticsPage } from './AdminAnalyticsPage'
 export { AdminSecurityPage } from './AdminSecurityPage'
+export { AdminWolkPayPage } from './AdminWolkPayPage'
+export { AdminWolkPayDetailPage } from './AdminWolkPayDetailPage'

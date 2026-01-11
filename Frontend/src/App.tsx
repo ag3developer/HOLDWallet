@@ -74,6 +74,8 @@ import {
   AdminSystemWalletAddressesPage,
   AdminAnalyticsPage,
   AdminSecurityPage,
+  AdminWolkPayPage,
+  AdminWolkPayDetailPage,
 } from '@/pages/admin'
 
 // Protected Route Component (for authenticated users)
@@ -362,6 +364,8 @@ function App() {
             <Route path='/admin/analytics' element={<AdminAnalyticsPage />} />
             <Route path='/admin/security' element={<AdminSecurityPage />} />
             <Route path='/admin/settings' element={<AdminSettingsPage />} />
+            <Route path='/admin/wolkpay' element={<AdminWolkPayPage />} />
+            <Route path='/admin/wolkpay/:id' element={<AdminWolkPayDetailPage />} />
           </Route>
 
           {/* 404 Page */}
