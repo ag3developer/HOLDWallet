@@ -265,6 +265,46 @@ async def get_invoice(
 # CHECKOUT PÚBLICO (PAGADOR)
 # ==========================================
 
+@router.get("/checkout/{token}/lookup-payer")
+async def lookup_payer_by_document(
+    token: str,
+    document: str = Query(..., description="CPF ou CNPJ do pagador (apenas números)"),
+    db: Session = Depends(get_db)
+):
+    """
+    Busca dados de pagador existente por CPF/CNPJ (checkout inteligente)
+    
+    Permite auto-preenchimento dos dados se o pagador já realizou
+    pagamentos anteriores. Não requer autenticação.
+    
+    Returns:
+        Dados do pagador se encontrado, ou vazio se novo
+    """
+    try:
+        service = WolkPayService(db)
+        payer_data = await service.lookup_payer_by_document(
+            checkout_token=token,
+            document=document
+        )
+        
+        if payer_data:
+            return {
+                "found": True,
+                "payer": payer_data
+            }
+        
+        return {
+            "found": False,
+            "payer": None
+        }
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Erro ao buscar pagador: {e}")
+        raise HTTPException(status_code=500, detail="Erro ao buscar dados")
+
+
 @router.get("/checkout/{token}")
 async def get_checkout(
     token: str,

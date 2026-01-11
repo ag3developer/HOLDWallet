@@ -183,6 +183,10 @@ export function WolkPayCheckoutPage() {
   const [acceptAccountTerms, setAcceptAccountTerms] = useState(false)
   const [acceptPrivacy, setAcceptPrivacy] = useState(false)
 
+  // Checkout Inteligente - busca automática de dados
+  const [isLookingUpPayer, setIsLookingUpPayer] = useState(false)
+  const [payerFound, setPayerFound] = useState(false)
+
   // Dados PF
   const [pfData, setPfData] = useState<PayerPFData>({
     full_name: '',
@@ -313,6 +317,78 @@ export function WolkPayCheckoutPage() {
       console.error('Error checking conversion:', err)
     }
   }
+
+  // 🔍 Checkout Inteligente - Busca dados do pagador por CPF/CNPJ
+  const handleDocumentLookup = useCallback(
+    async (document: string) => {
+      if (!token) return
+
+      const cleanDoc = document.replace(/\D/g, '')
+
+      // Só busca se CPF (11 dígitos) ou CNPJ (14 dígitos) completo
+      if (cleanDoc.length !== 11 && cleanDoc.length !== 14) {
+        setPayerFound(false)
+        return
+      }
+
+      setIsLookingUpPayer(true)
+
+      try {
+        const response = await wolkPayService.lookupPayerByDocument(token, cleanDoc)
+
+        if (response.found && response.payer) {
+          setPayerFound(true)
+
+          // Auto-preencher dados baseado no tipo de pessoa
+          if (response.payer.person_type === 'PF' && response.payer.pf_data) {
+            setPersonType('PF')
+            setPfData({
+              full_name: response.payer.pf_data.full_name || '',
+              cpf: formatCpf(response.payer.pf_data.cpf || ''),
+              birth_date: response.payer.pf_data.birth_date
+                ? formatDate(response.payer.pf_data.birth_date.split('-').reverse().join(''))
+                : '',
+              phone: formatPhone(response.payer.pf_data.phone || ''),
+              email: response.payer.pf_data.email || '',
+            })
+          } else if (response.payer.person_type === 'PJ' && response.payer.pj_data) {
+            setPersonType('PJ')
+            setPjData({
+              company_name: response.payer.pj_data.company_name || '',
+              cnpj: formatCnpj(response.payer.pj_data.cnpj || ''),
+              trade_name: response.payer.pj_data.trade_name || '',
+              state_registration: response.payer.pj_data.state_registration || '',
+              business_phone: formatPhone(response.payer.pj_data.business_phone || ''),
+              business_email: response.payer.pj_data.business_email || '',
+              responsible_name: response.payer.pj_data.responsible_name || '',
+              responsible_cpf: formatCpf(response.payer.pj_data.responsible_cpf || ''),
+            })
+          }
+
+          // Auto-preencher endereço
+          if (response.payer.address) {
+            setAddress({
+              zip_code: formatCep(response.payer.address.zip_code || ''),
+              street: response.payer.address.street || '',
+              number: response.payer.address.number || '',
+              complement: response.payer.address.complement || '',
+              neighborhood: response.payer.address.neighborhood || '',
+              city: response.payer.address.city || '',
+              state: response.payer.address.state || '',
+            })
+          }
+        } else {
+          setPayerFound(false)
+        }
+      } catch (err) {
+        console.error('Error looking up payer:', err)
+        setPayerFound(false)
+      } finally {
+        setIsLookingUpPayer(false)
+      }
+    },
+    [token]
+  )
 
   // Formatar tempo
   const formatTime = (seconds: number) => {
@@ -1077,26 +1153,49 @@ export function WolkPayCheckoutPage() {
         {/* PF Form */}
         {personType === 'PF' && (
           <div className='bg-white dark:bg-gray-800 rounded-2xl p-4 mb-4 border border-gray-200 dark:border-gray-700 space-y-4'>
-            <h3 className='font-semibold text-gray-900 dark:text-white flex items-center gap-2'>
-              <User className='w-5 h-5 text-blue-500' />
-              {t('wolkpay.checkout.personalData')}
-            </h3>
+            <div className='flex items-center justify-between'>
+              <h3 className='font-semibold text-gray-900 dark:text-white flex items-center gap-2'>
+                <User className='w-5 h-5 text-blue-500' />
+                {t('wolkpay.checkout.personalData')}
+              </h3>
+              {payerFound && (
+                <span className='text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-1 rounded-full flex items-center gap-1'>
+                  <Check className='w-3 h-3' />
+                  Dados recuperados
+                </span>
+              )}
+            </div>
+
+            {/* CPF First - Smart Lookup */}
+            <div className='relative'>
+              <InputField
+                label='CPF'
+                value={pfData.cpf}
+                onChange={v => {
+                  const formatted = formatCpf(v)
+                  setPfData(p => ({ ...p, cpf: formatted }))
+                  // Trigger lookup when CPF is complete (14 chars with formatting)
+                  if (formatted.length === 14) {
+                    handleDocumentLookup(formatted)
+                  }
+                }}
+                placeholder='000.000.000-00'
+                formatter={formatCpf}
+                maxLength={14}
+                required
+              />
+              {isLookingUpPayer && (
+                <div className='absolute right-3 top-9'>
+                  <RefreshCw className='w-4 h-4 text-blue-500 animate-spin' />
+                </div>
+              )}
+            </div>
 
             <InputField
               label={t('wolkpay.checkout.fullName')}
               value={pfData.full_name}
               onChange={v => setPfData(p => ({ ...p, full_name: v }))}
               placeholder='Nome completo'
-              required
-            />
-
-            <InputField
-              label='CPF'
-              value={pfData.cpf}
-              onChange={v => setPfData(p => ({ ...p, cpf: v }))}
-              placeholder='000.000.000-00'
-              formatter={formatCpf}
-              maxLength={14}
               required
             />
 
@@ -1137,26 +1236,49 @@ export function WolkPayCheckoutPage() {
         {/* PJ Form */}
         {personType === 'PJ' && (
           <div className='bg-white dark:bg-gray-800 rounded-2xl p-4 mb-4 border border-gray-200 dark:border-gray-700 space-y-4'>
-            <h3 className='font-semibold text-gray-900 dark:text-white flex items-center gap-2'>
-              <Building2 className='w-5 h-5 text-blue-500' />
-              {t('wolkpay.checkout.companyData')}
-            </h3>
+            <div className='flex items-center justify-between'>
+              <h3 className='font-semibold text-gray-900 dark:text-white flex items-center gap-2'>
+                <Building2 className='w-5 h-5 text-blue-500' />
+                {t('wolkpay.checkout.companyData')}
+              </h3>
+              {payerFound && (
+                <span className='text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-1 rounded-full flex items-center gap-1'>
+                  <Check className='w-3 h-3' />
+                  Dados recuperados
+                </span>
+              )}
+            </div>
+
+            {/* CNPJ First - Smart Lookup */}
+            <div className='relative'>
+              <InputField
+                label='CNPJ'
+                value={pjData.cnpj}
+                onChange={v => {
+                  const formatted = formatCnpj(v)
+                  setPjData(p => ({ ...p, cnpj: formatted }))
+                  // Trigger lookup when CNPJ is complete (18 chars with formatting)
+                  if (formatted.length === 18) {
+                    handleDocumentLookup(formatted)
+                  }
+                }}
+                placeholder='00.000.000/0000-00'
+                formatter={formatCnpj}
+                maxLength={18}
+                required
+              />
+              {isLookingUpPayer && (
+                <div className='absolute right-3 top-9'>
+                  <RefreshCw className='w-4 h-4 text-blue-500 animate-spin' />
+                </div>
+              )}
+            </div>
 
             <InputField
               label={t('wolkpay.checkout.companyName')}
               value={pjData.company_name}
               onChange={v => setPjData(p => ({ ...p, company_name: v }))}
               placeholder='Razão Social'
-              required
-            />
-
-            <InputField
-              label='CNPJ'
-              value={pjData.cnpj}
-              onChange={v => setPjData(p => ({ ...p, cnpj: v }))}
-              placeholder='00.000.000/0000-00'
-              formatter={formatCnpj}
-              maxLength={18}
               required
             />
 

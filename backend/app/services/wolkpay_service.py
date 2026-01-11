@@ -273,6 +273,105 @@ class WolkPayService:
             terms_version="v1.0"
         )
     
+    async def lookup_payer_by_document(
+        self,
+        checkout_token: str,
+        document: str
+    ) -> Optional[dict]:
+        """
+        Busca dados de pagador existente por CPF/CNPJ (checkout inteligente)
+        
+        Permite auto-preenchimento se o pagador já realizou pagamentos anteriores.
+        
+        Args:
+            checkout_token: Token do checkout (para validar fatura existe)
+            document: CPF ou CNPJ (apenas números)
+            
+        Returns:
+            Dict com dados do pagador ou None se não encontrado
+        """
+        # 1. Validar que fatura existe e não expirou
+        invoice = self.db.query(WolkPayInvoice).filter(
+            WolkPayInvoice.checkout_token == checkout_token
+        ).first()
+        
+        if not invoice:
+            raise ValueError("Fatura não encontrada")
+        
+        if invoice.is_expired():
+            raise ValueError("Fatura expirada")
+        
+        # 2. Limpar documento (apenas números)
+        doc_clean = ''.join(filter(str.isdigit, document))
+        
+        if len(doc_clean) < 11:
+            return None  # Documento muito curto, ainda não completo
+        
+        # 3. Buscar pagador mais recente com este documento
+        # Procurar por CPF ou CNPJ
+        payer = None
+        
+        if len(doc_clean) == 11:
+            # CPF - buscar PF
+            payer = self.db.query(WolkPayPayer).filter(
+                WolkPayPayer.cpf == doc_clean
+            ).order_by(WolkPayPayer.created_at.desc()).first()
+        elif len(doc_clean) == 14:
+            # CNPJ - buscar PJ
+            payer = self.db.query(WolkPayPayer).filter(
+                WolkPayPayer.cnpj == doc_clean
+            ).order_by(WolkPayPayer.created_at.desc()).first()
+        
+        if not payer:
+            return None
+        
+        # 4. Montar resposta com dados para auto-preenchimento
+        # (não retorna dados sensíveis completos, apenas para preview)
+        
+        if payer.person_type == PersonType.PF:
+            return {
+                "person_type": "PF",
+                "pf_data": {
+                    "full_name": payer.full_name,
+                    "cpf": payer.cpf,
+                    "birth_date": payer.birth_date.isoformat() if payer.birth_date else None,
+                    "phone": payer.phone,
+                    "email": payer.email
+                },
+                "address": {
+                    "zip_code": payer.zip_code,
+                    "street": payer.street,
+                    "number": payer.number,
+                    "complement": payer.complement,
+                    "neighborhood": payer.neighborhood,
+                    "city": payer.city,
+                    "state": payer.state
+                }
+            }
+        else:
+            return {
+                "person_type": "PJ",
+                "pj_data": {
+                    "company_name": payer.company_name,
+                    "cnpj": payer.cnpj,
+                    "trade_name": payer.trade_name,
+                    "state_registration": payer.state_registration,
+                    "business_phone": payer.business_phone,
+                    "business_email": payer.business_email,
+                    "responsible_name": payer.responsible_name,
+                    "responsible_cpf": payer.responsible_cpf
+                },
+                "address": {
+                    "zip_code": payer.zip_code,
+                    "street": payer.street,
+                    "number": payer.number,
+                    "complement": payer.complement,
+                    "neighborhood": payer.neighborhood,
+                    "city": payer.city,
+                    "state": payer.state
+                }
+            }
+
     async def save_payer_data(
         self,
         checkout_token: str,

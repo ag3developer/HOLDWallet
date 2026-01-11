@@ -94,6 +94,17 @@ export interface CheckoutData {
   terms_version: string
 }
 
+// Resposta da busca de pagador (checkout inteligente)
+export interface PayerLookupResponse {
+  found: boolean
+  payer: {
+    person_type: 'PF' | 'PJ'
+    pf_data?: PayerPFData
+    pj_data?: PayerPJData
+    address: PayerAddressData
+  } | null
+}
+
 export interface PayerAddressData {
   zip_code: string
   street: string
@@ -279,6 +290,18 @@ class WolkPayService {
    */
   async getCheckoutData(token: string): Promise<CheckoutData> {
     const response = await apiClient.get<CheckoutData>(`${this.baseUrl}/checkout/${token}`)
+    return response.data
+  }
+
+  /**
+   * Busca dados de pagador existente por CPF/CNPJ (checkout inteligente)
+   * Permite auto-preenchimento se o pagador já realizou pagamentos anteriores.
+   */
+  async lookupPayerByDocument(token: string, document: string): Promise<PayerLookupResponse> {
+    const response = await apiClient.get<PayerLookupResponse>(
+      `${this.baseUrl}/checkout/${token}/lookup-payer`,
+      { params: { document } }
+    )
     return response.data
   }
 
