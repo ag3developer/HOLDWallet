@@ -553,16 +553,101 @@ export function WolkPayCheckoutPage() {
   if (step === 'expired') {
     return (
       <div className='min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4'>
-        <div className='bg-white dark:bg-gray-800 rounded-2xl p-8 max-w-md w-full text-center'>
-          <div className='w-16 h-16 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mx-auto mb-4'>
-            <Clock className='w-8 h-8 text-amber-500' />
+        <div className='bg-white dark:bg-gray-800 rounded-2xl p-8 max-w-md w-full'>
+          {/* Ícone */}
+          <div className='text-center mb-6'>
+            <div className='w-20 h-20 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mx-auto mb-4'>
+              <Clock className='w-10 h-10 text-amber-500' />
+            </div>
+            <h2 className='text-2xl font-bold text-gray-900 dark:text-white mb-2'>
+              {t('wolkpay.checkout.expired.title')}
+            </h2>
+            <p className='text-gray-600 dark:text-gray-400'>
+              {t('wolkpay.checkout.expired.description')}
+            </p>
           </div>
-          <h2 className='text-xl font-bold text-gray-900 dark:text-white mb-2'>
-            {t('wolkpay.checkout.expired.title')}
-          </h2>
-          <p className='text-gray-600 dark:text-gray-400 mb-6'>
-            {t('wolkpay.checkout.expired.description')}
-          </p>
+
+          {/* Info da fatura expirada */}
+          {checkout && (
+            <div className='bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 mb-6 space-y-3'>
+              <div className='flex justify-between text-sm'>
+                <span className='text-gray-500 dark:text-gray-400'>
+                  {t('wolkpay.checkout.invoice')}
+                </span>
+                <span className='font-medium text-gray-900 dark:text-white'>
+                  {checkout.invoice_number}
+                </span>
+              </div>
+              <div className='flex justify-between text-sm'>
+                <span className='text-gray-500 dark:text-gray-400'>
+                  {t('wolkpay.checkout.crypto')}
+                </span>
+                <span className='font-medium text-gray-900 dark:text-white'>
+                  {checkout.crypto_amount} {checkout.crypto_currency}
+                </span>
+              </div>
+              <div className='flex justify-between text-sm'>
+                <span className='text-gray-500 dark:text-gray-400'>
+                  {t('wolkpay.checkout.beneficiary')}
+                </span>
+                <span className='font-medium text-gray-900 dark:text-white'>
+                  {checkout.beneficiary_name}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Explicação */}
+          <div className='bg-amber-50 dark:bg-amber-900/20 rounded-xl p-4 mb-6 border border-amber-200 dark:border-amber-800/50'>
+            <div className='flex items-start gap-3'>
+              <AlertCircle className='w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5' />
+              <div>
+                <p className='text-sm font-medium text-amber-800 dark:text-amber-300 mb-1'>
+                  {t('wolkpay.checkout.expired.whyTitle')}
+                </p>
+                <p className='text-sm text-amber-700 dark:text-amber-400'>
+                  {t('wolkpay.checkout.expired.whyDesc')}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Instruções */}
+          <div className='space-y-3 mb-6'>
+            <p className='text-sm font-medium text-gray-700 dark:text-gray-300'>
+              {t('wolkpay.checkout.expired.whatToDo')}
+            </p>
+            <div className='flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400'>
+              <div className='w-6 h-6 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center shrink-0'>
+                <span className='text-blue-600 dark:text-blue-400 font-bold text-xs'>1</span>
+              </div>
+              <span>{t('wolkpay.checkout.expired.step1')}</span>
+            </div>
+            <div className='flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400'>
+              <div className='w-6 h-6 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center shrink-0'>
+                <span className='text-blue-600 dark:text-blue-400 font-bold text-xs'>2</span>
+              </div>
+              <span>{t('wolkpay.checkout.expired.step2')}</span>
+            </div>
+            <div className='flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400'>
+              <div className='w-6 h-6 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center shrink-0'>
+                <span className='text-blue-600 dark:text-blue-400 font-bold text-xs'>3</span>
+              </div>
+              <span>{t('wolkpay.checkout.expired.step3')}</span>
+            </div>
+          </div>
+
+          {/* Contato do beneficiário - se disponível */}
+          {checkout?.beneficiary_name && (
+            <div className='text-center pt-4 border-t border-gray-200 dark:border-gray-700'>
+              <p className='text-xs text-gray-500 dark:text-gray-400 mb-2'>
+                {t('wolkpay.checkout.expired.contactBeneficiary')}
+              </p>
+              <p className='font-medium text-gray-900 dark:text-white'>
+                {checkout.beneficiary_name}
+              </p>
+            </div>
+          )}
         </div>
       </div>
     )

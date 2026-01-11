@@ -687,7 +687,14 @@
       },
       "expired": {
         "title": "Fatura expirada",
-        "description": "O tempo para pagamento terminou. Solicite uma nova fatura ao beneficiário."
+        "description": "O tempo para pagamento terminou.",
+        "whyTitle": "Por que faturas expiram?",
+        "whyDesc": "Cotações de crypto variam constantemente. Para garantir valores justos, as faturas têm tempo limitado.",
+        "whatToDo": "O que fazer agora:",
+        "step1": "Entre em contato com o beneficiário",
+        "step2": "Solicite uma nova fatura com cotação atualizada",
+        "step3": "Complete o pagamento dentro do prazo",
+        "contactBeneficiary": "Contate o beneficiário:"
       },
       "errors": {
         "submitFailed": "Erro ao processar dados",

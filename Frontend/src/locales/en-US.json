@@ -675,7 +675,14 @@
       },
       "expired": {
         "title": "Invoice expired",
-        "description": "The payment time has ended. Request a new invoice from the beneficiary."
+        "description": "The payment time has ended.",
+        "whyTitle": "Why do invoices expire?",
+        "whyDesc": "Crypto rates fluctuate constantly. To ensure fair values, invoices have a time limit.",
+        "whatToDo": "What to do now:",
+        "step1": "Contact the beneficiary",
+        "step2": "Request a new invoice with updated rates",
+        "step3": "Complete payment within the time limit",
+        "contactBeneficiary": "Contact the beneficiary:"
       },
       "errors": {
         "submitFailed": "Error processing data",
