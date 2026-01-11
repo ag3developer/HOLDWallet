@@ -76,6 +76,7 @@ import {
   AdminSecurityPage,
   AdminWolkPayPage,
   AdminWolkPayDetailPage,
+  AdminKYCPage,
 } from '@/pages/admin'
 
 // Protected Route Component (for authenticated users)
@@ -366,6 +367,7 @@ function App() {
             <Route path='/admin/settings' element={<AdminSettingsPage />} />
             <Route path='/admin/wolkpay' element={<AdminWolkPayPage />} />
             <Route path='/admin/wolkpay/:id' element={<AdminWolkPayDetailPage />} />
+            <Route path='/admin/kyc' element={<AdminKYCPage />} />
           </Route>
 
           {/* 404 Page */}

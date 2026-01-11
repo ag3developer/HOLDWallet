@@ -8,6 +8,20 @@
 
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+
+// Helper function to get auth token from localStorage
+const getAuthToken = (): string | null => {
+  try {
+    const authData = localStorage.getItem('hold-wallet-auth')
+    if (authData) {
+      const parsed = JSON.parse(authData)
+      return parsed?.state?.token || null
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return null
+}
 import {
   Shield,
   ArrowLeft,
@@ -130,7 +144,7 @@ const KYCPage: React.FC = () => {
       try {
         const response = await fetch('/api/kyc/prefill-data', {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`,
+            Authorization: `Bearer ${getAuthToken()}`,
           },
         })
 
@@ -278,8 +292,9 @@ const KYCPage: React.FC = () => {
       <div className='w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4'>
         <CheckCircle className='w-10 h-10 text-green-500' />
       </div>
-      <h2 className='text-2xl font-bold text-gray-900 dark:text-white mb-2'>
-        Verificação Aprovada! 🎉
+      <h2 className='text-2xl font-bold text-gray-900 dark:text-white mb-2 flex items-center justify-center gap-2'>
+        Verificação Aprovada!
+        <CheckCircle className='w-6 h-6 text-green-500' />
       </h2>
       <p className='text-gray-500 mb-6'>
         Sua conta está verificada no nível{' '}
@@ -579,11 +594,12 @@ const KYCPage: React.FC = () => {
 
               {/* Separador de endereço */}
               <div className='md:col-span-2 border-t border-gray-200 dark:border-gray-700 pt-4 mt-2'>
-                <h3 className='font-medium text-gray-900 dark:text-white'>
+                <h3 className='font-medium text-gray-900 dark:text-white flex items-center'>
                   Endereço
                   {prefillSource && (
-                    <span className='ml-2 text-xs font-normal text-green-600 dark:text-green-400'>
-                      ✓ Dados pré-preenchidos
+                    <span className='ml-2 text-xs font-normal text-green-600 dark:text-green-400 flex items-center gap-1'>
+                      <CheckCircle className='w-3 h-3' />
+                      Dados pré-preenchidos
                     </span>
                   )}
                 </h3>
