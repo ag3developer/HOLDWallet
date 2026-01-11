@@ -20,7 +20,12 @@ from .security import LoginAttempt, BlockedIP, SecurityAlert, UserSession, Audit
 from .wolkpay import (
     WolkPayInvoice, WolkPayPayer, WolkPayPayment, WolkPayApproval, 
     WolkPayTermsVersion, WolkPayPayerLimit, WolkPayAuditLog,
-    InvoiceStatus, PersonType, DocumentType, PaymentStatus, ApprovalAction
+    InvoiceStatus, PersonType, DocumentType as WolkPayDocType, PaymentStatus, ApprovalAction
+)
+from .kyc import (
+    KYCVerification, KYCPersonalData, KYCDocument, KYCAuditLog, KYCServiceLimit,
+    KYCStatus, KYCLevel, DocumentType as KYCDocumentType, DocumentStatus,
+    AuditAction as KYCAuditAction, ActorType as KYCActorType
 )
 
 # Import P2P models to ensure tables are created
@@ -35,7 +40,7 @@ from . import platform_settings
 from . import webauthn
 from . import security
 from . import push_subscription
-from . import wolkpay
+from . import kyc
 
 __all__ = [
     # Base
@@ -106,7 +111,21 @@ __all__ = [
     "WolkPayAuditLog",
     "InvoiceStatus",
     "PersonType",
-    "DocumentType",
+    "WolkPayDocType",
     "PaymentStatus",
     "ApprovalAction",
+    
+    # KYC
+    "KYCVerification",
+    "KYCPersonalData",
+    "KYCDocument",
+    "KYCAuditLog",
+    "KYCServiceLimit",
+    "KYCStatus",
+    "KYCLevel",
+    "KYCDocumentType",
+    "DocumentStatus",
+    "KYCAuditAction",
+    "KYCActorType",
+    "kyc",
 ]

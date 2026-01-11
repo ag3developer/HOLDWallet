@@ -1,585 +1,808 @@
-import { useState } from 'react'
-import { 
-  Shield, 
-  User, 
-  Upload, 
-  Check, 
-  Clock, 
-  AlertCircle,
-  FileText,
-  Camera,
-  Globe,
-  CreditCard,
-  Users,
-  Building,
-  MapPin,
-  Calendar,
-  Phone,
-  Mail,
-  ChevronRight,
-  X,
-  Eye,
-  Download,
-  Trash2,
-  Edit3
+/**
+ * 🛡️ KYC Page - Verificação de Identidade
+ * ========================================
+ * Página completa para verificação KYC com fluxo em steps.
+ *
+ * Author: HOLD Wallet Team
+ */
+
+import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import {
+  Shield,
+  ArrowLeft,
+  ArrowRight,
+  Loader2,
+  CheckCircle,
+  XCircle,
+  Clock,
+  AlertTriangle,
 } from 'lucide-react'
 
-type KYCStatus = 'pending' | 'under_review' | 'approved' | 'rejected' | 'incomplete'
+import { useKYC } from '@/hooks/useKYC'
+import { KYCStatus, KYCLevel, DocumentType, KYCPersonalData } from '@/services/kyc'
 
-interface DocumentFile {
-  id: string
-  name: string
-  type: 'identity' | 'address' | 'income' | 'selfie'
-  file?: File
-  url?: string
-  status: KYCStatus
-  uploadDate: string
-  rejectionReason?: string
-}
+import {
+  KYCStatusBadge,
+  KYCLevelBadge,
+  KYCLevelSelector,
+  KYCConsentCheckbox,
+  DocumentUploadCard,
+  KYCStepIndicator,
+  KYCInfoCard,
+  KYCLimitsDisplay,
+  KYCExportDataButton,
+} from '@/components/kyc/KYCComponents'
 
-export const KYCPage = () => {
-  const [activeStep, setActiveStep] = useState(0)
-  const [kycStatus, setKycStatus] = useState<KYCStatus>('incomplete')
-  const [isUploading, setIsUploading] = useState(false)
+// ============================================================
+// MAIN COMPONENT
+// ============================================================
 
-  const [personalInfo, setPersonalInfo] = useState({
-    fullName: 'João Silva',
-    dateOfBirth: '1990-05-15',
+const KYCPage: React.FC = () => {
+  const navigate = useNavigate()
+  const {
+    verification,
+    loading,
+    error,
+    requirements,
+    uploading,
+    uploadProgress,
+    submitting,
+    loadStatus,
+    loadRequirements,
+    startVerification,
+    savePersonalData,
+    uploadDocument,
+    deleteDocument,
+    submitForReview,
+    exportData,
+    clearError,
+    getMissingDocuments,
+    getUploadedDocuments,
+  } = useKYC()
+
+  // Step management
+  const [currentStep, setCurrentStep] = useState(1)
+  const [selectedLevel, setSelectedLevel] = useState<KYCLevel>(KYCLevel.BASIC)
+  const [consent, setConsent] = useState(false)
+
+  // Form data
+  const [personalData, setPersonalData] = useState<Partial<KYCPersonalData>>({
     nationality: 'BR',
-    idNumber: '123.456.789-00',
-    address: 'Rua das Flores, 123',
-    city: 'São Paulo',
-    state: 'SP',
-    zipCode: '01234-567',
     country: 'BR',
-    phone: '+55 11 99999-9999',
-    occupation: 'Desenvolvedor de Software',
-    monthlyIncome: '15000',
-    sourceOfFunds: 'salary'
   })
 
-  const [documents, setDocuments] = useState<DocumentFile[]>([
-    {
-      id: '1',
-      name: 'RG_frente.jpg',
-      type: 'identity',
-      status: 'approved',
-      uploadDate: '2024-11-20',
-      url: '/mock-document-1.jpg'
-    },
-    {
-      id: '2',
-      name: 'RG_verso.jpg',
-      type: 'identity',
-      status: 'approved',
-      uploadDate: '2024-11-20',
-      url: '/mock-document-2.jpg'
-    },
-    {
-      id: '3',
-      name: 'comprovante_residencia.pdf',
-      type: 'address',
-      status: 'under_review',
-      uploadDate: '2024-11-21',
-      url: '/mock-document-3.pdf'
-    }
-  ])
+  const steps = ['Nível', 'Consentimento', 'Dados Pessoais', 'Documentos', 'Revisão']
 
-  const kycSteps = [
-    {
-      id: 0,
-      title: 'Informações Pessoais',
-      description: 'Dados básicos e contato',
-      icon: User,
-      status: 'approved' as KYCStatus
-    },
-    {
-      id: 1,
-      title: 'Documentos de Identidade',
-      description: 'RG, CNH ou Passaporte',
-      icon: FileText,
-      status: 'approved' as KYCStatus
-    },
-    {
-      id: 2,
-      title: 'Comprovante de Endereço',
-      description: 'Documento com até 3 meses',
-      icon: MapPin,
-      status: 'under_review' as KYCStatus
-    },
-    {
-      id: 3,
-      title: 'Selfie de Verificação',
-      description: 'Foto segurando documento',
-      icon: Camera,
-      status: 'pending' as KYCStatus
-    },
-    {
-      id: 4,
-      title: 'Informações Financeiras',
-      description: 'Renda e origem dos recursos',
-      icon: CreditCard,
-      status: 'incomplete' as KYCStatus
+  // Effect to sync step with verification status
+  useEffect(() => {
+    if (verification) {
+      if (verification.status === KYCStatus.APPROVED) {
+        setCurrentStep(5)
+      } else if (
+        verification.status === KYCStatus.SUBMITTED ||
+        verification.status === KYCStatus.UNDER_REVIEW
+      ) {
+        setCurrentStep(5)
+      } else if (verification.consent_given && verification.documents.length > 0) {
+        setCurrentStep(4)
+      } else if (verification.consent_given) {
+        setCurrentStep(3)
+      } else {
+        setCurrentStep(2)
+      }
     }
-  ]
+  }, [verification])
 
-  const getStatusIcon = (status: KYCStatus) => {
-    switch (status) {
-      case 'approved':
-        return <Check className="w-5 h-5 text-green-600" />
-      case 'under_review':
-        return <Clock className="w-5 h-5 text-yellow-600" />
-      case 'rejected':
-        return <X className="w-5 h-5 text-red-600" />
-      case 'pending':
-        return <AlertCircle className="w-5 h-5 text-blue-600" />
-      default:
-        return <Clock className="w-5 h-5 text-gray-400" />
+  // Load requirements when level changes
+  useEffect(() => {
+    loadRequirements(selectedLevel)
+  }, [selectedLevel, loadRequirements])
+
+  // ============================================================
+  // HANDLERS
+  // ============================================================
+
+  const handleStartVerification = async () => {
+    if (!consent) return
+
+    const success = await startVerification(selectedLevel, consent)
+    if (success) {
+      setCurrentStep(3)
     }
   }
 
-  const getStatusText = (status: KYCStatus) => {
-    switch (status) {
-      case 'approved':
-        return 'Aprovado'
-      case 'under_review':
-        return 'Em Análise'
-      case 'rejected':
-        return 'Rejeitado'
-      case 'pending':
-        return 'Pendente'
-      default:
-        return 'Incompleto'
+  const handleSavePersonalData = async () => {
+    const success = await savePersonalData(personalData as KYCPersonalData)
+    if (success) {
+      setCurrentStep(4)
     }
   }
 
-  const getStatusColor = (status: KYCStatus) => {
-    switch (status) {
-      case 'approved':
-        return 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-      case 'under_review':
-        return 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
-      case 'rejected':
-        return 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-      case 'pending':
-        return 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
-      default:
-        return 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-400'
+  const handleUploadDocument = async (type: DocumentType, file: File) => {
+    await uploadDocument(type, file)
+  }
+
+  const handleDeleteDocument = async (documentId: string) => {
+    await deleteDocument(documentId)
+  }
+
+  const handleSubmit = async () => {
+    const success = await submitForReview()
+    if (success) {
+      setCurrentStep(5)
     }
   }
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, type: DocumentFile['type']) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setIsUploading(true)
-      
-      // Simular upload
-      setTimeout(() => {
-        const newDoc: DocumentFile = {
-          id: Date.now().toString(),
-          name: file.name,
-          type,
-          file,
-          status: 'pending',
-          uploadDate: new Date().toISOString().split('T')[0] || ''
-        }
-        
-        setDocuments(prev => [...prev, newDoc])
-        setIsUploading(false)
-      }, 2000)
-    }
+  const handleInputChange = (field: keyof KYCPersonalData, value: string | boolean) => {
+    setPersonalData(prev => ({ ...prev, [field]: value }))
   }
 
-  const handleDeleteDocument = (docId: string) => {
-    setDocuments(prev => prev.filter(doc => doc.id !== docId))
-  }
+  // ============================================================
+  // RENDER HELPERS
+  // ============================================================
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
-              <Shield className="w-6 h-6 text-white" />
-            </div>
-            Verificação KYC
-          </h1>
-          <p className="text-gray-600 dark:text-gray-300 mt-1">
-            Complete sua verificação de identidade para usar todos os recursos
+  const renderApprovedStatus = () => (
+    <div className='text-center py-8'>
+      <div className='w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4'>
+        <CheckCircle className='w-10 h-10 text-green-500' />
+      </div>
+      <h2 className='text-2xl font-bold text-gray-900 dark:text-white mb-2'>
+        Verificação Aprovada! 🎉
+      </h2>
+      <p className='text-gray-500 mb-6'>
+        Sua conta está verificada no nível{' '}
+        {verification?.level && <KYCLevelBadge level={verification.level} />}
+      </p>
+
+      {verification?.limits && (
+        <KYCLimitsDisplay
+          level={verification.level}
+          limits={{
+            daily_limit_brl: verification.limits.limits?.instant_trade?.daily_limit_brl || 0,
+            monthly_limit_brl: verification.limits.limits?.instant_trade?.monthly_limit_brl || 0,
+            transaction_limit_brl:
+              verification.limits.limits?.instant_trade?.transaction_limit_brl || 0,
+          }}
+        />
+      )}
+
+      {verification?.expiration_date && (
+        <p className='text-sm text-gray-500 mt-4'>
+          Válido até: {new Date(verification.expiration_date).toLocaleDateString('pt-BR')}
+        </p>
+      )}
+
+      <div className='mt-6 flex justify-center gap-4'>
+        <KYCExportDataButton onExport={exportData} />
+        <button
+          onClick={() => navigate('/dashboard')}
+          className='px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90'
+        >
+          Ir para Dashboard
+        </button>
+      </div>
+    </div>
+  )
+
+  const renderPendingReview = () => (
+    <div className='text-center py-8'>
+      <div className='w-20 h-20 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4'>
+        <Clock className='w-10 h-10 text-blue-500 animate-pulse' />
+      </div>
+      <h2 className='text-2xl font-bold text-gray-900 dark:text-white mb-2'>Em Análise</h2>
+      <p className='text-gray-500 mb-6'>
+        Sua verificação está sendo analisada pela nossa equipe.
+        <br />
+        Você receberá uma notificação quando houver atualização.
+      </p>
+
+      <KYCInfoCard
+        type='info'
+        title='Tempo estimado'
+        message='A análise geralmente leva até 24 horas úteis.'
+      />
+
+      <div className='mt-6'>
+        <button
+          onClick={() => navigate('/dashboard')}
+          className='px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90'
+        >
+          Voltar ao Dashboard
+        </button>
+      </div>
+    </div>
+  )
+
+  const renderRejected = () => (
+    <div className='text-center py-8'>
+      <div className='w-20 h-20 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4'>
+        <XCircle className='w-10 h-10 text-red-500' />
+      </div>
+      <h2 className='text-2xl font-bold text-gray-900 dark:text-white mb-2'>
+        Verificação Rejeitada
+      </h2>
+      <p className='text-gray-500 mb-4'>Infelizmente sua verificação foi rejeitada.</p>
+
+      {verification?.rejection_reason && (
+        <KYCInfoCard type='error' title='Motivo' message={verification.rejection_reason} />
+      )}
+
+      {verification?.requested_documents && verification.requested_documents.length > 0 && (
+        <div className='mt-4 text-left bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-4'>
+          <p className='font-medium text-yellow-800 dark:text-yellow-200 mb-2'>
+            <AlertTriangle className='w-4 h-4 inline mr-2' />
+            Documentos solicitados:
           </p>
+          <ul className='list-disc list-inside text-yellow-700 dark:text-yellow-300 text-sm'>
+            {verification.requested_documents.map((doc, idx) => (
+              <li key={idx}>{doc}</li>
+            ))}
+          </ul>
         </div>
+      )}
 
-        {/* Overall Status */}
-        <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium ${getStatusColor(kycStatus)}`}>
-          {getStatusIcon(kycStatus)}
-          Status: {getStatusText(kycStatus)}
-        </div>
+      <div className='mt-6'>
+        <button
+          onClick={() => {
+            // Reiniciar processo
+            setCurrentStep(1)
+            loadStatus()
+          }}
+          className='px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90'
+        >
+          Tentar Novamente
+        </button>
       </div>
+    </div>
+  )
 
-      {/* Progress Steps */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Progresso da Verificação</h2>
-        
-        <div className="space-y-4">
-          {kycSteps.map((step, index) => (
-            <div 
-              key={step.id}
-              onClick={() => setActiveStep(step.id)}
-              className={`flex items-center gap-4 p-4 rounded-lg border cursor-pointer transition-all hover:shadow-md ${
-                activeStep === step.id
-                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                  : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
-              }`}
-            >
-              <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                step.status === 'approved' 
-                  ? 'bg-green-100 dark:bg-green-900/30'
-                  : step.status === 'under_review'
-                  ? 'bg-yellow-100 dark:bg-yellow-900/30'
-                  : step.status === 'rejected'
-                  ? 'bg-red-100 dark:bg-red-900/30'
-                  : 'bg-gray-100 dark:bg-gray-700'
-              }`}>
-                <step.icon className={`w-6 h-6 ${
-                  step.status === 'approved' ? 'text-green-600'
-                  : step.status === 'under_review' ? 'text-yellow-600'
-                  : step.status === 'rejected' ? 'text-red-600'
-                  : 'text-gray-500'
-                }`} />
-              </div>
-              
-              <div className="flex-1">
-                <h3 className="font-medium text-gray-900 dark:text-white">
-                  {step.title}
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-300">
-                  {step.description}
-                </p>
-              </div>
+  // ============================================================
+  // STEP CONTENT
+  // ============================================================
 
-              <div className="flex items-center gap-3">
-                <div className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(step.status)}`}>
-                  {getStatusIcon(step.status)}
-                  {getStatusText(step.status)}
-                </div>
-                <ChevronRight className="w-5 h-5 text-gray-400" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+  const renderStepContent = () => {
+    // Status especiais
+    if (verification?.status === KYCStatus.APPROVED) {
+      return renderApprovedStatus()
+    }
+    if (
+      verification?.status === KYCStatus.SUBMITTED ||
+      verification?.status === KYCStatus.UNDER_REVIEW
+    ) {
+      return renderPendingReview()
+    }
+    if (verification?.status === KYCStatus.REJECTED) {
+      return renderRejected()
+    }
 
-      {/* Step Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Main Content */}
-        <div className="lg:col-span-2 space-y-6">
-          
-          {/* Personal Information */}
-          {activeStep === 0 && (
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Informações Pessoais
-                </h3>
-                <button className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                  <Edit3 className="w-4 h-4" />
-                  Editar
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Nome Completo
-                  </label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <input
-                      type="text"
-                      value={personalInfo.fullName}
-                      onChange={(e) => setPersonalInfo(prev => ({ ...prev, fullName: e.target.value }))}
-                      aria-label="Nome completo"
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                      readOnly
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    CPF
-                  </label>
-                  <div className="relative">
-                    <FileText className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <input
-                      type="text"
-                      value={personalInfo.idNumber}
-                      onChange={(e) => setPersonalInfo(prev => ({ ...prev, idNumber: e.target.value }))}
-                      aria-label="CPF"
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                      readOnly
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Data de Nascimento
-                  </label>
-                  <div className="relative">
-                    <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <input
-                      type="date"
-                      value={personalInfo.dateOfBirth}
-                      onChange={(e) => setPersonalInfo(prev => ({ ...prev, dateOfBirth: e.target.value }))}
-                      aria-label="Data de nascimento"
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                      readOnly
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Telefone
-                  </label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <input
-                      type="tel"
-                      value={personalInfo.phone}
-                      onChange={(e) => setPersonalInfo(prev => ({ ...prev, phone: e.target.value }))}
-                      aria-label="Telefone"
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                      readOnly
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Profissão
-                  </label>
-                  <div className="relative">
-                    <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <input
-                      type="text"
-                      value={personalInfo.occupation}
-                      onChange={(e) => setPersonalInfo(prev => ({ ...prev, occupation: e.target.value }))}
-                      aria-label="Profissão"
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                      readOnly
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Renda Mensal
-                  </label>
-                  <div className="relative">
-                    <CreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <input
-                      type="text"
-                      value={`R$ ${personalInfo.monthlyIncome}`}
-                      onChange={(e) => setPersonalInfo(prev => ({ ...prev, monthlyIncome: e.target.value }))}
-                      aria-label="Renda mensal"
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                      readOnly
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-6">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Endereço Completo
-                </label>
-                <textarea
-                  value={`${personalInfo.address}, ${personalInfo.city} - ${personalInfo.state}, ${personalInfo.zipCode}`}
-                  aria-label="Endereço completo"
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none"
-                  rows={3}
-                  readOnly
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Document Upload Section */}
-          {(activeStep === 1 || activeStep === 2 || activeStep === 3) && (
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">
-                {activeStep === 1 && 'Upload de Documentos de Identidade'}
-                {activeStep === 2 && 'Upload de Comprovante de Endereço'}
-                {activeStep === 3 && 'Selfie de Verificação'}
-              </h3>
-
-              {/* Upload Area */}
-              <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center">
-                {isUploading ? (
-                  <div className="flex flex-col items-center gap-4">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                    <p className="text-gray-600 dark:text-gray-300">Enviando documento...</p>
-                  </div>
-                ) : (
-                  <>
-                    <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                      Arraste e solte seu arquivo aqui
-                    </p>
-                    <p className="text-gray-600 dark:text-gray-300 mb-4">
-                      Ou clique para selecionar
-                    </p>
-                    <label className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer transition-colors">
-                      <Upload className="w-4 h-4" />
-                      Selecionar Arquivo
-                      <input
-                        type="file"
-                        accept={activeStep === 3 ? "image/*" : "image/*,.pdf"}
-                        onChange={(e) => handleFileUpload(e, 
-                          activeStep === 1 ? 'identity' : 
-                          activeStep === 2 ? 'address' : 'selfie'
-                        )}
-                        className="hidden"
-                      />
-                    </label>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                      {activeStep === 3 ? 'Apenas imagens (JPG, PNG)' : 'PDF, JPG, PNG (máx. 5MB)'}
-                    </p>
-                  </>
-                )}
-              </div>
-
-              {/* Document Requirements */}
-              <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
-                <h4 className="font-medium text-blue-900 dark:text-blue-400 mb-2">Requisitos:</h4>
-                <ul className="text-sm text-blue-800 dark:text-blue-300 space-y-1">
-                  {activeStep === 1 && (
-                    <>
-                      <li>• RG, CNH ou Passaporte válido</li>
-                      <li>• Documento deve estar legível e sem rasuras</li>
-                      <li>• Envie frente e verso (se aplicável)</li>
-                    </>
-                  )}
-                  {activeStep === 2 && (
-                    <>
-                      <li>• Conta de luz, água, telefone ou extrato bancário</li>
-                      <li>• Documento deve ter no máximo 3 meses</li>
-                      <li>• Deve conter seu nome e endereço completo</li>
-                    </>
-                  )}
-                  {activeStep === 3 && (
-                    <>
-                      <li>• Foto sua segurando o documento de identidade</li>
-                      <li>• Rosto e documento devem estar visíveis</li>
-                      <li>• Boa iluminação e qualidade da imagem</li>
-                    </>
-                  )}
-                </ul>
-              </div>
-            </div>
-          )}
-
-        </div>
-
-        {/* Sidebar */}
-        <div className="lg:col-span-1">
-          
-          {/* Uploaded Documents */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              Documentos Enviados
-            </h3>
-
-            {documents.length === 0 ? (
-              <p className="text-gray-500 dark:text-gray-400 text-center py-4">
-                Nenhum documento enviado ainda
+    switch (currentStep) {
+      case 1:
+        return (
+          <div className='space-y-6'>
+            <div className='text-center mb-6'>
+              <h2 className='text-xl font-bold text-gray-900 dark:text-white'>
+                Escolha seu Nível de Verificação
+              </h2>
+              <p className='text-gray-500 mt-1'>
+                Selecione o nível que melhor atende às suas necessidades
               </p>
-            ) : (
-              <div className="space-y-3">
-                {documents.map((doc) => (
-                  <div key={doc.id} className="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${getStatusColor(doc.status)}`}>
-                      <FileText className="w-5 h-5" />
-                    </div>
-                    
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900 dark:text-white truncate">
-                        {doc.name}
-                      </p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${getStatusColor(doc.status)}`}>
-                          {getStatusIcon(doc.status)}
-                          {getStatusText(doc.status)}
-                        </span>
-                      </div>
-                    </div>
+            </div>
 
-                    <div className="flex gap-1">
-                      {doc.url && (
-                        <button 
-                          aria-label="Visualizar documento"
-                          className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                      )}
-                      <button 
-                        onClick={() => handleDeleteDocument(doc.id)}
-                        aria-label="Remover documento"
-                        className="p-2 text-gray-400 hover:text-red-600 transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+            <KYCLevelSelector selectedLevel={selectedLevel} onSelect={setSelectedLevel} />
 
-          {/* Help Section */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mt-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              Precisa de Ajuda?
-            </h3>
-            
-            <div className="space-y-4">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-                  <FileText className="w-4 h-4 text-blue-600" />
-                </div>
-                <div>
-                  <h4 className="font-medium text-gray-900 dark:text-white">Guia de Documentos</h4>
-                  <p className="text-sm text-gray-600 dark:text-gray-300">
-                    Veja exemplos de documentos aceitos
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
-                  <Users className="w-4 h-4 text-green-600" />
-                </div>
-                <div>
-                  <h4 className="font-medium text-gray-900 dark:text-white">Suporte</h4>
-                  <p className="text-sm text-gray-600 dark:text-gray-300">
-                    Entre em contato com nossa equipe
-                  </p>
-                </div>
-              </div>
-
-              <button className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors">
-                Falar com Suporte
+            <div className='flex justify-end'>
+              <button
+                onClick={() => setCurrentStep(2)}
+                className='flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-lg hover:bg-primary/90'
+              >
+                Continuar
+                <ArrowRight className='w-4 h-4' />
               </button>
             </div>
           </div>
+        )
 
+      case 2:
+        return (
+          <div className='space-y-6'>
+            <div className='text-center mb-6'>
+              <h2 className='text-xl font-bold text-gray-900 dark:text-white'>
+                Termos e Consentimento
+              </h2>
+              <p className='text-gray-500 mt-1'>Leia e aceite os termos para continuar</p>
+            </div>
+
+            <KYCInfoCard
+              type='info'
+              title='Por que precisamos verificar sua identidade?'
+              message='A verificação KYC é obrigatória por regulamentação e ajuda a proteger você e a plataforma contra fraudes e atividades ilegais.'
+            />
+
+            <KYCConsentCheckbox checked={consent} onChange={setConsent} />
+
+            <div className='flex justify-between'>
+              <button
+                onClick={() => setCurrentStep(1)}
+                className='flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900'
+              >
+                <ArrowLeft className='w-4 h-4' />
+                Voltar
+              </button>
+
+              <button
+                onClick={handleStartVerification}
+                disabled={!consent || submitting}
+                className='flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed'
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className='w-4 h-4 animate-spin' />
+                    Iniciando...
+                  </>
+                ) : (
+                  <>
+                    Aceitar e Continuar
+                    <ArrowRight className='w-4 h-4' />
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )
+
+      case 3:
+        return (
+          <div className='space-y-6'>
+            <div className='text-center mb-6'>
+              <h2 className='text-xl font-bold text-gray-900 dark:text-white'>Dados Pessoais</h2>
+              <p className='text-gray-500 mt-1'>Preencha seus dados conforme seu documento</p>
+            </div>
+
+            {/* Form de dados pessoais */}
+            <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+              {/* Nome completo */}
+              <div className='md:col-span-2'>
+                <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1'>
+                  Nome Completo *
+                </label>
+                <input
+                  type='text'
+                  value={personalData.full_name || ''}
+                  onChange={e => handleInputChange('full_name', e.target.value)}
+                  placeholder='Conforme seu documento'
+                  className='w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 focus:ring-2 focus:ring-primary focus:border-transparent'
+                />
+              </div>
+
+              {/* CPF */}
+              <div>
+                <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1'>
+                  CPF *
+                </label>
+                <input
+                  type='text'
+                  value={personalData.document_number || ''}
+                  onChange={e => handleInputChange('document_number', e.target.value)}
+                  placeholder='000.000.000-00'
+                  className='w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 focus:ring-2 focus:ring-primary focus:border-transparent'
+                />
+              </div>
+
+              {/* Data de nascimento */}
+              <div>
+                <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1'>
+                  Data de Nascimento *
+                </label>
+                <input
+                  type='date'
+                  value={personalData.birth_date || ''}
+                  onChange={e => handleInputChange('birth_date', e.target.value)}
+                  className='w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 focus:ring-2 focus:ring-primary focus:border-transparent'
+                />
+              </div>
+
+              {/* Telefone */}
+              <div>
+                <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1'>
+                  Telefone *
+                </label>
+                <input
+                  type='tel'
+                  value={personalData.phone || ''}
+                  onChange={e => handleInputChange('phone', e.target.value)}
+                  placeholder='(11) 99999-9999'
+                  className='w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 focus:ring-2 focus:ring-primary focus:border-transparent'
+                />
+              </div>
+
+              {/* Nome da mãe */}
+              <div>
+                <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1'>
+                  Nome da Mãe
+                </label>
+                <input
+                  type='text'
+                  value={personalData.mother_name || ''}
+                  onChange={e => handleInputChange('mother_name', e.target.value)}
+                  placeholder='Nome completo'
+                  className='w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 focus:ring-2 focus:ring-primary focus:border-transparent'
+                />
+              </div>
+
+              {/* Separador de endereço */}
+              <div className='md:col-span-2 border-t border-gray-200 dark:border-gray-700 pt-4 mt-2'>
+                <h3 className='font-medium text-gray-900 dark:text-white'>Endereço</h3>
+              </div>
+
+              {/* CEP */}
+              <div>
+                <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1'>
+                  CEP *
+                </label>
+                <input
+                  type='text'
+                  value={personalData.zip_code || ''}
+                  onChange={e => handleInputChange('zip_code', e.target.value)}
+                  placeholder='00000-000'
+                  className='w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 focus:ring-2 focus:ring-primary focus:border-transparent'
+                />
+              </div>
+
+              {/* Rua */}
+              <div className='md:col-span-2'>
+                <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1'>
+                  Rua/Avenida *
+                </label>
+                <input
+                  type='text'
+                  value={personalData.street || ''}
+                  onChange={e => handleInputChange('street', e.target.value)}
+                  className='w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 focus:ring-2 focus:ring-primary focus:border-transparent'
+                />
+              </div>
+
+              {/* Número */}
+              <div>
+                <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1'>
+                  Número *
+                </label>
+                <input
+                  type='text'
+                  value={personalData.number || ''}
+                  onChange={e => handleInputChange('number', e.target.value)}
+                  className='w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 focus:ring-2 focus:ring-primary focus:border-transparent'
+                />
+              </div>
+
+              {/* Complemento */}
+              <div>
+                <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1'>
+                  Complemento
+                </label>
+                <input
+                  type='text'
+                  value={personalData.complement || ''}
+                  onChange={e => handleInputChange('complement', e.target.value)}
+                  className='w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 focus:ring-2 focus:ring-primary focus:border-transparent'
+                />
+              </div>
+
+              {/* Bairro */}
+              <div>
+                <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1'>
+                  Bairro *
+                </label>
+                <input
+                  type='text'
+                  value={personalData.neighborhood || ''}
+                  onChange={e => handleInputChange('neighborhood', e.target.value)}
+                  className='w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 focus:ring-2 focus:ring-primary focus:border-transparent'
+                />
+              </div>
+
+              {/* Cidade */}
+              <div>
+                <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1'>
+                  Cidade *
+                </label>
+                <input
+                  type='text'
+                  value={personalData.city || ''}
+                  onChange={e => handleInputChange('city', e.target.value)}
+                  className='w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 focus:ring-2 focus:ring-primary focus:border-transparent'
+                />
+              </div>
+
+              {/* Estado */}
+              <div>
+                <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1'>
+                  Estado *
+                </label>
+                <select
+                  value={personalData.state || ''}
+                  onChange={e => handleInputChange('state', e.target.value)}
+                  className='w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 focus:ring-2 focus:ring-primary focus:border-transparent'
+                >
+                  <option value=''>Selecione</option>
+                  <option value='AC'>Acre</option>
+                  <option value='AL'>Alagoas</option>
+                  <option value='AP'>Amapá</option>
+                  <option value='AM'>Amazonas</option>
+                  <option value='BA'>Bahia</option>
+                  <option value='CE'>Ceará</option>
+                  <option value='DF'>Distrito Federal</option>
+                  <option value='ES'>Espírito Santo</option>
+                  <option value='GO'>Goiás</option>
+                  <option value='MA'>Maranhão</option>
+                  <option value='MT'>Mato Grosso</option>
+                  <option value='MS'>Mato Grosso do Sul</option>
+                  <option value='MG'>Minas Gerais</option>
+                  <option value='PA'>Pará</option>
+                  <option value='PB'>Paraíba</option>
+                  <option value='PR'>Paraná</option>
+                  <option value='PE'>Pernambuco</option>
+                  <option value='PI'>Piauí</option>
+                  <option value='RJ'>Rio de Janeiro</option>
+                  <option value='RN'>Rio Grande do Norte</option>
+                  <option value='RS'>Rio Grande do Sul</option>
+                  <option value='RO'>Rondônia</option>
+                  <option value='RR'>Roraima</option>
+                  <option value='SC'>Santa Catarina</option>
+                  <option value='SP'>São Paulo</option>
+                  <option value='SE'>Sergipe</option>
+                  <option value='TO'>Tocantins</option>
+                </select>
+              </div>
+            </div>
+
+            <div className='flex justify-between pt-4'>
+              <button
+                onClick={() => setCurrentStep(2)}
+                className='flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900'
+              >
+                <ArrowLeft className='w-4 h-4' />
+                Voltar
+              </button>
+
+              <button
+                onClick={handleSavePersonalData}
+                disabled={submitting || !personalData.full_name || !personalData.document_number}
+                className='flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed'
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className='w-4 h-4 animate-spin' />
+                    Salvando...
+                  </>
+                ) : (
+                  <>
+                    Continuar
+                    <ArrowRight className='w-4 h-4' />
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )
+
+      case 4:
+        return (
+          <div className='space-y-6'>
+            <div className='text-center mb-6'>
+              <h2 className='text-xl font-bold text-gray-900 dark:text-white'>
+                Envio de Documentos
+              </h2>
+              <p className='text-gray-500 mt-1'>Envie os documentos necessários para verificação</p>
+            </div>
+
+            {/* Documentos necessários */}
+            <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+              {/* CNH ou RG */}
+              <DocumentUploadCard
+                documentType={DocumentType.CNH_FRONT}
+                document={getUploadedDocuments().find(
+                  d => d.document_type === DocumentType.CNH_FRONT
+                )}
+                onUpload={file => handleUploadDocument(DocumentType.CNH_FRONT, file)}
+                onDelete={() => {
+                  const doc = getUploadedDocuments().find(
+                    d => d.document_type === DocumentType.CNH_FRONT
+                  )
+                  if (doc) handleDeleteDocument(doc.id)
+                }}
+                uploading={uploading}
+                progress={uploadProgress}
+              />
+
+              <DocumentUploadCard
+                documentType={DocumentType.CNH_BACK}
+                document={getUploadedDocuments().find(
+                  d => d.document_type === DocumentType.CNH_BACK
+                )}
+                onUpload={file => handleUploadDocument(DocumentType.CNH_BACK, file)}
+                onDelete={() => {
+                  const doc = getUploadedDocuments().find(
+                    d => d.document_type === DocumentType.CNH_BACK
+                  )
+                  if (doc) handleDeleteDocument(doc.id)
+                }}
+                uploading={uploading}
+                progress={uploadProgress}
+              />
+
+              {/* Selfie */}
+              <div className='md:col-span-2'>
+                <DocumentUploadCard
+                  documentType={DocumentType.SELFIE_WITH_DOCUMENT}
+                  document={getUploadedDocuments().find(
+                    d => d.document_type === DocumentType.SELFIE_WITH_DOCUMENT
+                  )}
+                  onUpload={file => handleUploadDocument(DocumentType.SELFIE_WITH_DOCUMENT, file)}
+                  onDelete={() => {
+                    const doc = getUploadedDocuments().find(
+                      d => d.document_type === DocumentType.SELFIE_WITH_DOCUMENT
+                    )
+                    if (doc) handleDeleteDocument(doc.id)
+                  }}
+                  uploading={uploading}
+                  progress={uploadProgress}
+                />
+              </div>
+
+              {/* Comprovante de residência (se intermediário+) */}
+              {selectedLevel !== KYCLevel.BASIC && (
+                <div className='md:col-span-2'>
+                  <DocumentUploadCard
+                    documentType={DocumentType.PROOF_OF_ADDRESS}
+                    document={getUploadedDocuments().find(
+                      d => d.document_type === DocumentType.PROOF_OF_ADDRESS
+                    )}
+                    onUpload={file => handleUploadDocument(DocumentType.PROOF_OF_ADDRESS, file)}
+                    onDelete={() => {
+                      const doc = getUploadedDocuments().find(
+                        d => d.document_type === DocumentType.PROOF_OF_ADDRESS
+                      )
+                      if (doc) handleDeleteDocument(doc.id)
+                    }}
+                    uploading={uploading}
+                    progress={uploadProgress}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Documentos faltantes */}
+            {getMissingDocuments().length > 0 && (
+              <KYCInfoCard
+                type='warning'
+                title='Documentos pendentes'
+                message={`Ainda faltam ${getMissingDocuments().length} documento(s) para completar sua verificação.`}
+              />
+            )}
+
+            <div className='flex justify-between pt-4'>
+              <button
+                onClick={() => setCurrentStep(3)}
+                className='flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900'
+              >
+                <ArrowLeft className='w-4 h-4' />
+                Voltar
+              </button>
+
+              <button
+                onClick={handleSubmit}
+                disabled={submitting || getMissingDocuments().length > 0}
+                className='flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed'
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className='w-4 h-4 animate-spin' />
+                    Enviando...
+                  </>
+                ) : (
+                  <>
+                    Enviar para Análise
+                    <ArrowRight className='w-4 h-4' />
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )
+
+      default:
+        return null
+    }
+  }
+
+  // ============================================================
+  // MAIN RENDER
+  // ============================================================
+
+  if (loading) {
+    return (
+      <div className='flex items-center justify-center min-h-screen'>
+        <Loader2 className='w-8 h-8 animate-spin text-primary' />
+      </div>
+    )
+  }
+
+  return (
+    <div className='min-h-screen bg-gray-50 dark:bg-gray-900'>
+      {/* Header */}
+      <div className='bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700'>
+        <div className='max-w-4xl mx-auto px-4 py-4'>
+          <div className='flex items-center justify-between'>
+            <div className='flex items-center gap-3'>
+              <button
+                onClick={() => navigate(-1)}
+                className='p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg'
+              >
+                <ArrowLeft className='w-5 h-5' />
+              </button>
+              <div className='flex items-center gap-2'>
+                <Shield className='w-6 h-6 text-primary' />
+                <h1 className='text-xl font-bold text-gray-900 dark:text-white'>Verificação KYC</h1>
+              </div>
+            </div>
+
+            {verification && <KYCStatusBadge status={verification.status} />}
+          </div>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className='max-w-4xl mx-auto px-4 py-8'>
+        {/* Error Alert */}
+        {error && (
+          <div className='mb-6'>
+            <KYCInfoCard
+              type='error'
+              title='Erro'
+              message={error}
+              action={{
+                label: 'Fechar',
+                onClick: clearError,
+              }}
+            />
+          </div>
+        )}
+
+        {/* Step Indicator */}
+        {verification?.status !== KYCStatus.APPROVED &&
+          verification?.status !== KYCStatus.SUBMITTED &&
+          verification?.status !== KYCStatus.UNDER_REVIEW && (
+            <div className='mb-8'>
+              <KYCStepIndicator
+                steps={steps}
+                currentStep={currentStep}
+                onStepClick={step => {
+                  if (step <= currentStep) setCurrentStep(step)
+                }}
+              />
+            </div>
+          )}
+
+        {/* Main Content Card */}
+        <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 md:p-8'>
+          {renderStepContent()}
+        </div>
+
+        {/* Footer Info */}
+        <div className='mt-6 text-center text-sm text-gray-500'>
+          <p>Seus dados são criptografados e protegidos conforme a LGPD.</p>
+          <p className='mt-1'>
+            Dúvidas?{' '}
+            <a href='/support' className='text-primary hover:underline'>
+              Entre em contato
+            </a>
+          </p>
         </div>
       </div>
     </div>
   )
 }
+
+export { KYCPage }
+export default KYCPage

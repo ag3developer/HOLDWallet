@@ -25,6 +25,8 @@ from app.db.database import get_db
 from app.core.security import get_current_user
 from app.models.user import User
 from app.services.wolkpay_service import WolkPayService
+from app.core.kyc_middleware import check_user_kyc_level
+from app.models.kyc import KYCLevel
 from app.schemas.wolkpay import (
     CreateInvoiceRequest,
     InvoiceCreatedResponse,
@@ -90,10 +92,14 @@ async def create_invoice(
     - Validade: 15 minutos (devido à volatilidade crypto)
     - Limite por operação: R$ 15.000,00
     - Taxas: 3,65% serviço + 0,15% rede
+    - KYC: Requer nível INTERMEDIATE (para receber pagamentos)
     
     Retorna URL de checkout para compartilhar com o pagador.
     """
     try:
+        # Verificar KYC - WolkPay requer INTERMEDIATE para receber pagamentos
+        await check_user_kyc_level(current_user.id, KYCLevel.INTERMEDIATE, db)
+        
         service = WolkPayService(db)
         invoice, checkout_url = await service.create_invoice(
             user_id=str(current_user.id),

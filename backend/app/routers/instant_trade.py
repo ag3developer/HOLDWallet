@@ -16,6 +16,7 @@ import logging
 
 from app.core.db import get_db
 from app.core.security import get_current_user
+from app.core.kyc_middleware import check_kyc_limit
 from app.models.user import User
 from app.models.instant_trade import InstantTrade
 from app.services.instant_trade_service import get_instant_trade_service, InstantTradeService
@@ -172,10 +173,28 @@ async def create_trade(
     - Trade details with reference code (OTC-YYYY-XXXXXX)
     - Payment information
     - Expiration time (15 minutes)
+    
+    Requires:
+    - KYC Básico para operações até R$ 1.000
+    - KYC Intermediário para operações até R$ 50.000
+    - KYC Avançado para operações acima de R$ 50.000
     """
     try:
         logger.info(f"Creating trade: quote_id={request.quote_id}, payment_method={request.payment_method}, user_id={current_user.id}")
         logger.info(f"BRL values received: brl_amount={request.brl_amount}, brl_total_amount={request.brl_total_amount}, usd_to_brl_rate={request.usd_to_brl_rate}")
+        
+        # ========== VALIDAÇÃO KYC ==========
+        # Verificar se o usuário tem KYC aprovado para o valor da operação
+        brl_total = float(request.brl_total_amount) if request.brl_total_amount else 0
+        if brl_total > 0:
+            await check_kyc_limit(
+                db=db,
+                user=current_user,
+                service_type="instant_trade",
+                operation_type="transaction",
+                amount_brl=brl_total
+            )
+        # ====================================
         
         service = get_instant_trade_service(db)
         
@@ -263,11 +282,28 @@ async def create_trade_with_pix(
     - PIX QR Code (EMV payload for copy-paste)
     - PIX QR Code image (base64)
     - Expiration time (15 minutes)
+    
+    Requires:
+    - KYC Básico para operações até R$ 1.000
+    - KYC Intermediário para operações até R$ 50.000
+    - KYC Avançado para operações acima de R$ 50.000
     """
     try:
         from app.services.banco_brasil_service import get_banco_brasil_service
         
         logger.info(f"Creating trade with PIX: quote_id={request.quote_id}, user_id={current_user.id}")
+        
+        # ========== VALIDAÇÃO KYC ==========
+        brl_total = float(request.brl_total_amount) if request.brl_total_amount else 0
+        if brl_total > 0:
+            await check_kyc_limit(
+                db=db,
+                user=current_user,
+                service_type="instant_trade",
+                operation_type="transaction",
+                amount_brl=brl_total
+            )
+        # ====================================
         
         # 1. Create trade with PIX payment method
         service = get_instant_trade_service(db)

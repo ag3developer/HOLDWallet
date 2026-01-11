@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useUpdateProfile } from '@/hooks/useAuth'
 import { useUserActivities } from '@/hooks/useUserActivities'
+import useKYC from '@/hooks/useKYC'
+import { KYCStatus, KYCLevel, DocumentType, DocumentStatus } from '@/services/kyc'
 import UserActivityService from '@/services/userActivityService'
 import { UserProfileSection } from '@/components/trader/UserProfileSection'
 import {
@@ -33,12 +35,23 @@ import {
   Download,
   Trash2,
   TrendingUp,
+  FileText,
+  Clock,
+  CheckCircle,
+  XCircle,
+  Loader2,
+  Trophy,
+  ClipboardList,
+  Lightbulb,
 } from 'lucide-react'
 
 export const ProfilePage = () => {
   const navigate = useNavigate()
   const { user, token } = useAuthStore()
   const updateProfileMutation = useUpdateProfile()
+
+  // KYC Hook - Dados reais do backend
+  const { verification, loading: kycLoading, loadStatus: loadKYCStatus } = useKYC()
 
   // ⚠️ Desabilitado até endpoint /users/me/activities ser implementado no backend
   const { data: activitiesData, isLoading: isLoadingActivities } = useUserActivities({
@@ -408,13 +421,13 @@ export const ProfilePage = () => {
         </div>
       )}
 
-      {/* KYC Tab */}
+      {/* KYC Tab - Integrado com Backend */}
       {activeTab === 'kyc' && (
         <div className='grid grid-cols-1 lg:grid-cols-3 gap-6'>
           <div className='lg:col-span-2'>
             <div className='bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6'>
               <h3 className='text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2'>
-                <Lock className='w-5 h-5 text-blue-600' />
+                <Shield className='w-5 h-5 text-blue-600' />
                 Verificação KYC (Know Your Customer)
               </h3>
               <p className='text-gray-600 dark:text-gray-400 mb-6'>
@@ -422,123 +435,287 @@ export const ProfilePage = () => {
                 aumentar seus limites de transação.
               </p>
 
-              <div className='space-y-6'>
-                {/* Verification Status */}
-                <div className='p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg'>
-                  <div className='flex items-start gap-3'>
-                    <AlertCircle className='w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5' />
-                    <div>
-                      <h4 className='font-semibold text-blue-900 dark:text-blue-200'>
-                        Aguardando Verificação
-                      </h4>
-                      <p className='text-sm text-blue-800 dark:text-blue-300 mt-1'>
-                        Sua documentação foi recebida. Normalmente analisamos em até 48 horas.
-                      </p>
-                    </div>
-                  </div>
+              {kycLoading ? (
+                <div className='flex items-center justify-center py-12'>
+                  <Loader2 className='w-8 h-8 text-blue-600 animate-spin' />
+                  <span className='ml-3 text-gray-600 dark:text-gray-400'>
+                    Carregando status KYC...
+                  </span>
                 </div>
-
-                {/* Verification Steps */}
-                <div className='space-y-4'>
-                  <h4 className='font-semibold text-gray-900 dark:text-white'>
-                    Etapas de Verificação
-                  </h4>
-
-                  <div className='space-y-3'>
-                    {[
-                      {
-                        step: 1,
-                        title: 'Documento de Identidade',
-                        status: 'completed',
-                        icon: Check,
-                      },
-                      { step: 2, title: 'Prova de Endereço', status: 'completed', icon: Check },
-                      {
-                        step: 3,
-                        title: 'Verificação Facial',
-                        status: 'pending',
-                        icon: AlertCircle,
-                      },
-                    ].map(item => (
-                      <div key={item.step} className='flex items-start gap-4'>
-                        <div
-                          className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                            item.status === 'completed'
-                              ? 'bg-green-100 dark:bg-green-900/30'
-                              : 'bg-yellow-100 dark:bg-yellow-900/30'
-                          }`}
-                        >
-                          <item.icon
-                            className={`w-5 h-5 ${
-                              item.status === 'completed'
-                                ? 'text-green-600 dark:text-green-400'
-                                : 'text-yellow-600 dark:text-yellow-400'
+              ) : (
+                <div className='space-y-6'>
+                  {/* Status Card Dinâmico */}
+                  {verification ? (
+                    <div
+                      className={`p-4 rounded-lg border ${
+                        verification.status === KYCStatus.APPROVED
+                          ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
+                          : verification.status === KYCStatus.REJECTED
+                            ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
+                            : verification.status === KYCStatus.UNDER_REVIEW
+                              ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800'
+                              : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
+                      }`}
+                    >
+                      <div className='flex items-start gap-3'>
+                        {verification.status === KYCStatus.APPROVED ? (
+                          <CheckCircle className='w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5' />
+                        ) : verification.status === KYCStatus.REJECTED ? (
+                          <XCircle className='w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5' />
+                        ) : verification.status === KYCStatus.UNDER_REVIEW ? (
+                          <Clock className='w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5' />
+                        ) : (
+                          <AlertCircle className='w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5' />
+                        )}
+                        <div>
+                          <h4
+                            className={`font-semibold ${
+                              verification.status === KYCStatus.APPROVED
+                                ? 'text-green-900 dark:text-green-200'
+                                : verification.status === KYCStatus.REJECTED
+                                  ? 'text-red-900 dark:text-red-200'
+                                  : verification.status === KYCStatus.UNDER_REVIEW
+                                    ? 'text-yellow-900 dark:text-yellow-200'
+                                    : 'text-blue-900 dark:text-blue-200'
                             }`}
-                          />
-                        </div>
-                        <div className='flex-1'>
-                          <p className='font-medium text-gray-900 dark:text-white'>{item.title}</p>
-                          <p className='text-sm text-gray-600 dark:text-gray-400 mt-0.5'>
-                            {item.status === 'completed'
-                              ? 'Verificado com sucesso'
-                              : 'Aguardando sua ação'}
+                          >
+                            {verification.status === KYCStatus.APPROVED && (
+                              <span className='flex items-center gap-1.5'>
+                                <CheckCircle className='w-4 h-4' /> Verificação Aprovada
+                              </span>
+                            )}
+                            {verification.status === KYCStatus.REJECTED && (
+                              <span className='flex items-center gap-1.5'>
+                                <XCircle className='w-4 h-4' /> Verificação Rejeitada
+                              </span>
+                            )}
+                            {verification.status === KYCStatus.UNDER_REVIEW && (
+                              <span className='flex items-center gap-1.5'>
+                                <Clock className='w-4 h-4' /> Em Análise
+                              </span>
+                            )}
+                            {verification.status === KYCStatus.SUBMITTED && (
+                              <span className='flex items-center gap-1.5'>
+                                <FileText className='w-4 h-4' /> Documentos Enviados
+                              </span>
+                            )}
+                            {verification.status === KYCStatus.PENDING && (
+                              <span className='flex items-center gap-1.5'>
+                                <FileText className='w-4 h-4' /> Pendente
+                              </span>
+                            )}
+                          </h4>
+                          <p
+                            className={`text-sm mt-1 ${
+                              verification.status === KYCStatus.APPROVED
+                                ? 'text-green-800 dark:text-green-300'
+                                : verification.status === KYCStatus.REJECTED
+                                  ? 'text-red-800 dark:text-red-300'
+                                  : verification.status === KYCStatus.UNDER_REVIEW
+                                    ? 'text-yellow-800 dark:text-yellow-300'
+                                    : 'text-blue-800 dark:text-blue-300'
+                            }`}
+                          >
+                            {verification.status === KYCStatus.APPROVED &&
+                              `Nível: ${verification.level} - Você tem acesso completo!`}
+                            {verification.status === KYCStatus.REJECTED &&
+                              `Motivo: ${verification.rejection_reason || 'Documentos inválidos'}`}
+                            {verification.status === KYCStatus.UNDER_REVIEW &&
+                              'Sua documentação está sendo analisada. Normalmente em até 48h.'}
+                            {verification.status === KYCStatus.SUBMITTED &&
+                              'Seus documentos foram enviados para análise.'}
+                            {verification.status === KYCStatus.PENDING &&
+                              'Complete seus dados para iniciar a verificação.'}
                           </p>
                         </div>
-                        <div
-                          className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            item.status === 'completed'
-                              ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                              : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
-                          }`}
-                        >
-                          {item.status === 'completed' ? 'Completo' : 'Pendente'}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className='p-4 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg'>
+                      <div className='flex items-start gap-3'>
+                        <FileText className='w-5 h-5 text-gray-500 flex-shrink-0 mt-0.5' />
+                        <div>
+                          <h4 className='font-semibold text-gray-900 dark:text-gray-200'>
+                            Verificação não iniciada
+                          </h4>
+                          <p className='text-sm text-gray-600 dark:text-gray-400 mt-1'>
+                            Inicie sua verificação KYC para desbloquear limites maiores.
+                          </p>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
+                    </div>
+                  )}
 
-                {/* Verification Benefits */}
-                <div className='space-y-4'>
-                  <h4 className='font-semibold text-gray-900 dark:text-white'>
-                    Benefícios da Verificação
-                  </h4>
-                  <div className='grid grid-cols-2 gap-4'>
-                    {[
-                      { title: 'Limites Maiores', desc: 'Aumente seus limites de transação' },
-                      { title: 'Melhor Reputação', desc: 'Aumente confiança com parceiros' },
-                      { title: 'Acesso Completo', desc: 'Desbloqueie todas as funcionalidades' },
-                      { title: 'Suporte Prioritário', desc: 'Atendimento prioritário 24/7' },
-                    ].map((benefit, idx) => (
-                      <div key={idx} className='p-3 bg-gray-50 dark:bg-gray-700 rounded-lg'>
-                        <p className='font-medium text-gray-900 dark:text-white text-sm'>
-                          {benefit.title}
-                        </p>
-                        <p className='text-xs text-gray-600 dark:text-gray-400 mt-1'>
-                          {benefit.desc}
-                        </p>
+                  {/* Nível Atual e Limites */}
+                  {verification && (
+                    <div className='space-y-4'>
+                      <h4 className='font-semibold text-gray-900 dark:text-white'>Seu Nível KYC</h4>
+                      <div className='flex items-center gap-4'>
+                        <div
+                          className={`px-4 py-2 rounded-full font-medium ${
+                            verification.level === KYCLevel.ADVANCED
+                              ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
+                              : verification.level === KYCLevel.INTERMEDIATE
+                                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                                : verification.level === KYCLevel.BASIC
+                                  ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-400'
+                          }`}
+                        >
+                          {verification.level === KYCLevel.ADVANCED && (
+                            <span className='flex items-center gap-1.5'>
+                              <Trophy className='w-4 h-4' /> Avançado
+                            </span>
+                          )}
+                          {verification.level === KYCLevel.INTERMEDIATE && (
+                            <span className='flex items-center gap-1.5'>
+                              <Star className='w-4 h-4' /> Intermediário
+                            </span>
+                          )}
+                          {verification.level === KYCLevel.BASIC && (
+                            <span className='flex items-center gap-1.5'>
+                              <Check className='w-4 h-4' /> Básico
+                            </span>
+                          )}
+                          {verification.level === KYCLevel.NONE && 'Sem verificação'}
+                        </div>
+                        <span className='text-sm text-gray-500 dark:text-gray-400'>
+                          {verification.level === KYCLevel.ADVANCED && 'Limites ilimitados'}
+                          {verification.level === KYCLevel.INTERMEDIATE && 'Até R$ 50.000/tx'}
+                          {verification.level === KYCLevel.BASIC && 'Até R$ 1.000/tx'}
+                          {verification.level === KYCLevel.NONE && 'Limites mínimos'}
+                        </span>
                       </div>
-                    ))}
-                  </div>
-                </div>
+                    </div>
+                  )}
 
-                <button
-                  onClick={() => navigate('/kyc')}
-                  className='w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors'
-                >
-                  Continuar Verificação
-                </button>
-              </div>
+                  {/* Documentos Enviados */}
+                  {verification?.documents && verification.documents.length > 0 && (
+                    <div className='space-y-4'>
+                      <h4 className='font-semibold text-gray-900 dark:text-white'>
+                        Documentos Enviados
+                      </h4>
+                      <div className='space-y-3'>
+                        {verification.documents.map(doc => (
+                          <div
+                            key={doc.id}
+                            className='flex items-center gap-4 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg'
+                          >
+                            <FileText className='w-5 h-5 text-gray-500' />
+                            <div className='flex-1'>
+                              <p className='font-medium text-gray-900 dark:text-white text-sm'>
+                                {doc.document_type === DocumentType.RG_FRONT && 'RG (Frente)'}
+                                {doc.document_type === DocumentType.RG_BACK && 'RG (Verso)'}
+                                {doc.document_type === DocumentType.CNH_FRONT && 'CNH (Frente)'}
+                                {doc.document_type === DocumentType.CNH_BACK && 'CNH (Verso)'}
+                                {doc.document_type === DocumentType.PASSPORT && 'Passaporte'}
+                                {doc.document_type === DocumentType.SELFIE_WITH_DOCUMENT &&
+                                  'Selfie com Documento'}
+                                {doc.document_type === DocumentType.PROOF_OF_ADDRESS &&
+                                  'Comprovante de Endereço'}
+                              </p>
+                              <p className='text-xs text-gray-500 dark:text-gray-400'>
+                                {new Date(doc.uploaded_at).toLocaleDateString('pt-BR')}
+                              </p>
+                            </div>
+                            <div
+                              className={`px-2 py-1 rounded text-xs font-medium ${
+                                doc.status === DocumentStatus.APPROVED
+                                  ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                  : doc.status === DocumentStatus.REJECTED
+                                    ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                    : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                              }`}
+                            >
+                              {doc.status === DocumentStatus.APPROVED
+                                ? 'Aprovado'
+                                : doc.status === DocumentStatus.REJECTED
+                                  ? 'Rejeitado'
+                                  : 'Pendente'}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Benefícios */}
+                  <div className='space-y-4'>
+                    <h4 className='font-semibold text-gray-900 dark:text-white'>
+                      Benefícios da Verificação
+                    </h4>
+                    <div className='grid grid-cols-2 gap-4'>
+                      {[
+                        {
+                          id: 'limits',
+                          title: 'Limites Maiores',
+                          desc: 'Aumente seus limites de transação',
+                        },
+                        {
+                          id: 'reputation',
+                          title: 'Melhor Reputação',
+                          desc: 'Aumente confiança com parceiros',
+                        },
+                        {
+                          id: 'access',
+                          title: 'Acesso Completo',
+                          desc: 'Desbloqueie todas as funcionalidades',
+                        },
+                        {
+                          id: 'support',
+                          title: 'Suporte Prioritário',
+                          desc: 'Atendimento prioritário 24/7',
+                        },
+                      ].map(benefit => (
+                        <div
+                          key={benefit.id}
+                          className='p-3 bg-gray-50 dark:bg-gray-700 rounded-lg'
+                        >
+                          <p className='font-medium text-gray-900 dark:text-white text-sm'>
+                            {benefit.title}
+                          </p>
+                          <p className='text-xs text-gray-600 dark:text-gray-400 mt-1'>
+                            {benefit.desc}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Botão de Ação */}
+                  <button
+                    onClick={() => navigate('/kyc')}
+                    className='w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors'
+                  >
+                    {verification?.status === KYCStatus.APPROVED
+                      ? 'Ver Detalhes'
+                      : verification?.status === KYCStatus.UNDER_REVIEW
+                        ? 'Ver Status'
+                        : 'Iniciar Verificação'}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
-          <div className='lg:col-span-1'>
+          <div className='lg:col-span-1 space-y-4'>
             <div className='bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-4'>
-              <h4 className='font-semibold text-green-900 dark:text-green-200 mb-3'>
-                ✅ Segurança
+              <h4 className='font-semibold text-green-900 dark:text-green-200 mb-3 flex items-center gap-2'>
+                <Lock className='w-4 h-4' /> Segurança
               </h4>
               <p className='text-sm text-green-800 dark:text-green-300'>
-                Seus dados são criptografados e protegidos com os mais altos padrões de segurança.
+                Seus dados são criptografados e protegidos com os mais altos padrões de segurança
+                (AES-256).
+              </p>
+            </div>
+
+            <div className='bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4'>
+              <h4 className='font-semibold text-blue-900 dark:text-blue-200 mb-3 flex items-center gap-2'>
+                <ClipboardList className='w-4 h-4' /> LGPD
+              </h4>
+              <p className='text-sm text-blue-800 dark:text-blue-300'>
+                Você pode exportar ou excluir seus dados a qualquer momento conforme a Lei Geral de
+                Proteção de Dados.
               </p>
             </div>
           </div>
@@ -766,7 +943,9 @@ export const ProfilePage = () => {
 
           <div className='lg:col-span-1'>
             <div className='bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4'>
-              <h4 className='font-semibold text-blue-900 dark:text-blue-200 mb-3'>💡 Dica</h4>
+              <h4 className='font-semibold text-blue-900 dark:text-blue-200 mb-3 flex items-center gap-2'>
+                <Lightbulb className='w-4 h-4' /> Dica
+              </h4>
               <p className='text-sm text-blue-800 dark:text-blue-300'>
                 Mantenha seu perfil de trader sempre atualizado para atrair mais clientes e melhorar
                 sua reputação

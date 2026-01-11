@@ -21,6 +21,7 @@ import uuid
 from app.db.database import get_db
 from app.core.security import get_current_user
 from app.core.config import settings
+from app.core.kyc_middleware import check_kyc_limit
 from app.models.user import User
 from app.services.platform_settings_service import platform_settings_service
 
@@ -382,7 +383,14 @@ async def create_order(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Create a new P2P order"""
+    """
+    Create a new P2P order.
+    
+    Requires:
+    - KYC Básico para ordens até R$ 5.000
+    - KYC Intermediário para ordens até R$ 100.000
+    - KYC Avançado para ordens acima de R$ 100.000
+    """
     user_id = str(current_user.id)  # ✅ UUID do usuário autenticado
     print(f"[DEBUG] POST /orders - user_id: {user_id}, data: {order_data}")
     
@@ -399,6 +407,19 @@ async def create_order(
         time_limit = int(order_data.get("time_limit", 30))
         terms = order_data.get("terms")
         auto_reply = order_data.get("auto_reply")
+        
+        # ========== VALIDAÇÃO KYC ==========
+        # Calcula valor máximo da ordem em BRL para validar limite
+        max_order_value_brl = max_amount * price if fiat_currency == "BRL" else max_amount
+        if max_order_value_brl > 0:
+            await check_kyc_limit(
+                db=db,
+                user=current_user,
+                service_type="p2p",
+                operation_type="transaction",
+                amount_brl=max_order_value_brl
+            )
+        # ====================================
         
         # Validation
         if order_type not in ['buy', 'sell']:
@@ -1083,12 +1104,32 @@ async def start_trade(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Start a new P2P trade"""
+    """
+    Start a new P2P trade.
+    
+    Requires:
+    - KYC Básico para trades até R$ 5.000
+    - KYC Intermediário para trades até R$ 100.000
+    - KYC Avançado para trades acima de R$ 100.000
+    """
     buyer_id = str(current_user.id)  # ✅ UUID do usuário autenticado
     print(f"[DEBUG] POST /trades - buyer_id: {buyer_id}, data: {trade_data}")
     
     try:
         from uuid import UUID as PyUUID
+        
+        # ========== VALIDAÇÃO KYC ==========
+        # Valida KYC para o valor do trade (se informado)
+        trade_amount_brl = float(trade_data.get("fiat_amount") or trade_data.get("amount") or 0)
+        if trade_amount_brl > 0:
+            await check_kyc_limit(
+                db=db,
+                user=current_user,
+                service_type="p2p",
+                operation_type="transaction",
+                amount_brl=trade_amount_brl
+            )
+        # ====================================
         
         # Aceitar tanto orderId (camelCase) quanto order_id (snake_case)
         order_id_raw = trade_data.get("orderId") or trade_data.get("order_id")
