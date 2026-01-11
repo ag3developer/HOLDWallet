@@ -129,6 +129,14 @@ class InstantTrade(Base):
     network = Column(String(20), nullable=True)               # 'ethereum', 'polygon', 'base', etc
     tx_hash = Column(String(255), nullable=True)              # Hash da transação blockchain
     
+    # PIX - Dados do Banco do Brasil API
+    pix_txid = Column(String(50), nullable=True, index=True)  # TXID do PIX no BB
+    pix_location = Column(String(500), nullable=True)          # URL do QR Code
+    pix_qrcode = Column(Text, nullable=True)                   # Payload EMV copia-e-cola
+    pix_valor_recebido = Column(Numeric(18, 2), nullable=True) # Valor efetivamente recebido
+    pix_end_to_end_id = Column(String(50), nullable=True)      # ID único do PIX (e2e)
+    pix_confirmado_em = Column(DateTime, nullable=True)        # Quando foi confirmado via webhook
+    
     # Timing
     expires_at = Column(DateTime, nullable=False, index=True)          # Válido por 15 min
     payment_confirmed_at = Column(DateTime, nullable=True)              # Quando pagou
@@ -164,6 +172,7 @@ class InstantTrade(Base):
         Index('idx_instant_trades_expires_at', 'expires_at'),
         Index('idx_instant_trades_reference_code', 'reference_code'),
         Index('idx_instant_trades_symbol', 'symbol'),
+        Index('idx_instant_trades_pix_txid', 'pix_txid'),
     )
     
     def __repr__(self):

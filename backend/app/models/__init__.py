@@ -17,6 +17,11 @@ from .instant_trade import InstantTrade, InstantTradeHistory, TradeStatus, Trade
 from .accounting import AccountingEntry, AccountingReport, AccountingEntryType, AccountingEntryStatus
 from .platform_settings import PlatformSettings
 from .security import LoginAttempt, BlockedIP, SecurityAlert, UserSession, AuditLog
+from .wolkpay import (
+    WolkPayInvoice, WolkPayPayer, WolkPayPayment, WolkPayApproval, 
+    WolkPayTermsVersion, WolkPayPayerLimit, WolkPayAuditLog,
+    InvoiceStatus, PersonType, DocumentType, PaymentStatus, ApprovalAction
+)
 
 # Import P2P models to ensure tables are created
 from . import p2p
@@ -30,6 +35,7 @@ from . import platform_settings
 from . import webauthn
 from . import security
 from . import push_subscription
+from . import wolkpay
 
 __all__ = [
     # Base
@@ -77,7 +83,7 @@ __all__ = [
     "AccountingEntryStatus",
     
     # Modules for table creation
-    "p2p", "chat", "reputation", "system_wallet", "system_blockchain_wallet", "instant_trade", "accounting",
+    "p2p", "chat", "reputation", "system_wallet", "system_blockchain_wallet", "instant_trade", "accounting", "wolkpay",
     
     # Security & Audit
     "LoginAttempt",
@@ -89,4 +95,18 @@ __all__ = [
     # Push Notifications
     "PushSubscription",
     "NotificationPreference",
+    
+    # WolkPay
+    "WolkPayInvoice",
+    "WolkPayPayer",
+    "WolkPayPayment",
+    "WolkPayApproval",
+    "WolkPayTermsVersion",
+    "WolkPayPayerLimit",
+    "WolkPayAuditLog",
+    "InvoiceStatus",
+    "PersonType",
+    "DocumentType",
+    "PaymentStatus",
+    "ApprovalAction",
 ]

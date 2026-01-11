@@ -91,6 +91,24 @@ class Settings(BaseSettings):
     VAPID_PRIVATE_KEY: Optional[str] = None
     VAPID_EMAIL: str = "contato@wolknow.com"
     
+    # ===== BANCO DO BRASIL API =====
+    # Ambiente: "sandbox" ou "production"
+    BB_ENVIRONMENT: str = "sandbox"
+    # Credenciais OAuth 2.0 (obtidas em developers.bb.com.br)
+    BB_CLIENT_ID: Optional[str] = None
+    BB_CLIENT_SECRET: Optional[str] = None
+    # App Key (identificador da aplicação no portal BB)
+    BB_GW_DEV_APP_KEY: Optional[str] = None
+    # Chave PIX da empresa (CNPJ da HOLD DIGITAL ASSETS)
+    BB_PIX_KEY: str = "24275355000151"
+    # URL do webhook para receber notificações de pagamento
+    BB_WEBHOOK_URL: Optional[str] = None
+    # Secret para validação de assinatura dos webhooks
+    BB_WEBHOOK_SECRET: Optional[str] = None
+    # Certificado mTLS (obrigatório para produção)
+    BB_CERT_PATH: Optional[str] = None  # Caminho para o certificado .crt
+    BB_KEY_PATH: Optional[str] = None   # Caminho para a chave privada .key
+    
     class Config:
         # Carregar .env.production se existir, senão .env
         env_file = ".env.production" if os.path.exists(".env.production") else ".env"

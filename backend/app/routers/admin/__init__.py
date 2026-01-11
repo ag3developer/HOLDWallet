@@ -34,6 +34,7 @@ from .system_blockchain_wallet import router as system_blockchain_wallet_router
 from .backup import router as backup_router
 from .notifications import router as notifications_router
 from .security import router as security_router
+from .wolkpay_admin import router as wolkpay_admin_router
 
 # Create main admin router
 admin_router = APIRouter(prefix="/admin", tags=["Admin"])
@@ -69,5 +70,6 @@ __all__ = [
     "system_blockchain_wallet_router",
     "backup_router",
     "notifications_router",
-    "security_router"
+    "security_router",
+    "wolkpay_admin_router"
 ]

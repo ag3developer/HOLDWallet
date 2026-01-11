@@ -14,6 +14,11 @@ import {
   Plus,
   ExternalLink,
   ArrowDownToLine,
+  Zap,
+  QrCode,
+  Copy,
+  CheckCheck,
+  Shield,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
@@ -67,6 +72,7 @@ interface ConfirmationPanelProps {
 
 // Métodos de pagamento para COMPRA (usuário paga)
 const BUY_PAYMENT_METHODS = [
+  { id: 'bb_auto', name: 'BB-AUTO', icon: Zap, highlight: true, badge: 'Instantâneo' },
   { id: 'pix', name: 'PIX', icon: Banknote },
   { id: 'ted', name: 'TED', icon: Building2 },
   { id: 'credit_card', name: 'Credit', icon: CreditCard },
@@ -98,6 +104,17 @@ export function ConfirmationPanel({
   const [timeLeft, setTimeLeft] = useState(quote.expires_in_seconds || 30)
   const [quoteExpired, setQuoteExpired] = useState(false)
 
+  // Estados para BB-AUTO (PIX automático via Banco do Brasil)
+  const [pixData, setPixData] = useState<{
+    txid: string
+    qrcode: string
+    qrcode_image?: string
+    valor: string
+    expiracao_segundos: number
+  } | null>(null)
+  const [pixCopied, setPixCopied] = useState(false)
+  const [pixStatus, setPixStatus] = useState<'pending' | 'paid' | 'expired'>('pending')
+
   // Auto-selecionar primeiro método de recebimento quando carregar (para SELL)
   useEffect(() => {
     if (!isBuy && userPaymentMethods && userPaymentMethods.length > 0 && !selectedReceivingMethod) {
@@ -128,6 +145,41 @@ export function ConfirmationPanel({
     return () => clearInterval(timer)
   }, [quote.quote_id, tradeCreated])
 
+  // Função para copiar código PIX
+  const copyPixCode = async () => {
+    if (pixData?.qrcode) {
+      try {
+        await navigator.clipboard.writeText(pixData.qrcode)
+        setPixCopied(true)
+        toast.success('Código PIX copiado!')
+        setTimeout(() => setPixCopied(false), 3000)
+      } catch {
+        toast.error('Erro ao copiar código')
+      }
+    }
+  }
+
+  // Polling para verificar status do PIX BB-AUTO
+  useEffect(() => {
+    if (!tradeCreated || selectedPayment !== 'bb_auto' || pixStatus !== 'pending') return
+
+    const checkPixStatus = async () => {
+      try {
+        const response = await apiClient.get(`/instant-trade/${tradeCreated}/pix-status`)
+        if (response.data.pix_pago) {
+          setPixStatus('paid')
+          toast.success('Pagamento PIX confirmado! Sua crypto será enviada automaticamente.')
+        }
+      } catch (error) {
+        console.log('[BB-AUTO] Error checking PIX status:', error)
+      }
+    }
+
+    // Verificar a cada 5 segundos
+    const interval = setInterval(checkPixStatus, 5000)
+    return () => clearInterval(interval)
+  }, [tradeCreated, selectedPayment, pixStatus])
+
   const createTrade = async () => {
     // Validação para SELL: precisa ter método de recebimento selecionado
     if (!isBuy && !selectedReceivingMethod) {
@@ -137,6 +189,51 @@ export function ConfirmationPanel({
 
     setLoading(true)
     try {
+      // BB-AUTO: Usar endpoint especial que gera PIX via API do BB
+      if (selectedPayment === 'bb_auto') {
+        console.log('[BB-AUTO] Creating trade with PIX automático...')
+
+        const bbAutoData = {
+          quote_id: quote.quote_id,
+          payment_method: 'pix', // Obrigatório para o backend
+          brl_amount: quote.brl_amount,
+          brl_total_amount: quote.brl_total_amount,
+          usd_to_brl_rate: quote.usd_to_brl_rate,
+        }
+
+        console.log('[BB-AUTO] Request data:', bbAutoData)
+
+        const response = await apiClient.post('/instant-trade/create-with-pix', bbAutoData)
+
+        console.log('[BB-AUTO] Response:', response.data)
+
+        if (response.data.success && response.data.pix) {
+          // Salvar dados do PIX
+          setPixData({
+            txid: response.data.pix.txid,
+            qrcode: response.data.pix.qrcode,
+            qrcode_image: response.data.pix.qrcode_image,
+            valor: response.data.pix.valor,
+            expiracao_segundos: response.data.pix.expiracao_segundos,
+          })
+
+          const tradeId = response.data.trade_id
+          setTradeCreated(tradeId)
+          setPixStatus('pending')
+
+          toast.success('PIX gerado! Escaneie o QR Code ou copie o código para pagar.')
+
+          // NÃO chamar onSuccess ainda - mostrar QR Code primeiro
+          // O usuário verá a tela de QR Code para pagar
+        } else {
+          throw new Error(response.data.message || 'Erro ao gerar PIX')
+        }
+
+        setLoading(false)
+        return // Retornar aqui para não executar o fluxo normal
+      }
+
+      // Fluxo normal para outros métodos de pagamento
       // Preparar dados do request
       const requestData: {
         quote_id: string
@@ -293,6 +390,141 @@ export function ConfirmationPanel({
   }
 
   // isBuy já declarado no início do componente
+
+  // Renderização especial para BB-AUTO com QR Code PIX
+  if (tradeCreated && pixData && selectedPayment === 'bb_auto') {
+    return (
+      <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-4'>
+        {/* Header */}
+        <div className='flex items-center gap-2 mb-4 pb-3 border-b border-gray-200 dark:border-gray-700'>
+          <button
+            onClick={onBack}
+            className='p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors'
+            title='Voltar'
+            aria-label='Voltar'
+          >
+            <ArrowLeft className='w-4 h-4 text-gray-600 dark:text-gray-400' />
+          </button>
+          <div className='flex-1'>
+            <div className='flex items-center gap-2'>
+              <Zap className='w-5 h-5 text-yellow-500' />
+              <h2 className='text-sm font-bold text-gray-900 dark:text-white'>
+                PIX Automático - Banco do Brasil
+              </h2>
+            </div>
+            <p className='text-xs text-gray-500 dark:text-gray-400 mt-0.5'>
+              Escaneie o QR Code ou copie o código para pagar
+            </p>
+          </div>
+        </div>
+
+        {/* Status do PIX */}
+        {pixStatus === 'paid' ? (
+          <div className='bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg p-4'>
+            <div className='flex items-center gap-3'>
+              <CheckCircle className='w-8 h-8 text-green-600 dark:text-green-400' />
+              <div>
+                <h3 className='font-bold text-green-900 dark:text-green-100'>
+                  Pagamento Confirmado!
+                </h3>
+                <p className='text-sm text-green-700 dark:text-green-300'>
+                  Sua crypto será enviada automaticamente em instantes.
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* QR Code */}
+            <div className='flex flex-col items-center'>
+              {pixData.qrcode_image ? (
+                <div className='bg-white p-4 rounded-xl shadow-lg border-2 border-yellow-400'>
+                  <img src={pixData.qrcode_image} alt='QR Code PIX' className='w-48 h-48' />
+                </div>
+              ) : (
+                <div className='bg-gray-100 dark:bg-gray-700 p-4 rounded-xl w-48 h-48 flex items-center justify-center'>
+                  <QrCode className='w-24 h-24 text-gray-400' />
+                </div>
+              )}
+
+              {/* Valor */}
+              <div className='mt-4 text-center'>
+                <p className='text-sm text-gray-500 dark:text-gray-400'>Valor a pagar</p>
+                <p className='text-2xl font-bold text-gray-900 dark:text-white'>
+                  R$ {pixData.valor}
+                </p>
+              </div>
+            </div>
+
+            {/* Código PIX para copiar */}
+            <div className='space-y-2'>
+              <p className='text-sm font-medium text-gray-700 dark:text-gray-300'>
+                Código PIX Copia e Cola:
+              </p>
+              <div className='relative'>
+                <div className='bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3 pr-12 font-mono text-xs text-gray-800 dark:text-gray-200 break-all max-h-24 overflow-y-auto'>
+                  {pixData.qrcode}
+                </div>
+                <button
+                  onClick={copyPixCode}
+                  className='absolute top-2 right-2 p-2 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors'
+                  title='Copiar código PIX'
+                >
+                  {pixCopied ? (
+                    <CheckCheck className='w-4 h-4 text-green-500' />
+                  ) : (
+                    <Copy className='w-4 h-4 text-gray-500 dark:text-gray-400' />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Timer de expiração */}
+            <div className='bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg p-3'>
+              <div className='flex items-center gap-2'>
+                <Clock className='w-4 h-4 text-amber-600 dark:text-amber-400' />
+                <span className='text-sm text-amber-800 dark:text-amber-200'>
+                  Este PIX expira em {Math.floor(pixData.expiracao_segundos / 60)} minutos
+                </span>
+              </div>
+            </div>
+
+            {/* Status de verificação */}
+            <div className='flex items-center justify-center gap-2 text-sm text-gray-500 dark:text-gray-400'>
+              <Loader className='w-4 h-4 animate-spin' />
+              <span>Aguardando confirmação do pagamento...</span>
+            </div>
+          </>
+        )}
+
+        {/* Informações do Trade */}
+        <div className='bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 space-y-2'>
+          <div className='flex justify-between text-xs'>
+            <span className='text-gray-600 dark:text-gray-400'>Trade ID:</span>
+            <span className='font-mono text-gray-900 dark:text-white'>
+              {tradeCreated.substring(0, 8)}...
+            </span>
+          </div>
+          <div className='flex justify-between text-xs'>
+            <span className='text-gray-600 dark:text-gray-400'>PIX TXID:</span>
+            <span className='font-mono text-gray-900 dark:text-white'>{pixData.txid}</span>
+          </div>
+          <div className='flex justify-between text-xs'>
+            <span className='text-gray-600 dark:text-gray-400'>Você receberá:</span>
+            <span className='font-bold text-green-600 dark:text-green-400'>
+              {quote.crypto_amount.toFixed(8)} {quote.symbol}
+            </span>
+          </div>
+        </div>
+
+        {/* Badge de segurança */}
+        <div className='flex items-center justify-center gap-2 text-xs text-gray-500 dark:text-gray-400 pt-2'>
+          <Shield className='w-3 h-3' />
+          <span>Pagamento processado via API oficial do Banco do Brasil</span>
+        </div>
+      </div>
+    )
+  }
 
   if (tradeCreated) {
     return (
@@ -532,22 +764,47 @@ export function ConfirmationPanel({
             <div className='text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2'>
               Método de Pagamento
             </div>
-            <div className='grid grid-cols-4 gap-2'>
+            <div className='grid grid-cols-5 gap-2'>
               {BUY_PAYMENT_METHODS.map(method => {
                 const IconComponent = method.icon
+                const isHighlight = 'highlight' in method && method.highlight
+                const badge = 'badge' in method ? method.badge : null
                 return (
                   <button
                     key={method.id}
                     onClick={() => setSelectedPayment(method.id)}
                     disabled={loading}
-                    className={`p-2 rounded border transition-all disabled:opacity-50 text-center ${
+                    className={`relative p-2 rounded border transition-all disabled:opacity-50 text-center ${
                       selectedPayment === method.id
-                        ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/30'
-                        : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                        ? isHighlight
+                          ? 'border-yellow-500 bg-yellow-50 dark:bg-yellow-900/30 ring-2 ring-yellow-400'
+                          : 'border-blue-600 bg-blue-50 dark:bg-blue-900/30'
+                        : isHighlight
+                          ? 'border-yellow-400 dark:border-yellow-600 bg-yellow-50/50 dark:bg-yellow-900/10 hover:border-yellow-500'
+                          : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
                     }`}
                   >
-                    <IconComponent className='w-5 h-5 text-blue-600 dark:text-blue-400 mx-auto mb-1' />
-                    <div className='text-xs font-medium text-gray-700 dark:text-gray-300'>
+                    {badge && (
+                      <div className='absolute -top-2 left-1/2 -translate-x-1/2'>
+                        <span className='px-1.5 py-0.5 text-[9px] font-bold bg-yellow-500 text-white rounded-full whitespace-nowrap'>
+                          {badge}
+                        </span>
+                      </div>
+                    )}
+                    <IconComponent
+                      className={`w-5 h-5 mx-auto mb-1 ${
+                        isHighlight
+                          ? 'text-yellow-600 dark:text-yellow-400'
+                          : 'text-blue-600 dark:text-blue-400'
+                      }`}
+                    />
+                    <div
+                      className={`text-xs font-medium ${
+                        isHighlight
+                          ? 'text-yellow-700 dark:text-yellow-300'
+                          : 'text-gray-700 dark:text-gray-300'
+                      }`}
+                    >
                       {method.name}
                     </div>
                   </button>

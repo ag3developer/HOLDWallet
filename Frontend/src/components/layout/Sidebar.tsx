@@ -26,6 +26,7 @@ import {
   MessagesSquare,
   Wrench,
   UserCircle,
+  Users,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/useAuthStore'
 
@@ -47,6 +48,7 @@ const navigation: NavItem[] = [
   // Carteira & Trading
   { name: 'wallet', href: '/wallet', icon: Wallet, group: 'trading' },
   { name: 'instantTrade', href: '/instant-trade', icon: Zap, group: 'trading', badge: 'Hot' },
+  { name: 'wolkpay', href: '/wolkpay', icon: Users, group: 'trading', badge: 'Novo' },
   { name: 'marketplace', href: '/p2p', icon: ShoppingBag, group: 'trading' },
 
   // Comunicação

@@ -21,14 +21,50 @@ class PriceService:
         self.db = db
         self.coingecko_url = "https://api.coingecko.com/api/v3"
         self.coin_mapping = {
+            # Bitcoin
             "bitcoin": "bitcoin",
-            "ethereum": "ethereum", 
-            "polygon": "matic-network",
-            "bsc": "binancecoin",
-            "matic": "matic-network",
-            "bnb": "binancecoin",
             "btc": "bitcoin",
-            "eth": "ethereum"
+            # Ethereum
+            "ethereum": "ethereum", 
+            "eth": "ethereum",
+            # Stablecoins
+            "usdt": "tether",
+            "tether": "tether",
+            "usdc": "usd-coin",
+            "usd-coin": "usd-coin",
+            "dai": "dai",
+            "busd": "binance-usd",
+            # Binance
+            "bnb": "binancecoin",
+            "bsc": "binancecoin",
+            "binancecoin": "binancecoin",
+            # Polygon
+            "matic": "matic-network",
+            "polygon": "matic-network",
+            # Solana
+            "sol": "solana",
+            "solana": "solana",
+            # Tron
+            "trx": "tron",
+            "tron": "tron",
+            # Outros populares
+            "xrp": "ripple",
+            "ripple": "ripple",
+            "ada": "cardano",
+            "cardano": "cardano",
+            "doge": "dogecoin",
+            "dogecoin": "dogecoin",
+            "dot": "polkadot",
+            "polkadot": "polkadot",
+            "avax": "avalanche-2",
+            "avalanche": "avalanche-2",
+            "link": "chainlink",
+            "chainlink": "chainlink",
+            "ltc": "litecoin",
+            "litecoin": "litecoin",
+            # Shiba Inu
+            "shib": "shiba-inu",
+            "shiba-inu": "shiba-inu",
         }
     
     @cached(ttl=60, key_prefix="price")

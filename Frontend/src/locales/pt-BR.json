@@ -56,6 +56,7 @@
     "wallet": "Carteira",
     "marketplace": "Marketplace",
     "instantTrade": "Trade Instantâneo",
+    "wolkpay": "WolkPay",
     "services": "Serviços",
     "contact": "Contato",
     "support": "Suporte",
@@ -511,5 +512,171 @@
     "cryptoPrice": "Preço da crypto",
     "expiresIn": "Expira em",
     "seconds": "segundos"
+  },
+  "wolkpay": {
+    "badge": "Terceiros",
+    "subtitle": "Receba pagamento de terceiros e converta em crypto",
+    "invoiceCreated": "Fatura criada com sucesso",
+    "invoice": "Fatura",
+    "invoiceReady": "Pronta para compartilhar",
+    "totalToPay": "Total a pagar",
+    "youReceive": "Você recebe",
+    "expiresIn": "Expira em {{minutes}} minutos",
+    "shareWithPayer": "Compartilhe com o pagador",
+    "share": {
+      "title": "Pagamento WolkPay",
+      "text": "Pague {{amount}} via PIX",
+      "button": "Compartilhar"
+    },
+    "preview": "Visualizar",
+    "createAnother": "Criar nova fatura",
+    "historyButton": "Histórico",
+    "howItWorks": {
+      "title": "Como funciona",
+      "step1": {
+        "title": "Crie a fatura",
+        "desc": "Defina quanto quer receber em crypto"
+      },
+      "step2": {
+        "title": "Compartilhe",
+        "desc": "Envie o link para quem vai pagar"
+      },
+      "step3": {
+        "title": "Receba em crypto",
+        "desc": "Após o PIX, receba na sua wallet"
+      }
+    },
+    "selectCrypto": "Selecione a crypto",
+    "amount": "Valor",
+    "baseAmount": "Valor base",
+    "serviceFee": "Taxa de serviço",
+    "networkFee": "Taxa de rede",
+    "createInvoice": "Criar Fatura",
+    "creating": "Criando...",
+    "features": {
+      "secure": {
+        "title": "100% Seguro",
+        "desc": "Transações criptografadas"
+      },
+      "instant": {
+        "title": "Instantâneo",
+        "desc": "Receba em minutos"
+      },
+      "thirdParty": {
+        "title": "Terceiros",
+        "desc": "Qualquer pessoa pode pagar"
+      },
+      "compliant": {
+        "title": "Compliance",
+        "desc": "Dados de KYC coletados"
+      }
+    },
+    "limits": {
+      "title": "Limites",
+      "perOperation": "Por operação: {{min}} até {{max}}",
+      "validity": "Validade: {{minutes}} minutos",
+      "totalFee": "Taxa total: {{fee}}%"
+    },
+    "errors": {
+      "createFailed": "Erro ao criar fatura",
+      "minAmount": "Valor mínimo: {{min}}",
+      "maxAmount": "Valor máximo: {{max}}"
+    },
+    "history": {
+      "title": "Minhas Faturas",
+      "subtitle": "{{total}} faturas encontradas",
+      "all": "Todas",
+      "pending": "Pendentes",
+      "completed": "Concluídas",
+      "cancelled": "Canceladas",
+      "loading": "Carregando faturas...",
+      "error": "Erro ao carregar",
+      "retry": "Tentar novamente",
+      "empty": "Nenhuma fatura encontrada",
+      "emptyDesc": "Crie sua primeira fatura WolkPay",
+      "createFirst": "Criar Fatura",
+      "crypto": "Crypto",
+      "total": "Total",
+      "copyLink": "Copiar link",
+      "copied": "Copiado!",
+      "paymentConfirmed": "Pagamento confirmado",
+      "expired": "Expirada",
+      "rejected": "Rejeitada",
+      "confirmCancel": "Tem certeza que deseja cancelar esta fatura?",
+      "previous": "Anterior",
+      "next": "Próxima",
+      "pageOf": "Página {{page}} de {{total}}",
+      "errors": {
+        "loadFailed": "Erro ao carregar faturas",
+        "cancelFailed": "Erro ao cancelar fatura"
+      }
+    },
+    "checkout": {
+      "title": "Pagamento seguro",
+      "loading": "Carregando...",
+      "expiresIn": "Expira em",
+      "invoice": "Fatura",
+      "beneficiary": "Beneficiário",
+      "crypto": "Crypto",
+      "totalToPay": "Total a pagar",
+      "personType": "Tipo de pessoa",
+      "individual": "Pessoa Física",
+      "company": "Pessoa Jurídica",
+      "personalData": "Dados pessoais",
+      "fullName": "Nome completo",
+      "birthDate": "Data de nascimento",
+      "phone": "Telefone",
+      "email": "E-mail",
+      "companyData": "Dados da empresa",
+      "companyName": "Razão Social",
+      "tradeName": "Nome Fantasia",
+      "businessPhone": "Telefone comercial",
+      "businessEmail": "E-mail comercial",
+      "responsiblePerson": "Responsável legal",
+      "responsibleName": "Nome do responsável",
+      "responsibleCpf": "CPF do responsável",
+      "address": "Endereço",
+      "street": "Logradouro",
+      "number": "Número",
+      "complement": "Complemento",
+      "neighborhood": "Bairro",
+      "city": "Cidade",
+      "state": "Estado",
+      "termsText": "Li e aceito os",
+      "termsLink": "Termos de Uso",
+      "and": "e a",
+      "privacyLink": "Política de Privacidade",
+      "termsVersion": "Versão {{version}}",
+      "continue": "Continuar",
+      "processing": "Processando...",
+      "securePayment": "Pagamento seguro e criptografado",
+      "payWithPix": "Pague via PIX",
+      "amountToPay": "Valor a pagar",
+      "recipient": "Destinatário",
+      "scanQrCode": "Escaneie o QR Code com seu banco",
+      "pixCopyPaste": "Ou copie o código PIX",
+      "copy": "Copiar",
+      "copied": "Copiado!",
+      "paymentReceived": "Pagamento recebido!",
+      "beneficiaryWillReceive": "{{name}} receberá o valor em crypto",
+      "password": "Senha",
+      "confirmPassword": "Confirmar senha",
+      "acceptTerms": "Aceito os Termos de Uso da plataforma",
+      "acceptPrivacy": "Aceito a Política de Privacidade",
+      "accountCreated": "Conta criada com sucesso! Faça login para acessar.",
+      "goHome": "Ir para início",
+      "error": {
+        "title": "Fatura não encontrada",
+        "description": "Esta fatura não existe ou foi removida."
+      },
+      "expired": {
+        "title": "Fatura expirada",
+        "description": "O tempo para pagamento terminou. Solicite uma nova fatura ao beneficiário."
+      },
+      "errors": {
+        "submitFailed": "Erro ao processar dados",
+        "accountFailed": "Erro ao criar conta"
+      }
+    }
   }
 }

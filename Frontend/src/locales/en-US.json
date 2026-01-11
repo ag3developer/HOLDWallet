@@ -53,6 +53,8 @@
     "dashboard": "Dashboard",
     "wallet": "Wallet",
     "marketplace": "Marketplace",
+    "instantTrade": "Instant Trade",
+    "wolkpay": "WolkPay",
     "chat": "Chat",
     "profile": "Profile",
     "settings": "Settings",
@@ -498,5 +500,171 @@
     "cryptoPrice": "Crypto price",
     "expiresIn": "Expires in",
     "seconds": "seconds"
+  },
+  "wolkpay": {
+    "badge": "Third Party",
+    "subtitle": "Receive payment from others and convert to crypto",
+    "invoiceCreated": "Invoice created successfully",
+    "invoice": "Invoice",
+    "invoiceReady": "Ready to share",
+    "totalToPay": "Total to pay",
+    "youReceive": "You receive",
+    "expiresIn": "Expires in {{minutes}} minutes",
+    "shareWithPayer": "Share with payer",
+    "share": {
+      "title": "WolkPay Payment",
+      "text": "Pay {{amount}} via PIX",
+      "button": "Share"
+    },
+    "preview": "Preview",
+    "createAnother": "Create new invoice",
+    "historyButton": "History",
+    "howItWorks": {
+      "title": "How it works",
+      "step1": {
+        "title": "Create invoice",
+        "desc": "Set how much crypto you want"
+      },
+      "step2": {
+        "title": "Share",
+        "desc": "Send the link to the payer"
+      },
+      "step3": {
+        "title": "Receive crypto",
+        "desc": "After PIX, receive in your wallet"
+      }
+    },
+    "selectCrypto": "Select crypto",
+    "amount": "Amount",
+    "baseAmount": "Base amount",
+    "serviceFee": "Service fee",
+    "networkFee": "Network fee",
+    "createInvoice": "Create Invoice",
+    "creating": "Creating...",
+    "features": {
+      "secure": {
+        "title": "100% Secure",
+        "desc": "Encrypted transactions"
+      },
+      "instant": {
+        "title": "Instant",
+        "desc": "Receive in minutes"
+      },
+      "thirdParty": {
+        "title": "Third Party",
+        "desc": "Anyone can pay"
+      },
+      "compliant": {
+        "title": "Compliance",
+        "desc": "KYC data collected"
+      }
+    },
+    "limits": {
+      "title": "Limits",
+      "perOperation": "Per operation: {{min}} to {{max}}",
+      "validity": "Validity: {{minutes}} minutes",
+      "totalFee": "Total fee: {{fee}}%"
+    },
+    "errors": {
+      "createFailed": "Error creating invoice",
+      "minAmount": "Minimum amount: {{min}}",
+      "maxAmount": "Maximum amount: {{max}}"
+    },
+    "history": {
+      "title": "My Invoices",
+      "subtitle": "{{total}} invoices found",
+      "all": "All",
+      "pending": "Pending",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "loading": "Loading invoices...",
+      "error": "Error loading",
+      "retry": "Try again",
+      "empty": "No invoices found",
+      "emptyDesc": "Create your first WolkPay invoice",
+      "createFirst": "Create Invoice",
+      "crypto": "Crypto",
+      "total": "Total",
+      "copyLink": "Copy link",
+      "copied": "Copied!",
+      "paymentConfirmed": "Payment confirmed",
+      "expired": "Expired",
+      "rejected": "Rejected",
+      "confirmCancel": "Are you sure you want to cancel this invoice?",
+      "previous": "Previous",
+      "next": "Next",
+      "pageOf": "Page {{page}} of {{total}}",
+      "errors": {
+        "loadFailed": "Error loading invoices",
+        "cancelFailed": "Error canceling invoice"
+      }
+    },
+    "checkout": {
+      "title": "Secure payment",
+      "loading": "Loading...",
+      "expiresIn": "Expires in",
+      "invoice": "Invoice",
+      "beneficiary": "Beneficiary",
+      "crypto": "Crypto",
+      "totalToPay": "Total to pay",
+      "personType": "Person type",
+      "individual": "Individual",
+      "company": "Company",
+      "personalData": "Personal data",
+      "fullName": "Full name",
+      "birthDate": "Birth date",
+      "phone": "Phone",
+      "email": "Email",
+      "companyData": "Company data",
+      "companyName": "Legal name",
+      "tradeName": "Trade name",
+      "businessPhone": "Business phone",
+      "businessEmail": "Business email",
+      "responsiblePerson": "Legal representative",
+      "responsibleName": "Representative name",
+      "responsibleCpf": "Representative CPF",
+      "address": "Address",
+      "street": "Street",
+      "number": "Number",
+      "complement": "Complement",
+      "neighborhood": "Neighborhood",
+      "city": "City",
+      "state": "State",
+      "termsText": "I have read and accept the",
+      "termsLink": "Terms of Service",
+      "and": "and the",
+      "privacyLink": "Privacy Policy",
+      "termsVersion": "Version {{version}}",
+      "continue": "Continue",
+      "processing": "Processing...",
+      "securePayment": "Secure and encrypted payment",
+      "payWithPix": "Pay with PIX",
+      "amountToPay": "Amount to pay",
+      "recipient": "Recipient",
+      "scanQrCode": "Scan the QR Code with your bank",
+      "pixCopyPaste": "Or copy the PIX code",
+      "copy": "Copy",
+      "copied": "Copied!",
+      "paymentReceived": "Payment received!",
+      "beneficiaryWillReceive": "{{name}} will receive crypto",
+      "password": "Password",
+      "confirmPassword": "Confirm password",
+      "acceptTerms": "I accept the platform Terms of Service",
+      "acceptPrivacy": "I accept the Privacy Policy",
+      "accountCreated": "Account created successfully! Log in to access.",
+      "goHome": "Go to home",
+      "error": {
+        "title": "Invoice not found",
+        "description": "This invoice does not exist or has been removed."
+      },
+      "expired": {
+        "title": "Invoice expired",
+        "description": "The payment time has ended. Request a new invoice from the beneficiary."
+      },
+      "errors": {
+        "submitFailed": "Error processing data",
+        "accountFailed": "Error creating account"
+      }
+    }
   }
 }

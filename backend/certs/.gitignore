@@ -1,0 +1,7 @@
+# Nunca commitar certificados e chaves privadas!
+*.pfx
+*.p12
+*.pem
+*.key
+*.crt
+*.cer

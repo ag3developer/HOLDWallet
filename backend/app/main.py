@@ -19,8 +19,8 @@ from app.services.platform_settings_service import platform_settings_service
 from app.middleware.security import SecurityMiddleware, RateLimitMiddleware
 
 # Routers
-from app.routers import auth, users, wallet, wallets, tx, prices, prices_batch, prices_batch_v2, health, blockchain, transactions, billing, portfolio, exchange, p2p, chat, chat_enterprise, reputation, dashboard, two_factor, tokens, wallet_transactions, instant_trade, trader_profiles, admin_instant_trades, webauthn, public_settings, notifications
-from app.routers.admin import admin_router
+from app.routers import auth, users, wallet, wallets, tx, prices, prices_batch, prices_batch_v2, health, blockchain, transactions, billing, portfolio, exchange, p2p, chat, chat_enterprise, reputation, dashboard, two_factor, tokens, wallet_transactions, instant_trade, trader_profiles, admin_instant_trades, webauthn, public_settings, notifications, webhooks_bb, wolkpay
+from app.routers.admin import admin_router, wolkpay_admin_router
 from app.api.v1.endpoints import seed_verification
 
 # Setup logging
@@ -192,6 +192,9 @@ app.include_router(chat_enterprise.router, prefix="", tags=["chat"])
 app.include_router(reputation.router, prefix="", tags=["reputation"])
 app.include_router(public_settings.router, prefix="/public", tags=["public-settings"])
 app.include_router(notifications.router, prefix="/notifications", tags=["push-notifications"])
+app.include_router(webhooks_bb.router, prefix="", tags=["webhooks-bb"])  # Webhooks Banco do Brasil
+app.include_router(wolkpay.router, prefix="", tags=["wolkpay"])  # WolkPay - Pagamento por terceiros
+app.include_router(wolkpay_admin_router, prefix="", tags=["wolkpay-admin"])  # WolkPay Admin
 
 # Root endpoint
 @app.get("/")

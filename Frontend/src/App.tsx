@@ -50,6 +50,11 @@ import { NotificationsPage } from '@/pages/notifications/NotificationsPage'
 import { NotificationSettingsPage } from '@/pages/NotificationSettingsPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 
+// WolkPay Pages
+import { WolkPayPage } from '@/pages/wolkpay/WolkPayPage'
+import { WolkPayCheckoutPage } from '@/pages/wolkpay/WolkPayCheckoutPage'
+import { WolkPayHistoryPage } from '@/pages/wolkpay/WolkPayHistoryPage'
+
 // Admin Pages
 import {
   AdminDashboardPage,
@@ -319,7 +324,14 @@ function App() {
             <Route path='settings/*' element={<SettingsPage />} />
             <Route path='settings/notifications' element={<NotificationSettingsPage />} />
             <Route path='notifications' element={<NotificationsPage />} />
+
+            {/* WolkPay Routes */}
+            <Route path='wolkpay' element={<WolkPayPage />} />
+            <Route path='wolkpay/history' element={<WolkPayHistoryPage />} />
           </Route>
+
+          {/* WolkPay Public Checkout (no auth required) */}
+          <Route path='/wolkpay/checkout/:token' element={<WolkPayCheckoutPage />} />
 
           {/* Admin Routes with Admin Layout */}
           <Route

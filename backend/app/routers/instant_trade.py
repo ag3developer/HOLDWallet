@@ -236,6 +236,203 @@ async def create_trade(
         )
 
 
+@router.post("/create-with-pix")
+async def create_trade_with_pix(
+    request: CreateTradeRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Create a new OTC trade and generate PIX QR Code automatically via Banco do Brasil API.
+    
+    This endpoint integrates with Banco do Brasil PIX API to:
+    1. Create the trade
+    2. Generate QR Code PIX automatically
+    3. Return QR code data for payment
+    4. Receive webhook when payment is confirmed
+    5. Automatically send crypto to user's wallet
+    
+    Parameters:
+    - quote_id: ID of a valid quote (obtained from /quote endpoint)
+    - brl_amount: Original amount in BRL
+    - brl_total_amount: Total amount with fees in BRL
+    - usd_to_brl_rate: Exchange rate used
+    
+    Returns:
+    - Trade details
+    - PIX QR Code (EMV payload for copy-paste)
+    - PIX QR Code image (base64)
+    - Expiration time (15 minutes)
+    """
+    try:
+        from app.services.banco_brasil_service import get_banco_brasil_service
+        
+        logger.info(f"Creating trade with PIX: quote_id={request.quote_id}, user_id={current_user.id}")
+        
+        # 1. Create trade with PIX payment method
+        service = get_instant_trade_service(db)
+        user_id_str = str(current_user.id)
+        
+        # Convert BRL values to Decimal
+        brl_amount = Decimal(str(request.brl_amount)) if request.brl_amount else None
+        brl_total_amount = Decimal(str(request.brl_total_amount)) if request.brl_total_amount else None
+        usd_to_brl_rate = Decimal(str(request.usd_to_brl_rate)) if request.usd_to_brl_rate else None
+        
+        trade = service.create_trade_from_quote(
+            user_id=user_id_str,
+            quote_id=request.quote_id,
+            payment_method="pix",  # Force PIX for this endpoint
+            brl_amount=brl_amount,
+            brl_total_amount=brl_total_amount,
+            usd_to_brl_rate=usd_to_brl_rate,
+        )
+        
+        # 2. Generate PIX via Banco do Brasil API
+        bb_service = get_banco_brasil_service(db)
+        
+        # Generate unique TXID from reference_code (alphanumeric only, max 35 chars)
+        txid = trade["reference_code"].replace("-", "").replace("OTC", "WOLK")[:35]
+        
+        # Get amount to charge (BRL total)
+        valor_pix = brl_total_amount or Decimal(str(trade.get("total_amount", 0)))
+        
+        # Create PIX charge
+        pix_data = await bb_service.criar_cobranca_pix(
+            txid=txid,
+            valor=valor_pix,
+            descricao=f"WOLK NOW - Compra {trade.get('crypto_amount', 0):.8f} {trade.get('symbol', 'CRYPTO')}",
+            expiracao_segundos=900,  # 15 minutes
+            info_adicionais={
+                "trade_id": trade["trade_id"],
+                "ref": trade["reference_code"],
+                "symbol": trade.get("symbol"),
+            }
+        )
+        
+        # 3. Update trade with PIX data
+        trade_obj = db.query(InstantTrade).filter(
+            InstantTrade.id == trade["trade_id"]
+        ).first()
+        
+        if trade_obj:
+            trade_obj.pix_txid = txid
+            trade_obj.pix_location = pix_data.get("location")
+            trade_obj.pix_qrcode = pix_data.get("qrcode")
+            db.commit()
+            logger.info(f"Trade {trade['reference_code']} updated with PIX txid={txid}")
+        
+        # 4. Build response
+        return {
+            "success": True,
+            "trade_id": trade["trade_id"],
+            "reference_code": trade["reference_code"],
+            "message": "Trade criado com PIX. Escaneie o QR Code para pagar.",
+            "pix": {
+                "txid": pix_data.get("txid", txid),
+                "qrcode": pix_data.get("qrcode", ""),
+                "qrcode_image": pix_data.get("qrcode_base64", ""),
+                "valor": str(valor_pix),
+                "expiracao_segundos": 900,
+                "chave": COMPANY_BANK_DETAILS["pix_key"],
+            },
+            "auto_confirmation": True,  # Indicates payment will be confirmed automatically via webhook
+            "expires_at": trade.get("expires_at"),
+            "crypto_amount": trade.get("crypto_amount"),
+            "symbol": trade.get("symbol"),
+        }
+
+    except Exception as e:
+        logger.error(f"Error creating trade with PIX: {str(e)}")
+        
+        # Provide helpful error messages
+        error_detail = str(e)
+        if "Credenciais" in error_detail or "token" in error_detail.lower():
+            error_detail = "Erro de configuração da API Banco do Brasil. Contate o suporte."
+        elif "Quote not found" in error_detail or "expired" in error_detail:
+            error_detail = "Cotação expirada. Por favor, solicite uma nova cotação."
+        
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error_detail,
+        )
+
+
+@router.get("/{trade_id}/pix-status")
+async def check_pix_status(
+    trade_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Check PIX payment status for a trade.
+    
+    This endpoint queries Banco do Brasil API to check if PIX was paid.
+    Useful for polling payment status before webhook arrives.
+    
+    Parameters:
+    - trade_id: Trade ID to check
+    
+    Returns:
+    - Payment status
+    - Value received (if paid)
+    - Trade status
+    """
+    try:
+        from app.services.banco_brasil_service import get_banco_brasil_service
+        
+        # Get trade
+        trade_obj = db.query(InstantTrade).filter(InstantTrade.id == trade_id).first()
+        
+        if not trade_obj:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Trade não encontrado"
+            )
+        
+        # Verify ownership
+        if str(trade_obj.user_id) != str(current_user.id):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Acesso negado"
+            )
+        
+        # Check if trade has PIX txid
+        if not trade_obj.pix_txid:
+            return {
+                "success": True,
+                "trade_id": trade_id,
+                "has_pix": False,
+                "message": "Este trade não possui PIX associado",
+                "trade_status": trade_obj.status.value if trade_obj.status else None,
+            }
+        
+        # Query BB API for payment status
+        bb_service = get_banco_brasil_service(db)
+        pix_status = await bb_service.verificar_pagamento(trade_obj.pix_txid)
+        
+        return {
+            "success": True,
+            "trade_id": trade_id,
+            "reference_code": trade_obj.reference_code,
+            "has_pix": True,
+            "pix_txid": trade_obj.pix_txid,
+            "pix_pago": pix_status.get("pago", False),
+            "pix_status": pix_status.get("status"),
+            "valor_pago": pix_status.get("valor_pago"),
+            "horario_pagamento": pix_status.get("horario_pagamento"),
+            "trade_status": trade_obj.status.value if trade_obj.status else None,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error checking PIX status: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
+        )
+
+
 @router.get("/{trade_id}")
 async def get_trade_status(
     trade_id: str,
