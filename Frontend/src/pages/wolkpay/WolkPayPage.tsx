@@ -11,7 +11,6 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import {
   Send,
-  Users,
   Clock,
   Shield,
   Zap,
@@ -19,14 +18,22 @@ import {
   Check,
   ChevronDown,
   AlertCircle,
-  Info,
   Share2,
   ExternalLink,
   History,
-  Sparkles,
-  BadgeCheck,
   Coins,
   DollarSign,
+  TrendingUp,
+  Users,
+  Globe,
+  Sparkles,
+  BadgeCheck,
+  ArrowRight,
+  QrCode,
+  Wallet,
+  CircleDollarSign,
+  Timer,
+  Eye,
 } from 'lucide-react'
 import { usePrices } from '@/hooks/usePrices'
 import { useCurrencyStore } from '@/stores/useCurrencyStore'
@@ -177,6 +184,7 @@ export function WolkPayPage() {
   const [fiatAmount, setFiatAmount] = useState('')
   const [cryptoAmount, setCryptoAmount] = useState('')
   const [feePayer, setFeePayer] = useState<'BENEFICIARY' | 'PAYER'>('BENEFICIARY')
+  const [showFeeDetails, setShowFeeDetails] = useState(false) // Controla se mostra detalhes das taxas
 
   // Estado de loading/error
   const [isLoading, setIsLoading] = useState(false)
@@ -427,88 +435,135 @@ export function WolkPayPage() {
   }
 
   return (
-    <div key={i18n.language} className='space-y-6 pb-24'>
-      {/* Header */}
-      <div className='flex items-center justify-between'>
-        <div>
-          <div className='flex items-center gap-3 mb-1'>
-            <h1 className='text-2xl md:text-3xl font-bold text-gray-900 dark:text-white'>
-              WolkPay
-            </h1>
-            <div className='flex items-center gap-1.5 px-2.5 py-1 bg-blue-100 dark:bg-blue-900/30 rounded-full'>
-              <Sparkles className='w-3 h-3 text-blue-500' />
-              <span className='text-xs font-medium text-blue-700 dark:text-blue-400'>
-                {t('wolkpay.badge')}
-              </span>
+    <div key={i18n.language} className='space-y-5 pb-24'>
+      {/* ============================================ */}
+      {/* HERO HEADER - Premium Design */}
+      {/* ============================================ */}
+      <div className='relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 p-5'>
+        {/* Background decorations */}
+        <div className='absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2' />
+        <div className='absolute bottom-0 left-0 w-32 h-32 bg-purple-400/20 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2' />
+
+        <div className='relative'>
+          {/* Header row */}
+          <div className='flex items-start justify-between mb-4'>
+            <div>
+              <div className='flex items-center gap-2 mb-1'>
+                <span className='px-2 py-0.5 text-[10px] font-bold bg-yellow-400 text-yellow-900 rounded-full uppercase tracking-wide'>
+                  Exclusivo
+                </span>
+              </div>
+              <h1 className='text-2xl font-bold text-white flex items-center gap-2'>
+                <CircleDollarSign className='w-7 h-7' />
+                WolkPay
+              </h1>
+            </div>
+            <div className='flex gap-2'>
+              <button
+                onClick={() => navigate('/wolkpay/history')}
+                className='p-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors'
+                title='Histórico'
+              >
+                <Eye className='w-5 h-5 text-white' />
+              </button>
+              <button
+                onClick={() => navigate('/wolkpay/history')}
+                className='px-3 py-2 bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white text-sm font-semibold rounded-lg transition-all flex items-center gap-1.5 shadow-lg'
+              >
+                <History className='w-4 h-4' />
+                Histórico
+              </button>
             </div>
           </div>
-          <p className='text-gray-500 dark:text-gray-400 text-sm'>{t('wolkpay.subtitle')}</p>
-        </div>
 
-        <button
-          onClick={() => navigate('/wolkpay/history')}
-          className='flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors'
-        >
-          <History className='w-4 h-4' />
-          <span className='hidden sm:inline'>{t('wolkpay.historyButton')}</span>
-        </button>
+          {/* Badges de features */}
+          <div className='flex flex-wrap gap-2 mb-4'>
+            <span className='px-2.5 py-1 bg-white/20 backdrop-blur-sm rounded-full text-xs text-white flex items-center gap-1.5'>
+              <Shield className='w-3 h-3' /> 100% Seguro
+            </span>
+            <span className='px-2.5 py-1 bg-white/20 backdrop-blur-sm rounded-full text-xs text-white flex items-center gap-1.5'>
+              <QrCode className='w-3 h-3' /> PIX Instantâneo
+            </span>
+            <span className='px-2.5 py-1 bg-white/20 backdrop-blur-sm rounded-full text-xs text-white flex items-center gap-1.5'>
+              <Wallet className='w-3 h-3' /> Receba em Crypto
+            </span>
+          </div>
+
+          {/* Stats Grid */}
+          <div className='grid grid-cols-4 gap-2'>
+            <div className='bg-white/10 backdrop-blur-sm rounded-xl p-2.5 text-center'>
+              <div className='flex items-center justify-center gap-1 text-white/70 text-[10px] mb-0.5'>
+                <Timer className='w-3 h-3' /> VALIDADE
+              </div>
+              <p className='text-white font-bold text-sm'>{LIMITS.EXPIRY_MINUTES}min</p>
+            </div>
+            <div className='bg-white/10 backdrop-blur-sm rounded-xl p-2.5 text-center'>
+              <div className='flex items-center justify-center gap-1 text-white/70 text-[10px] mb-0.5'>
+                <TrendingUp className='w-3 h-3' /> MÍN
+              </div>
+              <p className='text-white font-bold text-sm'>R$ {LIMITS.MIN_BRL}</p>
+            </div>
+            <div className='bg-white/10 backdrop-blur-sm rounded-xl p-2.5 text-center'>
+              <div className='flex items-center justify-center gap-1 text-white/70 text-[10px] mb-0.5'>
+                <Globe className='w-3 h-3' /> MÁX
+              </div>
+              <p className='text-white font-bold text-sm'>R$ {LIMITS.MAX_BRL.toLocaleString()}</p>
+            </div>
+            <div className='bg-white/10 backdrop-blur-sm rounded-xl p-2.5 text-center'>
+              <div className='flex items-center justify-center gap-1 text-white/70 text-[10px] mb-0.5'>
+                <Zap className='w-3 h-3 text-yellow-300' /> TAXA
+              </div>
+              <p className='text-green-300 font-bold text-sm'>{LIMITS.TOTAL_FEE}%</p>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* How it works */}
-      <div className='bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl p-4 border border-blue-100 dark:border-blue-800/50'>
-        <h3 className='font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2'>
-          <Info className='w-4 h-4 text-blue-500' />
-          {t('wolkpay.howItWorks.title')}
+      {/* ============================================ */}
+      {/* HOW IT WORKS - 3 Steps */}
+      {/* ============================================ */}
+      <div className='bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-200 dark:border-gray-700'>
+        <h3 className='text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2'>
+          <Sparkles className='w-4 h-4 text-blue-500' />
+          Como funciona?
         </h3>
-        <div className='grid grid-cols-1 sm:grid-cols-3 gap-3'>
-          <div className='flex items-start gap-3'>
-            <div className='w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0'>
+        <div className='flex items-center gap-2'>
+          <div className='flex-1 text-center'>
+            <div className='w-8 h-8 mx-auto bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold text-sm mb-1'>
               1
             </div>
-            <div>
-              <p className='text-sm font-medium text-gray-900 dark:text-white'>
-                {t('wolkpay.howItWorks.step1.title')}
-              </p>
-              <p className='text-xs text-gray-500 dark:text-gray-400'>
-                {t('wolkpay.howItWorks.step1.desc')}
-              </p>
-            </div>
+            <p className='text-[10px] text-gray-600 dark:text-gray-400'>Crie a fatura</p>
           </div>
-          <div className='flex items-start gap-3'>
-            <div className='w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0'>
+          <ArrowRight className='w-4 h-4 text-gray-300 shrink-0' />
+          <div className='flex-1 text-center'>
+            <div className='w-8 h-8 mx-auto bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold text-sm mb-1'>
               2
             </div>
-            <div>
-              <p className='text-sm font-medium text-gray-900 dark:text-white'>
-                {t('wolkpay.howItWorks.step2.title')}
-              </p>
-              <p className='text-xs text-gray-500 dark:text-gray-400'>
-                {t('wolkpay.howItWorks.step2.desc')}
-              </p>
-            </div>
+            <p className='text-[10px] text-gray-600 dark:text-gray-400'>Envie o link</p>
           </div>
-          <div className='flex items-start gap-3'>
-            <div className='w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0'>
+          <ArrowRight className='w-4 h-4 text-gray-300 shrink-0' />
+          <div className='flex-1 text-center'>
+            <div className='w-8 h-8 mx-auto bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center text-green-600 dark:text-green-400 font-bold text-sm mb-1'>
               3
             </div>
-            <div>
-              <p className='text-sm font-medium text-gray-900 dark:text-white'>
-                {t('wolkpay.howItWorks.step3.title')}
-              </p>
-              <p className='text-xs text-gray-500 dark:text-gray-400'>
-                {t('wolkpay.howItWorks.step3.desc')}
-              </p>
-            </div>
+            <p className='text-[10px] text-gray-600 dark:text-gray-400'>Receba crypto</p>
           </div>
         </div>
       </div>
 
-      {/* Form Card */}
-      <div className='bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm'>
+      {/* ============================================ */}
+      {/* MAIN FORM CARD */}
+      {/* ============================================ */}
+      <div className='bg-white dark:bg-gray-800 rounded-2xl p-5 border border-gray-200 dark:border-gray-700 shadow-sm'>
+        <h2 className='text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2'>
+          <Send className='w-5 h-5 text-blue-500' />
+          Criar Nova Fatura
+        </h2>
+
         {/* Crypto Selector */}
-        <div className='mb-6'>
-          <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
-            {t('wolkpay.selectCrypto')}
+        <div className='mb-4'>
+          <label className='block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide'>
+            Receber em
           </label>
           <button
             onClick={() => setShowCryptoSelect(!showCryptoSelect)}
@@ -519,11 +574,11 @@ export function WolkPayPage() {
                 <img
                   src={CRYPTO_LOGOS[selectedCrypto.symbol]}
                   alt={selectedCrypto.symbol}
-                  className='w-10 h-10 rounded-full'
+                  className='w-8 h-8 rounded-full'
                 />
               ) : (
-                <div className='w-10 h-10 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center'>
-                  <span className='text-white font-bold text-sm'>
+                <div className='w-8 h-8 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center'>
+                  <span className='text-white font-bold text-xs'>
                     {selectedCrypto?.symbol?.charAt(0) || '?'}
                   </span>
                 </div>
@@ -540,12 +595,13 @@ export function WolkPayPage() {
             />
           </button>
 
+          {/* Crypto Dropdown */}
           {showCryptoSelect && (
-            <div className='mt-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden max-h-80 overflow-y-auto'>
-              {/* Stablecoins primeiro */}
-              <div className='px-4 py-2 bg-green-50 dark:bg-green-900/20 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2'>
+            <div className='mt-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden max-h-64 overflow-y-auto'>
+              {/* Stablecoins */}
+              <div className='px-3 py-2 bg-green-50 dark:bg-green-900/20 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2'>
                 <DollarSign className='w-4 h-4 text-green-600 dark:text-green-400' />
-                <span className='text-xs font-semibold text-green-700 dark:text-green-400 uppercase tracking-wide'>
+                <span className='text-xs font-semibold text-green-700 dark:text-green-400 uppercase'>
                   Stablecoins
                 </span>
               </div>
@@ -556,7 +612,7 @@ export function WolkPayPage() {
                     setSelectedCrypto(crypto)
                     setShowCryptoSelect(false)
                   }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${
                     selectedCrypto?.symbol === crypto.symbol ? 'bg-blue-50 dark:bg-blue-900/20' : ''
                   }`}
                 >
@@ -564,29 +620,29 @@ export function WolkPayPage() {
                     <img
                       src={CRYPTO_LOGOS[crypto.symbol]}
                       alt={crypto.symbol}
-                      className='w-8 h-8 rounded-full'
+                      className='w-6 h-6 rounded-full'
                     />
                   ) : (
-                    <div className='w-8 h-8 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center'>
-                      <span className='text-white font-bold text-xs'>
+                    <div className='w-6 h-6 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center'>
+                      <span className='text-white font-bold text-[10px]'>
                         {crypto.symbol.charAt(0)}
                       </span>
                     </div>
                   )}
-                  <div className='text-left flex-1'>
-                    <p className='font-medium text-gray-900 dark:text-white'>{crypto.symbol}</p>
-                    <p className='text-xs text-gray-500 dark:text-gray-400'>{crypto.name}</p>
-                  </div>
+                  <span className='text-sm font-medium text-gray-900 dark:text-white flex-1 text-left'>
+                    {crypto.symbol}
+                  </span>
+                  <span className='text-xs text-gray-400'>{crypto.name}</span>
                   {selectedCrypto?.symbol === crypto.symbol && (
-                    <Check className='w-5 h-5 text-blue-500' />
+                    <Check className='w-4 h-4 text-blue-500' />
                   )}
                 </button>
               ))}
 
-              {/* Moedas Nativas */}
-              <div className='px-4 py-2 bg-orange-50 dark:bg-orange-900/20 border-y border-gray-200 dark:border-gray-700 flex items-center gap-2'>
+              {/* Criptomoedas */}
+              <div className='px-3 py-2 bg-orange-50 dark:bg-orange-900/20 border-y border-gray-200 dark:border-gray-700 flex items-center gap-2'>
                 <Coins className='w-4 h-4 text-orange-600 dark:text-orange-400' />
-                <span className='text-xs font-semibold text-orange-700 dark:text-orange-400 uppercase tracking-wide'>
+                <span className='text-xs font-semibold text-orange-700 dark:text-orange-400 uppercase'>
                   Criptomoedas
                 </span>
               </div>
@@ -597,7 +653,7 @@ export function WolkPayPage() {
                     setSelectedCrypto(crypto)
                     setShowCryptoSelect(false)
                   }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${
                     selectedCrypto?.symbol === crypto.symbol ? 'bg-blue-50 dark:bg-blue-900/20' : ''
                   }`}
                 >
@@ -605,21 +661,21 @@ export function WolkPayPage() {
                     <img
                       src={CRYPTO_LOGOS[crypto.symbol]}
                       alt={crypto.symbol}
-                      className='w-8 h-8 rounded-full'
+                      className='w-6 h-6 rounded-full'
                     />
                   ) : (
-                    <div className='w-8 h-8 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center'>
-                      <span className='text-white font-bold text-xs'>
+                    <div className='w-6 h-6 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center'>
+                      <span className='text-white font-bold text-[10px]'>
                         {crypto.symbol.charAt(0)}
                       </span>
                     </div>
                   )}
-                  <div className='text-left flex-1'>
-                    <p className='font-medium text-gray-900 dark:text-white'>{crypto.symbol}</p>
-                    <p className='text-xs text-gray-500 dark:text-gray-400'>{crypto.name}</p>
-                  </div>
+                  <span className='text-sm font-medium text-gray-900 dark:text-white flex-1 text-left'>
+                    {crypto.symbol}
+                  </span>
+                  <span className='text-xs text-gray-400'>{crypto.name}</span>
                   {selectedCrypto?.symbol === crypto.symbol && (
-                    <Check className='w-5 h-5 text-blue-500' />
+                    <Check className='w-4 h-4 text-blue-500' />
                   )}
                 </button>
               ))}
@@ -628,17 +684,17 @@ export function WolkPayPage() {
         </div>
 
         {/* Amount Input */}
-        <div className='mb-6'>
+        <div className='mb-4'>
           <div className='flex items-center justify-between mb-2'>
-            <label className='text-sm font-medium text-gray-700 dark:text-gray-300'>
-              {t('wolkpay.amount')}
+            <label className='text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide'>
+              Valor
             </label>
             <div className='flex gap-1'>
               <button
                 onClick={() => setInputMode('fiat')}
                 className={`px-3 py-1 text-xs font-medium rounded-lg transition-colors ${
                   inputMode === 'fiat'
-                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600'
                     : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`}
               >
@@ -648,26 +704,18 @@ export function WolkPayPage() {
                 onClick={() => setInputMode('crypto')}
                 className={`px-3 py-1 text-xs font-medium rounded-lg transition-colors ${
                   inputMode === 'crypto'
-                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600'
                     : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`}
               >
-                {selectedCrypto.symbol}
+                {selectedCrypto?.symbol || 'USDT'}
               </button>
             </div>
           </div>
 
           <div className='relative'>
-            <div className='absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 font-medium flex items-center gap-1'>
-              {inputMode === 'fiat' ? (
-                <span>R$</span>
-              ) : (
-                <>
-                  <span className='text-sm bg-gray-200 dark:bg-gray-600 px-2 py-0.5 rounded'>
-                    {selectedCrypto.symbol}
-                  </span>
-                </>
-              )}
+            <div className='absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium'>
+              {inputMode === 'fiat' ? 'R$' : selectedCrypto?.symbol}
             </div>
             <input
               type='number'
@@ -678,153 +726,147 @@ export function WolkPayPage() {
                   : setCryptoAmount(e.target.value)
               }
               placeholder='0,00'
-              className={`w-full pr-4 py-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600 text-xl font-semibold text-gray-900 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all ${
-                inputMode === 'fiat' ? 'pl-14' : 'pl-20'
+              className={`w-full py-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600 text-xl font-bold text-gray-900 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all pr-4 ${
+                inputMode === 'fiat' ? 'pl-12' : 'pl-16'
               }`}
             />
-          </div>
-
-          {/* Conversion display */}
-          <div className='mt-2 flex items-center justify-between text-sm'>
-            <span className='text-gray-500 dark:text-gray-400'>
-              {inputMode === 'fiat'
-                ? `≈ ${formatCrypto(calculatedCryptoAmount || 0, selectedCrypto.symbol)}`
-                : `≈ ${formatCurrency(calculatedFiatAmount || 0)}${userCurrency !== 'BRL' ? ` (${formatUserCurrency(calculatedFiatAmount || 0)})` : ''}`}
-            </span>
             {currentPriceBRL > 0 && (
-              <span className='text-xs text-gray-400'>
-                1 {selectedCrypto.symbol} = {formatCurrency(brlRate)}
-                {userCurrency !== 'BRL' && ` (${formatUserCurrency(brlRate)})`}
-              </span>
+              <div className='absolute right-4 top-1/2 -translate-y-1/2 text-right'>
+                <p className='text-xs text-gray-500'>
+                  ≈{' '}
+                  {inputMode === 'fiat'
+                    ? formatCrypto(calculatedCryptoAmount || 0, selectedCrypto?.symbol || 'USDT')
+                    : formatCurrency(calculatedFiatAmount || 0)}
+                </p>
+              </div>
             )}
           </div>
 
           {/* Amount validation */}
           {fiatAmount && !isAmountValid && (
-            <div className='mt-2 flex items-center gap-2 text-sm text-red-500'>
-              <AlertCircle className='w-4 h-4' />
+            <div className='mt-2 flex items-center gap-2 text-xs text-red-500'>
+              <AlertCircle className='w-3.5 h-3.5' />
               <span>
                 {calculatedFiatAmount < LIMITS.MIN_BRL
-                  ? t('wolkpay.errors.minAmount', { min: formatCurrency(LIMITS.MIN_BRL) })
-                  : t('wolkpay.errors.maxAmount', { max: formatCurrency(LIMITS.MAX_BRL) })}
+                  ? `Valor mínimo: ${formatCurrency(LIMITS.MIN_BRL)}`
+                  : `Valor máximo: ${formatCurrency(LIMITS.MAX_BRL)}`}
               </span>
             </div>
           )}
         </div>
 
-        {/* Fee Breakdown */}
+        {/* Fee Breakdown - Premium Design */}
         {calculatedFiatAmount > 0 && (
-          <div className='mb-6 p-4 bg-gray-50 dark:bg-gray-700/30 rounded-xl space-y-3'>
+          <div className='mb-4 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700/40 dark:to-gray-700/20 rounded-xl border border-gray-200 dark:border-gray-600 overflow-hidden'>
             {/* Fee Payer Selection */}
-            <div className='pb-3 border-b border-gray-200 dark:border-gray-600'>
-              <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+            <div className='p-4 border-b border-gray-200 dark:border-gray-600'>
+              <label className='block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide'>
                 Quem paga as taxas?
               </label>
-              <div className='grid grid-cols-2 gap-2'>
+              <div className='grid grid-cols-2 gap-3'>
                 <button
                   type='button'
                   onClick={() => setFeePayer('BENEFICIARY')}
-                  className={`px-3 py-2 text-sm rounded-lg border transition-all ${
+                  className={`px-3 py-3 rounded-xl border-2 transition-all ${
                     feePayer === 'BENEFICIARY'
-                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
-                      : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-gray-300'
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 shadow-sm'
+                      : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
                   }`}
                 >
-                  <div className='font-medium'>Eu (Beneficiário)</div>
-                  <div className='text-xs opacity-70'>
-                    Pagador paga {formatCurrency(calculatedFiatAmount)}
-                    {userCurrency !== 'BRL' && (
-                      <span className='ml-1 text-gray-400'>
-                        ({formatUserCurrency(calculatedFiatAmount)})
-                      </span>
-                    )}
+                  <div
+                    className={`font-semibold text-sm ${feePayer === 'BENEFICIARY' ? 'text-blue-700 dark:text-blue-300' : 'text-gray-700 dark:text-gray-300'}`}
+                  >
+                    Eu pago taxa
+                  </div>
+                  <div className='text-xs text-gray-500 mt-0.5'>
+                    Pagador: {formatCurrency(calculatedFiatAmount)}
                   </div>
                 </button>
                 <button
                   type='button'
                   onClick={() => setFeePayer('PAYER')}
-                  className={`px-3 py-2 text-sm rounded-lg border transition-all ${
+                  className={`px-3 py-3 rounded-xl border-2 transition-all ${
                     feePayer === 'PAYER'
-                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
-                      : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-gray-300'
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 shadow-sm'
+                      : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
                   }`}
                 >
-                  <div className='font-medium'>Pagador</div>
-                  <div className='text-xs opacity-70'>
-                    Pagador paga {formatCurrency(totalAmount)}
-                    {userCurrency !== 'BRL' && (
-                      <span className='ml-1 text-gray-400'>
-                        ({formatUserCurrency(totalAmount)})
-                      </span>
-                    )}
+                  <div
+                    className={`font-semibold text-sm ${feePayer === 'PAYER' ? 'text-blue-700 dark:text-blue-300' : 'text-gray-700 dark:text-gray-300'}`}
+                  >
+                    Pagador paga
+                  </div>
+                  <div className='text-xs text-gray-500 mt-0.5'>
+                    Pagador: {formatCurrency(totalAmount)}
                   </div>
                 </button>
               </div>
             </div>
 
-            <div className='flex justify-between text-sm'>
-              <span className='text-gray-500 dark:text-gray-400'>{t('wolkpay.baseAmount')}</span>
-              <span className='text-gray-900 dark:text-white'>
-                {formatCurrency(calculatedFiatAmount)}
-                {userCurrency !== 'BRL' && (
-                  <span className='text-xs text-gray-400 ml-1'>
-                    ({formatUserCurrency(calculatedFiatAmount)})
-                  </span>
-                )}
-              </span>
-            </div>
-            <div className='flex justify-between text-sm'>
-              <span className='text-gray-500 dark:text-gray-400'>
-                {t('wolkpay.serviceFee')} ({LIMITS.SERVICE_FEE}%)
-              </span>
-              <span className='text-gray-900 dark:text-white'>{formatCurrency(serviceFee)}</span>
-            </div>
-            <div className='flex justify-between text-sm'>
-              <span className='text-gray-500 dark:text-gray-400'>
-                {t('wolkpay.networkFee')} ({LIMITS.NETWORK_FEE}%)
-              </span>
-              <span className='text-gray-900 dark:text-white'>{formatCurrency(networkFee)}</span>
-            </div>
-
-            {/* Summary based on fee payer */}
-            <div className='pt-3 border-t border-gray-200 dark:border-gray-600 space-y-2'>
-              <div className='flex justify-between'>
-                <span className='font-semibold text-gray-900 dark:text-white'>
-                  Pagador vai pagar:
+            {/* Summary */}
+            <div className='p-4 space-y-3'>
+              <div className='flex justify-between items-center'>
+                <span className='text-sm text-gray-600 dark:text-gray-400'>Total a pagar:</span>
+                <span className='font-bold text-xl text-blue-600 dark:text-blue-400'>
+                  {formatCurrency(totalAmount)}
                 </span>
-                <div className='text-right'>
-                  <span className='font-bold text-lg text-blue-600 dark:text-blue-400'>
-                    {formatCurrency(totalAmount)}
-                  </span>
-                  {userCurrency !== 'BRL' && (
-                    <span className='text-xs text-gray-400 block'>
-                      ≈ {formatUserCurrency(totalAmount)}
-                    </span>
-                  )}
-                </div>
               </div>
-              <div className='flex justify-between items-start'>
-                <span className='text-sm text-gray-500 dark:text-gray-400'>Você vai receber:</span>
+              <div className='flex justify-between items-center'>
+                <span className='text-sm text-gray-600 dark:text-gray-400'>Você recebe:</span>
                 <div className='text-right'>
                   <span
-                    className={`font-semibold block ${feePayer === 'PAYER' ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'}`}
+                    className={`font-bold text-lg ${feePayer === 'PAYER' ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'}`}
                   >
                     {formatCurrency(beneficiaryReceives)}
-                    {userCurrency !== 'BRL' && (
-                      <span className='text-xs text-gray-400 ml-1'>
-                        ({formatUserCurrency(beneficiaryReceives)})
-                      </span>
-                    )}
-                    <span className='text-xs ml-1'>
-                      (
-                      {feePayer === 'PAYER'
-                        ? 'valor cheio'
-                        : `- ${formatCurrency(totalFees)} taxas`}
-                      )
-                    </span>
                   </span>
-                  <span className='text-sm text-gray-500 dark:text-gray-400 block mt-0.5'>
-                    ≈ {formatCrypto(beneficiaryReceivesCrypto, selectedCrypto?.symbol || 'BTC')}
+                  <p className='text-xs text-gray-400'>
+                    ≈ {formatCrypto(beneficiaryReceivesCrypto, selectedCrypto?.symbol || 'USDT')}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Fee Details Toggle */}
+            <button
+              type='button'
+              onClick={() => setShowFeeDetails(!showFeeDetails)}
+              className='w-full px-4 py-2 flex items-center justify-center gap-2 text-xs font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700/50 border-t border-gray-200 dark:border-gray-600 transition-all'
+            >
+              <span>{showFeeDetails ? 'Ocultar detalhes' : 'Ver detalhes das taxas'}</span>
+              <ChevronDown
+                className={`w-4 h-4 transition-transform ${showFeeDetails ? 'rotate-180' : ''}`}
+              />
+            </button>
+
+            {/* Fee Details */}
+            <div
+              className={`overflow-hidden transition-all duration-300 ${showFeeDetails ? 'max-h-48' : 'max-h-0'}`}
+            >
+              <div className='px-4 pb-4 pt-2 space-y-2 border-t border-gray-200 dark:border-gray-600'>
+                <div className='flex justify-between text-sm'>
+                  <span className='text-gray-500'>Valor base</span>
+                  <span className='text-gray-900 dark:text-white'>
+                    {formatCurrency(calculatedFiatAmount)}
+                  </span>
+                </div>
+                <div className='flex justify-between text-sm'>
+                  <span className='text-gray-500'>Taxa de serviço ({LIMITS.SERVICE_FEE}%)</span>
+                  <span className='text-gray-700 dark:text-gray-300'>
+                    {formatCurrency(serviceFee)}
+                  </span>
+                </div>
+                <div className='flex justify-between text-sm'>
+                  <span className='text-gray-500'>Taxa de rede ({LIMITS.NETWORK_FEE}%)</span>
+                  <span className='text-gray-700 dark:text-gray-300'>
+                    {formatCurrency(networkFee)}
+                  </span>
+                </div>
+                <div className='flex justify-between text-sm pt-2 border-t border-gray-200 dark:border-gray-700'>
+                  <span className='font-medium text-gray-700 dark:text-gray-300'>
+                    Total taxas ({LIMITS.TOTAL_FEE}%)
+                  </span>
+                  <span className='font-semibold text-gray-900 dark:text-white'>
+                    {formatCurrency(totalFees)}
                   </span>
                 </div>
               </div>
@@ -834,7 +876,7 @@ export function WolkPayPage() {
 
         {/* Error */}
         {error && (
-          <div className='mb-6 p-4 bg-red-50 dark:bg-red-900/20 rounded-xl flex items-center gap-3 text-red-600 dark:text-red-400'>
+          <div className='mb-4 p-4 bg-red-50 dark:bg-red-900/20 rounded-xl flex items-center gap-3 text-red-600 dark:text-red-400'>
             <AlertCircle className='w-5 h-5 shrink-0' />
             <span className='text-sm'>{error}</span>
           </div>
@@ -844,86 +886,96 @@ export function WolkPayPage() {
         <button
           onClick={handleCreateInvoice}
           disabled={!canSubmit}
-          className={`w-full flex items-center justify-center gap-3 px-6 py-4 rounded-xl font-semibold text-lg transition-all ${
+          className={`w-full flex items-center justify-center gap-3 px-6 py-4 rounded-xl font-bold text-lg transition-all ${
             canSubmit
-              ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg shadow-blue-500/25'
+              ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg shadow-blue-500/30'
               : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
           }`}
         >
           {isLoading ? (
             <>
               <div className='w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin' />
-              {t('wolkpay.creating')}
+              Criando fatura...
             </>
           ) : (
             <>
               <Send className='w-5 h-5' />
-              {t('wolkpay.createInvoice')}
+              Criar Fatura
             </>
           )}
         </button>
       </div>
 
-      {/* Features */}
+      {/* ============================================ */}
+      {/* FEATURES GRID */}
+      {/* ============================================ */}
       <div className='grid grid-cols-2 gap-3'>
         <div className='bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700'>
-          <Shield className='w-6 h-6 text-green-500 mb-2' />
-          <p className='font-medium text-sm text-gray-900 dark:text-white'>
-            {t('wolkpay.features.secure.title')}
-          </p>
+          <div className='w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-xl flex items-center justify-center mb-3'>
+            <Shield className='w-5 h-5 text-green-600 dark:text-green-400' />
+          </div>
+          <h3 className='font-semibold text-gray-900 dark:text-white text-sm mb-1'>100% Seguro</h3>
           <p className='text-xs text-gray-500 dark:text-gray-400'>
-            {t('wolkpay.features.secure.desc')}
+            Transações protegidas e verificadas
           </p>
         </div>
         <div className='bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700'>
-          <Zap className='w-6 h-6 text-yellow-500 mb-2' />
-          <p className='font-medium text-sm text-gray-900 dark:text-white'>
-            {t('wolkpay.features.instant.title')}
-          </p>
-          <p className='text-xs text-gray-500 dark:text-gray-400'>
-            {t('wolkpay.features.instant.desc')}
-          </p>
+          <div className='w-10 h-10 bg-yellow-100 dark:bg-yellow-900/30 rounded-xl flex items-center justify-center mb-3'>
+            <Zap className='w-5 h-5 text-yellow-600 dark:text-yellow-400' />
+          </div>
+          <h3 className='font-semibold text-gray-900 dark:text-white text-sm mb-1'>Instantâneo</h3>
+          <p className='text-xs text-gray-500 dark:text-gray-400'>Receba crypto em segundos</p>
         </div>
         <div className='bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700'>
-          <Users className='w-6 h-6 text-blue-500 mb-2' />
-          <p className='font-medium text-sm text-gray-900 dark:text-white'>
-            {t('wolkpay.features.thirdParty.title')}
-          </p>
-          <p className='text-xs text-gray-500 dark:text-gray-400'>
-            {t('wolkpay.features.thirdParty.desc')}
-          </p>
+          <div className='w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center mb-3'>
+            <Users className='w-5 h-5 text-blue-600 dark:text-blue-400' />
+          </div>
+          <h3 className='font-semibold text-gray-900 dark:text-white text-sm mb-1'>Terceiros</h3>
+          <p className='text-xs text-gray-500 dark:text-gray-400'>Qualquer pessoa pode pagar</p>
         </div>
         <div className='bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700'>
-          <BadgeCheck className='w-6 h-6 text-purple-500 mb-2' />
-          <p className='font-medium text-sm text-gray-900 dark:text-white'>
-            {t('wolkpay.features.compliant.title')}
-          </p>
-          <p className='text-xs text-gray-500 dark:text-gray-400'>
-            {t('wolkpay.features.compliant.desc')}
-          </p>
+          <div className='w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-xl flex items-center justify-center mb-3'>
+            <BadgeCheck className='w-5 h-5 text-purple-600 dark:text-purple-400' />
+          </div>
+          <h3 className='font-semibold text-gray-900 dark:text-white text-sm mb-1'>Verificado</h3>
+          <p className='text-xs text-gray-500 dark:text-gray-400'>KYC completo e compliance</p>
         </div>
       </div>
 
-      {/* Limits Info */}
-      <div className='bg-amber-50 dark:bg-amber-900/20 rounded-xl p-4 border border-amber-200 dark:border-amber-800/50'>
-        <div className='flex items-start gap-3'>
-          <Info className='w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5' />
+      {/* ============================================ */}
+      {/* CTA BANNER */}
+      {/* ============================================ */}
+      <div className='bg-gradient-to-r from-teal-500 to-cyan-600 rounded-2xl p-4 flex items-center justify-between'>
+        <div className='flex items-center gap-3'>
+          <div className='w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center'>
+            <Zap className='w-5 h-5 text-white' />
+          </div>
           <div>
-            <p className='font-medium text-sm text-amber-800 dark:text-amber-300'>
-              {t('wolkpay.limits.title')}
-            </p>
-            <ul className='mt-1 text-xs text-amber-700 dark:text-amber-400 space-y-1'>
-              <li>
-                {t('wolkpay.limits.perOperation', {
-                  min: formatCurrency(LIMITS.MIN_BRL),
-                  max: formatCurrency(LIMITS.MAX_BRL),
-                })}
-              </li>
-              <li>{t('wolkpay.limits.validity', { minutes: LIMITS.EXPIRY_MINUTES })}</li>
-              <li>{t('wolkpay.limits.totalFee', { fee: LIMITS.TOTAL_FEE })}</li>
-            </ul>
+            <h4 className='font-semibold text-white text-sm'>Precisa de mais?</h4>
+            <p className='text-white/80 text-xs'>Veja o P2P Marketplace</p>
           </div>
         </div>
+        <button
+          onClick={() => navigate('/p2p')}
+          className='p-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors'
+        >
+          <ArrowRight className='w-5 h-5 text-white' />
+        </button>
+      </div>
+
+      {/* ============================================ */}
+      {/* FOOTER INFO */}
+      {/* ============================================ */}
+      <div className='flex items-center justify-center gap-4 text-[10px] text-gray-400 pt-2'>
+        <span className='flex items-center gap-1'>
+          <Shield className='w-3 h-3' /> SSL Seguro
+        </span>
+        <span className='flex items-center gap-1'>
+          <BadgeCheck className='w-3 h-3' /> KYC Verificado
+        </span>
+        <span className='flex items-center gap-1'>
+          <Clock className='w-3 h-3' /> 24/7 Online
+        </span>
       </div>
     </div>
   )
