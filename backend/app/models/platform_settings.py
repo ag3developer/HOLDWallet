@@ -95,6 +95,20 @@ DEFAULT_PLATFORM_SETTINGS = [
         "category": "fees",
         "description": "Taxa percentual cobrada em trades P2P"
     },
+    {
+        "key": "wolkpay_service_fee_percentage",
+        "value": "3.65",
+        "value_type": "float",
+        "category": "fees",
+        "description": "Taxa percentual de serviço WolkPay cobrada nas faturas"
+    },
+    {
+        "key": "wolkpay_network_fee_percentage",
+        "value": "0.15",
+        "value_type": "float",
+        "category": "fees",
+        "description": "Taxa percentual de rede WolkPay cobrada nas faturas"
+    },
     
     # === LIMITES (limits) ===
     {

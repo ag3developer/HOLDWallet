@@ -35,6 +35,8 @@ class FeesUpdateRequest(BaseModel):
     otc_spread_percentage: Optional[float] = None
     network_fee_percentage: Optional[float] = None
     p2p_fee_percentage: Optional[float] = None
+    wolkpay_service_fee_percentage: Optional[float] = None
+    wolkpay_network_fee_percentage: Optional[float] = None
 
 
 class LimitsUpdateRequest(BaseModel):
@@ -105,6 +107,12 @@ async def update_fees_settings(
         
         if request.p2p_fee_percentage is not None:
             updates["p2p_fee_percentage"] = request.p2p_fee_percentage
+        
+        if request.wolkpay_service_fee_percentage is not None:
+            updates["wolkpay_service_fee_percentage"] = request.wolkpay_service_fee_percentage
+        
+        if request.wolkpay_network_fee_percentage is not None:
+            updates["wolkpay_network_fee_percentage"] = request.wolkpay_network_fee_percentage
         
         if updates:
             platform_settings_service.set_multiple(

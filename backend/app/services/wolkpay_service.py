@@ -32,6 +32,7 @@ from app.schemas.wolkpay import (
 )
 from app.services.price_aggregator import price_aggregator
 from app.services.wallet_service import WalletService
+from app.services.platform_settings_service import platform_settings_service
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -52,8 +53,9 @@ class WolkPayService:
     
     # Configurações
     INVOICE_VALIDITY_MINUTES = 15  # Validade da fatura
-    SERVICE_FEE_PERCENT = Decimal('3.65')  # Taxa de serviço
-    NETWORK_FEE_PERCENT = Decimal('0.15')  # Taxa de rede
+    # Taxas agora vêm do platform_settings_service (valores abaixo são fallback)
+    DEFAULT_SERVICE_FEE_PERCENT = Decimal('3.65')  # Taxa de serviço padrão
+    DEFAULT_NETWORK_FEE_PERCENT = Decimal('0.15')  # Taxa de rede padrão
     LIMIT_PER_OPERATION = Decimal('15000.00')  # Limite por operação
     LIMIT_PER_MONTH = Decimal('300000.00')  # Limite mensal por pagador
     
@@ -65,6 +67,22 @@ class WolkPayService:
     def __init__(self, db: Session):
         self.db = db
         # Usa o price_aggregator já existente no projeto
+    
+    def _get_service_fee_percent(self) -> Decimal:
+        """Obtém taxa de serviço do platform_settings (com fallback)"""
+        try:
+            fee = platform_settings_service.get_wolkpay_service_fee(self.db)
+            return Decimal(str(fee))
+        except Exception:
+            return self.DEFAULT_SERVICE_FEE_PERCENT
+    
+    def _get_network_fee_percent(self) -> Decimal:
+        """Obtém taxa de rede do platform_settings (com fallback)"""
+        try:
+            fee = platform_settings_service.get_wolkpay_network_fee(self.db)
+            return Decimal(str(fee))
+        except Exception:
+            return self.DEFAULT_NETWORK_FEE_PERCENT
     
     # ==========================================
     # CRIAÇÃO DE FATURA
@@ -95,24 +113,28 @@ class WolkPayService:
             crypto_price_usd = await self._get_crypto_price_usd(request.crypto_currency)
             usd_brl_rate = await self._get_usd_brl_rate()
             
-            # 3. Calcular valores
+            # 3. Obter taxas do platform_settings
+            service_fee_percent = self._get_service_fee_percent()
+            network_fee_percent = self._get_network_fee_percent()
+            
+            # 4. Calcular valores
             base_amount_brl = request.crypto_amount * crypto_price_usd * usd_brl_rate
-            service_fee_brl = base_amount_brl * (self.SERVICE_FEE_PERCENT / 100)
-            network_fee_brl = base_amount_brl * (self.NETWORK_FEE_PERCENT / 100)
+            service_fee_brl = base_amount_brl * (service_fee_percent / 100)
+            network_fee_brl = base_amount_brl * (network_fee_percent / 100)
             total_amount_brl = base_amount_brl + service_fee_brl + network_fee_brl
             
-            # 4. Verificar limite por operação
+            # 5. Verificar limite por operação
             if total_amount_brl > self.LIMIT_PER_OPERATION:
                 raise ValueError(f"Valor excede limite por operação de R$ {self.LIMIT_PER_OPERATION:,.2f}")
             
-            # 5. Gerar identificadores
+            # 6. Gerar identificadores
             invoice_number = WolkPayInvoice.generate_invoice_number()
             checkout_token = WolkPayInvoice.generate_checkout_token()
             
-            # 6. Calcular expiração (15 minutos)
+            # 7. Calcular expiração (15 minutos)
             expires_at = datetime.now(timezone.utc) + timedelta(minutes=self.INVOICE_VALIDITY_MINUTES)
             
-            # 7. Criar fatura
+            # 8. Criar fatura
             invoice = WolkPayInvoice(
                 invoice_number=invoice_number,
                 beneficiary_id=user_id,
@@ -122,9 +144,9 @@ class WolkPayService:
                 usd_rate=crypto_price_usd,
                 brl_rate=usd_brl_rate,
                 base_amount_brl=base_amount_brl,
-                service_fee_percent=self.SERVICE_FEE_PERCENT,
+                service_fee_percent=service_fee_percent,
                 service_fee_brl=service_fee_brl,
-                network_fee_percent=self.NETWORK_FEE_PERCENT,
+                network_fee_percent=network_fee_percent,
                 network_fee_brl=network_fee_brl,
                 total_amount_brl=total_amount_brl,
                 checkout_token=checkout_token,

@@ -33,6 +33,8 @@ interface FeesSettings {
   otc_spread_percentage: number
   network_fee_percentage: number
   p2p_fee_percentage: number
+  wolkpay_service_fee_percentage?: number
+  wolkpay_network_fee_percentage?: number
 }
 
 interface LimitsSettings {
@@ -268,7 +270,7 @@ export const AdminSettingsPage: React.FC = () => {
       </div>
 
       {/* Fees Summary Cards */}
-      <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
+      <div className='grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4'>
         <div className='bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-4 text-white'>
           <div className='flex items-center gap-3'>
             <div className='p-2 bg-white/20 rounded-lg'>
@@ -299,6 +301,32 @@ export const AdminSettingsPage: React.FC = () => {
             <div>
               <p className='text-sm text-purple-100'>Taxa de Rede</p>
               <p className='text-2xl font-bold'>{editedFees?.network_fee_percentage || 0}%</p>
+            </div>
+          </div>
+        </div>
+        <div className='bg-gradient-to-br from-orange-500 to-amber-600 rounded-xl p-4 text-white'>
+          <div className='flex items-center gap-3'>
+            <div className='p-2 bg-white/20 rounded-lg'>
+              <ArrowRightLeft className='w-5 h-5' />
+            </div>
+            <div>
+              <p className='text-sm text-orange-100'>WolkPay Serviço</p>
+              <p className='text-2xl font-bold'>
+                {editedFees?.wolkpay_service_fee_percentage || 3.65}%
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className='bg-gradient-to-br from-amber-500 to-yellow-600 rounded-xl p-4 text-white'>
+          <div className='flex items-center gap-3'>
+            <div className='p-2 bg-white/20 rounded-lg'>
+              <Wallet className='w-5 h-5' />
+            </div>
+            <div>
+              <p className='text-sm text-amber-100'>WolkPay Rede</p>
+              <p className='text-2xl font-bold'>
+                {editedFees?.wolkpay_network_fee_percentage || 0.15}%
+              </p>
             </div>
           </div>
         </div>
@@ -390,6 +418,54 @@ export const AdminSettingsPage: React.FC = () => {
                   className='w-full px-4 py-2 pr-10 border border-purple-300 dark:border-purple-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white'
                 />
                 <Percent className='absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-purple-500' />
+              </div>
+            </div>
+
+            {/* WolkPay Service Fee */}
+            <div className='p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800'>
+              <label className='block text-sm font-medium text-orange-800 dark:text-orange-300 mb-2'>
+                WolkPay Taxa de Serviço (%)
+              </label>
+              <p className='text-xs text-orange-600 dark:text-orange-400 mb-2'>
+                Taxa de serviço cobrada nas faturas WolkPay. Padrão: 3.65%
+              </p>
+              <div className='relative'>
+                <input
+                  type='number'
+                  step='0.05'
+                  min='0'
+                  max='10'
+                  value={editedFees?.wolkpay_service_fee_percentage ?? 3.65}
+                  onChange={e =>
+                    updateFeeField('wolkpay_service_fee_percentage', Number(e.target.value))
+                  }
+                  className='w-full px-4 py-2 pr-10 border border-orange-300 dark:border-orange-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white'
+                />
+                <Percent className='absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-orange-500' />
+              </div>
+            </div>
+
+            {/* WolkPay Network Fee */}
+            <div className='p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800'>
+              <label className='block text-sm font-medium text-amber-800 dark:text-amber-300 mb-2'>
+                WolkPay Taxa de Rede (%)
+              </label>
+              <p className='text-xs text-amber-600 dark:text-amber-400 mb-2'>
+                Taxa de rede blockchain cobrada nas faturas WolkPay. Padrão: 0.15%
+              </p>
+              <div className='relative'>
+                <input
+                  type='number'
+                  step='0.01'
+                  min='0'
+                  max='5'
+                  value={editedFees?.wolkpay_network_fee_percentage ?? 0.15}
+                  onChange={e =>
+                    updateFeeField('wolkpay_network_fee_percentage', Number(e.target.value))
+                  }
+                  className='w-full px-4 py-2 pr-10 border border-amber-300 dark:border-amber-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white'
+                />
+                <Percent className='absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-amber-500' />
               </div>
             </div>
           </div>

@@ -265,6 +265,14 @@ class PlatformSettingsService:
     def get_network_fee(self, db: Session) -> float:
         """Retorna taxa de rede"""
         return self.get(db, "network_fee_percentage", 0.25)
+    
+    def get_wolkpay_service_fee(self, db: Session) -> float:
+        """Retorna taxa de serviço WolkPay"""
+        return self.get(db, "wolkpay_service_fee_percentage", 3.65)
+    
+    def get_wolkpay_network_fee(self, db: Session) -> float:
+        """Retorna taxa de rede WolkPay"""
+        return self.get(db, "wolkpay_network_fee_percentage", 0.15)
 
 
 # Instância singleton
