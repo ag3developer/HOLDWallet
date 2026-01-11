@@ -544,7 +544,10 @@ export function WolkPayCheckoutPage() {
   // Renderizar pago + conversão
   if (step === 'paid') {
     return (
-      <div key={i18n.language} className='min-h-screen bg-gray-50 dark:bg-gray-900 p-4'>
+      <div
+        key={i18n.language}
+        className='fixed inset-0 bg-gray-50 dark:bg-gray-900 overflow-y-auto p-4 pb-24'
+      >
         <div className='max-w-lg mx-auto'>
           {/* Success */}
           <div className='bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-6 text-white mb-6'>
@@ -704,7 +707,10 @@ export function WolkPayCheckoutPage() {
   // Renderizar PIX
   if (step === 'pix' && pixData) {
     return (
-      <div key={i18n.language} className='min-h-screen bg-gray-50 dark:bg-gray-900 p-4'>
+      <div
+        key={i18n.language}
+        className='fixed inset-0 bg-gray-50 dark:bg-gray-900 overflow-y-auto p-4 pb-24'
+      >
         <div className='max-w-lg mx-auto'>
           {/* Header */}
           <div className='text-center mb-6'>
@@ -781,7 +787,10 @@ export function WolkPayCheckoutPage() {
 
   // Renderizar formulário
   return (
-    <div key={i18n.language} className='min-h-screen bg-gray-50 dark:bg-gray-900 p-4'>
+    <div
+      key={i18n.language}
+      className='fixed inset-0 bg-gray-50 dark:bg-gray-900 overflow-y-auto p-4 pb-24'
+    >
       <div className='max-w-lg mx-auto'>
         {/* Header */}
         <div className='text-center mb-6'>

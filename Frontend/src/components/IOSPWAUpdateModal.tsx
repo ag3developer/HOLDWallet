@@ -100,6 +100,15 @@ export const IOSPWAUpdateModal = ({ forceShow = false }: IOSPWAUpdateModalProps)
   const [updateAvailable, setUpdateAvailable] = useState(false)
   const [serverVersion, setServerVersion] = useState<string | null>(null)
 
+  // Não mostrar o modal em páginas públicas (checkout, etc.)
+  const isPublicPage = () => {
+    if (globalThis.window === undefined) return false
+    const path = globalThis.location.pathname
+    return (
+      path.includes('/wolkpay/checkout') || path.includes('/login') || path.includes('/register')
+    )
+  }
+
   // Verifica se há nova versão disponível
   const checkForUpdate = useCallback(async () => {
     // Funciona em todos os dispositivos (não apenas iOS PWA)
@@ -250,8 +259,8 @@ export const IOSPWAUpdateModal = ({ forceShow = false }: IOSPWAUpdateModalProps)
     return <LoadingSkeleton />
   }
 
-  // Se não tem modal para mostrar, retorna null
-  if (!showModal || !updateAvailable) {
+  // Se não tem modal para mostrar ou está em página pública, retorna null
+  if (!showModal || !updateAvailable || isPublicPage()) {
     return null
   }
 

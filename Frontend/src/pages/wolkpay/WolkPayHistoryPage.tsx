@@ -55,9 +55,10 @@ const formatDate = (dateStr: string) => {
   })
 }
 
-const formatCrypto = (amount: number, symbol: string) => {
+const formatCrypto = (amount: number | string, symbol: string) => {
+  const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount
   const decimals = ['BTC'].includes(symbol) ? 8 : ['ETH', 'BNB'].includes(symbol) ? 6 : 2
-  return `${amount.toFixed(decimals)} ${symbol}`
+  return `${numAmount.toFixed(decimals)} ${symbol}`
 }
 
 export function WolkPayHistoryPage() {
