@@ -10,7 +10,6 @@ import React, { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import {
-  Wallet,
   Send,
   Users,
   Clock,
@@ -18,31 +17,45 @@ import {
   Zap,
   Copy,
   Check,
-  QrCode,
   ChevronDown,
-  ChevronRight,
   AlertCircle,
   Info,
   Share2,
   ExternalLink,
   History,
-  TrendingUp,
   Sparkles,
   BadgeCheck,
-  CircleDollarSign,
-  ArrowRight,
+  Coins,
+  DollarSign,
 } from 'lucide-react'
 import { usePrices } from '@/hooks/usePrices'
 import { useCurrencyStore } from '@/stores/useCurrencyStore'
-import wolkPayService, {
-  Invoice,
-  CreateInvoiceRequest,
-  InvoiceCreatedResponse,
-} from '@/services/wolkpay'
+import wolkPayService, { CreateInvoiceRequest, InvoiceCreatedResponse } from '@/services/wolkpay'
+
+// Logos das cryptos - usando CoinGecko
+const CRYPTO_LOGOS: Record<string, string> = {
+  BTC: 'https://assets.coingecko.com/coins/images/1/small/bitcoin.png',
+  ETH: 'https://assets.coingecko.com/coins/images/279/small/ethereum.png',
+  MATIC: 'https://assets.coingecko.com/coins/images/4713/small/matic-token-icon.png',
+  BNB: 'https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png',
+  TRX: 'https://assets.coingecko.com/coins/images/1094/small/tron-logo.png',
+  SOL: 'https://assets.coingecko.com/coins/images/4128/small/solana.png',
+  LTC: 'https://assets.coingecko.com/coins/images/2/small/litecoin.png',
+  DOGE: 'https://assets.coingecko.com/coins/images/5/small/dogecoin.png',
+  ADA: 'https://assets.coingecko.com/coins/images/975/small/cardano.png',
+  AVAX: 'https://assets.coingecko.com/coins/images/12559/small/Avalanche_Circle_RedWhite_Trans.png',
+  DOT: 'https://assets.coingecko.com/coins/images/12171/small/polkadot.png',
+  LINK: 'https://assets.coingecko.com/coins/images/877/small/chainlink-new-logo.png',
+  SHIB: 'https://assets.coingecko.com/coins/images/11939/small/shiba.png',
+  XRP: 'https://assets.coingecko.com/coins/images/44/small/xrp-symbol-white-128.png',
+  USDT: 'https://assets.coingecko.com/coins/images/325/small/Tether.png',
+  USDC: 'https://assets.coingecko.com/coins/images/6319/small/usdc.png',
+  DAI: 'https://assets.coingecko.com/coins/images/9956/small/Badge_Dai.png',
+}
 
 // Cryptos suportadas - mesma lista do InstantTrade
 const SUPPORTED_CRYPTOS = [
-  // 🪙 MOEDAS NATIVAS (principais blockchains)
+  // MOEDAS NATIVAS (principais blockchains)
   { symbol: 'BTC', name: 'Bitcoin', network: 'bitcoin', category: 'Native' },
   { symbol: 'ETH', name: 'Ethereum', network: 'ethereum', category: 'Native' },
   { symbol: 'MATIC', name: 'Polygon', network: 'polygon', category: 'Native' },
@@ -58,7 +71,7 @@ const SUPPORTED_CRYPTOS = [
   { symbol: 'SHIB', name: 'Shiba Inu', network: 'ethereum', category: 'Native' },
   { symbol: 'XRP', name: 'XRP', network: 'xrp', category: 'Native' },
 
-  // 💵 STABLECOINS (Criptodólares)
+  // STABLECOINS (Criptodólares)
   { symbol: 'USDT', name: 'Tether USD', network: 'tron', category: 'Stablecoin' },
   { symbol: 'USDC', name: 'USD Coin', network: 'ethereum', category: 'Stablecoin' },
   { symbol: 'DAI', name: 'Dai Stablecoin', network: 'ethereum', category: 'Stablecoin' },
@@ -426,16 +439,24 @@ export function WolkPayPage() {
             className='w-full flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600 hover:border-blue-500 transition-colors'
           >
             <div className='flex items-center gap-3'>
-              <div className='w-10 h-10 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center'>
-                <span className='text-white font-bold text-sm'>
-                  {selectedCrypto.symbol.charAt(0)}
-                </span>
-              </div>
+              {selectedCrypto?.symbol && CRYPTO_LOGOS[selectedCrypto.symbol] ? (
+                <img
+                  src={CRYPTO_LOGOS[selectedCrypto.symbol]}
+                  alt={selectedCrypto.symbol}
+                  className='w-10 h-10 rounded-full'
+                />
+              ) : (
+                <div className='w-10 h-10 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center'>
+                  <span className='text-white font-bold text-sm'>
+                    {selectedCrypto?.symbol?.charAt(0) || '?'}
+                  </span>
+                </div>
+              )}
               <div className='text-left'>
                 <p className='font-semibold text-gray-900 dark:text-white'>
-                  {selectedCrypto.symbol}
+                  {selectedCrypto?.symbol}
                 </p>
-                <p className='text-xs text-gray-500 dark:text-gray-400'>{selectedCrypto.name}</p>
+                <p className='text-xs text-gray-500 dark:text-gray-400'>{selectedCrypto?.name}</p>
               </div>
             </div>
             <ChevronDown
@@ -446,9 +467,10 @@ export function WolkPayPage() {
           {showCryptoSelect && (
             <div className='mt-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden max-h-80 overflow-y-auto'>
               {/* Stablecoins primeiro */}
-              <div className='px-4 py-2 bg-green-50 dark:bg-green-900/20 border-b border-gray-200 dark:border-gray-700'>
+              <div className='px-4 py-2 bg-green-50 dark:bg-green-900/20 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2'>
+                <DollarSign className='w-4 h-4 text-green-600 dark:text-green-400' />
                 <span className='text-xs font-semibold text-green-700 dark:text-green-400 uppercase tracking-wide'>
-                  💵 Stablecoins
+                  Stablecoins
                 </span>
               </div>
               {SUPPORTED_CRYPTOS.filter(c => c.category === 'Stablecoin').map(crypto => (
@@ -459,26 +481,37 @@ export function WolkPayPage() {
                     setShowCryptoSelect(false)
                   }}
                   className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${
-                    selectedCrypto.symbol === crypto.symbol ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                    selectedCrypto?.symbol === crypto.symbol ? 'bg-blue-50 dark:bg-blue-900/20' : ''
                   }`}
                 >
-                  <div className='w-8 h-8 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center'>
-                    <span className='text-white font-bold text-xs'>{crypto.symbol.charAt(0)}</span>
-                  </div>
+                  {CRYPTO_LOGOS[crypto.symbol] ? (
+                    <img
+                      src={CRYPTO_LOGOS[crypto.symbol]}
+                      alt={crypto.symbol}
+                      className='w-8 h-8 rounded-full'
+                    />
+                  ) : (
+                    <div className='w-8 h-8 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center'>
+                      <span className='text-white font-bold text-xs'>
+                        {crypto.symbol.charAt(0)}
+                      </span>
+                    </div>
+                  )}
                   <div className='text-left flex-1'>
                     <p className='font-medium text-gray-900 dark:text-white'>{crypto.symbol}</p>
                     <p className='text-xs text-gray-500 dark:text-gray-400'>{crypto.name}</p>
                   </div>
-                  {selectedCrypto.symbol === crypto.symbol && (
+                  {selectedCrypto?.symbol === crypto.symbol && (
                     <Check className='w-5 h-5 text-blue-500' />
                   )}
                 </button>
               ))}
 
               {/* Moedas Nativas */}
-              <div className='px-4 py-2 bg-orange-50 dark:bg-orange-900/20 border-y border-gray-200 dark:border-gray-700'>
+              <div className='px-4 py-2 bg-orange-50 dark:bg-orange-900/20 border-y border-gray-200 dark:border-gray-700 flex items-center gap-2'>
+                <Coins className='w-4 h-4 text-orange-600 dark:text-orange-400' />
                 <span className='text-xs font-semibold text-orange-700 dark:text-orange-400 uppercase tracking-wide'>
-                  🪙 Criptomoedas
+                  Criptomoedas
                 </span>
               </div>
               {SUPPORTED_CRYPTOS.filter(c => c.category === 'Native').map(crypto => (
@@ -489,17 +522,27 @@ export function WolkPayPage() {
                     setShowCryptoSelect(false)
                   }}
                   className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${
-                    selectedCrypto.symbol === crypto.symbol ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                    selectedCrypto?.symbol === crypto.symbol ? 'bg-blue-50 dark:bg-blue-900/20' : ''
                   }`}
                 >
-                  <div className='w-8 h-8 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center'>
-                    <span className='text-white font-bold text-xs'>{crypto.symbol.charAt(0)}</span>
-                  </div>
+                  {CRYPTO_LOGOS[crypto.symbol] ? (
+                    <img
+                      src={CRYPTO_LOGOS[crypto.symbol]}
+                      alt={crypto.symbol}
+                      className='w-8 h-8 rounded-full'
+                    />
+                  ) : (
+                    <div className='w-8 h-8 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center'>
+                      <span className='text-white font-bold text-xs'>
+                        {crypto.symbol.charAt(0)}
+                      </span>
+                    </div>
+                  )}
                   <div className='text-left flex-1'>
                     <p className='font-medium text-gray-900 dark:text-white'>{crypto.symbol}</p>
                     <p className='text-xs text-gray-500 dark:text-gray-400'>{crypto.name}</p>
                   </div>
-                  {selectedCrypto.symbol === crypto.symbol && (
+                  {selectedCrypto?.symbol === crypto.symbol && (
                     <Check className='w-5 h-5 text-blue-500' />
                   )}
                 </button>
