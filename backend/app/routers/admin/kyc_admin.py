@@ -423,7 +423,7 @@ async def approve_verification(
             "success": True,
             "message": "KYC aprovado com sucesso",
             "verification_id": str(verification.id),
-            "status": verification.status.value,
+            "status": verification.status.value if hasattr(verification.status, 'value') else str(verification.status),
             "expiration_date": str(verification.expiration_date)
         }
     except ValueError as e:
@@ -461,7 +461,7 @@ async def reject_verification(
             "success": True,
             "message": "KYC rejeitado",
             "verification_id": str(verification.id),
-            "status": verification.status.value
+            "status": verification.status.value if hasattr(verification.status, 'value') else str(verification.status)
         }
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
@@ -501,7 +501,7 @@ async def request_additional_documents(
             "success": True,
             "message": "Documentos solicitados",
             "verification_id": str(verification.id),
-            "status": verification.status.value,
+            "status": verification.status.value if hasattr(verification.status, 'value') else str(verification.status),
             "requested_documents": verification.requested_documents
         }
     except ValueError as e:
@@ -538,7 +538,7 @@ async def set_under_review(
     from app.models.kyc import AuditAction, ActorType
     from datetime import datetime
     
-    old_status = verification.status.value
+    old_status = verification.status.value if hasattr(verification.status, 'value') else str(verification.status)
     verification.status = KYCStatus.UNDER_REVIEW
     verification.reviewed_by = admin.id
     
@@ -552,7 +552,7 @@ async def set_under_review(
         actor_type=ActorType.ADMIN,
         action=AuditAction.VERIFICATION_STARTED,  # Reutilizando
         old_status=old_status,
-        new_status=verification.status.value,
+        new_status=verification.status.value if hasattr(verification.status, 'value') else str(verification.status),
         ip_address=ip,
         user_agent=user_agent
     )
@@ -560,5 +560,5 @@ async def set_under_review(
     return {
         "success": True,
         "message": "Verificação marcada como em análise",
-        "status": verification.status.value
+        "status": verification.status.value if hasattr(verification.status, 'value') else str(verification.status)
     }

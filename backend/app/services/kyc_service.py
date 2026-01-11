@@ -577,8 +577,9 @@ class KYCService:
         if not verification:
             raise ValueError("Verificação não encontrada")
         
-        if verification.status not in [KYCStatus.SUBMITTED, KYCStatus.UNDER_REVIEW]:
-            raise ValueError("Verificação não está pendente de aprovação")
+        # Permite aprovar se ainda não foi aprovado/rejeitado
+        if verification.status in [KYCStatus.APPROVED, KYCStatus.REJECTED, KYCStatus.EXPIRED]:
+            raise ValueError("Verificação já foi processada anteriormente")
         
         old_status = verification.status
         
@@ -642,8 +643,9 @@ class KYCService:
         if not verification:
             raise ValueError("Verificação não encontrada")
         
-        if verification.status not in [KYCStatus.SUBMITTED, KYCStatus.UNDER_REVIEW]:
-            raise ValueError("Verificação não está pendente de análise")
+        # Permite rejeitar se ainda não foi aprovado/rejeitado
+        if verification.status in [KYCStatus.APPROVED, KYCStatus.REJECTED, KYCStatus.EXPIRED]:
+            raise ValueError("Verificação já foi processada anteriormente")
         
         old_status = verification.status
         

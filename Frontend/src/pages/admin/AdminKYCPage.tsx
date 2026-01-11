@@ -812,11 +812,7 @@ const AdminKYCPage: React.FC = () => {
                             <StatusBadge status={doc.status} />
                             <button
                               onClick={() =>
-                                getDocumentUrl(
-                                  selectedVerification.id,
-                                  doc.id,
-                                  doc.document_type
-                                )
+                                getDocumentUrl(selectedVerification.id, doc.id, doc.document_type)
                               }
                               disabled={loadingDocUrl === doc.id}
                               title='Visualizar documento'
@@ -924,10 +920,18 @@ const AdminKYCPage: React.FC = () => {
                 <textarea
                   value={rejectionReason}
                   onChange={e => setRejectionReason(e.target.value)}
-                  placeholder='Descreva o motivo da rejeição...'
+                  placeholder='Descreva o motivo da rejeição (mínimo 10 caracteres)...'
                   rows={4}
                   className='w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent resize-none'
                 />
+                <div className='text-xs text-gray-500 mt-1'>
+                  {rejectionReason.length}/10 caracteres mínimos
+                  {rejectionReason.length < 10 && rejectionReason.length > 0 && (
+                    <span className='text-red-500 ml-2'>
+                      (faltam {10 - rejectionReason.length})
+                    </span>
+                  )}
+                </div>
               </div>
             )}
 
@@ -950,7 +954,10 @@ const AdminKYCPage: React.FC = () => {
               </button>
               <button
                 onClick={() => handleReview(reviewModal.type!)}
-                disabled={processing || (reviewModal.type === 'reject' && !rejectionReason.trim())}
+                disabled={
+                  processing ||
+                  (reviewModal.type === 'reject' && rejectionReason.trim().length < 10)
+                }
                 className={`flex-1 px-4 py-2.5 rounded-xl font-medium disabled:opacity-50 transition-colors ${
                   reviewModal.type === 'approve'
                     ? 'bg-green-600 text-white hover:bg-green-700'
