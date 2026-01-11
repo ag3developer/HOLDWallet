@@ -143,7 +143,7 @@ export const AdminWolkPayPage: React.FC = () => {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string>('PAID')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
   const [page, setPage] = useState(1)
   const [showFilters, setShowFilters] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -152,7 +152,7 @@ export const AdminWolkPayPage: React.FC = () => {
   // Data states
   const [pendingData, setPendingData] = useState<WolkPayPendingResponse | null>(null)
   const [allData, setAllData] = useState<WolkPayAllResponse | null>(null)
-  const [viewMode, setViewMode] = useState<'pending' | 'all'>('pending')
+  const [viewMode, setViewMode] = useState<'pending' | 'all'>('all')
 
   const perPage = 20
 
@@ -174,7 +174,12 @@ export const AdminWolkPayPage: React.FC = () => {
         setLoading(true)
       }
 
+      // Sempre buscar estatisticas (do endpoint pending)
+      const pendingStats = await getPendingInvoices(1, 1)
+      setPendingData(pendingStats)
+
       if (viewMode === 'pending') {
+        // Ja buscou acima, agora busca com paginacao correta
         const data = await getPendingInvoices(page, perPage)
         setPendingData(data)
       } else {
@@ -205,12 +210,13 @@ export const AdminWolkPayPage: React.FC = () => {
   const stats = useMemo(() => {
     if (pendingData) {
       return {
-        pending: pendingData.pending_count,
-        paid: pendingData.paid_count,
-        approved: pendingData.approved_count,
+        total: pendingData.total_count || 0,
+        pending: pendingData.pending_count || 0,
+        paid: pendingData.paid_count || 0,
+        approved: pendingData.approved_count || 0,
       }
     }
-    return { pending: 0, paid: 0, approved: 0 }
+    return { total: 0, pending: 0, paid: 0, approved: 0 }
   }, [pendingData])
 
   // Filter invoices by search (client-side for now)
@@ -247,6 +253,13 @@ export const AdminWolkPayPage: React.FC = () => {
   // Stats cards
   const statsCards = [
     {
+      id: 'total',
+      label: 'Total de Faturas',
+      value: stats.total,
+      icon: <FileText className='w-5 h-5' />,
+      color: 'from-purple-500 to-purple-600',
+    },
+    {
       id: 'awaiting',
       label: 'Aguardando Aprovacao',
       value: stats.paid,
@@ -255,14 +268,14 @@ export const AdminWolkPayPage: React.FC = () => {
     },
     {
       id: 'pending',
-      label: 'Pendentes',
+      label: 'Em Andamento',
       value: stats.pending,
       icon: <Clock className='w-5 h-5' />,
       color: 'from-yellow-500 to-orange-600',
     },
     {
       id: 'approved',
-      label: 'Aprovados',
+      label: 'Concluidas',
       value: stats.approved,
       icon: <CheckCircle className='w-5 h-5' />,
       color: 'from-emerald-500 to-green-600',
@@ -294,7 +307,7 @@ export const AdminWolkPayPage: React.FC = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className='grid grid-cols-3 gap-3'>
+      <div className='grid grid-cols-2 md:grid-cols-4 gap-3'>
         {statsCards.map(stat => (
           <div key={stat.id} className='bg-gray-800/50 rounded-xl p-4 border border-gray-700/50'>
             <div className='flex items-center justify-between mb-2'>

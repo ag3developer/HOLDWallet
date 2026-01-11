@@ -83,18 +83,24 @@ async def get_pending_invoices(
             per_page=per_page
         )
         
-        # Contar por status
+        # Contar por status - Estatisticas gerais
+        # pending_count = faturas aguardando pagador preencher dados ou pagar
         pending_count = db.query(WolkPayInvoice).filter(
-            WolkPayInvoice.status == InvoiceStatus.PAID
+            WolkPayInvoice.status.in_([InvoiceStatus.PENDING, InvoiceStatus.AWAITING_PAYMENT])
         ).count()
         
+        # paid_count = faturas pagas aguardando aprovacao do admin
         paid_count = db.query(WolkPayInvoice).filter(
             WolkPayInvoice.status == InvoiceStatus.PAID
         ).count()
         
+        # approved_count = faturas aprovadas/concluidas
         approved_count = db.query(WolkPayInvoice).filter(
             WolkPayInvoice.status.in_([InvoiceStatus.APPROVED, InvoiceStatus.COMPLETED])
         ).count()
+        
+        # total_count = todas as faturas
+        total_count = db.query(WolkPayInvoice).count()
         
         result = []
         for invoice in invoices:
@@ -149,6 +155,7 @@ async def get_pending_invoices(
         return {
             "invoices": result,
             "total": total,
+            "total_count": total_count,
             "pending_count": pending_count,
             "paid_count": paid_count,
             "approved_count": approved_count,

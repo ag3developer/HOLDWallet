@@ -171,6 +171,7 @@ export interface WolkPayInvoiceDetail {
 export interface WolkPayPendingResponse {
   invoices: WolkPayInvoiceListItem[]
   total: number
+  total_count: number
   pending_count: number
   paid_count: number
   approved_count: number
