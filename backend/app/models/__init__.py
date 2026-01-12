@@ -26,7 +26,8 @@ from .wolkpay import (
 from .kyc import (
     KYCVerification, KYCPersonalData, KYCDocument, KYCAuditLog, KYCServiceLimit,
     KYCStatus, KYCLevel, DocumentType as KYCDocumentType, DocumentStatus,
-    AuditAction as KYCAuditAction, ActorType as KYCActorType
+    AuditAction as KYCAuditAction, ActorType as KYCActorType,
+    UserCustomLimit, UserServiceAccess
 )
 
 # Import P2P models to ensure tables are created
@@ -131,6 +132,8 @@ __all__ = [
     "DocumentStatus",
     "KYCAuditAction",
     "KYCActorType",
+    "UserCustomLimit",
+    "UserServiceAccess",
     "kyc",
     
     # User Profile

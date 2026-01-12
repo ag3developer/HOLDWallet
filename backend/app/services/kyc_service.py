@@ -17,7 +17,7 @@ import logging
 from app.models.kyc import (
     KYCVerification, KYCPersonalData, KYCDocument, KYCAuditLog,
     KYCServiceLimit, KYCStatus, KYCLevel, DocumentType, DocumentStatus,
-    AuditAction, ActorType
+    AuditAction, ActorType, UserCustomLimit, UserServiceAccess
 )
 from app.models.user import User
 from app.schemas.kyc import (
@@ -1052,6 +1052,173 @@ class KYCService:
             benefits=config.get("benefits", []),
             limits=limits
         )
+    
+    # ============================================================
+    # LIMITES DO USUÁRIO - INTEGRAÇÃO COM ADMIN
+    # ============================================================
+    
+    async def get_user_limits(self, user_id: uuid.UUID) -> Dict[str, Dict[str, Any]]:
+        """
+        Obtém os limites efetivos do usuário para todos os serviços.
+        
+        A prioridade é:
+        1. Limites personalizados (UserCustomLimit) - se existirem
+        2. Limites do banco por nível KYC (KYCServiceLimit) - se existirem
+        3. Limites padrão em DEFAULT_SERVICE_LIMITS - como fallback
+        
+        Returns:
+            Dict com limites por serviço:
+            {
+                "service_name": {
+                    "daily_limit_brl": Decimal,
+                    "monthly_limit_brl": Decimal,
+                    "transaction_limit_brl": Decimal,
+                    "is_enabled": bool,
+                    "requires_approval": bool
+                }
+            }
+        """
+        # 1. Obtém nível KYC do usuário
+        kyc_level = await self.get_user_kyc_level(user_id)
+        kyc_level_str = kyc_level.value if hasattr(kyc_level, 'value') else str(kyc_level)
+        
+        # 2. Busca limites personalizados do usuário
+        custom_limits = self.db.query(UserCustomLimit).filter(
+            UserCustomLimit.user_id == user_id,
+            UserCustomLimit.is_enabled == True
+        ).all()
+        
+        custom_limits_map = {l.service_name: l for l in custom_limits}
+        
+        # 3. Busca controle de acesso a serviços
+        service_access = self.db.query(UserServiceAccess).filter(
+            UserServiceAccess.user_id == user_id
+        ).all()
+        
+        access_map = {a.service_name: a for a in service_access}
+        
+        # 4. Busca limites do banco por nível KYC
+        db_limits = self.db.query(KYCServiceLimit).filter(
+            KYCServiceLimit.kyc_level == kyc_level_str,
+            KYCServiceLimit.is_active == True
+        ).all()
+        
+        db_limits_map = {l.service_name: l for l in db_limits}
+        
+        # 5. Monta limites efetivos para cada serviço
+        result = {}
+        
+        for service_name in DEFAULT_SERVICE_LIMITS.keys():
+            # Prioridade: custom > db > default
+            custom = custom_limits_map.get(service_name)
+            db_limit = db_limits_map.get(service_name)
+            access = access_map.get(service_name)
+            
+            # Busca default - tenta tanto pelo enum quanto pela string
+            service_defaults = DEFAULT_SERVICE_LIMITS.get(service_name, {})
+            default = service_defaults.get(kyc_level, {})  # Tenta pelo enum
+            if not default:
+                default = service_defaults.get(kyc_level_str, {})  # Tenta pela string
+            
+            # Verifica se o serviço está bloqueado
+            is_enabled = True
+            if access and not access.is_allowed:
+                is_enabled = False
+            if custom and not custom.is_enabled:
+                is_enabled = False
+            
+            # Define limites (custom > db > default)
+            if custom:
+                daily = custom.daily_limit
+                monthly = custom.monthly_limit
+                per_op = custom.per_operation_limit
+                requires_approval = custom.requires_approval
+            elif db_limit:
+                daily = db_limit.daily_limit
+                monthly = db_limit.monthly_limit
+                per_op = db_limit.per_operation_limit
+                requires_approval = False
+            else:
+                daily = Decimal(str(default.get("daily", 0))) if default.get("daily") else None
+                monthly = Decimal(str(default.get("monthly", 0))) if default.get("monthly") else None
+                per_op = Decimal(str(default.get("per_op", 0))) if default.get("per_op") else None
+                requires_approval = False
+            
+            result[service_name] = {
+                "daily_limit_brl": daily,
+                "monthly_limit_brl": monthly,
+                "transaction_limit_brl": per_op,
+                "is_enabled": is_enabled,
+                "requires_approval": requires_approval,
+                "kyc_level": kyc_level_str,
+                "is_custom": custom is not None
+            }
+        
+        return result
+    
+    async def get_service_limit(
+        self, 
+        user_id: uuid.UUID, 
+        service_name: str
+    ) -> Dict[str, Any]:
+        """
+        Obtém o limite efetivo de um serviço específico para o usuário.
+        
+        Args:
+            user_id: ID do usuário
+            service_name: Nome do serviço (wolkpay, instant_trade, p2p, etc)
+            
+        Returns:
+            Dict com limites do serviço
+        """
+        all_limits = await self.get_user_limits(user_id)
+        return all_limits.get(service_name, {
+            "daily_limit_brl": Decimal("0"),
+            "monthly_limit_brl": Decimal("0"),
+            "transaction_limit_brl": Decimal("0"),
+            "is_enabled": False,
+            "requires_approval": False,
+            "kyc_level": "none",
+            "is_custom": False
+        })
+    
+    async def check_service_access(
+        self,
+        user_id: uuid.UUID,
+        service_name: str,
+        amount_brl: Decimal
+    ) -> Tuple[bool, str, Dict[str, Any]]:
+        """
+        Verifica se o usuário pode acessar um serviço com o valor especificado.
+        
+        Args:
+            user_id: ID do usuário
+            service_name: Nome do serviço
+            amount_brl: Valor em BRL da operação
+            
+        Returns:
+            Tuple[allowed, message, limits_info]
+        """
+        limits = await self.get_service_limit(user_id, service_name)
+        
+        # Verifica se serviço está habilitado
+        if not limits.get("is_enabled", False):
+            return False, f"Serviço {service_name} não está habilitado para sua conta", limits
+        
+        # Verifica limite por operação
+        per_op = limits.get("transaction_limit_brl")
+        if per_op is not None and per_op > 0:
+            if amount_brl > per_op:
+                return False, f"Valor R$ {amount_brl:,.2f} excede seu limite por operação de R$ {per_op:,.2f}", limits
+        elif per_op == Decimal("0") or per_op is None:
+            # Limite zero = sem acesso, None = sem limite
+            kyc_level = limits.get("kyc_level", "none")
+            if kyc_level == "none":
+                return False, f"Complete sua verificação KYC para acessar {service_name}", limits
+        
+        # TODO: Verificar limite diário e mensal (requer histórico de transações)
+        
+        return True, "Operação permitida", limits
     
     # ============================================================
     # AUDIT LOG

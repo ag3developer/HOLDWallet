@@ -33,6 +33,7 @@ from app.schemas.wolkpay import (
 from app.services.price_aggregator import price_aggregator
 from app.services.wallet_service import WalletService
 from app.services.platform_settings_service import platform_settings_service
+from app.services.kyc_service import KYCService
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -56,8 +57,9 @@ class WolkPayService:
     # Taxas agora vêm do platform_settings_service (valores abaixo são fallback)
     DEFAULT_SERVICE_FEE_PERCENT = Decimal('3.65')  # Taxa de serviço padrão
     DEFAULT_NETWORK_FEE_PERCENT = Decimal('0.15')  # Taxa de rede padrão
-    LIMIT_PER_OPERATION = Decimal('15000.00')  # Limite por operação
-    LIMIT_PER_MONTH = Decimal('300000.00')  # Limite mensal por pagador
+    # Limites padrão (fallback caso não haja configuração no banco)
+    DEFAULT_LIMIT_PER_OPERATION = Decimal('15000.00')  # Limite por operação padrão
+    DEFAULT_LIMIT_PER_MONTH = Decimal('300000.00')  # Limite mensal por pagador padrão
     
     # Dados da conta para PIX - usa configuração do settings
     # IMPORTANTE: Esta chave PIX DEVE estar cadastrada no banco da HOLD!
@@ -67,7 +69,58 @@ class WolkPayService:
     
     def __init__(self, db: Session):
         self.db = db
-        # Usa o price_aggregator já existente no projeto
+        self._kyc_service = None
+    
+    @property
+    def kyc_service(self) -> KYCService:
+        """Lazy loading do KYCService"""
+        if self._kyc_service is None:
+            self._kyc_service = KYCService(self.db)
+        return self._kyc_service
+    
+    async def _get_user_operation_limit(self, user_id: str) -> Decimal:
+        """
+        Obtém o limite por operação do usuário baseado no KYC.
+        Consulta limites personalizados e limites do banco.
+        
+        Args:
+            user_id: ID do usuário
+            
+        Returns:
+            Limite por operação em BRL
+        """
+        try:
+            import uuid
+            user_uuid = uuid.UUID(user_id) if isinstance(user_id, str) else user_id
+            limits = await self.kyc_service.get_service_limit(user_uuid, "wolkpay")
+            
+            per_op = limits.get("transaction_limit_brl")
+            if per_op is None:
+                # None = sem limite (ilimitado)
+                return Decimal('999999999.99')
+            
+            return Decimal(str(per_op)) if per_op else self.DEFAULT_LIMIT_PER_OPERATION
+        except Exception as e:
+            logger.warning(f"Erro ao obter limite KYC do usuário {user_id}: {e}")
+            return self.DEFAULT_LIMIT_PER_OPERATION
+    
+    async def _check_user_service_access(self, user_id: str, amount_brl: Decimal) -> tuple:
+        """
+        Verifica se o usuário pode usar o WolkPay.
+        
+        Returns:
+            Tuple[allowed: bool, message: str, limits: dict]
+        """
+        try:
+            import uuid
+            user_uuid = uuid.UUID(user_id) if isinstance(user_id, str) else user_id
+            return await self.kyc_service.check_service_access(user_uuid, "wolkpay", amount_brl)
+        except Exception as e:
+            logger.warning(f"Erro ao verificar acesso KYC: {e}")
+            # Em caso de erro, usa limite padrão
+            if amount_brl > self.DEFAULT_LIMIT_PER_OPERATION:
+                return False, f"Valor excede limite padrão de R$ {self.DEFAULT_LIMIT_PER_OPERATION:,.2f}", {}
+            return True, "OK", {}
     
     def _get_service_fee_percent(self) -> Decimal:
         """Obtém taxa de serviço do platform_settings (com fallback)"""
@@ -136,9 +189,10 @@ class WolkPayService:
                 total_amount_brl = base_amount_brl
                 beneficiary_receives_brl = base_amount_brl - total_fees_brl
             
-            # 6. Verificar limite por operação
-            if total_amount_brl > self.LIMIT_PER_OPERATION:
-                raise ValueError(f"Valor excede limite por operação de R$ {self.LIMIT_PER_OPERATION:,.2f}")
+            # 6. Verificar limite por operação baseado no KYC do usuário
+            allowed, message, limits_info = await self._check_user_service_access(user_id, total_amount_brl)
+            if not allowed:
+                raise ValueError(message)
             
             # 7. Gerar identificadores
             invoice_number = WolkPayInvoice.generate_invoice_number()

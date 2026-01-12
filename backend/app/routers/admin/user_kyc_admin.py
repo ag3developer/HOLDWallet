@@ -66,6 +66,13 @@ DEFAULT_SERVICE_LIMITS = {
         "advanced": {"daily": 100000, "monthly": 500000, "per_op": 50000},
         "premium": {"daily": None, "monthly": None, "per_op": None},
     },
+    "withdraw_fiat": {
+        "none": {"daily": 0, "monthly": 0, "per_op": 0},
+        "basic": {"daily": 0, "monthly": 0, "per_op": 0},
+        "intermediate": {"daily": 10000, "monthly": 100000, "per_op": 5000},
+        "advanced": {"daily": 100000, "monthly": 500000, "per_op": 50000},
+        "premium": {"daily": None, "monthly": None, "per_op": None},
+    },
     "pix_withdraw": {
         "none": {"daily": 0, "monthly": 0, "per_op": 0},
         "basic": {"daily": 0, "monthly": 0, "per_op": 0},
@@ -728,11 +735,42 @@ async def get_all_service_limits(
     """
     Retorna todos os limites configurados por serviço e nível.
     
+    Consulta primeiro o banco de dados, depois usa defaults como fallback.
     Usado para exibir e editar configurações globais no admin.
     """
-    # Por agora retorna os limites padrão
-    # Futuramente pode ser migrado para tabela configurável
-    return AllServicesLimitsResponse(services=DEFAULT_SERVICE_LIMITS)
+    # Busca limites do banco
+    db_limits = db.query(KYCServiceLimit).filter(
+        KYCServiceLimit.is_active == True
+    ).all()
+    
+    # Mapa para lookup rápido
+    db_limits_map = {}
+    for limit in db_limits:
+        key = f"{limit.service_name}_{limit.kyc_level}"
+        db_limits_map[key] = {
+            "daily": float(limit.daily_limit) if limit.daily_limit else None,
+            "monthly": float(limit.monthly_limit) if limit.monthly_limit else None,
+            "per_op": float(limit.per_operation_limit) if limit.per_operation_limit else None,
+            "from_db": True
+        }
+    
+    # Monta resposta combinando banco + defaults
+    result = {}
+    for service_name, levels in DEFAULT_SERVICE_LIMITS.items():
+        result[service_name] = {}
+        for level_name, default_limits in levels.items():
+            key = f"{service_name}_{level_name}"
+            if key in db_limits_map:
+                # Usa limite do banco
+                result[service_name][level_name] = db_limits_map[key]
+            else:
+                # Usa default
+                result[service_name][level_name] = {
+                    **default_limits,
+                    "from_db": False
+                }
+    
+    return AllServicesLimitsResponse(services=result)
 
 
 @router.put("/config/limits")

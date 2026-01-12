@@ -274,8 +274,10 @@ async def check_kyc_limit(
     Raises:
         HTTPException se operação exceder limite
     """
+    from decimal import Decimal
+    
     kyc_service = KYCService(db)
-    verification = await kyc_service.get_user_verification(user.id)
+    verification = await kyc_service.get_active_verification(user.id)
     
     # Determina nível
     if not verification or verification.status != KYCStatus.APPROVED:
@@ -283,45 +285,69 @@ async def check_kyc_limit(
     else:
         kyc_level = verification.level
     
-    # Obtém limites do usuário
+    # Obtém limites do usuário (agora consulta banco de dados)
     limits = await kyc_service.get_user_limits(user.id)
     
     # Encontra limite relevante
     service_limits = limits.get(service_type, {})
     
+    # Verifica se o serviço está habilitado
+    if not service_limits.get("is_enabled", True):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "SERVICE_BLOCKED",
+                "message": f"O serviço {service_type} está bloqueado para sua conta.",
+                "kyc_level": kyc_level.value if hasattr(kyc_level, 'value') else str(kyc_level)
+            }
+        )
+    
+    # Converte Decimal para float e trata None como ilimitado
+    def to_float(val):
+        if val is None:
+            return None  # None = sem limite
+        if isinstance(val, Decimal):
+            return float(val)
+        return float(val) if val else 0
+    
     if operation_type == "transaction":
-        limit_value = service_limits.get("transaction_limit_brl", 0)
+        limit_value = to_float(service_limits.get("transaction_limit_brl"))
         used_value = 0  # Transação única
-        remaining = limit_value
     elif operation_type == "daily":
-        limit_value = service_limits.get("daily_limit_brl", 0)
-        # TODO: Calcular usado hoje
-        used_value = 0  # Implementar consulta ao histórico
-        remaining = limit_value - used_value
+        limit_value = to_float(service_limits.get("daily_limit_brl"))
+        # TODO: Calcular usado hoje consultando histórico
+        used_value = 0
     elif operation_type == "monthly":
-        limit_value = service_limits.get("monthly_limit_brl", 0)
-        # TODO: Calcular usado no mês
-        used_value = 0  # Implementar consulta ao histórico
-        remaining = limit_value - used_value
+        limit_value = to_float(service_limits.get("monthly_limit_brl"))
+        # TODO: Calcular usado no mês consultando histórico
+        used_value = 0
     else:
         limit_value = 0
         used_value = 0
-        remaining = 0
     
-    allowed = amount_brl <= remaining and limit_value > 0
+    # None = sem limite (ilimitado)
+    if limit_value is None:
+        remaining = float('inf')
+        allowed = True
+    else:
+        remaining = limit_value - used_value
+        allowed = amount_brl <= remaining and (limit_value > 0 or limit_value is None)
+    
+    kyc_level_str = kyc_level.value if hasattr(kyc_level, 'value') else str(kyc_level)
     
     result = {
         "allowed": allowed,
-        "kyc_level": kyc_level.value,
-        "limit": limit_value,
+        "kyc_level": kyc_level_str,
+        "limit": limit_value if limit_value != float('inf') else None,
         "used": used_value,
-        "remaining": remaining,
-        "requested": amount_brl
+        "remaining": remaining if remaining != float('inf') else None,
+        "requested": amount_brl,
+        "is_unlimited": limit_value is None
     }
     
     if not allowed:
         if limit_value == 0:
-            result["message"] = f"Serviço não disponível para seu nível KYC ({kyc_level.value}). Complete sua verificação para acessar este serviço."
+            result["message"] = f"Serviço {service_type} não disponível para seu nível KYC ({kyc_level_str}). Complete sua verificação para acessar este serviço."
         elif amount_brl > remaining:
             result["message"] = f"Limite excedido. Disponível: R$ {remaining:,.2f}. Solicitado: R$ {amount_brl:,.2f}."
         
