@@ -1069,20 +1069,35 @@ class WolkPayService:
         per_page: int = 20
     ) -> Tuple[List[WolkPayInvoice], int]:
         """
-        Lista faturas do beneficiário
+        Lista faturas do beneficiário.
+        Verifica e atualiza faturas expiradas automaticamente.
+        Suporta múltiplos status separados por vírgula (ex: "PENDING,AWAITING_PAYMENT")
         """
         query = self.db.query(WolkPayInvoice).filter(
             WolkPayInvoice.beneficiary_id == user_id
         )
         
         if status:
-            query = query.filter(WolkPayInvoice.status == status)
+            # Suporta múltiplos status separados por vírgula
+            status_list = [s.strip() for s in status.split(',')]
+            if len(status_list) == 1:
+                query = query.filter(WolkPayInvoice.status == status_list[0])
+            else:
+                query = query.filter(WolkPayInvoice.status.in_(status_list))
         
         total = query.count()
         
         invoices = query.order_by(
             WolkPayInvoice.created_at.desc()
         ).offset((page - 1) * per_page).limit(per_page).all()
+        
+        # Verificar e marcar faturas expiradas
+        for invoice in invoices:
+            if invoice.is_expired() and invoice.status in [InvoiceStatus.PENDING, InvoiceStatus.AWAITING_PAYMENT]:
+                invoice.status = InvoiceStatus.EXPIRED
+                self.db.add(invoice)
+        
+        self.db.commit()
         
         return invoices, total
     

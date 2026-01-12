@@ -104,11 +104,14 @@ const LoadingSkeleton = () => (
   </div>
 )
 
-const formatCurrency = (amount: number) => {
+const formatCurrency = (amount: number | string | null | undefined) => {
+  if (amount === null || amount === undefined) return 'R$ 0,00'
+  const numAmount = typeof amount === 'string' ? Number.parseFloat(amount) : amount
+  if (Number.isNaN(numAmount)) return 'R$ 0,00'
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL',
-  }).format(amount)
+  }).format(numAmount)
 }
 
 const formatDate = (dateStr: string) => {
@@ -123,9 +126,11 @@ const formatDate = (dateStr: string) => {
 
 const formatCrypto = (amount: number | string | null | undefined, symbol: string) => {
   if (amount === null || amount === undefined) return `0.00 ${symbol}`
-  const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount
-  if (isNaN(numAmount)) return `0.00 ${symbol}`
-  const decimals = ['BTC'].includes(symbol) ? 8 : ['ETH', 'BNB'].includes(symbol) ? 6 : 2
+  const numAmount = typeof amount === 'string' ? Number.parseFloat(amount) : amount
+  if (Number.isNaN(numAmount)) return `0.00 ${symbol}`
+  let decimals = 2
+  if (['BTC'].includes(symbol)) decimals = 8
+  else if (['ETH', 'BNB'].includes(symbol)) decimals = 6
   return `${numAmount.toFixed(decimals)} ${symbol}`
 }
 
@@ -273,7 +278,13 @@ export function WolkPayHistoryPage() {
                 {formatCurrency(
                   invoices
                     .filter(i => ['PAID', 'APPROVED', 'COMPLETED'].includes(i.status))
-                    .reduce((acc, i) => acc + i.total_amount_brl, 0)
+                    .reduce((acc, i) => {
+                      const amount =
+                        typeof i.total_amount_brl === 'string'
+                          ? Number.parseFloat(i.total_amount_brl)
+                          : i.total_amount_brl || 0
+                      return acc + (Number.isNaN(amount) ? 0 : amount)
+                    }, 0)
                 )}
               </p>
             </div>
@@ -295,7 +306,7 @@ export function WolkPayHistoryPage() {
         <button
           onClick={() => setStatusFilter('')}
           className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all flex items-center gap-1.5 ${
-            !statusFilter
+            statusFilter === ''
               ? 'bg-blue-600 text-white shadow-md'
               : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
           }`}
@@ -326,9 +337,20 @@ export function WolkPayHistoryPage() {
           Concluídas
         </button>
         <button
-          onClick={() => setStatusFilter('EXPIRED,CANCELLED,REJECTED')}
+          onClick={() => setStatusFilter('EXPIRED')}
           className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all flex items-center gap-1.5 ${
-            statusFilter === 'EXPIRED,CANCELLED,REJECTED'
+            statusFilter === 'EXPIRED'
+              ? 'bg-orange-500 text-white shadow-md'
+              : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+          }`}
+        >
+          <Clock className='w-4 h-4' />
+          Expiradas
+        </button>
+        <button
+          onClick={() => setStatusFilter('CANCELLED,REJECTED')}
+          className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all flex items-center gap-1.5 ${
+            statusFilter === 'CANCELLED,REJECTED'
               ? 'bg-gray-500 text-white shadow-md'
               : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
           }`}

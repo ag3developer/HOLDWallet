@@ -69,20 +69,25 @@ const CRYPTO_LOGOS: Record<string, string> = {
 }
 
 // Formatadores
-const formatCurrency = (amount: number) => {
+const formatCurrency = (amount: number | string | null | undefined) => {
+  // Tratar valores inválidos
+  if (amount === null || amount === undefined) return 'R$ 0,00'
+  const numAmount = typeof amount === 'string' ? Number.parseFloat(amount) : amount
+  if (Number.isNaN(numAmount)) return 'R$ 0,00'
+
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL',
-  }).format(amount)
+  }).format(numAmount)
 }
 
 // Formatador de crypto com decimais inteligentes
 const formatCryptoAmount = (amount: number | string | undefined | null, symbol: string) => {
   // Converter para número se necessário
-  const numAmount = typeof amount === 'string' ? parseFloat(amount) : Number(amount || 0)
+  const numAmount = typeof amount === 'string' ? Number.parseFloat(amount) : Number(amount || 0)
 
   // Verificar se é um número válido
-  if (isNaN(numAmount)) {
+  if (Number.isNaN(numAmount)) {
     return '0'
   }
 
@@ -92,10 +97,10 @@ const formatCryptoAmount = (amount: number | string | undefined | null, symbol: 
   }
   // BTC: até 8 decimais, mas remove zeros à direita
   if (symbol.toUpperCase() === 'BTC') {
-    return parseFloat(numAmount.toFixed(8)).toString()
+    return Number.parseFloat(numAmount.toFixed(8)).toString()
   }
   // ETH e outros: até 6 decimais, remove zeros
-  return parseFloat(numAmount.toFixed(6)).toString()
+  return Number.parseFloat(numAmount.toFixed(6)).toString()
 }
 
 const formatCpf = (value: string) => {
@@ -428,8 +433,16 @@ export function WolkPayCheckoutPage() {
 
   // Formatar tempo
   const formatTime = (seconds: number) => {
+    // Tratar valores inválidos
+    if (seconds === null || seconds === undefined || Number.isNaN(seconds) || seconds < 0) {
+      return 'Tempo esgotado!'
+    }
+    // Se tempo zerou, mostrar mensagem
+    if (seconds === 0) {
+      return 'Tempo esgotado!'
+    }
     const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
+    const secs = Math.floor(seconds % 60)
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
