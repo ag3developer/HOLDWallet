@@ -11,6 +11,7 @@ from app.core.db import get_db
 from app.core.exceptions import AuthenticationError
 
 security = HTTPBearer()
+security_optional = HTTPBearer(auto_error=False)  # Não lança exceção se não houver token
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its hash."""
@@ -88,5 +89,39 @@ async def get_current_admin(
     """
     if not getattr(current_user, 'is_admin', False):
         raise AuthenticationError("Admin privileges required")
+
+
+async def get_current_user_optional(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_optional),
+    db: Session = Depends(get_db)
+):
+    """
+    Obtém o usuário atual se o token JWT estiver presente e válido.
+    Retorna None se não houver token ou se for inválido.
+    Útil para endpoints que funcionam tanto autenticados quanto não autenticados.
+    """
+    if credentials is None:
+        return None
+    
+    try:
+        payload = verify_token(credentials.credentials)
+        if payload is None:
+            return None
+        
+        user_email: str = payload.get("sub")
+        if user_email is None:
+            return None
+        
+        # Import here to avoid circular imports
+        from app.models.user import User
+        
+        user = db.query(User).filter(User.email == user_email).first()
+        if user is None or not user.is_active:
+            return None
+        
+        return user
+        
+    except JWTError:
+        return None
     
     return current_user

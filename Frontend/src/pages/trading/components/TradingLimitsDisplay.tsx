@@ -5,7 +5,9 @@ import {
   getLimitInfo,
   type AccountType,
   type CurrencyType,
+  type DynamicLimits,
 } from '../utils/tradingLimits'
+import { useUserLimits } from '../../../hooks/useUserLimits'
 
 interface TradingLimitsDisplayProps {
   readonly accountType: AccountType
@@ -14,6 +16,7 @@ interface TradingLimitsDisplayProps {
   readonly convertFromBRL: (value: number) => number
   readonly dailySpent?: number
   readonly currencySymbol: string
+  readonly serviceName?: string // Nome do serviço (wolkpay, instant_trade, p2p, etc)
 }
 
 export function TradingLimitsDisplay({
@@ -23,15 +26,29 @@ export function TradingLimitsDisplay({
   convertFromBRL,
   dailySpent = 0,
   currencySymbol,
+  serviceName = 'instant_trade',
 }: TradingLimitsDisplayProps) {
+  const { getServiceLimit } = useUserLimits()
+
+  // Obter limites dinâmicos do backend
+  const serviceLimit = getServiceLimit(serviceName)
+  const dynamicLimits: DynamicLimits | undefined = serviceLimit
+    ? {
+        min_amount: 1, // Mínimo padrão, backend não retorna este campo
+        max_amount: serviceLimit.transaction_limit_brl,
+        daily_limit: serviceLimit.daily_limit_brl,
+      }
+    : undefined
+
   const limitStatus = validateTradingLimit(
     amount,
     accountType,
     currency,
     convertFromBRL,
-    dailySpent
+    dailySpent,
+    dynamicLimits
   )
-  const limitInfo = getLimitInfo(accountType)
+  const limitInfo = getLimitInfo(accountType, dynamicLimits)
 
   const barWidth = Math.min(limitStatus.percentUsed, 100)
   const getBarColor = (): string => {

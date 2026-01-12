@@ -1154,6 +1154,17 @@ class KYCService:
                 "is_custom": custom is not None
             }
         
+        # Adicionar informações do KYC no nível raiz
+        kyc_level_names = {
+            "none": "Sem Verificação",
+            "basic": "Básico", 
+            "intermediate": "Intermediário",
+            "advanced": "Avançado",
+            "premium": "Premium"
+        }
+        result["kyc_level"] = kyc_level_str
+        result["kyc_level_name"] = kyc_level_names.get(kyc_level_str.lower(), kyc_level_str)
+        
         return result
     
     async def get_service_limit(

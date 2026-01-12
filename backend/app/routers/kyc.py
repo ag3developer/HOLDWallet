@@ -172,6 +172,89 @@ async def get_status(
     return await service.get_user_status(current_user.id)
 
 
+@router.get("/my-limits")
+async def get_my_limits(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Obtém os limites operacionais do usuário logado.
+    
+    Retorna os limites para cada serviço:
+    - instant_trade: Compra/venda instantânea
+    - p2p: Negociação P2P
+    - wolkpay: Recebimento via PIX
+    - withdraw_crypto: Saque em criptomoedas
+    - withdraw_fiat: Saque em reais (PIX/TED)
+    - internal_transfer: Transferência interna
+    
+    Cada serviço inclui:
+    - daily_limit_brl: Limite diário em R$
+    - monthly_limit_brl: Limite mensal em R$
+    - transaction_limit_brl: Limite por operação em R$
+    - is_enabled: Se o serviço está disponível
+    - kyc_level: Nível KYC atual do usuário
+    
+    Valores None indicam limite ilimitado.
+    """
+    service = KYCService(db)
+    
+    # Obtém limites efetivos do usuário
+    limits = await service.get_user_limits(current_user.id)
+    
+    # Obtém nível KYC
+    kyc_level = await service.get_user_kyc_level(current_user.id)
+    kyc_level_str = kyc_level.value if hasattr(kyc_level, 'value') else str(kyc_level)
+    
+    # Formata resposta amigável
+    formatted_limits = {}
+    for service_name, service_limits in limits.items():
+        daily = service_limits.get('daily_limit_brl')
+        monthly = service_limits.get('monthly_limit_brl')
+        per_op = service_limits.get('transaction_limit_brl')
+        
+        formatted_limits[service_name] = {
+            "daily_limit_brl": float(daily) if daily else None,
+            "monthly_limit_brl": float(monthly) if monthly else None,
+            "transaction_limit_brl": float(per_op) if per_op else None,
+            "is_enabled": service_limits.get('is_enabled', True),
+            "is_unlimited_daily": daily is None,
+            "is_unlimited_monthly": monthly is None,
+            "is_unlimited_per_operation": per_op is None,
+        }
+    
+    return {
+        "kyc_level": kyc_level_str,
+        "kyc_level_name": _get_level_name(kyc_level_str),
+        "limits": formatted_limits,
+        "message": _get_limits_message(kyc_level_str)
+    }
+
+
+def _get_level_name(level: str) -> str:
+    """Retorna nome amigável do nível KYC"""
+    names = {
+        "none": "Sem Verificação",
+        "basic": "Básico",
+        "intermediate": "Intermediário", 
+        "advanced": "Avançado",
+        "premium": "Premium"
+    }
+    return names.get(level.lower(), level)
+
+
+def _get_limits_message(level: str) -> str:
+    """Retorna mensagem sobre os limites do nível"""
+    messages = {
+        "none": "Complete sua verificação KYC para aumentar seus limites operacionais.",
+        "basic": "Você tem acesso aos limites básicos. Faça upgrade para limites maiores!",
+        "intermediate": "Limites intermediários ativos. Upgrade para avançado para limites ainda maiores.",
+        "advanced": "Limites avançados ativos. Você tem acesso a operações de alto volume.",
+        "premium": "Limites premium! Você tem acesso ilimitado ou limites personalizados."
+    }
+    return messages.get(level.lower(), "")
+
+
 @router.get("/verification", response_model=KYCVerificationResponse)
 async def get_verification(
     db: Session = Depends(get_db),

@@ -20,9 +20,10 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from sqlalchemy.orm import Session
 from typing import Optional
+from uuid import UUID
 
 from app.db.database import get_db
-from app.core.security import get_current_user
+from app.core.security import get_current_user, get_current_user_optional
 from app.models.user import User
 from app.services.wolkpay_service import WolkPayService
 from app.core.kyc_middleware import check_user_kyc_level
@@ -39,6 +40,7 @@ from app.schemas.wolkpay import (
     PaymentStatusResponse
 )
 from app.services.platform_settings_service import platform_settings_service
+from app.services.kyc_service import KYCService
 
 logger = logging.getLogger(__name__)
 
@@ -50,21 +52,70 @@ router = APIRouter(prefix="/wolkpay", tags=["WolkPay"])
 # ==========================================
 
 @router.get("/config")
-async def get_wolkpay_config(db: Session = Depends(get_db)):
+async def get_wolkpay_config(
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional)
+):
     """
     Retorna configurações públicas do WolkPay (taxas, limites, etc.)
     
-    Endpoint público para que o frontend possa exibir as taxas corretas.
+    Endpoint que pode ser usado autenticado ou não.
+    - Se autenticado: retorna o limite personalizado do usuário baseado no KYC
+    - Se não autenticado: retorna o limite global do sistema
     """
     service_fee = platform_settings_service.get_wolkpay_service_fee(db)
     network_fee = platform_settings_service.get_wolkpay_network_fee(db)
     
-    # Limites podem vir do platform_settings também
+    # Limites globais do sistema
     min_brl = platform_settings_service.get(db, "wolkpay_min_brl", 100.0)
-    max_brl = platform_settings_service.get(db, "wolkpay_max_brl", 15000.0)
+    max_brl_global = platform_settings_service.get(db, "wolkpay_max_brl", 15000.0)
     expiry_minutes = platform_settings_service.get(db, "wolkpay_expiry_minutes", 15)
     
-    return {
+    # Se usuário autenticado, buscar limite personalizado do KYC
+    max_brl = max_brl_global
+    kyc_level = None
+    kyc_level_name = None
+    
+    logger.info(f"[WolkPay Config] current_user: {current_user}")
+    
+    if current_user:
+        try:
+            logger.info(f"[WolkPay Config] Buscando limites para user: {current_user.id}")
+            kyc_service = KYCService(db)
+            # Converter para UUID explicitamente para o type checker
+            user_uuid = UUID(str(current_user.id)) if not isinstance(current_user.id, UUID) else current_user.id
+            user_limits = await kyc_service.get_user_limits(user_uuid)
+            
+            logger.info(f"[WolkPay Config] Limites retornados: {user_limits}")
+            
+            # Buscar limite do serviço WolkPay
+            wolkpay_limit = user_limits.get("wolkpay", {})
+            if wolkpay_limit and isinstance(wolkpay_limit, dict):
+                # Usar o limite por transação ou diário, o que for menor
+                transaction_limit = wolkpay_limit.get("transaction_limit_brl")
+                daily_limit = wolkpay_limit.get("daily_limit_brl")
+                
+                logger.info(f"[WolkPay Config] transaction_limit={transaction_limit}, daily_limit={daily_limit}")
+                
+                # Determinar o limite máximo efetivo
+                limits_to_check = [float(max_brl_global)]
+                if transaction_limit is not None:
+                    limits_to_check.append(float(transaction_limit))
+                if daily_limit is not None:
+                    limits_to_check.append(float(daily_limit))
+                
+                max_brl = min(limits_to_check)
+                logger.info(f"[WolkPay Config] max_brl calculado: {max_brl}")
+            
+            # Incluir info do nível KYC (agora vem no nível raiz)
+            kyc_level = user_limits.get("kyc_level")
+            kyc_level_name = user_limits.get("kyc_level_name")
+            
+        except Exception as e:
+            logger.warning(f"Erro ao buscar limites KYC do usuário: {e}")
+            # Continua usando o limite global
+    
+    response = {
         "service_fee_percentage": service_fee,
         "network_fee_percentage": network_fee,
         "total_fee_percentage": round(service_fee + network_fee, 2),
@@ -72,6 +123,14 @@ async def get_wolkpay_config(db: Session = Depends(get_db)):
         "max_amount_brl": max_brl,
         "expiry_minutes": expiry_minutes
     }
+    
+    # Adicionar info KYC se usuário autenticado
+    if current_user:
+        response["kyc_level"] = kyc_level
+        response["kyc_level_name"] = kyc_level_name
+        response["max_global_brl"] = max_brl_global  # Limite global para referência
+    
+    return response
 
 
 # ==========================================
