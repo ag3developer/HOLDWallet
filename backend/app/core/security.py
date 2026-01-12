@@ -89,6 +89,7 @@ async def get_current_admin(
     """
     if not getattr(current_user, 'is_admin', False):
         raise AuthenticationError("Admin privileges required")
+    return current_user
 
 
 async def get_current_user_optional(
@@ -123,5 +124,3 @@ async def get_current_user_optional(
         
     except JWTError:
         return None
-    
-    return current_user

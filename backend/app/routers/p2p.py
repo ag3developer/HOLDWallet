@@ -19,13 +19,104 @@ import json
 import uuid
 
 from app.db.database import get_db
-from app.core.security import get_current_user
+from app.core.security import get_current_user, get_current_user_optional
 from app.core.config import settings
 from app.core.kyc_middleware import check_kyc_limit
 from app.models.user import User
 from app.services.platform_settings_service import platform_settings_service
+from app.services.kyc_service import KYCService
+from uuid import UUID
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["p2p"])
+
+
+# ==========================================
+# CONFIGURAÇÕES PÚBLICAS (TAXAS/LIMITES)
+# ==========================================
+
+@router.get("/config")
+async def get_p2p_config(
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional)
+):
+    """
+    Retorna configurações públicas do P2P (taxas, limites, etc.)
+    
+    Endpoint que pode ser usado autenticado ou não.
+    - Se autenticado: retorna o limite personalizado do usuário baseado no KYC
+    - Se não autenticado: retorna o limite global do sistema
+    """
+    # Taxas do P2P
+    maker_fee = platform_settings_service.get(db, "p2p_maker_fee", 0.0)
+    taker_fee = platform_settings_service.get(db, "p2p_taker_fee", 0.5)
+    
+    # Limites globais do sistema
+    min_brl = platform_settings_service.get(db, "p2p_min_order_brl", 50.0)
+    max_brl_global = platform_settings_service.get(db, "p2p_max_order_brl", 500000.0)
+    
+    # Se usuário autenticado, buscar limite personalizado do KYC
+    max_brl = max_brl_global
+    daily_limit = None
+    monthly_limit = None
+    kyc_level = None
+    kyc_level_name = None
+    
+    logger.info(f"[P2P Config] current_user: {current_user}")
+    
+    if current_user:
+        try:
+            logger.info(f"[P2P Config] Buscando limites para user: {current_user.id}")
+            kyc_service = KYCService(db)
+            user_uuid = UUID(str(current_user.id)) if not isinstance(current_user.id, UUID) else current_user.id
+            user_limits = await kyc_service.get_user_limits(user_uuid)
+            
+            logger.info(f"[P2P Config] Limites retornados: {user_limits}")
+            
+            # Buscar limite do serviço P2P
+            p2p_limit = user_limits.get("p2p", {})
+            if p2p_limit and isinstance(p2p_limit, dict):
+                transaction_limit = p2p_limit.get("transaction_limit_brl")
+                daily_limit_val = p2p_limit.get("daily_limit_brl")
+                monthly_limit_val = p2p_limit.get("monthly_limit_brl")
+                
+                logger.info(f"[P2P Config] transaction_limit={transaction_limit}, daily_limit={daily_limit_val}")
+                
+                # Determinar o limite máximo efetivo por operação
+                limits_to_check = [float(max_brl_global)]
+                if transaction_limit is not None:
+                    limits_to_check.append(float(transaction_limit))
+                
+                max_brl = min(limits_to_check)
+                daily_limit = daily_limit_val
+                monthly_limit = monthly_limit_val
+                logger.info(f"[P2P Config] max_brl calculado: {max_brl}")
+            
+            # Incluir info do nível KYC
+            kyc_level = user_limits.get("kyc_level")
+            kyc_level_name = user_limits.get("kyc_level_name")
+            
+        except Exception as e:
+            logger.warning(f"Erro ao buscar limites KYC do usuário: {e}")
+            # Continua usando o limite global
+    
+    response = {
+        "maker_fee_percentage": maker_fee,
+        "taker_fee_percentage": taker_fee,
+        "min_order_brl": min_brl,
+        "max_order_brl": max_brl,
+        "daily_limit_brl": daily_limit,
+        "monthly_limit_brl": monthly_limit,
+    }
+    
+    # Adicionar info KYC se usuário autenticado
+    if current_user:
+        response["kyc_level"] = kyc_level
+        response["kyc_level_name"] = kyc_level_name
+    
+    return response
 
 
 @router.get("/payment-methods")

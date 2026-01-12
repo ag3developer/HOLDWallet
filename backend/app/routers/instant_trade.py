@@ -12,14 +12,16 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import Optional
 from decimal import Decimal
+from uuid import UUID
 import logging
 
 from app.core.db import get_db
-from app.core.security import get_current_user
+from app.core.security import get_current_user, get_current_user_optional
 from app.core.kyc_middleware import check_kyc_limit
 from app.models.user import User
 from app.models.instant_trade import InstantTrade
 from app.services.instant_trade_service import get_instant_trade_service, InstantTradeService
+from app.services.kyc_service import KYCService
 from app.schemas.instant_trade import QuoteRequest, CreateTradeRequest, TradeStatusResponse
 
 router = APIRouter(prefix="/instant-trade", tags=["Instant Trade OTC"])
@@ -68,7 +70,10 @@ async def get_supported_assets():
 
 
 @router.get("/fees")
-async def get_fees(db: Session = Depends(get_db)):
+async def get_fees(
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional)
+):
     """
     Get OTC fee structure from database configuration.
     
@@ -76,6 +81,7 @@ async def get_fees(db: Session = Depends(get_db)):
     - Spread: configurável via admin
     - Network Fee: configurável via admin
     - Total: soma das taxas
+    - Limites baseados no KYC do usuário (se autenticado)
     
     IMPORTANTE: Esta rota deve ficar ANTES de /{trade_id} para evitar conflitos de roteamento.
     """
@@ -85,7 +91,55 @@ async def get_fees(db: Session = Depends(get_db)):
     network_fee = platform_settings_service.get(db, "network_fee_percentage", 0.25)
     total = spread + network_fee
     
-    return {
+    # Limites globais do sistema
+    min_brl = platform_settings_service.get(db, "instant_trade_min_brl", 50.0)
+    max_brl_global = platform_settings_service.get(db, "instant_trade_max_brl", 50000.0)
+    
+    # Se usuário autenticado, buscar limite personalizado do KYC
+    max_brl = max_brl_global
+    daily_limit = None
+    monthly_limit = None
+    kyc_level = None
+    kyc_level_name = None
+    
+    logger.info(f"[Instant Trade Config] current_user: {current_user}")
+    
+    if current_user:
+        try:
+            logger.info(f"[Instant Trade Config] Buscando limites para user: {current_user.id}")
+            kyc_service = KYCService(db)
+            user_uuid = UUID(str(current_user.id)) if not isinstance(current_user.id, UUID) else current_user.id
+            user_limits = await kyc_service.get_user_limits(user_uuid)
+            
+            logger.info(f"[Instant Trade Config] Limites retornados: {user_limits}")
+            
+            # Buscar limite do serviço Instant Trade
+            it_limit = user_limits.get("instant_trade", {})
+            if it_limit and isinstance(it_limit, dict):
+                transaction_limit = it_limit.get("transaction_limit_brl")
+                daily_limit_val = it_limit.get("daily_limit_brl")
+                monthly_limit_val = it_limit.get("monthly_limit_brl")
+                
+                logger.info(f"[Instant Trade Config] transaction_limit={transaction_limit}, daily_limit={daily_limit_val}")
+                
+                # Determinar o limite máximo efetivo por operação
+                limits_to_check = [float(max_brl_global)]
+                if transaction_limit is not None:
+                    limits_to_check.append(float(transaction_limit))
+                
+                max_brl = min(limits_to_check)
+                daily_limit = daily_limit_val
+                monthly_limit = monthly_limit_val
+                logger.info(f"[Instant Trade Config] max_brl calculado: {max_brl}")
+            
+            # Incluir info do nível KYC
+            kyc_level = user_limits.get("kyc_level")
+            kyc_level_name = user_limits.get("kyc_level_name")
+            
+        except Exception as e:
+            logger.warning(f"Erro ao buscar limites KYC do usuário: {e}")
+    
+    response = {
         "success": True,
         "fees": {
             "spread": f"{spread:.2f}%",
@@ -93,11 +147,22 @@ async def get_fees(db: Session = Depends(get_db)):
             "total": f"{total:.2f}%",
         },
         "limits": {
-            "min": "R$ 50,00",
-            "max": "R$ 50.000,00",
+            "min": f"R$ {min_brl:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
+            "max": f"R$ {max_brl:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
+            "min_brl": min_brl,
+            "max_brl": max_brl,
+            "daily_limit_brl": daily_limit,
+            "monthly_limit_brl": monthly_limit,
         },
-        "message": "PF (Pessoa Física) limits",
+        "message": "Limites personalizados baseados no KYC" if current_user else "Limites globais do sistema",
     }
+    
+    # Adicionar info KYC se usuário autenticado
+    if current_user:
+        response["kyc_level"] = kyc_level
+        response["kyc_level_name"] = kyc_level_name
+    
+    return response
 
 
 @router.post("/quote")
