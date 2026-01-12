@@ -19,7 +19,7 @@ from app.services.platform_settings_service import platform_settings_service
 from app.middleware.security import SecurityMiddleware, RateLimitMiddleware
 
 # Routers
-from app.routers import auth, users, wallet, wallets, tx, prices, prices_batch, prices_batch_v2, health, blockchain, transactions, billing, portfolio, exchange, p2p, chat, chat_enterprise, reputation, dashboard, two_factor, tokens, wallet_transactions, instant_trade, trader_profiles, admin_instant_trades, webauthn, public_settings, notifications, webhooks_bb, wolkpay, kyc
+from app.routers import auth, users, wallet, wallets, tx, prices, prices_batch, prices_batch_v2, health, blockchain, transactions, billing, portfolio, exchange, p2p, chat, chat_enterprise, reputation, dashboard, two_factor, tokens, wallet_transactions, instant_trade, trader_profiles, admin_instant_trades, webauthn, public_settings, notifications, webhooks_bb, wolkpay, kyc, user_profile
 from app.routers.admin import admin_router, wolkpay_admin_router, kyc_admin
 from app.api.v1.endpoints import seed_verification
 
@@ -166,6 +166,7 @@ app.include_router(auth.router, prefix="/auth", tags=["authentication"])
 app.include_router(webauthn.router, prefix="", tags=["webauthn"])
 app.include_router(two_factor.router, prefix="", tags=["two-factor"])
 app.include_router(users.router, prefix="/users", tags=["users"])
+app.include_router(user_profile.router, prefix="/users", tags=["user-profile"])  # User profile endpoints
 app.include_router(dashboard.router, prefix="", tags=["dashboard"])
 app.include_router(wallet.router, prefix="/wallet", tags=["wallets"]) 
 app.include_router(wallets.router, prefix="/wallets", tags=["hd-wallets"])

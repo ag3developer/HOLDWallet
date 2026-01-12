@@ -1,20 +1,17 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/useAuthStore'
-import { useUpdateProfile } from '@/hooks/useAuth'
 import { useUserActivities } from '@/hooks/useUserActivities'
 import useKYC from '@/hooks/useKYC'
+import { useUserProfile } from '@/hooks/useUserProfile'
 import { KYCStatus, KYCLevel, DocumentType, DocumentStatus } from '@/services/kyc'
 import UserActivityService from '@/services/userActivityService'
 import { UserProfileSection } from '@/components/trader/UserProfileSection'
+import { toast } from 'react-hot-toast'
 import {
   User,
   Settings,
   Shield,
-  Camera,
-  Edit3,
-  Save,
-  X,
   Mail,
   Phone,
   MapPin,
@@ -24,16 +21,12 @@ import {
   Eye,
   EyeOff,
   Bell,
-  Smartphone,
   CreditCard,
   History,
   Award,
   Star,
   Check,
   AlertCircle,
-  Upload,
-  Download,
-  Trash2,
   TrendingUp,
   FileText,
   Clock,
@@ -48,51 +41,73 @@ import {
 export const ProfilePage = () => {
   const navigate = useNavigate()
   const { user, token } = useAuthStore()
-  const updateProfileMutation = useUpdateProfile()
+
+  // User Profile Hook - Dados reais do backend
+  const {
+    profile,
+    isLoadingProfile,
+    notificationSettings: backendNotifications,
+    updateNotificationSettings,
+    securitySettings: backendSecurity,
+    isLoadingSecurity,
+    changePassword,
+    loadNotificationSettings,
+    loadSecuritySettings,
+  } = useUserProfile()
 
   // KYC Hook - Dados reais do backend
-  const { verification, loading: kycLoading, loadStatus: loadKYCStatus } = useKYC()
+  const { verification, loading: kycLoading } = useKYC()
 
-  // ⚠️ Desabilitado até endpoint /users/me/activities ser implementado no backend
+  // Activities Hook
   const { data: activitiesData, isLoading: isLoadingActivities } = useUserActivities({
     limit: 20,
-    enabled: false, // ✅ Desabilitado temporariamente
+    enabled: true,
   })
 
-  const [isEditing, setIsEditing] = useState(false)
   const [activeTab, setActiveTab] = useState<
     'profile' | 'security' | 'notifications' | 'activity' | 'trader' | 'kyc'
   >('profile')
   const [showCurrentPassword, setShowCurrentPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
 
-  // Initialize user data from store
-  const [userInfo, setUserInfo] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    location: '',
-    birthDate: '',
-    bio: '',
-    website: '',
-    avatar: null as File | null,
-  })
-
-  // Load user data when component mounts or user changes
+  // Load notification settings on tab change
   useEffect(() => {
-    if (user) {
-      setUserInfo({
-        name: [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username || '',
-        email: user.email || '',
-        phone: user.phoneNumber || '',
-        location: '',
-        birthDate: '',
-        bio: '',
-        website: '',
-        avatar: null,
+    if (activeTab === 'notifications' && !backendNotifications) {
+      loadNotificationSettings()
+    }
+    if (activeTab === 'security' && !backendSecurity) {
+      loadSecuritySettings()
+    }
+  }, [
+    activeTab,
+    backendNotifications,
+    backendSecurity,
+    loadNotificationSettings,
+    loadSecuritySettings,
+  ])
+
+  // Sync notification settings from backend
+  useEffect(() => {
+    if (backendNotifications) {
+      setNotificationSettings({
+        tradeAlerts: backendNotifications.trade_alerts,
+        priceAlerts: backendNotifications.price_alerts,
+        securityAlerts: backendNotifications.security_alerts,
+        marketingEmails: backendNotifications.marketing_emails,
+        weeklyReport: backendNotifications.weekly_report,
       })
     }
-  }, [user])
+  }, [backendNotifications])
+
+  // Sync security settings from backend
+  useEffect(() => {
+    if (backendSecurity) {
+      setSecuritySettings(prev => ({
+        ...prev,
+        twoFactorEnabled: backendSecurity.two_factor_enabled,
+      }))
+    }
+  }, [backendSecurity])
 
   const [securitySettings, setSecuritySettings] = useState({
     twoFactorEnabled: true,
@@ -111,39 +126,44 @@ export const ProfilePage = () => {
     weeklyReport: true,
   })
 
-  const handleSaveProfile = async () => {
-    try {
-      // Parse name into firstName and lastName
-      const nameParts = userInfo.name.trim().split(' ')
-      const firstName = nameParts[0] || ''
-      const lastName = nameParts.slice(1).join(' ') || ''
+  const handleNotificationSettingChange = async (key: string, value: boolean) => {
+    // Update local state immediately
+    setNotificationSettings(prev => ({ ...prev, [key]: value }))
 
-      const updateData = {
-        firstName,
-        lastName,
-        email: userInfo.email,
-        phoneNumber: userInfo.phone,
-      }
+    // Map local keys to backend keys
+    const keyMap: Record<string, string> = {
+      tradeAlerts: 'trade_alerts',
+      priceAlerts: 'price_alerts',
+      securityAlerts: 'security_alerts',
+      marketingEmails: 'marketing_emails',
+      weeklyReport: 'weekly_report',
+    }
 
-      updateProfileMutation.mutate(updateData, {
-        onSuccess: () => {
-          setIsEditing(false)
-          // Show success toast or notification
-        },
-        onError: error => {
-          console.error('Erro ao salvar perfil:', error)
-          // Show error toast or notification
-        },
-      })
-    } catch (error) {
-      console.error('Erro ao processar formulário:', error)
+    const backendKey = keyMap[key]
+    if (backendKey) {
+      await updateNotificationSettings({ [backendKey]: value })
     }
   }
 
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setUserInfo(prev => ({ ...prev, avatar: file }))
+  const handlePasswordChange = async () => {
+    if (securitySettings.newPassword !== securitySettings.confirmPassword) {
+      toast.error('As senhas não coincidem')
+      return
+    }
+
+    const success = await changePassword({
+      current_password: securitySettings.currentPassword,
+      new_password: securitySettings.newPassword,
+      confirm_password: securitySettings.confirmPassword,
+    })
+
+    if (success) {
+      setSecuritySettings(prev => ({
+        ...prev,
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      }))
     }
   }
 
@@ -157,6 +177,26 @@ export const ProfilePage = () => {
         return <Shield className='w-4 h-4 text-red-600' />
       default:
         return <History className='w-4 h-4 text-gray-600' />
+    }
+  }
+
+  const getStatusStyle = (status: string) => {
+    switch (status) {
+      case 'success':
+        return {
+          bg: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400',
+          label: 'Sucesso',
+        }
+      case 'failed':
+        return {
+          bg: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400',
+          label: 'Falha',
+        }
+      default:
+        return {
+          bg: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400',
+          label: 'Pendente',
+        }
     }
   }
 
@@ -204,220 +244,268 @@ export const ProfilePage = () => {
         </div>
       </div>
 
-      {/* Profile Tab */}
+      {/* Profile Tab - Dados Reais do Usuário */}
       {activeTab === 'profile' && (
         <div className='grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6'>
-          {/* Avatar & Basic Info */}
-          <div className='lg:col-span-1'>
-            <div className='bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 md:p-6'>
-              <div className='text-center'>
-                <div className='relative inline-block'>
-                  <div className='w-24 h-24 md:w-32 md:h-32 mx-auto bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-2xl md:text-4xl font-bold text-white mb-3 md:mb-4'>
-                    {userInfo.name
-                      .split(' ')
-                      .map(n => n[0])
-                      .join('')}
-                  </div>
-                  <label className='absolute bottom-1 right-1 md:bottom-2 md:right-2 w-7 h-7 md:w-8 md:h-8 bg-blue-600 rounded-full flex items-center justify-center cursor-pointer hover:bg-blue-700 transition-colors'>
-                    <Camera className='w-3.5 h-3.5 md:w-4 md:h-4 text-white' />
-                    <input
-                      type='file'
-                      accept='image/*'
-                      onChange={handleAvatarChange}
-                      aria-label='Alterar foto do perfil'
-                      className='hidden'
-                    />
-                  </label>
-                </div>
-
-                <h2 className='text-lg md:text-xl font-bold text-gray-900 dark:text-white mb-1'>
-                  {userInfo.name}
-                </h2>
-                <p className='text-sm md:text-base text-gray-500 dark:text-gray-400 mb-3 md:mb-4 break-all'>
-                  {userInfo.email}
-                </p>
-
-                <div className='flex items-center justify-center gap-2 mb-3 md:mb-4'>
-                  <div className='flex items-center gap-1'>
-                    <Star className='w-3.5 h-3.5 md:w-4 md:h-4 text-yellow-500 fill-current' />
-                    <Star className='w-3.5 h-3.5 md:w-4 md:h-4 text-yellow-500 fill-current' />
-                    <Star className='w-3.5 h-3.5 md:w-4 md:h-4 text-yellow-500 fill-current' />
-                    <Star className='w-3.5 h-3.5 md:w-4 md:h-4 text-yellow-500 fill-current' />
-                    <Star className='w-3.5 h-3.5 md:w-4 md:h-4 text-gray-300' />
-                  </div>
-                  <span className='text-xs md:text-sm text-gray-600 dark:text-gray-400'>4.8/5</span>
-                </div>
-
-                <div className='flex items-center justify-center gap-2 text-xs md:text-sm text-green-600 dark:text-green-400'>
-                  <Check className='w-3.5 h-3.5 md:w-4 md:h-4' />
-                  Conta Verificada
-                </div>
-              </div>
+          {/* Loading Indicator */}
+          {isLoadingProfile && (
+            <div className='lg:col-span-3 flex items-center justify-center py-8'>
+              <Loader2 className='w-8 h-8 animate-spin text-blue-600' />
+              <span className='ml-2 text-gray-600 dark:text-gray-400'>Carregando perfil...</span>
             </div>
-          </div>
+          )}
 
-          {/* Profile Form */}
-          <div className='lg:col-span-2'>
-            <div className='bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 md:p-6'>
-              <div className='flex items-center justify-between mb-4 md:mb-6'>
-                <h3 className='text-base md:text-lg font-semibold text-gray-900 dark:text-white'>
-                  Informações Pessoais
-                </h3>
-                <button
-                  onClick={() => (isEditing ? handleSaveProfile() : setIsEditing(true))}
-                  className='inline-flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 text-sm md:text-base bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors'
-                >
-                  {isEditing ? (
-                    <>
-                      <Save className='w-3.5 h-3.5 md:w-4 md:h-4' />
-                      Salvar
-                    </>
+          {!isLoadingProfile && (
+            <>
+              {/* Card do Usuário */}
+              <div className='lg:col-span-1 space-y-4'>
+                {/* Avatar e Info Básica */}
+                <div className='bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 md:p-6'>
+                  <div className='text-center'>
+                    <div className='relative inline-block'>
+                      <div className='w-24 h-24 md:w-32 md:h-32 mx-auto bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-2xl md:text-4xl font-bold text-white mb-3 md:mb-4'>
+                        {(profile?.username || user?.username || 'U').substring(0, 2).toUpperCase()}
+                      </div>
+                    </div>
+
+                    <h2 className='text-lg md:text-xl font-bold text-gray-900 dark:text-white mb-1'>
+                      @{profile?.username || user?.username || 'usuário'}
+                    </h2>
+                    <p className='text-sm text-gray-500 dark:text-gray-400 mb-3 break-all'>
+                      {profile?.email || user?.email}
+                    </p>
+
+                    {/* Status da conta */}
+                    <div className='flex items-center justify-center gap-2 text-xs md:text-sm'>
+                      {profile?.is_active !== false ? (
+                        <span className='flex items-center gap-1.5 text-green-600 dark:text-green-400'>
+                          <Check className='w-3.5 h-3.5' />
+                          Conta Ativa
+                        </span>
+                      ) : (
+                        <span className='flex items-center gap-1.5 text-red-600 dark:text-red-400'>
+                          <AlertCircle className='w-3.5 h-3.5' />
+                          Conta Inativa
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Status KYC Resumido */}
+                <div className='bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4'>
+                  <h4 className='text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2'>
+                    <Shield className='w-4 h-4 text-blue-500' />
+                    Verificação KYC
+                  </h4>
+                  {profile?.kyc_status ? (
+                    <div className='space-y-2'>
+                      <div className='flex items-center justify-between'>
+                        <span className='text-sm text-gray-500'>Status</span>
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                            profile.kyc_status === 'approved'
+                              ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                              : profile.kyc_status === 'pending' ||
+                                  profile.kyc_status === 'submitted'
+                                ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                                : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                          }`}
+                        >
+                          {profile.kyc_status === 'approved'
+                            ? 'Aprovado'
+                            : profile.kyc_status === 'pending'
+                              ? 'Pendente'
+                              : profile.kyc_status === 'submitted'
+                                ? 'Em análise'
+                                : profile.kyc_status}
+                        </span>
+                      </div>
+                      {profile.kyc_level && (
+                        <div className='flex items-center justify-between'>
+                          <span className='text-sm text-gray-500'>Nível</span>
+                          <span className='text-sm font-medium text-gray-900 dark:text-white capitalize'>
+                            {profile.kyc_level}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   ) : (
-                    <>
-                      <Edit3 className='w-3.5 h-3.5 md:w-4 md:h-4' />
-                      Editar
-                    </>
+                    <div className='text-center py-2'>
+                      <p className='text-sm text-gray-500 mb-2'>KYC não iniciado</p>
+                      <button
+                        onClick={() => setActiveTab('kyc')}
+                        className='text-xs text-blue-600 hover:text-blue-700 font-medium'
+                      >
+                        Completar verificação →
+                      </button>
+                    </div>
                   )}
-                </button>
-              </div>
-
-              <div className='grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6'>
-                <div>
-                  <label className='block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 md:mb-2'>
-                    Nome Completo
-                  </label>
-                  <div className='relative'>
-                    <User className='absolute left-2.5 md:left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5 md:w-4 md:h-4' />
-                    <input
-                      type='text'
-                      value={userInfo.name}
-                      onChange={e => setUserInfo(prev => ({ ...prev, name: e.target.value }))}
-                      disabled={!isEditing}
-                      aria-label='Nome completo'
-                      className='w-full pl-8 md:pl-10 pr-3 md:pr-4 py-2 text-sm md:text-base border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed'
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className='block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 md:mb-2'>
-                    Email
-                  </label>
-                  <div className='relative'>
-                    <Mail className='absolute left-2.5 md:left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5 md:w-4 md:h-4' />
-                    <input
-                      type='email'
-                      value={userInfo.email}
-                      onChange={e => setUserInfo(prev => ({ ...prev, email: e.target.value }))}
-                      disabled={!isEditing}
-                      aria-label='Endereço de email'
-                      className='w-full pl-8 md:pl-10 pr-3 md:pr-4 py-2 text-sm md:text-base border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed'
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className='block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 md:mb-2'>
-                    Telefone
-                  </label>
-                  <div className='relative'>
-                    <Phone className='absolute left-2.5 md:left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5 md:w-4 md:h-4' />
-                    <input
-                      type='tel'
-                      value={userInfo.phone}
-                      onChange={e => setUserInfo(prev => ({ ...prev, phone: e.target.value }))}
-                      disabled={!isEditing}
-                      aria-label='Número de telefone'
-                      className='w-full pl-8 md:pl-10 pr-3 md:pr-4 py-2 text-sm md:text-base border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed'
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className='block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 md:mb-2'>
-                    Localização
-                  </label>
-                  <div className='relative'>
-                    <MapPin className='absolute left-2.5 md:left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5 md:w-4 md:h-4' />
-                    <input
-                      type='text'
-                      value={userInfo.location}
-                      onChange={e => setUserInfo(prev => ({ ...prev, location: e.target.value }))}
-                      disabled={!isEditing}
-                      aria-label='Localização'
-                      className='w-full pl-8 md:pl-10 pr-3 md:pr-4 py-2 text-sm md:text-base border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed'
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className='block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 md:mb-2'>
-                    Data de Nascimento
-                  </label>
-                  <div className='relative'>
-                    <Calendar className='absolute left-2.5 md:left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5 md:w-4 md:h-4' />
-                    <input
-                      type='date'
-                      value={userInfo.birthDate}
-                      onChange={e => setUserInfo(prev => ({ ...prev, birthDate: e.target.value }))}
-                      disabled={!isEditing}
-                      aria-label='Data de nascimento'
-                      className='w-full pl-8 md:pl-10 pr-3 md:pr-4 py-2 text-sm md:text-base border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed'
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className='block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 md:mb-2'>
-                    Website
-                  </label>
-                  <div className='relative'>
-                    <Globe className='absolute left-2.5 md:left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5 md:w-4 md:h-4' />
-                    <input
-                      type='url'
-                      value={userInfo.website}
-                      onChange={e => setUserInfo(prev => ({ ...prev, website: e.target.value }))}
-                      disabled={!isEditing}
-                      aria-label='Website'
-                      placeholder='https://exemplo.com'
-                      className='w-full pl-8 md:pl-10 pr-3 md:pr-4 py-2 text-sm md:text-base border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed'
-                    />
-                  </div>
                 </div>
               </div>
 
-              <div className='mt-4 md:mt-6'>
-                <label className='block text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 md:mb-2'>
-                  Biografia
-                </label>
-                <textarea
-                  value={userInfo.bio}
-                  onChange={e => setUserInfo(prev => ({ ...prev, bio: e.target.value }))}
-                  disabled={!isEditing}
-                  rows={4}
-                  placeholder='Conte um pouco sobre você e sua experiência com trading...'
-                  className='w-full px-3 md:px-4 py-2 text-sm md:text-base border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed resize-none'
-                />
-              </div>
+              {/* Dados Pessoais (do KYC) */}
+              <div className='lg:col-span-2 space-y-4'>
+                {/* Card Principal de Dados */}
+                <div className='bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 md:p-6'>
+                  <div className='flex items-center justify-between mb-4'>
+                    <h3 className='text-base md:text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2'>
+                      <User className='w-5 h-5 text-blue-500' />
+                      Dados Pessoais
+                    </h3>
+                    {profile?.kyc_status === 'approved' && profile?.full_name && (
+                      <span className='flex items-center gap-1 text-xs text-green-600 dark:text-green-400'>
+                        <Check className='w-3.5 h-3.5' />
+                        Verificado via KYC
+                      </span>
+                    )}
+                  </div>
 
-              {isEditing && (
-                <div className='flex gap-2 md:gap-3 mt-4 md:mt-6'>
-                  <button
-                    onClick={handleSaveProfile}
-                    className='flex-1 bg-blue-600 text-white py-2 text-sm md:text-base rounded-lg hover:bg-blue-700 transition-colors'
-                  >
-                    Salvar Alterações
-                  </button>
-                  <button
-                    onClick={() => setIsEditing(false)}
-                    className='px-4 md:px-6 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 py-2 text-sm md:text-base rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors'
-                  >
-                    Cancelar
-                  </button>
+                  {/* Se tem dados KYC, mostra */}
+                  {profile?.full_name ? (
+                    <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                      <div className='space-y-1'>
+                        <label className='text-xs text-gray-500 dark:text-gray-400'>
+                          Nome Completo
+                        </label>
+                        <p className='text-sm font-medium text-gray-900 dark:text-white flex items-center gap-2'>
+                          <User className='w-4 h-4 text-gray-400' />
+                          {profile.full_name}
+                        </p>
+                      </div>
+
+                      <div className='space-y-1'>
+                        <label className='text-xs text-gray-500 dark:text-gray-400'>Email</label>
+                        <p className='text-sm font-medium text-gray-900 dark:text-white flex items-center gap-2'>
+                          <Mail className='w-4 h-4 text-gray-400' />
+                          {profile.email}
+                        </p>
+                      </div>
+
+                      {profile.phone && (
+                        <div className='space-y-1'>
+                          <label className='text-xs text-gray-500 dark:text-gray-400'>
+                            Telefone
+                          </label>
+                          <p className='text-sm font-medium text-gray-900 dark:text-white flex items-center gap-2'>
+                            <Phone className='w-4 h-4 text-gray-400' />
+                            {profile.phone}
+                          </p>
+                        </div>
+                      )}
+
+                      {(profile.city || profile.state || profile.country) && (
+                        <div className='space-y-1'>
+                          <label className='text-xs text-gray-500 dark:text-gray-400'>
+                            Localização
+                          </label>
+                          <p className='text-sm font-medium text-gray-900 dark:text-white flex items-center gap-2'>
+                            <MapPin className='w-4 h-4 text-gray-400' />
+                            {[profile.city, profile.state, profile.country]
+                              .filter(Boolean)
+                              .join(', ')}
+                          </p>
+                        </div>
+                      )}
+
+                      {profile.birth_date && (
+                        <div className='space-y-1'>
+                          <label className='text-xs text-gray-500 dark:text-gray-400'>
+                            Data de Nascimento
+                          </label>
+                          <p className='text-sm font-medium text-gray-900 dark:text-white flex items-center gap-2'>
+                            <Calendar className='w-4 h-4 text-gray-400' />
+                            {new Date(profile.birth_date).toLocaleDateString('pt-BR')}
+                          </p>
+                        </div>
+                      )}
+
+                      {profile.nationality && (
+                        <div className='space-y-1'>
+                          <label className='text-xs text-gray-500 dark:text-gray-400'>
+                            Nacionalidade
+                          </label>
+                          <p className='text-sm font-medium text-gray-900 dark:text-white flex items-center gap-2'>
+                            <Globe className='w-4 h-4 text-gray-400' />
+                            {profile.nationality === 'BR' ? 'Brasileiro(a)' : profile.nationality}
+                          </p>
+                        </div>
+                      )}
+
+                      {profile.occupation && (
+                        <div className='space-y-1'>
+                          <label className='text-xs text-gray-500 dark:text-gray-400'>
+                            Profissão
+                          </label>
+                          <p className='text-sm font-medium text-gray-900 dark:text-white flex items-center gap-2'>
+                            <Award className='w-4 h-4 text-gray-400' />
+                            {profile.occupation}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    /* Se NÃO tem dados KYC */
+                    <div className='text-center py-8'>
+                      <div className='w-16 h-16 mx-auto bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mb-4'>
+                        <FileText className='w-8 h-8 text-gray-400' />
+                      </div>
+                      <h4 className='text-lg font-medium text-gray-900 dark:text-white mb-2'>
+                        Dados pessoais não preenchidos
+                      </h4>
+                      <p className='text-sm text-gray-500 dark:text-gray-400 mb-4 max-w-md mx-auto'>
+                        Complete sua verificação KYC para adicionar seus dados pessoais como nome
+                        completo, telefone, endereço e documento.
+                      </p>
+                      <button
+                        onClick={() => navigate('/kyc')}
+                        className='inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors'
+                      >
+                        <Shield className='w-4 h-4' />
+                        Completar KYC
+                      </button>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          </div>
+
+                {/* Dados da Conta (sempre visíveis) */}
+                <div className='bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 md:p-6'>
+                  <h3 className='text-base font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2'>
+                    <Settings className='w-5 h-5 text-blue-500' />
+                    Dados da Conta
+                  </h3>
+
+                  <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                    <div className='space-y-1'>
+                      <label className='text-xs text-gray-500 dark:text-gray-400'>
+                        Conta criada em
+                      </label>
+                      <p className='text-sm font-medium text-gray-900 dark:text-white'>
+                        {profile?.created_at
+                          ? new Date(profile.created_at).toLocaleDateString('pt-BR', {
+                              day: '2-digit',
+                              month: 'long',
+                              year: 'numeric',
+                            })
+                          : '-'}
+                      </p>
+                    </div>
+
+                    <div className='space-y-1'>
+                      <label className='text-xs text-gray-500 dark:text-gray-400'>
+                        Último acesso
+                      </label>
+                      <p className='text-sm font-medium text-gray-900 dark:text-white'>
+                        {profile?.last_login
+                          ? new Date(profile.last_login).toLocaleString('pt-BR')
+                          : 'Primeiro acesso'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -837,8 +925,23 @@ export const ProfilePage = () => {
                 </div>
               </div>
 
-              <button className='w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors'>
-                Alterar Senha
+              <button
+                onClick={handlePasswordChange}
+                disabled={
+                  isLoadingSecurity ||
+                  !securitySettings.currentPassword ||
+                  !securitySettings.newPassword
+                }
+                className='w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2'
+              >
+                {isLoadingSecurity ? (
+                  <>
+                    <Loader2 className='w-4 h-4 animate-spin' />
+                    Alterando...
+                  </>
+                ) : (
+                  'Alterar Senha'
+                )}
               </button>
             </div>
           </div>
@@ -903,12 +1006,7 @@ export const ProfilePage = () => {
                   <input
                     type='checkbox'
                     checked={notificationSettings[setting.key as keyof typeof notificationSettings]}
-                    onChange={e =>
-                      setNotificationSettings(prev => ({
-                        ...prev,
-                        [setting.key]: e.target.checked,
-                      }))
-                    }
+                    onChange={e => handleNotificationSettingChange(setting.key, e.target.checked)}
                     aria-label={setting.label}
                     className='sr-only peer'
                   />
@@ -969,7 +1067,7 @@ export const ProfilePage = () => {
           <div className='divide-y divide-gray-200 dark:divide-gray-700'>
             {isLoadingActivities ? (
               <div className='p-6 text-center text-gray-500'>Carregando atividades...</div>
-            ) : activitiesData && activitiesData.activities.length > 0 ? (
+            ) : activitiesData?.activities && activitiesData.activities.length > 0 ? (
               activitiesData.activities.map(activity => (
                 <div key={activity.id} className='p-6'>
                   <div className='flex items-start gap-4'>
@@ -989,19 +1087,9 @@ export const ProfilePage = () => {
                       </div>
                     </div>
                     <div
-                      className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        activity.status === 'success'
-                          ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                          : activity.status === 'failed'
-                            ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                            : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
-                      }`}
+                      className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusStyle(activity.status).bg}`}
                     >
-                      {activity.status === 'success'
-                        ? 'Sucesso'
-                        : activity.status === 'failed'
-                          ? 'Falha'
-                          : 'Pendente'}
+                      {getStatusStyle(activity.status).label}
                     </div>
                   </div>
                 </div>

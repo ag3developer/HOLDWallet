@@ -3,8 +3,9 @@ User Activity Service
 Serviço para registrar e gerenciar atividades dos usuários
 """
 from sqlalchemy.orm import Session
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Union
 from datetime import datetime, timezone
+from uuid import UUID
 
 from app.models.user_activity import UserActivity
 from app.models.user import User
@@ -14,9 +15,16 @@ class UserActivityService:
     """Serviço para gerenciar atividades de usuários"""
     
     @staticmethod
+    def _ensure_uuid(user_id: Union[str, UUID]) -> UUID:
+        """Converte string para UUID se necessário"""
+        if isinstance(user_id, UUID):
+            return user_id
+        return UUID(user_id)
+    
+    @staticmethod
     def log_activity(
         db: Session,
-        user_id: str,
+        user_id: Union[str, UUID],
         activity_type: str,
         description: str,
         status: str = "success",
@@ -40,8 +48,9 @@ class UserActivityService:
         Returns:
             UserActivity: Atividade criada
         """
+        uuid_user_id = UserActivityService._ensure_uuid(user_id)
         activity = UserActivity(
-            user_id=user_id,
+            user_id=uuid_user_id,
             activity_type=activity_type,
             description=description,
             status=status,
@@ -59,7 +68,7 @@ class UserActivityService:
     @staticmethod
     def get_user_activities(
         db: Session,
-        user_id: str,
+        user_id: Union[str, UUID],
         limit: int = 50,
         offset: int = 0,
         activity_type: Optional[str] = None
@@ -77,7 +86,8 @@ class UserActivityService:
         Returns:
             Tupla com (lista de atividades, total de registros)
         """
-        query = db.query(UserActivity).filter(UserActivity.user_id == user_id)
+        uuid_user_id = UserActivityService._ensure_uuid(user_id)
+        query = db.query(UserActivity).filter(UserActivity.user_id == uuid_user_id)
         
         if activity_type:
             query = query.filter(UserActivity.activity_type == activity_type)

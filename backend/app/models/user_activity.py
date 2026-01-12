@@ -3,6 +3,7 @@ User Activity Model
 Registra todas as atividades importantes do usuário para auditoria e histórico
 """
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, JSON
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 
@@ -16,8 +17,8 @@ class UserActivity(Base):
     __tablename__ = "user_activities"
     
     id = Column(Integer, primary_key=True, index=True)
-    # Usar String para UUID (compatível com PostgreSQL)
-    user_id = Column(String, nullable=False, index=True)
+    # Usar UUID para compatibilidade com o banco PostgreSQL
+    user_id = Column(UUID(as_uuid=True), nullable=False, index=True)
     
     # Tipo de atividade: login, logout, trade, security, wallet, kyc, etc
     activity_type = Column(String(50), nullable=False, index=True)

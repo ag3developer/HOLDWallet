@@ -1,9 +1,10 @@
 """
 Schemas para User Activity
 """
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_serializer
 from datetime import datetime
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Union
+from uuid import UUID
 
 
 class UserActivityBase(BaseModel):
@@ -24,8 +25,15 @@ class UserActivityCreate(UserActivityBase):
 class UserActivityResponse(UserActivityBase):
     """Schema para resposta de atividade"""
     id: int
-    user_id: int
+    user_id: Union[str, UUID]  # Aceita tanto string quanto UUID
     timestamp: datetime
+    
+    @field_serializer('user_id')
+    def serialize_user_id(self, v):
+        """Serializa UUID para string na resposta"""
+        if isinstance(v, UUID):
+            return str(v)
+        return str(v) if v else v
     
     class Config:
         from_attributes = True

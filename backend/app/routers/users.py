@@ -221,7 +221,7 @@ async def get_user_activities(
     """
     activities, total = UserActivityService.get_user_activities(
         db=db,
-        user_id=current_user.id,
+        user_id=str(current_user.id),
         limit=limit,
         offset=offset,
         activity_type=activity_type

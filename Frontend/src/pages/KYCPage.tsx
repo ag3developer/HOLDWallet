@@ -8,25 +8,6 @@
 
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-
-// URL da API - usa proxy em dev, URL direta em produção
-const API_URL = import.meta.env.PROD
-  ? import.meta.env.VITE_API_URL || 'https://api.wolknow.com/v1'
-  : '/api' // Em dev, usa o proxy do Vite
-
-// Helper function to get auth token from localStorage
-const getAuthToken = (): string | null => {
-  try {
-    const authData = localStorage.getItem('hold-wallet-auth')
-    if (authData) {
-      const parsed = JSON.parse(authData)
-      return parsed?.state?.token || null
-    }
-  } catch {
-    // Ignore parse errors
-  }
-  return null
-}
 import {
   Shield,
   ArrowLeft,
@@ -84,12 +65,6 @@ const KYCPage: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(1)
   const [selectedLevel, setSelectedLevel] = useState<KYCLevel>(KYCLevel.BASIC)
   const [consent, setConsent] = useState(false)
-  const [isUpgrading, setIsUpgrading] = useState(false) // Controle para modo upgrade
-
-  // CEP lookup state
-  const [loadingCep, setLoadingCep] = useState(false)
-  const [prefillLoaded, setPrefillLoaded] = useState(false)
-  const [prefillSource, setPrefillSource] = useState<string | null>(null)
 
   // Form data
   const [personalData, setPersonalData] = useState<Partial<KYCPersonalData>>({
@@ -102,7 +77,6 @@ const KYCPage: React.FC = () => {
   // Effect to sync step with verification status
   useEffect(() => {
     if (verification) {
-      // Se já existe verificação, ajustar o step baseado no status
       if (verification.status === KYCStatus.APPROVED) {
         setCurrentStep(5)
       } else if (
@@ -110,144 +84,20 @@ const KYCPage: React.FC = () => {
         verification.status === KYCStatus.UNDER_REVIEW
       ) {
         setCurrentStep(5)
-      } else if (verification.status === KYCStatus.REJECTED) {
-        // Rejeitado - pode tentar novamente
-        setCurrentStep(1)
-      } else if (verification.consent_given && (verification.documents?.length ?? 0) > 0) {
-        // Tem consentimento e documentos - ir para step 4 (documentos)
-        setCurrentStep(4)
-      } else if (verification.consent_given && verification.personal_data_complete) {
-        // Tem consentimento e dados pessoais preenchidos - ir para step 4 (documentos)
+      } else if (verification.consent_given && verification.documents.length > 0) {
         setCurrentStep(4)
       } else if (verification.consent_given) {
-        // Tem consentimento mas não tem dados pessoais - ir para step 3 (dados pessoais)
         setCurrentStep(3)
       } else {
-        // Verificação existe mas sem consentimento - ir para step 2 (consentimento)
-        // Mas como já existe, pular para step 3 (dados pessoais)
-        setCurrentStep(3)
-      }
-
-      // Sincronizar o nível selecionado com o da verificação existente (não usar NONE)
-      if (verification.level && verification.level !== KYCLevel.NONE) {
-        setSelectedLevel(verification.level)
-      }
-
-      // Se já deu consentimento, marcar
-      if (verification.consent_given) {
-        setConsent(true)
+        setCurrentStep(2)
       }
     }
   }, [verification])
 
-  // Load requirements when level changes (skip NONE level)
+  // Load requirements when level changes
   useEffect(() => {
-    if (selectedLevel && selectedLevel !== KYCLevel.NONE) {
-      loadRequirements(selectedLevel)
-    }
+    loadRequirements(selectedLevel)
   }, [selectedLevel, loadRequirements])
-
-  // Load prefill data on mount
-  useEffect(() => {
-    const loadPrefillData = async () => {
-      if (prefillLoaded) return
-
-      try {
-        const response = await fetch(`${API_URL}/kyc/prefill-data`, {
-          headers: {
-            Authorization: `Bearer ${getAuthToken()}`,
-          },
-        })
-
-        if (response.ok) {
-          const data = await response.json()
-          if (data.success && data.data && Object.keys(data.data).length > 0) {
-            setPersonalData(prev => ({
-              ...prev,
-              full_name: data.data.full_name || prev.full_name,
-              document_number: data.data.document_number || prev.document_number,
-              birth_date: data.data.birth_date || prev.birth_date,
-              phone: data.data.phone || prev.phone,
-              mother_name: data.data.mother_name || prev.mother_name,
-              zip_code: data.data.zip_code || prev.zip_code,
-              street: data.data.street || prev.street,
-              number: data.data.number || prev.number,
-              complement: data.data.complement || prev.complement,
-              neighborhood: data.data.neighborhood || prev.neighborhood,
-              city: data.data.city || prev.city,
-              state: data.data.state || prev.state,
-            }))
-            setPrefillSource(data.source)
-          }
-        }
-      } catch (err) {
-        console.error('Erro ao carregar dados pré-preenchidos:', err)
-      } finally {
-        setPrefillLoaded(true)
-      }
-    }
-
-    loadPrefillData()
-  }, [prefillLoaded])
-
-  // ============================================================
-  // CEP LOOKUP FUNCTION
-  // ============================================================
-
-  const handleCepLookup = async (cep: string) => {
-    // Remove caracteres não numéricos
-    const cleanCep = cep.replace(/\D/g, '')
-
-    // CEP precisa ter 8 dígitos
-    if (cleanCep.length !== 8) return
-
-    setLoadingCep(true)
-
-    try {
-      const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`)
-      const data = await response.json()
-
-      if (!data.erro) {
-        setPersonalData(prev => ({
-          ...prev,
-          street: data.logradouro || prev.street,
-          neighborhood: data.bairro || prev.neighborhood,
-          city: data.localidade || prev.city,
-          state: data.uf || prev.state,
-          complement: data.complemento || prev.complement,
-        }))
-      }
-    } catch (err) {
-      console.error('Erro ao buscar CEP:', err)
-    } finally {
-      setLoadingCep(false)
-    }
-  }
-
-  // Format CPF as 000.000.000-00
-  const formatCpf = (value: string): string => {
-    const numbers = value.replace(/\D/g, '').slice(0, 11)
-    if (numbers.length <= 3) return numbers
-    if (numbers.length <= 6) return `${numbers.slice(0, 3)}.${numbers.slice(3)}`
-    if (numbers.length <= 9)
-      return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(6)}`
-    return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(6, 9)}-${numbers.slice(9)}`
-  }
-
-  // Format CEP as 00000-000
-  const formatCep = (value: string): string => {
-    const numbers = value.replace(/\D/g, '').slice(0, 8)
-    if (numbers.length <= 5) return numbers
-    return `${numbers.slice(0, 5)}-${numbers.slice(5)}`
-  }
-
-  // Format phone as (00) 00000-0000
-  const formatPhone = (value: string): string => {
-    const numbers = value.replace(/\D/g, '').slice(0, 11)
-    if (numbers.length <= 2) return numbers.length ? `(${numbers}` : ''
-    if (numbers.length <= 7) return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`
-    return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7)}`
-  }
 
   // ============================================================
   // HANDLERS
@@ -256,42 +106,13 @@ const KYCPage: React.FC = () => {
   const handleStartVerification = async () => {
     if (!consent) return
 
-    // Se já existe uma verificação em andamento (não aprovada), apenas avançar para o próximo step
-    if (verification && verification.status === KYCStatus.PENDING && !isUpgrading) {
-      setCurrentStep(3)
-      return
-    }
-
-    // Se estiver em modo upgrade ou não há verificação, inicia nova verificação
     const success = await startVerification(selectedLevel, consent)
     if (success) {
       setCurrentStep(3)
-      // Desativa modo upgrade após iniciar a nova verificação com sucesso
-      if (isUpgrading) {
-        setIsUpgrading(false)
-      }
     }
   }
 
   const handleSavePersonalData = async () => {
-    // Se não existe verificação, criar automaticamente antes de salvar dados
-    if (!verification || verification.status === KYCStatus.REJECTED) {
-      console.log('[KYC] Criando verificação automaticamente antes de salvar dados...')
-      // Usar o nível selecionado, mas garantir que não seja NONE
-      const levelToUse = selectedLevel === KYCLevel.NONE ? KYCLevel.BASIC : selectedLevel
-      const startSuccess = await startVerification(levelToUse, true)
-      if (!startSuccess) {
-        console.error('[KYC] Falha ao criar verificação automaticamente')
-        return
-      }
-      // Recarregar status para garantir que temos a verificação no estado
-      console.log('[KYC] Aguardando estado atualizar...')
-      await loadStatus()
-      // Aguardar um pouco mais para o estado React propagar
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      console.log('[KYC] Estado atualizado, salvando dados pessoais...')
-    }
-
     const success = await savePersonalData(personalData as KYCPersonalData)
     if (success) {
       setCurrentStep(4)
@@ -321,111 +142,48 @@ const KYCPage: React.FC = () => {
   // RENDER HELPERS
   // ============================================================
 
-  const renderApprovedStatus = () => {
-    // Verificar se pode fazer upgrade
-    const canUpgrade = verification?.level && verification.level !== KYCLevel.ADVANCED
-    const nextLevel =
-      verification?.level === KYCLevel.BASIC ? KYCLevel.INTERMEDIATE : KYCLevel.ADVANCED
-
-    const nextLevelInfo = {
-      [KYCLevel.INTERMEDIATE]: {
-        name: 'Intermediário',
-        benefits: [
-          'Limites até R$ 50.000/tx',
-          'WolkPay habilitado',
-          'Transferências internacionais',
-        ],
-      },
-      [KYCLevel.ADVANCED]: {
-        name: 'Avançado',
-        benefits: ['Limites personalizados', 'Operações OTC', 'Conta empresarial'],
-      },
-    }
-
-    const handleUpgradeRequest = () => {
-      // Resetar estado para permitir novo fluxo de upgrade
-      setSelectedLevel(nextLevel)
-      setCurrentStep(1)
-      setConsent(false)
-      setIsUpgrading(true) // Ativar modo upgrade
-    }
-
-    return (
-      <div className='text-center py-8'>
-        <div className='w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4'>
-          <CheckCircle className='w-10 h-10 text-green-500' />
-        </div>
-        <h2 className='text-2xl font-bold text-gray-900 dark:text-white mb-2 flex items-center justify-center gap-2'>
-          Verificação Aprovada!
-          <CheckCircle className='w-6 h-6 text-green-500' />
-        </h2>
-        <div className='text-gray-500 mb-6 flex items-center justify-center gap-2 flex-wrap'>
-          <span>Sua conta está verificada no nível</span>
-          {verification?.level && <KYCLevelBadge level={verification.level} />}
-        </div>
-
-        {verification?.limits && (
-          <KYCLimitsDisplay
-            level={verification.level}
-            limits={{
-              daily_limit_brl: verification.limits.limits?.instant_trade?.daily_limit_brl || 0,
-              monthly_limit_brl: verification.limits.limits?.instant_trade?.monthly_limit_brl || 0,
-              transaction_limit_brl:
-                verification.limits.limits?.instant_trade?.transaction_limit_brl || 0,
-            }}
-          />
-        )}
-
-        {verification?.expiration_date && (
-          <p className='text-sm text-gray-500 mt-4'>
-            Válido até: {new Date(verification.expiration_date).toLocaleDateString('pt-BR')}
-          </p>
-        )}
-
-        {/* Botão de Upgrade - aparece se não é ADVANCED */}
-        {canUpgrade && (
-          <div className='mt-8 p-6 bg-gradient-to-r from-primary/10 to-yellow-500/10 dark:from-primary/20 dark:to-yellow-500/20 rounded-xl border border-primary/20'>
-            <div className='flex items-center justify-center gap-2 mb-3'>
-              <Shield className='w-6 h-6 text-primary' />
-              <h3 className='text-lg font-bold text-gray-900 dark:text-white'>
-                Aumente seus Limites!
-              </h3>
-            </div>
-            <p className='text-gray-600 dark:text-gray-400 mb-4'>
-              Faça upgrade para o nível <strong>{nextLevelInfo[nextLevel]?.name}</strong> e
-              desbloqueie:
-            </p>
-            <div className='flex flex-wrap justify-center gap-2 mb-4'>
-              {nextLevelInfo[nextLevel]?.benefits.map((benefit, idx) => (
-                <span
-                  key={idx}
-                  className='text-xs bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-3 py-1.5 rounded-full border border-gray-200 dark:border-gray-700'
-                >
-                  ✓ {benefit}
-                </span>
-              ))}
-            </div>
-            <button
-              onClick={handleUpgradeRequest}
-              className='px-6 py-2.5 bg-gradient-to-r from-primary to-yellow-500 text-white rounded-lg font-medium hover:opacity-90 transition-opacity'
-            >
-              Solicitar Upgrade para {nextLevelInfo[nextLevel]?.name}
-            </button>
-          </div>
-        )}
-
-        <div className='mt-6 flex justify-center gap-4'>
-          <KYCExportDataButton onExport={exportData} />
-          <button
-            onClick={() => navigate('/dashboard')}
-            className='px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90'
-          >
-            Ir para Dashboard
-          </button>
-        </div>
+  const renderApprovedStatus = () => (
+    <div className='text-center py-8'>
+      <div className='w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4'>
+        <CheckCircle className='w-10 h-10 text-green-500' />
       </div>
-    )
-  }
+      <h2 className='text-2xl font-bold text-gray-900 dark:text-white mb-2'>
+        Verificação Aprovada! 🎉
+      </h2>
+      <div className='text-gray-500 mb-6 flex items-center justify-center gap-2 flex-wrap'>
+        <span>Sua conta está verificada no nível</span>
+        {verification?.level && <KYCLevelBadge level={verification.level} />}
+      </div>
+
+      {verification?.limits && (
+        <KYCLimitsDisplay
+          level={verification.level}
+          limits={{
+            daily_limit_brl: verification.limits.limits?.instant_trade?.daily_limit_brl || 0,
+            monthly_limit_brl: verification.limits.limits?.instant_trade?.monthly_limit_brl || 0,
+            transaction_limit_brl:
+              verification.limits.limits?.instant_trade?.transaction_limit_brl || 0,
+          }}
+        />
+      )}
+
+      {verification?.expiration_date && (
+        <p className='text-sm text-gray-500 mt-4'>
+          Válido até: {new Date(verification.expiration_date).toLocaleDateString('pt-BR')}
+        </p>
+      )}
+
+      <div className='mt-6 flex justify-center gap-4'>
+        <KYCExportDataButton onExport={exportData} />
+        <button
+          onClick={() => navigate('/dashboard')}
+          className='px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90'
+        >
+          Ir para Dashboard
+        </button>
+      </div>
+    </div>
+  )
 
   const renderPendingReview = () => (
     <div className='text-center py-8'>
@@ -504,8 +262,8 @@ const KYCPage: React.FC = () => {
   // ============================================================
 
   const renderStepContent = () => {
-    // Status especiais - mas não se estiver em modo upgrade
-    if (verification?.status === KYCStatus.APPROVED && !isUpgrading) {
+    // Status especiais
+    if (verification?.status === KYCStatus.APPROVED) {
       return renderApprovedStatus()
     }
     if (
@@ -524,38 +282,19 @@ const KYCPage: React.FC = () => {
           <div className='space-y-6'>
             <div className='text-center mb-6'>
               <h2 className='text-xl font-bold text-gray-900 dark:text-white'>
-                {isUpgrading ? 'Upgrade de Verificação' : 'Escolha seu Nível de Verificação'}
+                Escolha seu Nível de Verificação
               </h2>
               <p className='text-gray-500 mt-1'>
-                {isUpgrading
-                  ? `Você está fazendo upgrade para o nível ${selectedLevel}`
-                  : 'Selecione o nível que melhor atende às suas necessidades'}
+                Selecione o nível que melhor atende às suas necessidades
               </p>
             </div>
 
-            {isUpgrading && (
-              <KYCInfoCard
-                type='info'
-                title='Upgrade de Nível'
-                message={`Você está solicitando upgrade do nível ${verification?.level} para ${selectedLevel}. Novos documentos podem ser necessários.`}
-              />
-            )}
-
             <KYCLevelSelector selectedLevel={selectedLevel} onSelect={setSelectedLevel} />
 
-            <div className='flex justify-between'>
-              {isUpgrading && (
-                <button
-                  onClick={() => setIsUpgrading(false)}
-                  className='flex items-center gap-2 px-6 py-2.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600'
-                >
-                  <ArrowLeft className='w-4 h-4' />
-                  Cancelar Upgrade
-                </button>
-              )}
+            <div className='flex justify-end'>
               <button
                 onClick={() => setCurrentStep(2)}
-                className={`flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-lg hover:bg-primary/90 ${!isUpgrading ? 'ml-auto' : ''}`}
+                className='flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-lg hover:bg-primary/90'
               >
                 Continuar
                 <ArrowRight className='w-4 h-4' />
@@ -573,15 +312,6 @@ const KYCPage: React.FC = () => {
               </h2>
               <p className='text-gray-500 mt-1'>Leia e aceite os termos para continuar</p>
             </div>
-
-            {/* Mostrar aviso se já existe verificação em andamento */}
-            {verification && verification.status === KYCStatus.PENDING && (
-              <KYCInfoCard
-                type='info'
-                title='Verificação em andamento'
-                message='Você já iniciou uma verificação. Continue de onde parou preenchendo seus dados.'
-              />
-            )}
 
             <KYCInfoCard
               type='info'
@@ -609,11 +339,6 @@ const KYCPage: React.FC = () => {
                   <>
                     <Loader2 className='w-4 h-4 animate-spin' />
                     Iniciando...
-                  </>
-                ) : verification && verification.status === KYCStatus.PENDING ? (
-                  <>
-                    Continuar Verificação
-                    <ArrowRight className='w-4 h-4' />
                   </>
                 ) : (
                   <>
@@ -658,9 +383,8 @@ const KYCPage: React.FC = () => {
                 <input
                   type='text'
                   value={personalData.document_number || ''}
-                  onChange={e => handleInputChange('document_number', formatCpf(e.target.value))}
+                  onChange={e => handleInputChange('document_number', e.target.value)}
                   placeholder='000.000.000-00'
-                  maxLength={14}
                   className='w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 focus:ring-2 focus:ring-primary focus:border-transparent'
                 />
               </div>
@@ -686,9 +410,8 @@ const KYCPage: React.FC = () => {
                 <input
                   type='tel'
                   value={personalData.phone || ''}
-                  onChange={e => handleInputChange('phone', formatPhone(e.target.value))}
+                  onChange={e => handleInputChange('phone', e.target.value)}
                   placeholder='(11) 99999-9999'
-                  maxLength={15}
                   className='w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 focus:ring-2 focus:ring-primary focus:border-transparent'
                 />
               </div>
@@ -709,15 +432,7 @@ const KYCPage: React.FC = () => {
 
               {/* Separador de endereço */}
               <div className='md:col-span-2 border-t border-gray-200 dark:border-gray-700 pt-4 mt-2'>
-                <h3 className='font-medium text-gray-900 dark:text-white flex items-center'>
-                  Endereço
-                  {prefillSource && (
-                    <span className='ml-2 text-xs font-normal text-green-600 dark:text-green-400 flex items-center gap-1'>
-                      <CheckCircle className='w-3 h-3' />
-                      Dados pré-preenchidos
-                    </span>
-                  )}
-                </h3>
+                <h3 className='font-medium text-gray-900 dark:text-white'>Endereço</h3>
               </div>
 
               {/* CEP */}
@@ -725,28 +440,13 @@ const KYCPage: React.FC = () => {
                 <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1'>
                   CEP *
                 </label>
-                <div className='relative'>
-                  <input
-                    type='text'
-                    value={personalData.zip_code || ''}
-                    onChange={e => {
-                      const formatted = formatCep(e.target.value)
-                      handleInputChange('zip_code', formatted)
-                      handleCepLookup(formatted)
-                    }}
-                    placeholder='00000-000'
-                    maxLength={9}
-                    className='w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 focus:ring-2 focus:ring-primary focus:border-transparent'
-                  />
-                  {loadingCep && (
-                    <div className='absolute right-3 top-1/2 -translate-y-1/2'>
-                      <Loader2 className='w-4 h-4 animate-spin text-primary' />
-                    </div>
-                  )}
-                </div>
-                <p className='text-xs text-gray-500 mt-1'>
-                  Digite o CEP para preencher o endereço automaticamente
-                </p>
+                <input
+                  type='text'
+                  value={personalData.zip_code || ''}
+                  onChange={e => handleInputChange('zip_code', e.target.value)}
+                  placeholder='00000-000'
+                  className='w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 focus:ring-2 focus:ring-primary focus:border-transparent'
+                />
               </div>
 
               {/* Rua */}
@@ -1070,20 +770,19 @@ const KYCPage: React.FC = () => {
         )}
 
         {/* Step Indicator */}
-        {(isUpgrading ||
-          (verification?.status !== KYCStatus.APPROVED &&
-            verification?.status !== KYCStatus.SUBMITTED &&
-            verification?.status !== KYCStatus.UNDER_REVIEW)) && (
-          <div className='mb-8'>
-            <KYCStepIndicator
-              steps={steps}
-              currentStep={currentStep}
-              onStepClick={step => {
-                if (step <= currentStep) setCurrentStep(step)
-              }}
-            />
-          </div>
-        )}
+        {verification?.status !== KYCStatus.APPROVED &&
+          verification?.status !== KYCStatus.SUBMITTED &&
+          verification?.status !== KYCStatus.UNDER_REVIEW && (
+            <div className='mb-8'>
+              <KYCStepIndicator
+                steps={steps}
+                currentStep={currentStep}
+                onStepClick={step => {
+                  if (step <= currentStep) setCurrentStep(step)
+                }}
+              />
+            </div>
+          )}
 
         {/* Main Content Card */}
         <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 md:p-8'>
@@ -1105,5 +804,4 @@ const KYCPage: React.FC = () => {
   )
 }
 
-export { KYCPage }
 export default KYCPage

@@ -2,6 +2,7 @@
 from .base import Base, BaseModel
 from .push_subscription import PushSubscription, NotificationPreference
 from .user import User
+from .user_profile import UserProfile, NotificationSettings as UserNotificationSettings
 from .wallet import Wallet
 from .address import Address
 from .transaction import Transaction
@@ -41,6 +42,7 @@ from . import webauthn
 from . import security
 from . import push_subscription
 from . import kyc
+from . import user_profile
 
 __all__ = [
     # Base
@@ -48,6 +50,8 @@ __all__ = [
     
     # User
     "User",
+    "UserProfile",
+    "UserNotificationSettings",
     
     # Wallet
     "Wallet",
@@ -128,4 +132,7 @@ __all__ = [
     "KYCAuditAction",
     "KYCActorType",
     "kyc",
+    
+    # User Profile
+    "user_profile",
 ]
