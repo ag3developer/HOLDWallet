@@ -161,10 +161,21 @@ async def list_users_kyc(
         user_kyc_status = None
         
         if verification:
-            level_value = verification.level.value if hasattr(verification.level, 'value') else str(verification.level)
-            user_kyc_level = KYCLevelEnum(level_value)
-            status_value = verification.status.value if hasattr(verification.status, 'value') else str(verification.status)
-            user_kyc_status = KYCStatusEnum(status_value)
+            # Tenta converter o nível com tratamento de erro
+            try:
+                level_value = verification.level.value if hasattr(verification.level, 'value') else str(verification.level)
+                level_value = level_value.lower() if level_value else 'none'  # Normaliza para minúsculas
+                user_kyc_level = KYCLevelEnum(level_value)
+            except (ValueError, AttributeError):
+                user_kyc_level = KYCLevelEnum.NONE
+            
+            # Tenta converter o status com tratamento de erro
+            try:
+                status_value = verification.status.value if hasattr(verification.status, 'value') else str(verification.status)
+                status_value = status_value.lower() if status_value else None
+                user_kyc_status = KYCStatusEnum(status_value) if status_value else None
+            except (ValueError, AttributeError):
+                user_kyc_status = None
         else:
             # Verifica se tem verificação pendente
             pending = db.query(KYCVerification).filter(
@@ -176,8 +187,12 @@ async def list_users_kyc(
                 ])
             ).first()
             if pending:
-                status_value = pending.status.value if hasattr(pending.status, 'value') else str(pending.status)
-                user_kyc_status = KYCStatusEnum(status_value)
+                try:
+                    status_value = pending.status.value if hasattr(pending.status, 'value') else str(pending.status)
+                    status_value = status_value.lower() if status_value else None
+                    user_kyc_status = KYCStatusEnum(status_value) if status_value else None
+                except (ValueError, AttributeError):
+                    user_kyc_status = None
         
         # Filtro por nível
         if kyc_level and user_kyc_level != kyc_level:
@@ -255,10 +270,22 @@ async def get_user_kyc_details(
     expiration_date = None
     
     if verification:
-        level_value = verification.level.value if hasattr(verification.level, 'value') else str(verification.level)
-        user_kyc_level = KYCLevelEnum(level_value)
-        status_value = verification.status.value if hasattr(verification.status, 'value') else str(verification.status)
-        user_kyc_status = KYCStatusEnum(status_value)
+        # Tenta converter o nível com tratamento de erro
+        try:
+            level_value = verification.level.value if hasattr(verification.level, 'value') else str(verification.level)
+            level_value = level_value.lower() if level_value else 'none'
+            user_kyc_level = KYCLevelEnum(level_value)
+        except (ValueError, AttributeError):
+            user_kyc_level = KYCLevelEnum.NONE
+        
+        # Tenta converter o status com tratamento de erro
+        try:
+            status_value = verification.status.value if hasattr(verification.status, 'value') else str(verification.status)
+            status_value = status_value.lower() if status_value else None
+            user_kyc_status = KYCStatusEnum(status_value) if status_value else None
+        except (ValueError, AttributeError):
+            user_kyc_status = None
+        
         verification_id = verification.id
         approved_at = verification.approved_at
         expiration_date = verification.expiration_date

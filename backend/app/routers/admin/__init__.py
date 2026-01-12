@@ -56,8 +56,10 @@ admin_router.include_router(system_blockchain_wallet_router)
 admin_router.include_router(backup_router)
 admin_router.include_router(notifications_router)
 admin_router.include_router(security_router)
-admin_router.include_router(kyc_admin_router)
+# IMPORTANTE: user_kyc_admin_router deve vir ANTES de kyc_admin_router
+# porque kyc_admin_router tem rota /{verification_id} que captura "users"
 admin_router.include_router(user_kyc_admin_router)
+admin_router.include_router(kyc_admin_router)
 
 __all__ = [
     "admin_router",
