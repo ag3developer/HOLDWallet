@@ -277,9 +277,17 @@ class S3Service:
         Returns:
             URL pré-assinada
         """
+        # Verifica primeiro se existe localmente (arquivos antigos antes do S3)
+        local_path = os.path.join("uploads", "kyc", file_path)
+        if os.path.exists(local_path):
+            # Arquivo existe localmente - retorna URL local
+            local_url = f"/kyc/documents/file/{file_path}"
+            logger.info(f"📁 File found locally, returning API URL: {local_url}")
+            return local_url
+        
         if not self.client:
-            # Modo desenvolvimento - retorna URL local
-            local_url = f"/uploads/kyc/{file_path}"
+            # Modo desenvolvimento sem S3 - retorna URL local
+            local_url = f"/kyc/documents/file/{file_path}"
             logger.warning(f"⚠️ S3 not configured. Returning local URL: {local_url}")
             return local_url
         

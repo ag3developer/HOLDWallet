@@ -234,6 +234,15 @@ const AdminKYCPage: React.FC = () => {
   }>({ open: false, url: '', title: '' })
   const [loadingDocUrl, setLoadingDocUrl] = useState<string | null>(null)
 
+  // Função para fechar o modal de preview e limpar blob URL
+  const closeDocumentPreview = () => {
+    // Se a URL for um blob, revoga para liberar memória
+    if (documentPreview.url && documentPreview.url.startsWith('blob:')) {
+      URL.revokeObjectURL(documentPreview.url)
+    }
+    setDocumentPreview({ open: false, url: '', title: '' })
+  }
+
   // Review modal
   const [reviewModal, setReviewModal] = useState<{
     open: boolean
@@ -360,7 +369,40 @@ const AdminKYCPage: React.FC = () => {
     setLoadingDocUrl(documentId)
     try {
       const response = await adminApi.get(`/kyc/${verificationId}/documents/${documentId}/url`)
-      const url = response.data.url
+      let url = response.data.url
+
+      // Se a URL for relativa (começa com /), busca o arquivo como blob
+      // Isso é necessário porque o browser não envia o token de auth em img/iframe src
+      if (url?.startsWith('/')) {
+        // A URL retornada é /kyc/documents/file/... (sem /admin)
+        // Precisamos usar axios direto com a baseURL sem /admin
+        const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+        const token = localStorage.getItem('hold-wallet-auth')
+        let authToken = ''
+        if (token) {
+          try {
+            const parsed = JSON.parse(token)
+            authToken = parsed?.state?.token || ''
+          } catch {
+            /* ignore */
+          }
+        }
+
+        // Faz download do arquivo com autenticação
+        const fileResponse = await fetch(`${backendUrl}${url}`, {
+          headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+        })
+
+        if (!fileResponse.ok) {
+          throw new Error(`Erro ${fileResponse.status}: ${fileResponse.statusText}`)
+        }
+
+        const blob = await fileResponse.blob()
+        // Cria uma URL blob local
+        const blobUrl = URL.createObjectURL(blob)
+        url = blobUrl
+      }
+
       setDocumentPreview({
         open: true,
         url,
@@ -1005,7 +1047,7 @@ const AdminKYCPage: React.FC = () => {
                   <Download className='w-4 h-4' />
                 </a>
                 <button
-                  onClick={() => setDocumentPreview({ open: false, url: '', title: '' })}
+                  onClick={closeDocumentPreview}
                   title='Fechar'
                   className='p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors'
                 >

@@ -354,6 +354,55 @@ async def delete_document(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
+@router.get("/documents/file/{user_id}/{verification_id}/{filename}")
+async def serve_local_document(
+    user_id: str,
+    verification_id: str,
+    filename: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Serve um documento KYC armazenado localmente.
+    
+    Este endpoint é usado quando os documentos estão salvos localmente
+    (desenvolvimento) em vez do S3/Spaces.
+    """
+    import os
+    from fastapi.responses import FileResponse
+    
+    # Verifica se o usuário tem acesso (é o dono ou é admin)
+    is_owner = str(current_user.id) == user_id
+    is_admin = getattr(current_user, 'is_admin', False) == True
+    
+    if not is_owner and not is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acesso negado ao documento"
+        )
+    
+    # Constrói o caminho do arquivo
+    file_path = os.path.join("uploads", "kyc", user_id, verification_id, filename)
+    
+    if not os.path.exists(file_path):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Documento não encontrado"
+        )
+    
+    # Detecta o content type
+    import mimetypes
+    content_type, _ = mimetypes.guess_type(filename)
+    if not content_type:
+        content_type = "application/octet-stream"
+    
+    return FileResponse(
+        file_path,
+        media_type=content_type,
+        filename=filename
+    )
+
+
 @router.post("/submit", response_model=KYCVerificationResponse)
 async def submit_verification(
     request: Request,
