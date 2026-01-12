@@ -546,3 +546,172 @@ class KYCWebhookPayload(BaseModel):
     level: KYCLevelEnum
     timestamp: datetime
     details: Optional[Dict[str, Any]] = None
+
+
+# ============================================================
+# ADMIN - USER MANAGEMENT SCHEMAS
+# ============================================================
+
+class ServiceNameEnum(str, Enum):
+    """Serviços disponíveis na plataforma"""
+    INSTANT_TRADE = "instant_trade"
+    P2P = "p2p"
+    WITHDRAW_CRYPTO = "withdraw_crypto"
+    DEPOSIT_CRYPTO = "deposit_crypto"
+    PIX_WITHDRAW = "pix_withdraw"
+    PIX_DEPOSIT = "pix_deposit"
+    TED_WITHDRAW = "ted_withdraw"
+    WOLKPAY = "wolkpay"
+    INTERNAL_TRANSFER = "internal_transfer"
+    SWAP = "swap"
+
+
+class UserCustomLimitCreate(BaseModel):
+    """Criar/atualizar limite personalizado para usuário"""
+    service_name: ServiceNameEnum
+    daily_limit: Optional[Decimal] = Field(None, ge=0, description="Limite diário em BRL")
+    monthly_limit: Optional[Decimal] = Field(None, ge=0, description="Limite mensal em BRL")
+    per_operation_limit: Optional[Decimal] = Field(None, ge=0, description="Limite por operação em BRL")
+    is_enabled: bool = Field(True, description="Habilita ou desabilita o serviço")
+    requires_approval: bool = Field(False, description="Requer aprovação manual para operações")
+    reason: Optional[str] = Field(None, max_length=500, description="Motivo da personalização")
+    admin_notes: Optional[str] = Field(None, max_length=1000, description="Notas internas")
+    expires_at: Optional[datetime] = Field(None, description="Data de expiração do limite (temporário)")
+
+
+class UserCustomLimitResponse(BaseModel):
+    """Resposta de limite personalizado"""
+    id: uuid.UUID
+    user_id: uuid.UUID
+    service_name: str
+    daily_limit: Optional[Decimal] = None
+    monthly_limit: Optional[Decimal] = None
+    per_operation_limit: Optional[Decimal] = None
+    is_enabled: bool
+    requires_approval: bool
+    reason: Optional[str] = None
+    admin_notes: Optional[str] = None
+    expires_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+    created_by: Optional[uuid.UUID] = None
+    
+    class Config:
+        from_attributes = True
+
+
+class UserServiceAccessCreate(BaseModel):
+    """Criar/atualizar acesso a serviço"""
+    service_name: ServiceNameEnum
+    is_allowed: bool = Field(True, description="Permite ou bloqueia o serviço")
+    reason: Optional[str] = Field(None, max_length=500, description="Motivo do bloqueio/liberação")
+    admin_notes: Optional[str] = Field(None, max_length=1000, description="Notas internas")
+    blocked_until: Optional[datetime] = Field(None, description="Bloqueio temporário até data")
+
+
+class UserServiceAccessResponse(BaseModel):
+    """Resposta de acesso a serviço"""
+    id: uuid.UUID
+    user_id: uuid.UUID
+    service_name: str
+    is_allowed: bool
+    reason: Optional[str] = None
+    admin_notes: Optional[str] = None
+    blocked_until: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class UserKYCUpdateRequest(BaseModel):
+    """Request para atualizar nível KYC do usuário"""
+    kyc_level: KYCLevelEnum = Field(..., description="Novo nível KYC")
+    reason: str = Field(..., min_length=10, max_length=500, description="Motivo da alteração")
+    admin_notes: Optional[str] = Field(None, max_length=1000, description="Notas internas")
+    expiration_months: int = Field(24, ge=1, le=60, description="Meses até expiração")
+
+
+class UserKYCFullResponse(BaseModel):
+    """Resposta completa do KYC do usuário para admin"""
+    # Dados do usuário
+    user_id: uuid.UUID
+    username: str
+    email: str
+    user_created_at: datetime
+    
+    # KYC atual
+    kyc_level: KYCLevelEnum
+    kyc_status: Optional[KYCStatusEnum] = None
+    verification_id: Optional[uuid.UUID] = None
+    approved_at: Optional[datetime] = None
+    expiration_date: Optional[date] = None
+    
+    # Limites personalizados
+    custom_limits: List[UserCustomLimitResponse] = []
+    
+    # Acesso a serviços
+    service_access: List[UserServiceAccessResponse] = []
+    
+    # Limites efetivos (custom ou padrão)
+    effective_limits: Dict[str, Dict[str, Any]] = {}
+    
+    class Config:
+        from_attributes = True
+
+
+class UserKYCListItem(BaseModel):
+    """Item da lista de usuários para admin"""
+    user_id: uuid.UUID
+    username: str
+    email: str
+    kyc_level: KYCLevelEnum
+    kyc_status: Optional[KYCStatusEnum] = None
+    user_created_at: datetime
+    has_custom_limits: bool = False
+    has_blocked_services: bool = False
+    
+    class Config:
+        from_attributes = True
+
+
+class UserKYCListResponse(BaseModel):
+    """Lista paginada de usuários"""
+    items: List[UserKYCListItem]
+    total: int
+    page: int
+    per_page: int
+    pages: int
+
+
+class BulkUserKYCUpdateRequest(BaseModel):
+    """Request para atualização em lote de nível KYC"""
+    user_ids: List[uuid.UUID] = Field(...)
+    kyc_level: KYCLevelEnum
+    reason: str = Field(..., min_length=10, max_length=500)
+    
+    @validator('user_ids')
+    def validate_user_ids(cls, v):
+        if len(v) < 1:
+            raise ValueError('Pelo menos um user_id é necessário')
+        if len(v) > 100:
+            raise ValueError('Máximo de 100 usuários por vez')
+        return v
+
+
+class ServiceLimitConfigRequest(BaseModel):
+    """Request para configurar limites padrão por nível"""
+    kyc_level: KYCLevelEnum
+    service_name: ServiceNameEnum
+    daily_limit: Optional[Decimal] = Field(None, ge=0)
+    monthly_limit: Optional[Decimal] = Field(None, ge=0)
+    per_operation_limit: Optional[Decimal] = Field(None, ge=0)
+    is_active: bool = True
+
+
+class AllServicesLimitsResponse(BaseModel):
+    """Resposta com todos os limites por serviço e nível"""
+    services: Dict[str, Dict[str, Dict[str, Any]]]
+    # Ex: {"instant_trade": {"basic": {"daily": 1000, "monthly": 10000}, "intermediate": {...}}}
+

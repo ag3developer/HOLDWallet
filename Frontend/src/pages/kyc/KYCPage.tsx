@@ -84,6 +84,7 @@ const KYCPage: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(1)
   const [selectedLevel, setSelectedLevel] = useState<KYCLevel>(KYCLevel.BASIC)
   const [consent, setConsent] = useState(false)
+  const [isUpgrading, setIsUpgrading] = useState(false) // Controle para modo upgrade
 
   // CEP lookup state
   const [loadingCep, setLoadingCep] = useState(false)
@@ -255,15 +256,20 @@ const KYCPage: React.FC = () => {
   const handleStartVerification = async () => {
     if (!consent) return
 
-    // Se já existe uma verificação em andamento, apenas avançar para o próximo step
-    if (verification && verification.status === KYCStatus.PENDING) {
+    // Se já existe uma verificação em andamento (não aprovada), apenas avançar para o próximo step
+    if (verification && verification.status === KYCStatus.PENDING && !isUpgrading) {
       setCurrentStep(3)
       return
     }
 
+    // Se estiver em modo upgrade ou não há verificação, inicia nova verificação
     const success = await startVerification(selectedLevel, consent)
     if (success) {
       setCurrentStep(3)
+      // Desativa modo upgrade após iniciar a nova verificação com sucesso
+      if (isUpgrading) {
+        setIsUpgrading(false)
+      }
     }
   }
 
@@ -341,6 +347,7 @@ const KYCPage: React.FC = () => {
       setSelectedLevel(nextLevel)
       setCurrentStep(1)
       setConsent(false)
+      setIsUpgrading(true) // Ativar modo upgrade
     }
 
     return (
@@ -497,8 +504,8 @@ const KYCPage: React.FC = () => {
   // ============================================================
 
   const renderStepContent = () => {
-    // Status especiais
-    if (verification?.status === KYCStatus.APPROVED) {
+    // Status especiais - mas não se estiver em modo upgrade
+    if (verification?.status === KYCStatus.APPROVED && !isUpgrading) {
       return renderApprovedStatus()
     }
     if (
@@ -517,19 +524,38 @@ const KYCPage: React.FC = () => {
           <div className='space-y-6'>
             <div className='text-center mb-6'>
               <h2 className='text-xl font-bold text-gray-900 dark:text-white'>
-                Escolha seu Nível de Verificação
+                {isUpgrading ? 'Upgrade de Verificação' : 'Escolha seu Nível de Verificação'}
               </h2>
               <p className='text-gray-500 mt-1'>
-                Selecione o nível que melhor atende às suas necessidades
+                {isUpgrading
+                  ? `Você está fazendo upgrade para o nível ${selectedLevel}`
+                  : 'Selecione o nível que melhor atende às suas necessidades'}
               </p>
             </div>
 
+            {isUpgrading && (
+              <KYCInfoCard
+                type='info'
+                title='Upgrade de Nível'
+                message={`Você está solicitando upgrade do nível ${verification?.level} para ${selectedLevel}. Novos documentos podem ser necessários.`}
+              />
+            )}
+
             <KYCLevelSelector selectedLevel={selectedLevel} onSelect={setSelectedLevel} />
 
-            <div className='flex justify-end'>
+            <div className='flex justify-between'>
+              {isUpgrading && (
+                <button
+                  onClick={() => setIsUpgrading(false)}
+                  className='flex items-center gap-2 px-6 py-2.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600'
+                >
+                  <ArrowLeft className='w-4 h-4' />
+                  Cancelar Upgrade
+                </button>
+              )}
               <button
                 onClick={() => setCurrentStep(2)}
-                className='flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-lg hover:bg-primary/90'
+                className={`flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-lg hover:bg-primary/90 ${!isUpgrading ? 'ml-auto' : ''}`}
               >
                 Continuar
                 <ArrowRight className='w-4 h-4' />
@@ -1044,19 +1070,20 @@ const KYCPage: React.FC = () => {
         )}
 
         {/* Step Indicator */}
-        {verification?.status !== KYCStatus.APPROVED &&
-          verification?.status !== KYCStatus.SUBMITTED &&
-          verification?.status !== KYCStatus.UNDER_REVIEW && (
-            <div className='mb-8'>
-              <KYCStepIndicator
-                steps={steps}
-                currentStep={currentStep}
-                onStepClick={step => {
-                  if (step <= currentStep) setCurrentStep(step)
-                }}
-              />
-            </div>
-          )}
+        {(isUpgrading ||
+          (verification?.status !== KYCStatus.APPROVED &&
+            verification?.status !== KYCStatus.SUBMITTED &&
+            verification?.status !== KYCStatus.UNDER_REVIEW)) && (
+          <div className='mb-8'>
+            <KYCStepIndicator
+              steps={steps}
+              currentStep={currentStep}
+              onStepClick={step => {
+                if (step <= currentStep) setCurrentStep(step)
+              }}
+            />
+          </div>
+        )}
 
         {/* Main Content Card */}
         <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 md:p-8'>

@@ -496,11 +496,22 @@ const AdminKYCPage: React.FC = () => {
     <div className='min-h-screen bg-gray-50 dark:bg-gray-900 p-4 lg:p-6'>
       {/* Header */}
       <div className='mb-6'>
-        <h1 className='text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2'>
-          <Shield className='w-7 h-7 text-primary' />
-          Gestão de KYC
-        </h1>
-        <p className='text-gray-500 mt-1'>Gerencie e aprove verificações de identidade</p>
+        <div className='flex flex-col md:flex-row md:items-center md:justify-between gap-4'>
+          <div>
+            <h1 className='text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2'>
+              <Shield className='w-7 h-7 text-primary' />
+              Gestão de KYC
+            </h1>
+            <p className='text-gray-500 mt-1'>Gerencie e aprove verificações de identidade</p>
+          </div>
+          <button
+            onClick={() => navigate('/admin/kyc/users')}
+            className='flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors'
+          >
+            <User className='w-4 h-4' />
+            Gestão Avançada de Usuários
+          </button>
+        </div>
       </div>
 
       {/* Stats Cards */}

@@ -79,6 +79,9 @@ import {
   AdminKYCPage,
 } from '@/pages/admin'
 
+// Import new KYC Users page
+import AdminKYCUsersPage from '@/pages/admin/AdminKYCUsersPage'
+
 // Protected Route Component (for authenticated users)
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, isLoading } = useAuthStore()
@@ -368,6 +371,7 @@ function App() {
             <Route path='/admin/wolkpay' element={<AdminWolkPayPage />} />
             <Route path='/admin/wolkpay/:id' element={<AdminWolkPayDetailPage />} />
             <Route path='/admin/kyc' element={<AdminKYCPage />} />
+            <Route path='/admin/kyc/users' element={<AdminKYCUsersPage />} />
           </Route>
 
           {/* 404 Page */}

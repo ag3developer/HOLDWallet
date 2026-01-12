@@ -42,6 +42,7 @@ const adminNavigation = [
   // Gestão
   { name: 'Usuários', href: '/admin/users', icon: Users, group: 'management' },
   { name: 'Verificação KYC', href: '/admin/kyc', icon: ShieldCheck, group: 'management' },
+  { name: 'KYC - Gestão Usuários', href: '/admin/kyc/users', icon: UserCheck, group: 'management' },
   { name: 'Trades OTC', href: '/admin/trades', icon: TrendingUp, group: 'management' },
   { name: 'P2P & Disputas', href: '/admin/p2p', icon: UserCheck, group: 'management' },
   { name: 'WolkPay', href: '/admin/wolkpay', icon: CreditCard, group: 'management' },

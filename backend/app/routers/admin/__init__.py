@@ -36,6 +36,7 @@ from .notifications import router as notifications_router
 from .security import router as security_router
 from .wolkpay_admin import router as wolkpay_admin_router
 from .kyc_admin import router as kyc_admin_router
+from .user_kyc_admin import router as user_kyc_admin_router
 
 # Create main admin router
 admin_router = APIRouter(prefix="/admin", tags=["Admin"])
@@ -56,6 +57,7 @@ admin_router.include_router(backup_router)
 admin_router.include_router(notifications_router)
 admin_router.include_router(security_router)
 admin_router.include_router(kyc_admin_router)
+admin_router.include_router(user_kyc_admin_router)
 
 __all__ = [
     "admin_router",
@@ -74,5 +76,6 @@ __all__ = [
     "notifications_router",
     "security_router",
     "wolkpay_admin_router",
-    "kyc_admin_router"
+    "kyc_admin_router",
+    "user_kyc_admin_router"
 ]

@@ -430,12 +430,111 @@ class KYCServiceLimit(Base):
 
 
 # ============================================================
+# LIMITES PERSONALIZADOS POR USUÁRIO
+# ============================================================
+
+class UserCustomLimit(Base):
+    """
+    Limites personalizados por usuário.
+    Permite que admins configurem limites específicos para usuários individuais,
+    sobrescrevendo os limites padrão do nível KYC.
+    """
+    __tablename__ = "user_custom_limits"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
+    
+    # Serviço
+    service_name = Column(String(50), nullable=False)  # instant_trade, p2p, withdraw, pix, wolkpay, etc
+    
+    # Limites personalizados (null = usa limite padrão do KYC)
+    daily_limit = Column(Numeric(18, 2), nullable=True)
+    monthly_limit = Column(Numeric(18, 2), nullable=True)
+    per_operation_limit = Column(Numeric(18, 2), nullable=True)
+    
+    # Controle de acesso ao serviço
+    is_enabled = Column(Boolean, default=True, nullable=False)  # Permite ou bloqueia o serviço
+    requires_approval = Column(Boolean, default=False, nullable=False)  # Requer aprovação manual para cada operação
+    
+    # Motivo/Notas
+    reason = Column(Text, nullable=True)  # Motivo da personalização
+    admin_notes = Column(Text, nullable=True)
+    
+    # Auditoria
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    updated_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=True)  # Limites temporários
+    
+    # Relationships
+    user = relationship("User", foreign_keys=[user_id], backref="custom_limits")
+    created_by_admin = relationship("User", foreign_keys=[created_by])
+    updated_by_admin = relationship("User", foreign_keys=[updated_by])
+
+    def __repr__(self):
+        return f"<UserCustomLimit(user_id={self.user_id}, service={self.service_name})>"
+
+    @property
+    def is_expired(self) -> bool:
+        if self.expires_at:
+            return datetime.utcnow() > self.expires_at
+        return False
+
+
+class UserServiceAccess(Base):
+    """
+    Controle de acesso a serviços por usuário.
+    Permite bloquear ou liberar serviços específicos independente do nível KYC.
+    """
+    __tablename__ = "user_service_access"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
+    
+    # Serviço
+    service_name = Column(String(50), nullable=False)  # instant_trade, p2p, withdraw, pix, wolkpay, etc
+    
+    # Acesso
+    is_allowed = Column(Boolean, default=True, nullable=False)
+    
+    # Motivo
+    reason = Column(Text, nullable=True)
+    admin_notes = Column(Text, nullable=True)
+    
+    # Auditoria
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    updated_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    blocked_until = Column(DateTime, nullable=True)  # Bloqueio temporário
+    
+    # Relationships
+    user = relationship("User", foreign_keys=[user_id], backref="service_access")
+    created_by_admin = relationship("User", foreign_keys=[created_by])
+    updated_by_admin = relationship("User", foreign_keys=[updated_by])
+
+    def __repr__(self):
+        return f"<UserServiceAccess(user_id={self.user_id}, service={self.service_name}, allowed={self.is_allowed})>"
+
+
+# ============================================================
 # ÍNDICES COMPOSTOS (para performance)
 # ============================================================
 from sqlalchemy import Index
 
 # Índice para buscar verificações por usuário e status
 Index('ix_kyc_verifications_user_status', KYCVerification.user_id, KYCVerification.status)
+
+# Índice para limites personalizados por usuário
+Index('ix_user_custom_limits_user_service', UserCustomLimit.user_id, UserCustomLimit.service_name, unique=True)
+
+# Índice para acesso a serviços por usuário
+Index('ix_user_service_access_user_service', UserServiceAccess.user_id, UserServiceAccess.service_name, unique=True)
 
 # Índice para buscar documentos por verificação e tipo
 Index('ix_kyc_documents_verification_type', KYCDocument.verification_id, KYCDocument.document_type)
