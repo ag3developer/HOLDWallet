@@ -19,6 +19,7 @@ import base64
 import logging
 import json
 import os
+import tempfile
 from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Dict, Any, Optional, List
@@ -75,8 +76,21 @@ class BancoBrasilAPIService:
         self.pix_key = getattr(settings, 'BB_PIX_KEY', '')  # Chave PIX da empresa (CNPJ)
 
         # Certificados mTLS (obrigatório para produção)
+        # Prioridade: 1) Arquivos locais, 2) Base64 do ambiente
         self.cert_path = getattr(settings, 'BB_CERT_PATH', None)
         self.key_path = getattr(settings, 'BB_KEY_PATH', None)
+        
+        # Suporte a certificados via Base64 (para cloud: Digital Ocean, Heroku, etc)
+        self.cert_content_b64 = getattr(settings, 'BB_CERT_CONTENT', None)
+        self.key_content_b64 = getattr(settings, 'BB_KEY_CONTENT', None)
+        
+        # Arquivos temporários para certificados base64
+        self._temp_cert_file = None
+        self._temp_key_file = None
+        
+        # Se temos base64 mas não temos arquivos, criar arquivos temporários
+        if not self.cert_path and self.cert_content_b64:
+            self._setup_certs_from_base64()
 
         # Token de acesso (cache em memória)
         self._access_token: Optional[str] = None
@@ -85,7 +99,57 @@ class BancoBrasilAPIService:
         # Log configuração
         env_mode = "PRODUÇÃO" if self.is_production else "SANDBOX"
         has_certs = "✅" if (self.cert_path and self.key_path) else "❌"
-        logger.info(f"🏦 BancoBrasilAPIService inicializado em modo: {env_mode} | mTLS: {has_certs}")
+        cert_source = "base64" if self._temp_cert_file else "arquivo"
+        logger.info(f"🏦 BancoBrasilAPIService inicializado em modo: {env_mode} | mTLS: {has_certs} ({cert_source})")
+
+    def _setup_certs_from_base64(self):
+        """
+        Cria arquivos temporários a partir de certificados em base64.
+        Útil para ambientes cloud onde não é possível ter arquivos estáticos.
+        """
+        try:
+            if self.cert_content_b64:
+                # Decodificar certificado
+                cert_content = base64.b64decode(self.cert_content_b64)
+                self._temp_cert_file = tempfile.NamedTemporaryFile(
+                    mode='wb', 
+                    suffix='.crt', 
+                    delete=False
+                )
+                self._temp_cert_file.write(cert_content)
+                self._temp_cert_file.flush()
+                self.cert_path = self._temp_cert_file.name
+                logger.info(f"✅ Certificado criado de base64: {self.cert_path}")
+                
+            if self.key_content_b64:
+                # Decodificar chave privada
+                key_content = base64.b64decode(self.key_content_b64)
+                self._temp_key_file = tempfile.NamedTemporaryFile(
+                    mode='wb', 
+                    suffix='.key', 
+                    delete=False
+                )
+                self._temp_key_file.write(key_content)
+                self._temp_key_file.flush()
+                self.key_path = self._temp_key_file.name
+                # Proteger a chave
+                os.chmod(self.key_path, 0o600)
+                logger.info(f"✅ Chave privada criada de base64: {self.key_path}")
+                
+        except Exception as e:
+            logger.error(f"❌ Erro ao criar certificados de base64: {e}")
+            self.cert_path = None
+            self.key_path = None
+    
+    def __del__(self):
+        """Limpa arquivos temporários ao destruir o objeto."""
+        try:
+            if self._temp_cert_file:
+                os.unlink(self._temp_cert_file.name)
+            if self._temp_key_file:
+                os.unlink(self._temp_key_file.name)
+        except Exception:
+            pass
 
     def _get_ssl_context(self) -> Optional[ssl.SSLContext]:
         """

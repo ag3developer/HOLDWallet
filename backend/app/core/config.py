@@ -108,6 +108,9 @@ class Settings(BaseSettings):
     # Certificado mTLS (obrigatório para produção)
     BB_CERT_PATH: Optional[str] = None  # Caminho para o certificado .crt
     BB_KEY_PATH: Optional[str] = None   # Caminho para a chave privada .key
+    # Certificados em Base64 (alternativa para cloud - Digital Ocean, Heroku, etc)
+    BB_CERT_CONTENT: Optional[str] = None  # Certificado em base64
+    BB_KEY_CONTENT: Optional[str] = None   # Chave privada em base64
     
     class Config:
         # Carregar .env.production se existir, senão .env
