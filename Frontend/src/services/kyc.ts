@@ -170,6 +170,15 @@ export interface KYCStatusResponse extends KYCVerification {
   missing_documents: DocumentType[]
   can_submit: boolean
   limits: KYCLimits
+  personal_data_complete?: boolean
+  has_kyc?: boolean
+  is_verified?: boolean
+  documents_uploaded?: number
+  documents_required?: number
+  documents_approved?: number
+  verification_id?: string
+  expires_at?: string
+  days_until_expiration?: number
 }
 
 // ============================================================

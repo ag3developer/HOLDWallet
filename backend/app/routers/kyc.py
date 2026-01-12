@@ -106,9 +106,9 @@ async def get_prefill_data(
         return {"success": True, "data": prefill_data, "source": "wolkpay"}
     
     # 3. Dados básicos do perfil do usuário
+    # Usar username como fallback (User model não tem first_name/last_name)
     user_data = {
-        "full_name": f"{current_user.first_name or ''} {current_user.last_name or ''}".strip() or None,
-        "phone": current_user.phone_number,
+        "full_name": current_user.username if current_user.username else None,
         "source": "profile"
     }
     
@@ -202,6 +202,8 @@ async def save_personal_data(
     """
     Salva os dados pessoais para verificação KYC.
     
+    Se não existir verificação ativa, cria uma automaticamente com nível BASIC.
+    
     Dados sensíveis são criptografados (LGPD compliant):
     - CPF, RG, telefone, endereço
     """
@@ -210,11 +212,31 @@ async def save_personal_data(
     
     # Obtém verificação ativa
     verification = await service.get_active_verification(current_user.id)
+    
+    # Se não existe verificação, criar automaticamente com nível BASIC
     if not verification:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Inicie uma verificação KYC primeiro"
-        )
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"[KYC] Criando verificação automática para usuário {current_user.id}")
+        
+        try:
+            verification = await service.create_verification(
+                user_id=current_user.id,
+                level=KYCLevel.BASIC,
+                consent=True,  # Consent implícito ao enviar dados
+                ip_address=ip,
+                user_agent=user_agent
+            )
+            logger.info(f"[KYC] Verificação criada: {verification.id}")
+        except ValueError as e:
+            # Se já existe verificação em andamento, tentar buscar novamente
+            logger.warning(f"[KYC] Erro ao criar verificação: {e}")
+            verification = await service.get_active_verification(current_user.id)
+            if not verification:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=str(e)
+                )
     
     try:
         personal_data = await service.save_personal_data(

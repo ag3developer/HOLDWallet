@@ -17,6 +17,10 @@ import hashlib
 import logging
 import os
 
+# Carrega .env explicitamente para garantir que as variáveis estejam disponíveis
+from dotenv import load_dotenv
+load_dotenv()
+
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -30,7 +34,10 @@ class S3Service:
     
     # Bucket e região
     BUCKET_NAME = os.getenv("AWS_S3_KYC_BUCKET", "wolknow-kyc-documents")
-    REGION = os.getenv("AWS_REGION", "sa-east-1")
+    REGION = os.getenv("AWS_REGION", "ams3")
+    
+    # Endpoint customizado (para DigitalOcean Spaces ou MinIO)
+    ENDPOINT_URL = os.getenv("DO_SPACES_ENDPOINT", None)
     
     # Limites de arquivo
     MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
@@ -50,6 +57,16 @@ class S3Service:
     def _initialize_client(self):
         """Configura o cliente boto3 para S3"""
         try:
+            # Verifica se há credenciais configuradas
+            aws_access_key = os.getenv("AWS_ACCESS_KEY_ID")
+            aws_secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
+            
+            # Se não houver credenciais, usar modo local
+            if not aws_access_key or not aws_secret_key:
+                logger.warning("⚠️ AWS credentials not configured. Using local file storage.")
+                self.client = None
+                return
+            
             # Configuração com retry
             config = Config(
                 region_name=self.REGION,
@@ -62,16 +79,22 @@ class S3Service:
             )
             
             # Credenciais do ambiente ou IAM Role
-            self.client = boto3.client(
-                's3',
-                config=config,
-                aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-                aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-            )
+            # Suporta AWS S3 e DigitalOcean Spaces
+            client_params = {
+                'config': config,
+                'aws_access_key_id': aws_access_key,
+                'aws_secret_access_key': aws_secret_key,
+            }
+            
+            # Se tiver endpoint customizado (DigitalOcean Spaces)
+            if self.ENDPOINT_URL:
+                client_params['endpoint_url'] = self.ENDPOINT_URL
+            
+            self.client = boto3.client('s3', **client_params)
             
             logger.info(f"✅ S3 client initialized for bucket: {self.BUCKET_NAME}")
         except Exception as e:
-            logger.warning(f"⚠️ S3 client initialization failed: {e}. File operations will be simulated.")
+            logger.warning(f"⚠️ S3 client initialization failed: {e}. File operations will use local storage.")
             self.client = None
     
     def _get_s3_path(self, user_id: str, verification_id: str, filename: str) -> str:

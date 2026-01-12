@@ -52,13 +52,25 @@ class KYCLevel(str, enum.Enum):
 
 class DocumentType(str, enum.Enum):
     """Tipos de documentos aceitos"""
-    IDENTITY_FRONT = "identity_front"   # RG/CNH frente
-    IDENTITY_BACK = "identity_back"     # RG/CNH verso
-    SELFIE = "selfie"                   # Selfie com documento
-    SELFIE_LIVENESS = "selfie_liveness" # Selfie com prova de vida
-    ADDRESS_PROOF = "address_proof"     # Comprovante de endereço
-    INCOME_PROOF = "income_proof"       # Comprovante de renda
+    # Documentos de identidade
+    IDENTITY_FRONT = "identity_front"   # RG/CNH frente (genérico)
+    IDENTITY_BACK = "identity_back"     # RG/CNH verso (genérico)
+    CNH_FRONT = "cnh_front"             # CNH frente
+    CNH_BACK = "cnh_back"               # CNH verso
+    RG_FRONT = "rg_front"               # RG frente
+    RG_BACK = "rg_back"                 # RG verso
+    CPF_PHOTO = "cpf_photo"             # Foto do CPF
     PASSPORT = "passport"               # Passaporte
+    # Selfies
+    SELFIE = "selfie"                   # Selfie simples
+    SELFIE_WITH_DOCUMENT = "selfie_with_document"  # Selfie com documento
+    SELFIE_LIVENESS = "selfie_liveness" # Selfie com prova de vida
+    # Comprovantes
+    ADDRESS_PROOF = "address_proof"     # Comprovante de endereço
+    PROOF_OF_ADDRESS = "proof_of_address"  # Comprovante de endereço (alias)
+    INCOME_PROOF = "income_proof"       # Comprovante de renda
+    PROOF_OF_INCOME = "proof_of_income" # Comprovante de renda (alias)
+    # Outros
     OTHER = "other"                     # Outro documento
 
 

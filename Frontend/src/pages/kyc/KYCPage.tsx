@@ -115,8 +115,11 @@ const KYCPage: React.FC = () => {
       } else if (verification.consent_given && (verification.documents?.length ?? 0) > 0) {
         // Tem consentimento e documentos - ir para step 4 (documentos)
         setCurrentStep(4)
+      } else if (verification.consent_given && verification.personal_data_complete) {
+        // Tem consentimento e dados pessoais preenchidos - ir para step 4 (documentos)
+        setCurrentStep(4)
       } else if (verification.consent_given) {
-        // Tem consentimento mas não tem documentos - ir para step 3 (dados pessoais)
+        // Tem consentimento mas não tem dados pessoais - ir para step 3 (dados pessoais)
         setCurrentStep(3)
       } else {
         // Verificação existe mas sem consentimento - ir para step 2 (consentimento)
@@ -124,8 +127,8 @@ const KYCPage: React.FC = () => {
         setCurrentStep(3)
       }
 
-      // Sincronizar o nível selecionado com o da verificação existente
-      if (verification.level) {
+      // Sincronizar o nível selecionado com o da verificação existente (não usar NONE)
+      if (verification.level && verification.level !== KYCLevel.NONE) {
         setSelectedLevel(verification.level)
       }
 
@@ -136,9 +139,11 @@ const KYCPage: React.FC = () => {
     }
   }, [verification])
 
-  // Load requirements when level changes
+  // Load requirements when level changes (skip NONE level)
   useEffect(() => {
-    loadRequirements(selectedLevel)
+    if (selectedLevel && selectedLevel !== KYCLevel.NONE) {
+      loadRequirements(selectedLevel)
+    }
   }, [selectedLevel, loadRequirements])
 
   // Load prefill data on mount
@@ -263,6 +268,24 @@ const KYCPage: React.FC = () => {
   }
 
   const handleSavePersonalData = async () => {
+    // Se não existe verificação, criar automaticamente antes de salvar dados
+    if (!verification || verification.status === KYCStatus.REJECTED) {
+      console.log('[KYC] Criando verificação automaticamente antes de salvar dados...')
+      // Usar o nível selecionado, mas garantir que não seja NONE
+      const levelToUse = selectedLevel === KYCLevel.NONE ? KYCLevel.BASIC : selectedLevel
+      const startSuccess = await startVerification(levelToUse, true)
+      if (!startSuccess) {
+        console.error('[KYC] Falha ao criar verificação automaticamente')
+        return
+      }
+      // Recarregar status para garantir que temos a verificação no estado
+      console.log('[KYC] Aguardando estado atualizar...')
+      await loadStatus()
+      // Aguardar um pouco mais para o estado React propagar
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      console.log('[KYC] Estado atualizado, salvando dados pessoais...')
+    }
+
     const success = await savePersonalData(personalData as KYCPersonalData)
     if (success) {
       setCurrentStep(4)

@@ -38,13 +38,25 @@ class KYCLevelEnum(str, Enum):
 
 
 class DocumentTypeEnum(str, Enum):
+    # Documentos de identidade
     IDENTITY_FRONT = "identity_front"
     IDENTITY_BACK = "identity_back"
-    SELFIE = "selfie"
-    SELFIE_LIVENESS = "selfie_liveness"
-    ADDRESS_PROOF = "address_proof"
-    INCOME_PROOF = "income_proof"
+    CNH_FRONT = "cnh_front"
+    CNH_BACK = "cnh_back"
+    RG_FRONT = "rg_front"
+    RG_BACK = "rg_back"
+    CPF_PHOTO = "cpf_photo"
     PASSPORT = "passport"
+    # Selfies
+    SELFIE = "selfie"
+    SELFIE_WITH_DOCUMENT = "selfie_with_document"
+    SELFIE_LIVENESS = "selfie_liveness"
+    # Comprovantes
+    ADDRESS_PROOF = "address_proof"
+    PROOF_OF_ADDRESS = "proof_of_address"
+    INCOME_PROOF = "income_proof"
+    PROOF_OF_INCOME = "proof_of_income"
+    # Outros
     OTHER = "other"
 
 
@@ -373,6 +385,10 @@ class KYCStatusResponse(BaseModel):
     documents_uploaded: int = 0
     documents_required: int = 0
     documents_approved: int = 0
+    
+    # Campos adicionais para frontend
+    consent_given: bool = False
+    documents: List[Dict[str, Any]] = []
     
     # Próximos passos
     next_steps: List[str] = []

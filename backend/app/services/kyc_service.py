@@ -173,7 +173,7 @@ class KYCService:
         existing = self.db.query(KYCVerification).filter(
             KYCVerification.user_id == user_id,
             KYCVerification.status.in_([
-                KYCStatus.PENDING, KYCStatus.SUBMITTED, KYCStatus.UNDER_REVIEW
+                KYCStatus.PENDING.value, KYCStatus.SUBMITTED.value, KYCStatus.UNDER_REVIEW.value
             ])
         ).first()
         
@@ -229,8 +229,8 @@ class KYCService:
         pending = self.db.query(KYCVerification).filter(
             KYCVerification.user_id == user_id,
             KYCVerification.status.in_([
-                KYCStatus.PENDING, KYCStatus.SUBMITTED, 
-                KYCStatus.UNDER_REVIEW, KYCStatus.DOCUMENTS_REQUESTED
+                KYCStatus.PENDING.value, KYCStatus.SUBMITTED.value, 
+                KYCStatus.UNDER_REVIEW.value, KYCStatus.DOCUMENTS_REQUESTED.value
             ])
         ).order_by(desc(KYCVerification.created_at)).first()
         
@@ -248,7 +248,7 @@ class KYCService:
         """
         verification = await self.get_active_verification(user_id)
         
-        if verification and verification.status == KYCStatus.APPROVED and not verification.is_expired:
+        if verification and verification.status == KYCStatus.APPROVED.value and not verification.is_expired:
             return verification.level
         
         return KYCLevel.NONE
@@ -291,7 +291,7 @@ class KYCService:
         if not verification:
             raise ValueError("Verificação não encontrada")
         
-        if verification.status not in [KYCStatus.PENDING, KYCStatus.DOCUMENTS_REQUESTED]:
+        if verification.status not in [KYCStatus.PENDING.value, KYCStatus.DOCUMENTS_REQUESTED.value]:
             raise ValueError("Verificação não está em estado que permite alteração")
         
         # Converte para dict e criptografa campos sensíveis
@@ -382,7 +382,7 @@ class KYCService:
         if not verification:
             raise ValueError("Verificação não encontrada")
         
-        if verification.status not in [KYCStatus.PENDING, KYCStatus.DOCUMENTS_REQUESTED]:
+        if verification.status not in [KYCStatus.PENDING.value, KYCStatus.DOCUMENTS_REQUESTED.value]:
             raise ValueError("Verificação não aceita novos documentos")
         
         # Verifica se já existe documento desse tipo
@@ -407,9 +407,10 @@ class KYCService:
         # Cria registro do documento
         document = KYCDocument(
             verification_id=verification_id,
-            document_type=document_type,
-            status=DocumentStatus.PENDING,
-            file_path=upload_result["file_path"],
+            document_type=document_type.value,
+            status=DocumentStatus.PENDING.value,
+            s3_key=upload_result["file_path"],
+            s3_bucket=s3_service.BUCKET_NAME,
             file_hash=upload_result["file_hash"],
             file_size=upload_result["file_size"],
             mime_type=upload_result["mime_type"],
@@ -457,7 +458,7 @@ class KYCService:
         verification = await self.get_verification_by_id(document.verification_id)
         
         # Remove do S3
-        await s3_service.delete_file(document.file_path)
+        await s3_service.delete_file(document.s3_key)
         
         # Remove do banco
         self.db.delete(document)
@@ -470,7 +471,7 @@ class KYCService:
                 actor_id=verification.user_id,
                 actor_type=ActorType.USER,
                 action=AuditAction.DOCUMENT_DELETED,
-                details={"document_type": document.document_type.value},
+                details={"document_type": document.document_type},
                 ip_address=ip_address,
                 user_agent=user_agent
             )
@@ -490,7 +491,7 @@ class KYCService:
             raise ValueError("Documento não encontrado")
         
         return await s3_service.get_presigned_url(
-            document.file_path,
+            document.s3_key,
             expires_in=expires_in,
             response_content_type=document.mime_type
         )
@@ -512,7 +513,7 @@ class KYCService:
         if not verification:
             raise ValueError("Verificação não encontrada")
         
-        if verification.status not in [KYCStatus.PENDING, KYCStatus.DOCUMENTS_REQUESTED]:
+        if verification.status not in [KYCStatus.PENDING.value, KYCStatus.DOCUMENTS_REQUESTED.value]:
             raise ValueError("Verificação não pode ser submetida neste estado")
         
         # Valida se tem dados pessoais
@@ -521,19 +522,39 @@ class KYCService:
             raise ValueError("Dados pessoais não preenchidos")
         
         # Valida documentos necessários
-        level_config = KYC_LEVEL_REQUIREMENTS.get(verification.level)
-        if level_config:
-            required_docs = {doc["type"] for doc in level_config["required_documents"]}
-            uploaded_docs = {doc.document_type for doc in verification.documents}
+        # Converte level de string para enum para buscar config
+        try:
+            level_enum = KYCLevel(verification.level) if isinstance(verification.level, str) else verification.level
+        except ValueError:
+            level_enum = KYCLevel.BASIC
             
-            missing = required_docs - uploaded_docs
+        level_config = KYC_LEVEL_REQUIREMENTS.get(level_enum)
+        if level_config:
+            required_docs = {doc["type"].value for doc in level_config["required_documents"]}
+            uploaded_docs = set(doc.document_type for doc in verification.documents)
+            
+            # Mapeamento de documentos específicos para genéricos
+            # CNH frente/verso ou RG frente/verso satisfazem IDENTITY_FRONT/BACK
+            doc_equivalences = {
+                "identity_front": ["cnh_front", "rg_front"],
+                "identity_back": ["cnh_back", "rg_back"],
+                "selfie": ["selfie_with_document", "selfie_liveness"],
+            }
+            
+            # Expande os documentos enviados com equivalências
+            expanded_uploaded = set(uploaded_docs)
+            for generic, specifics in doc_equivalences.items():
+                if any(s in uploaded_docs for s in specifics):
+                    expanded_uploaded.add(generic)
+            
+            missing = required_docs - expanded_uploaded
             if missing:
-                missing_names = [d.value for d in missing]
+                missing_names = list(missing)
                 raise ValueError(f"Documentos faltando: {', '.join(missing_names)}")
         
         # Atualiza status
         old_status = verification.status
-        verification.status = KYCStatus.SUBMITTED
+        verification.status = KYCStatus.SUBMITTED.value
         verification.submitted_at = datetime.utcnow()
         
         self.db.commit()
@@ -578,13 +599,13 @@ class KYCService:
             raise ValueError("Verificação não encontrada")
         
         # Permite aprovar se ainda não foi aprovado/rejeitado
-        if verification.status in [KYCStatus.APPROVED, KYCStatus.REJECTED, KYCStatus.EXPIRED]:
+        if verification.status in [KYCStatus.APPROVED.value, KYCStatus.REJECTED.value, KYCStatus.EXPIRED.value]:
             raise ValueError("Verificação já foi processada anteriormente")
         
         old_status = verification.status
         
         # Atualiza verificação
-        verification.status = KYCStatus.APPROVED
+        verification.status = KYCStatus.APPROVED.value
         verification.reviewed_at = datetime.utcnow()
         verification.approved_at = datetime.utcnow()
         verification.reviewed_by = admin_id
@@ -602,8 +623,8 @@ class KYCService:
         
         # Aprova todos os documentos pendentes
         for doc in verification.documents:
-            if doc.status == DocumentStatus.PENDING:
-                doc.status = DocumentStatus.APPROVED
+            if doc.status == DocumentStatus.PENDING.value:
+                doc.status = DocumentStatus.APPROVED.value
                 doc.reviewed_at = datetime.utcnow()
         
         self.db.commit()
@@ -644,12 +665,12 @@ class KYCService:
             raise ValueError("Verificação não encontrada")
         
         # Permite rejeitar se ainda não foi aprovado/rejeitado
-        if verification.status in [KYCStatus.APPROVED, KYCStatus.REJECTED, KYCStatus.EXPIRED]:
+        if verification.status in [KYCStatus.APPROVED.value, KYCStatus.REJECTED.value, KYCStatus.EXPIRED.value]:
             raise ValueError("Verificação já foi processada anteriormente")
         
         old_status = verification.status
         
-        verification.status = KYCStatus.REJECTED
+        verification.status = KYCStatus.REJECTED.value
         verification.reviewed_at = datetime.utcnow()
         verification.rejected_at = datetime.utcnow()
         verification.reviewed_by = admin_id
@@ -695,7 +716,7 @@ class KYCService:
         
         old_status = verification.status
         
-        verification.status = KYCStatus.DOCUMENTS_REQUESTED
+        verification.status = KYCStatus.DOCUMENTS_REQUESTED.value
         verification.requested_documents = [d.value for d in documents]
         verification.admin_notes = message
         verification.reviewed_by = admin_id
@@ -935,23 +956,29 @@ class KYCService:
         
         # Conta documentos
         docs_uploaded = len(verification.documents)
-        docs_approved = len([d for d in verification.documents if d.status == DocumentStatus.APPROVED])
+        docs_approved = len([d for d in verification.documents if d.status == DocumentStatus.APPROVED.value])
         
-        level_config = KYC_LEVEL_REQUIREMENTS.get(verification.level, {})
+        # Converte level de string para enum para buscar config
+        try:
+            level_enum = KYCLevel(verification.level) if isinstance(verification.level, str) else verification.level
+        except ValueError:
+            level_enum = KYCLevel.BASIC
+            
+        level_config = KYC_LEVEL_REQUIREMENTS.get(level_enum, {})
         docs_required = len(level_config.get("required_documents", []))
         
         # Determina próximos passos
         next_steps = []
-        if verification.status == KYCStatus.PENDING:
+        if verification.status == KYCStatus.PENDING.value:
             if not verification.personal_data:
                 next_steps.append("Preencha seus dados pessoais")
             if docs_uploaded < docs_required:
                 next_steps.append(f"Envie os documentos necessários ({docs_uploaded}/{docs_required})")
             if verification.personal_data and docs_uploaded >= docs_required:
                 next_steps.append("Submeta para análise")
-        elif verification.status == KYCStatus.DOCUMENTS_REQUESTED:
+        elif verification.status == KYCStatus.DOCUMENTS_REQUESTED.value:
             next_steps.append("Envie os documentos solicitados")
-        elif verification.status in [KYCStatus.SUBMITTED, KYCStatus.UNDER_REVIEW]:
+        elif verification.status in [KYCStatus.SUBMITTED.value, KYCStatus.UNDER_REVIEW.value]:
             next_steps.append("Aguarde a análise da sua verificação")
         
         # Expiração
@@ -968,6 +995,13 @@ class KYCService:
             documents_uploaded=docs_uploaded,
             documents_required=docs_required,
             documents_approved=docs_approved,
+            consent_given=verification.consent_given,
+            documents=[{
+                "id": str(d.id),
+                "document_type": d.document_type,
+                "status": d.status,
+                "uploaded_at": d.uploaded_at.isoformat() if d.uploaded_at else None
+            } for d in verification.documents],
             next_steps=next_steps,
             rejection_reason=verification.rejection_reason,
             requested_documents=verification.requested_documents,
