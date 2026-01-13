@@ -1506,6 +1506,122 @@ export const AdminTradeDetailPage: React.FC = () => {
             </div>
           </div>
 
+          {/* PIX Info - Banco do Brasil */}
+          {trade.pix_txid && (
+            <div className='bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm'>
+              <h2 className='text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 flex items-center gap-1.5'>
+                <Banknote className='w-3.5 h-3.5' />
+                Dados do PIX
+              </h2>
+              <div className='space-y-2'>
+                {/* TXID */}
+                <div className='p-2 bg-green-50 dark:bg-green-900/20 rounded'>
+                  <div className='flex items-center justify-between'>
+                    <span className='text-[9px] text-green-600 dark:text-green-400'>PIX TXID</span>
+                    <button
+                      onClick={() => copyToClipboard(trade.pix_txid!, 'PIX TXID')}
+                      className='text-green-600 hover:text-green-700'
+                      title='Copiar TXID'
+                      aria-label='Copiar PIX TXID'
+                    >
+                      <Copy className='w-3 h-3' />
+                    </button>
+                  </div>
+                  <p className='text-[10px] text-green-700 dark:text-green-300 font-mono'>
+                    {trade.pix_txid}
+                  </p>
+                </div>
+
+                {/* PIX Copia e Cola (QR Code String) */}
+                {trade.pix_qrcode && (
+                  <div className='p-2 bg-green-50 dark:bg-green-900/20 rounded'>
+                    <div className='flex items-center justify-between mb-1'>
+                      <span className='text-[9px] text-green-600 dark:text-green-400'>
+                        PIX Copia e Cola
+                      </span>
+                      <button
+                        onClick={() => copyToClipboard(trade.pix_qrcode!, 'PIX Copia e Cola')}
+                        className='text-green-600 hover:text-green-700 flex items-center gap-1'
+                        title='Copiar código PIX'
+                        aria-label='Copiar código PIX'
+                      >
+                        <Copy className='w-3 h-3' />
+                        <span className='text-[9px]'>Copiar</span>
+                      </button>
+                    </div>
+                    <p className='text-[9px] text-green-700 dark:text-green-300 font-mono break-all line-clamp-3'>
+                      {trade.pix_qrcode}
+                    </p>
+                  </div>
+                )}
+
+                {/* Dados de Confirmação */}
+                <div className='grid grid-cols-2 gap-2'>
+                  {trade.pix_valor_recebido && (
+                    <div className='p-2 bg-gray-50 dark:bg-gray-700/50 rounded'>
+                      <span className='text-[9px] text-gray-500 block'>Valor Recebido</span>
+                      <p className='text-xs font-semibold text-green-600'>
+                        R${' '}
+                        {trade.pix_valor_recebido.toLocaleString('pt-BR', {
+                          minimumFractionDigits: 2,
+                        })}
+                      </p>
+                    </div>
+                  )}
+
+                  {trade.pix_end_to_end_id && (
+                    <div className='p-2 bg-gray-50 dark:bg-gray-700/50 rounded'>
+                      <div className='flex items-center justify-between'>
+                        <span className='text-[9px] text-gray-500'>End-to-End ID</span>
+                        <button
+                          onClick={() => copyToClipboard(trade.pix_end_to_end_id!, 'E2E ID')}
+                          className='text-blue-600 hover:text-blue-700'
+                          title='Copiar E2E ID'
+                          aria-label='Copiar End-to-End ID'
+                        >
+                          <Copy className='w-2.5 h-2.5' />
+                        </button>
+                      </div>
+                      <p className='text-[9px] text-gray-900 dark:text-white font-mono truncate'>
+                        {trade.pix_end_to_end_id}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {trade.pix_confirmado_em && (
+                  <div className='p-2 bg-green-100 dark:bg-green-900/30 rounded'>
+                    <span className='text-[9px] text-green-600 block'>Confirmado em</span>
+                    <p className='text-xs font-medium text-green-700 dark:text-green-300'>
+                      {formatDate(trade.pix_confirmado_em)}
+                    </p>
+                  </div>
+                )}
+
+                {/* Link Location (URL do QR) */}
+                {trade.pix_location && (
+                  <div className='p-2 bg-gray-50 dark:bg-gray-700/50 rounded'>
+                    <div className='flex items-center justify-between'>
+                      <span className='text-[9px] text-gray-500'>URL do QR Code</span>
+                      <a
+                        href={trade.pix_location}
+                        target='_blank'
+                        rel='noopener noreferrer'
+                        className='text-blue-600 hover:text-blue-700 flex items-center gap-1'
+                        title='Abrir QR Code'
+                      >
+                        <ExternalLink className='w-3 h-3' />
+                      </a>
+                    </div>
+                    <p className='text-[9px] text-gray-600 dark:text-gray-400 font-mono truncate'>
+                      {trade.pix_location}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Error Message */}
           {trade.error_message && (
             <div className='bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded p-2'>

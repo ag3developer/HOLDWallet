@@ -17,14 +17,15 @@ import logging
 import asyncio
 
 from app.models.instant_trade import InstantTrade, InstantTradeHistory, TradeStatus, PaymentMethod
+from app.models.quote_cache import QuoteCache
 from app.core.exceptions import ValidationError
 from app.services.price_aggregator import price_aggregator
 from app.services.platform_settings_service import platform_settings_service
 
 logger = logging.getLogger(__name__)
 
-# Cache de cotações em memória (quote_id -> quote_data)
-# Em produção, usar Redis ou banco de dados
+# Cache de cotações em memória (usado como fallback local)
+# Em produção, as quotes são persistidas no banco via QuoteCache
 _quote_cache: Dict[str, Dict[str, Any]] = {}
 
 
@@ -200,34 +201,81 @@ class InstantTradeService:
         # Cache the quote
         _quote_cache[quote_id] = quote_data
         
+        # Persistir no banco de dados para produção (múltiplos workers)
+        try:
+            db_quote = QuoteCache(
+                quote_id=quote_id,
+                expires_at=expires_at
+            )
+            db_quote.set_data(quote_data)
+            self.db.add(db_quote)
+            self.db.commit()
+            logger.info(f"✅ Quote {quote_id} salva no banco de dados")
+        except Exception as e:
+            logger.warning(f"⚠️ Erro ao salvar quote no DB (usando cache memória): {e}")
+            self.db.rollback()
+        
         # Clean old quotes (every time we generate a new one)
         self._cleanup_expired_quotes()
 
         return quote_data
 
     def _cleanup_expired_quotes(self):
-        """Remove expired quotes from cache"""
+        """Remove expired quotes from cache (memory and database)"""
         current_time = datetime.now()
+        
+        # Limpa cache em memória
         expired_quotes = [
             qid for qid, qdata in _quote_cache.items()
             if datetime.fromisoformat(qdata.get("expires_at", "")) < current_time
         ]
         for qid in expired_quotes:
             del _quote_cache[qid]
+        
+        # Limpa banco de dados (quotes expiradas há mais de 1 hora)
+        try:
+            cleanup_time = current_time - timedelta(hours=1)
+            self.db.query(QuoteCache).filter(QuoteCache.expires_at < cleanup_time).delete()
+            self.db.commit()
+        except Exception as e:
+            logger.debug(f"Cleanup DB quotes: {e}")
+            self.db.rollback()
 
     def get_cached_quote(self, quote_id: str) -> Dict[str, Any]:
-        """Get a cached quote by ID"""
+        """Get a cached quote by ID (from memory or database)"""
+        
+        # 1. Tenta cache em memória primeiro (mesmo worker)
         quote = _quote_cache.get(quote_id)
-        if not quote:
-            raise ValidationError("Quote not found or expired")
+        if quote:
+            expires_at = datetime.fromisoformat(quote.get("expires_at", ""))
+            if expires_at >= datetime.now():
+                logger.info(f"✅ Quote {quote_id} encontrada em memória")
+                return quote
+            else:
+                del _quote_cache[quote_id]
         
-        # Check if expired
-        expires_at = datetime.fromisoformat(quote.get("expires_at", ""))
-        if expires_at < datetime.now():
-            del _quote_cache[quote_id]
-            raise ValidationError("Quote has expired")
+        # 2. Tenta buscar do banco de dados (outro worker pode ter criado)
+        try:
+            db_quote = self.db.query(QuoteCache).filter(
+                QuoteCache.quote_id == quote_id
+            ).first()
+            
+            if db_quote:
+                if db_quote.expires_at >= datetime.now():
+                    quote_data = db_quote.get_data()
+                    # Atualiza cache local para próximas chamadas
+                    _quote_cache[quote_id] = quote_data
+                    logger.info(f"✅ Quote {quote_id} encontrada no banco de dados")
+                    return quote_data
+                else:
+                    # Expirada, remove
+                    self.db.delete(db_quote)
+                    self.db.commit()
+                    logger.info(f"⏰ Quote {quote_id} expirada, removida do DB")
+        except Exception as e:
+            logger.warning(f"⚠️ Erro ao buscar quote do DB: {e}")
         
-        return quote
+        raise ValidationError("Quote not found or expired")
 
     def create_trade_from_quote(
         self, 
@@ -306,8 +354,14 @@ class InstantTradeService:
             logger.info(f"Valor BRL: R$ {trade.fiat_amount}")
             logger.info("Admin deve usar Processar Venda para retirar crypto do usuario")
 
-        # Remove quote from cache after using it
-        del _quote_cache[quote_id]
+        # Remove quote from cache after using it (memory and database)
+        if quote_id in _quote_cache:
+            del _quote_cache[quote_id]
+        try:
+            self.db.query(QuoteCache).filter(QuoteCache.quote_id == quote_id).delete()
+            self.db.commit()
+        except Exception:
+            pass
 
         result = {
             "trade_id": trade.id,

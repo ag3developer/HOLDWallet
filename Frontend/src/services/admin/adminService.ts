@@ -232,6 +232,13 @@ export interface TradeDetail extends Trade {
   error_message?: string
   payment_confirmed_at?: string
   completed_at?: string
+  // Campos PIX - Banco do Brasil
+  pix_txid?: string
+  pix_location?: string
+  pix_qrcode?: string
+  pix_valor_recebido?: number
+  pix_end_to_end_id?: string
+  pix_confirmado_em?: string
   history: Array<{
     old_status: string | null
     new_status: string

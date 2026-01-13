@@ -340,6 +340,13 @@ async def get_trade_detail(
                 "expires_at": trade.expires_at.isoformat(),
                 "payment_confirmed_at": trade.payment_confirmed_at.isoformat() if trade.payment_confirmed_at else None,
                 "completed_at": trade.completed_at.isoformat() if trade.completed_at else None,
+                # Campos PIX - Banco do Brasil
+                "pix_txid": trade.pix_txid,
+                "pix_location": trade.pix_location,
+                "pix_qrcode": trade.pix_qrcode,
+                "pix_valor_recebido": float(trade.pix_valor_recebido) if trade.pix_valor_recebido else None,
+                "pix_end_to_end_id": trade.pix_end_to_end_id,
+                "pix_confirmado_em": trade.pix_confirmado_em.isoformat() if trade.pix_confirmado_em else None,
                 "history": history_items
             }
         }
