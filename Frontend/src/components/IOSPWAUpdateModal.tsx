@@ -115,6 +115,13 @@ export const IOSPWAUpdateModal = ({ forceShow = false }: IOSPWAUpdateModalProps)
     // O forceShow permite testar em qualquer ambiente
     if (globalThis.window === undefined) return
 
+    // Verifica se já foi descartado recentemente (evita spam)
+    const dismissedUntil = localStorage.getItem(IOS_FORCE_UPDATE_KEY)
+    if (dismissedUntil && Date.now() < Number.parseInt(dismissedUntil)) {
+      console.log('[PWA Update] Modal descartado, aguardando...')
+      return
+    }
+
     try {
       // Busca version.json do servidor sem cache
       const response = await fetch(`/version.json?nocache=${Date.now()}`, {
@@ -132,20 +139,23 @@ export const IOSPWAUpdateModal = ({ forceShow = false }: IOSPWAUpdateModalProps)
       }
 
       const data = await response.json()
-      const newVersion = data.version || data.buildTime
+      // Usa apenas a versão semântica (não buildTime ou hash)
+      const newVersion = data.version
       const storedVersion = localStorage.getItem(IOS_VERSION_KEY)
 
       console.log('[PWA Update] Versão servidor:', newVersion, '| Local:', storedVersion)
 
-      if (storedVersion && storedVersion !== newVersion) {
+      // Só mostra modal se a versão REALMENTE mudou (comparação semântica)
+      if (storedVersion && storedVersion !== newVersion && newVersion !== 'dev') {
         // Nova versão disponível!
         setServerVersion(newVersion)
         setUpdateAvailable(true)
         setShowModal(true)
         console.log('[PWA Update] 🚀 Nova versão detectada!')
-      } else if (!storedVersion) {
+      } else if (!storedVersion && newVersion !== 'dev') {
         // Primeira vez - salva versão atual
         localStorage.setItem(IOS_VERSION_KEY, newVersion)
+        console.log('[PWA Update] Primeira visita, versão salva:', newVersion)
       }
     } catch (error) {
       console.error('[PWA Update] Erro ao verificar versão:', error)
@@ -222,19 +232,19 @@ export const IOSPWAUpdateModal = ({ forceShow = false }: IOSPWAUpdateModalProps)
   // Fechar modal sem atualizar
   const handleDismiss = () => {
     setShowModal(false)
-    // Não mostra novamente por 1 hora
-    localStorage.setItem(IOS_FORCE_UPDATE_KEY, (Date.now() + 60 * 60 * 1000).toString())
+    // Não mostra novamente por 24 horas
+    localStorage.setItem(IOS_FORCE_UPDATE_KEY, (Date.now() + 24 * 60 * 60 * 1000).toString())
   }
 
-  // Verifica ao montar e a cada 2 minutos
+  // Verifica ao montar e a cada 30 minutos (não precisa ser frequente)
   useEffect(() => {
     // Verificação inicial com delay
     const initialCheck = setTimeout(() => {
       checkForUpdate()
-    }, 3000) // Aguarda 3s após carregar
+    }, 5000) // Aguarda 5s após carregar
 
-    // Verificação periódica
-    const interval = setInterval(checkForUpdate, 2 * 60 * 1000) // 2 minutos
+    // Verificação periódica (30 minutos)
+    const interval = setInterval(checkForUpdate, 30 * 60 * 1000)
 
     return () => {
       clearTimeout(initialCheck)

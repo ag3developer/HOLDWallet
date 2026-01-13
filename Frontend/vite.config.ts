@@ -2,11 +2,13 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { resolve } from 'path'
-import { writeFileSync, mkdirSync } from 'fs'
+import { writeFileSync, mkdirSync, readFileSync } from 'fs'
 
-// Versão do app - timestamp único a cada build
-const APP_VERSION = Date.now().toString()
+// Ler versão do package.json (versão semântica fixa)
+const packageJson = JSON.parse(readFileSync('./package.json', 'utf-8'))
+const APP_VERSION = packageJson.version // Ex: "1.0.0" - muda apenas manualmente
 const BUILD_TIME = new Date().toISOString()
+const BUILD_HASH = Date.now().toString(36) // Hash único do build (para debug, não para update check)
 
 // Detectar se está em desenvolvimento
 const isDev = process.env.NODE_ENV !== 'production'
@@ -17,14 +19,14 @@ const versionPlugin = () => ({
   closeBundle() {
     if (!isDev) {
       const versionInfo = {
-        version: APP_VERSION,
+        version: APP_VERSION, // Versão semântica fixa do package.json
         buildTime: BUILD_TIME,
-        hash: Math.random().toString(36).substring(2, 15),
+        buildHash: BUILD_HASH, // Para debug, não afeta update check
       }
       try {
         mkdirSync('./build', { recursive: true })
         writeFileSync('./build/version.json', JSON.stringify(versionInfo))
-        console.log(`\n✅ version.json gerado: v${APP_VERSION}`)
+        console.log(`\n✅ version.json gerado: v${APP_VERSION} (build: ${BUILD_HASH})`)
       } catch (e) {
         console.error('Erro ao gerar version.json:', e)
       }

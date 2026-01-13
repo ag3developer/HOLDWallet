@@ -14,6 +14,8 @@ from typing import Optional
 from decimal import Decimal
 from uuid import UUID
 import logging
+import secrets
+import string
 
 from app.core.db import get_db
 from app.core.security import get_current_user, get_current_user_optional
@@ -394,8 +396,16 @@ async def create_trade_with_pix(
         # 2. Generate PIX via Banco do Brasil API
         bb_service = get_banco_brasil_service(db)
         
-        # Generate unique TXID from reference_code (alphanumeric only, max 35 chars)
-        txid = trade["reference_code"].replace("-", "").replace("OTC", "WOLK")[:35]
+        # Generate unique TXID from reference_code
+        # BB API requires txid between 26-35 alphanumeric chars [a-zA-Z0-9]
+        base_txid = trade["reference_code"].replace("-", "").replace("OTC", "WOLK")
+        # Pad with random alphanumeric chars to reach minimum 26 chars
+        if len(base_txid) < 26:
+            padding_needed = 26 - len(base_txid)
+            random_padding = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(padding_needed))
+            txid = base_txid + random_padding
+        else:
+            txid = base_txid[:35]  # Max 35 chars
         
         # Get amount to charge (BRL total)
         valor_pix = brl_total_amount or Decimal(str(trade.get("total_amount", 0)))
@@ -420,11 +430,14 @@ async def create_trade_with_pix(
             ).first()
             
             if trade_obj:
-                trade_obj.pix_txid = txid
+                # IMPORTANTE: Usar o txid retornado pelo BB, não o gerado localmente
+                # O BB pode modificar/complementar o txid
+                actual_txid = pix_data.get("txid", txid)
+                trade_obj.pix_txid = actual_txid
                 trade_obj.pix_location = pix_data.get("location")
                 trade_obj.pix_qrcode = pix_data.get("qrcode")
                 db.commit()
-                logger.info(f"Trade {trade['reference_code']} updated with PIX txid={txid}")
+                logger.info(f"Trade {trade['reference_code']} updated with PIX txid={actual_txid}")
         except Exception as update_error:
             logger.warning(f"Failed to update trade with PIX data: {update_error}")
             db.rollback()
