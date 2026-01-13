@@ -96,7 +96,7 @@ export function ConfirmationPanel({
   const [tradeCreated, setTradeCreated] = useState<string | null>(null)
   const [pendingProof, setPendingProof] = useState(false)
   const [bankDetails, setBankDetails] = useState<any>(null)
-  const [timeLeft, setTimeLeft] = useState(quote.expires_in_seconds || 30)
+  const [timeLeft, setTimeLeft] = useState(quote.expires_in_seconds || 120)
   const [quoteExpired, setQuoteExpired] = useState(false)
 
   // Estados para BB-AUTO (PIX automático via Banco do Brasil)
@@ -211,24 +211,33 @@ export function ConfirmationPanel({
           console.log('[BB-AUTO] Response:', response.data)
 
           if (response.data.success && response.data.pix) {
+            console.log('[BB-AUTO] PIX gerado com sucesso!')
+            console.log('[BB-AUTO] PIX data:', response.data.pix)
+
             // Salvar dados do PIX
-            setPixData({
+            const pixInfo = {
               txid: response.data.pix.txid,
               qrcode: response.data.pix.qrcode,
               qrcode_image: response.data.pix.qrcode_image,
               valor: response.data.pix.valor,
               expiracao_segundos: response.data.pix.expiracao_segundos,
-            })
+            }
+
+            console.log('[BB-AUTO] Setting pixData:', pixInfo)
+            setPixData(pixInfo)
 
             const tradeId = response.data.trade_id
+            console.log('[BB-AUTO] Setting tradeCreated:', tradeId)
             setTradeCreated(tradeId)
             setPixStatus('pending')
 
             toast.success('PIX gerado! Escaneie o QR Code ou copie o código para pagar.')
+            console.log('[BB-AUTO] States set - should render QR Code screen now')
 
             // NÃO chamar onSuccess ainda - mostrar QR Code primeiro
             // O usuário verá a tela de QR Code para pagar
           } else {
+            console.error('[BB-AUTO] Response sem success ou pix:', response.data)
             throw new Error(response.data.message || 'Erro ao gerar PIX')
           }
         } catch (pixError: any) {
