@@ -239,6 +239,20 @@ export interface TradeDetail extends Trade {
   pix_valor_recebido?: number
   pix_end_to_end_id?: string
   pix_confirmado_em?: string
+  // Método de recebimento (para SELL)
+  receiving_method_id?: string
+  receiving_method?: {
+    id: string
+    method_type: string
+    holder_name?: string
+    pix_key?: string
+    pix_key_type?: string
+    bank_name?: string
+    bank_code?: string
+    account_number?: string
+    account_type?: string
+    branch_number?: string
+  }
   history: Array<{
     old_status: string | null
     new_status: string
@@ -431,15 +445,21 @@ export const processSellTrade = async (
 }
 
 export const completeSellTrade = async (
-  tradeId: string
+  tradeId: string,
+  enviarPix: boolean = false
 ): Promise<{
   success: boolean
   message: string
   trade_id: string
   status: string
   completed_at?: string
+  pix_enviado?: boolean
+  pix_end_to_end_id?: string
+  pix_valor?: string
 }> => {
-  const response = await adminApi.post(`/trades/${tradeId}/complete-sell`)
+  const response = await adminApi.post(`/trades/${tradeId}/complete-sell`, null, {
+    params: { enviar_pix: enviarPix },
+  })
   return response.data
 }
 

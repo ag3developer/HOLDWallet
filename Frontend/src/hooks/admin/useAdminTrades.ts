@@ -225,13 +225,15 @@ export function useProcessSellTrade() {
 
 /**
  * Hook para finalizar venda (após enviar PIX/TED ao usuário)
+ * @param enviarPix - Se true, envia PIX automaticamente via API BB
  */
 export function useCompleteSellTrade() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (tradeId: string) => completeSellTrade(tradeId),
-    onSuccess: (_, tradeId) => {
+    mutationFn: ({ tradeId, enviarPix = false }: { tradeId: string; enviarPix?: boolean }) =>
+      completeSellTrade(tradeId, enviarPix),
+    onSuccess: (_, { tradeId }) => {
       queryClient.invalidateQueries({ queryKey: adminTradesKeys.detail(tradeId) })
       queryClient.invalidateQueries({ queryKey: adminTradesKeys.lists() })
       queryClient.invalidateQueries({ queryKey: adminTradesKeys.stats() })

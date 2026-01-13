@@ -38,11 +38,11 @@ Este documento descreve as automações implementadas no sistema de trading OTC 
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 🔴 VENDA (SELL) - Fluxo Automático
+### 🔴 VENDA (SELL) - Fluxo 100% Automático
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                          FLUXO DE VENDA (SELL)                              │
+│                    FLUXO DE VENDA (SELL) - 100% AUTOMÁTICO                  │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │  1. Usuário solicita cotação de venda                                       │
@@ -62,12 +62,13 @@ Este documento descreve as automações implementadas no sistema de trading OTC 
 │     └─► Mostra: Titular, Chave PIX, Banco, Agência, Conta                   │
 │         (Dados do payment_methods do usuário)                               │
 │                                                                             │
-│  4. 👨‍💼 MANUAL: Admin envia PIX ao usuário                                   │
-│     └─► Admin acessa painel e clica "Finalizar Venda"                       │
+│  4. 🤖 AUTOMÁTICO: Admin clica "PIX Auto" no painel                         │
+│     └─► POST /api/v1/admin/trades/{id}/complete-sell?enviar_pix=true        │
+│         ├─► API BB envia PIX automaticamente para conta do usuário          │
+│         ├─► Registra E2E ID da transação                                    │
 │         └─► Status: COMPLETED                                               │
 │                                                                             │
-│  ⚡ MELHORIA: Admin só precisa enviar PIX e finalizar!                      │
-│     (Antes: Admin tinha que processar crypto manualmente)                   │
+│  ✅ RESULTADO: Admin só clica UM botão - sistema faz todo o resto!          │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -98,7 +99,7 @@ Este documento descreve as automações implementadas no sistema de trading OTC 
 - ✅ `cob.write` - Criar cobranças PIX
 - ✅ `cob.read` - Consultar cobranças PIX
 - ✅ `pix.read` - Consultar pagamentos recebidos
-- ❌ `pix.write` - Enviar PIX (não implementado)
+- ✅ `pix.write` - Enviar PIX (IMPLEMENTADO!)
 
 ### Webhook de Pagamento PIX
 
@@ -214,9 +215,9 @@ trade_obj.pix_txid = actual_txid
 | ------------------------- | -------------------------- | -------------------------- |
 | Criar trade               | ✅ Automático              | ✅ Automático              |
 | Retirar crypto do usuário | ❌ Admin clica "Processar" | ✅ Automático              |
-| Enviar PIX ao usuário     | ❌ Manual                  | ❌ Manual                  |
-| Finalizar venda           | ❌ Admin clica "Finalizar" | ❌ Admin clica "Finalizar" |
-| **Intervenção Admin**     | **3 etapas**               | **1 etapa**                |
+| Enviar PIX ao usuário     | ❌ Manual                  | ✅ Automático via API BB   |
+| Finalizar venda           | ❌ Admin clica "Finalizar" | ✅ Um clique em "PIX Auto" |
+| **Intervenção Admin**     | **3 etapas**               | **1 clique**               |
 
 ---
 
@@ -252,10 +253,73 @@ except Exception as e:
 
 ## 📈 Métricas de Automação
 
-| Operação | Taxa de Automação | Intervenção Manual  |
-| -------- | ----------------- | ------------------- |
-| BUY      | 100%              | Apenas em falhas    |
-| SELL     | 66%               | Apenas envio de PIX |
+| Operação | Taxa de Automação | Intervenção Manual         |
+| -------- | ----------------- | -------------------------- |
+| BUY      | 100%              | Apenas em falhas           |
+| SELL     | 100%              | Apenas 1 clique "PIX Auto" |
+
+---
+
+## 🚀 Implementação PIX Pagamento Automático
+
+### Método `enviar_pix` (banco_brasil_service.py)
+
+```python
+async def enviar_pix(
+    self,
+    valor: Decimal,
+    chave_pix: str,
+    tipo_chave: str = "cpf",
+    descricao: str = "Pagamento WOLK NOW",
+    identificador: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Envia PIX para uma chave PIX (pagamento).
+
+    Args:
+        valor: Valor em reais a ser enviado
+        chave_pix: Chave PIX do destinatário
+        tipo_chave: Tipo da chave ("cpf", "cnpj", "email", "telefone", "evp")
+        descricao: Descrição do pagamento
+        identificador: Identificador único (gerado automaticamente)
+
+    Returns:
+        {
+            "success": True,
+            "end_to_end_id": "E00000000202601131234567890",
+            "valor": "150.00",
+            "chave_destino": "12345678901",
+            "status": "ENVIADO"
+        }
+    """
+```
+
+### Endpoint Admin (trades.py)
+
+```python
+@router.post("/{trade_id}/complete-sell")
+async def complete_sell_trade(
+    trade_id: str,
+    enviar_pix: bool = False,  # Se True, envia PIX automaticamente
+    ...
+):
+    """
+    Finaliza VENDA com opção de enviar PIX automaticamente.
+
+    1. Busca receiving_method do trade
+    2. Extrai chave PIX do usuário
+    3. Envia PIX via API BB
+    4. Registra E2E ID
+    5. Finaliza trade como COMPLETED
+    """
+```
+
+### Frontend Admin (AdminTradeDetailPage.tsx)
+
+Dois botões disponíveis para vendas com status CRYPTO_RECEIVED:
+
+1. **"PIX Auto"** (azul): Envia PIX automaticamente via API BB e finaliza
+2. **"Finalizar"** (verde): Apenas marca como finalizado (PIX enviado manualmente)
 
 ---
 

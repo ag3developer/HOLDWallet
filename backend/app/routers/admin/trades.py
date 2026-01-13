@@ -1451,6 +1451,7 @@ async def process_sell_trade(
 @router.post("/{trade_id}/complete-sell", response_model=dict)
 async def complete_sell_trade(
     trade_id: str,
+    enviar_pix: bool = False,
     db: Session = Depends(get_db),
     current_admin: User = Depends(get_current_admin)
 ):
@@ -1459,8 +1460,12 @@ async def complete_sell_trade(
     
     Só pode ser chamado após:
     1. Admin processou a venda (process-sell) - crypto foi retirada do usuário
-    2. Admin enviou PIX/TED para o usuário
+    2. Admin enviou PIX/TED para o usuário (ou usa enviar_pix=True para automático)
     3. Admin confirma que pagamento foi feito
+    
+    Args:
+        trade_id: ID da trade
+        enviar_pix: Se True, envia PIX automaticamente via API BB antes de finalizar
     
     Status: CRYPTO_RECEIVED → COMPLETED
     """
@@ -1489,6 +1494,86 @@ async def complete_sell_trade(
                 detail=f"Trade com status {trade.status.value} não pode ser finalizado. Deve estar CRYPTO_RECEIVED (crypto já recebida)."
             )
         
+        pix_result = None
+        
+        # Se solicitado, enviar PIX automaticamente via API do Banco do Brasil
+        if enviar_pix:
+            logger.info(f"📤 Enviando PIX automático para trade {trade.reference_code}")
+            
+            # Buscar dados do método de recebimento do usuário
+            if not trade.receiving_method_id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Trade não possui método de recebimento cadastrado. Não é possível enviar PIX automático."
+                )
+            
+            # Buscar detalhes da conta de recebimento
+            from sqlalchemy import text
+            import json
+            result = db.execute(
+                text("SELECT * FROM payment_methods WHERE id = :method_id"),
+                {"method_id": trade.receiving_method_id}
+            )
+            receiving_method = result.fetchone()
+            
+            if not receiving_method:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Método de recebimento não encontrado no banco de dados."
+                )
+            
+            # Parse details JSON
+            details = {}
+            if receiving_method.details:
+                try:
+                    details = json.loads(receiving_method.details) if isinstance(receiving_method.details, str) else receiving_method.details
+                    if isinstance(details, str):
+                        details = json.loads(details)
+                except (json.JSONDecodeError, TypeError):
+                    details = {}
+            
+            chave_pix = details.get("keyValue") or details.get("pix_key")
+            tipo_chave = details.get("keyType") or details.get("pix_key_type") or "cpf"
+            
+            if not chave_pix:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Chave PIX não encontrada no método de recebimento."
+                )
+            
+            # Determinar valor em BRL
+            valor_brl = trade.brl_total_amount or trade.fiat_amount
+            if not valor_brl:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Valor BRL não definido no trade."
+                )
+            
+            # Enviar PIX via API do Banco do Brasil
+            from app.services.banco_brasil_service import get_banco_brasil_service
+            bb_service = get_banco_brasil_service(db)
+            
+            pix_result = await bb_service.enviar_pix(
+                valor=valor_brl,
+                chave_pix=chave_pix,
+                tipo_chave=tipo_chave.lower(),
+                descricao=f"WOLK NOW - Venda {trade.reference_code}",
+                identificador=trade.reference_code
+            )
+            
+            if not pix_result.get("success"):
+                error_msg = pix_result.get("error", "Erro desconhecido")
+                logger.error(f"❌ Falha ao enviar PIX: {error_msg}")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Falha ao enviar PIX via Banco do Brasil: {error_msg}"
+                )
+            
+            logger.info(f"✅ PIX enviado com sucesso! E2E: {pix_result.get('end_to_end_id')}")
+            
+            # Salvar E2E ID no trade
+            trade.pix_txid = pix_result.get("end_to_end_id")
+        
         logger.info(f"✅ Admin {current_admin.email} finalizando VENDA {trade.reference_code}")
         
         # Atualizar para COMPLETED
@@ -1497,23 +1582,34 @@ async def complete_sell_trade(
         trade.completed_at = datetime.now(timezone.utc)
         
         # Registrar histórico
+        pix_info = ""
+        if pix_result and pix_result.get("success"):
+            pix_info = f" | PIX automático enviado: E2E={pix_result.get('end_to_end_id')}"
+        
         history = InstantTradeHistory(
             trade_id=trade.id,
             old_status=old_status,
             new_status=TradeStatus.COMPLETED,
-            reason=f"Venda finalizada por admin {current_admin.email} - Pagamento BRL enviado ao usuário",
-            history_details=f"Trade completo em {datetime.now(timezone.utc).isoformat()}"
+            reason=f"Venda finalizada por admin {current_admin.email} - Pagamento BRL enviado ao usuário{pix_info}",
+            history_details=f"Trade completo em {datetime.now(timezone.utc).isoformat()}{pix_info}"
         )
         db.add(history)
         db.commit()
         
-        return {
+        response = {
             "success": True,
             "message": f"Trade {trade.reference_code} finalizado com sucesso!",
             "trade_id": trade.id,
             "status": TradeStatus.COMPLETED.value,
             "completed_at": trade.completed_at.isoformat() if trade.completed_at else None
         }
+        
+        if pix_result:
+            response["pix_enviado"] = True
+            response["pix_end_to_end_id"] = pix_result.get("end_to_end_id")
+            response["pix_valor"] = pix_result.get("valor")
+        
+        return response
         
     except HTTPException:
         raise

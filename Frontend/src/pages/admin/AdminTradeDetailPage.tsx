@@ -36,6 +36,7 @@ import {
   CircleDollarSign,
   ArrowRightLeft,
   BookCheck,
+  Zap,
 } from 'lucide-react'
 import {
   useTrade,
@@ -730,7 +731,7 @@ export const AdminTradeDetailPage: React.FC = () => {
       onConfirm: async () => {
         try {
           setModalLoading(true)
-          const result = await completeSellMutation.mutateAsync(tradeId)
+          const result = await completeSellMutation.mutateAsync({ tradeId, enviarPix: false })
 
           if (result.success) {
             toast.success(`Trade ${trade.reference_code} finalizado com sucesso!`)
@@ -741,6 +742,59 @@ export const AdminTradeDetailPage: React.FC = () => {
         } catch (err: any) {
           console.error('Erro ao finalizar venda:', err)
           toast.error(err.response?.data?.detail || 'Erro ao finalizar venda')
+        } finally {
+          setModalLoading(false)
+        }
+      },
+    })
+  }
+
+  // Handler para finalizar VENDA com envio automático de PIX via API BB
+  const handleCompleteSellWithPix = async () => {
+    if (!trade || !tradeId) return
+
+    const rm = trade.receiving_method
+    const pixInfo = rm?.pix_key
+      ? `${rm.pix_key_type?.toUpperCase() || 'CPF'}: ${rm.pix_key}`
+      : 'Chave PIX não disponível'
+
+    setModalConfig({
+      isOpen: true,
+      title: '⚡ Enviar PIX e Finalizar',
+      message:
+        'O sistema enviará PIX automaticamente via API do Banco do Brasil e finalizará o trade.',
+      details: [
+        `Trade: ${trade.reference_code}`,
+        `Valor: ${formatCurrency(trade.brl_total_amount || trade.fiat_amount)}`,
+        `Titular: ${rm?.holder_name || 'N/A'}`,
+        `Chave PIX: ${pixInfo}`,
+        '',
+        '⚠️ O PIX será enviado automaticamente!',
+      ],
+      variant: 'warning',
+      confirmText: 'Enviar PIX e Finalizar',
+      icon: <Zap className='w-6 h-6' />,
+      onConfirm: async () => {
+        try {
+          setModalLoading(true)
+          // Chama o endpoint com enviar_pix=true
+          const result = await completeSellMutation.mutateAsync({
+            tradeId,
+            enviarPix: true,
+          })
+
+          if (result.success) {
+            if (result.pix_enviado) {
+              toast.success(`✅ PIX enviado com sucesso! E2E: ${result.pix_end_to_end_id}`)
+            }
+            toast.success(`Trade ${trade.reference_code} finalizado!`)
+          } else {
+            toast.error('Erro ao enviar PIX e finalizar venda')
+          }
+          setModalConfig(prev => ({ ...prev, isOpen: false }))
+        } catch (err: any) {
+          console.error('Erro ao enviar PIX:', err)
+          toast.error(err.response?.data?.detail || 'Erro ao enviar PIX via Banco do Brasil')
         } finally {
           setModalLoading(false)
         }
@@ -1368,18 +1422,38 @@ export const AdminTradeDetailPage: React.FC = () => {
 
                 {/* SELL: Finalizar */}
                 {canCompleteSell(trade.status, trade.operation_type) && (
-                  <button
-                    onClick={handleCompleteSell}
-                    disabled={completeSellMutation.isPending}
-                    className='flex items-center gap-1 px-2 py-1 text-[10px] bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50'
-                  >
-                    {completeSellMutation.isPending ? (
-                      <RefreshCw className='w-3 h-3 animate-spin' />
-                    ) : (
-                      <CheckCircle className='w-3 h-3' />
+                  <div className='flex gap-1'>
+                    {/* Botão PIX Automático (se tiver receiving_method) */}
+                    {trade.receiving_method && (
+                      <button
+                        onClick={() => handleCompleteSellWithPix()}
+                        disabled={completeSellMutation.isPending}
+                        className='flex items-center gap-1 px-2 py-1 text-[10px] bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50'
+                        title='Envia PIX automaticamente via API BB e finaliza'
+                      >
+                        {completeSellMutation.isPending ? (
+                          <RefreshCw className='w-3 h-3 animate-spin' />
+                        ) : (
+                          <Zap className='w-3 h-3' />
+                        )}
+                        PIX Auto
+                      </button>
                     )}
-                    Finalizar
-                  </button>
+                    {/* Botão Finalizar Manual */}
+                    <button
+                      onClick={handleCompleteSell}
+                      disabled={completeSellMutation.isPending}
+                      className='flex items-center gap-1 px-2 py-1 text-[10px] bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50'
+                      title='Marcar como finalizado (PIX enviado manualmente)'
+                    >
+                      {completeSellMutation.isPending ? (
+                        <RefreshCw className='w-3 h-3 animate-spin' />
+                      ) : (
+                        <CheckCircle className='w-3 h-3' />
+                      )}
+                      Finalizar
+                    </button>
+                  </div>
                 )}
 
                 {/* Status Menu */}

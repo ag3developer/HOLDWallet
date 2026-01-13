@@ -857,6 +857,166 @@ class BancoBrasilAPIService:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
+    # ============================================================
+    # PIX PAGAMENTO (ENVIO) - API Pix v2
+    # ============================================================
+
+    async def enviar_pix(
+        self,
+        valor: Decimal,
+        chave_pix: str,
+        tipo_chave: str = "cpf",
+        descricao: str = "Pagamento WOLK NOW",
+        identificador: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Envia PIX para uma chave PIX (pagamento).
+        
+        Este método usa a API PIX v2 do Banco do Brasil para realizar
+        transferências via PIX para qualquer chave válida.
+        
+        Args:
+            valor: Valor em reais a ser enviado
+            chave_pix: Chave PIX do destinatário (CPF, CNPJ, email, telefone, EVP)
+            tipo_chave: Tipo da chave ("cpf", "cnpj", "email", "telefone", "evp")
+            descricao: Descrição do pagamento (aparece no extrato)
+            identificador: Identificador único (opcional, gerado automaticamente)
+            
+        Returns:
+            Dict com resultado da operação:
+            - success: True/False
+            - end_to_end_id: ID da transação (se sucesso)
+            - erro: Mensagem de erro (se falha)
+        """
+        token = await self.get_access_token()
+        
+        if not token:
+            return {"success": False, "error": "Falha ao obter token de autenticação"}
+        
+        # Gera identificador único se não fornecido
+        if not identificador:
+            import uuid
+            identificador = f"WOLK{datetime.now().strftime('%Y%m%d%H%M%S')}{uuid.uuid4().hex[:8].upper()}"
+        
+        # Formata valor (2 casas decimais, string)
+        valor_str = f"{float(valor):.2f}"
+        
+        # Monta payload para iniciar PIX
+        # Endpoint: PUT /pix (para iniciar pagamento)
+        payload = {
+            "valor": valor_str,
+            "pagador": {
+                "chave": self.pix_key  # Nossa chave PIX (origem)
+            },
+            "favorecido": {
+                "chave": chave_pix  # Chave PIX do destinatário
+            },
+            "descricao": descricao[:140] if descricao else "Pagamento WOLK NOW"
+        }
+        
+        logger.info(f"📤 Iniciando envio PIX: R$ {valor_str} para {tipo_chave}: {chave_pix[:4]}***")
+        
+        try:
+            async with self._get_http_client(timeout=60.0) as client:
+                # Endpoint para iniciar PIX pagamento
+                # A API do BB usa POST /pix para pagamentos
+                response = await client.post(
+                    f"{self.api_url}/pix",
+                    headers={
+                        "Authorization": f"Bearer {token}",
+                        "Content-Type": "application/json",
+                        "gw-dev-app-key": self.gw_dev_app_key
+                    },
+                    json=payload
+                )
+                
+                logger.info(f"📥 Resposta BB PIX Pagamento: {response.status_code}")
+                
+                if response.status_code in [200, 201, 202]:
+                    data = response.json()
+                    end_to_end_id = data.get("endToEndId") or data.get("e2eId")
+                    
+                    logger.info(f"✅ PIX enviado com sucesso! E2E: {end_to_end_id}")
+                    
+                    return {
+                        "success": True,
+                        "end_to_end_id": end_to_end_id,
+                        "valor": valor_str,
+                        "chave_destino": chave_pix,
+                        "status": data.get("status", "ENVIADO"),
+                        "data_hora": datetime.now().isoformat(),
+                        "identificador": identificador,
+                        "response": data
+                    }
+                else:
+                    error_msg = response.text
+                    try:
+                        error_data = response.json()
+                        error_msg = error_data.get("mensagem") or error_data.get("message") or str(error_data)
+                    except:
+                        pass
+                    
+                    logger.error(f"❌ Erro ao enviar PIX: {response.status_code} - {error_msg}")
+                    
+                    return {
+                        "success": False,
+                        "error": error_msg,
+                        "status_code": response.status_code,
+                        "identificador": identificador
+                    }
+                    
+        except httpx.TimeoutException:
+            logger.error("❌ Timeout ao enviar PIX")
+            return {"success": False, "error": "Timeout na comunicação com o Banco do Brasil"}
+        except Exception as e:
+            logger.error(f"❌ Exceção ao enviar PIX: {str(e)}")
+            return {"success": False, "error": str(e)}
+
+    async def consultar_pix_enviado(self, end_to_end_id: str) -> Dict[str, Any]:
+        """
+        Consulta status de um PIX enviado pelo end_to_end_id.
+        
+        Args:
+            end_to_end_id: ID da transação PIX
+            
+        Returns:
+            Dict com status da transação
+        """
+        token = await self.get_access_token()
+        
+        if not token:
+            return {"success": False, "error": "Falha ao obter token"}
+        
+        try:
+            async with self._get_http_client() as client:
+                response = await client.get(
+                    f"{self.api_url}/pix/{end_to_end_id}",
+                    headers={
+                        "Authorization": f"Bearer {token}",
+                        "gw-dev-app-key": self.gw_dev_app_key
+                    }
+                )
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    return {
+                        "success": True,
+                        "end_to_end_id": end_to_end_id,
+                        "status": data.get("status"),
+                        "valor": data.get("valor"),
+                        "horario": data.get("horario"),
+                        "response": data
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "error": response.text,
+                        "status_code": response.status_code
+                    }
+                    
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
 
 # ============================================================
 # FUNÇÕES DE FÁBRICA E SINGLETON
