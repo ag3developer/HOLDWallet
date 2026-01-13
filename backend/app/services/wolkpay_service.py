@@ -623,11 +623,15 @@ class WolkPayService:
                     devedor_doc = ''.join(filter(str.isdigit, payer.cnpj or ''))
                     devedor_nome = payer.company_name or payer.full_name or 'Empresa'
                 
+                # Gerar TXID único para a cobrança (baseado no invoice_number)
+                # Formato: WKPAY + número da fatura sem hífen
+                txid = f"WKPAY{invoice.invoice_number.replace('-', '').replace('_', '')}"
+                
                 # Criar cobrança via BB
                 pix_data = await bb_service.criar_cobranca_pix(
+                    txid=txid,
                     valor=invoice.total_amount_brl,
                     devedor_cpf=devedor_doc if payer.person_type == PersonType.PF else None,
-                    devedor_cnpj=devedor_doc if payer.person_type != PersonType.PF else None,
                     devedor_nome=devedor_nome,
                     descricao=f"WolkPay {invoice.invoice_number}",
                     expiracao_segundos=expiracao_segundos
