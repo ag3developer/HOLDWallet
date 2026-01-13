@@ -555,7 +555,7 @@ class WolkPayService:
     
     async def generate_pix_payment(self, checkout_token: str) -> PixPaymentResponse:
         """
-        Gera PIX para pagamento (conta estática)
+        Gera PIX para pagamento via API Banco do Brasil (cobrança automática)
         
         Args:
             checkout_token: Token do checkout
@@ -585,39 +585,95 @@ class WolkPayService:
         if not payer:
             raise ValueError("Dados do pagador não encontrados")
         
-        # 3. Gerar código PIX (conta estática)
-        # O TXID aparece nos apps de banco como identificador da transação
-        pix_code = self._generate_pix_static_code(
-            amount=invoice.total_amount_brl,
-            description=invoice.invoice_number  # Ex: WP2026011100001
-        )
-        
-        # 4. Gerar QR Code
-        qr_image_base64 = self._generate_qr_code_base64(pix_code)
-        
-        # 5. Criar ou atualizar registro de pagamento
+        # 3. Verificar se já existe pagamento com TXID (já gerou PIX antes)
         payment = self.db.query(WolkPayPayment).filter(
             WolkPayPayment.invoice_id == invoice.id
         ).first()
         
-        if not payment:
-            payment = WolkPayPayment(
-                invoice_id=invoice.id,
-                payer_id=payer.id,
-                pix_key=self.PIX_KEY,
-                pix_qrcode=pix_code,
-                pix_qrcode_image=qr_image_base64,
-                amount_brl=invoice.total_amount_brl,
-                status=PaymentStatus.PENDING
-            )
-            self.db.add(payment)
+        pix_txid = None
+        pix_code = None
+        pix_location = None
+        qr_image_base64 = None
+        
+        # Se já existe payment com txid, retorna os dados existentes
+        if payment and payment.pix_txid and payment.pix_qrcode:
+            pix_txid = payment.pix_txid
+            pix_code = payment.pix_qrcode
+            qr_image_base64 = payment.pix_qrcode_image
+            logger.info(f"WolkPay: Reutilizando PIX existente TXID: {pix_txid}")
         else:
-            payment.pix_qrcode = pix_code
-            payment.pix_qrcode_image = qr_image_base64
+            # 4. Criar cobrança PIX via API Banco do Brasil
+            try:
+                from app.services.banco_brasil_service import get_banco_brasil_service
+                bb_service = get_banco_brasil_service(self.db)
+                
+                # Calcular expiração em segundos (tempo restante da fatura)
+                now = datetime.now(timezone.utc)
+                if invoice.expires_at.tzinfo is None:
+                    expires_at = invoice.expires_at.replace(tzinfo=timezone.utc)
+                else:
+                    expires_at = invoice.expires_at
+                expiracao_segundos = max(300, int((expires_at - now).total_seconds()))  # Mínimo 5 min
+                
+                # Obter documento do pagador
+                if payer.person_type == PersonType.PF:
+                    devedor_doc = ''.join(filter(str.isdigit, payer.cpf or ''))
+                    devedor_nome = payer.full_name or 'Cliente'
+                else:
+                    devedor_doc = ''.join(filter(str.isdigit, payer.cnpj or ''))
+                    devedor_nome = payer.company_name or payer.full_name or 'Empresa'
+                
+                # Criar cobrança via BB
+                pix_data = await bb_service.criar_cobranca_pix(
+                    valor=invoice.total_amount_brl,
+                    devedor_cpf=devedor_doc if payer.person_type == PersonType.PF else None,
+                    devedor_cnpj=devedor_doc if payer.person_type != PersonType.PF else None,
+                    devedor_nome=devedor_nome,
+                    descricao=f"WolkPay {invoice.invoice_number}",
+                    expiracao_segundos=expiracao_segundos
+                )
+                
+                pix_txid = pix_data.get('txid')
+                pix_code = pix_data.get('pix_copia_cola')
+                pix_location = pix_data.get('location')
+                
+                logger.info(f"✅ WolkPay: Cobrança PIX BB criada! TXID: {pix_txid}")
+                
+            except Exception as e:
+                logger.error(f"❌ WolkPay: Erro ao criar PIX via BB: {e}")
+                # Fallback para PIX estático se BB falhar
+                logger.warning("⚠️ WolkPay: Usando fallback PIX estático")
+                pix_code = self._generate_pix_static_code(
+                    amount=invoice.total_amount_brl,
+                    description=invoice.invoice_number
+                )
+                pix_txid = f"STATIC_{invoice.invoice_number}"
+            
+            # 5. Gerar QR Code da imagem
+            if pix_code:
+                qr_image_base64 = self._generate_qr_code_base64(pix_code)
+            
+            # 6. Criar ou atualizar registro de pagamento
+            if not payment:
+                payment = WolkPayPayment(
+                    invoice_id=invoice.id,
+                    payer_id=payer.id,
+                    pix_key=self.PIX_KEY,
+                    pix_txid=pix_txid,
+                    pix_qrcode=pix_code,
+                    pix_qrcode_image=qr_image_base64,
+                    amount_brl=invoice.total_amount_brl,
+                    status=PaymentStatus.PENDING
+                )
+                self.db.add(payment)
+            else:
+                payment.pix_txid = pix_txid
+                payment.pix_qrcode = pix_code
+                payment.pix_qrcode_image = qr_image_base64
+            
+            self.db.commit()
         
-        self.db.commit()
-        
-        # 6. Calcular tempo restante
+        # 7. Calcular tempo restante
         now = datetime.now(timezone.utc)
         if invoice.expires_at.tzinfo is None:
             expires_at = invoice.expires_at.replace(tzinfo=timezone.utc)
@@ -625,25 +681,30 @@ class WolkPayService:
             expires_at = invoice.expires_at
         expires_in_seconds = max(0, int((expires_at - now).total_seconds()))
         
-        # 7. Log de auditoria
+        # 8. Log de auditoria
         self._log_audit(
             invoice_id=invoice.id,
             actor_type="system",
             action="generate_pix",
-            description=f"PIX gerado: R$ {invoice.total_amount_brl}"
+            description=f"PIX BB gerado: R$ {invoice.total_amount_brl} TXID: {pix_txid}"
         )
+        
+        # Determinar se é automático ou estático
+        is_automatic = pix_txid and not pix_txid.startswith("STATIC_")
         
         return PixPaymentResponse(
             invoice_id=str(invoice.id),
             invoice_number=invoice.invoice_number,
             pix_key=self.PIX_KEY,
-            pix_qrcode=pix_code,
+            pix_qrcode=pix_code or '',
             pix_qrcode_image=qr_image_base64,
+            pix_txid=pix_txid,
             amount_brl=invoice.total_amount_brl,
             recipient_name=self.PIX_RECIPIENT_NAME,
             recipient_document=self.PIX_RECIPIENT_DOCUMENT,
             expires_at=invoice.expires_at,
-            expires_in_seconds=expires_in_seconds
+            expires_in_seconds=expires_in_seconds,
+            is_automatic=is_automatic
         )
     
     # ==========================================
@@ -668,8 +729,8 @@ class WolkPayService:
             Tuple[pode_pagar, mensagem]
         """
         # Verificar limite por operação
-        if amount > self.LIMIT_PER_OPERATION:
-            return False, f"Valor excede limite por operação de R$ {self.LIMIT_PER_OPERATION:,.2f}"
+        if amount > self.DEFAULT_LIMIT_PER_OPERATION:
+            return False, f"Valor excede limite por operação de R$ {self.DEFAULT_LIMIT_PER_OPERATION:,.2f}"
         
         # Gerar hash do documento para busca
         doc_hash = hashlib.sha256(document_number.encode()).hexdigest()
@@ -690,8 +751,8 @@ class WolkPayService:
             
             # Verificar limite mensal
             new_total = limit_record.total_amount_brl + amount
-            if new_total > self.LIMIT_PER_MONTH:
-                remaining = self.LIMIT_PER_MONTH - limit_record.total_amount_brl
+            if new_total > self.DEFAULT_LIMIT_PER_MONTH:
+                remaining = self.DEFAULT_LIMIT_PER_MONTH - limit_record.total_amount_brl
                 return False, f"Limite mensal excedido. Disponível: R$ {remaining:,.2f}"
         
         return True, "OK"

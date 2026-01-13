@@ -272,6 +272,7 @@ class PixPaymentResponse(BaseModel):
     pix_key: str  # Chave PIX (CNPJ da HOLD)
     pix_qrcode: str  # Código copia-e-cola
     pix_qrcode_image: Optional[str] = None  # Base64 da imagem
+    pix_txid: Optional[str] = None  # TXID do PIX (BB-AUTO)
     
     # Valor
     amount_brl: Decimal
@@ -286,6 +287,9 @@ class PixPaymentResponse(BaseModel):
     
     # Instruções
     instructions: str = "Pague o valor EXATO. Valores diferentes serão recusados."
+    
+    # Indica se é PIX automático (BB) ou estático (manual)
+    is_automatic: bool = True
 
 
 class PaymentStatusResponse(BaseModel):

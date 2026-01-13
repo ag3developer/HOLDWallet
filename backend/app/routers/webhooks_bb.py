@@ -26,6 +26,7 @@ from app.core.db import get_db
 from app.core.config import settings
 from app.services.banco_brasil_service import get_banco_brasil_service
 from app.models.instant_trade import InstantTrade, TradeStatus, InstantTradeHistory
+from app.models.wolkpay import WolkPayPayment, WolkPayInvoice, InvoiceStatus, PaymentStatus
 
 logger = logging.getLogger(__name__)
 
@@ -119,7 +120,7 @@ async def receive_pix_webhook(
 
             logger.info(f"💰 Processando pagamento: txid={txid}, valor=R${valor_recebido}, e2e={end_to_end_id}")
 
-            # 4. Buscar trade pelo pix_txid
+            # 4. Buscar trade pelo pix_txid (OTC InstantTrade)
             trade = db.query(InstantTrade).filter(
                 InstantTrade.pix_txid == txid
             ).first()
@@ -130,45 +131,98 @@ async def receive_pix_webhook(
                     InstantTrade.reference_code.contains(txid)
                 ).first()
 
+            # 4b. Se não é OTC, buscar em WolkPay
+            wolkpay_payment = None
             if not trade:
-                logger.warning(f"⚠️ Trade não encontrado para txid: {txid}")
+                wolkpay_payment = db.query(WolkPayPayment).filter(
+                    WolkPayPayment.pix_txid == txid
+                ).first()
+            
+            if not trade and not wolkpay_payment:
+                logger.warning(f"⚠️ Trade/WolkPay não encontrado para txid: {txid}")
                 continue
 
-            # 5. Verificar se já foi processado
-            if trade.status in [TradeStatus.PAYMENT_CONFIRMED, TradeStatus.COMPLETED]:
-                logger.info(f"ℹ️ Trade {trade.reference_code} já processado (status={trade.status})")
-                continue
+            # ===== PROCESSAR OTC (InstantTrade) =====
+            if trade:
+                # 5. Verificar se já foi processado
+                if trade.status in [TradeStatus.PAYMENT_CONFIRMED, TradeStatus.COMPLETED]:
+                    logger.info(f"ℹ️ Trade {trade.reference_code} já processado (status={trade.status})")
+                    continue
 
-            # 6. Atualizar status para PAYMENT_CONFIRMED
-            old_status = trade.status
-            trade.status = TradeStatus.PAYMENT_CONFIRMED
-            trade.payment_confirmed_at = datetime.utcnow()
+                # 6. Atualizar status para PAYMENT_CONFIRMED
+                old_status = trade.status
+                trade.status = TradeStatus.PAYMENT_CONFIRMED
+                trade.payment_confirmed_at = datetime.utcnow()
+                
+                # Salvar valor recebido (se o modelo tiver o campo)
+                if hasattr(trade, 'pix_valor_recebido'):
+                    trade.pix_valor_recebido = Decimal(str(valor_recebido))
+                
+                # Salvar end_to_end_id
+                if hasattr(trade, 'pix_end_to_end_id'):
+                    trade.pix_end_to_end_id = end_to_end_id
+                
+                if hasattr(trade, 'pix_confirmado_em'):
+                    trade.pix_confirmado_em = datetime.utcnow()
+
+                # Criar histórico
+                history = InstantTradeHistory(
+                    trade_id=trade.id,
+                    old_status=old_status,
+                    new_status=TradeStatus.PAYMENT_CONFIRMED,
+                    reason="Pagamento PIX confirmado automaticamente via Webhook BB",
+                    history_details=f"Valor: R${valor_recebido}, e2e: {end_to_end_id}, Horário: {horario}"
+                )
+                db.add(history)
+                db.commit()
+                
+                processed_count += 1
+                logger.info(f"✅ Trade {trade.reference_code} atualizado para PAYMENT_CONFIRMED")
+
+                # 7. Disparar envio de crypto em background
+                background_tasks.add_task(
+                    process_crypto_deposit_background,
+                    trade_id=str(trade.id),
+                    db_url=str(settings.DATABASE_URL)
+                )
+                logger.info(f"🚀 Depósito de crypto agendado para trade {trade.reference_code}")
             
-            # Salvar valor recebido (se o modelo tiver o campo)
-            if hasattr(trade, 'pix_valor_recebido'):
-                trade.pix_valor_recebido = Decimal(str(valor_recebido))
-
-            # Criar histórico
-            history = InstantTradeHistory(
-                trade_id=trade.id,
-                old_status=old_status,
-                new_status=TradeStatus.PAYMENT_CONFIRMED,
-                reason="Pagamento PIX confirmado automaticamente via Webhook BB",
-                history_details=f"Valor: R${valor_recebido}, e2e: {end_to_end_id}, Horário: {horario}"
-            )
-            db.add(history)
-            db.commit()
-            
-            processed_count += 1
-            logger.info(f"✅ Trade {trade.reference_code} atualizado para PAYMENT_CONFIRMED")
-
-            # 7. Disparar envio de crypto em background
-            background_tasks.add_task(
-                process_crypto_deposit_background,
-                trade_id=str(trade.id),
-                db_url=str(settings.DATABASE_URL)
-            )
-            logger.info(f"🚀 Depósito de crypto agendado para trade {trade.reference_code}")
+            # ===== PROCESSAR WOLKPAY =====
+            elif wolkpay_payment:
+                # Verificar se já foi processado
+                if wolkpay_payment.status == PaymentStatus.PAID:
+                    logger.info(f"ℹ️ WolkPay payment {wolkpay_payment.id} já processado")
+                    continue
+                
+                # Buscar invoice associada
+                invoice = db.query(WolkPayInvoice).filter(
+                    WolkPayInvoice.id == wolkpay_payment.invoice_id
+                ).first()
+                
+                if not invoice:
+                    logger.warning(f"⚠️ Invoice não encontrada para payment {wolkpay_payment.id}")
+                    continue
+                
+                # Atualizar payment
+                wolkpay_payment.status = PaymentStatus.PAID
+                wolkpay_payment.paid_at = datetime.utcnow()
+                wolkpay_payment.bank_transaction_id = end_to_end_id
+                
+                # Atualizar invoice
+                invoice.status = InvoiceStatus.PAID
+                
+                db.commit()
+                
+                processed_count += 1
+                logger.info(f"✅ WolkPay Invoice {invoice.invoice_number} atualizado para PAID")
+                
+                # Disparar aprovação automática em background (enviar crypto)
+                background_tasks.add_task(
+                    process_wolkpay_approval_background,
+                    invoice_id=str(invoice.id),
+                    db_url=str(settings.DATABASE_URL)
+                )
+                logger.info(f"🚀 Aprovação WolkPay agendada para invoice {invoice.invoice_number}")
 
         return {
             "status": "ok", 
@@ -282,6 +336,68 @@ async def process_crypto_deposit_background(trade_id: str, db_url: str):
 
     except Exception as e:
         logger.error(f"❌ Erro crítico no depósito automático: {str(e)}")
+
+
+async def process_wolkpay_approval_background(invoice_id: str, db_url: str):
+    """
+    Processa aprovação WolkPay em background após confirmação de pagamento PIX.
+    
+    Envia crypto automaticamente para o beneficiário após pagamento confirmado.
+    
+    Args:
+        invoice_id: ID da invoice WolkPay
+        db_url: URL do banco para criar nova sessão
+    """
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    
+    logger.info(f"🔄 Iniciando aprovação automática WolkPay para invoice {invoice_id}")
+    
+    try:
+        # Cria nova sessão do banco
+        engine = create_engine(db_url)
+        session_local = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+        db = session_local()
+        
+        try:
+            # Busca invoice
+            invoice = db.query(WolkPayInvoice).filter(WolkPayInvoice.id == invoice_id).first()
+            
+            if not invoice:
+                logger.error(f"❌ Invoice {invoice_id} não encontrada para aprovação")
+                return
+            
+            # Verifica status
+            if invoice.status != InvoiceStatus.PAID:
+                logger.info(f"ℹ️ Invoice {invoice.invoice_number} não está em PAID, status={invoice.status}")
+                return
+            
+            # Importa serviço WolkPay
+            from app.services.wolkpay_service import WolkPayService
+            
+            service = WolkPayService(db)
+            
+            # Determinar rede preferida
+            network = invoice.crypto_network or "polygon"
+            
+            logger.info(f"📤 Aprovando automaticamente WolkPay: {invoice.crypto_amount} {invoice.crypto_currency} via {network}")
+            
+            # Aprovar invoice (isso envia a crypto)
+            # Usando admin_id como "system" para indicar aprovação automática
+            approval = await service.approve_invoice(
+                invoice_id=invoice_id,
+                admin_id="00000000-0000-0000-0000-000000000000",  # System user
+                network=network,
+                notes="Aprovação automática via webhook PIX BB"
+            )
+            
+            logger.info(f"✅ WolkPay aprovado automaticamente! Invoice: {invoice.invoice_number}, TX: {approval.crypto_tx_hash}")
+            
+        finally:
+            db.close()
+
+    except Exception as e:
+        logger.error(f"❌ Erro crítico na aprovação WolkPay: {str(e)}")
 
 
 @router.get("/status")
