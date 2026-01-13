@@ -7,12 +7,28 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Create SQLAlchemy engine
-engine = create_engine(
-    settings.DATABASE_URL,
-    echo=settings.DEBUG,
-    pool_pre_ping=True,
-    pool_recycle=3600
-)
+# Digital Ocean managed databases have limited connections (usually 22-25)
+# We need to keep pool small to avoid exhausting connections
+if "sqlite" in settings.DATABASE_URL:
+    engine = create_engine(
+        settings.DATABASE_URL,
+        echo=settings.DEBUG,
+        connect_args={"check_same_thread": False}
+    )
+else:
+    engine = create_engine(
+        settings.DATABASE_URL,
+        echo=settings.DEBUG,
+        pool_pre_ping=True,      # Verify connection is alive before using
+        pool_recycle=300,        # Recycle connections after 5 minutes
+        pool_timeout=30,         # Wait max 30 seconds for connection
+        pool_size=3,             # Keep only 3 connections in pool
+        max_overflow=5,          # Allow up to 5 extra connections when busy
+        connect_args={
+            "connect_timeout": 10,
+            "options": "-c statement_timeout=30000"
+        }
+    )
 
 # Create SessionLocal class
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

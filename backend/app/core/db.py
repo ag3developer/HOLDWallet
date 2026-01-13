@@ -8,6 +8,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Create SQLAlchemy engine
+# Digital Ocean managed databases have limited connections (usually 22-25)
+# We need to keep pool small to avoid exhausting connections
 if "sqlite" in settings.DATABASE_URL:
     engine = create_engine(
         settings.DATABASE_URL,
@@ -18,9 +20,11 @@ else:
     engine = create_engine(
         settings.DATABASE_URL,
         echo=settings.DEBUG,
-        pool_pre_ping=True,
-        pool_recycle=3600,
-        pool_timeout=10,  # Wait max 10 seconds for connection from pool
+        pool_pre_ping=True,      # Verify connection is alive before using
+        pool_recycle=300,        # Recycle connections after 5 minutes (avoid stale)
+        pool_timeout=30,         # Wait max 30 seconds for connection from pool
+        pool_size=3,             # Keep only 3 connections in pool (DO has ~22 max)
+        max_overflow=5,          # Allow up to 5 extra connections when busy
         connect_args={
             "connect_timeout": 10,  # Connection timeout in seconds
             "options": "-c statement_timeout=30000"  # 30 second query timeout
