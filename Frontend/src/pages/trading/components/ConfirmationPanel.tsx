@@ -59,6 +59,7 @@ export interface TradeData {
   status: string
   created_at?: string
   expires_at?: string
+  tx_hash?: string // TX hash para vendas processadas automaticamente
 }
 
 interface ConfirmationPanelProps {
@@ -185,7 +186,9 @@ export function ConfirmationPanel({
     setLoading(true)
     try {
       // BB-AUTO: Usar endpoint especial que gera PIX via API do BB
-      if (selectedPayment === 'bb_auto') {
+      // IMPORTANTE: PIX BB-AUTO só é para COMPRA (BUY) - usuário paga via PIX
+      // VENDA (SELL) usa o fluxo normal - crypto é transferida automaticamente
+      if (isBuy && selectedPayment === 'bb_auto') {
         console.log('[BB-AUTO] Creating trade with PIX automático...')
         console.log('[BB-AUTO] Quote data:', {
           quote_id: quote.quote_id,
@@ -313,6 +316,9 @@ export function ConfirmationPanel({
 
       console.log('[ConfirmationPanel] Trade created successfully:', response.data)
 
+      const tradeId = response.data.trade_id || response.data.id
+      setTradeCreated(tradeId)
+
       if (isBuy) {
         // BUY: Mostrar instruções de pagamento
         if (selectedPayment === 'ted' && response.data.bank_details) {
@@ -323,12 +329,18 @@ export function ConfirmationPanel({
           toast.success('Trade criado com sucesso!')
         }
       } else {
-        // SELL: Trade criado, aguardando processamento
-        toast.success('Venda confirmada! Aguarde o processamento do pagamento.')
+        // SELL: Trade criado e processado automaticamente
+        if (response.data.auto_processed) {
+          toast.success('✅ Venda processada! Sua crypto foi transferida. Aguarde o PIX.', {
+            duration: 5000,
+            icon: '🎉',
+          })
+        } else if (response.data.auto_error) {
+          toast.error(`Erro no processamento automático: ${response.data.auto_error}`)
+        } else {
+          toast.success('Venda confirmada! Aguarde o processamento.')
+        }
       }
-
-      const tradeId = response.data.trade_id || response.data.id
-      setTradeCreated(tradeId)
 
       // Construir dados da trade para passar ao componente pai
       const tradeData: TradeData = {
@@ -342,9 +354,10 @@ export function ConfirmationPanel({
         ...(quote.brl_total_amount !== undefined && { brl_total_amount: quote.brl_total_amount }),
         ...(quote.usd_to_brl_rate !== undefined && { usd_to_brl_rate: quote.usd_to_brl_rate }),
         payment_method: selectedPayment,
-        status: 'PENDING',
+        status: response.data.status || 'PENDING', // Usar status retornado pelo backend
         created_at: new Date().toISOString(),
         ...(response.data.expires_at && { expires_at: response.data.expires_at }),
+        ...(response.data.tx_hash && { tx_hash: response.data.tx_hash }), // TX da venda automática
       }
 
       onSuccess(tradeId, tradeData)
@@ -418,8 +431,8 @@ export function ConfirmationPanel({
     return num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   }
 
-  // Renderização especial para BB-AUTO com QR Code PIX
-  if (tradeCreated && pixData && selectedPayment === 'bb_auto') {
+  // Renderização especial para BB-AUTO com QR Code PIX (apenas para BUY)
+  if (isBuy && tradeCreated && pixData && selectedPayment === 'bb_auto') {
     return (
       <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 p-5 space-y-4'>
         {/* Header */}
