@@ -10,7 +10,7 @@ Author: HOLD Wallet Team
 
 from sqlalchemy.orm import Session
 from typing import Optional, Dict, Any
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 import uuid
 import logging
@@ -35,13 +35,30 @@ class InstantTradeService:
     # Default Constants (usados como fallback se o banco não tiver)
     DEFAULT_SPREAD_PERCENTAGE = Decimal("3.00")
     DEFAULT_NETWORK_FEE_PERCENTAGE = Decimal("0.25")
-    QUOTE_VALIDITY_SECONDS = 60  # 60 segundos para manter preço atualizado
+    QUOTE_VALIDITY_SECONDS = 120  # 120 segundos (2 minutos) para dar tempo ao usuário
     TRADE_EXPIRATION_MINUTES = 15
     MIN_TRADE_AMOUNT_BRL = Decimal("50.00")
     MAX_TRADE_AMOUNT_BRL = Decimal("50000.00")
 
     def __init__(self, db: Session):
         self.db = db
+    
+    def _parse_expires_at(self, expires_at_str: str) -> datetime:
+        """Parse expires_at string to timezone-aware datetime"""
+        if not expires_at_str:
+            return datetime.min.replace(tzinfo=timezone.utc)
+        try:
+            dt = datetime.fromisoformat(expires_at_str)
+            # Se não tem timezone, assume UTC
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt
+        except Exception:
+            return datetime.min.replace(tzinfo=timezone.utc)
+    
+    def _get_utc_now(self) -> datetime:
+        """Get current UTC time (timezone-aware)"""
+        return datetime.now(timezone.utc)
     
     @property
     def SPREAD_PERCENTAGE(self) -> Decimal:
@@ -155,7 +172,7 @@ class InstantTradeService:
 
         # Generate quote ID
         quote_id = f"quote_{uuid.uuid4().hex[:12]}"
-        expires_at = datetime.now() + timedelta(seconds=self.QUOTE_VALIDITY_SECONDS)
+        expires_at = datetime.now(timezone.utc) + timedelta(seconds=self.QUOTE_VALIDITY_SECONDS)
 
         # Mapeamento de símbolos para nomes
         CRYPTO_NAMES = {
@@ -222,12 +239,12 @@ class InstantTradeService:
 
     def _cleanup_expired_quotes(self):
         """Remove expired quotes from cache (memory and database)"""
-        current_time = datetime.now()
+        current_time = datetime.now(timezone.utc)
         
         # Limpa cache em memória
         expired_quotes = [
             qid for qid, qdata in _quote_cache.items()
-            if datetime.fromisoformat(qdata.get("expires_at", "")) < current_time
+            if self._parse_expires_at(qdata.get("expires_at", "")) < current_time
         ]
         for qid in expired_quotes:
             del _quote_cache[qid]
@@ -243,12 +260,13 @@ class InstantTradeService:
 
     def get_cached_quote(self, quote_id: str) -> Dict[str, Any]:
         """Get a cached quote by ID (from memory or database)"""
+        current_time = self._get_utc_now()
         
         # 1. Tenta cache em memória primeiro (mesmo worker)
         quote = _quote_cache.get(quote_id)
         if quote:
-            expires_at = datetime.fromisoformat(quote.get("expires_at", ""))
-            if expires_at >= datetime.now():
+            expires_at = self._parse_expires_at(quote.get("expires_at", ""))
+            if expires_at >= current_time:
                 logger.info(f"✅ Quote {quote_id} encontrada em memória")
                 return quote
             else:
@@ -261,7 +279,12 @@ class InstantTradeService:
             ).first()
             
             if db_quote:
-                if db_quote.expires_at >= datetime.now():
+                # Compare with naive datetime (db stores naive UTC)
+                db_expires = db_quote.expires_at
+                if db_expires.tzinfo is None:
+                    db_expires = db_expires.replace(tzinfo=timezone.utc)
+                
+                if db_expires >= current_time:
                     quote_data = db_quote.get_data()
                     # Atualiza cache local para próximas chamadas
                     _quote_cache[quote_id] = quote_data
@@ -275,6 +298,7 @@ class InstantTradeService:
         except Exception as e:
             logger.warning(f"⚠️ Erro ao buscar quote do DB: {e}")
         
+        logger.warning(f"❌ Quote {quote_id} não encontrada (memory cache: {len(_quote_cache)} quotes)")
         raise ValidationError("Quote not found or expired")
 
     def create_trade_from_quote(
