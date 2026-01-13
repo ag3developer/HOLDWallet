@@ -412,15 +412,21 @@ export function ConfirmationPanel({
 
   // isBuy já declarado no início do componente
 
+  // Função para formatar valor BRL com 2 casas decimais
+  const formatBRL = (value: string | number): string => {
+    const num = typeof value === 'string' ? Number.parseFloat(value) : value
+    return num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  }
+
   // Renderização especial para BB-AUTO com QR Code PIX
   if (tradeCreated && pixData && selectedPayment === 'bb_auto') {
     return (
-      <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-4'>
+      <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 p-5 space-y-4'>
         {/* Header */}
-        <div className='flex items-center gap-2 mb-4 pb-3 border-b border-gray-200 dark:border-gray-700'>
+        <div className='flex items-center gap-3 pb-3 border-b border-gray-200 dark:border-gray-700'>
           <button
             onClick={onBack}
-            className='p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors'
+            className='p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors'
             title='Voltar'
             aria-label='Voltar'
           >
@@ -428,75 +434,88 @@ export function ConfirmationPanel({
           </button>
           <div className='flex-1'>
             <div className='flex items-center gap-2'>
-              <Zap className='w-5 h-5 text-yellow-500' />
-              <h2 className='text-sm font-bold text-gray-900 dark:text-white'>
-                PIX Automático - Banco do Brasil
-              </h2>
+              <div className='p-1.5 bg-green-100 dark:bg-green-900/30 rounded-lg'>
+                <Zap className='w-4 h-4 text-green-600 dark:text-green-400' />
+              </div>
+              <h2 className='text-sm font-bold text-gray-900 dark:text-white'>PIX - BB</h2>
             </div>
             <p className='text-xs text-gray-500 dark:text-gray-400 mt-0.5'>
-              Escaneie o QR Code ou copie o código para pagar
+              Escaneie o QR Code ou copie o código
             </p>
           </div>
         </div>
 
         {/* Status do PIX */}
         {pixStatus === 'paid' ? (
-          <div className='bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg p-4'>
+          <div className='bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-xl p-4'>
             <div className='flex items-center gap-3'>
-              <CheckCircle className='w-8 h-8 text-green-600 dark:text-green-400' />
+              <div className='p-2 bg-green-100 dark:bg-green-900/30 rounded-full'>
+                <CheckCircle className='w-6 h-6 text-green-600 dark:text-green-400' />
+              </div>
               <div>
-                <h3 className='font-bold text-green-900 dark:text-green-100'>
-                  Pagamento Confirmado!
+                <h3 className='font-semibold text-green-900 dark:text-green-100'>
+                  Pagamento Confirmado
                 </h3>
-                <p className='text-sm text-green-700 dark:text-green-300'>
-                  Sua crypto será enviada automaticamente em instantes.
+                <p className='text-sm text-green-700 dark:text-green-300 mt-0.5'>
+                  Sua crypto será enviada automaticamente
                 </p>
               </div>
             </div>
           </div>
         ) : (
           <>
-            {/* QR Code */}
-            <div className='flex flex-col items-center'>
+            {/* QR Code Container */}
+            <div className='flex flex-col items-center py-4'>
               {pixData.qrcode_image ? (
-                <div className='bg-white p-4 rounded-xl shadow-lg border-2 border-yellow-400'>
+                <div className='bg-white p-3 rounded-xl shadow-md border-2 border-green-500 dark:border-green-400'>
                   <img src={pixData.qrcode_image} alt='QR Code PIX' className='w-48 h-48' />
                 </div>
               ) : (
-                <div className='bg-gray-100 dark:bg-gray-700 p-4 rounded-xl w-48 h-48 flex items-center justify-center'>
-                  <QrCode className='w-24 h-24 text-gray-400' />
+                <div className='bg-gray-100 dark:bg-gray-700 p-4 rounded-xl w-48 h-48 flex items-center justify-center border border-gray-200 dark:border-gray-600'>
+                  <QrCode className='w-20 h-20 text-gray-400' />
                 </div>
               )}
 
               {/* Valor */}
               <div className='mt-4 text-center'>
-                <p className='text-sm text-gray-500 dark:text-gray-400'>Valor a pagar</p>
-                <p className='text-2xl font-bold text-gray-900 dark:text-white'>
-                  R$ {pixData.valor}
+                <p className='text-xs text-gray-500 dark:text-gray-400 font-medium'>
+                  Valor a pagar
+                </p>
+                <p className='text-2xl font-bold text-gray-900 dark:text-white mt-1'>
+                  R$ {formatBRL(pixData.valor)}
                 </p>
               </div>
             </div>
 
             {/* Código PIX para copiar */}
             <div className='space-y-2'>
-              <p className='text-sm font-medium text-gray-700 dark:text-gray-300'>
-                Código PIX Copia e Cola:
-              </p>
-              <div className='relative'>
-                <div className='bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3 pr-12 font-mono text-xs text-gray-800 dark:text-gray-200 break-all max-h-24 overflow-y-auto'>
-                  {pixData.qrcode}
-                </div>
+              <div className='flex items-center justify-between'>
+                <p className='text-xs font-medium text-gray-600 dark:text-gray-400'>
+                  Código Copia e Cola
+                </p>
                 <button
                   onClick={copyPixCode}
-                  className='absolute top-2 right-2 p-2 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors'
-                  title='Copiar código PIX'
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                    pixCopied
+                      ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                      : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300'
+                  }`}
                 >
                   {pixCopied ? (
-                    <CheckCheck className='w-4 h-4 text-green-500' />
+                    <>
+                      <CheckCheck className='w-3.5 h-3.5' />
+                      Copiado
+                    </>
                   ) : (
-                    <Copy className='w-4 h-4 text-gray-500 dark:text-gray-400' />
+                    <>
+                      <Copy className='w-3.5 h-3.5' />
+                      Copiar
+                    </>
                   )}
                 </button>
+              </div>
+              <div className='bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3 font-mono text-xs text-gray-700 dark:text-gray-300 break-all max-h-20 overflow-y-auto'>
+                {pixData.qrcode}
               </div>
             </div>
 
@@ -505,33 +524,40 @@ export function ConfirmationPanel({
               <div className='flex items-center gap-2'>
                 <Clock className='w-4 h-4 text-amber-600 dark:text-amber-400' />
                 <span className='text-sm text-amber-800 dark:text-amber-200'>
-                  Este PIX expira em {Math.floor(pixData.expiracao_segundos / 60)} minutos
+                  Expira em{' '}
+                  <span className='font-semibold'>
+                    {Math.floor(pixData.expiracao_segundos / 60)} minutos
+                  </span>
                 </span>
               </div>
             </div>
 
             {/* Status de verificação */}
-            <div className='flex items-center justify-center gap-2 text-sm text-gray-500 dark:text-gray-400'>
-              <Loader className='w-4 h-4 animate-spin' />
-              <span>Aguardando confirmação do pagamento...</span>
+            <div className='flex items-center justify-center gap-2 py-2'>
+              <Loader className='w-4 h-4 animate-spin text-blue-600 dark:text-blue-400' />
+              <span className='text-sm text-gray-600 dark:text-gray-400'>
+                Aguardando pagamento...
+              </span>
             </div>
           </>
         )}
 
         {/* Informações do Trade */}
         <div className='bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 space-y-2'>
-          <div className='flex justify-between text-xs'>
-            <span className='text-gray-600 dark:text-gray-400'>Trade ID:</span>
-            <span className='font-mono text-gray-900 dark:text-white'>
+          <div className='flex justify-between items-center text-xs'>
+            <span className='text-gray-500 dark:text-gray-400'>Trade ID</span>
+            <span className='font-mono text-gray-700 dark:text-gray-300'>
               {tradeCreated.substring(0, 8)}...
             </span>
           </div>
-          <div className='flex justify-between text-xs'>
-            <span className='text-gray-600 dark:text-gray-400'>PIX TXID:</span>
-            <span className='font-mono text-gray-900 dark:text-white'>{pixData.txid}</span>
+          <div className='flex justify-between items-center text-xs'>
+            <span className='text-gray-500 dark:text-gray-400'>PIX TXID</span>
+            <span className='font-mono text-gray-700 dark:text-gray-300 text-[10px]'>
+              {pixData.txid.length > 20 ? `${pixData.txid.substring(0, 20)}...` : pixData.txid}
+            </span>
           </div>
-          <div className='flex justify-between text-xs'>
-            <span className='text-gray-600 dark:text-gray-400'>Você receberá:</span>
+          <div className='flex justify-between items-center text-xs pt-2 border-t border-gray-200 dark:border-gray-600'>
+            <span className='text-gray-500 dark:text-gray-400'>Você receberá</span>
             <span className='font-bold text-green-600 dark:text-green-400'>
               {quote.crypto_amount.toFixed(8)} {quote.symbol}
             </span>
@@ -539,9 +565,9 @@ export function ConfirmationPanel({
         </div>
 
         {/* Badge de segurança */}
-        <div className='flex items-center justify-center gap-2 text-xs text-gray-500 dark:text-gray-400 pt-2'>
-          <Shield className='w-3 h-3' />
-          <span>Pagamento processado via API oficial do Banco do Brasil</span>
+        <div className='flex items-center justify-center gap-2 text-xs text-gray-500 dark:text-gray-400 pt-1'>
+          <Shield className='w-3.5 h-3.5' />
+          <span>Processado via API Banco do Brasil</span>
         </div>
       </div>
     )

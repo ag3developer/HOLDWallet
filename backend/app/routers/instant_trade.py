@@ -440,7 +440,7 @@ async def create_trade_with_pix(
                 "txid": pix_data.get("txid", txid),
                 "qrcode": pix_data.get("qrcode", ""),
                 "qrcode_image": pix_data.get("qrcode_base64", ""),
-                "valor": str(valor_pix),
+                "valor": f"{float(valor_pix):.2f}",
                 "expiracao_segundos": 900,
                 "chave": COMPANY_BANK_DETAILS["pix_key"],
             },
