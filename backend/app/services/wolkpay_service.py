@@ -595,13 +595,31 @@ class WolkPayService:
         pix_location = None
         qr_image_base64 = None
         
-        # Se já existe payment com txid, retorna os dados existentes
-        if payment and payment.pix_txid and payment.pix_qrcode:
+        # Se já existe payment com txid E qrcode válidos, retorna os dados existentes
+        # Validação: pix_qrcode deve ter pelo menos 100 caracteres (payload EMV mínimo)
+        existing_qrcode = str(payment.pix_qrcode) if payment and payment.pix_qrcode else ""
+        if payment and payment.pix_txid and existing_qrcode and len(existing_qrcode) > 100:
             pix_txid = payment.pix_txid
-            pix_code = payment.pix_qrcode
+            pix_code = existing_qrcode
             qr_image_base64 = payment.pix_qrcode_image
-            logger.info(f"WolkPay: Reutilizando PIX existente TXID: {pix_txid}")
+            
+            # Limpar prefixo data:image se presente nos dados salvos
+            if qr_image_base64 and qr_image_base64.startswith('data:image'):
+                qr_image_base64 = qr_image_base64.split(',', 1)[-1]
+            
+            logger.info(f"WolkPay: Reutilizando PIX existente TXID: {pix_txid} (QRCode: {len(pix_code)} chars)")
+            
+            # Se não temos a imagem, gera agora
+            if not qr_image_base64 and pix_code:
+                logger.info("WolkPay: Gerando imagem QR Code para PIX existente...")
+                qr_image_base64 = self._generate_qr_code_base64(pix_code)
+                payment.pix_qrcode_image = qr_image_base64
+                self.db.commit()
         else:
+            # Se payment existe mas com dados inválidos, limpar para recriar
+            if payment and (not existing_qrcode or len(existing_qrcode) < 100):
+                logger.warning("WolkPay: Payment existente com dados inválidos, recriando PIX...")
+            
             # 4. Criar cobrança PIX via API Banco do Brasil
             try:
                 from app.services.banco_brasil_service import get_banco_brasil_service
@@ -638,10 +656,29 @@ class WolkPayService:
                 )
                 
                 pix_txid = pix_data.get('txid')
-                pix_code = pix_data.get('pix_copia_cola')
+                # O campo pode vir como 'qrcode' ou 'pix_copia_cola' dependendo da versão do BB service
+                pix_code = pix_data.get('qrcode') or pix_data.get('pix_copia_cola')
                 pix_location = pix_data.get('location')
+                # O BB service já pode retornar a imagem base64 pronta
+                bb_qr_image = pix_data.get('qrcode_base64')
+                if bb_qr_image:
+                    # Remove prefixo data:image se presente (frontend adiciona)
+                    if bb_qr_image.startswith('data:image'):
+                        qr_image_base64 = bb_qr_image.split(',', 1)[-1]
+                    else:
+                        qr_image_base64 = bb_qr_image
                 
-                logger.info(f"✅ WolkPay: Cobrança PIX BB criada! TXID: {pix_txid}")
+                # Log detalhado para debug
+                logger.info(f"✅ WolkPay: Cobrança PIX BB criada!")
+                logger.info(f"   TXID: {pix_txid}")
+                logger.info(f"   PIX Code presente: {bool(pix_code)} ({len(pix_code) if pix_code else 0} chars)")
+                logger.info(f"   QR Image presente: {bool(qr_image_base64)}")
+                logger.info(f"   Location: {pix_location}")
+                
+                # Validação extra: se não temos pix_code, algo deu errado
+                if not pix_code:
+                    logger.error(f"❌ WolkPay: BB retornou sem PIX copia-e-cola! Data: {pix_data}")
+                    raise Exception("API do BB não retornou o código PIX copia-e-cola")
                 
             except Exception as e:
                 logger.error(f"❌ WolkPay: Erro ao criar PIX via BB: {e}")
@@ -653,8 +690,8 @@ class WolkPayService:
                 )
                 pix_txid = f"STATIC_{invoice.invoice_number}"
             
-            # 5. Gerar QR Code da imagem
-            if pix_code:
+            # 5. Gerar QR Code da imagem (se ainda não temos)
+            if pix_code and not qr_image_base64:
                 qr_image_base64 = self._generate_qr_code_base64(pix_code)
             
             # 6. Criar ou atualizar registro de pagamento

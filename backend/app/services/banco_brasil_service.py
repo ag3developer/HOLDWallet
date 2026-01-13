@@ -455,8 +455,8 @@ class BancoBrasilAPIService:
             
             img_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
             
-            # Retorna com prefixo para uso direto em <img src="">
-            return f"data:image/png;base64,{img_base64}"
+            # Retorna apenas o base64 (sem prefixo - frontend adiciona)
+            return img_base64
             
         except Exception as e:
             logger.warning(f"⚠️ Erro ao gerar QR Code base64: {str(e)}")
