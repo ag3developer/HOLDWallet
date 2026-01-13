@@ -209,6 +209,10 @@ async def get_my_limits(
     # Formata resposta amigável
     formatted_limits = {}
     for service_name, service_limits in limits.items():
+        # Ignora chaves que não são serviços (kyc_level, kyc_level_name são strings)
+        if not isinstance(service_limits, dict):
+            continue
+            
         daily = service_limits.get('daily_limit_brl')
         monthly = service_limits.get('monthly_limit_brl')
         per_op = service_limits.get('transaction_limit_brl')

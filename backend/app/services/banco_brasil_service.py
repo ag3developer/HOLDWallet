@@ -47,11 +47,13 @@ class BancoBrasilAPIService:
     """
 
     # URLs Base - Ambientes
-    OAUTH_URL_SANDBOX = "https://oauth.sandbox.bb.com.br/oauth/token"
+    # Homologação (sandbox): api.hm.bb.com.br ou api-pix.hm.bb.com.br (com mTLS)
+    # Produção: api-pix.bb.com.br (com mTLS obrigatório)
+    OAUTH_URL_SANDBOX = "https://oauth.hm.bb.com.br/oauth/token"
     OAUTH_URL_PROD = "https://oauth.bb.com.br/oauth/token"
 
-    API_URL_SANDBOX = "https://api.sandbox.bb.com.br/pix/v2"
-    API_URL_PROD = "https://api.bb.com.br/pix/v2"
+    API_URL_SANDBOX = "https://api.hm.bb.com.br/pix/v2"
+    API_URL_PROD = "https://api-pix.bb.com.br/pix/v2"
 
     def __init__(self, db: Session = None):
         """
@@ -373,9 +375,15 @@ class BancoBrasilAPIService:
             data = response.json()
             logger.info(f"✅ Cobrança PIX criada: {data.get('txid')}")
 
-            # Busca QR Code da location
             location = data.get("location", "")
-            qr_data = await self._obter_qrcode(location, token) if location else {}
+            
+            # O pixCopiaECola pode já vir na resposta do PUT ou precisamos consultar via GET
+            pix_copia_cola = data.get("pixCopiaECola", "")
+            
+            # Se não veio no PUT, consulta a cobrança via GET para obter o pixCopiaECola
+            if not pix_copia_cola:
+                logger.info(f"📋 Consultando cobrança para obter pixCopiaECola...")
+                pix_copia_cola = await self._obter_pix_copia_cola(txid_clean, token)
 
             result = {
                 "txid": data.get("txid", txid_clean),
@@ -385,8 +393,8 @@ class BancoBrasilAPIService:
                 "criacao": data.get("calendario", {}).get("criacao"),
                 "expiracao": expiracao_segundos,
                 "chave": self.pix_key,
-                "qrcode": qr_data.get("qrcode", ""),
-                "qrcode_base64": qr_data.get("qrcode_base64", ""),
+                "qrcode": pix_copia_cola,  # Payload EMV para copia-e-cola
+                "qrcode_base64": "",  # Gerar no frontend se necessário
             }
 
             return result
@@ -398,9 +406,56 @@ class BancoBrasilAPIService:
             logger.error(f"❌ Erro ao criar cobrança PIX: {str(e)}")
             raise
 
+    async def _obter_pix_copia_cola(self, txid: str, token: str = None) -> str:
+        """
+        Consulta a cobrança via GET para obter o campo pixCopiaECola.
+        
+        O Banco do Brasil retorna o payload EMV (copia-e-cola) no campo
+        'pixCopiaECola' quando consultamos uma cobrança via GET /cob/{txid}.
+        
+        Args:
+            txid: ID da transação
+            token: Token de acesso (opcional, obtém automaticamente)
+            
+        Returns:
+            String com payload EMV do PIX (copia-e-cola)
+        """
+        if not token:
+            token = await self.get_access_token()
+            
+        try:
+            async with self._get_http_client(timeout=15.0) as client:
+                response = await client.get(
+                    f"{self.api_url}/cob/{txid}",
+                    headers={
+                        "Authorization": f"Bearer {token}",
+                        "gw-dev-app-key": self.gw_dev_app_key
+                    }
+                )
+            
+            if response.status_code == 200:
+                data = response.json()
+                pix_copia_cola = data.get("pixCopiaECola", "")
+                if pix_copia_cola:
+                    logger.info(f"✅ pixCopiaECola obtido para {txid}")
+                return pix_copia_cola
+            else:
+                logger.warning(f"⚠️ Erro ao consultar cobrança: {response.status_code}")
+                return ""
+                
+        except Exception as e:
+            logger.warning(f"⚠️ Erro ao obter pixCopiaECola: {str(e)}")
+            return ""
+
     async def _obter_qrcode(self, location: str, token: str = None) -> Dict[str, str]:
         """
         Obtém QR Code a partir da location da cobrança.
+
+        A location retornada pelo BB é no formato:
+        qrcodepix.bb.com.br/pix/v2/{uuid}
+        
+        Para obter o QR Code EMV, usamos o endpoint da API:
+        {api_url}/loc/{id}/qrcode
 
         Args:
             location: URL retornada na criação da cobrança
@@ -418,9 +473,19 @@ class BancoBrasilAPIService:
             token = await self.get_access_token()
 
         try:
+            # Extrai o ID da location (UUID no final da URL)
+            # Formato: qrcodepix.bb.com.br/pix/v2/{uuid}
+            loc_id = location.split('/')[-1]
+            if not loc_id:
+                logger.warning(f"⚠️ Location inválida: {location}")
+                return {"qrcode": "", "qrcode_base64": ""}
+            
+            # Monta URL do endpoint da API
+            qrcode_url = f"{self.api_url}/loc/{loc_id}/qrcode"
+            
             async with self._get_http_client(timeout=15.0) as client:
                 response = await client.get(
-                    location,
+                    qrcode_url,
                     headers={
                         "Authorization": f"Bearer {token}",
                         "gw-dev-app-key": self.gw_dev_app_key
@@ -428,7 +493,7 @@ class BancoBrasilAPIService:
                 )
 
             if response.status_code != 200:
-                logger.warning(f"⚠️ Erro ao obter QR Code: {response.status_code}")
+                logger.warning(f"⚠️ Erro ao obter QR Code [{response.status_code}]: {response.text[:200]}")
                 return {"qrcode": "", "qrcode_base64": ""}
 
             data = response.json()
