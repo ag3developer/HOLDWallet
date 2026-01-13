@@ -90,6 +90,10 @@ interface TradeDetails {
   wallet_address?: string
   tx_hash?: string
   network?: string
+  // Campos PIX do Banco do Brasil (BB-AUTO)
+  pix_txid?: string
+  pix_qrcode?: string
+  pix_location?: string
 }
 
 interface BankDetails {
@@ -250,6 +254,24 @@ export function TradeDetailsPage({
       if (!method || !['ted', 'pix'].includes(method)) return
 
       try {
+        // PRIORIDADE 1: Se tiver pix_qrcode do Banco do Brasil (BB-AUTO), usar diretamente
+        if (trade.pix_qrcode) {
+          console.log('[TradeDetails] Usando PIX do Banco do Brasil (BB-AUTO)')
+          // O pix_qrcode do BB já é o payload EMV - gerar QR Code a partir dele
+          const QRCode = await import('qrcode')
+          const qrCodeImage = await QRCode.toDataURL(trade.pix_qrcode, {
+            errorCorrectionLevel: 'M',
+            margin: 2,
+            width: 256,
+            color: { dark: '#000000', light: '#ffffff' },
+          })
+          setPixQrCode(qrCodeImage)
+          setPixPayload(trade.pix_qrcode)
+          return
+        }
+
+        // PRIORIDADE 2: Gerar QR Code local (conta estática)
+        console.log('[TradeDetails] Gerando PIX local (conta estática)')
         // Usar o valor em BRL se disponível, senão converter de USD
         const amount = trade.brl_total_amount ?? trade.total_amount
         // Usar apenas o reference_code como txId (sem espaços ou caracteres especiais)
@@ -267,7 +289,7 @@ export function TradeDetailsPage({
     }
 
     generatePixQr()
-  }, [trade?.id, trade?.status, trade?.brl_total_amount, trade?.total_amount])
+  }, [trade?.id, trade?.status, trade?.brl_total_amount, trade?.total_amount, trade?.pix_qrcode])
 
   // Buscar apenas dados bancários (quando já temos dados da trade)
   const fetchBankDetailsOnly = async () => {

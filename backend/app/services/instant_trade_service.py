@@ -467,6 +467,10 @@ class InstantTradeService:
             "wallet_address": trade.wallet_address,
             "tx_hash": trade.tx_hash,
             "network": trade.network,
+            # Campos PIX - Banco do Brasil (BB-AUTO)
+            "pix_txid": trade.pix_txid,
+            "pix_qrcode": trade.pix_qrcode,
+            "pix_location": trade.pix_location,
         }
 
     def cancel_trade(self, trade_id: str) -> bool:

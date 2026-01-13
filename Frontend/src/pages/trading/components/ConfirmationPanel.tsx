@@ -4,9 +4,7 @@ import {
   Loader,
   ArrowLeft,
   Banknote,
-  CreditCard,
   Building2,
-  Wallet,
   Clock,
   AlertTriangle,
   RefreshCw,
@@ -72,11 +70,8 @@ interface ConfirmationPanelProps {
 
 // Métodos de pagamento para COMPRA (usuário paga)
 const BUY_PAYMENT_METHODS = [
-  { id: 'bb_auto', name: 'BB-AUTO', icon: Zap, highlight: true, badge: 'Instantâneo' },
-  { id: 'pix', name: 'PIX', icon: Banknote },
+  { id: 'bb_auto', name: 'PIX Instantâneo', icon: QrCode, highlight: true, badge: 'Automático' },
   { id: 'ted', name: 'TED', icon: Building2 },
-  { id: 'credit_card', name: 'Credit', icon: CreditCard },
-  { id: 'debit_card', name: 'Debit', icon: Wallet },
 ]
 
 export function ConfirmationPanel({
@@ -94,7 +89,7 @@ export function ConfirmationPanel({
 
   // Para BUY: método de pagamento (pix, ted, etc)
   // Para SELL: ID do método de recebimento cadastrado do usuário
-  const [selectedPayment, setSelectedPayment] = useState('pix')
+  const [selectedPayment, setSelectedPayment] = useState('bb_auto')
   const [selectedReceivingMethod, setSelectedReceivingMethod] = useState<string | null>(null)
 
   const [loading, setLoading] = useState(false)
@@ -192,41 +187,58 @@ export function ConfirmationPanel({
       // BB-AUTO: Usar endpoint especial que gera PIX via API do BB
       if (selectedPayment === 'bb_auto') {
         console.log('[BB-AUTO] Creating trade with PIX automático...')
+        console.log('[BB-AUTO] Quote data:', {
+          quote_id: quote.quote_id,
+          brl_amount: quote.brl_amount,
+          brl_total_amount: quote.brl_total_amount,
+          usd_to_brl_rate: quote.usd_to_brl_rate,
+          total_amount: quote.total_amount,
+        })
 
         const bbAutoData = {
           quote_id: quote.quote_id,
           payment_method: 'pix', // Obrigatório para o backend
-          brl_amount: quote.brl_amount,
-          brl_total_amount: quote.brl_total_amount,
-          usd_to_brl_rate: quote.usd_to_brl_rate,
+          brl_amount: quote.brl_amount || quote.total_amount,
+          brl_total_amount: quote.brl_total_amount || quote.total_amount,
+          usd_to_brl_rate: quote.usd_to_brl_rate || 1,
         }
 
         console.log('[BB-AUTO] Request data:', bbAutoData)
 
-        const response = await apiClient.post('/instant-trade/create-with-pix', bbAutoData)
+        try {
+          const response = await apiClient.post('/instant-trade/create-with-pix', bbAutoData)
 
-        console.log('[BB-AUTO] Response:', response.data)
+          console.log('[BB-AUTO] Response:', response.data)
 
-        if (response.data.success && response.data.pix) {
-          // Salvar dados do PIX
-          setPixData({
-            txid: response.data.pix.txid,
-            qrcode: response.data.pix.qrcode,
-            qrcode_image: response.data.pix.qrcode_image,
-            valor: response.data.pix.valor,
-            expiracao_segundos: response.data.pix.expiracao_segundos,
-          })
+          if (response.data.success && response.data.pix) {
+            // Salvar dados do PIX
+            setPixData({
+              txid: response.data.pix.txid,
+              qrcode: response.data.pix.qrcode,
+              qrcode_image: response.data.pix.qrcode_image,
+              valor: response.data.pix.valor,
+              expiracao_segundos: response.data.pix.expiracao_segundos,
+            })
 
-          const tradeId = response.data.trade_id
-          setTradeCreated(tradeId)
-          setPixStatus('pending')
+            const tradeId = response.data.trade_id
+            setTradeCreated(tradeId)
+            setPixStatus('pending')
 
-          toast.success('PIX gerado! Escaneie o QR Code ou copie o código para pagar.')
+            toast.success('PIX gerado! Escaneie o QR Code ou copie o código para pagar.')
 
-          // NÃO chamar onSuccess ainda - mostrar QR Code primeiro
-          // O usuário verá a tela de QR Code para pagar
-        } else {
-          throw new Error(response.data.message || 'Erro ao gerar PIX')
+            // NÃO chamar onSuccess ainda - mostrar QR Code primeiro
+            // O usuário verá a tela de QR Code para pagar
+          } else {
+            throw new Error(response.data.message || 'Erro ao gerar PIX')
+          }
+        } catch (pixError: any) {
+          console.error('[BB-AUTO] Error:', pixError)
+          const errorMessage =
+            pixError.response?.data?.detail || pixError.message || 'Erro ao gerar PIX'
+          console.error('[BB-AUTO] Error detail:', errorMessage)
+          toast.error(errorMessage)
+          setLoading(false)
+          return
         }
 
         setLoading(false)
