@@ -22,8 +22,8 @@ else:
         pool_pre_ping=True,      # Verify connection is alive before using
         pool_recycle=300,        # Recycle connections after 5 minutes
         pool_timeout=30,         # Wait max 30 seconds for connection
-        pool_size=3,             # Keep only 3 connections in pool
-        max_overflow=5,          # Allow up to 5 extra connections when busy
+        pool_size=5,             # Keep 5 connections in pool (increased for local dev)
+        max_overflow=10,         # Allow up to 10 extra connections when busy
         connect_args={
             "connect_timeout": 10,
             "options": "-c statement_timeout=30000"

@@ -318,10 +318,20 @@ class BancoBrasilAPIService:
         """
         token = await self.get_access_token()
 
-        # Limpa TXID (apenas alfanumérico, max 35 chars)
-        txid_clean = ''.join(c for c in txid if c.isalnum())[:35]
+        # Limpa TXID (apenas alfanumérico)
+        txid_clean = ''.join(c for c in txid if c.isalnum())
+        
+        # BB exige TXID entre 26-35 caracteres
+        # Se muito curto, adiciona timestamp para completar
+        if len(txid_clean) < 26:
+            import time
+            timestamp = str(int(time.time() * 1000))[-12:]  # Last 12 digits of timestamp
+            txid_clean = txid_clean + timestamp
+        
+        # Trunca se necessário (max 35 chars)
+        txid_clean = txid_clean[:35]
 
-        logger.info(f"📱 Criando cobrança PIX: txid={txid_clean}, valor=R${valor:.2f}")
+        logger.info(f"📱 Criando cobrança PIX: txid={txid_clean} ({len(txid_clean)} chars), valor=R${valor:.2f}")
 
         # Monta payload da cobrança
         payload = {
