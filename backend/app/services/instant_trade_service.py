@@ -308,7 +308,8 @@ class InstantTradeService:
         payment_method: str,
         brl_amount: Optional[Decimal] = None,
         brl_total_amount: Optional[Decimal] = None,
-        usd_to_brl_rate: Optional[Decimal] = None
+        usd_to_brl_rate: Optional[Decimal] = None,
+        receiving_method_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """Create trade from a cached quote"""
         # Get the quote from cache
@@ -343,6 +344,7 @@ class InstantTradeService:
             brl_total_amount=brl_total_amount,
             usd_to_brl_rate=usd_to_brl_rate,
             payment_method=payment_method,
+            receiving_method_id=receiving_method_id,
             status=TradeStatus.PENDING,
             reference_code=reference_code,
             expires_at=expires_at,
@@ -511,6 +513,40 @@ class InstantTradeService:
         if not trade:
             raise ValidationError("Trade not found")
 
+        # Buscar detalhes do método de recebimento se existir
+        receiving_method_details = None
+        if trade.receiving_method_id:
+            from sqlalchemy import text
+            import json
+            result = self.db.execute(
+                text("SELECT * FROM payment_methods WHERE id = :method_id"),
+                {"method_id": trade.receiving_method_id}
+            )
+            receiving_method = result.fetchone()
+            if receiving_method:
+                # Parse details JSON
+                details = {}
+                if receiving_method.details:
+                    try:
+                        details = json.loads(receiving_method.details) if isinstance(receiving_method.details, str) else receiving_method.details
+                        if isinstance(details, str):
+                            details = json.loads(details)
+                    except (json.JSONDecodeError, TypeError):
+                        details = {}
+                
+                receiving_method_details = {
+                    "id": str(receiving_method.id),
+                    "method_type": receiving_method.type,
+                    "holder_name": details.get("holderName") or details.get("holder_name"),
+                    "pix_key": details.get("keyValue") or details.get("pix_key"),
+                    "pix_key_type": details.get("keyType") or details.get("pix_key_type"),
+                    "bank_name": details.get("bankName") or details.get("bank_name"),
+                    "bank_code": details.get("bankCode") or details.get("bank_code"),
+                    "account_number": details.get("accountNumber") or details.get("account_number"),
+                    "account_type": details.get("accountType") or details.get("account_type"),
+                    "branch_number": details.get("agency") or details.get("branch_number"),
+                }
+
         return {
             "id": trade.id,
             "reference_code": trade.reference_code,
@@ -531,6 +567,8 @@ class InstantTradeService:
             "network_fee_percentage": float(trade.network_fee_percentage) if trade.network_fee_percentage else 0.25,  # type: ignore
             "network_fee_amount": float(trade.network_fee_amount) if trade.network_fee_amount else None,  # type: ignore
             "payment_method": trade.payment_method.value if hasattr(trade.payment_method, 'value') else trade.payment_method,
+            "receiving_method_id": trade.receiving_method_id,
+            "receiving_method": receiving_method_details,
             "created_at": trade.created_at.isoformat() if trade.created_at else None,
             "updated_at": trade.updated_at.isoformat() if trade.updated_at else None,
             "expires_at": trade.expires_at.isoformat() if trade.expires_at else None,

@@ -94,6 +94,20 @@ interface TradeDetails {
   pix_txid?: string
   pix_qrcode?: string
   pix_location?: string
+  // Método de recebimento para SELL
+  receiving_method_id?: string
+  receiving_method?: {
+    id: string
+    method_type: string
+    holder_name?: string
+    pix_key?: string
+    pix_key_type?: string
+    bank_name?: string
+    bank_code?: string
+    account_number?: string
+    account_type?: string
+    branch_number?: string
+  }
 }
 
 interface BankDetails {
@@ -180,7 +194,8 @@ const STATUS_CONFIG: Record<
 }
 
 const PAYMENT_METHOD_LABELS: Record<string, { label: string; icon: React.ReactNode }> = {
-  pix: { label: 'PIX', icon: <QrCode className='w-4 h-4' /> },
+  pix: { label: 'PIX Instantâneo', icon: <QrCode className='w-4 h-4' /> },
+  bb_auto: { label: 'PIX Instantâneo', icon: <QrCode className='w-4 h-4' /> },
   ted: { label: 'TED Bancário', icon: <Building2 className='w-4 h-4' /> },
   credit_card: { label: 'Cartão de Crédito', icon: <CreditCard className='w-4 h-4' /> },
   debit_card: { label: 'Cartão de Débito', icon: <CreditCard className='w-4 h-4' /> },
@@ -1165,9 +1180,69 @@ export function TradeDetailsPage({
                         Método de Recebimento:
                       </span>
                       <span className='font-medium text-gray-900 dark:text-white uppercase'>
-                        {trade.payment_method}
+                        {trade.receiving_method?.method_type === 'pix'
+                          ? 'PIX'
+                          : trade.receiving_method?.method_type === 'ted'
+                            ? 'TED'
+                            : trade.payment_method?.toLowerCase() === 'bb_auto'
+                              ? 'PIX Instantâneo'
+                              : trade.payment_method}
                       </span>
                     </div>
+
+                    {/* Detalhes da conta de recebimento */}
+                    {trade.receiving_method && (
+                      <div className='mt-2 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg space-y-1'>
+                        <p className='text-[10px] font-semibold text-gray-700 dark:text-gray-300 mb-1'>
+                          Dados para Pagamento:
+                        </p>
+                        {trade.receiving_method.holder_name && (
+                          <div className='flex justify-between text-[10px]'>
+                            <span className='text-gray-500 dark:text-gray-400'>Titular:</span>
+                            <span className='text-gray-900 dark:text-white font-medium'>
+                              {trade.receiving_method.holder_name}
+                            </span>
+                          </div>
+                        )}
+                        {trade.receiving_method.pix_key && (
+                          <div className='flex justify-between text-[10px]'>
+                            <span className='text-gray-500 dark:text-gray-400'>
+                              Chave PIX (
+                              {trade.receiving_method.pix_key_type?.toUpperCase() || 'CPF'}):
+                            </span>
+                            <span className='text-gray-900 dark:text-white font-medium'>
+                              {trade.receiving_method.pix_key}
+                            </span>
+                          </div>
+                        )}
+                        {trade.receiving_method.bank_name && (
+                          <div className='flex justify-between text-[10px]'>
+                            <span className='text-gray-500 dark:text-gray-400'>Banco:</span>
+                            <span className='text-gray-900 dark:text-white font-medium'>
+                              {trade.receiving_method.bank_name}
+                            </span>
+                          </div>
+                        )}
+                        {trade.receiving_method.branch_number && (
+                          <div className='flex justify-between text-[10px]'>
+                            <span className='text-gray-500 dark:text-gray-400'>Agência:</span>
+                            <span className='text-gray-900 dark:text-white font-medium'>
+                              {trade.receiving_method.branch_number}
+                            </span>
+                          </div>
+                        )}
+                        {trade.receiving_method.account_number && (
+                          <div className='flex justify-between text-[10px]'>
+                            <span className='text-gray-500 dark:text-gray-400'>Conta:</span>
+                            <span className='text-gray-900 dark:text-white font-medium'>
+                              {trade.receiving_method.account_number}
+                              {trade.receiving_method.account_type &&
+                                ` (${trade.receiving_method.account_type})`}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Informativo */}

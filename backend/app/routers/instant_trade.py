@@ -281,6 +281,7 @@ async def create_trade(
             brl_amount=brl_amount,
             brl_total_amount=brl_total_amount,
             usd_to_brl_rate=usd_to_brl_rate,
+            receiving_method_id=request.receiving_method_id,
         )
 
         # If payment method is TED, include bank account details
@@ -391,6 +392,7 @@ async def create_trade_with_pix(
             brl_amount=brl_amount,
             brl_total_amount=brl_total_amount,
             usd_to_brl_rate=usd_to_brl_rate,
+            receiving_method_id=request.receiving_method_id,
         )
         
         # 2. Generate PIX via Banco do Brasil API

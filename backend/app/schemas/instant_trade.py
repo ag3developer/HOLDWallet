@@ -72,6 +72,9 @@ class CreateTradeRequest(BaseModel):
     quote_id: str = Field(..., description="ID da cotação (obrigatório)")
     payment_method: Literal["pix", "ted", "credit_card", "debit_card", "paypal"] = Field(..., description="Método de pagamento")
     
+    # ID do método de recebimento cadastrado do usuário (para SELL)
+    receiving_method_id: Optional[str] = Field(None, description="ID do método de recebimento (PIX/conta bancária) para SELL")
+    
     # Valores em BRL para pagamentos TED/PIX (enviados pelo frontend)
     brl_amount: Optional[Decimal] = Field(None, description="Valor original digitado em BRL")
     brl_total_amount: Optional[Decimal] = Field(None, description="Total a pagar em BRL (com taxas)")

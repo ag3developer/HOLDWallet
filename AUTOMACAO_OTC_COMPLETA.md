@@ -48,8 +48,9 @@ Este documento descreve as automações implementadas no sistema de trading OTC 
 │  1. Usuário solicita cotação de venda                                       │
 │     └─► POST /api/v1/instant-trade/quote (operation: "sell")                │
 │                                                                             │
-│  2. Usuário confirma a venda                                                │
+│  2. Usuário confirma a venda (com método de recebimento)                    │
 │     └─► POST /api/v1/instant-trade/create                                   │
+│         ├─► receiving_method_id: ID da conta PIX/banco do usuário           │
 │         ├─► Trade criado (Status: PENDING)                                  │
 │         │                                                                   │
 │         └─► 🤖 AUTOMÁTICO: Sistema processa venda                           │
@@ -57,7 +58,11 @@ Este documento descreve as automações implementadas no sistema de trading OTC 
 │             ├─► Registra TX hash da transação                               │
 │             └─► Status: CRYPTO_RECEIVED                                     │
 │                                                                             │
-│  3. 👨‍💼 MANUAL: Admin envia PIX ao usuário                                   │
+│  3. 📱 FRONTEND: Exibe dados da conta do usuário                            │
+│     └─► Mostra: Titular, Chave PIX, Banco, Agência, Conta                   │
+│         (Dados do payment_methods do usuário)                               │
+│                                                                             │
+│  4. 👨‍💼 MANUAL: Admin envia PIX ao usuário                                   │
 │     └─► Admin acessa painel e clica "Finalizar Venda"                       │
 │         └─► Status: COMPLETED                                               │
 │                                                                             │

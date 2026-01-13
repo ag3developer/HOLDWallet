@@ -112,6 +112,9 @@ class InstantTrade(Base):
     payment_id = Column(String(255), nullable=True)          # ID externo do gateway
     payment_proof_url = Column(String(500), nullable=True)   # URL comprovante
     
+    # Método de Recebimento (para SELL) - ID do payment_method cadastrado do usuário
+    receiving_method_id = Column(String(36), nullable=True)  # FK para payment_methods do P2P
+    
     # Status
     status = Column(
         SQLEnum(TradeStatus),
