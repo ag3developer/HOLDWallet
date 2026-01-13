@@ -1189,49 +1189,198 @@ export const AdminTradeDetailPage: React.FC = () => {
                 >
                   {trade.status?.toLowerCase() === 'pending' && (
                     <span className='flex items-center gap-1'>
-                      <Play className='w-3 h-3' /> Clique em "Processar Venda" para retirar crypto
+                      <AlertTriangle className='w-3 h-3' /> ⚠️ Aguardando processamento
+                      automático... Se falhar, clique em "Processar"
                     </span>
                   )}
                   {trade.status?.toLowerCase() === 'payment_processing' && (
                     <span className='flex items-center gap-1'>
-                      <RefreshCw className='w-3 h-3 animate-spin' /> Transferindo crypto...
+                      <RefreshCw className='w-3 h-3 animate-spin' /> Transferindo crypto
+                      automaticamente...
                     </span>
                   )}
                   {trade.status?.toLowerCase() === 'crypto_received' && (
                     <span className='flex items-center gap-1'>
-                      <CheckCircle className='w-3 h-3' /> Crypto recebida! Envie PIX e finalize.
+                      <CheckCircle className='w-3 h-3' /> ✅ Crypto recebida! Clique em "PIX Auto"
+                      para enviar via BB ou "Finalizar" após envio manual.
                     </span>
                   )}
                   {trade.status?.toLowerCase() === 'completed' && (
                     <span className='flex items-center gap-1'>
-                      <CheckCircle className='w-3 h-3' /> Venda concluída com sucesso!
+                      <CheckCircle className='w-3 h-3' /> ✅ Venda concluída com sucesso!
                     </span>
                   )}
                 </div>
 
-                {/* TX Hash */}
+                {/* TX Hash - Transferência de Crypto do Usuário para Plataforma */}
                 {trade.tx_hash && (
-                  <div className='mt-1.5 flex items-center gap-1 text-[9px] text-gray-500'>
-                    <span>TX:</span>
-                    <span className='font-mono truncate max-w-[120px]'>{trade.tx_hash}</span>
-                    <button
-                      onClick={() => copyToClipboard(trade.tx_hash!, 'TX')}
-                      className='text-blue-600'
-                      title='Copiar TX Hash'
-                      aria-label='Copiar TX Hash'
-                    >
-                      <Copy className='w-2.5 h-2.5' />
-                    </button>
-                    <a
-                      href={getExplorerUrl(trade.tx_hash, trade.network, trade.symbol)}
-                      target='_blank'
-                      rel='noopener noreferrer'
-                      className='text-blue-600'
-                      title={`Ver no ${getExplorerName(trade.network, trade.symbol)}`}
-                      aria-label='Ver transação no explorador'
-                    >
-                      <ExternalLink className='w-2.5 h-2.5' />
-                    </a>
+                  <div className='mt-2 p-2 bg-purple-50 dark:bg-purple-900/20 rounded border border-purple-200 dark:border-purple-800'>
+                    <h4 className='text-[10px] font-semibold text-purple-700 dark:text-purple-300 mb-1.5 flex items-center gap-1'>
+                      <ArrowRightLeft className='w-3 h-3' />
+                      🔗 Transferência Blockchain (Usuário → Plataforma)
+                    </h4>
+                    <div className='space-y-1'>
+                      <div className='flex items-center gap-1 text-[9px]'>
+                        <span className='text-purple-600 dark:text-purple-400'>TX Hash:</span>
+                        <span className='font-mono text-gray-900 dark:text-white truncate max-w-[180px]'>
+                          {trade.tx_hash}
+                        </span>
+                        <button
+                          onClick={() => copyToClipboard(trade.tx_hash!, 'TX Hash')}
+                          className='text-purple-600 hover:text-purple-700'
+                          title='Copiar TX Hash'
+                        >
+                          <Copy className='w-2.5 h-2.5' />
+                        </button>
+                        <a
+                          href={getExplorerUrl(trade.tx_hash, trade.network, trade.symbol)}
+                          target='_blank'
+                          rel='noopener noreferrer'
+                          className='text-purple-600 hover:text-purple-700'
+                          title={`Ver no ${getExplorerName(trade.network, trade.symbol)}`}
+                        >
+                          <ExternalLink className='w-2.5 h-2.5' />
+                        </a>
+                      </div>
+                      {trade.network && (
+                        <div className='flex items-center gap-1 text-[9px]'>
+                          <span className='text-purple-600 dark:text-purple-400'>Rede:</span>
+                          <span className='text-gray-900 dark:text-white capitalize'>
+                            {trade.network}
+                          </span>
+                        </div>
+                      )}
+                      <div className='flex items-center gap-1 text-[9px]'>
+                        <span className='text-purple-600 dark:text-purple-400'>Valor:</span>
+                        <span className='text-gray-900 dark:text-white font-medium'>
+                          {trade.crypto_amount} {trade.symbol}
+                        </span>
+                      </div>
+                      <div className='mt-1 pt-1 border-t border-purple-200 dark:border-purple-700 text-[8px] text-purple-500'>
+                        ✅ Crypto transferida do usuário para carteira da plataforma
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Dados da Conta de Recebimento do Usuário */}
+                {trade.receiving_method && (
+                  <div className='mt-2 p-2 bg-blue-50 dark:bg-blue-900/30 rounded border border-blue-200 dark:border-blue-800'>
+                    <h4 className='text-[10px] font-semibold text-blue-700 dark:text-blue-300 mb-1.5 flex items-center gap-1'>
+                      <Banknote className='w-3 h-3' />
+                      📤 Dados para Envio do PIX:
+                    </h4>
+                    <div className='grid grid-cols-2 gap-x-3 gap-y-1 text-[9px]'>
+                      {trade.receiving_method.holder_name && (
+                        <>
+                          <span className='text-gray-500'>Titular:</span>
+                          <span className='text-gray-900 dark:text-white font-medium'>
+                            {trade.receiving_method.holder_name}
+                          </span>
+                        </>
+                      )}
+                      {trade.receiving_method.pix_key && (
+                        <>
+                          <span className='text-gray-500'>
+                            Chave PIX ({trade.receiving_method.pix_key_type?.toUpperCase() || 'CPF'}
+                            ):
+                          </span>
+                          <span className='text-gray-900 dark:text-white font-medium flex items-center gap-1'>
+                            {trade.receiving_method.pix_key}
+                            <button
+                              onClick={() =>
+                                copyToClipboard(trade.receiving_method!.pix_key!, 'Chave PIX')
+                              }
+                              className='text-blue-600'
+                              title='Copiar Chave PIX'
+                            >
+                              <Copy className='w-2.5 h-2.5' />
+                            </button>
+                          </span>
+                        </>
+                      )}
+                      {trade.receiving_method.bank_name && (
+                        <>
+                          <span className='text-gray-500'>Banco:</span>
+                          <span className='text-gray-900 dark:text-white'>
+                            {trade.receiving_method.bank_name}
+                          </span>
+                        </>
+                      )}
+                      {trade.receiving_method.branch_number && (
+                        <>
+                          <span className='text-gray-500'>Agência:</span>
+                          <span className='text-gray-900 dark:text-white'>
+                            {trade.receiving_method.branch_number}
+                          </span>
+                        </>
+                      )}
+                      {trade.receiving_method.account_number && (
+                        <>
+                          <span className='text-gray-500'>Conta:</span>
+                          <span className='text-gray-900 dark:text-white'>
+                            {trade.receiving_method.account_number}
+                            {trade.receiving_method.account_type &&
+                              ` (${trade.receiving_method.account_type})`}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                    <div className='mt-1.5 pt-1.5 border-t border-blue-200 dark:border-blue-700'>
+                      <span className='text-[10px] font-bold text-green-600 dark:text-green-400'>
+                        💰 Valor a enviar: R${' '}
+                        {trade.brl_total_amount?.toLocaleString('pt-BR', {
+                          minimumFractionDigits: 2,
+                        }) || '---'}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* PIX Enviado - Informações do pagamento feito ao usuário */}
+                {trade.pix_end_to_end_id && trade.operation_type === 'sell' && (
+                  <div className='mt-2 p-2 bg-green-50 dark:bg-green-900/20 rounded border border-green-200 dark:border-green-800'>
+                    <h4 className='text-[10px] font-semibold text-green-700 dark:text-green-300 mb-1.5 flex items-center gap-1'>
+                      <CheckCircle className='w-3 h-3' />
+                      💸 PIX Enviado ao Usuário
+                    </h4>
+                    <div className='space-y-1'>
+                      <div className='flex items-center gap-1 text-[9px]'>
+                        <span className='text-green-600 dark:text-green-400'>End-to-End ID:</span>
+                        <span className='font-mono text-gray-900 dark:text-white truncate max-w-[180px]'>
+                          {trade.pix_end_to_end_id}
+                        </span>
+                        <button
+                          onClick={() => copyToClipboard(trade.pix_end_to_end_id!, 'E2E ID')}
+                          className='text-green-600 hover:text-green-700'
+                          title='Copiar E2E ID'
+                        >
+                          <Copy className='w-2.5 h-2.5' />
+                        </button>
+                      </div>
+                      {trade.pix_valor_recebido && (
+                        <div className='flex items-center gap-1 text-[9px]'>
+                          <span className='text-green-600 dark:text-green-400'>Valor:</span>
+                          <span className='text-gray-900 dark:text-white font-medium'>
+                            R${' '}
+                            {trade.pix_valor_recebido.toLocaleString('pt-BR', {
+                              minimumFractionDigits: 2,
+                            })}
+                          </span>
+                        </div>
+                      )}
+                      {trade.pix_confirmado_em && (
+                        <div className='flex items-center gap-1 text-[9px]'>
+                          <span className='text-green-600 dark:text-green-400'>Enviado em:</span>
+                          <span className='text-gray-900 dark:text-white'>
+                            {formatDate(trade.pix_confirmado_em)}
+                          </span>
+                        </div>
+                      )}
+                      <div className='mt-1 pt-1 border-t border-green-200 dark:border-green-700 text-[8px] text-green-600'>
+                        ✅ PIX enviado automaticamente via API Banco do Brasil
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
