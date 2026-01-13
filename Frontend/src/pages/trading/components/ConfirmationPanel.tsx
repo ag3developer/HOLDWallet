@@ -96,7 +96,7 @@ export function ConfirmationPanel({
   const [tradeCreated, setTradeCreated] = useState<string | null>(null)
   const [pendingProof, setPendingProof] = useState(false)
   const [bankDetails, setBankDetails] = useState<any>(null)
-  const [timeLeft, setTimeLeft] = useState(quote.expires_in_seconds || 120)
+  const [timeLeft, setTimeLeft] = useState(quote.expires_in_seconds)
   const [quoteExpired, setQuoteExpired] = useState(false)
 
   // Estados para BB-AUTO (PIX automático via Banco do Brasil)

@@ -307,6 +307,9 @@ async def create_trade(
         return response_data
 
     except Exception as e:
+        # IMPORTANTE: Fazer rollback para limpar transação abortada
+        db.rollback()
+        
         logger.error(f"Error creating trade: {str(e)}")
         error_detail = str(e)
         
@@ -411,16 +414,21 @@ async def create_trade_with_pix(
         )
         
         # 3. Update trade with PIX data
-        trade_obj = db.query(InstantTrade).filter(
-            InstantTrade.id == trade["trade_id"]
-        ).first()
-        
-        if trade_obj:
-            trade_obj.pix_txid = txid
-            trade_obj.pix_location = pix_data.get("location")
-            trade_obj.pix_qrcode = pix_data.get("qrcode")
-            db.commit()
-            logger.info(f"Trade {trade['reference_code']} updated with PIX txid={txid}")
+        try:
+            trade_obj = db.query(InstantTrade).filter(
+                InstantTrade.id == trade["trade_id"]
+            ).first()
+            
+            if trade_obj:
+                trade_obj.pix_txid = txid
+                trade_obj.pix_location = pix_data.get("location")
+                trade_obj.pix_qrcode = pix_data.get("qrcode")
+                db.commit()
+                logger.info(f"Trade {trade['reference_code']} updated with PIX txid={txid}")
+        except Exception as update_error:
+            logger.warning(f"Failed to update trade with PIX data: {update_error}")
+            db.rollback()
+            # Continue anyway - trade was created, PIX was generated
         
         # 4. Build response
         return {
@@ -443,6 +451,9 @@ async def create_trade_with_pix(
         }
 
     except Exception as e:
+        # IMPORTANTE: Fazer rollback para limpar transação abortada
+        db.rollback()
+        
         logger.error(f"Error creating trade with PIX: {str(e)}")
         
         # Provide helpful error messages

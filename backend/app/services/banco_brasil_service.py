@@ -19,6 +19,7 @@ import base64
 import logging
 import json
 import os
+import io
 import tempfile
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -395,6 +396,11 @@ class BancoBrasilAPIService:
                 logger.info(f"📋 Consultando cobrança para obter pixCopiaECola...")
                 pix_copia_cola = await self._obter_pix_copia_cola(txid_clean, token)
 
+            # Gera QR Code localmente a partir do payload EMV
+            qrcode_base64 = ""
+            if pix_copia_cola:
+                qrcode_base64 = self._gerar_qrcode_base64(pix_copia_cola)
+
             result = {
                 "txid": data.get("txid", txid_clean),
                 "status": data.get("status", "ATIVA"),
@@ -404,7 +410,7 @@ class BancoBrasilAPIService:
                 "expiracao": expiracao_segundos,
                 "chave": self.pix_key,
                 "qrcode": pix_copia_cola,  # Payload EMV para copia-e-cola
-                "qrcode_base64": "",  # Gerar no frontend se necessário
+                "qrcode_base64": qrcode_base64,  # Imagem PNG em base64
             }
 
             return result
@@ -415,6 +421,46 @@ class BancoBrasilAPIService:
         except Exception as e:
             logger.error(f"❌ Erro ao criar cobrança PIX: {str(e)}")
             raise
+
+    def _gerar_qrcode_base64(self, payload_emv: str) -> str:
+        """
+        Gera imagem PNG do QR Code a partir do payload EMV (copia-e-cola).
+        
+        Args:
+            payload_emv: String do PIX copia-e-cola (payload EMV)
+            
+        Returns:
+            String base64 da imagem PNG com prefixo data:image/png;base64,
+        """
+        try:
+            import qrcode
+            
+            # Cria o QR Code
+            qr = qrcode.QRCode(
+                version=1,
+                error_correction=qrcode.constants.ERROR_CORRECT_L,
+                box_size=10,
+                border=4,
+            )
+            qr.add_data(payload_emv)
+            qr.make(fit=True)
+            
+            # Gera imagem PNG
+            img = qr.make_image(fill_color="black", back_color="white")
+            
+            # Converte para base64
+            buffer = io.BytesIO()
+            img.save(buffer, format='PNG')
+            buffer.seek(0)
+            
+            img_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+            
+            # Retorna com prefixo para uso direto em <img src="">
+            return f"data:image/png;base64,{img_base64}"
+            
+        except Exception as e:
+            logger.warning(f"⚠️ Erro ao gerar QR Code base64: {str(e)}")
+            return ""
 
     async def _obter_pix_copia_cola(self, txid: str, token: str = None) -> str:
         """

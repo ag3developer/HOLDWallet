@@ -70,7 +70,7 @@ export function TradingForm({
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const QUOTE_VALIDITY_MS = 60000 // 60 segundos
+  const QUOTE_VALIDITY_MS = 60000 // 60 segundos - mantém preço atualizado
   const DEBOUNCE_MS = 1200 // Aumentado para 1.2s para dar mais tempo ao usuário
 
   // Fetch wallet balances on component mount

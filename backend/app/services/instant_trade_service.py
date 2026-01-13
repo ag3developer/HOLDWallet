@@ -35,7 +35,7 @@ class InstantTradeService:
     # Default Constants (usados como fallback se o banco não tiver)
     DEFAULT_SPREAD_PERCENTAGE = Decimal("3.00")
     DEFAULT_NETWORK_FEE_PERCENTAGE = Decimal("0.25")
-    QUOTE_VALIDITY_SECONDS = 120  # Aumentado para 2 minutos para dar tempo ao usuário
+    QUOTE_VALIDITY_SECONDS = 60  # 60 segundos para manter preço atualizado
     TRADE_EXPIRATION_MINUTES = 15
     MIN_TRADE_AMOUNT_BRL = Decimal("50.00")
     MAX_TRADE_AMOUNT_BRL = Decimal("50000.00")
@@ -360,8 +360,10 @@ class InstantTradeService:
         try:
             self.db.query(QuoteCache).filter(QuoteCache.quote_id == quote_id).delete()
             self.db.commit()
-        except Exception:
-            pass
+        except Exception as e:
+            # IMPORTANTE: Fazer rollback para limpar transação abortada
+            logger.debug(f"Error deleting quote from cache: {e}")
+            self.db.rollback()
 
         result = {
             "trade_id": trade.id,
