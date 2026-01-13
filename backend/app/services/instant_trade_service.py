@@ -364,20 +364,6 @@ class InstantTradeService:
 
         logger.info(f"Trade created from quote: {reference_code}")
 
-        # VENDA (SELL): NÃO transferir automaticamente
-        # Fluxo correto:
-        # 1. Usuário cria pedido de venda -> Status: PENDING
-        # 2. Admin/OTC analisa o pedido
-        # 3. Operador clica "Processar Venda" no painel admin -> Retira crypto do usuário
-        # 4. Admin confirma envio do PIX -> Finaliza a venda
-        
-        if operation == "sell":
-            logger.info(f"Ordem de VENDA criada: {reference_code}")
-            logger.info("Status: PENDING - Aguardando analise e processamento pelo admin")
-            logger.info(f"Crypto: {trade.crypto_amount} {trade.symbol}")
-            logger.info(f"Valor BRL: R$ {trade.fiat_amount}")
-            logger.info("Admin deve usar Processar Venda para retirar crypto do usuario")
-
         # Remove quote from cache after using it (memory and database)
         if quote_id in _quote_cache:
             del _quote_cache[quote_id]
@@ -400,6 +386,66 @@ class InstantTradeService:
             "total_amount": float(quote["total_amount"]),
             "expires_at": expires_at.isoformat(),
         }
+
+        # VENDA (SELL): Processar automaticamente
+        # Fluxo automático:
+        # 1. Usuário cria pedido de venda -> Status: PENDING
+        # 2. Sistema automaticamente retira crypto do usuário -> Status: CRYPTO_RECEIVED
+        # 3. Admin só precisa enviar PIX e finalizar
+        
+        if operation == "sell":
+            logger.info(f"🔄 Ordem de VENDA criada: {reference_code} - Processando automaticamente...")
+            logger.info(f"Crypto: {trade.crypto_amount} {trade.symbol}")
+            logger.info(f"Valor BRL: R$ {trade.fiat_amount}")
+            
+            try:
+                from app.services.blockchain_withdraw_service import blockchain_withdraw_service
+                
+                # Determinar rede (polygon é mais barato para USDT/USDC)
+                network = "polygon"
+                
+                # Executar withdraw automático (transferência do usuário para plataforma)
+                withdraw_result = blockchain_withdraw_service.withdraw_crypto_from_user(
+                    db=self.db,
+                    trade=trade,
+                    network=network
+                )
+                
+                if withdraw_result["success"]:
+                    logger.info(f"✅ SELL automático OK! TX: {withdraw_result['tx_hash']}")
+                    
+                    # Atualizar trade no banco
+                    trade.status = TradeStatus.CRYPTO_RECEIVED
+                    trade.tx_hash = withdraw_result["tx_hash"]
+                    trade.network = network
+                    
+                    # Histórico
+                    history_auto = InstantTradeHistory(
+                        trade_id=trade.id,
+                        old_status=TradeStatus.PENDING,
+                        new_status=TradeStatus.CRYPTO_RECEIVED,
+                        reason="Crypto retirada automaticamente do usuário",
+                        history_details=f"TX: {withdraw_result['tx_hash']}, Network: {network}, Automático: Sim"
+                    )
+                    self.db.add(history_auto)
+                    self.db.commit()
+                    
+                    # Atualizar result para refletir novo status
+                    result["status"] = TradeStatus.CRYPTO_RECEIVED.value
+                    result["tx_hash"] = withdraw_result["tx_hash"]
+                    result["auto_processed"] = True
+                    
+                else:
+                    logger.warning(f"⚠️ SELL automático falhou: {withdraw_result.get('error')}")
+                    logger.info("Trade permanece PENDING - Admin deve processar manualmente")
+                    result["auto_processed"] = False
+                    result["auto_error"] = withdraw_result.get("error")
+                    
+            except Exception as auto_sell_error:
+                logger.error(f"❌ Erro no SELL automático: {str(auto_sell_error)}")
+                logger.info("Trade permanece PENDING - Admin deve processar manualmente")
+                result["auto_processed"] = False
+                result["auto_error"] = str(auto_sell_error)
         
         return result
 
