@@ -248,9 +248,10 @@ const InsightCard: React.FC<{
   const formatValue = (val: string) => {
     const formatted = val.replace(/_/g, ' ')
     if (formatted.length > 12) {
-      return formatted.split(' ').map(word => 
-        word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-      ).join(' ')
+      return formatted
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ')
     }
     return formatted
   }
@@ -258,7 +259,9 @@ const InsightCard: React.FC<{
   return (
     <div className='bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow overflow-hidden'>
       <div className='flex items-start justify-between mb-3'>
-        <div className={`p-2.5 rounded-xl bg-gradient-to-br ${colorClasses[color]} shadow-lg flex-shrink-0`}>
+        <div
+          className={`p-2.5 rounded-xl bg-gradient-to-br ${colorClasses[color]} shadow-lg flex-shrink-0`}
+        >
           <Icon className='w-5 h-5 text-white' />
         </div>
         {trend && (
@@ -283,7 +286,10 @@ const InsightCard: React.FC<{
       <p className='text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1'>
         {title}
       </p>
-      <p className='text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate' title={value}>
+      <p
+        className='text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate'
+        title={value}
+      >
         {formatValue(value)}
       </p>
       {subtitle && <p className='text-xs text-gray-500 dark:text-gray-400 mt-1'>{subtitle}</p>}
