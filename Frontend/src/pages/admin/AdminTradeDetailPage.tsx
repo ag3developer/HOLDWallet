@@ -353,7 +353,7 @@ export const AdminTradeDetailPage: React.FC = () => {
   }
 
   // Verifica se a crypto é suportada para depósito automático
-  // ✅ ATUALIZADO: Agora multi_chain_service suporta TODAS as 16 criptos!
+  // ATUALIZADO: Agora multi_chain_service suporta TODAS as 16 criptos!
   // Apenas ADA ainda requer processamento manual
   const isAutomaticDepositSupported = (symbol: string): boolean => {
     // Moedas que ainda requerem envio manual
@@ -758,7 +758,7 @@ export const AdminTradeDetailPage: React.FC = () => {
     // Verificar se tem dados de receiving_method
     if (!trade.receiving_method_id && !trade.receiving_method) {
       toast.error(
-        '❌ Este trade não possui método de recebimento cadastrado. O usuário não informou chave PIX ao vender.'
+        'Este trade não possui método de recebimento cadastrado. O usuário não informou chave PIX ao vender.'
       )
       return
     }
@@ -766,7 +766,7 @@ export const AdminTradeDetailPage: React.FC = () => {
     const rm = trade.receiving_method
 
     if (!rm?.pix_key) {
-      toast.error('❌ Chave PIX não encontrada nos dados do método de recebimento.')
+      toast.error('Chave PIX não encontrada nos dados do método de recebimento.')
       return
     }
 
@@ -774,7 +774,7 @@ export const AdminTradeDetailPage: React.FC = () => {
 
     setModalConfig({
       isOpen: true,
-      title: '⚡ Enviar PIX e Finalizar',
+      title: 'Enviar PIX e Finalizar',
       message:
         'O sistema enviará PIX automaticamente via API do Banco do Brasil e finalizará o trade.',
       details: [
@@ -783,7 +783,7 @@ export const AdminTradeDetailPage: React.FC = () => {
         `Titular: ${rm?.holder_name || 'N/A'}`,
         `Chave PIX: ${pixInfo}`,
         '',
-        '⚠️ O PIX será enviado automaticamente!',
+        'Atenção: O PIX será enviado automaticamente!',
       ],
       variant: 'warning',
       confirmText: 'Enviar PIX e Finalizar',
@@ -799,7 +799,7 @@ export const AdminTradeDetailPage: React.FC = () => {
 
           if (result.success) {
             if (result.pix_enviado) {
-              toast.success(`✅ PIX enviado com sucesso! E2E: ${result.pix_end_to_end_id}`)
+              toast.success(`PIX enviado com sucesso! E2E: ${result.pix_end_to_end_id}`)
             }
             toast.success(`Trade ${trade.reference_code} finalizado!`)
           } else {
@@ -815,7 +815,7 @@ export const AdminTradeDetailPage: React.FC = () => {
             err.response?.data?.error ||
             err.message ||
             'Erro ao enviar PIX via Banco do Brasil'
-          toast.error(`❌ ${errorMessage}`)
+          toast.error(errorMessage)
         } finally {
           setModalLoading(false)
         }
@@ -1210,8 +1210,8 @@ export const AdminTradeDetailPage: React.FC = () => {
                 >
                   {trade.status?.toLowerCase() === 'pending' && (
                     <span className='flex items-center gap-1'>
-                      <AlertTriangle className='w-3 h-3' /> ⚠️ Aguardando processamento
-                      automático... Se falhar, clique em "Processar"
+                      <AlertTriangle className='w-3 h-3' /> Aguardando processamento automático...
+                      Se falhar, clique em "Processar"
                     </span>
                   )}
                   {trade.status?.toLowerCase() === 'payment_processing' && (
@@ -1222,13 +1222,13 @@ export const AdminTradeDetailPage: React.FC = () => {
                   )}
                   {trade.status?.toLowerCase() === 'crypto_received' && (
                     <span className='flex items-center gap-1'>
-                      <CheckCircle className='w-3 h-3' /> ✅ Crypto recebida! Clique em "PIX Auto"
-                      para enviar via BB ou "Finalizar" após envio manual.
+                      <CheckCircle className='w-3 h-3' /> Crypto recebida! Clique em "PIX Auto" para
+                      enviar via BB ou "Finalizar" após envio manual.
                     </span>
                   )}
                   {trade.status?.toLowerCase() === 'completed' && (
                     <span className='flex items-center gap-1'>
-                      <CheckCircle className='w-3 h-3' /> ✅ Venda concluída com sucesso!
+                      <CheckCircle className='w-3 h-3' /> Venda concluída com sucesso!
                     </span>
                   )}
                 </div>
@@ -1238,7 +1238,7 @@ export const AdminTradeDetailPage: React.FC = () => {
                   <div className='mt-2 p-2 bg-purple-50 dark:bg-purple-900/20 rounded border border-purple-200 dark:border-purple-800'>
                     <h4 className='text-[10px] font-semibold text-purple-700 dark:text-purple-300 mb-1.5 flex items-center gap-1'>
                       <ArrowRightLeft className='w-3 h-3' />
-                      🔗 Transferência Blockchain (Usuário → Plataforma)
+                      Transferência Blockchain (Usuário → Plataforma)
                     </h4>
                     <div className='space-y-1'>
                       <div className='flex items-center gap-1 text-[9px]'>
@@ -1278,7 +1278,7 @@ export const AdminTradeDetailPage: React.FC = () => {
                         </span>
                       </div>
                       <div className='mt-1 pt-1 border-t border-purple-200 dark:border-purple-700 text-[8px] text-purple-500'>
-                        ✅ Crypto transferida do usuário para carteira da plataforma
+                        Crypto transferida do usuário para carteira da plataforma
                       </div>
                     </div>
                   </div>
@@ -1289,7 +1289,7 @@ export const AdminTradeDetailPage: React.FC = () => {
                   <div className='mt-2 p-2 bg-blue-50 dark:bg-blue-900/30 rounded border border-blue-200 dark:border-blue-800'>
                     <h4 className='text-[10px] font-semibold text-blue-700 dark:text-blue-300 mb-1.5 flex items-center gap-1'>
                       <Banknote className='w-3 h-3' />
-                      📤 Dados para Envio do PIX:
+                      Dados para Envio do PIX:
                     </h4>
                     <div className='grid grid-cols-2 gap-x-3 gap-y-1 text-[9px]'>
                       {trade.receiving_method.holder_name && (
@@ -1349,7 +1349,7 @@ export const AdminTradeDetailPage: React.FC = () => {
                     </div>
                     <div className='mt-1.5 pt-1.5 border-t border-blue-200 dark:border-blue-700'>
                       <span className='text-[10px] font-bold text-green-600 dark:text-green-400'>
-                        💰 Valor a enviar: R${' '}
+                        Valor a enviar: R${' '}
                         {trade.brl_total_amount?.toLocaleString('pt-BR', {
                           minimumFractionDigits: 2,
                         }) || '---'}
@@ -1363,7 +1363,7 @@ export const AdminTradeDetailPage: React.FC = () => {
                   <div className='mt-2 p-2 bg-green-50 dark:bg-green-900/20 rounded border border-green-200 dark:border-green-800'>
                     <h4 className='text-[10px] font-semibold text-green-700 dark:text-green-300 mb-1.5 flex items-center gap-1'>
                       <CheckCircle className='w-3 h-3' />
-                      💸 PIX Enviado ao Usuário
+                      PIX Enviado ao Usuário
                     </h4>
                     <div className='space-y-1'>
                       <div className='flex items-center gap-1 text-[9px]'>
@@ -1399,7 +1399,7 @@ export const AdminTradeDetailPage: React.FC = () => {
                         </div>
                       )}
                       <div className='mt-1 pt-1 border-t border-green-200 dark:border-green-700 text-[8px] text-green-600'>
-                        ✅ PIX enviado automaticamente via API Banco do Brasil
+                        PIX enviado automaticamente via API Banco do Brasil
                       </div>
                     </div>
                   </div>
@@ -1598,7 +1598,7 @@ export const AdminTradeDetailPage: React.FC = () => {
                       onClick={() => {
                         if (!trade.receiving_method?.pix_key) {
                           toast.error(
-                            '❌ Usuário não cadastrou chave PIX! Peça para ele cadastrar no perfil ou finalize manualmente.'
+                            'Usuário não cadastrou chave PIX! Peça para ele cadastrar no perfil ou finalize manualmente.'
                           )
                           return
                         }
@@ -1613,7 +1613,7 @@ export const AdminTradeDetailPage: React.FC = () => {
                       title={
                         trade.receiving_method?.pix_key
                           ? 'Envia PIX automaticamente via API BB e finaliza'
-                          : '⚠️ Usuário não cadastrou chave PIX'
+                          : 'Usuário não cadastrou chave PIX'
                       }
                     >
                       {completeSellMutation.isPending ? (
