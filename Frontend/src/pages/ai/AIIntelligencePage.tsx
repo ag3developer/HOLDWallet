@@ -977,11 +977,12 @@ export default function AIIntelligencePage() {
                       </p>
                       <p className='text-xs text-gray-500 dark:text-gray-400'>High Priority</p>
                     </div>
-                    <div className='bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-200 dark:border-gray-700 text-center'>
+                    <div className='bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-200 dark:border-gray-700 text-center overflow-hidden'>
                       <p
-                        className={`text-xl font-bold ${swapData.summary.health_status === 'HEALTHY' ? 'text-green-500' : swapData.summary.health_status === 'MODERATE' ? 'text-yellow-500' : 'text-red-500'}`}
+                        className={`text-sm sm:text-base md:text-lg font-bold truncate ${swapData.summary.health_status === 'HEALTHY' ? 'text-green-500' : swapData.summary.health_status === 'MODERATE' ? 'text-yellow-500' : 'text-red-500'}`}
+                        title={swapData.summary.health_status}
                       >
-                        {swapData.summary.health_status}
+                        {(swapData.summary.health_status || 'N/A').replace(/_/g, ' ')}
                       </p>
                       <p className='text-xs text-gray-500 dark:text-gray-400'>Status</p>
                     </div>
