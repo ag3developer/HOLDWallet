@@ -92,6 +92,12 @@ export interface WolkPayInvoice {
   created_at: string
   expires_at?: string
   updated_at?: string
+  // Dados da transação blockchain
+  crypto_tx_hash?: string
+  crypto_tx_network?: string
+  crypto_wallet_address?: string
+  crypto_sent_at?: string
+  crypto_explorer_url?: string
 }
 
 export interface WolkPayPayer {
@@ -126,6 +132,9 @@ export interface WolkPayPayer {
   terms_accepted_at?: string
   terms_version?: string
   created_at?: string
+  // Campos simplificados (retornados em algumas APIs)
+  name?: string
+  document?: string
 }
 
 export interface WolkPayPayment {
@@ -178,8 +187,17 @@ export interface WolkPayPendingResponse {
   pending_count: number
   paid_count: number
   approved_count: number
+  awaiting_verification_count?: number
   page: number
   per_page: number
+}
+
+export interface WolkPayAwaitingVerificationResponse {
+  invoices: WolkPayInvoiceListItem[]
+  total: number
+  page: number
+  per_page: number
+  message: string
 }
 
 export interface WolkPayAllResponse {
@@ -229,6 +247,22 @@ export const getPendingInvoices = async (
   perPage: number = 20
 ): Promise<WolkPayPendingResponse> => {
   const response = await adminApi.get('/pending', {
+    params: { page, per_page: perPage },
+  })
+  return response.data
+}
+
+/**
+ * Lista faturas AGUARDANDO VERIFICAÇÃO DO ADMIN
+ *
+ * Pagador já confirmou que pagou, mas admin ainda não verificou se o PIX foi recebido.
+ * 🚨 URGENTE: Estas faturas precisam de ação imediata!
+ */
+export const getAwaitingVerificationInvoices = async (
+  page: number = 1,
+  perPage: number = 20
+): Promise<WolkPayAwaitingVerificationResponse> => {
+  const response = await adminApi.get('/awaiting-verification', {
     params: { page, per_page: perPage },
   })
   return response.data
@@ -340,13 +374,80 @@ export const blockPayer = async (
   return response.data
 }
 
+// ============================================
+// Timeline / Histórico
+// ============================================
+
+export interface TimelineEvent {
+  timestamp: string | null
+  action: string
+  icon: string
+  label: string
+  color: string
+  description: string | null
+  actor_type: string
+  actor_id: string | null
+  crypto_tx_hash?: string
+  crypto_network?: string
+}
+
+export interface TimelineResponse {
+  invoice_id: string
+  invoice_number: string
+  current_status: string
+  timeline: TimelineEvent[]
+  total_events: number
+}
+
+/**
+ * Obter timeline/histórico de uma fatura
+ */
+export const getInvoiceTimeline = async (invoiceId: string): Promise<TimelineResponse> => {
+  const response = await adminApi.get(`/${invoiceId}/timeline`)
+  return response.data
+}
+
+/**
+ * Marcar fatura como concluída (SEM enviar crypto novamente)
+ *
+ * Use quando a crypto já foi enviada e você só precisa atualizar o status.
+ */
+export const markInvoiceCompleted = async (
+  invoiceId: string,
+  cryptoTxHash: string,
+  cryptoNetwork: string,
+  notes?: string
+): Promise<{
+  success: boolean
+  message: string
+  invoice_id: string
+  invoice_number: string
+  status: string
+  crypto_tx_hash: string
+  crypto_network: string
+  previous_status: string
+}> => {
+  const params = new URLSearchParams({
+    crypto_tx_hash: cryptoTxHash,
+    crypto_network: cryptoNetwork,
+  })
+  if (notes) {
+    params.append('notes', notes)
+  }
+  const response = await adminApi.post(`/${invoiceId}/mark-completed?${params.toString()}`)
+  return response.data
+}
+
 export default {
   getPendingInvoices,
+  getAwaitingVerificationInvoices,
   getAllInvoices,
   getInvoiceDetails,
+  getInvoiceTimeline,
   confirmPayment,
   approveInvoice,
   rejectInvoice,
+  markInvoiceCompleted,
   getReportSummary,
   checkPayerLimit,
   blockPayer,

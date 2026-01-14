@@ -993,8 +993,13 @@ class WolkPayService:
         )
         self.db.add(approval)
         
-        # 7. Atualizar status
+        # 7. Atualizar status E salvar dados da transação na invoice
         invoice.status = InvoiceStatus.COMPLETED
+        invoice.crypto_tx_hash = crypto_tx_hash
+        invoice.crypto_tx_network = selected_network
+        invoice.crypto_wallet_address = wallet_address
+        invoice.crypto_sent_at = datetime.now(timezone.utc)
+        invoice.crypto_explorer_url = explorer_url
         
         # 8. Registrar taxas na contabilidade (para aparecer em /admin/fees)
         await self._register_accounting_entries(invoice, admin_id)

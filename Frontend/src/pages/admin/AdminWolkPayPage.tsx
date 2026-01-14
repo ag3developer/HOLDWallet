@@ -27,10 +27,12 @@ import {
 } from 'lucide-react'
 import {
   getPendingInvoices,
+  getAwaitingVerificationInvoices,
   getAllInvoices,
   type WolkPayInvoiceListItem,
   type WolkPayPendingResponse,
   type WolkPayAllResponse,
+  type WolkPayAwaitingVerificationResponse,
 } from '@/services/admin/adminWolkpay'
 import { toast } from 'react-hot-toast'
 
@@ -152,7 +154,9 @@ export const AdminWolkPayPage: React.FC = () => {
   // Data states
   const [pendingData, setPendingData] = useState<WolkPayPendingResponse | null>(null)
   const [allData, setAllData] = useState<WolkPayAllResponse | null>(null)
-  const [viewMode, setViewMode] = useState<'pending' | 'all'>('all')
+  const [awaitingVerificationData, setAwaitingVerificationData] =
+    useState<WolkPayAwaitingVerificationResponse | null>(null)
+  const [viewMode, setViewMode] = useState<'pending' | 'all' | 'awaiting-verification'>('all')
 
   const perPage = 20
 
@@ -178,10 +182,17 @@ export const AdminWolkPayPage: React.FC = () => {
       const pendingStats = await getPendingInvoices(1, 1)
       setPendingData(pendingStats)
 
+      // Buscar faturas aguardando verificação (urgente!)
+      const awaitingVerification = await getAwaitingVerificationInvoices(1, 100)
+      setAwaitingVerificationData(awaitingVerification)
+
       if (viewMode === 'pending') {
         // Ja buscou acima, agora busca com paginacao correta
         const data = await getPendingInvoices(page, perPage)
         setPendingData(data)
+      } else if (viewMode === 'awaiting-verification') {
+        const data = await getAwaitingVerificationInvoices(page, perPage)
+        setAwaitingVerificationData(data)
       } else {
         const params: { status?: string; page: number; per_page: number } = {
           page,
@@ -214,15 +225,29 @@ export const AdminWolkPayPage: React.FC = () => {
         pending: pendingData.pending_count || 0,
         paid: pendingData.paid_count || 0,
         approved: pendingData.approved_count || 0,
+        awaitingVerification:
+          pendingData.awaiting_verification_count || awaitingVerificationData?.total || 0,
       }
     }
-    return { total: 0, pending: 0, paid: 0, approved: 0 }
-  }, [pendingData])
+    return { total: 0, pending: 0, paid: 0, approved: 0, awaitingVerification: 0 }
+  }, [pendingData, awaitingVerificationData])
 
   // Filter invoices by search (client-side for now)
   const filteredInvoices = useMemo(() => {
     if (viewMode === 'pending') {
       const invoices = pendingData?.invoices || []
+      if (!debouncedSearch) return invoices
+      const searchLower = debouncedSearch.toLowerCase()
+      return invoices.filter(item => {
+        const payerName = item.payer?.full_name || item.payer?.company_name || ''
+        const invoiceNumber = item.invoice?.invoice_number || ''
+        return (
+          payerName.toLowerCase().includes(searchLower) ||
+          invoiceNumber.toLowerCase().includes(searchLower)
+        )
+      })
+    } else if (viewMode === 'awaiting-verification') {
+      const invoices = awaitingVerificationData?.invoices || []
       if (!debouncedSearch) return invoices
       const searchLower = debouncedSearch.toLowerCase()
       return invoices.filter(item => {
@@ -245,9 +270,14 @@ export const AdminWolkPayPage: React.FC = () => {
         )
       })
     }
-  }, [viewMode, pendingData, allData, debouncedSearch])
+  }, [viewMode, pendingData, allData, awaitingVerificationData, debouncedSearch])
 
-  const total = viewMode === 'pending' ? pendingData?.total || 0 : allData?.total || 0
+  const total =
+    viewMode === 'pending'
+      ? pendingData?.total || 0
+      : viewMode === 'awaiting-verification'
+        ? awaitingVerificationData?.total || 0
+        : allData?.total || 0
   const totalPages = Math.ceil(total / perPage)
 
   // Stats cards
@@ -328,8 +358,56 @@ export const AdminWolkPayPage: React.FC = () => {
         ))}
       </div>
 
+      {/* 🚨 ALERTA URGENTE: Faturas aguardando verificação */}
+      {stats.awaitingVerification > 0 && (
+        <div
+          className='bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-500/50 rounded-xl p-4 cursor-pointer hover:from-red-500/30 hover:to-orange-500/30 transition-all'
+          onClick={() => {
+            setViewMode('awaiting-verification')
+            setPage(1)
+          }}
+        >
+          <div className='flex items-center gap-3'>
+            <div className='w-10 h-10 bg-red-500 rounded-full flex items-center justify-center animate-pulse'>
+              <span className='text-white text-lg'>🚨</span>
+            </div>
+            <div className='flex-1'>
+              <h3 className='text-red-600 dark:text-red-400 font-bold text-lg'>
+                {stats.awaitingVerification} fatura(s) aguardando verificação!
+              </h3>
+              <p className='text-red-500/80 dark:text-red-400/80 text-sm'>
+                Pagador já confirmou que pagou. Verifique no banco se o PIX foi recebido e confirme.
+              </p>
+            </div>
+            <div className='flex items-center gap-2 text-red-600 dark:text-red-400'>
+              <span className='text-sm font-medium'>Ver agora</span>
+              <ChevronRight className='w-5 h-5' />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* View Mode Toggle */}
-      <div className='flex gap-2'>
+      <div className='flex flex-wrap gap-2'>
+        <button
+          onClick={() => {
+            setViewMode('awaiting-verification')
+            setPage(1)
+          }}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            viewMode === 'awaiting-verification'
+              ? 'bg-red-600 text-white'
+              : stats.awaitingVerification > 0
+                ? 'bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-500/30 border border-red-300 dark:border-red-500/50'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+          }`}
+        >
+          <span className='flex items-center gap-2'>
+            {stats.awaitingVerification > 0 && <span>🚨</span>}
+            <Clock className='w-4 h-4' />
+            Verificar PIX ({stats.awaitingVerification})
+          </span>
+        </button>
         <button
           onClick={() => {
             setViewMode('pending')
@@ -466,26 +544,37 @@ export const AdminWolkPayPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className='divide-y divide-gray-200 dark:divide-gray-700'>
-                  {viewMode === 'pending'
+                  {viewMode === 'pending' || viewMode === 'awaiting-verification'
                     ? (filteredInvoices as WolkPayInvoiceListItem[]).map(item => {
                         const invoice = item.invoice
                         const payer = item.payer
+                        const payment = item.payment
                         const statusConfig = getStatusConfig(invoice.status)
                         const cryptoLogo = getCryptoLogo(invoice.crypto_currency)
+                        const isAwaitingVerification = viewMode === 'awaiting-verification'
 
                         return (
                           <tr
                             key={invoice.id}
-                            className='hover:bg-gray-50 dark:hover:bg-gray-700/30 cursor-pointer transition-colors'
+                            className={`hover:bg-gray-50 dark:hover:bg-gray-700/30 cursor-pointer transition-colors ${
+                              isAwaitingVerification ? 'bg-red-50/50 dark:bg-red-500/5' : ''
+                            }`}
                             onClick={() => navigate(`/admin/wolkpay/${invoice.id}`)}
                           >
                             <td className='py-3 px-4'>
                               <div className='flex items-center gap-2'>
+                                {isAwaitingVerification && <span>🚨</span>}
                                 <FileText className='w-4 h-4 text-gray-400' />
                                 <span className='font-mono text-sm text-gray-900 dark:text-white'>
                                   {invoice.invoice_number}
                                 </span>
                               </div>
+                              {isAwaitingVerification && payment?.payer_confirmed_at && (
+                                <p className='text-xs text-red-500 mt-1'>
+                                  Pagador confirmou em:{' '}
+                                  {formatRelativeDate(payment.payer_confirmed_at)}
+                                </p>
+                              )}
                             </td>
                             <td className='py-3 px-4'>
                               <div className='flex items-center gap-2'>
@@ -495,7 +584,7 @@ export const AdminWolkPayPage: React.FC = () => {
                                   <User className='w-4 h-4 text-gray-400' />
                                 )}
                                 <span className='text-sm text-gray-600 dark:text-gray-300'>
-                                  {payer?.full_name || payer?.company_name || 'N/A'}
+                                  {payer?.name || payer?.full_name || payer?.company_name || 'N/A'}
                                 </span>
                               </div>
                             </td>

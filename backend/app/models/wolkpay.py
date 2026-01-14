@@ -130,6 +130,17 @@ class WolkPayInvoice(Base):
     status = Column(SQLEnum(InvoiceStatus), default=InvoiceStatus.PENDING, nullable=False, index=True)
     expires_at = Column(DateTime(timezone=True), nullable=False)
     
+    # ========================================
+    # DADOS DA TRANSAÇÃO BLOCKCHAIN
+    # Salvos aqui para rastreabilidade completa
+    # e para informe de operações à Receita Federal
+    # ========================================
+    crypto_tx_hash = Column(String(128), nullable=True, index=True)  # Hash da transação blockchain
+    crypto_tx_network = Column(String(50), nullable=True)  # Rede onde a TX foi feita (polygon, ethereum, etc)
+    crypto_wallet_address = Column(String(100), nullable=True)  # Endereço da carteira do beneficiário
+    crypto_sent_at = Column(DateTime(timezone=True), nullable=True)  # Quando a crypto foi enviada
+    crypto_explorer_url = Column(String(500), nullable=True)  # URL do explorer para verificação
+    
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

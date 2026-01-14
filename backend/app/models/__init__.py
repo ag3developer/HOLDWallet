@@ -18,7 +18,6 @@ from .instant_trade import InstantTrade, InstantTradeHistory, TradeStatus, Trade
 from .accounting import AccountingEntry, AccountingReport, AccountingEntryType, AccountingEntryStatus
 from .platform_settings import PlatformSettings
 from .security import LoginAttempt, BlockedIP, SecurityAlert, UserSession, AuditLog
-from .portfolio import UserPortfolioAsset
 from .wolkpay import (
     WolkPayInvoice, WolkPayPayer, WolkPayPayment, WolkPayApproval, 
     WolkPayTermsVersion, WolkPayPayerLimit, WolkPayAuditLog,
@@ -139,7 +138,4 @@ __all__ = [
     
     # User Profile
     "user_profile",
-    
-    # Portfolio
-    "UserPortfolioAsset",
 ]

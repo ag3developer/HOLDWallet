@@ -30,13 +30,21 @@ import {
   AlertCircle,
   Banknote,
   ExternalLink,
+  Send,
+  QrCode,
+  Link,
+  Globe,
+  type LucideIcon,
 } from 'lucide-react'
 import {
   getInvoiceDetails,
+  getInvoiceTimeline,
   confirmPayment,
   approveInvoice,
   rejectInvoice,
+  markInvoiceCompleted,
   type WolkPayInvoiceDetail,
+  type TimelineResponse,
 } from '@/services/admin/adminWolkpay'
 import { toast } from 'react-hot-toast'
 
@@ -192,10 +200,38 @@ const CopyButton: React.FC<{ text: string }> = ({ text }) => {
   )
 }
 
+// Mapeamento de nomes de ícones para componentes Lucide
+const TIMELINE_ICONS: Record<string, LucideIcon> = {
+  FileText,
+  User,
+  QrCode,
+  CheckCircle,
+  Banknote,
+  Send,
+  Check,
+  XCircle,
+  Ban,
+  Clock,
+  AlertCircle,
+}
+
+// Renderiza ícone da timeline
+const TimelineIcon: React.FC<{ iconName: string; className?: string }> = ({
+  iconName,
+  className = 'w-3 h-3',
+}) => {
+  const IconComponent = TIMELINE_ICONS[iconName]
+  if (IconComponent) {
+    return <IconComponent className={className} />
+  }
+  return null
+}
+
 export const AdminWolkPayDetailPage: React.FC = () => {
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
   const [data, setData] = useState<WolkPayInvoiceDetail | null>(null)
+  const [timeline, setTimeline] = useState<TimelineResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
@@ -203,10 +239,14 @@ export const AdminWolkPayDetailPage: React.FC = () => {
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [showApproveModal, setShowApproveModal] = useState(false)
   const [showRejectModal, setShowRejectModal] = useState(false)
+  const [showMarkCompletedModal, setShowMarkCompletedModal] = useState(false)
   const [bankTransactionId, setBankTransactionId] = useState('')
   const [approveNotes, setApproveNotes] = useState('')
   const [rejectReason, setRejectReason] = useState('')
   const [rejectNotes, setRejectNotes] = useState('')
+  const [markCompletedTxHash, setMarkCompletedTxHash] = useState('')
+  const [markCompletedNetwork, setMarkCompletedNetwork] = useState('polygon')
+  const [markCompletedNotes, setMarkCompletedNotes] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
   const [selectedNetwork, setSelectedNetwork] = useState('polygon')
 
@@ -279,8 +319,12 @@ export const AdminWolkPayDetailPage: React.FC = () => {
       } else {
         setLoading(true)
       }
-      const result = await getInvoiceDetails(id)
+      const [result, timelineResult] = await Promise.all([
+        getInvoiceDetails(id),
+        getInvoiceTimeline(id).catch(() => null), // Timeline é opcional
+      ])
       setData(result)
+      setTimeline(timelineResult)
     } catch (err: any) {
       console.error('Erro ao carregar detalhes:', err)
       toast.error(err.response?.data?.detail || 'Erro ao carregar detalhes')
@@ -362,6 +406,33 @@ export const AdminWolkPayDetailPage: React.FC = () => {
     }
   }
 
+  const handleMarkCompleted = async () => {
+    if (!id || !markCompletedTxHash.trim() || !markCompletedNetwork.trim()) {
+      toast.error('Informe o hash da transacao e a rede')
+      return
+    }
+
+    try {
+      setActionLoading(true)
+      const result = await markInvoiceCompleted(
+        id,
+        markCompletedTxHash.trim(),
+        markCompletedNetwork.trim(),
+        markCompletedNotes || undefined
+      )
+      toast.success(result.message)
+      setShowMarkCompletedModal(false)
+      setMarkCompletedTxHash('')
+      setMarkCompletedNetwork('polygon')
+      setMarkCompletedNotes('')
+      fetchData(true)
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Erro ao marcar como concluido')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className='flex items-center justify-center min-h-[60vh]'>
@@ -432,13 +503,30 @@ export const AdminWolkPayDetailPage: React.FC = () => {
       {(canConfirmPayment || canApproveReject) && (
         <div className='flex flex-wrap gap-3 p-4 bg-gray-800/50 rounded-xl border border-gray-700/50'>
           {canConfirmPayment && (
-            <button
-              onClick={() => setShowConfirmModal(true)}
-              className='flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-medium transition-colors'
-            >
-              <Banknote className='w-4 h-4' />
-              Confirmar Pagamento PIX
-            </button>
+            <>
+              {/* Alerta quando pagador já confirmou que pagou */}
+              {payment?.payer_confirmed_at && (
+                <div className='w-full mb-3 p-3 bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-500/50 rounded-lg'>
+                  <div className='flex items-center gap-2'>
+                    <AlertCircle className='w-6 h-6 text-red-400' />
+                    <div>
+                      <p className='text-red-400 font-bold'>Pagador confirmou que pagou!</p>
+                      <p className='text-red-400/80 text-sm'>
+                        Data: {formatDate(payment.payer_confirmed_at)} - Verifique no banco se o PIX
+                        foi recebido.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <button
+                onClick={() => setShowConfirmModal(true)}
+                className='flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-medium transition-colors'
+              >
+                <Banknote className='w-4 h-4' />
+                Confirmar Pagamento PIX
+              </button>
+            </>
           )}
           {canApproveReject && (
             <>
@@ -450,6 +538,25 @@ export const AdminWolkPayDetailPage: React.FC = () => {
                 Aprovar e Enviar Crypto
               </button>
               <button
+                onClick={() => {
+                  // Pré-preencher com dados da aprovação se existirem
+                  if (approval?.crypto_tx_hash) {
+                    setMarkCompletedTxHash(approval.crypto_tx_hash)
+                  }
+                  if (approval?.crypto_network) {
+                    setMarkCompletedNetwork(approval.crypto_network)
+                  } else if (invoice.crypto_network) {
+                    setMarkCompletedNetwork(invoice.crypto_network)
+                  }
+                  setShowMarkCompletedModal(true)
+                }}
+                className='flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 rounded-lg text-white font-medium transition-colors'
+                title='Use quando a crypto já foi enviada e você só precisa atualizar o status'
+              >
+                <Check className='w-4 h-4' />
+                Marcar como Concluído
+              </button>
+              <button
                 onClick={() => setShowRejectModal(true)}
                 className='flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-white font-medium transition-colors'
               >
@@ -458,6 +565,79 @@ export const AdminWolkPayDetailPage: React.FC = () => {
               </button>
             </>
           )}
+        </div>
+      )}
+
+      {/* Timeline */}
+      {timeline && timeline.timeline.length > 0 && (
+        <div className='bg-gray-800/50 rounded-xl border border-gray-700/50 p-4'>
+          <div className='flex items-center gap-2 mb-4'>
+            <Clock className='w-5 h-5 text-purple-400' />
+            <h2 className='text-lg font-semibold text-white'>Timeline da Fatura</h2>
+            <span className='text-xs text-gray-500'>({timeline.total_events} eventos)</span>
+          </div>
+
+          <div className='relative'>
+            {/* Linha vertical */}
+            <div className='absolute left-4 top-0 bottom-0 w-0.5 bg-gray-700' />
+
+            <div className='space-y-4'>
+              {timeline.timeline.map((event, index) => (
+                <div key={`${event.action}-${index}`} className='relative pl-10'>
+                  {/* Dot */}
+                  <div
+                    className={`absolute left-2 w-5 h-5 rounded-full flex items-center justify-center text-sm
+                    ${event.color === 'blue' ? 'bg-blue-500/20 border border-blue-500 text-blue-400' : ''}
+                    ${event.color === 'purple' ? 'bg-purple-500/20 border border-purple-500 text-purple-400' : ''}
+                    ${event.color === 'cyan' ? 'bg-cyan-500/20 border border-cyan-500 text-cyan-400' : ''}
+                    ${event.color === 'yellow' ? 'bg-yellow-500/20 border border-yellow-500 text-yellow-400' : ''}
+                    ${event.color === 'green' ? 'bg-green-500/20 border border-green-500 text-green-400' : ''}
+                    ${event.color === 'emerald' ? 'bg-emerald-500/20 border border-emerald-500 text-emerald-400' : ''}
+                    ${event.color === 'red' ? 'bg-red-500/20 border border-red-500 text-red-400' : ''}
+                    ${event.color === 'gray' ? 'bg-gray-500/20 border border-gray-500 text-gray-400' : ''}
+                  `}
+                  >
+                    <TimelineIcon iconName={event.icon} />
+                  </div>
+
+                  {/* Content */}
+                  <div className='bg-gray-900/50 rounded-lg p-3'>
+                    <div className='flex items-center justify-between mb-1'>
+                      <span
+                        className={`font-medium text-sm
+                        ${event.color === 'blue' ? 'text-blue-400' : ''}
+                        ${event.color === 'purple' ? 'text-purple-400' : ''}
+                        ${event.color === 'cyan' ? 'text-cyan-400' : ''}
+                        ${event.color === 'yellow' ? 'text-yellow-400' : ''}
+                        ${event.color === 'green' ? 'text-green-400' : ''}
+                        ${event.color === 'emerald' ? 'text-emerald-400' : ''}
+                        ${event.color === 'red' ? 'text-red-400' : ''}
+                        ${event.color === 'gray' ? 'text-gray-400' : ''}
+                      `}
+                      >
+                        {event.label}
+                      </span>
+                      <span className='text-xs text-gray-500'>
+                        {event.timestamp ? formatDate(event.timestamp) : '-'}
+                      </span>
+                    </div>
+                    {event.description && (
+                      <p className='text-xs text-gray-400'>{event.description}</p>
+                    )}
+                    {event.crypto_tx_hash && (
+                      <div className='mt-2 flex items-center gap-2'>
+                        <span className='text-xs text-gray-500'>TX:</span>
+                        <code className='text-xs text-emerald-400 font-mono break-all flex-1'>
+                          {event.crypto_tx_hash}
+                        </code>
+                        <CopyButton text={event.crypto_tx_hash} />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
@@ -956,6 +1136,92 @@ export const AdminWolkPayDetailPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Blockchain Transaction Data */}
+      {invoice.crypto_tx_hash && (
+        <div className='bg-gradient-to-br from-purple-900/30 to-indigo-900/20 rounded-xl border border-purple-700/50 p-4'>
+          <div className='flex items-center gap-2 mb-4'>
+            <Link className='w-5 h-5 text-purple-400' />
+            <h2 className='text-lg font-semibold text-white'>Transação Blockchain</h2>
+            <span className='ml-auto text-xs px-2 py-1 rounded-full bg-green-500/20 text-green-400'>
+              Crypto Enviada
+            </span>
+          </div>
+
+          <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+            {/* TX Hash */}
+            <div className='p-3 bg-gray-900/50 rounded-lg col-span-full'>
+              <p className='text-xs text-gray-500 mb-1'>Hash da Transação (TX)</p>
+              <div className='flex items-center gap-2'>
+                <span className='font-mono text-sm text-white truncate flex-1'>
+                  {invoice.crypto_tx_hash}
+                </span>
+                <CopyButton text={invoice.crypto_tx_hash} />
+                {invoice.crypto_explorer_url && (
+                  <a
+                    href={invoice.crypto_explorer_url}
+                    target='_blank'
+                    rel='noopener noreferrer'
+                    className='p-2 bg-purple-600/30 rounded-lg hover:bg-purple-600/50 transition-colors'
+                    title='Ver no Explorer'
+                  >
+                    <ExternalLink className='w-4 h-4 text-purple-400' />
+                  </a>
+                )}
+              </div>
+            </div>
+
+            {/* Wallet Address */}
+            <div className='p-3 bg-gray-900/50 rounded-lg'>
+              <p className='text-xs text-gray-500 mb-1'>Carteira Destino</p>
+              <div className='flex items-center gap-2'>
+                <Wallet className='w-4 h-4 text-gray-400' />
+                <span className='font-mono text-sm text-white truncate'>
+                  {invoice.crypto_wallet_address || '-'}
+                </span>
+                {invoice.crypto_wallet_address && (
+                  <CopyButton text={invoice.crypto_wallet_address} />
+                )}
+              </div>
+            </div>
+
+            {/* Network */}
+            <div className='p-3 bg-gray-900/50 rounded-lg'>
+              <p className='text-xs text-gray-500 mb-1'>Rede Blockchain</p>
+              <div className='flex items-center gap-2'>
+                <Globe className='w-4 h-4 text-gray-400' />
+                <span className='text-sm text-white'>
+                  {invoice.crypto_tx_network?.toUpperCase() || invoice.crypto_network || '-'}
+                </span>
+              </div>
+            </div>
+
+            {/* Sent At */}
+            <div className='p-3 bg-gray-900/50 rounded-lg'>
+              <p className='text-xs text-gray-500 mb-1'>Data do Envio</p>
+              <div className='flex items-center gap-2'>
+                <Clock className='w-4 h-4 text-gray-400' />
+                <span className='text-sm text-white'>
+                  {invoice.crypto_sent_at ? formatDate(invoice.crypto_sent_at) : '-'}
+                </span>
+              </div>
+            </div>
+
+            {/* Amount */}
+            <div className='p-3 bg-gray-900/50 rounded-lg'>
+              <p className='text-xs text-gray-500 mb-1'>Valor Enviado</p>
+              <div className='flex items-center gap-2'>
+                {cryptoLogo && (
+                  <img src={cryptoLogo} alt={invoice.crypto_currency} className='w-5 h-5' />
+                )}
+                <span className='text-sm font-bold text-emerald-400'>
+                  {formatCrypto(invoice.crypto_amount)} {invoice.crypto_currency}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Confirm Payment Modal */}
       {showConfirmModal && (
         <div className='fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4'>
@@ -1204,6 +1470,106 @@ export const AdminWolkPayDetailPage: React.FC = () => {
                 className='flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-white font-medium transition-colors'
               >
                 {actionLoading ? 'Rejeitando...' : 'Rejeitar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mark Completed Modal */}
+      {showMarkCompletedModal && (
+        <div className='fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4'>
+          <div className='bg-gray-800 rounded-xl w-full max-w-md p-6'>
+            <div className='flex items-center gap-3 mb-4'>
+              <div className='w-10 h-10 bg-cyan-600/20 rounded-full flex items-center justify-center'>
+                <Check className='w-5 h-5 text-cyan-400' />
+              </div>
+              <h3 className='text-lg font-semibold text-white'>Marcar como Concluído</h3>
+            </div>
+
+            <div className='p-4 bg-cyan-900/20 rounded-lg border border-cyan-700/50 mb-4'>
+              <div className='flex items-start gap-2'>
+                <AlertCircle className='w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5' />
+                <div>
+                  <p className='text-sm text-cyan-300'>
+                    Use esta opção quando a crypto JÁ FOI ENVIADA e você só precisa atualizar o
+                    status no sistema.
+                  </p>
+                  <p className='text-sm text-cyan-300/80 mt-2'>
+                    Esta ação NÃO enviará crypto novamente.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className='mb-4'>
+              <label htmlFor='mark-tx-hash' className='block text-sm text-gray-400 mb-2'>
+                Hash da Transação (TX) *
+              </label>
+              <input
+                id='mark-tx-hash'
+                type='text'
+                value={markCompletedTxHash}
+                onChange={e => setMarkCompletedTxHash(e.target.value)}
+                placeholder='0x... ou txid da transação'
+                className='w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 font-mono text-sm'
+              />
+            </div>
+
+            <div className='mb-4'>
+              <label htmlFor='mark-network' className='block text-sm text-gray-400 mb-2'>
+                Rede Blockchain *
+              </label>
+              <select
+                id='mark-network'
+                value={markCompletedNetwork}
+                onChange={e => setMarkCompletedNetwork(e.target.value)}
+                className='w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50'
+              >
+                <option value='polygon'>Polygon</option>
+                <option value='ethereum'>Ethereum</option>
+                <option value='base'>Base</option>
+                <option value='bsc'>BSC</option>
+                <option value='bitcoin'>Bitcoin</option>
+                <option value='litecoin'>Litecoin</option>
+                <option value='dogecoin'>Dogecoin</option>
+                <option value='tron'>Tron</option>
+              </select>
+            </div>
+
+            <div className='mb-4'>
+              <label htmlFor='mark-notes' className='block text-sm text-gray-400 mb-2'>
+                Observações (opcional)
+              </label>
+              <textarea
+                id='mark-notes'
+                value={markCompletedNotes}
+                onChange={e => setMarkCompletedNotes(e.target.value)}
+                placeholder='Ex: Crypto já enviada manualmente em...'
+                rows={2}
+                className='w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 resize-none'
+              />
+            </div>
+
+            <div className='flex gap-3'>
+              <button
+                onClick={() => {
+                  setShowMarkCompletedModal(false)
+                  setMarkCompletedTxHash('')
+                  setMarkCompletedNetwork('polygon')
+                  setMarkCompletedNotes('')
+                }}
+                disabled={actionLoading}
+                className='flex-1 px-4 py-3 bg-gray-700 hover:bg-gray-600 rounded-lg text-white transition-colors'
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleMarkCompleted}
+                disabled={actionLoading || !markCompletedTxHash.trim()}
+                className='flex-1 px-4 py-3 bg-cyan-600 hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-white font-medium transition-colors'
+              >
+                {actionLoading ? 'Salvando...' : 'Marcar Concluído'}
               </button>
             </div>
           </div>

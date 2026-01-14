@@ -256,7 +256,8 @@ class BancoBrasilAPIService:
                     },
                     data={
                         "grant_type": "client_credentials",
-                        "scope": "cob.write cob.read pix.read pix.write webhook.read webhook.write"
+                        # Scopes PIX Cobrança (receber) + Pagamentos em Lote (enviar PIX)
+                        "scope": "cob.write cob.read pix.read pix.write webhook.read webhook.write pagamentos-lote.lotes-requisicao pagamentos-lote.transferencias-info"
                     }
                 )
 
@@ -858,15 +859,7 @@ class BancoBrasilAPIService:
             return {"success": False, "error": str(e)}
 
     # ============================================================
-    # PIX PAGAMENTO (ENVIO) - API Pix Pagamentos
-    # ============================================================
-    # IMPORTANTE: A API de Pagamentos PIX do Banco do Brasil requer:
-    # 1. Convênio específico para pagamentos (contato com gerente BB)
-    # 2. Endpoint diferente: /pagamentos-pix/v1
-    # 3. Scopes adicionais: pagamentos-lote.write, pagamentos.write
-    # 
-    # Enquanto não houver convênio de pagamentos, esta funcionalidade
-    # está desabilitada e retornará uma mensagem informativa.
+    # PIX PAGAMENTO (ENVIO) - API Pix v2
     # ============================================================
 
     async def enviar_pix(
@@ -880,13 +873,8 @@ class BancoBrasilAPIService:
         """
         Envia PIX para uma chave PIX (pagamento).
         
-        ATENÇÃO: Esta funcionalidade requer convênio de Pagamentos PIX
-        com o Banco do Brasil. É diferente da API de Cobranças (QR Code).
-        
-        Para habilitar:
-        1. Solicitar ao gerente BB a habilitação da API de Pagamentos PIX
-        2. Obter novo client_id/client_secret com scopes de pagamento
-        3. Configurar convênio no portal developers.bb.com.br
+        Este método usa a API PIX v2 do Banco do Brasil para realizar
+        transferências via PIX para qualquer chave válida.
         
         Args:
             valor: Valor em reais a ser enviado
@@ -899,20 +887,8 @@ class BancoBrasilAPIService:
             Dict com resultado da operação:
             - success: True/False
             - end_to_end_id: ID da transação (se sucesso)
-            - error: Mensagem de erro (se falha)
+            - erro: Mensagem de erro (se falha)
         """
-        # Verificar se temos as credenciais de pagamento configuradas
-        # A API de Pagamentos usa endpoint diferente e requer convênio especial
-        pagamentos_habilitado = getattr(settings, 'BB_PAGAMENTOS_HABILITADO', False)
-        
-        if not pagamentos_habilitado:
-            logger.warning("⚠️ API de Pagamentos PIX do BB não está habilitada")
-            return {
-                "success": False,
-                "error": "API de Pagamentos PIX não configurada. A funcionalidade de envio automático de PIX requer convênio especial com o Banco do Brasil. Por favor, entre em contato com seu gerente BB para solicitar a habilitação da API de Pagamentos PIX, ou finalize a venda manualmente após enviar o PIX pelo internet banking.",
-                "codigo": "PAGAMENTOS_NAO_HABILITADO"
-            }
-        
         token = await self.get_access_token()
         
         if not token:
@@ -926,11 +902,8 @@ class BancoBrasilAPIService:
         # Formata valor (2 casas decimais, string)
         valor_str = f"{float(valor):.2f}"
         
-        # A API de Pagamentos PIX do BB usa endpoint diferente
-        # Endpoint: POST /pagamentos-pix/v1/transferencias
-        # ou: POST /pagamentos-pix/v1/pix
-        pagamentos_url = "https://api.bb.com.br/pagamentos-pix/v1"
-        
+        # Monta payload para iniciar PIX
+        # Endpoint: PUT /pix (para iniciar pagamento)
         payload = {
             "valor": valor_str,
             "pagador": {
@@ -942,7 +915,7 @@ class BancoBrasilAPIService:
             "descricao": descricao[:140] if descricao else "Pagamento WOLK NOW"
         }
         
-        logger.info(f"Iniciando envio PIX: R$ {valor_str} para {tipo_chave}: {chave_pix[:4]}***")
+        logger.info(f"📤 Iniciando envio PIX: R$ {valor_str} para {tipo_chave}: {chave_pix[:4]}***")
         
         try:
             async with self._get_http_client(timeout=60.0) as client:

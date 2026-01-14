@@ -28,7 +28,7 @@ from app.core.security import get_current_user
 from app.models.user import User
 from app.models.wolkpay import (
     WolkPayInvoice, WolkPayPayer, WolkPayPayment, WolkPayApproval,
-    WolkPayPayerLimit, InvoiceStatus
+    WolkPayPayerLimit, WolkPayAuditLog, InvoiceStatus
 )
 from app.services.wolkpay_service import WolkPayService
 from app.schemas.wolkpay import (
@@ -148,9 +148,18 @@ async def get_pending_invoices(
                     "status": payment.status.value if payment else None,
                     "amount_brl": float(payment.amount_brl) if payment else None,
                     "paid_at": payment.paid_at.isoformat() if payment and payment.paid_at else None,
+                    "payer_confirmed_at": payment.payer_confirmed_at.isoformat() if payment and payment.payer_confirmed_at else None,
                     "bank_transaction_id": payment.bank_transaction_id if payment else None
                 } if payment else None
             })
+        
+        # Contar faturas aguardando verificação (pagador confirmou mas admin não verificou)
+        awaiting_verification_count = db.query(WolkPayInvoice).join(
+            WolkPayPayment, WolkPayPayment.invoice_id == WolkPayInvoice.id
+        ).filter(
+            WolkPayInvoice.status == InvoiceStatus.AWAITING_PAYMENT,
+            WolkPayPayment.payer_confirmed_at.isnot(None)
+        ).count()
         
         return {
             "invoices": result,
@@ -159,12 +168,103 @@ async def get_pending_invoices(
             "pending_count": pending_count,
             "paid_count": paid_count,
             "approved_count": approved_count,
+            "awaiting_verification_count": awaiting_verification_count,
             "page": page,
             "per_page": per_page
         }
         
     except Exception as e:
         logger.error(f"Erro ao listar faturas pendentes: {e}")
+        raise HTTPException(status_code=500, detail="Erro ao listar faturas")
+
+
+@router.get("/awaiting-verification")
+async def get_awaiting_verification_invoices(
+    page: int = Query(1, ge=1),
+    per_page: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Lista faturas AGUARDANDO VERIFICAÇÃO DO ADMIN
+    
+    Estas são faturas onde:
+    - Status = AWAITING_PAYMENT (aguardando pagamento)
+    - Pagador já confirmou que pagou (payer_confirmed_at preenchido)
+    - Admin ainda não verificou se o PIX foi recebido
+    
+    🚨 URGENTE: Estas faturas precisam de ação imediata do admin!
+    O admin deve verificar no banco se o PIX foi recebido e confirmar.
+    """
+    require_admin(current_user)
+    
+    try:
+        # Buscar faturas aguardando pagamento onde o pagador já confirmou
+        query = db.query(WolkPayInvoice).join(
+            WolkPayPayment, WolkPayPayment.invoice_id == WolkPayInvoice.id
+        ).filter(
+            WolkPayInvoice.status == InvoiceStatus.AWAITING_PAYMENT,
+            WolkPayPayment.payer_confirmed_at.isnot(None)
+        )
+        
+        total = query.count()
+        
+        invoices = query.order_by(
+            WolkPayPayment.payer_confirmed_at.asc()  # Mais antigos primeiro
+        ).offset((page - 1) * per_page).limit(per_page).all()
+        
+        result = []
+        for invoice in invoices:
+            payer = db.query(WolkPayPayer).filter(
+                WolkPayPayer.invoice_id == invoice.id
+            ).first()
+            
+            payment = db.query(WolkPayPayment).filter(
+                WolkPayPayment.invoice_id == invoice.id
+            ).first()
+            
+            beneficiary = db.query(User).filter(User.id == invoice.beneficiary_id).first()
+            
+            result.append({
+                "invoice": {
+                    "id": invoice.id,
+                    "invoice_number": invoice.invoice_number,
+                    "status": invoice.status.value,
+                    "beneficiary_id": invoice.beneficiary_id,
+                    "beneficiary_name": beneficiary.username if beneficiary else "N/A",
+                    "crypto_currency": invoice.crypto_currency,
+                    "crypto_amount": float(invoice.crypto_amount),
+                    "total_amount_brl": float(invoice.total_amount_brl),
+                    "created_at": invoice.created_at.isoformat() if invoice.created_at else None,
+                    "expires_at": invoice.expires_at.isoformat() if invoice.expires_at else None
+                },
+                "payer": {
+                    "id": payer.id if payer else None,
+                    "person_type": payer.person_type.value if payer else None,
+                    "name": payer.get_name() if payer else None,
+                    "document": payer.get_document() if payer else None,
+                    "email": payer.email or payer.business_email if payer else None,
+                    "phone": payer.phone or payer.business_phone if payer else None
+                } if payer else None,
+                "payment": {
+                    "id": payment.id if payment else None,
+                    "status": payment.status.value if payment else None,
+                    "amount_brl": float(payment.amount_brl) if payment else None,
+                    "payer_confirmed_at": payment.payer_confirmed_at.isoformat() if payment and payment.payer_confirmed_at else None
+                } if payment else None,
+                "urgency": "🚨 VERIFICAR PIX NO BANCO"
+            })
+        
+        return {
+            "invoices": result,
+            "total": total,
+            "page": page,
+            "per_page": per_page,
+            "message": "Faturas onde o pagador confirmou que pagou. Verifique no banco se o PIX foi recebido e confirme."
+        }
+        
+    except Exception as e:
+        logger.error(f"Erro ao listar faturas aguardando verificação: {e}")
         raise HTTPException(status_code=500, detail="Erro ao listar faturas")
 
 
@@ -223,6 +323,189 @@ async def get_all_invoices(
     except Exception as e:
         logger.error(f"Erro ao listar faturas: {e}")
         raise HTTPException(status_code=500, detail="Erro ao listar faturas")
+
+
+# ==========================================
+# TIMELINE / HISTÓRICO
+# ==========================================
+
+@router.get("/{invoice_id}/timeline")
+async def get_invoice_timeline(
+    invoice_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Obtém a timeline/histórico completo de uma fatura.
+    
+    Mostra todas as ações realizadas na fatura em ordem cronológica.
+    """
+    require_admin(current_user)
+    
+    invoice = db.query(WolkPayInvoice).filter(
+        WolkPayInvoice.id == invoice_id
+    ).first()
+    
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Fatura não encontrada")
+    
+    # Buscar logs de auditoria
+    audit_logs = db.query(WolkPayAuditLog).filter(
+        WolkPayAuditLog.invoice_id == invoice_id
+    ).order_by(WolkPayAuditLog.created_at.asc()).all()
+    
+    # Buscar dados relacionados para enriquecer a timeline
+    payer = db.query(WolkPayPayer).filter(
+        WolkPayPayer.invoice_id == invoice_id
+    ).first()
+    
+    payment = db.query(WolkPayPayment).filter(
+        WolkPayPayment.invoice_id == invoice_id
+    ).first()
+    
+    approval = db.query(WolkPayApproval).filter(
+        WolkPayApproval.invoice_id == invoice_id
+    ).first()
+    
+    # Mapear ações para ícones Lucide e descrições amigáveis
+    ACTION_MAP = {
+        "create_invoice": {"icon": "FileText", "label": "Fatura Criada", "color": "blue"},
+        "fill_payer_data": {"icon": "User", "label": "Dados do Pagador Preenchidos", "color": "purple"},
+        "generate_pix": {"icon": "QrCode", "label": "PIX Gerado", "color": "cyan"},
+        "payer_confirmed": {"icon": "CheckCircle", "label": "Pagador Confirmou Pagamento", "color": "yellow"},
+        "confirm_payment": {"icon": "Banknote", "label": "Pagamento Confirmado (Admin)", "color": "green"},
+        "approve_invoice": {"icon": "Send", "label": "Fatura Aprovada - Crypto Enviada", "color": "emerald"},
+        "mark_completed": {"icon": "Check", "label": "Marcado como Concluído", "color": "emerald"},
+        "reject_invoice": {"icon": "XCircle", "label": "Fatura Rejeitada", "color": "red"},
+        "cancel_invoice": {"icon": "Ban", "label": "Fatura Cancelada", "color": "gray"},
+        "expire_invoice": {"icon": "Clock", "label": "Fatura Expirada", "color": "gray"},
+    }
+    
+    timeline = []
+    
+    # Adicionar criação da fatura como primeiro evento
+    timeline.append({
+        "timestamp": invoice.created_at.isoformat() if invoice.created_at else None,
+        "action": "create_invoice",
+        "icon": "FileText",
+        "label": "Fatura Criada",
+        "color": "blue",
+        "description": f"Fatura {invoice.invoice_number} criada para {float(invoice.crypto_amount)} {invoice.crypto_currency}",
+        "actor_type": "system",
+        "actor_id": invoice.beneficiary_id
+    })
+    
+    # Adicionar dados do pagador se existir
+    if payer and payer.created_at:
+        timeline.append({
+            "timestamp": payer.created_at.isoformat() if payer.created_at else None,
+            "action": "fill_payer_data",
+            "icon": "User",
+            "label": "Dados do Pagador Preenchidos",
+            "color": "purple",
+            "description": f"Pagador: {payer.get_name() if hasattr(payer, 'get_name') else 'N/A'}",
+            "actor_type": "payer",
+            "actor_id": str(payer.id) if payer.id else None
+        })
+    
+    # Adicionar PIX gerado se existir
+    if payment and payment.created_at:
+        timeline.append({
+            "timestamp": payment.created_at.isoformat() if payment.created_at else None,
+            "action": "generate_pix",
+            "icon": "QrCode",
+            "label": "PIX Gerado",
+            "color": "cyan",
+            "description": f"Valor: R$ {float(payment.amount_brl):,.2f}",
+            "actor_type": "system",
+            "actor_id": None
+        })
+    
+    # Adicionar confirmação do pagador se existir
+    if payment and payment.payer_confirmed_at:
+        timeline.append({
+            "timestamp": payment.payer_confirmed_at.isoformat() if payment.payer_confirmed_at else None,
+            "action": "payer_confirmed",
+            "icon": "CheckCircle",
+            "label": "Pagador Confirmou Pagamento",
+            "color": "yellow",
+            "description": "Pagador informou que realizou o PIX. Aguardando verificação do admin.",
+            "actor_type": "payer",
+            "actor_id": str(payer.id) if payer else None
+        })
+    
+    # Adicionar pagamento confirmado pelo admin
+    if payment and payment.paid_at:
+        timeline.append({
+            "timestamp": payment.paid_at.isoformat() if payment.paid_at else None,
+            "action": "confirm_payment",
+            "icon": "Banknote",
+            "label": "Pagamento Confirmado",
+            "color": "green",
+            "description": f"PIX confirmado no banco. ID Transação: {payment.bank_transaction_id or 'N/A'}",
+            "actor_type": "admin",
+            "actor_id": None
+        })
+    
+    # Adicionar aprovação/rejeição se existir
+    if approval:
+        if approval.action.value == "APPROVED":
+            timeline.append({
+                "timestamp": approval.created_at.isoformat() if approval.created_at else None,
+                "action": "approve_invoice",
+                "icon": "Send",
+                "label": "Fatura Aprovada - Crypto Enviada",
+                "color": "emerald",
+                "description": f"TX: {approval.crypto_tx_hash or 'N/A'} | Rede: {approval.crypto_network or 'N/A'}",
+                "actor_type": "admin",
+                "actor_id": approval.approved_by,
+                "crypto_tx_hash": approval.crypto_tx_hash,
+                "crypto_network": approval.crypto_network
+            })
+        else:
+            timeline.append({
+                "timestamp": approval.created_at.isoformat() if approval.created_at else None,
+                "action": "reject_invoice",
+                "icon": "XCircle",
+                "label": "Fatura Rejeitada",
+                "color": "red",
+                "description": f"Motivo: {approval.rejection_reason or 'Não informado'}",
+                "actor_type": "admin",
+                "actor_id": approval.approved_by
+            })
+    
+    # Adicionar logs de auditoria adicionais que não foram capturados
+    for log in audit_logs:
+        action_info = ACTION_MAP.get(log.action, {"icon": "📋", "label": log.action, "color": "gray"})
+        
+        # Verificar se já existe na timeline
+        existing_timestamps = [t.get("timestamp") for t in timeline]
+        log_ts = log.created_at.isoformat() if log.created_at else None
+        
+        # Evitar duplicatas
+        if log_ts not in existing_timestamps or log.action not in ["create_invoice", "fill_payer_data", "generate_pix", "payer_confirmed", "confirm_payment", "approve_invoice", "reject_invoice"]:
+            if log.action not in ["create_invoice", "fill_payer_data", "generate_pix"]:  # Estes já foram adicionados
+                timeline.append({
+                    "timestamp": log_ts,
+                    "action": log.action,
+                    "icon": action_info["icon"],
+                    "label": action_info["label"],
+                    "color": action_info["color"],
+                    "description": log.description,
+                    "actor_type": log.actor_type,
+                    "actor_id": log.actor_id
+                })
+    
+    # Ordenar por timestamp
+    timeline.sort(key=lambda x: x.get("timestamp") or "")
+    
+    return {
+        "invoice_id": invoice_id,
+        "invoice_number": invoice.invoice_number,
+        "current_status": invoice.status.value,
+        "timeline": timeline,
+        "total_events": len(timeline)
+    }
 
 
 # ==========================================
@@ -288,6 +571,13 @@ async def get_invoice_details(
             "total_amount_brl": float(invoice.total_amount_brl),
             "checkout_token": invoice.checkout_token,
             "checkout_url": invoice.checkout_url,
+            # Dados da transação blockchain (para auditoria e Receita Federal)
+            "crypto_tx_hash": invoice.crypto_tx_hash,
+            "crypto_tx_network": invoice.crypto_tx_network,
+            "crypto_wallet_address": invoice.crypto_wallet_address,
+            "crypto_sent_at": invoice.crypto_sent_at.isoformat() if invoice.crypto_sent_at else None,
+            "crypto_explorer_url": invoice.crypto_explorer_url,
+            # Timestamps
             "created_at": invoice.created_at.isoformat() if invoice.created_at else None,
             "expires_at": invoice.expires_at.isoformat() if invoice.expires_at else None,
             "updated_at": invoice.updated_at.isoformat() if invoice.updated_at else None
@@ -446,6 +736,102 @@ async def reject_invoice(
     except Exception as e:
         logger.error(f"Erro ao rejeitar fatura: {e}")
         raise HTTPException(status_code=500, detail="Erro ao rejeitar fatura")
+
+
+# ==========================================
+# MARCAR COMO CONCLUÍDO (SEM ENVIAR CRYPTO)
+# ==========================================
+
+@router.post("/{invoice_id}/mark-completed")
+async def mark_invoice_completed(
+    invoice_id: str,
+    crypto_tx_hash: str = Query(..., description="Hash da transação blockchain já enviada"),
+    crypto_network: str = Query(..., description="Rede usada para o envio (polygon, ethereum, etc)"),
+    notes: Optional[str] = Query(None, description="Observações do admin"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Marca uma fatura como CONCLUÍDA sem enviar crypto novamente.
+    
+    Use este endpoint quando:
+    - A crypto já foi enviada manualmente ou automaticamente
+    - Você só precisa atualizar o status no sistema
+    
+    Diferente de /approve, este endpoint NÃO envia crypto.
+    Apenas registra o hash da transação já realizada e marca como concluído.
+    """
+    require_admin(current_user)
+    
+    invoice = db.query(WolkPayInvoice).filter(
+        WolkPayInvoice.id == invoice_id
+    ).first()
+    
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Fatura não encontrada")
+    
+    # Pode marcar como concluído de qualquer status exceto já concluído/cancelado/rejeitado
+    if invoice.status in [InvoiceStatus.COMPLETED, InvoiceStatus.CANCELLED, InvoiceStatus.REJECTED]:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Fatura já está no status {invoice.status.value}. Não pode ser alterada."
+        )
+    
+    # Buscar pagador para atualizar limite
+    payer = db.query(WolkPayPayer).filter(
+        WolkPayPayer.invoice_id == invoice_id
+    ).first()
+    
+    # Criar registro de aprovação
+    from app.models.wolkpay import ApprovalAction
+    
+    approval = WolkPayApproval(
+        invoice_id=invoice_id,
+        approved_by=str(current_user.id),
+        action=ApprovalAction.APPROVED,
+        crypto_tx_hash=crypto_tx_hash,
+        crypto_network=crypto_network,
+        notes=notes or "Marcado como concluído manualmente (crypto já enviada)"
+    )
+    db.add(approval)
+    
+    # Atualizar status da fatura
+    old_status = invoice.status.value
+    invoice.status = InvoiceStatus.COMPLETED
+    
+    # Atualizar limite do pagador se existir
+    if payer:
+        service = WolkPayService(db)
+        doc_type = "CPF" if payer.person_type.value == "PF" else "CNPJ"
+        doc_number = ''.join(filter(str.isdigit, payer.cpf if payer.person_type.value == "PF" else payer.cnpj or ""))
+        if doc_number:
+            await service.update_payer_limit(doc_type, doc_number, invoice.total_amount_brl)
+    
+    db.commit()
+    
+    # Log de auditoria
+    service = WolkPayService(db)
+    service._log_audit(
+        invoice_id=invoice_id,
+        actor_type="admin",
+        actor_id=str(current_user.id),
+        action="mark_completed",
+        description=f"Fatura marcada como concluída manualmente. Status anterior: {old_status}. TX: {crypto_tx_hash}, Rede: {crypto_network}"
+    )
+    db.commit()
+    
+    logger.info(f"WolkPay: Fatura {invoice.invoice_number} marcada como concluída por admin {current_user.id}")
+    
+    return {
+        "success": True,
+        "message": "Fatura marcada como concluída com sucesso!",
+        "invoice_id": invoice_id,
+        "invoice_number": invoice.invoice_number,
+        "status": "COMPLETED",
+        "crypto_tx_hash": crypto_tx_hash,
+        "crypto_network": crypto_network,
+        "previous_status": old_status
+    }
 
 
 # ==========================================
