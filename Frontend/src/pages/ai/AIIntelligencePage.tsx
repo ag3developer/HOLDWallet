@@ -47,16 +47,23 @@ import { WalletService } from '@/services/wallet-service'
 
 type TabType = 'overview' | 'ath' | 'correlation' | 'swap' | 'indicators'
 
-const formatCurrency = (value: number): string => {
+const formatCurrency = (value: number | null | undefined): string => {
+  if (value === null || value === undefined || isNaN(value)) return '$0.00'
   if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`
   if (value >= 1e6) return `$${(value / 1e6).toFixed(2)}M`
   if (value >= 1e3) return `$${(value / 1e3).toFixed(2)}K`
   return `$${value.toFixed(2)}`
 }
 
-const formatPercent = (value: number): string => {
+const formatPercent = (value: number | null | undefined): string => {
+  if (value === null || value === undefined || isNaN(value)) return '0.00%'
   const sign = value >= 0 ? '+' : ''
   return `${sign}${value.toFixed(2)}%`
+}
+
+const safeToFixed = (value: number | null | undefined, decimals: number = 1): string => {
+  if (value === null || value === undefined || isNaN(value)) return '0'
+  return value.toFixed(decimals)
 }
 
 // Portfolio Carousel Component (like InstantTrade)
@@ -158,7 +165,7 @@ const PortfolioCarousel: React.FC<{
                   <p
                     className={`text-xs ${isSelected ? 'text-white/70' : 'text-gray-500 dark:text-gray-400'}`}
                   >
-                    {allocation.toFixed(1)}%
+                    {safeToFixed(allocation, 1)}%
                   </p>
                 </div>
               </div>
@@ -327,7 +334,8 @@ const ATHCard: React.FC<{ asset: ATHAnalysisType }> = ({ asset }) => {
     },
   }
 
-  const zone = zoneColors[asset.zone] ??
+  const assetZone = asset.zone || 'RECOVERING'
+  const zone = zoneColors[assetZone] ??
     zoneColors.RECOVERING ?? {
       bg: 'bg-gray-100 dark:bg-gray-700',
       text: 'text-gray-600 dark:text-gray-400',
@@ -348,7 +356,7 @@ const ATHCard: React.FC<{ asset: ATHAnalysisType }> = ({ asset }) => {
             <span
               className={`text-xs font-medium px-2 py-0.5 rounded-full ${zone.bg} ${zone.text}`}
             >
-              {asset.zone.replace('_', ' ')}
+              {assetZone.replace('_', ' ')}
             </span>
           </div>
         </div>
@@ -378,22 +386,24 @@ const ATHCard: React.FC<{ asset: ATHAnalysisType }> = ({ asset }) => {
       <div className='mb-3'>
         <div className='flex justify-between text-xs mb-1'>
           <span className='text-gray-500 dark:text-gray-400'>Recovery</span>
-          <span className={`font-bold ${zone.text}`}>{asset.recovery_percent.toFixed(1)}%</span>
+          <span className={`font-bold ${zone.text}`}>
+            {safeToFixed(asset.recovery_percent, 1)}%
+          </span>
         </div>
         <div className='h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden'>
           <div
             className={`h-full rounded-full bg-gradient-to-r ${
-              asset.zone === 'ATH_ZONE'
+              assetZone === 'ATH_ZONE'
                 ? 'from-green-400 to-green-500'
-                : asset.zone === 'STRONG'
+                : assetZone === 'STRONG'
                   ? 'from-emerald-400 to-emerald-500'
-                  : asset.zone === 'RECOVERING'
+                  : assetZone === 'RECOVERING'
                     ? 'from-yellow-400 to-yellow-500'
-                    : asset.zone === 'WEAK'
+                    : assetZone === 'WEAK'
                       ? 'from-orange-400 to-orange-500'
                       : 'from-red-400 to-red-500'
             } transition-all duration-500`}
-            style={{ width: `${Math.min(asset.recovery_percent, 100)}%` }}
+            style={{ width: `${Math.min(asset.recovery_percent || 0, 100)}%` }}
           />
         </div>
       </div>
@@ -402,18 +412,18 @@ const ATHCard: React.FC<{ asset: ATHAnalysisType }> = ({ asset }) => {
         <div className='text-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg'>
           <p className='text-[10px] text-gray-500 dark:text-gray-400'>Distance</p>
           <p className='text-sm font-bold text-red-500'>
-            -{asset.distance_from_ath_percent.toFixed(1)}%
+            -{safeToFixed(asset.distance_from_ath_percent, 1)}%
           </p>
         </div>
         <div className='text-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg'>
           <p className='text-[10px] text-gray-500 dark:text-gray-400'>Upside</p>
           <p className='text-sm font-bold text-blue-500'>
-            +{asset.potential_upside_percent.toFixed(1)}%
+            +{safeToFixed(asset.potential_upside_percent, 1)}%
           </p>
         </div>
         <div className='text-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg'>
           <p className='text-[10px] text-gray-500 dark:text-gray-400'>Days</p>
-          <p className='text-sm font-bold text-purple-500'>{asset.days_since_ath}d</p>
+          <p className='text-sm font-bold text-purple-500'>{asset.days_since_ath || 0}d</p>
         </div>
       </div>
     </div>
@@ -745,7 +755,7 @@ export default function AIIntelligencePage() {
                 <InsightCard
                   icon={Target}
                   title='ATH Recovery'
-                  value={`${athData ? (athData.reduce((s, a) => s + a.recovery_percent, 0) / athData.length).toFixed(0) : 0}%`}
+                  value={`${athData && athData.length > 0 ? safeToFixed(athData.reduce((s, a) => s + (a.recovery_percent || 0), 0) / athData.length, 0) : 0}%`}
                   subtitle={`${healthyAssets}/${portfolio.length} healthy`}
                   trend={healthyAssets > portfolio.length / 2 ? 'up' : 'down'}
                   color='green'
@@ -906,7 +916,7 @@ export default function AIIntelligencePage() {
                                                 : 'bg-green-500 text-white'
                                     }`}
                                   >
-                                    {(val * 100).toFixed(0)}%
+                                    {safeToFixed((val || 0) * 100, 0)}%
                                   </div>
                                 </td>
                               )
@@ -1076,18 +1086,18 @@ export default function AIIntelligencePage() {
                     <div className='flex items-center justify-between mb-4'>
                       <h4 className='font-bold text-gray-900 dark:text-white'>RSI (14)</h4>
                       <span
-                        className={`text-xs font-medium px-2 py-1 rounded-full ${indicatorsData.indicators.momentum.rsi.value > 70 ? 'bg-red-100 text-red-600' : indicatorsData.indicators.momentum.rsi.value < 30 ? 'bg-green-100 text-green-600' : 'bg-yellow-100 text-yellow-600'}`}
+                        className={`text-xs font-medium px-2 py-1 rounded-full ${(indicatorsData.indicators.momentum.rsi.value || 0) > 70 ? 'bg-red-100 text-red-600' : (indicatorsData.indicators.momentum.rsi.value || 0) < 30 ? 'bg-green-100 text-green-600' : 'bg-yellow-100 text-yellow-600'}`}
                       >
-                        {indicatorsData.indicators.momentum.rsi.signal}
+                        {indicatorsData.indicators.momentum.rsi.signal || 'N/A'}
                       </span>
                     </div>
                     <p className='text-4xl font-bold text-gray-900 dark:text-white mb-4'>
-                      {indicatorsData.indicators.momentum.rsi.value.toFixed(1)}
+                      {safeToFixed(indicatorsData.indicators.momentum.rsi.value, 1)}
                     </p>
                     <div className='h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden'>
                       <div
-                        className={`h-full rounded-full ${indicatorsData.indicators.momentum.rsi.value > 70 ? 'bg-red-500' : indicatorsData.indicators.momentum.rsi.value < 30 ? 'bg-green-500' : 'bg-yellow-500'}`}
-                        style={{ width: `${indicatorsData.indicators.momentum.rsi.value}%` }}
+                        className={`h-full rounded-full ${(indicatorsData.indicators.momentum.rsi.value || 0) > 70 ? 'bg-red-500' : (indicatorsData.indicators.momentum.rsi.value || 0) < 30 ? 'bg-green-500' : 'bg-yellow-500'}`}
+                        style={{ width: `${indicatorsData.indicators.momentum.rsi.value || 0}%` }}
                       />
                     </div>
                     <div className='flex justify-between text-xs text-gray-500 mt-2'>
@@ -1104,30 +1114,30 @@ export default function AIIntelligencePage() {
                       <span
                         className={`text-xs font-medium px-2 py-1 rounded-full ${indicatorsData.indicators.trend.macd.trend.toLowerCase().includes('bullish') ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}
                       >
-                        {indicatorsData.indicators.trend.macd.trend}
+                        {indicatorsData.indicators.trend.macd.trend || 'N/A'}
                       </span>
                     </div>
                     <div className='grid grid-cols-3 gap-3'>
                       <div className='text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl'>
                         <p className='text-xs text-gray-500 mb-1'>MACD</p>
                         <p
-                          className={`text-lg font-bold ${indicatorsData.indicators.trend.macd.macd >= 0 ? 'text-green-500' : 'text-red-500'}`}
+                          className={`text-lg font-bold ${(indicatorsData.indicators.trend.macd.macd || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}
                         >
-                          {indicatorsData.indicators.trend.macd.macd.toFixed(2)}
+                          {safeToFixed(indicatorsData.indicators.trend.macd.macd, 2)}
                         </p>
                       </div>
                       <div className='text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl'>
                         <p className='text-xs text-gray-500 mb-1'>Signal</p>
                         <p className='text-lg font-bold text-yellow-500'>
-                          {indicatorsData.indicators.trend.macd.signal.toFixed(2)}
+                          {safeToFixed(indicatorsData.indicators.trend.macd.signal, 2)}
                         </p>
                       </div>
                       <div className='text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl'>
                         <p className='text-xs text-gray-500 mb-1'>Histogram</p>
                         <p
-                          className={`text-lg font-bold ${indicatorsData.indicators.trend.macd.histogram >= 0 ? 'text-green-500' : 'text-red-500'}`}
+                          className={`text-lg font-bold ${(indicatorsData.indicators.trend.macd.histogram || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}
                         >
-                          {indicatorsData.indicators.trend.macd.histogram.toFixed(2)}
+                          {safeToFixed(indicatorsData.indicators.trend.macd.histogram, 2)}
                         </p>
                       </div>
                     </div>
@@ -1137,34 +1147,35 @@ export default function AIIntelligencePage() {
                     <div className='flex items-center justify-between mb-4'>
                       <h4 className='font-bold text-gray-900 dark:text-white'>Bollinger Bands</h4>
                       <span
-                        className={`text-xs font-medium px-2 py-1 rounded-full ${indicatorsData.indicators.volatility.bollinger.signal.toLowerCase().includes('overbought') ? 'bg-red-100 text-red-600' : indicatorsData.indicators.volatility.bollinger.signal.toLowerCase().includes('oversold') ? 'bg-green-100 text-green-600' : 'bg-yellow-100 text-yellow-600'}`}
+                        className={`text-xs font-medium px-2 py-1 rounded-full ${(indicatorsData.indicators.volatility.bollinger.signal || '').toLowerCase().includes('overbought') ? 'bg-red-100 text-red-600' : (indicatorsData.indicators.volatility.bollinger.signal || '').toLowerCase().includes('oversold') ? 'bg-green-100 text-green-600' : 'bg-yellow-100 text-yellow-600'}`}
                       >
-                        {indicatorsData.indicators.volatility.bollinger.signal}
+                        {indicatorsData.indicators.volatility.bollinger.signal || 'N/A'}
                       </span>
                     </div>
                     <div className='grid grid-cols-4 gap-2'>
                       <div className='text-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg'>
                         <p className='text-[10px] text-gray-500'>Upper</p>
                         <p className='text-sm font-bold text-red-500'>
-                          ${indicatorsData.indicators.volatility.bollinger.upper.toFixed(0)}
+                          ${safeToFixed(indicatorsData.indicators.volatility.bollinger.upper, 0)}
                         </p>
                       </div>
                       <div className='text-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg'>
                         <p className='text-[10px] text-gray-500'>Middle</p>
                         <p className='text-sm font-bold text-yellow-500'>
-                          ${indicatorsData.indicators.volatility.bollinger.middle.toFixed(0)}
+                          ${safeToFixed(indicatorsData.indicators.volatility.bollinger.middle, 0)}
                         </p>
                       </div>
                       <div className='text-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg'>
                         <p className='text-[10px] text-gray-500'>Lower</p>
                         <p className='text-sm font-bold text-green-500'>
-                          ${indicatorsData.indicators.volatility.bollinger.lower.toFixed(0)}
+                          ${safeToFixed(indicatorsData.indicators.volatility.bollinger.lower, 0)}
                         </p>
                       </div>
                       <div className='text-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg'>
                         <p className='text-[10px] text-gray-500'>Position</p>
                         <p className='text-sm font-bold text-gray-900 dark:text-white'>
-                          {(indicatorsData.indicators.volatility.bollinger.position * 100).toFixed(
+                          {safeToFixed(
+                            (indicatorsData.indicators.volatility.bollinger.position || 0) * 100,
                             0
                           )}
                           %
@@ -1181,19 +1192,19 @@ export default function AIIntelligencePage() {
                       <div className='text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl'>
                         <p className='text-xs text-gray-500 mb-1'>SMA 20</p>
                         <p className='text-lg font-bold text-blue-500'>
-                          ${indicatorsData.indicators.trend.sma.sma_20?.toFixed(0) || 'N/A'}
+                          ${safeToFixed(indicatorsData.indicators.trend.sma.sma_20, 0) || 'N/A'}
                         </p>
                       </div>
                       <div className='text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl'>
                         <p className='text-xs text-gray-500 mb-1'>SMA 50</p>
                         <p className='text-lg font-bold text-purple-500'>
-                          ${indicatorsData.indicators.trend.sma.sma_50?.toFixed(0) || 'N/A'}
+                          ${safeToFixed(indicatorsData.indicators.trend.sma.sma_50, 0) || 'N/A'}
                         </p>
                       </div>
                       <div className='text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl'>
                         <p className='text-xs text-gray-500 mb-1'>SMA 200</p>
                         <p className='text-lg font-bold text-orange-500'>
-                          ${indicatorsData.indicators.trend.sma.sma_200?.toFixed(0) || 'N/A'}
+                          ${safeToFixed(indicatorsData.indicators.trend.sma.sma_200, 0) || 'N/A'}
                         </p>
                       </div>
                     </div>
