@@ -42,7 +42,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate', // ✅ MUDANÇA: Auto-atualiza sem prompt
       devOptions: {
-        enabled: true, // ✅ Habilitado em dev para testar Push Notifications
+        enabled: false, // ❌ Desabilitado em dev para evitar conflitos com câmera/hot-reload
         type: 'module',
       },
       includeAssets: ['favicon.ico', 'images/logos/wn-icon.png'],
