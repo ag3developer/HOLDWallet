@@ -103,6 +103,13 @@ class InvoiceResponse(BaseModel):
     checkout_token: str
     checkout_url: Optional[str] = None
     
+    # Transação Blockchain (TX)
+    crypto_tx_hash: Optional[str] = None
+    crypto_tx_network: Optional[str] = None
+    crypto_wallet_address: Optional[str] = None
+    crypto_sent_at: Optional[datetime] = None
+    crypto_explorer_url: Optional[str] = None
+    
     # Timestamps
     created_at: datetime
     expires_at: datetime

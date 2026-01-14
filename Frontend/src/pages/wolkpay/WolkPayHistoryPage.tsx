@@ -27,6 +27,15 @@ import {
   FileText,
   Timer,
   Coins,
+  Wallet,
+  Globe,
+  Link,
+  Eye,
+  CheckCircle,
+  QrCode,
+  Banknote,
+  Send,
+  Calendar,
 } from 'lucide-react'
 import wolkPayService, { Invoice, InvoiceStatus } from '@/services/wolkpay'
 
@@ -146,6 +155,9 @@ export function WolkPayHistoryPage() {
   const [total, setTotal] = useState(0)
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [expandedInvoiceId, setExpandedInvoiceId] = useState<string | null>(null)
+  const [showDetailModal, setShowDetailModal] = useState(false)
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null)
 
   // Carregar faturas
   const loadInvoices = async () => {
@@ -451,6 +463,18 @@ export function WolkPayHistoryPage() {
 
               {/* Actions */}
               <div className='flex gap-2'>
+                {/* Botão Ver Detalhes - sempre visível */}
+                <button
+                  onClick={() => {
+                    setSelectedInvoice(invoice)
+                    setShowDetailModal(true)
+                  }}
+                  className='p-2 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 rounded-xl transition-colors'
+                  title='Ver detalhes'
+                >
+                  <Eye className='w-4 h-4 text-indigo-600 dark:text-indigo-400' />
+                </button>
+
                 {['PENDING', 'AWAITING_PAYMENT'].includes(invoice.status) && (
                   <>
                     <button
@@ -470,12 +494,14 @@ export function WolkPayHistoryPage() {
                       onClick={() =>
                         window.open(`/wolkpay/checkout/${invoice.checkout_token}`, '_blank')
                       }
+                      title='Abrir checkout'
                       className='p-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl transition-colors'
                     >
                       <ExternalLink className='w-4 h-4 text-gray-600 dark:text-gray-400' />
                     </button>
                     <button
                       onClick={() => handleCancel(invoice)}
+                      title='Cancelar'
                       className='p-2 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-xl transition-colors'
                     >
                       <X className='w-4 h-4 text-red-500' />
@@ -523,6 +549,436 @@ export function WolkPayHistoryPage() {
           >
             {t('wolkpay.history.next')}
           </button>
+        </div>
+      )}
+
+      {/* Invoice Detail Modal */}
+      {showDetailModal && selectedInvoice && (
+        <div className='fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 overflow-y-auto'>
+          <div className='bg-white dark:bg-gray-800 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto'>
+            {/* Modal Header */}
+            <div className='sticky top-0 bg-gradient-to-r from-indigo-600 to-purple-600 p-4 rounded-t-2xl'>
+              <div className='flex items-center justify-between'>
+                <div>
+                  <h3 className='text-lg font-bold text-white'>Detalhes da Fatura</h3>
+                  <p className='text-white/70 text-sm'>#{selectedInvoice.invoice_number}</p>
+                </div>
+                <button
+                  onClick={() => setShowDetailModal(false)}
+                  className='p-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors'
+                >
+                  <X className='w-5 h-5 text-white' />
+                </button>
+              </div>
+            </div>
+
+            <div className='p-4 space-y-4'>
+              {/* Status Badge */}
+              <div className='flex justify-center'>{renderStatusBadge(selectedInvoice.status)}</div>
+
+              {/* Crypto Amount */}
+              <div className='text-center p-4 bg-gray-50 dark:bg-gray-700/30 rounded-xl'>
+                <div className='flex items-center justify-center gap-3 mb-2'>
+                  {CRYPTO_LOGOS[selectedInvoice.crypto_currency] ? (
+                    <img
+                      src={CRYPTO_LOGOS[selectedInvoice.crypto_currency]}
+                      alt={selectedInvoice.crypto_currency}
+                      className='w-10 h-10 rounded-full'
+                    />
+                  ) : (
+                    <div className='w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center'>
+                      <Coins className='w-5 h-5 text-white' />
+                    </div>
+                  )}
+                  <p className='text-2xl font-bold text-gray-900 dark:text-white'>
+                    {formatCrypto(selectedInvoice.crypto_amount, selectedInvoice.crypto_currency)}
+                  </p>
+                </div>
+                <p className='text-sm text-gray-500 dark:text-gray-400'>
+                  Rede:{' '}
+                  {selectedInvoice.crypto_tx_network?.toUpperCase() ||
+                    selectedInvoice.crypto_network?.toUpperCase() ||
+                    'Padrão'}
+                </p>
+              </div>
+
+              {/* Timeline */}
+              <div className='bg-gray-50 dark:bg-gray-700/30 rounded-xl p-4'>
+                <h4 className='text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2'>
+                  <Clock className='w-4 h-4' />
+                  Timeline da Fatura
+                </h4>
+                <div className='relative space-y-3'>
+                  {/* Linha vertical */}
+                  <div className='absolute left-3 top-3 bottom-3 w-0.5 bg-gray-200 dark:bg-gray-600' />
+
+                  {/* Evento: Criada */}
+                  <div className='relative pl-8'>
+                    <div className='absolute left-1.5 w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center'>
+                      <FileText className='w-2.5 h-2.5 text-white' />
+                    </div>
+                    <div className='bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-200 dark:border-gray-600'>
+                      <p className='text-xs font-medium text-blue-600 dark:text-blue-400'>
+                        Fatura Criada
+                      </p>
+                      <p className='text-[10px] text-gray-500'>
+                        {formatDate(selectedInvoice.created_at)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Evento: Aguardando Pagamento */}
+                  {['AWAITING_PAYMENT', 'PAID', 'APPROVED', 'COMPLETED'].includes(
+                    selectedInvoice.status
+                  ) && (
+                    <div className='relative pl-8'>
+                      <div className='absolute left-1.5 w-4 h-4 rounded-full bg-yellow-500 flex items-center justify-center'>
+                        <QrCode className='w-2.5 h-2.5 text-white' />
+                      </div>
+                      <div className='bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-200 dark:border-gray-600'>
+                        <p className='text-xs font-medium text-yellow-600 dark:text-yellow-400'>
+                          PIX Gerado
+                        </p>
+                        <p className='text-[10px] text-gray-500'>Aguardando pagamento</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Evento: Pago */}
+                  {['PAID', 'APPROVED', 'COMPLETED'].includes(selectedInvoice.status) && (
+                    <div className='relative pl-8'>
+                      <div className='absolute left-1.5 w-4 h-4 rounded-full bg-green-500 flex items-center justify-center'>
+                        <Banknote className='w-2.5 h-2.5 text-white' />
+                      </div>
+                      <div className='bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-200 dark:border-gray-600'>
+                        <p className='text-xs font-medium text-green-600 dark:text-green-400'>
+                          Pagamento PIX Confirmado
+                        </p>
+                        <p className='text-[10px] text-gray-500'>
+                          Valor: {formatCurrency(selectedInvoice.total_amount_brl)}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Evento: Crypto Enviada */}
+                  {['APPROVED', 'COMPLETED'].includes(selectedInvoice.status) &&
+                    selectedInvoice.crypto_tx_hash && (
+                      <div className='relative pl-8'>
+                        <div className='absolute left-1.5 w-4 h-4 rounded-full bg-purple-500 flex items-center justify-center'>
+                          <Send className='w-2.5 h-2.5 text-white' />
+                        </div>
+                        <div className='bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-200 dark:border-gray-600'>
+                          <p className='text-xs font-medium text-purple-600 dark:text-purple-400'>
+                            Crypto Enviada
+                          </p>
+                          <p className='text-[10px] text-gray-500'>
+                            {selectedInvoice.crypto_sent_at
+                              ? formatDate(selectedInvoice.crypto_sent_at)
+                              : 'Transação confirmada'}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                  {/* Evento: Concluído */}
+                  {selectedInvoice.status === 'COMPLETED' && (
+                    <div className='relative pl-8'>
+                      <div className='absolute left-1.5 w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center'>
+                        <CheckCircle className='w-2.5 h-2.5 text-white' />
+                      </div>
+                      <div className='bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-200 dark:border-gray-600'>
+                        <p className='text-xs font-medium text-emerald-600 dark:text-emerald-400'>
+                          Concluído
+                        </p>
+                        <p className='text-[10px] text-gray-500'>Operação finalizada com sucesso</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Evento: Expirado */}
+                  {selectedInvoice.status === 'EXPIRED' && (
+                    <div className='relative pl-8'>
+                      <div className='absolute left-1.5 w-4 h-4 rounded-full bg-gray-500 flex items-center justify-center'>
+                        <Clock className='w-2.5 h-2.5 text-white' />
+                      </div>
+                      <div className='bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-200 dark:border-gray-600'>
+                        <p className='text-xs font-medium text-gray-600 dark:text-gray-400'>
+                          Expirada
+                        </p>
+                        <p className='text-[10px] text-gray-500'>
+                          {formatDate(selectedInvoice.expires_at)}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Evento: Cancelado/Rejeitado */}
+                  {['CANCELLED', 'REJECTED'].includes(selectedInvoice.status) && (
+                    <div className='relative pl-8'>
+                      <div className='absolute left-1.5 w-4 h-4 rounded-full bg-red-500 flex items-center justify-center'>
+                        <X className='w-2.5 h-2.5 text-white' />
+                      </div>
+                      <div className='bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-200 dark:border-gray-600'>
+                        <p className='text-xs font-medium text-red-600 dark:text-red-400'>
+                          {selectedInvoice.status === 'CANCELLED' ? 'Cancelada' : 'Rejeitada'}
+                        </p>
+                        <p className='text-[10px] text-gray-500'>Operação não concluída</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Blockchain Transaction Data */}
+              {selectedInvoice.crypto_tx_hash && (
+                <div className='bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-xl p-4 border border-purple-200 dark:border-purple-700/50'>
+                  <h4 className='text-sm font-semibold text-purple-700 dark:text-purple-300 mb-3 flex items-center gap-2'>
+                    <Link className='w-4 h-4' />
+                    Transação Blockchain
+                    <span className='ml-auto text-[10px] px-2 py-0.5 rounded-full bg-green-500/20 text-green-600 dark:text-green-400'>
+                      Crypto Creditada
+                    </span>
+                  </h4>
+
+                  <div className='space-y-3'>
+                    {/* TX Hash */}
+                    <div>
+                      <p className='text-[10px] text-gray-500 dark:text-gray-400 uppercase mb-1'>
+                        Hash da Transação (TX)
+                      </p>
+                      <div className='flex items-center gap-2 bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-200 dark:border-gray-600'>
+                        <code className='text-xs text-gray-900 dark:text-white font-mono flex-1 truncate'>
+                          {selectedInvoice.crypto_tx_hash}
+                        </code>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(selectedInvoice.crypto_tx_hash || '')
+                            setCopiedId('tx-hash')
+                            setTimeout(() => setCopiedId(null), 2000)
+                          }}
+                          className='p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors'
+                          title='Copiar'
+                        >
+                          {copiedId === 'tx-hash' ? (
+                            <Check className='w-4 h-4 text-green-500' />
+                          ) : (
+                            <Copy className='w-4 h-4 text-gray-400' />
+                          )}
+                        </button>
+                        {selectedInvoice.crypto_explorer_url && (
+                          <a
+                            href={selectedInvoice.crypto_explorer_url}
+                            target='_blank'
+                            rel='noopener noreferrer'
+                            className='p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors'
+                            title='Ver no Explorer'
+                          >
+                            <ExternalLink className='w-4 h-4 text-purple-500' />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Wallet Address */}
+                    {selectedInvoice.crypto_wallet_address && (
+                      <div>
+                        <p className='text-[10px] text-gray-500 dark:text-gray-400 uppercase mb-1'>
+                          Carteira Creditada
+                        </p>
+                        <div className='flex items-center gap-2 bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-200 dark:border-gray-600'>
+                          <Wallet className='w-4 h-4 text-gray-400' />
+                          <code className='text-xs text-gray-900 dark:text-white font-mono flex-1 truncate'>
+                            {selectedInvoice.crypto_wallet_address}
+                          </code>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(
+                                selectedInvoice.crypto_wallet_address || ''
+                              )
+                              setCopiedId('wallet')
+                              setTimeout(() => setCopiedId(null), 2000)
+                            }}
+                            className='p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors'
+                            title='Copiar'
+                          >
+                            {copiedId === 'wallet' ? (
+                              <Check className='w-4 h-4 text-green-500' />
+                            ) : (
+                              <Copy className='w-4 h-4 text-gray-400' />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Network & Sent At */}
+                    <div className='grid grid-cols-2 gap-3'>
+                      <div>
+                        <p className='text-[10px] text-gray-500 dark:text-gray-400 uppercase mb-1'>
+                          Rede
+                        </p>
+                        <div className='flex items-center gap-2 bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-200 dark:border-gray-600'>
+                          <Globe className='w-4 h-4 text-gray-400' />
+                          <span className='text-xs font-medium text-gray-900 dark:text-white'>
+                            {selectedInvoice.crypto_tx_network?.toUpperCase() ||
+                              selectedInvoice.crypto_network?.toUpperCase() ||
+                              '-'}
+                          </span>
+                        </div>
+                      </div>
+                      <div>
+                        <p className='text-[10px] text-gray-500 dark:text-gray-400 uppercase mb-1'>
+                          Data do Envio
+                        </p>
+                        <div className='flex items-center gap-2 bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-200 dark:border-gray-600'>
+                          <Calendar className='w-4 h-4 text-gray-400' />
+                          <span className='text-xs font-medium text-gray-900 dark:text-white'>
+                            {selectedInvoice.crypto_sent_at
+                              ? formatDate(selectedInvoice.crypto_sent_at)
+                              : '-'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Values Summary */}
+              <div className='bg-gray-50 dark:bg-gray-700/30 rounded-xl p-4'>
+                <h4 className='text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2'>
+                  <CircleDollarSign className='w-4 h-4' />
+                  Valores
+                </h4>
+                <div className='space-y-2'>
+                  <div className='flex justify-between text-sm'>
+                    <span className='text-gray-500 dark:text-gray-400'>Valor Base</span>
+                    <span className='text-gray-900 dark:text-white'>
+                      {formatCurrency(selectedInvoice.base_amount_brl)}
+                    </span>
+                  </div>
+                  <div className='flex justify-between text-sm'>
+                    <span className='text-gray-500 dark:text-gray-400'>
+                      Taxa Serviço ({selectedInvoice.service_fee_percent}%)
+                    </span>
+                    <span className='text-yellow-600 dark:text-yellow-400'>
+                      {formatCurrency(selectedInvoice.service_fee_brl)}
+                    </span>
+                  </div>
+                  <div className='flex justify-between text-sm'>
+                    <span className='text-gray-500 dark:text-gray-400'>
+                      Taxa Rede ({selectedInvoice.network_fee_percent}%)
+                    </span>
+                    <span className='text-yellow-600 dark:text-yellow-400'>
+                      {formatCurrency(selectedInvoice.network_fee_brl)}
+                    </span>
+                  </div>
+                  <div className='border-t border-gray-200 dark:border-gray-600 pt-2 mt-2'>
+                    <div className='flex justify-between text-sm font-bold'>
+                      <span className='text-gray-700 dark:text-gray-300'>Total Pago</span>
+                      <span className='text-blue-600 dark:text-blue-400'>
+                        {formatCurrency(selectedInvoice.total_amount_brl)}
+                      </span>
+                    </div>
+                    <div className='flex justify-between text-sm font-bold mt-1'>
+                      <span className='text-gray-700 dark:text-gray-300'>Você Recebeu</span>
+                      <span className='text-green-600 dark:text-green-400'>
+                        {formatCurrency(
+                          selectedInvoice.beneficiary_receives_brl ||
+                            selectedInvoice.base_amount_brl
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Crypto Recebida - Destaque */}
+              {['PAID', 'APPROVED', 'COMPLETED'].includes(selectedInvoice.status) && (
+                <div className='bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl p-4 border border-green-200 dark:border-green-700/50'>
+                  <h4 className='text-sm font-semibold text-green-700 dark:text-green-300 mb-3 flex items-center gap-2'>
+                    <Coins className='w-4 h-4' />
+                    Crypto Creditada na Sua Carteira
+                  </h4>
+                  <div className='flex items-center justify-between'>
+                    <div className='flex items-center gap-3'>
+                      {CRYPTO_LOGOS[selectedInvoice.crypto_currency] ? (
+                        <img
+                          src={CRYPTO_LOGOS[selectedInvoice.crypto_currency]}
+                          alt={selectedInvoice.crypto_currency}
+                          className='w-12 h-12 rounded-full'
+                        />
+                      ) : (
+                        <div className='w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center'>
+                          <Coins className='w-6 h-6 text-white' />
+                        </div>
+                      )}
+                      <div>
+                        <p className='text-2xl font-bold text-green-700 dark:text-green-300'>
+                          {formatCrypto(
+                            selectedInvoice.crypto_amount,
+                            selectedInvoice.crypto_currency
+                          )}
+                        </p>
+                        <p className='text-xs text-gray-500 dark:text-gray-400'>
+                          {selectedInvoice.fee_payer === 'PAYER' ? (
+                            <span className='text-green-600 dark:text-green-400'>
+                              ✓ Valor cheio (pagador pagou as taxas)
+                            </span>
+                          ) : (
+                            <span className='text-yellow-600 dark:text-yellow-400'>
+                              Taxas descontadas do valor
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  {selectedInvoice.crypto_wallet_address && (
+                    <div className='mt-3 pt-3 border-t border-green-200 dark:border-green-700/50'>
+                      <p className='text-[10px] text-gray-500 dark:text-gray-400 uppercase mb-1'>
+                        Carteira Creditada
+                      </p>
+                      <code className='text-xs text-gray-700 dark:text-gray-300 font-mono bg-white/50 dark:bg-gray-800/50 px-2 py-1 rounded block truncate'>
+                        {selectedInvoice.crypto_wallet_address}
+                      </code>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Dates */}
+              <div className='grid grid-cols-2 gap-3 text-center'>
+                <div className='bg-gray-50 dark:bg-gray-700/30 rounded-lg p-3'>
+                  <p className='text-[10px] text-gray-500 dark:text-gray-400 uppercase'>
+                    Criada em
+                  </p>
+                  <p className='text-xs font-medium text-gray-900 dark:text-white'>
+                    {formatDate(selectedInvoice.created_at)}
+                  </p>
+                </div>
+                <div className='bg-gray-50 dark:bg-gray-700/30 rounded-lg p-3'>
+                  <p className='text-[10px] text-gray-500 dark:text-gray-400 uppercase'>
+                    Expira em
+                  </p>
+                  <p className='text-xs font-medium text-gray-900 dark:text-white'>
+                    {formatDate(selectedInvoice.expires_at)}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className='sticky bottom-0 p-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 rounded-b-2xl'>
+              <button
+                onClick={() => setShowDetailModal(false)}
+                className='w-full px-4 py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors'
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

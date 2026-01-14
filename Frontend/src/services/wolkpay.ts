@@ -45,6 +45,12 @@ export interface Invoice {
   created_at: string
   expires_at: string
   expires_in_seconds?: number
+  // Dados da transação blockchain (quando crypto é enviada)
+  crypto_tx_hash?: string
+  crypto_tx_network?: string
+  crypto_wallet_address?: string
+  crypto_sent_at?: string
+  crypto_explorer_url?: string
 }
 
 export interface InvoiceCreatedResponse {

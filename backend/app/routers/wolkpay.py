@@ -252,8 +252,16 @@ async def get_my_invoices(
                     network_fee_percent=inv.network_fee_percent,
                     network_fee_brl=inv.network_fee_brl,
                     total_amount_brl=inv.total_amount_brl,
+                    fee_payer=inv.fee_payer.value if hasattr(inv.fee_payer, 'value') else str(inv.fee_payer) if inv.fee_payer else "BENEFICIARY",
+                    beneficiary_receives_brl=inv.beneficiary_receives_brl,
                     checkout_token=inv.checkout_token,
                     checkout_url=inv.checkout_url,
+                    # Dados da transação blockchain
+                    crypto_tx_hash=inv.crypto_tx_hash,
+                    crypto_tx_network=inv.crypto_tx_network,
+                    crypto_wallet_address=inv.crypto_wallet_address,
+                    crypto_sent_at=inv.crypto_sent_at,
+                    crypto_explorer_url=inv.crypto_explorer_url,
                     created_at=inv.created_at,
                     expires_at=inv.expires_at,
                     expires_in_seconds=max(0, int((inv.expires_at.replace(tzinfo=timezone.utc) - now).total_seconds())) if inv.expires_at else 0
