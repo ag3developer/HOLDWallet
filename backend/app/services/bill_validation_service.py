@@ -357,6 +357,10 @@ class BillValidationService:
         Validação simulada para desenvolvimento
         
         Extrai informações do código de barras e simula dados do beneficiário
+        
+        Suporta:
+        - Código de barras: 44 dígitos
+        - Linha digitável: 47 dígitos
         """
         from app.services.wolkpay_bill_service import BANK_CODES
         
@@ -369,13 +373,50 @@ class BillValidationService:
                 bank_code = barcode[0:3]
                 bank_name = BANK_CODES.get(bank_code, f"Banco {bank_code}")
                 
-                # Fator de vencimento
-                due_factor = int(barcode[5:9])
+                # Verifica se é linha digitável (47 dígitos) ou código de barras (44 dígitos)
+                if len(barcode) == 47:
+                    # LINHA DIGITÁVEL (47 dígitos)
+                    # Formato: AAABC.CCCCX DDDDD.DDDDDY EEEEE.EEEEEZ K UUUUVVVVVVVVVV
+                    # Posições:
+                    # 0-2: Banco
+                    # 3: Moeda
+                    # 4-8: Campo livre parte 1
+                    # 9: DV campo 1
+                    # 10-19: Campo livre parte 2
+                    # 20: DV campo 2
+                    # 21-30: Campo livre parte 3
+                    # 31: DV campo 3
+                    # 32: DV geral
+                    # 33-36: Fator vencimento (4 dígitos)
+                    # 37-46: Valor (10 dígitos)
+                    due_factor = int(barcode[33:37])
+                    amount = Decimal(barcode[37:47]) / Decimal('100')
+                else:
+                    # CÓDIGO DE BARRAS (44 dígitos)
+                    # Formato: BBBMK.UUUUVVVVVVVVVVCCCCCCCCCCCCCCCCCCCCCCC
+                    # Posições:
+                    # 0-2: Banco
+                    # 3: Moeda
+                    # 4: DV geral
+                    # 5-8: Fator vencimento (4 dígitos)
+                    # 9-18: Valor (10 dígitos)
+                    # 19-43: Campo livre
+                    due_factor = int(barcode[5:9])
+                    amount = Decimal(barcode[9:19]) / Decimal('100')
+                
+                # Calcula data de vencimento usando fator de vencimento
+                # Base: 07/10/1997
+                # IMPORTANTE: Após 21/02/2025 (fator 9999), o ciclo reinicia em 1000 = 22/02/2025
                 base_date = date(1997, 10, 7)
                 due_date = base_date + timedelta(days=due_factor) if due_factor > 0 else date.today() + timedelta(days=30)
                 
-                # Valor
-                amount = Decimal(barcode[9:19]) / Decimal('100')
+                # Verifica se a data calculada é muito antiga (antes de 2020)
+                # Se for, provavelmente está usando o novo ciclo pós-2025
+                if due_date.year < 2020 and due_factor >= 1000:
+                    # Usa o novo ciclo: fator 1000 = 22/02/2025
+                    new_base = date(2025, 2, 22)
+                    days_after = due_factor - 1000
+                    due_date = new_base + timedelta(days=days_after)
                 
                 # Simula dados do beneficiário baseado no banco
                 beneficiary_info = self._get_mock_beneficiary(bank_code)
@@ -402,20 +443,20 @@ class BillValidationService:
                 if days_until_due < 0:
                     if days_until_due >= -30:
                         status = "overdue"
-                        status_message = f"⚠️ Boleto vencido há {abs(days_until_due)} dias. Multa e juros aplicados."
+                        status_message = f"Boleto vencido há {abs(days_until_due)} dias. Multa e juros aplicados."
                     else:
                         status = "expired"
-                        status_message = "❌ Boleto vencido há mais de 30 dias. Não pode ser pago."
+                        status_message = "Boleto vencido há mais de 30 dias. Não pode ser pago."
                         can_be_paid = False
                 elif days_until_due == 0:
                     status = "due_today"
-                    status_message = "⚠️ Boleto vence HOJE."
+                    status_message = "Boleto vence HOJE."
                 elif days_until_due <= 3:
                     status = "near_due"
-                    status_message = f"⚡ Vence em {days_until_due} dias."
+                    status_message = f"Vence em {days_until_due} dias."
                 else:
                     status = "valid"
-                    status_message = f"✅ Boleto válido. Vence em {days_until_due} dias."
+                    status_message = f"Boleto válido. Vence em {days_until_due} dias."
                 
                 return BillValidationResult(
                     valid=True,
@@ -463,7 +504,7 @@ class BillValidationService:
                     beneficiary_name=beneficiary_name,
                     beneficiary_document=beneficiary_doc,
                     status="valid",
-                    status_message="✅ Conta de consumo válida.",
+                    status_message="Conta de consumo válida.",
                     provider="mock"
                 )
                 
@@ -505,11 +546,11 @@ class BillValidationService:
     def _get_status_message(self, status: str) -> str:
         """Retorna mensagem de status"""
         messages = {
-            'ATIVO': '✅ Boleto ativo e pode ser pago',
-            'PAGO': '✅ Boleto já foi pago',
-            'CANCELADO': '❌ Boleto cancelado',
-            'EXPIRADO': '❌ Boleto expirado',
-            'VENCIDO': '⚠️ Boleto vencido (pode ter multa/juros)',
+            'ATIVO': 'Boleto ativo e pode ser pago',
+            'PAGO': 'Boleto já foi pago',
+            'CANCELADO': 'Boleto cancelado',
+            'EXPIRADO': 'Boleto expirado',
+            'VENCIDO': 'Boleto vencido (pode ter multa/juros)',
         }
         return messages.get(status, f'Status: {status}')
 

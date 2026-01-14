@@ -625,13 +625,14 @@ class ValidateBillRequest(BaseModel):
     Request para validar/escanear um boleto
     Primeira etapa: usuário envia código de barras
     """
-    barcode: str = Field(..., min_length=44, max_length=60, description="Código de barras do boleto (44-47 dígitos)")
+    barcode: str = Field(..., description="Código de barras do boleto (44-47 dígitos)")
     
     @validator('barcode')
     def validate_barcode(cls, v):
+        # Remove espaços, pontos e outros caracteres não numéricos
         clean = ''.join(filter(str.isdigit, v))
         if len(clean) < 44 or len(clean) > 48:
-            raise ValueError("Código de barras deve ter entre 44 e 48 dígitos")
+            raise ValueError(f"Código de barras deve ter entre 44 e 48 dígitos. Recebido: {len(clean)} dígitos")
         return clean
 
 
@@ -639,6 +640,11 @@ class BillInfoResponse(BaseModel):
     """
     Response com informações do boleto validado
     ⚠️ IMPORTANTE: Mostra alerta se vencimento < 1 dia
+    
+    Inclui detalhes sobre:
+    - Status de vencimento (dias vencido/a vencer)
+    - Multas e juros aplicados (quando vencido)
+    - Valor original vs valor final
     """
     valid: bool
     error_message: Optional[str] = None
@@ -647,16 +653,35 @@ class BillInfoResponse(BaseModel):
     digitable_line: Optional[str] = None
     bill_type: BillTypeEnum
     
-    amount_brl: Decimal
+    # Valores detalhados
+    original_amount_brl: Decimal = Field(description="Valor original do boleto (sem multa/juros)")
+    fine_amount_brl: Decimal = Field(default=Decimal("0"), description="Multa por atraso (2%)")
+    interest_amount_brl: Decimal = Field(default=Decimal("0"), description="Juros por atraso (~1% ao mês)")
+    amount_brl: Decimal = Field(description="Valor final a pagar (original + multa + juros)")
+    
+    # Informações de vencimento
     due_date: date
-    days_until_due: int
+    days_until_due: int = Field(description="Dias até vencimento (negativo = vencido)")
+    is_overdue: bool = Field(default=False, description="True se o boleto está vencido")
+    days_overdue: int = Field(default=0, description="Quantidade de dias vencido (0 se não vencido)")
     due_date_valid: bool
     due_date_warning: Optional[str] = None
     
+    # Status detalhado
+    status: str = Field(default="valid", description="valid, overdue, expired, due_today, near_due")
+    status_message: Optional[str] = Field(default=None, description="Mensagem amigável sobre o status")
+    
+    # Dados do beneficiário
     beneficiary_name: Optional[str] = None
     beneficiary_document: Optional[str] = None
     bank_code: Optional[str] = None
     bank_name: Optional[str] = None
+    
+    # Informação extra para transparência
+    fees_disclaimer: Optional[str] = Field(
+        default="Multas e juros são cobrados pelo emissor do boleto, não pela plataforma.",
+        description="Aviso sobre origem das multas/juros"
+    )
 
 
 class QuoteBillPaymentRequest(BaseModel):

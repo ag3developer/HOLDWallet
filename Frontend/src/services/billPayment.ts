@@ -36,15 +36,28 @@ export interface BillInfo {
   barcode: string
   digitable_line?: string
   bill_type: BillType
+  // Valores detalhados
+  original_amount_brl?: number
+  fine_amount_brl?: number
+  interest_amount_brl?: number
   amount_brl: number
+  // Vencimento
   due_date: string
   days_until_due: number
+  is_overdue?: boolean
+  days_overdue?: number
   due_date_valid: boolean
   due_date_warning?: string
+  // Status
+  status?: string
+  status_message?: string
+  // Beneficiário
   beneficiary_name?: string
   beneficiary_document?: string
   bank_code?: string
   bank_name?: string
+  // Disclaimer
+  fees_disclaimer?: string
 }
 
 export interface QuoteBillPaymentRequest {

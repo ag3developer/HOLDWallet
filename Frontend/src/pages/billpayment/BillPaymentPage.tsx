@@ -516,6 +516,95 @@ export function BillPaymentPage() {
                     </div>
                   )}
                 </div>
+
+                {/* Status do Boleto */}
+                {billInfo.status && (
+                  <div
+                    className={`mt-4 p-3 rounded-lg ${
+                      billInfo.is_overdue
+                        ? 'bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30'
+                        : billInfo.status === 'valid'
+                          ? 'bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/30'
+                          : 'bg-gray-50 dark:bg-gray-700/30 border border-gray-200 dark:border-gray-600'
+                    }`}
+                  >
+                    <div className='flex items-start gap-2'>
+                      {billInfo.is_overdue ? (
+                        <AlertTriangle className='w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5' />
+                      ) : billInfo.status === 'valid' ? (
+                        <CheckCircle className='w-5 h-5 text-green-500 flex-shrink-0 mt-0.5' />
+                      ) : (
+                        <Info className='w-5 h-5 text-gray-500 flex-shrink-0 mt-0.5' />
+                      )}
+                      <div className='flex-1'>
+                        <p
+                          className={`text-sm font-medium ${
+                            billInfo.is_overdue
+                              ? 'text-amber-700 dark:text-amber-400'
+                              : billInfo.status === 'valid'
+                                ? 'text-green-700 dark:text-green-400'
+                                : 'text-gray-700 dark:text-gray-300'
+                          }`}
+                        >
+                          {billInfo.status_message}
+                        </p>
+
+                        {/* Detalhes de Multa e Juros */}
+                        {billInfo.is_overdue &&
+                          (billInfo.fine_amount_brl || billInfo.interest_amount_brl) && (
+                            <div className='mt-2 space-y-1'>
+                              {billInfo.original_amount_brl && (
+                                <div className='flex justify-between text-xs'>
+                                  <span className='text-gray-600 dark:text-gray-400'>
+                                    Valor Original:
+                                  </span>
+                                  <span className='text-gray-900 dark:text-white'>
+                                    {formatCurrency(billInfo.original_amount_brl)}
+                                  </span>
+                                </div>
+                              )}
+                              {billInfo.fine_amount_brl && billInfo.fine_amount_brl > 0 && (
+                                <div className='flex justify-between text-xs'>
+                                  <span className='text-amber-600 dark:text-amber-400'>
+                                    Multa (2%):
+                                  </span>
+                                  <span className='text-amber-700 dark:text-amber-300'>
+                                    + {formatCurrency(billInfo.fine_amount_brl)}
+                                  </span>
+                                </div>
+                              )}
+                              {billInfo.interest_amount_brl && billInfo.interest_amount_brl > 0 && (
+                                <div className='flex justify-between text-xs'>
+                                  <span className='text-amber-600 dark:text-amber-400'>Juros:</span>
+                                  <span className='text-amber-700 dark:text-amber-300'>
+                                    + {formatCurrency(billInfo.interest_amount_brl)}
+                                  </span>
+                                </div>
+                              )}
+                              <div className='flex justify-between text-xs font-medium pt-1 border-t border-amber-200 dark:border-amber-500/30'>
+                                <span className='text-gray-700 dark:text-gray-300'>
+                                  Total a Pagar:
+                                </span>
+                                <span className='text-violet-600 dark:text-violet-400'>
+                                  {formatCurrency(billInfo.amount_brl)}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Disclaimer sobre Multas/Juros */}
+                {billInfo.fees_disclaimer && (
+                  <div className='mt-3 p-2 bg-blue-50 dark:bg-blue-500/10 rounded-lg border border-blue-200 dark:border-blue-500/30'>
+                    <p className='text-xs text-blue-700 dark:text-blue-400 flex items-center gap-1.5'>
+                      <Info className='w-3.5 h-3.5 flex-shrink-0' />
+                      {billInfo.fees_disclaimer}
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Crypto Selection */}

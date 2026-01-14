@@ -206,6 +206,10 @@ class WolkPayBillService:
             due_date = validation_result.due_date or (today + timedelta(days=30))
             days_until_due = (due_date - today).days
             
+            # Calcula se está vencido e quantos dias
+            is_overdue = days_until_due < 0
+            days_overdue = abs(days_until_due) if is_overdue else 0
+            
             # Valida se pode ser pago
             due_date_valid = validation_result.can_be_paid
             due_date_warning = validation_result.status_message
@@ -213,24 +217,34 @@ class WolkPayBillService:
             # Verifica regra de 1 dia de antecedência
             if days_until_due >= 0 and days_until_due < MIN_DAYS_BEFORE_DUE:
                 due_date_valid = False
-                due_date_warning = f"⚠️ Boleto vence em {days_until_due} dia(s). Mínimo necessário: {MIN_DAYS_BEFORE_DUE} dia(s) de antecedência."
+                due_date_warning = f"Boleto vence em {days_until_due} dia(s). Mínimo necessário: {MIN_DAYS_BEFORE_DUE} dia(s) de antecedência."
             
             # Gera linha digitável
             digitable_line = validation_result.digitable_line or self._generate_digitable_line(clean_barcode)
             
-            # Adiciona informação de multas/juros se houver
-            extra_info = []
-            if validation_result.fine_amount > 0:
-                extra_info.append(f"Multa: R$ {validation_result.fine_amount:.2f}")
-            if validation_result.interest_amount > 0:
-                extra_info.append(f"Juros: R$ {validation_result.interest_amount:.2f}")
-            if validation_result.discount_amount > 0:
-                extra_info.append(f"Desconto: -R$ {validation_result.discount_amount:.2f}")
+            # Monta mensagem detalhada de status
+            status = validation_result.status
+            status_message = validation_result.status_message
             
-            if extra_info and due_date_warning:
-                due_date_warning = f"{due_date_warning} ({', '.join(extra_info)})"
-            elif extra_info:
-                due_date_warning = f"ℹ️ {', '.join(extra_info)}"
+            # Adiciona informação de multas/juros se houver
+            if is_overdue and (validation_result.fine_amount > 0 or validation_result.interest_amount > 0):
+                fees_detail = []
+                if validation_result.fine_amount > 0:
+                    fees_detail.append(f"Multa: R$ {validation_result.fine_amount:.2f}")
+                if validation_result.interest_amount > 0:
+                    fees_detail.append(f"Juros: R$ {validation_result.interest_amount:.2f}")
+                
+                if status_message:
+                    status_message = f"{status_message} ({', '.join(fees_detail)})"
+                else:
+                    status_message = f"Boleto vencido há {days_overdue} dias. {', '.join(fees_detail)}"
+                
+                due_date_warning = status_message
+            
+            # Disclaimer sobre multas/juros
+            fees_disclaimer = None
+            if validation_result.fine_amount > 0 or validation_result.interest_amount > 0:
+                fees_disclaimer = "Multas e juros são cobrados pelo emissor do boleto (banco/empresa), não pela WOLK NOW."
             
             return BillInfoResponse(
                 valid=due_date_valid,
@@ -238,15 +252,28 @@ class WolkPayBillService:
                 barcode=clean_barcode,
                 digitable_line=digitable_line,
                 bill_type=bill_type,
+                # Valores detalhados
+                original_amount_brl=validation_result.original_amount,
+                fine_amount_brl=validation_result.fine_amount,
+                interest_amount_brl=validation_result.interest_amount,
                 amount_brl=amount,
+                # Vencimento
                 due_date=due_date,
-                days_until_due=max(0, days_until_due),
+                days_until_due=days_until_due,  # Pode ser negativo se vencido
+                is_overdue=is_overdue,
+                days_overdue=days_overdue,
                 due_date_valid=due_date_valid,
                 due_date_warning=due_date_warning,
+                # Status
+                status=status,
+                status_message=status_message,
+                # Beneficiário
                 beneficiary_name=validation_result.beneficiary_name,
                 beneficiary_document=validation_result.beneficiary_document,
                 bank_code=None,  # Já incluído no bank_name
-                bank_name=validation_result.beneficiary_bank
+                bank_name=validation_result.beneficiary_bank,
+                # Disclaimer
+                fees_disclaimer=fees_disclaimer
             )
             
         except Exception as e:
@@ -256,10 +283,20 @@ class WolkPayBillService:
                 error_message=f"Erro ao processar código de barras: {str(e)}",
                 barcode=barcode,
                 bill_type=BillTypeEnum.OTHER,
+                # Valores zerados
+                original_amount_brl=Decimal('0'),
+                fine_amount_brl=Decimal('0'),
+                interest_amount_brl=Decimal('0'),
                 amount_brl=Decimal('0'),
+                # Vencimento
                 due_date=date.today(),
                 days_until_due=0,
-                due_date_valid=False
+                is_overdue=False,
+                days_overdue=0,
+                due_date_valid=False,
+                # Status de erro
+                status="error",
+                status_message=f"Erro ao processar: {str(e)}"
             )
     
     def _identify_bill_type(self, barcode: str) -> BillTypeEnum:
@@ -632,7 +669,7 @@ class WolkPayBillService:
                 paid_at=None,
                 payment_receipt_url=None,
                 bank_authentication=None,
-                status_message="✅ Crypto debitada com sucesso! Seu pagamento está sendo processado. O boleto será pago em até 24 horas úteis."
+                status_message="Crypto debitada com sucesso! Seu pagamento está sendo processado. O boleto será pago em até 24 horas úteis."
             )
             
         except Exception as e:
@@ -1063,15 +1100,15 @@ class WolkPayBillService:
         # Mensagem de status padrão
         if not status_message:
             status_messages = {
-                BillPaymentStatus.PENDING: "⏳ Aguardando confirmação do pagamento",
-                BillPaymentStatus.CRYPTO_DEBITED: "✅ Crypto debitada! Processando pagamento do boleto...",
-                BillPaymentStatus.PROCESSING: "⚙️ Processando pagamento...",
-                BillPaymentStatus.PAYING: "💳 Realizando pagamento do boleto...",
-                BillPaymentStatus.PAID: "🎉 Boleto pago com sucesso!",
-                BillPaymentStatus.FAILED: "❌ Falha no pagamento. Reembolso em processamento.",
-                BillPaymentStatus.REFUNDED: "💰 Reembolso processado.",
-                BillPaymentStatus.CANCELLED: "🚫 Pagamento cancelado.",
-                BillPaymentStatus.EXPIRED: "⌛ Cotação expirada.",
+                BillPaymentStatus.PENDING: "Aguardando confirmação do pagamento",
+                BillPaymentStatus.CRYPTO_DEBITED: "Crypto debitada! Processando pagamento do boleto...",
+                BillPaymentStatus.PROCESSING: "Processando pagamento...",
+                BillPaymentStatus.PAYING: "Realizando pagamento do boleto...",
+                BillPaymentStatus.PAID: "Boleto pago com sucesso!",
+                BillPaymentStatus.FAILED: "Falha no pagamento. Reembolso em processamento.",
+                BillPaymentStatus.REFUNDED: "Reembolso processado.",
+                BillPaymentStatus.CANCELLED: "Pagamento cancelado.",
+                BillPaymentStatus.EXPIRED: "Cotação expirada.",
             }
             status_message = status_messages.get(bill_payment.status, "Status desconhecido")
         
