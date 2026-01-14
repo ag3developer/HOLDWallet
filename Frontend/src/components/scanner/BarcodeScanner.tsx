@@ -118,19 +118,23 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
         setIsProcessing(true)
         setScannedCode(cleanCode)
 
-        // Vibrar para feedback tátil
+        // Vibrar para feedback tátil (padrão de sucesso)
         if (navigator.vibrate) {
-          navigator.vibrate(200)
+          navigator.vibrate([100, 50, 100]) // Vibração dupla de sucesso
         }
 
         console.log('✅ Código detectado:', cleanCode.substring(0, 20) + '...')
 
-        // Delay para mostrar feedback visual
+        // Delay maior para mostrar feedback visual (similar aos bancos)
+        // 2 segundos para o usuário ver a confirmação antes de fechar
         setTimeout(() => {
           onScan(cleanCode)
-          setIsProcessing(false)
-          setScannedCode(null)
-        }, 500)
+          // Pequeno delay adicional antes de limpar estado
+          setTimeout(() => {
+            setIsProcessing(false)
+            setScannedCode(null)
+          }, 300)
+        }, 2000)
       }
     },
     [isProcessing, scannedCode, onScan]
@@ -483,8 +487,9 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
 
                 {/* Feedback de sucesso */}
                 {scannedCode && (
-                  <div className='absolute inset-0 flex items-center justify-center bg-green-500/20 rounded-lg'>
-                    <CheckCircle className='w-12 h-12 text-green-500 animate-bounce' />
+                  <div className='absolute inset-0 flex flex-col items-center justify-center bg-green-500/30 rounded-lg border-4 border-green-500'>
+                    <CheckCircle className='w-16 h-16 text-green-500 animate-bounce' />
+                    <p className='text-green-400 font-bold mt-2 text-lg'>Lido com sucesso!</p>
                   </div>
                 )}
               </div>
@@ -497,10 +502,15 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
       <div className='absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-black/80 to-transparent p-6 pb-safe'>
         <div className='text-center'>
           {scannedCode ? (
-            <div className='flex flex-col items-center gap-2'>
-              <CheckCircle className='w-8 h-8 text-green-500' />
-              <p className='text-white font-medium'>Código detectado!</p>
-              <p className='text-gray-400 text-sm font-mono'>{scannedCode.substring(0, 20)}...</p>
+            <div className='flex flex-col items-center gap-3 animate-pulse'>
+              <div className='flex items-center gap-2 bg-green-500/20 px-4 py-2 rounded-full'>
+                <CheckCircle className='w-6 h-6 text-green-500' />
+                <p className='text-green-400 font-bold'>Código detectado!</p>
+              </div>
+              <p className='text-white text-sm'>Processando...</p>
+              <p className='text-gray-400 text-xs font-mono bg-black/30 px-3 py-1 rounded'>
+                {scannedCode.substring(0, 25)}...
+              </p>
             </div>
           ) : cameraState === 'active' ? (
             <>

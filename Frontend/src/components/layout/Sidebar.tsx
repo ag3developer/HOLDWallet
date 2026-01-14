@@ -61,10 +61,10 @@ const navigation: NavItem[] = [
   { name: 'billPayment', href: '/bill-payment', icon: Receipt, group: 'services', badge: 'Novo' },
   { name: 'contact', href: '/contact', icon: Phone, group: 'services' },
   { name: 'support', href: '/support', icon: HeadphonesIcon, group: 'services' },
-  { name: 'portfolio', href: '/portfolio', icon: BarChart3, group: 'services' },
+  // { name: 'portfolio', href: '/portfolio', icon: BarChart3, group: 'services' }, // Desabilitado - dados mock
   { name: 'aiIntelligence', href: '/ai-intelligence', icon: Brain, group: 'services', badge: 'AI' },
-  { name: 'institutional', href: '/institutional', icon: Building2, group: 'services' },
-  { name: 'education', href: '/education', icon: GraduationCap, group: 'services', badge: 'Novo' },
+  // { name: 'institutional', href: '/institutional', icon: Building2, group: 'services' }, // Desabilitado - dados mock
+  // { name: 'education', href: '/education', icon: GraduationCap, group: 'services', badge: 'Novo' }, // Desabilitado - dados mock
 
   // Conta
   { name: 'profile', href: '/profile', icon: User, group: 'account' },
