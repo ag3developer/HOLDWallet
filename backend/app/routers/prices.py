@@ -93,6 +93,29 @@ async def get_price_history(
     except Exception as e:
         raise ExternalServiceError(f"Failed to fetch price history: {str(e)}")
 
+
+@router.get("/ohlc/{symbol}")
+async def get_ohlc_data(
+    symbol: str,
+    days: int = Query(30, ge=1, le=365, description="Number of days of OHLC data"),
+    db: Session = Depends(get_db)
+):
+    """
+    Get OHLC (Open, High, Low, Close) candlestick data for a cryptocurrency.
+    Uses CoinGecko's OHLC endpoint.
+    
+    Returns: List of [timestamp, open, high, low, close] arrays
+    """
+    price_service = PriceService(db)
+    
+    try:
+        ohlc_data = await price_service.get_ohlc_data(symbol.lower(), days)
+        return ohlc_data
+        
+    except Exception as e:
+        raise ExternalServiceError(f"Failed to fetch OHLC data: {str(e)}")
+
+
 @router.get("/supported", response_model=SupportedAssetsResponse)
 async def get_supported_assets(
     page: int = Query(1, ge=1, description="Page number"),

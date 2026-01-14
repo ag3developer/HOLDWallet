@@ -725,6 +725,44 @@ class InstantTradeService:
         self.db.add(history)
         self.db.commit()
 
+        # 📊 UPDATE USER PORTFOLIO WITH COST BASIS
+        try:
+            from app.services.portfolio_service import portfolio_service
+            
+            # Get trade details
+            crypto_symbol = trade.symbol.upper() if trade.symbol else ""
+            crypto_amount = float(trade.crypto_amount) if trade.crypto_amount else 0
+            unit_price = float(trade.unit_price) if trade.unit_price else 0
+            user_id = int(trade.user_id) if trade.user_id else None
+            operation = trade.operation_type.value if trade.operation_type else ""
+            
+            if user_id and crypto_amount > 0 and unit_price > 0:
+                if operation == "buy":
+                    # User bought crypto - add to portfolio with cost basis
+                    asyncio.create_task(
+                        portfolio_service.update_portfolio_on_buy(
+                            db=self.db,
+                            user_id=user_id,
+                            symbol=crypto_symbol,
+                            amount=crypto_amount,
+                            price_usd=unit_price
+                        )
+                    )
+                    logger.info(f"📊 Portfolio updated: +{crypto_amount} {crypto_symbol} @ ${unit_price}")
+                elif operation == "sell":
+                    # User sold crypto - remove from portfolio
+                    asyncio.create_task(
+                        portfolio_service.update_portfolio_on_sell(
+                            db=self.db,
+                            user_id=user_id,
+                            symbol=crypto_symbol,
+                            amount=crypto_amount
+                        )
+                    )
+                    logger.info(f"📊 Portfolio updated: -{crypto_amount} {crypto_symbol}")
+        except Exception as portfolio_error:
+            logger.warning(f"⚠️ Could not update portfolio: {portfolio_error}")
+
         logger.info(f"Trade completed: {trade.reference_code}")
 
         completed_at = trade.completed_at.isoformat() if trade.completed_at is not None else None

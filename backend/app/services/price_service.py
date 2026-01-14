@@ -170,6 +170,48 @@ class PriceService:
             logger.error(f"Erro ao obter histórico de {symbol}: {e}")
             return {"prices": [], "market_caps": [], "total_volumes": []}
     
+    async def get_ohlc_data(
+        self,
+        symbol: str,
+        days: int = 30
+    ) -> List[List[float]]:
+        """
+        Get OHLC (candlestick) data from CoinGecko.
+        
+        Args:
+            symbol: Crypto symbol (btc, eth, etc.)
+            days: Number of days (1, 7, 14, 30, 90, 180, 365)
+            
+        Returns:
+            List of [timestamp, open, high, low, close] arrays
+        """
+        try:
+            coin_id = self.coin_mapping.get(symbol.lower())
+            if not coin_id:
+                logger.warning(f"Symbol {symbol} not found in mapping")
+                return []
+            
+            async with httpx.AsyncClient() as client:
+                url = f"{self.coingecko_url}/coins/{coin_id}/ohlc"
+                params = {
+                    "vs_currency": "usd",
+                    "days": days
+                }
+                
+                if settings.COINGECKO_API_KEY:
+                    params["x_cg_demo_api_key"] = settings.COINGECKO_API_KEY
+                
+                response = await client.get(url, params=params, timeout=30.0)
+                response.raise_for_status()
+                
+                data = response.json()
+                logger.info(f"Got {len(data)} OHLC candles for {symbol}")
+                return data
+                
+        except Exception as e:
+            logger.error(f"Error getting OHLC data for {symbol}: {e}")
+            return []
+    
     async def get_supported_assets(
         self,
         page: int = 1,
