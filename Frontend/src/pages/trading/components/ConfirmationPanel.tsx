@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   CheckCircle,
   Loader,
@@ -18,6 +18,7 @@ import {
   CheckCheck,
   Shield,
 } from 'lucide-react'
+import QRCodeLib from 'qrcode'
 import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { apiClient } from '@/services/api'
@@ -25,6 +26,105 @@ import { parseApiError } from '@/services/errors'
 import { TradeStatusMonitor } from './TradeStatusMonitor'
 import { useCurrencyStore } from '@/stores/useCurrencyStore'
 import { usePaymentMethods } from '@/hooks/usePaymentMethods'
+
+/**
+ * Sanitiza string base64 removendo prefixos e caracteres inválidos
+ * Corrige problemas no Safari iOS com imagens base64
+ */
+const sanitizeBase64 = (base64: string | undefined | null): string | null => {
+  if (!base64) return null
+
+  // Remove prefixo data:image se presente
+  let clean = base64
+  if (clean.startsWith('data:image')) {
+    const parts = clean.split(',')
+    clean = parts.length > 1 ? (parts[1] ?? clean) : clean
+  }
+
+  // Remove espaços e quebras de linha (comum em Safari iOS)
+  clean = clean.replaceAll(/\s/g, '')
+
+  // Valida se é base64 válido
+  try {
+    atob(clean)
+    return clean
+  } catch {
+    console.warn('[QRCode] Base64 inválido, tentando corrigir padding...')
+    const padding = clean.length % 4
+    if (padding > 0) {
+      clean += '='.repeat(4 - padding)
+    }
+    try {
+      atob(clean)
+      return clean
+    } catch {
+      console.error('[QRCode] Base64 definitivamente inválido')
+      return null
+    }
+  }
+}
+
+/**
+ * Componente QRCodeImage com fallback para Safari iOS
+ * Se a imagem base64 falhar, gera o QR Code localmente usando canvas
+ */
+const QRCodeImage: React.FC<{
+  base64Image: string | undefined | null
+  pixCode: string | undefined
+  size?: number
+  className?: string
+}> = ({ base64Image, pixCode, size = 192, className = '' }) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [imageError, setImageError] = useState(false)
+  const [localQrGenerated, setLocalQrGenerated] = useState(false)
+
+  const sanitizedBase64 = sanitizeBase64(base64Image)
+
+  // Gera QR Code localmente se a imagem falhar
+  useEffect(() => {
+    if ((imageError || !sanitizedBase64) && pixCode && canvasRef.current && !localQrGenerated) {
+      console.log('[QRCode] Gerando QR Code localmente no canvas...')
+      QRCodeLib.toCanvas(canvasRef.current, pixCode, {
+        width: size,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#ffffff',
+        },
+      })
+        .then(() => {
+          setLocalQrGenerated(true)
+          console.log('[QRCode] ✅ QR Code gerado localmente com sucesso')
+        })
+        .catch(err => {
+          console.error('[QRCode] ❌ Erro ao gerar QR Code local:', err)
+        })
+    }
+  }, [imageError, sanitizedBase64, pixCode, size, localQrGenerated])
+
+  // Se temos base64 válido e não houve erro, mostra a imagem
+  if (sanitizedBase64 && !imageError) {
+    return (
+      <img
+        src={`data:image/png;base64,${sanitizedBase64}`}
+        alt='QR Code PIX'
+        className={`${className} mx-auto`}
+        width={size}
+        height={size}
+        onError={() => {
+          console.warn('[QRCode] Erro ao carregar imagem base64, usando fallback...')
+          setImageError(true)
+        }}
+        onLoad={() => {
+          console.log('[QRCode] ✅ Imagem base64 carregada com sucesso')
+        }}
+      />
+    )
+  }
+
+  // Fallback: canvas com QR Code gerado localmente
+  return <canvas ref={canvasRef} className={`${className} mx-auto`} width={size} height={size} />
+}
 
 interface Quote {
   quote_id: string
@@ -479,15 +579,14 @@ export function ConfirmationPanel({
           <>
             {/* QR Code Container */}
             <div className='flex flex-col items-center py-4'>
-              {pixData.qrcode_image ? (
-                <div className='bg-white p-3 rounded-xl shadow-md border-2 border-green-500 dark:border-green-400'>
-                  <img src={pixData.qrcode_image} alt='QR Code PIX' className='w-48 h-48' />
-                </div>
-              ) : (
-                <div className='bg-gray-100 dark:bg-gray-700 p-4 rounded-xl w-48 h-48 flex items-center justify-center border border-gray-200 dark:border-gray-600'>
-                  <QrCode className='w-20 h-20 text-gray-400' />
-                </div>
-              )}
+              <div className='bg-white p-3 rounded-xl shadow-md border-2 border-green-500 dark:border-green-400'>
+                <QRCodeImage
+                  base64Image={pixData.qrcode_image}
+                  pixCode={pixData.qrcode}
+                  size={192}
+                  className='w-48 h-48'
+                />
+              </div>
 
               {/* Valor */}
               <div className='mt-4 text-center'>

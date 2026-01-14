@@ -40,9 +40,20 @@ def _parse_batch_symbols(symbols: str, symbol_map: Dict[str, str]) -> tuple[List
     if len(symbol_list) == 0:
         raise ValidationError("At least one symbol required")
     
+    # Normalizar POL para MATIC (POL é o novo nome de MATIC)
+    symbol_list = ['MATIC' if s == 'POL' else s for s in symbol_list]
+    
+    # Remover duplicatas mantendo ordem
+    seen = set()
+    unique_symbols = []
+    for s in symbol_list:
+        if s not in seen:
+            seen.add(s)
+            unique_symbols.append(s)
+    
     coin_ids = []
     valid_symbols = []
-    for symbol in symbol_list:
+    for symbol in unique_symbols:
         coin_id = symbol_map.get(symbol)
         if coin_id:
             coin_ids.append(coin_id)

@@ -140,8 +140,11 @@ class CoinGeckoSource(PriceSource):
         except asyncio.TimeoutError:
             logger.error("CoinGecko: Request timeout")
             return {}
+        except asyncio.CancelledError:
+            logger.warning("CoinGecko: Request cancelled")
+            raise  # Re-raise para permitir shutdown graceful
         except httpx.HTTPStatusError as e:
-            logger.error(f"CoinGecko: HTTP error {e.status_code}")
+            logger.error(f"CoinGecko: HTTP error {e.response.status_code}")
             return {}
         except Exception as e:
             logger.error(f"CoinGecko: Error fetching prices - {str(e)}")
@@ -234,6 +237,8 @@ class BinanceSource(PriceSource):
                             source="binance",
                             timestamp=datetime.now(timezone.utc)
                         )
+                    except asyncio.CancelledError:
+                        raise  # Re-raise para permitir shutdown graceful
                     except Exception as e:
                         logger.debug(f"Binance: Error fetching {pair} - {str(e)}")
                         continue
@@ -241,7 +246,10 @@ class BinanceSource(PriceSource):
             if prices:
                 logger.info(f"Binance: Fetched {len(prices)} prices in {currency.upper()} successfully")
             return prices
-            
+        
+        except asyncio.CancelledError:
+            logger.warning("Binance: Request cancelled")
+            raise  # Re-raise para permitir shutdown graceful
         except Exception as e:
             logger.error(f"Binance: Error fetching prices - {str(e)}")
             return {}
@@ -311,6 +319,18 @@ class PriceAggregator:
         """
         currency = currency.lower()
         
+        # Normalizar símbolos: POL → MATIC (POL é o novo nome de MATIC)
+        # E remover duplicatas
+        normalized_symbols = []
+        seen = set()
+        for s in symbols:
+            symbol = 'MATIC' if s.upper() == 'POL' else s.upper()
+            if symbol not in seen:
+                seen.add(symbol)
+                normalized_symbols.append(symbol)
+        
+        symbols = normalized_symbols
+        
         # Check cache first
         if not force_refresh and not await self.cache.is_stale(currency, self.cache_ttl):
             cached_prices = await self.cache.get(currency)
@@ -323,29 +343,33 @@ class PriceAggregator:
         all_prices = {}
         remaining_symbols = set(symbols)
         
-        # 1. Try Binance first (more accurate prices, especially for BRL)
-        if remaining_symbols:
-            logger.info(f"🔵 Binance (PRIMARY): Fetching {remaining_symbols} in {currency.upper()}")
-            binance_prices = await self.binance_source.fetch_prices(
-                list(remaining_symbols),
-                currency
-            )
-            if binance_prices:
-                all_prices.update(binance_prices)
-                remaining_symbols -= set(binance_prices.keys())
-                logger.info(f"✅ Binance: Got {len(binance_prices)} prices")
-        
-        # 2. Fallback to CoinGecko for remaining symbols
-        if remaining_symbols:
-            logger.info(f"🟡 CoinGecko (FALLBACK): Fetching {remaining_symbols} in {currency.upper()}")
-            coingecko_prices = await self.coingecko_source.fetch_prices(
-                list(remaining_symbols),
-                currency
-            )
-            if coingecko_prices:
-                all_prices.update(coingecko_prices)
-                remaining_symbols -= set(coingecko_prices.keys())
-                logger.info(f"✅ CoinGecko: Got {len(coingecko_prices)} prices (fallback)")
+        try:
+            # 1. Try Binance first (more accurate prices, especially for BRL)
+            if remaining_symbols:
+                logger.info(f"🔵 Binance (PRIMARY): Fetching {remaining_symbols} in {currency.upper()}")
+                binance_prices = await self.binance_source.fetch_prices(
+                    list(remaining_symbols),
+                    currency
+                )
+                if binance_prices:
+                    all_prices.update(binance_prices)
+                    remaining_symbols -= set(binance_prices.keys())
+                    logger.info(f"✅ Binance: Got {len(binance_prices)} prices")
+            
+            # 2. Fallback to CoinGecko for remaining symbols
+            if remaining_symbols:
+                logger.info(f"🟡 CoinGecko (FALLBACK): Fetching {remaining_symbols} in {currency.upper()}")
+                coingecko_prices = await self.coingecko_source.fetch_prices(
+                    list(remaining_symbols),
+                    currency
+                )
+                if coingecko_prices:
+                    all_prices.update(coingecko_prices)
+                    remaining_symbols -= set(coingecko_prices.keys())
+                    logger.info(f"✅ CoinGecko: Got {len(coingecko_prices)} prices (fallback)")
+        except asyncio.CancelledError:
+            logger.warning(f"⚠️ Price fetch cancelled for {currency.upper()}")
+            raise  # Re-raise para permitir shutdown graceful
         
         # Cache successful prices
         if all_prices:

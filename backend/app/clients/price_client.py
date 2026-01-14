@@ -53,9 +53,18 @@ class PriceClient:
             Dict with structure: {"btc": {"usd": 50000, "brl": 250000}}
         """
         try:
+            # Normalizar símbolos: POL → MATIC e remover duplicatas
+            normalized_symbols = []
+            seen = set()
+            for s in symbols:
+                symbol = 'matic' if s.lower() == 'pol' else s.lower()
+                if symbol not in seen:
+                    seen.add(symbol)
+                    normalized_symbols.append(symbol)
+            
             # Convert symbols to CoinGecko IDs
             coin_ids = []
-            for symbol in symbols:
+            for symbol in normalized_symbols:
                 coin_id = self.symbol_mapping.get(symbol.lower(), symbol.lower())
                 coin_ids.append(coin_id)
             
@@ -84,7 +93,7 @@ class PriceClient:
             
             # Convert response to expected format
             result = {}
-            for i, symbol in enumerate(symbols):
+            for i, symbol in enumerate(normalized_symbols):
                 coin_id = coin_ids[i]
                 if coin_id in data:
                     result[symbol.lower()] = {}
@@ -98,7 +107,7 @@ class PriceClient:
                     # Symbol not found, set to 0
                     result[symbol.lower()] = {c.lower(): 0.0 for c in currencies}
             
-            logger.info(f"Fetched prices for {len(symbols)} symbols")
+            logger.info(f"Fetched prices for {len(normalized_symbols)} symbols")
             return result
             
         except httpx.HTTPError as e:
