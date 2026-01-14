@@ -18,7 +18,7 @@ async def test_coingecko():
     async with httpx.AsyncClient(timeout=10.0) as client:
         url = "https://api.coingecko.com/api/v3/simple/price"
         params = {
-            "ids": "bitcoin,ethereum,matic-network",
+            "ids": "bitcoin,ethereum,polygon-ecosystem-token",
             "vs_currencies": "brl",
             "include_market_cap": "true",
             "include_24hr_vol": "true",
