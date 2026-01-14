@@ -59,7 +59,14 @@
     "profile": "Profile",
     "settings": "Settings",
     "help": "Help",
-    "logout": "Logout"
+    "logout": "Logout",
+    "services": "Services",
+    "contact": "Contact",
+    "support": "Support",
+    "portfolio": "Portfolio",
+    "aiIntelligence": "AI Intelligence",
+    "institutional": "Institutional",
+    "education": "Education"
   },
   "auth": {
     "login": "Login",

@@ -56,6 +56,9 @@ import { WolkPayCheckoutPage } from '@/pages/wolkpay/WolkPayCheckoutPage'
 import { WolkPayHistoryPage } from '@/pages/wolkpay/WolkPayHistoryPage'
 import { WolkPayWelcomePage } from '@/pages/wolkpay/WolkPayWelcomePage'
 
+// AI Intelligence Page
+import { AIIntelligencePage } from '@/pages/ai'
+
 // Admin Pages
 import {
   AdminDashboardPage,
@@ -326,6 +329,7 @@ function App() {
             <Route path='contact' element={<ContactPage />} />
             <Route path='support' element={<SupportPage />} />
             <Route path='portfolio' element={<PortfolioPage />} />
+            <Route path='ai-intelligence' element={<AIIntelligencePage />} />
             <Route path='institutional' element={<InstitutionalPage />} />
             <Route path='education' element={<EducationPage />} />
             <Route path='settings/*' element={<SettingsPage />} />

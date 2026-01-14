@@ -41,3 +41,15 @@ user-agents==2.2.0
 
 # AWS S3
 boto3==1.34.0
+
+# AI / Machine Learning dependencies
+prophet==1.1.5
+numpy>=1.24.0
+pandas>=2.0.0
+scipy>=1.10.0
+
+# Optional: TA-Lib for technical indicators (requires system library)
+# Install system library first:
+#   macOS: brew install ta-lib
+#   Ubuntu: apt-get install ta-lib
+# ta-lib==0.4.28
