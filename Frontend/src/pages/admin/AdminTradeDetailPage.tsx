@@ -515,7 +515,6 @@ export const AdminTradeDetailPage: React.FC = () => {
   const canProcessSell = (status: string, operationType: string) => {
     const s = status?.toLowerCase()
     const op = operationType?.toLowerCase()
-    console.log('[canProcessSell] status:', s, 'operationType:', op)
     return op === 'sell' && (s === 'pending' || s === 'payment_processing')
   }
 
@@ -523,14 +522,6 @@ export const AdminTradeDetailPage: React.FC = () => {
   const canCompleteSell = (status: string, operationType: string) => {
     const s = status?.toLowerCase()
     const op = operationType?.toLowerCase()
-    console.log(
-      '[canCompleteSell] status:',
-      s,
-      'operationType:',
-      op,
-      'result:',
-      op === 'sell' && s === 'crypto_received'
-    )
     return op === 'sell' && s === 'crypto_received'
   }
 
@@ -764,10 +755,22 @@ export const AdminTradeDetailPage: React.FC = () => {
   const handleCompleteSellWithPix = async () => {
     if (!trade || !tradeId) return
 
+    // Verificar se tem dados de receiving_method
+    if (!trade.receiving_method_id && !trade.receiving_method) {
+      toast.error(
+        '❌ Este trade não possui método de recebimento cadastrado. O usuário não informou chave PIX ao vender.'
+      )
+      return
+    }
+
     const rm = trade.receiving_method
-    const pixInfo = rm?.pix_key
-      ? `${rm.pix_key_type?.toUpperCase() || 'CPF'}: ${rm.pix_key}`
-      : 'Chave PIX não disponível'
+
+    if (!rm?.pix_key) {
+      toast.error('❌ Chave PIX não encontrada nos dados do método de recebimento.')
+      return
+    }
+
+    const pixInfo = `${rm.pix_key_type?.toUpperCase() || 'CPF'}: ${rm.pix_key}`
 
     setModalConfig({
       isOpen: true,
@@ -805,7 +808,14 @@ export const AdminTradeDetailPage: React.FC = () => {
           setModalConfig(prev => ({ ...prev, isOpen: false }))
         } catch (err: any) {
           console.error('Erro ao enviar PIX:', err)
-          toast.error(err.response?.data?.detail || 'Erro ao enviar PIX via Banco do Brasil')
+          console.error('Response data:', err.response?.data)
+          const errorMessage =
+            err.response?.data?.detail ||
+            err.response?.data?.message ||
+            err.response?.data?.error ||
+            err.message ||
+            'Erro ao enviar PIX via Banco do Brasil'
+          toast.error(`❌ ${errorMessage}`)
         } finally {
           setModalLoading(false)
         }
@@ -1583,22 +1593,39 @@ export const AdminTradeDetailPage: React.FC = () => {
                 {/* SELL: Finalizar */}
                 {canCompleteSell(trade.status, trade.operation_type) && (
                   <div className='flex gap-1'>
-                    {/* Botão PIX Automático (se tiver receiving_method) */}
-                    {trade.receiving_method && (
-                      <button
-                        onClick={() => handleCompleteSellWithPix()}
-                        disabled={completeSellMutation.isPending}
-                        className='flex items-center gap-1 px-2 py-1 text-[10px] bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50'
-                        title='Envia PIX automaticamente via API BB e finaliza'
-                      >
-                        {completeSellMutation.isPending ? (
-                          <RefreshCw className='w-3 h-3 animate-spin' />
-                        ) : (
-                          <Zap className='w-3 h-3' />
-                        )}
-                        PIX Auto
-                      </button>
-                    )}
+                    {/* Botão PIX Automático */}
+                    <button
+                      onClick={() => {
+                        if (!trade.receiving_method?.pix_key) {
+                          toast.error(
+                            '❌ Usuário não cadastrou chave PIX! Peça para ele cadastrar no perfil ou finalize manualmente.'
+                          )
+                          return
+                        }
+                        handleCompleteSellWithPix()
+                      }}
+                      disabled={completeSellMutation.isPending}
+                      className={`flex items-center gap-1 px-2 py-1 text-[10px] text-white rounded disabled:opacity-50 ${
+                        trade.receiving_method?.pix_key
+                          ? 'bg-blue-600 hover:bg-blue-700'
+                          : 'bg-blue-400 hover:bg-blue-500'
+                      }`}
+                      title={
+                        trade.receiving_method?.pix_key
+                          ? 'Envia PIX automaticamente via API BB e finaliza'
+                          : '⚠️ Usuário não cadastrou chave PIX'
+                      }
+                    >
+                      {completeSellMutation.isPending ? (
+                        <RefreshCw className='w-3 h-3 animate-spin' />
+                      ) : (
+                        <Zap className='w-3 h-3' />
+                      )}
+                      PIX Auto
+                      {!trade.receiving_method?.pix_key && (
+                        <AlertTriangle className='w-3 h-3 text-yellow-300' />
+                      )}
+                    </button>
                     {/* Botão Finalizar Manual */}
                     <button
                       onClick={handleCompleteSell}

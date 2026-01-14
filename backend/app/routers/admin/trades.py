@@ -307,6 +307,43 @@ async def get_trade_detail(
                 "created_at": h.created_at.isoformat()
             })
         
+        # ========================================
+        # 🔥 BUSCAR RECEIVING_METHOD (DADOS PIX)
+        # ========================================
+        receiving_method_details = None
+        if trade.receiving_method_id:
+            from sqlalchemy import text
+            import json
+            result = db.execute(
+                text("SELECT * FROM payment_methods WHERE id = :method_id"),
+                {"method_id": trade.receiving_method_id}
+            )
+            receiving_method = result.fetchone()
+            if receiving_method:
+                # Parse details JSON
+                details = {}
+                if receiving_method.details:
+                    try:
+                        details = json.loads(receiving_method.details) if isinstance(receiving_method.details, str) else receiving_method.details
+                        if isinstance(details, str):
+                            details = json.loads(details)
+                    except (json.JSONDecodeError, TypeError):
+                        details = {}
+                
+                receiving_method_details = {
+                    "id": str(receiving_method.id),
+                    "method_type": receiving_method.type,
+                    "holder_name": details.get("holderName") or details.get("holder_name"),
+                    "pix_key": details.get("keyValue") or details.get("pix_key"),
+                    "pix_key_type": details.get("keyType") or details.get("pix_key_type"),
+                    "bank_name": details.get("bankName") or details.get("bank_name"),
+                    "bank_code": details.get("bankCode") or details.get("bank_code"),
+                    "account_number": details.get("accountNumber") or details.get("account_number"),
+                    "account_type": details.get("accountType") or details.get("account_type"),
+                    "branch_number": details.get("agency") or details.get("branch_number"),
+                }
+                logger.info(f"✅ receiving_method encontrado para trade {trade_id}: {receiving_method_details}")
+        
         return {
             "success": True,
             "data": {
@@ -347,6 +384,9 @@ async def get_trade_detail(
                 "pix_valor_recebido": float(trade.pix_valor_recebido) if trade.pix_valor_recebido else None,
                 "pix_end_to_end_id": trade.pix_end_to_end_id,
                 "pix_confirmado_em": trade.pix_confirmado_em.isoformat() if trade.pix_confirmado_em else None,
+                # 🔥 RECEIVING METHOD - Dados PIX do usuário
+                "receiving_method_id": trade.receiving_method_id,
+                "receiving_method": receiving_method_details,
                 "history": history_items
             }
         }
