@@ -97,7 +97,72 @@ Sistema completo para pagamento de boletos bancários usando cryptocurrency.
 
 ---
 
-## 💰 Regras de Negócio
+## � Validação de Boletos (API Externa)
+
+### Informações Obtidas ao Escanear/Digitar o Boleto
+
+Quando o usuário escaneia ou digita o código de barras, o sistema consulta **APIs externas** para obter:
+
+| Informação          | Descrição                                       |
+| ------------------- | ----------------------------------------------- |
+| **Beneficiário**    | Nome da empresa/pessoa que receberá o pagamento |
+| **CNPJ/CPF**        | Documento do beneficiário                       |
+| **Banco**           | Instituição financeira do boleto                |
+| **Valor Original**  | Valor do boleto sem multa/juros                 |
+| **Multa**           | Valor da multa (se vencido)                     |
+| **Juros**           | Valor dos juros (se vencido)                    |
+| **Valor Final**     | Valor total a pagar                             |
+| **Data Vencimento** | Data de vencimento do boleto                    |
+| **Status**          | Válido, vencido, pago, cancelado                |
+| **Pode ser Pago**   | Se o financeiro pode liquidar em BRL            |
+
+### Provedores de Validação Suportados
+
+1. **Gerencianet (Efí)** - API de consulta de boletos
+2. **Banco do Brasil** - API de cobrança (se tiver convênio)
+3. **Asaas** - API de pagamentos
+4. **Mock** - Para desenvolvimento (simula dados)
+
+### Arquivo: `/backend/app/services/bill_validation_service.py`
+
+```python
+# Consulta API externa
+validation_result = await bill_validation_service.validate_bill(barcode)
+
+# Retorna:
+# - valid: bool - Se é um boleto válido
+# - can_be_paid: bool - Se pode ser liquidado pelo financeiro
+# - beneficiary_name: str - Nome do beneficiário
+# - beneficiary_document: str - CNPJ/CPF
+# - original_amount: Decimal - Valor original
+# - fine_amount: Decimal - Multa (se vencido)
+# - interest_amount: Decimal - Juros (se vencido)
+# - final_amount: Decimal - Valor final
+# - due_date: date - Vencimento
+# - status_message: str - Mensagem de status
+```
+
+### Configuração de Provedores (`.env`)
+
+```bash
+# Gerencianet (Efí)
+GERENCIANET_CLIENT_ID=seu_client_id
+GERENCIANET_CLIENT_SECRET=seu_client_secret
+GERENCIANET_BASE_URL=https://api.gerencianet.com.br
+
+# Asaas
+ASAAS_API_KEY=sua_api_key
+ASAAS_API_URL=https://www.asaas.com/api
+
+# Banco do Brasil (se tiver convênio)
+BB_APP_KEY=sua_app_key
+BB_ACCESS_TOKEN=seu_token
+BB_API_URL=https://api.bb.com.br
+```
+
+---
+
+## �💰 Regras de Negócio
 
 ### Taxas
 

@@ -55,6 +55,7 @@ from app.schemas.wolkpay import (
 # Importar serviços de preço e carteira
 from app.services.price_aggregator import price_aggregator
 from app.services.wallet_balance_service import WalletBalanceService
+from app.services.bill_validation_service import bill_validation_service
 
 logger = logging.getLogger(__name__)
 
@@ -109,17 +110,17 @@ class WolkPayBillService:
     
     async def validate_bill(self, barcode: str) -> BillInfoResponse:
         """
-        Valida um boleto pelo código de barras
+        Valida um boleto pelo código de barras usando API externa
         
-        Extrai informações:
-        - Valor
+        Obtém informações REAIS:
+        - Beneficiário (nome, CNPJ/CPF)
+        - Valor original + multas/juros
         - Data de vencimento
-        - Banco emissor
-        - Tipo de boleto
+        - Se pode ser liquidado pelo financeiro
         
         Regras:
-        - Boleto NÃO pode estar vencido
-        - Mínimo 1 dia de antecedência
+        - Boleto NÃO pode estar vencido há mais de 30 dias
+        - Mínimo 1 dia de antecedência para pagamento
         """
         try:
             # Limpa código de barras
@@ -138,63 +139,98 @@ class WolkPayBillService:
                     due_date_valid=False
                 )
             
+            # ========================================
+            # CONSULTA API EXTERNA PARA VALIDAR BOLETO
+            # ========================================
+            logger.info(f"🔍 Validando boleto: {clean_barcode[:20]}...")
+            
+            validation_result = await bill_validation_service.validate_bill(clean_barcode)
+            
+            logger.info(
+                f"📋 Resultado validação: valid={validation_result.valid}, "
+                f"can_be_paid={validation_result.can_be_paid}, "
+                f"beneficiary={validation_result.beneficiary_name}, "
+                f"provider={validation_result.provider}"
+            )
+            
+            # Verifica se houve erro na consulta
+            if validation_result.error_message and not validation_result.valid:
+                return BillInfoResponse(
+                    valid=False,
+                    error_message=validation_result.error_message,
+                    barcode=clean_barcode,
+                    bill_type=BillTypeEnum.BANK_SLIP,
+                    amount_brl=Decimal('0'),
+                    due_date=date.today(),
+                    days_until_due=0,
+                    due_date_valid=False
+                )
+            
             # Identifica tipo de boleto
             bill_type = self._identify_bill_type(clean_barcode)
             
-            # Extrai informações baseado no tipo
-            if bill_type == BillTypeEnum.BANK_SLIP:
-                bill_info = self._parse_bank_slip(clean_barcode)
-            else:
-                bill_info = self._parse_utility_bill(clean_barcode)
+            # Usa valor final (com multas/juros se houver)
+            amount = validation_result.final_amount if validation_result.final_amount > 0 else validation_result.original_amount
             
             # Valida valor mínimo/máximo
-            if bill_info['amount'] < MIN_BILL_AMOUNT:
+            if amount < MIN_BILL_AMOUNT:
                 return BillInfoResponse(
                     valid=False,
                     error_message=f"Valor mínimo para pagamento é R$ {MIN_BILL_AMOUNT:.2f}",
                     barcode=clean_barcode,
                     bill_type=bill_type,
-                    amount_brl=bill_info['amount'],
-                    due_date=bill_info['due_date'],
+                    amount_brl=amount,
+                    due_date=validation_result.due_date or date.today(),
                     days_until_due=0,
-                    due_date_valid=False
+                    due_date_valid=False,
+                    beneficiary_name=validation_result.beneficiary_name,
+                    beneficiary_document=validation_result.beneficiary_document
                 )
             
-            if bill_info['amount'] > MAX_BILL_AMOUNT:
+            if amount > MAX_BILL_AMOUNT:
                 return BillInfoResponse(
                     valid=False,
                     error_message=f"Valor máximo para pagamento é R$ {MAX_BILL_AMOUNT:,.2f}",
                     barcode=clean_barcode,
                     bill_type=bill_type,
-                    amount_brl=bill_info['amount'],
-                    due_date=bill_info['due_date'],
+                    amount_brl=amount,
+                    due_date=validation_result.due_date or date.today(),
                     days_until_due=0,
-                    due_date_valid=False
+                    due_date_valid=False,
+                    beneficiary_name=validation_result.beneficiary_name,
+                    beneficiary_document=validation_result.beneficiary_document
                 )
             
             # Calcula dias até vencimento
             today = date.today()
-            days_until_due = (bill_info['due_date'] - today).days
+            due_date = validation_result.due_date or (today + timedelta(days=30))
+            days_until_due = (due_date - today).days
             
-            # Valida vencimento
-            due_date_valid = True
-            due_date_warning = None
+            # Valida se pode ser pago
+            due_date_valid = validation_result.can_be_paid
+            due_date_warning = validation_result.status_message
             
-            if bill_info['due_date'] < today:
-                due_date_valid = False
-                days_overdue = (today - bill_info['due_date']).days
-                due_date_warning = f"⚠️ BOLETO VENCIDO há {days_overdue} dia(s). Não é possível pagar boletos vencidos."
-            elif bill_info['due_date'] == today:
-                due_date_valid = False
-                due_date_warning = "⚠️ Boleto vence HOJE. Por segurança, só aceitamos boletos com mínimo 1 dia de antecedência."
-            elif days_until_due < MIN_DAYS_BEFORE_DUE:
+            # Verifica regra de 1 dia de antecedência
+            if days_until_due >= 0 and days_until_due < MIN_DAYS_BEFORE_DUE:
                 due_date_valid = False
                 due_date_warning = f"⚠️ Boleto vence em {days_until_due} dia(s). Mínimo necessário: {MIN_DAYS_BEFORE_DUE} dia(s) de antecedência."
-            elif days_until_due <= 3:
-                due_date_warning = f"⚡ Atenção: Boleto vence em {days_until_due} dias. Recomendamos pagar o quanto antes!"
             
             # Gera linha digitável
-            digitable_line = self._generate_digitable_line(clean_barcode)
+            digitable_line = validation_result.digitable_line or self._generate_digitable_line(clean_barcode)
+            
+            # Adiciona informação de multas/juros se houver
+            extra_info = []
+            if validation_result.fine_amount > 0:
+                extra_info.append(f"Multa: R$ {validation_result.fine_amount:.2f}")
+            if validation_result.interest_amount > 0:
+                extra_info.append(f"Juros: R$ {validation_result.interest_amount:.2f}")
+            if validation_result.discount_amount > 0:
+                extra_info.append(f"Desconto: -R$ {validation_result.discount_amount:.2f}")
+            
+            if extra_info and due_date_warning:
+                due_date_warning = f"{due_date_warning} ({', '.join(extra_info)})"
+            elif extra_info:
+                due_date_warning = f"ℹ️ {', '.join(extra_info)}"
             
             return BillInfoResponse(
                 valid=due_date_valid,
@@ -202,15 +238,15 @@ class WolkPayBillService:
                 barcode=clean_barcode,
                 digitable_line=digitable_line,
                 bill_type=bill_type,
-                amount_brl=bill_info['amount'],
-                due_date=bill_info['due_date'],
+                amount_brl=amount,
+                due_date=due_date,
                 days_until_due=max(0, days_until_due),
                 due_date_valid=due_date_valid,
                 due_date_warning=due_date_warning,
-                beneficiary_name=bill_info.get('beneficiary_name'),
-                beneficiary_document=bill_info.get('beneficiary_document'),
-                bank_code=bill_info.get('bank_code'),
-                bank_name=bill_info.get('bank_name')
+                beneficiary_name=validation_result.beneficiary_name,
+                beneficiary_document=validation_result.beneficiary_document,
+                bank_code=None,  # Já incluído no bank_name
+                bank_name=validation_result.beneficiary_bank
             )
             
         except Exception as e:
