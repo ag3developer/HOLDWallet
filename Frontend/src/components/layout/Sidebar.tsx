@@ -26,7 +26,7 @@ import {
   MessagesSquare,
   Wrench,
   UserCircle,
-  Users,
+  ArrowLeftRight,
   Brain,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/useAuthStore'
