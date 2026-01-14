@@ -424,29 +424,36 @@ class BillValidationService:
                 # Verifica se pode ser pago
                 today = date.today()
                 days_until_due = (due_date - today).days
-                can_be_paid = days_until_due >= 1  # Mínimo 1 dia antes
                 
                 # Calcula multas/juros se vencido
                 fine_amount = Decimal('0')
                 interest_amount = Decimal('0')
                 
+                # LÓGICA CORRIGIDA: Boleto pode ser pago se:
+                # - Ainda não venceu (days_until_due >= 0)
+                # - OU venceu há no máximo 60 dias (permite pagar com multa/juros)
                 if days_until_due < 0:
-                    # Boleto vencido - simula 2% multa + 1% juros ao mês
+                    # Boleto vencido - calcula multa e juros
                     days_overdue = abs(days_until_due)
                     fine_amount = amount * Decimal('0.02')  # 2% multa
                     interest_amount = amount * Decimal('0.01') * Decimal(str(days_overdue / 30))  # ~1% ao mês
-                    can_be_paid = days_overdue <= 30  # Pode pagar até 30 dias após vencimento
+                    # Permite pagar até 60 dias após vencimento (mais flexível)
+                    can_be_paid = days_overdue <= 60
+                else:
+                    # Boleto ainda não venceu - pode pagar normalmente
+                    can_be_paid = True
                 
                 final_amount = amount + fine_amount + interest_amount
                 
                 # Status
                 if days_until_due < 0:
-                    if days_until_due >= -30:
+                    days_overdue = abs(days_until_due)
+                    if days_overdue <= 60:
                         status = "overdue"
-                        status_message = f"Boleto vencido há {abs(days_until_due)} dias. Multa e juros aplicados."
+                        status_message = f"Boleto vencido há {days_overdue} dias. Multa e juros aplicados."
                     else:
                         status = "expired"
-                        status_message = "Boleto vencido há mais de 30 dias. Não pode ser pago."
+                        status_message = "Boleto vencido há mais de 60 dias. Consulte o emissor."
                         can_be_paid = False
                 elif days_until_due == 0:
                     status = "due_today"

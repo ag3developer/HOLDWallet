@@ -6,7 +6,7 @@ Serviço para pagamento de boletos usando crypto.
 
 Fluxo:
 1. Usuário escaneia/digita código de barras
-2. Sistema valida boleto (não pode estar vencido, mínimo 1 dia antes)
+2. Sistema valida boleto (aceita vencidos até 60 dias com multa/juros)
 3. Sistema faz cotação (valor + taxas 5%)
 4. Usuário confirma pagamento
 5. Crypto é DEBITADA IMEDIATAMENTE da carteira
@@ -19,7 +19,7 @@ Taxas:
 - Rede: 0.25%
 - Total: 5.00%
 
-Author: HOLD Wallet Team
+Author: WOLK NOW Team
 Date: Janeiro 2026
 """
 
@@ -119,8 +119,8 @@ class WolkPayBillService:
         - Se pode ser liquidado pelo financeiro
         
         Regras:
-        - Boleto NÃO pode estar vencido há mais de 30 dias
-        - Mínimo 1 dia de antecedência para pagamento
+        - Boleto vencido até 60 dias: PODE pagar (com multa/juros)
+        - Boleto vencido há mais de 60 dias: consultar emissor
         """
         try:
             # Limpa código de barras
@@ -597,9 +597,13 @@ class WolkPayBillService:
                 raise ValueError("Cotação expirada. Por favor, faça uma nova cotação.")
             
             # Verifica vencimento do boleto novamente
+            # NOTA: Boletos vencidos PODEM ser pagos (com multa/juros) até 60 dias após vencimento
             today = date.today()
-            if bill_payment.bill_due_date <= today:
-                raise ValueError("Boleto vencido ou vence hoje. Não é possível pagar.")
+            days_overdue = (today - bill_payment.bill_due_date).days
+            
+            # Só bloqueia se venceu há mais de 60 dias
+            if days_overdue > 60:
+                raise ValueError("Boleto vencido há mais de 60 dias. Consulte o emissor para nova via.")
             
             # Verifica saldo do usuário
             user_balance = await self._get_user_crypto_balance(
