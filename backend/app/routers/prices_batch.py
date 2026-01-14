@@ -106,6 +106,7 @@ async def get_batch_prices(
     # Symbol to CoinGecko ID mapping
     symbol_map = {
         'BTC': 'bitcoin', 'ETH': 'ethereum', 'MATIC': 'polygon-ecosystem-token',
+        'POL': 'polygon-ecosystem-token',  # POL é o novo nome de MATIC
         'BNB': 'binancecoin', 'TRX': 'tron', 'BASE': 'base',
         'USDT': 'tether', 'SOL': 'solana', 'LTC': 'litecoin',
         'DOGE': 'dogecoin', 'ADA': 'cardano', 'AVAX': 'avalanche-2',

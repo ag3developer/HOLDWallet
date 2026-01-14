@@ -18,7 +18,8 @@ class PriceClient:
         self.symbol_mapping = {
             "btc": "bitcoin",
             "eth": "ethereum", 
-            "matic": "polygon-ecosystem-token",  # Updated: was matic-network
+            "matic": "polygon-ecosystem-token",  # POL é o novo nome de MATIC
+            "pol": "polygon-ecosystem-token",    # POL é alias de MATIC
             "bnb": "binancecoin",
             "trx": "tron",
             "sol": "solana",

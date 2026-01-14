@@ -53,6 +53,7 @@ class CoinGeckoSource(PriceSource):
     # Mapeamento de símbolos para IDs do CoinGecko
     SYMBOL_MAP = {
         'BTC': 'bitcoin', 'ETH': 'ethereum', 'MATIC': 'polygon-ecosystem-token',
+        'POL': 'polygon-ecosystem-token',  # POL é o novo nome de MATIC
         'BNB': 'binancecoin', 'TRX': 'tron', 'BASE': 'base',
         'USDT': 'tether', 'SOL': 'solana', 'LTC': 'litecoin',
         'DOGE': 'dogecoin', 'ADA': 'cardano', 'AVAX': 'avalanche-2',
@@ -153,6 +154,7 @@ class BinanceSource(PriceSource):
     # Mapeamento de símbolos para pares Binance USD
     SYMBOL_MAP_USD = {
         'BTC': 'BTCUSDT', 'ETH': 'ETHUSDT', 'MATIC': 'MATICUSDT',
+        'POL': 'MATICUSDT',  # POL usa o mesmo par que MATIC na Binance
         'BNB': 'BNBUSDT', 'SOL': 'SOLUSDT', 'ADA': 'ADAUSDT',
         'AVAX': 'AVAXUSDT', 'DOT': 'DOTUSDT', 'LINK': 'LINKUSDT',
         'DOGE': 'DOGEUSDT', 'LTC': 'LTCUSDT', 'XRP': 'XRPUSDT',
@@ -165,7 +167,8 @@ class BinanceSource(PriceSource):
         'BTC': 'BTCBRL', 'ETH': 'ETHBRL', 'USDT': 'USDTBRL',
         'BNB': 'BNBBRL', 'SOL': 'SOLBRL', 'XRP': 'XRPBRL',
         'DOGE': 'DOGEBRL', 'ADA': 'ADABRL', 'DOT': 'DOTBRL',
-        'MATIC': 'MATICBRL', 'AVAX': 'AVAXBRL', 'LINK': 'LINKBRL',
+        'MATIC': 'MATICBRL', 'POL': 'MATICBRL',  # POL usa o mesmo par que MATIC
+        'AVAX': 'AVAXBRL', 'LINK': 'LINKBRL',
         'LTC': 'LTCBRL', 'USDC': 'USDCBRL',
     }
     

@@ -29,7 +29,8 @@ class MarketPriceService {
     SOL: 'solana',
     DOT: 'polkadot',
     LINK: 'chainlink',
-    MATIC: 'matic-network',
+    MATIC: 'polygon-ecosystem-token', // POL - novo nome desde 2024
+    POL: 'polygon-ecosystem-token', // POL é o novo nome de MATIC
     BNB: 'binancecoin',
     LTC: 'litecoin',
     DOGE: 'dogecoin',

@@ -6,9 +6,10 @@
  * aceita os termos e realiza o pagamento via PIX.
  */
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate } from 'react-router-dom'
+import QRCode from 'qrcode'
 import {
   User,
   Building2,
@@ -135,6 +136,107 @@ const formatCep = (value: string) => {
     .replace(/\D/g, '')
     .replace(/(\d{5})(\d)/, '$1-$2')
     .slice(0, 9)
+}
+
+/**
+ * Sanitiza string base64 removendo prefixos e caracteres inválidos
+ * Corrige problemas no Safari iOS com imagens base64
+ */
+const sanitizeBase64 = (base64: string | undefined | null): string | null => {
+  if (!base64) return null
+
+  // Remove prefixo data:image se presente
+  let clean = base64
+  if (clean.startsWith('data:image')) {
+    const parts = clean.split(',')
+    clean = parts.length > 1 ? (parts[1] ?? clean) : clean
+  }
+
+  // Remove espaços e quebras de linha (comum em Safari iOS)
+  clean = clean.replace(/\s/g, '')
+
+  // Valida se é base64 válido
+  try {
+    // Tenta decodificar para validar
+    atob(clean)
+    return clean
+  } catch {
+    console.warn('[QRCode] Base64 inválido, tentando corrigir padding...')
+    // Tenta corrigir padding
+    const padding = clean.length % 4
+    if (padding > 0) {
+      clean += '='.repeat(4 - padding)
+    }
+    try {
+      atob(clean)
+      return clean
+    } catch {
+      console.error('[QRCode] Base64 definitivamente inválido')
+      return null
+    }
+  }
+}
+
+/**
+ * Componente QRCodeImage com fallback para Safari iOS
+ * Se a imagem base64 falhar, gera o QR Code localmente usando canvas
+ */
+const QRCodeImage: React.FC<{
+  base64Image: string | undefined | null
+  pixCode: string | undefined
+  size?: number
+  className?: string
+}> = ({ base64Image, pixCode, size = 192, className = '' }) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [imageError, setImageError] = useState(false)
+  const [localQrGenerated, setLocalQrGenerated] = useState(false)
+
+  const sanitizedBase64 = sanitizeBase64(base64Image)
+
+  // Gera QR Code localmente se a imagem falhar
+  useEffect(() => {
+    if ((imageError || !sanitizedBase64) && pixCode && canvasRef.current && !localQrGenerated) {
+      console.log('[QRCode] Gerando QR Code localmente no canvas...')
+      QRCode.toCanvas(canvasRef.current, pixCode, {
+        width: size,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#ffffff',
+        },
+      })
+        .then(() => {
+          setLocalQrGenerated(true)
+          console.log('[QRCode] ✅ QR Code gerado localmente com sucesso')
+        })
+        .catch(err => {
+          console.error('[QRCode] ❌ Erro ao gerar QR Code local:', err)
+        })
+    }
+  }, [imageError, sanitizedBase64, pixCode, size, localQrGenerated])
+
+  // Se temos base64 válido e não houve erro, mostra a imagem
+  if (sanitizedBase64 && !imageError) {
+    return (
+      <img
+        src={`data:image/png;base64,${sanitizedBase64}`}
+        alt='QR Code PIX'
+        className={`${className} mx-auto`}
+        width={size}
+        height={size}
+        onError={() => {
+          console.warn('[QRCode] Erro ao carregar imagem base64, usando fallback...')
+          setImageError(true)
+        }}
+        onLoad={() => {
+          console.log('[QRCode] ✅ Imagem base64 carregada com sucesso')
+        }}
+      />
+    )
+  }
+
+  // Fallback: canvas com QR Code gerado localmente
+  return <canvas ref={canvasRef} className={`${className} mx-auto`} width={size} height={size} />
 }
 
 const formatDate = (value: string) => {
@@ -1015,12 +1117,13 @@ export function WolkPayCheckoutPage() {
           </div>
 
           {/* QR Code */}
-          {pixData.pix_qrcode_image && (
+          {(pixData.pix_qrcode_image || pixData.pix_qrcode) && (
             <div className='bg-white dark:bg-gray-800 rounded-2xl p-6 mb-6 text-center'>
-              <img
-                src={`data:image/png;base64,${pixData.pix_qrcode_image}`}
-                alt='QR Code PIX'
-                className='w-48 h-48 mx-auto mb-4'
+              <QRCodeImage
+                base64Image={pixData.pix_qrcode_image}
+                pixCode={pixData.pix_qrcode}
+                size={192}
+                className='mb-4'
               />
               <p className='text-sm text-gray-600 dark:text-gray-400'>
                 {t('wolkpay.checkout.scanQrCode')}
@@ -1051,25 +1154,6 @@ export function WolkPayCheckoutPage() {
           <div className='bg-amber-50 dark:bg-amber-900/20 rounded-xl p-4 border border-amber-200 dark:border-amber-800/50 mb-6'>
             <p className='text-sm text-amber-800 dark:text-amber-300'>{pixData.instructions}</p>
           </div>
-
-          {/* Já Paguei Button */}
-          <button
-            onClick={handlePayerConfirmed}
-            disabled={isLoading}
-            className='w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl font-semibold text-lg transition-all shadow-lg shadow-green-500/25 disabled:opacity-50'
-          >
-            {isLoading ? (
-              <>
-                <div className='w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin' />
-                {t('wolkpay.checkout.verifying')}
-              </>
-            ) : (
-              <>
-                <Check className='w-5 h-5' />
-                {t('wolkpay.checkout.alreadyPaid')}
-              </>
-            )}
-          </button>
 
           {/* Error */}
           {error && (

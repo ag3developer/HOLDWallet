@@ -38,9 +38,10 @@ class PriceService:
             "bnb": "binancecoin",
             "bsc": "binancecoin",
             "binancecoin": "binancecoin",
-            # Polygon
-            "matic": "matic-network",
-            "polygon": "matic-network",
+            # Polygon (POL - novo nome desde 2024)
+            "matic": "polygon-ecosystem-token",
+            "polygon": "polygon-ecosystem-token",
+            "pol": "polygon-ecosystem-token",
             # Solana
             "sol": "solana",
             "solana": "solana",
