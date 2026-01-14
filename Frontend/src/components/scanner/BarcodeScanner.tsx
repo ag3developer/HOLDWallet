@@ -80,7 +80,10 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
           await scannerRef.current.stop()
         }
       } catch (err) {
-        console.warn('Erro ao parar scanner:', err)
+        // Ignorar AbortError que ocorre quando o elemento é removido do DOM
+        if (err instanceof Error && !err.message.includes('AbortError')) {
+          console.warn('Erro ao parar scanner:', err)
+        }
       }
 
       try {
@@ -92,6 +95,7 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
       scannerRef.current = null
     }
 
+    isInitializingRef.current = false
     setCameraState('idle')
     hasScannedRef.current = false
   }, [])
@@ -129,15 +133,38 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
 
   // Iniciar scanner
   const startScanner = useCallback(async () => {
-    if (isInitializingRef.current || !containerRef.current) return
+    console.log('🚀 startScanner chamado, isOpen:', isOpen)
+
+    // Proteção contra inicialização dupla
+    if (isInitializingRef.current) {
+      console.log('⏳ Scanner já está inicializando, aguardando...')
+      return
+    }
+
+    if (scannerRef.current) {
+      console.log('📷 Scanner já está ativo')
+      return
+    }
+
+    // Verificar se container existe
+    const container = document.getElementById(SCANNER_CONTAINER_ID)
+    if (!container) {
+      console.log('⚠️ Container não encontrado no DOM, tentando novamente...')
+      // Tentar novamente em breve
+      setTimeout(() => {
+        if (isOpen && !scannerRef.current && !isInitializingRef.current) {
+          startScanner()
+        }
+      }, 500)
+      return
+    }
 
     isInitializingRef.current = true
     setCameraState('requesting')
     setError(null)
     hasScannedRef.current = false
 
-    // Parar scanner anterior se existir
-    await stopScanner()
+    console.log('📷 Iniciando câmera...')
 
     // Pequeno delay para garantir que o DOM está pronto
     await new Promise(resolve => setTimeout(resolve, 100))
@@ -246,7 +273,15 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
     } finally {
       isInitializingRef.current = false
     }
-  }, [facingMode, currentCameraIndex, isIOS, supportedFormats, handleScanSuccess, stopScanner])
+  }, [
+    isOpen,
+    facingMode,
+    currentCameraIndex,
+    isIOS,
+    supportedFormats,
+    handleScanSuccess,
+    stopScanner,
+  ])
 
   // Controlar viewport para comportamento de app nativo
   useEffect(() => {
@@ -281,17 +316,52 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
 
   // Iniciar/parar scanner quando modal abre/fecha
   useEffect(() => {
-    if (isOpen) {
-      // Delay para garantir que o container está no DOM
-      const timer = setTimeout(() => {
-        startScanner()
-      }, 300)
-      return () => clearTimeout(timer)
-    } else {
-      stopScanner()
-      return undefined
+    console.log('📱 useEffect scanner - isOpen:', isOpen)
+    let mounted = true
+    let timer: NodeJS.Timeout | null = null
+
+    const initScanner = async () => {
+      if (!isOpen || !mounted) {
+        console.log('❌ initScanner cancelado - isOpen:', isOpen, 'mounted:', mounted)
+        return
+      }
+
+      console.log('⏳ Aguardando para iniciar scanner...')
+
+      // Delay maior para garantir que o container está no DOM
+      timer = setTimeout(async () => {
+        if (mounted && isOpen) {
+          console.log('🎬 Chamando startScanner...')
+          await startScanner()
+        }
+      }, 500) // Aumentado para 500ms
     }
-  }, [isOpen, startScanner, stopScanner])
+
+    const cleanupScanner = async () => {
+      console.log('🧹 Cleanup scanner')
+      if (timer) {
+        clearTimeout(timer)
+        timer = null
+      }
+      await stopScanner()
+    }
+
+    if (isOpen) {
+      initScanner()
+    } else {
+      cleanupScanner()
+    }
+
+    return () => {
+      mounted = false
+      if (timer) {
+        clearTimeout(timer)
+      }
+      // Cleanup assíncrono
+      stopScanner()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]) // Apenas isOpen como dependência para evitar loops
 
   // Alternar câmera
   const toggleCamera = useCallback(async () => {
