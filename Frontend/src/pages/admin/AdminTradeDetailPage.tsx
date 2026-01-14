@@ -514,13 +514,24 @@ export const AdminTradeDetailPage: React.FC = () => {
   // SELL: Pode processar venda (retirar crypto do usuário)
   const canProcessSell = (status: string, operationType: string) => {
     const s = status?.toLowerCase()
-    return operationType === 'sell' && (s === 'pending' || s === 'payment_processing')
+    const op = operationType?.toLowerCase()
+    console.log('[canProcessSell] status:', s, 'operationType:', op)
+    return op === 'sell' && (s === 'pending' || s === 'payment_processing')
   }
 
   // SELL: Pode finalizar venda (após enviar PIX/TED)
   const canCompleteSell = (status: string, operationType: string) => {
     const s = status?.toLowerCase()
-    return operationType === 'sell' && s === 'crypto_received'
+    const op = operationType?.toLowerCase()
+    console.log(
+      '[canCompleteSell] status:',
+      s,
+      'operationType:',
+      op,
+      'result:',
+      op === 'sell' && s === 'crypto_received'
+    )
+    return op === 'sell' && s === 'crypto_received'
   }
 
   const handleCancelTrade = async () => {
