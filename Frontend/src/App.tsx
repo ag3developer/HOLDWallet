@@ -56,6 +56,9 @@ import { WolkPayCheckoutPage } from '@/pages/wolkpay/WolkPayCheckoutPage'
 import { WolkPayHistoryPage } from '@/pages/wolkpay/WolkPayHistoryPage'
 import { WolkPayWelcomePage } from '@/pages/wolkpay/WolkPayWelcomePage'
 
+// Bill Payment Pages
+import { BillPaymentPage, BillPaymentHistoryPage } from '@/pages/billpayment'
+
 // AI Intelligence Page
 import { AIIntelligencePage } from '@/pages/ai'
 
@@ -339,6 +342,10 @@ function App() {
             {/* WolkPay Routes */}
             <Route path='wolkpay' element={<WolkPayPage />} />
             <Route path='wolkpay/history' element={<WolkPayHistoryPage />} />
+
+            {/* Bill Payment Routes */}
+            <Route path='bill-payment' element={<BillPaymentPage />} />
+            <Route path='bill-payment/history' element={<BillPaymentHistoryPage />} />
           </Route>
 
           {/* WolkPay Public Checkout (no auth required) */}

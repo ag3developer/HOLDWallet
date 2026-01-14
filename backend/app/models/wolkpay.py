@@ -457,3 +457,263 @@ class WolkPayAuditLog(Base):
     
     def __repr__(self):
         return f"<WolkPayAuditLog {self.action} - {self.created_at}>"
+
+
+# ============================================
+# WOLKPAY BILL PAYMENT - Pagamento de Boletos
+# ============================================
+# Fluxo: Usuário paga boletos usando crypto da carteira
+# 1. Usuário escaneia/digita código de barras
+# 2. Sistema valida boleto (não pode estar vencido, mínimo 1 dia antes do vencimento)
+# 3. Sistema faz cotação (valor + taxas)
+# 4. Usuário confirma pagamento
+# 5. Crypto é DEBITADA IMEDIATAMENTE da carteira do usuário
+# 6. Empresa liquida os ativos (crypto → BRL)
+# 7. Operador WolkNow paga o boleto
+# 8. Comprovante enviado ao usuário
+# ============================================
+
+class BillPaymentStatus(str, enum.Enum):
+    """Status do pagamento de boleto"""
+    PENDING = "PENDING"                    # Boleto validado, aguardando confirmação do usuário
+    CRYPTO_DEBITED = "CRYPTO_DEBITED"      # Crypto debitada da carteira do usuário
+    PROCESSING = "PROCESSING"              # Em processamento (liquidando ativos)
+    PAYING = "PAYING"                      # Operador pagando o boleto
+    PAID = "PAID"                          # Boleto pago com sucesso
+    FAILED = "FAILED"                      # Falha no pagamento
+    REFUNDED = "REFUNDED"                  # Crypto devolvida ao usuário
+    CANCELLED = "CANCELLED"                # Cancelado pelo usuário (antes do débito)
+    EXPIRED = "EXPIRED"                    # Cotação expirou (5 min)
+
+
+class BillType(str, enum.Enum):
+    """Tipo de boleto"""
+    BANK_SLIP = "BANK_SLIP"                # Boleto bancário comum
+    UTILITY = "UTILITY"                     # Conta de consumo (luz, água, gás)
+    TAX = "TAX"                             # Guias de impostos (DARF, GPS, etc)
+    OTHER = "OTHER"                         # Outros
+
+
+class WolkPayBillPayment(Base):
+    """
+    Pagamento de Boleto com Crypto
+    
+    ⚠️ IMPORTANTE:
+    - Boleto NÃO pode estar vencido
+    - Deve ser pago com mínimo 1 dia de antecedência do vencimento
+    - Crypto é debitada IMEDIATAMENTE após confirmação
+    - Empresa assume risco de volatilidade
+    
+    Taxas:
+    - Taxa de serviço: 4.75%
+    - Taxa de rede: 0.25%
+    - Total: 5.00%
+    """
+    __tablename__ = "wolkpay_bill_payments"
+
+    # Primary key
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    
+    # Número do pagamento (legível)
+    payment_number = Column(String(25), unique=True, nullable=False, index=True)
+    
+    # Usuário que está pagando (dono da crypto)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    
+    # ========================================
+    # DADOS DO BOLETO
+    # ========================================
+    bill_type = Column(SQLEnum(BillType), default=BillType.BANK_SLIP, nullable=False)
+    barcode = Column(String(60), nullable=False)  # Código de barras (44 ou 47 dígitos)
+    digitable_line = Column(String(60), nullable=True)  # Linha digitável
+    
+    # Dados extraídos do boleto
+    bill_amount_brl = Column(Numeric(18, 2), nullable=False)  # Valor do boleto
+    bill_due_date = Column(Date, nullable=False)  # Data de vencimento
+    bill_beneficiary_name = Column(String(200), nullable=True)  # Nome do beneficiário (quem recebe)
+    bill_beneficiary_document = Column(String(20), nullable=True)  # CNPJ/CPF do beneficiário
+    bill_payer_name = Column(String(200), nullable=True)  # Nome do pagador original
+    bill_payer_document = Column(String(20), nullable=True)  # CPF/CNPJ do pagador original
+    bill_bank_code = Column(String(10), nullable=True)  # Código do banco
+    bill_bank_name = Column(String(100), nullable=True)  # Nome do banco
+    
+    # ========================================
+    # CRYPTO USADA PARA PAGAMENTO
+    # ========================================
+    crypto_currency = Column(String(20), nullable=False)  # BTC, ETH, USDT, etc
+    crypto_amount = Column(Numeric(28, 18), nullable=False)  # Quantidade de crypto debitada
+    crypto_network = Column(String(50), nullable=True)  # Rede
+    
+    # Cotações no momento da confirmação
+    crypto_usd_rate = Column(Numeric(18, 8), nullable=False)  # Cotação crypto/USD
+    brl_usd_rate = Column(Numeric(18, 4), nullable=False)  # Cotação USD/BRL
+    
+    # ========================================
+    # VALORES E TAXAS
+    # ========================================
+    base_amount_brl = Column(Numeric(18, 2), nullable=False)  # Valor do boleto
+    service_fee_percent = Column(Numeric(5, 2), default=4.75)  # Taxa serviço: 4.75%
+    service_fee_brl = Column(Numeric(18, 2), nullable=False)  # Valor da taxa serviço
+    network_fee_percent = Column(Numeric(5, 2), default=0.25)  # Taxa rede: 0.25%
+    network_fee_brl = Column(Numeric(18, 2), nullable=False)  # Valor da taxa rede
+    total_amount_brl = Column(Numeric(18, 2), nullable=False)  # Total debitado em BRL (boleto + taxas)
+    
+    # ========================================
+    # STATUS E CONTROLE
+    # ========================================
+    status = Column(SQLEnum(BillPaymentStatus), default=BillPaymentStatus.PENDING, nullable=False, index=True)
+    
+    # Cotação válida por 5 minutos
+    quote_expires_at = Column(DateTime(timezone=True), nullable=False)
+    
+    # Quando a crypto foi debitada da carteira do usuário
+    crypto_debited_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # Transação interna de débito
+    internal_tx_id = Column(String(36), nullable=True)  # ID da transação interna
+    
+    # ========================================
+    # PAGAMENTO DO BOLETO
+    # ========================================
+    # Operador que pagou
+    paid_by_operator_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    
+    # Comprovante
+    payment_receipt_url = Column(String(500), nullable=True)  # URL do comprovante
+    payment_receipt_data = Column(Text, nullable=True)  # Dados do comprovante (JSON)
+    bank_authentication = Column(String(100), nullable=True)  # Autenticação bancária
+    
+    # Quando foi pago
+    paid_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # ========================================
+    # EM CASO DE FALHA/REEMBOLSO
+    # ========================================
+    failure_reason = Column(Text, nullable=True)
+    refunded_at = Column(DateTime(timezone=True), nullable=True)
+    refund_tx_id = Column(String(36), nullable=True)  # ID da transação de reembolso
+    
+    # ========================================
+    # TIMESTAMPS
+    # ========================================
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # Indexes
+    __table_args__ = (
+        Index('ix_wolkpay_bill_user_status', 'user_id', 'status'),
+        Index('ix_wolkpay_bill_created_at', 'created_at'),
+        Index('ix_wolkpay_bill_barcode', 'barcode'),
+    )
+    
+    # ========================================
+    # CONSTANTES
+    # ========================================
+    SERVICE_FEE_PERCENT = Decimal('4.75')
+    NETWORK_FEE_PERCENT = Decimal('0.25')
+    TOTAL_FEE_PERCENT = Decimal('5.00')
+    QUOTE_VALIDITY_MINUTES = 5  # Cotação válida por 5 minutos
+    MIN_DAYS_BEFORE_DUE = 1  # Mínimo 1 dia antes do vencimento
+    
+    @staticmethod
+    def generate_payment_number():
+        """Gera número do pagamento no formato WKBILL-YYYY-NNNNNN"""
+        year = datetime.now().year
+        random_part = secrets.randbelow(1000000)
+        return f"WKBILL-{year}-{random_part:06d}"
+    
+    def is_quote_expired(self) -> bool:
+        """Verifica se a cotação expirou"""
+        return datetime.now(timezone.utc) > self.quote_expires_at
+    
+    def validate_due_date(self) -> tuple[bool, str]:
+        """
+        Valida se o boleto pode ser pago
+        
+        Regras:
+        - Boleto NÃO pode estar vencido
+        - Deve ter mínimo 1 dia de antecedência
+        
+        Returns:
+            tuple: (é_válido, mensagem_erro)
+        """
+        today = datetime.now(timezone.utc).date()
+        
+        # Boleto vencido
+        if self.bill_due_date < today:
+            days_overdue = (today - self.bill_due_date).days
+            return False, f"Boleto vencido há {days_overdue} dia(s). Não é possível pagar boletos vencidos."
+        
+        # Vence hoje
+        if self.bill_due_date == today:
+            return False, "Boleto vence hoje. Por segurança, só aceitamos boletos com mínimo 1 dia de antecedência."
+        
+        # Vence amanhã ou depois - OK
+        days_until_due = (self.bill_due_date - today).days
+        if days_until_due < self.MIN_DAYS_BEFORE_DUE:
+            return False, f"Boleto vence em {days_until_due} dia(s). Mínimo necessário: {self.MIN_DAYS_BEFORE_DUE} dia(s) de antecedência."
+        
+        return True, f"Boleto válido. Vence em {days_until_due} dias."
+    
+    def can_be_paid(self) -> tuple[bool, str]:
+        """
+        Verifica se o pagamento pode ser processado
+        
+        Returns:
+            tuple: (pode_pagar, mensagem_erro)
+        """
+        # Verifica status
+        if self.status != BillPaymentStatus.PENDING:
+            return False, f"Pagamento não está pendente. Status atual: {self.status.value}"
+        
+        # Verifica cotação
+        if self.is_quote_expired():
+            return False, "Cotação expirada. Por favor, faça uma nova cotação."
+        
+        # Verifica vencimento
+        valid, msg = self.validate_due_date()
+        if not valid:
+            return False, msg
+        
+        return True, "Pagamento pode ser processado."
+    
+    def __repr__(self):
+        return f"<WolkPayBillPayment {self.payment_number} - {self.status}>"
+
+
+class WolkPayBillPaymentLog(Base):
+    """
+    Log de eventos do pagamento de boleto
+    
+    Rastreia todo o ciclo de vida do pagamento
+    """
+    __tablename__ = "wolkpay_bill_payment_logs"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    
+    # Referência ao pagamento
+    bill_payment_id = Column(String(36), ForeignKey("wolkpay_bill_payments.id"), nullable=False, index=True)
+    
+    # Evento
+    event = Column(String(50), nullable=False)  # created, quoted, confirmed, crypto_debited, processing, paid, failed, refunded
+    
+    # Status anterior e novo
+    old_status = Column(String(30), nullable=True)
+    new_status = Column(String(30), nullable=True)
+    
+    # Detalhes
+    details = Column(Text, nullable=True)  # JSON com detalhes do evento
+    
+    # Ator
+    actor_type = Column(String(20), nullable=False)  # user, system, operator
+    actor_id = Column(String(36), nullable=True)
+    
+    # Timestamp
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    
+    __table_args__ = (
+        Index('ix_wolkpay_bill_log_payment_id', 'bill_payment_id'),
+    )
+    
+    def __repr__(self):
+        return f"<WolkPayBillPaymentLog {self.event} - {self.created_at}>"

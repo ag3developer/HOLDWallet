@@ -593,3 +593,185 @@ class PayerBenefitsInfo(BaseModel):
     # CTA
     cta_text: str = "Criar Minha Conta Grátis"
     cta_subtitle: str = "Leva menos de 1 minuto!"
+
+
+# ============================================
+# BILL PAYMENT SCHEMAS - Pagamento de Boletos
+# ============================================
+
+class BillTypeEnum(str, Enum):
+    """Tipo de boleto"""
+    BANK_SLIP = "BANK_SLIP"   # Boleto bancário comum
+    UTILITY = "UTILITY"       # Conta de consumo (luz, água, gás)
+    TAX = "TAX"               # Guias de impostos (DARF, GPS, etc)
+    OTHER = "OTHER"           # Outros
+
+
+class BillPaymentStatusEnum(str, Enum):
+    """Status do pagamento de boleto"""
+    PENDING = "PENDING"
+    CRYPTO_DEBITED = "CRYPTO_DEBITED"
+    PROCESSING = "PROCESSING"
+    PAYING = "PAYING"
+    PAID = "PAID"
+    FAILED = "FAILED"
+    REFUNDED = "REFUNDED"
+    CANCELLED = "CANCELLED"
+    EXPIRED = "EXPIRED"
+
+
+class ValidateBillRequest(BaseModel):
+    """
+    Request para validar/escanear um boleto
+    Primeira etapa: usuário envia código de barras
+    """
+    barcode: str = Field(..., min_length=44, max_length=60, description="Código de barras do boleto (44-47 dígitos)")
+    
+    @validator('barcode')
+    def validate_barcode(cls, v):
+        clean = ''.join(filter(str.isdigit, v))
+        if len(clean) < 44 or len(clean) > 48:
+            raise ValueError("Código de barras deve ter entre 44 e 48 dígitos")
+        return clean
+
+
+class BillInfoResponse(BaseModel):
+    """
+    Response com informações do boleto validado
+    ⚠️ IMPORTANTE: Mostra alerta se vencimento < 1 dia
+    """
+    valid: bool
+    error_message: Optional[str] = None
+    
+    barcode: str
+    digitable_line: Optional[str] = None
+    bill_type: BillTypeEnum
+    
+    amount_brl: Decimal
+    due_date: date
+    days_until_due: int
+    due_date_valid: bool
+    due_date_warning: Optional[str] = None
+    
+    beneficiary_name: Optional[str] = None
+    beneficiary_document: Optional[str] = None
+    bank_code: Optional[str] = None
+    bank_name: Optional[str] = None
+
+
+class QuoteBillPaymentRequest(BaseModel):
+    """
+    Request para cotar pagamento de boleto
+    Segunda etapa: usuário escolhe qual crypto usar
+    """
+    barcode: str = Field(..., description="Código de barras validado")
+    crypto_currency: str = Field(..., description="Crypto para pagar: BTC, ETH, USDT, etc")
+    crypto_network: Optional[str] = Field(None, description="Rede: polygon, ethereum, tron, etc")
+    
+    @validator('crypto_currency')
+    def validate_crypto(cls, v):
+        return v.upper().strip()
+
+
+class BillPaymentQuoteResponse(BaseModel):
+    """
+    Response com cotação para pagamento do boleto
+    ⚠️ Cotação válida por 5 minutos
+    """
+    quote_id: str
+    
+    barcode: str
+    bill_amount_brl: Decimal
+    due_date: date
+    beneficiary_name: Optional[str] = None
+    
+    crypto_currency: str
+    crypto_network: Optional[str] = None
+    crypto_amount: Decimal
+    
+    crypto_usd_rate: Decimal
+    brl_usd_rate: Decimal
+    
+    service_fee_percent: Decimal = Field(default=Decimal("4.75"))
+    service_fee_brl: Decimal
+    network_fee_percent: Decimal = Field(default=Decimal("0.25"))
+    network_fee_brl: Decimal
+    total_fees_brl: Decimal
+    
+    total_amount_brl: Decimal
+    total_crypto_amount: Decimal
+    
+    quote_expires_at: datetime
+    quote_valid_seconds: int = Field(default=300)
+    
+    user_crypto_balance: Decimal
+    has_sufficient_balance: bool
+    
+    summary: dict = Field(default_factory=dict)
+
+
+class ConfirmBillPaymentRequest(BaseModel):
+    """
+    Request para confirmar pagamento do boleto
+    ⚠️ IMPORTANTE: Após confirmação, crypto é DEBITADA IMEDIATAMENTE
+    """
+    quote_id: str = Field(..., description="ID da cotação")
+    confirm_debit: bool = Field(..., description="Usuário confirma débito imediato")
+    
+    @validator('confirm_debit')
+    def must_confirm(cls, v):
+        if not v:
+            raise ValueError("Você deve confirmar o débito para prosseguir")
+        return v
+
+
+class BillPaymentResponse(BaseModel):
+    """Response do pagamento de boleto"""
+    id: str
+    payment_number: str
+    status: BillPaymentStatusEnum
+    
+    barcode: str
+    bill_amount_brl: Decimal
+    due_date: date
+    beneficiary_name: Optional[str] = None
+    bank_name: Optional[str] = None
+    
+    crypto_currency: str
+    crypto_amount: Decimal
+    crypto_network: Optional[str] = None
+    
+    total_amount_brl: Decimal
+    service_fee_brl: Decimal
+    network_fee_brl: Decimal
+    
+    created_at: datetime
+    crypto_debited_at: Optional[datetime] = None
+    paid_at: Optional[datetime] = None
+    
+    payment_receipt_url: Optional[str] = None
+    bank_authentication: Optional[str] = None
+    
+    status_message: str
+
+
+class BillPaymentListResponse(BaseModel):
+    """Lista de pagamentos de boletos do usuário"""
+    payments: List[BillPaymentResponse]
+    total: int
+    page: int
+    per_page: int
+
+
+class OperatorPayBillRequest(BaseModel):
+    """Request para operador marcar boleto como pago"""
+    payment_id: str
+    bank_authentication: str
+    payment_receipt_url: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class RefundBillPaymentRequest(BaseModel):
+    """Request para reembolsar crypto ao usuário"""
+    payment_id: str
+    reason: str
