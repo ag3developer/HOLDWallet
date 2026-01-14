@@ -1,24 +1,18 @@
 /**
- * BarcodeScanner - Scanner de Código de Barras (iOS Safari Optimizado)
- * ====================================================================
+ * BarcodeScanner - Scanner de Código de Barras (iOS Safari PWA Optimizado)
+ * ========================================================================
  *
- * Componente otimizado para escanear códigos de barras em dispositivos iOS.
- *
- * Melhorias para Safari iOS:
- * - Uso correto do playsinline para iOS
- * - Constraints de vídeo específicas para iOS
- * - Inicialização explícita do stream
- * - Tratamento de erros específicos do Safari
- * - Timeout para evitar travamento
+ * Usa html5-qrcode que é muito mais estável em Safari iOS e PWA.
+ * A câmera permanece aberta até leitura bem-sucedida ou fechamento manual.
  *
  * Formatos suportados:
  * - ITF (Interleaved 2 of 5) - Usado em boletos bancários
- * - CODE_128
- * - EAN_13
+ * - CODE_128, CODE_39, CODABAR
+ * - EAN_13, EAN_8, UPC_A
  * - QR_CODE (para PIX)
  */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   CameraOff,
   X,
@@ -30,7 +24,7 @@ import {
   ScanLine,
   RefreshCw,
 } from 'lucide-react'
-import { BrowserMultiFormatReader, DecodeHintType, BarcodeFormat } from '@zxing/library'
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode'
 
 interface BarcodeScannerProps {
   readonly onScan: (barcode: string) => void
@@ -40,37 +34,227 @@ interface BarcodeScannerProps {
 
 type CameraState = 'idle' | 'requesting' | 'active' | 'error'
 
+// ID único para o container do scanner
+const SCANNER_CONTAINER_ID = 'barcode-scanner-container'
+
 export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps) {
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const streamRef = useRef<MediaStream | null>(null)
-  const readerRef = useRef<BrowserMultiFormatReader | null>(null)
-  const scanIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const scannerRef = useRef<Html5Qrcode | null>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const isInitializingRef = useRef(false)
+  const hasScannedRef = useRef(false)
 
   const [cameraState, setCameraState] = useState<CameraState>('idle')
   const [error, setError] = useState<string | null>(null)
   const [scannedCode, setScannedCode] = useState<string | null>(null)
-  const [isProcessing, setIsProcessing] = useState(false)
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment')
   const [torchOn, setTorchOn] = useState(false)
   const [torchAvailable, setTorchAvailable] = useState(false)
   const [retryCount, setRetryCount] = useState(0)
+  const [cameras, setCameras] = useState<{ id: string; label: string }[]>([])
+  const [currentCameraIndex, setCurrentCameraIndex] = useState(0)
 
   // Detectar iOS
-  const ua = navigator.userAgent
-  // eslint-disable-next-line @typescript-eslint/no-deprecated
   const isIOS =
-    /iPad|iPhone|iPod/.test(ua) ||
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+
+  // Formatos de código de barras suportados
+  const supportedFormats = [
+    Html5QrcodeSupportedFormats.ITF,
+    Html5QrcodeSupportedFormats.CODE_128,
+    Html5QrcodeSupportedFormats.CODE_39,
+    Html5QrcodeSupportedFormats.CODABAR,
+    Html5QrcodeSupportedFormats.EAN_13,
+    Html5QrcodeSupportedFormats.EAN_8,
+    Html5QrcodeSupportedFormats.UPC_A,
+    Html5QrcodeSupportedFormats.QR_CODE,
+  ]
+
+  // Parar scanner de forma segura
+  const stopScanner = useCallback(async () => {
+    if (scannerRef.current) {
+      try {
+        const state = scannerRef.current.getState()
+        if (state === 2) {
+          // SCANNING
+          await scannerRef.current.stop()
+        }
+      } catch (err) {
+        console.warn('Erro ao parar scanner:', err)
+      }
+
+      try {
+        scannerRef.current.clear()
+      } catch {
+        // Ignorar erro de clear
+      }
+
+      scannerRef.current = null
+    }
+
+    setCameraState('idle')
+    hasScannedRef.current = false
+  }, [])
+
+  // Processar código escaneado
+  const handleScanSuccess = useCallback(
+    (decodedText: string) => {
+      // Evitar múltiplas leituras
+      if (hasScannedRef.current) return
+
+      // Validar se parece um código de boleto (44-48 dígitos numéricos)
+      const cleanCode = decodedText.replaceAll(/\D/g, '')
+
+      if (cleanCode.length >= 44 && cleanCode.length <= 48) {
+        hasScannedRef.current = true
+        setScannedCode(cleanCode)
+
+        // Vibrar para feedback tátil
+        if (navigator.vibrate) {
+          navigator.vibrate([100, 50, 100])
+        }
+
+        console.log('✅ Código detectado:', cleanCode.substring(0, 20) + '...')
+
+        // Delay para mostrar feedback visual antes de fechar
+        setTimeout(async () => {
+          await stopScanner()
+          onScan(cleanCode)
+          setScannedCode(null)
+        }, 1500)
+      }
+    },
+    [onScan, stopScanner]
+  )
+
+  // Iniciar scanner
+  const startScanner = useCallback(async () => {
+    if (isInitializingRef.current || !containerRef.current) return
+
+    isInitializingRef.current = true
+    setCameraState('requesting')
+    setError(null)
+    hasScannedRef.current = false
+
+    // Parar scanner anterior se existir
+    await stopScanner()
+
+    // Pequeno delay para garantir que o DOM está pronto
+    await new Promise(resolve => setTimeout(resolve, 100))
+
+    try {
+      // Listar câmeras disponíveis
+      const devices = await Html5Qrcode.getCameras()
+
+      if (!devices || devices.length === 0) {
+        throw new Error('Nenhuma câmera encontrada')
+      }
+
+      setCameras(devices)
+      console.log(
+        '📷 Câmeras disponíveis:',
+        devices.map(d => d.label)
+      )
+
+      // Selecionar câmera (preferir traseira)
+      let selectedCamera = devices[0]
+
+      if (facingMode === 'environment') {
+        // Procurar câmera traseira
+        const backCamera = devices.find(
+          d =>
+            d.label.toLowerCase().includes('back') ||
+            d.label.toLowerCase().includes('traseira') ||
+            d.label.toLowerCase().includes('rear') ||
+            d.label.toLowerCase().includes('environment')
+        )
+        if (backCamera) selectedCamera = backCamera
+      } else {
+        // Procurar câmera frontal
+        const frontCamera = devices.find(
+          d =>
+            d.label.toLowerCase().includes('front') ||
+            d.label.toLowerCase().includes('frontal') ||
+            d.label.toLowerCase().includes('user')
+        )
+        if (frontCamera) selectedCamera = frontCamera
+      }
+
+      // Se temos índice manual, usar
+      if (currentCameraIndex < devices.length) {
+        selectedCamera = devices[currentCameraIndex]
+      }
+
+      if (!selectedCamera) {
+        throw new Error('Nenhuma câmera selecionada')
+      }
+
+      console.log('📸 Usando câmera:', selectedCamera.label)
+
+      // Criar instância do scanner
+      scannerRef.current = new Html5Qrcode(SCANNER_CONTAINER_ID, {
+        formatsToSupport: supportedFormats,
+        verbose: false,
+      })
+
+      // Configuração otimizada para iOS Safari
+      const config = {
+        fps: 10, // Frames por segundo
+        qrbox: { width: 300, height: 150 }, // Área de scan retangular para boletos
+        aspectRatio: isIOS ? 1.777778 : undefined, // 16:9 para iOS
+        disableFlip: false,
+        // Configurações experimentais para melhor compatibilidade
+        experimentalFeatures: {
+          useBarCodeDetectorIfSupported: true, // Usar API nativa se disponível
+        },
+      }
+
+      await scannerRef.current.start(selectedCamera.id, config, handleScanSuccess, () => {
+        // Callback de erro de scan (silencioso - normal não achar código em cada frame)
+      })
+
+      // Verificar se torch está disponível
+      try {
+        const capabilities = scannerRef.current.getRunningTrackCameraCapabilities()
+        const torchFeature = capabilities.torchFeature()
+        setTorchAvailable(torchFeature?.isSupported() ?? false)
+      } catch {
+        setTorchAvailable(false)
+      }
+
+      setCameraState('active')
+      console.log('✅ Scanner iniciado com sucesso')
+    } catch (err) {
+      console.error('❌ Erro ao iniciar scanner:', err)
+
+      let errorMessage = 'Não foi possível acessar a câmera.'
+
+      if (err instanceof Error) {
+        if (err.message.includes('Permission') || err.message.includes('NotAllowed')) {
+          errorMessage = 'Permissão de câmera negada. Verifique as configurações do navegador.'
+        } else if (err.message.includes('NotFound') || err.message.includes('Nenhuma câmera')) {
+          errorMessage = 'Nenhuma câmera encontrada no dispositivo.'
+        } else if (err.message.includes('NotReadable') || err.message.includes('in use')) {
+          errorMessage = 'A câmera está sendo usada por outro aplicativo.'
+        } else if (err.message.includes('Overconstrained')) {
+          errorMessage = 'Configurações de câmera não suportadas.'
+        }
+      }
+
+      setError(errorMessage)
+      setCameraState('error')
+    } finally {
+      isInitializingRef.current = false
+    }
+  }, [facingMode, currentCameraIndex, isIOS, supportedFormats, handleScanSuccess, stopScanner])
 
   // Controlar viewport para comportamento de app nativo
   useEffect(() => {
     if (!isOpen) return
 
-    // Salvar viewport original
     const viewportMeta = document.querySelector('meta[name="viewport"]')
     const originalContent = viewportMeta?.getAttribute('content') || ''
 
-    // Configurar viewport para evitar zoom e comportar como app nativo
     if (viewportMeta) {
       viewportMeta.setAttribute(
         'content',
@@ -78,395 +262,126 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
       )
     }
 
-    // Prevenir scroll e gestos de zoom
-    const preventZoom = (e: TouchEvent) => {
-      if (e.touches.length > 1) {
-        e.preventDefault()
-      }
-    }
-
-    const preventGestureZoom = (e: Event) => {
-      e.preventDefault()
-    }
-
-    document.addEventListener('touchmove', preventZoom, { passive: false })
-    document.addEventListener('gesturestart', preventGestureZoom)
-    document.addEventListener('gesturechange', preventGestureZoom)
-    document.addEventListener('gestureend', preventGestureZoom)
-
     // Prevenir scroll do body
+    const originalOverflow = document.body.style.overflow
+    const originalPosition = document.body.style.position
     document.body.style.overflow = 'hidden'
     document.body.style.position = 'fixed'
     document.body.style.width = '100%'
-    document.body.style.height = '100%'
 
     return () => {
-      // Restaurar viewport original
       if (viewportMeta && originalContent) {
         viewportMeta.setAttribute('content', originalContent)
       }
-
-      // Remover listeners
-      document.removeEventListener('touchmove', preventZoom)
-      document.removeEventListener('gesturestart', preventGestureZoom)
-      document.removeEventListener('gesturechange', preventGestureZoom)
-      document.removeEventListener('gestureend', preventGestureZoom)
-
-      // Restaurar scroll do body
-      document.body.style.overflow = ''
-      document.body.style.position = ''
+      document.body.style.overflow = originalOverflow
+      document.body.style.position = originalPosition
       document.body.style.width = ''
-      document.body.style.height = ''
     }
   }, [isOpen])
 
-  // Inicializar o reader de código de barras
-  useEffect(() => {
-    const hints = new Map()
-    hints.set(DecodeHintType.POSSIBLE_FORMATS, [
-      BarcodeFormat.ITF,
-      BarcodeFormat.CODE_128,
-      BarcodeFormat.EAN_13,
-      BarcodeFormat.QR_CODE,
-      BarcodeFormat.CODE_39,
-      BarcodeFormat.CODABAR,
-    ])
-    hints.set(DecodeHintType.TRY_HARDER, true)
-
-    readerRef.current = new BrowserMultiFormatReader(hints)
-
-    return () => {
-      readerRef.current?.reset()
-    }
-  }, [])
-
-  // Função para parar a câmera
-  const stopCamera = useCallback(() => {
-    // Parar scanning
-    if (scanIntervalRef.current) {
-      clearInterval(scanIntervalRef.current)
-      scanIntervalRef.current = null
-    }
-
-    // Parar stream
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => {
-        track.stop()
-      })
-      streamRef.current = null
-    }
-
-    // Limpar video
-    if (videoRef.current) {
-      videoRef.current.srcObject = null
-    }
-
-    setCameraState('idle')
-  }, [])
-
-  // Processar código escaneado
-  const handleScan = useCallback(
-    (code: string) => {
-      if (isProcessing || scannedCode) return
-
-      // Validar se parece um código de boleto (44-48 dígitos numéricos)
-      const cleanCode = code.replaceAll(/\D/g, '')
-
-      if (cleanCode.length >= 44 && cleanCode.length <= 48) {
-        setIsProcessing(true)
-        setScannedCode(cleanCode)
-
-        // Vibrar para feedback tátil (padrão de sucesso)
-        if (navigator.vibrate) {
-          navigator.vibrate([100, 50, 100]) // Vibração dupla de sucesso
-        }
-
-        console.log('✅ Código detectado:', cleanCode.substring(0, 20) + '...')
-
-        // Delay maior para mostrar feedback visual (similar aos bancos)
-        // 2 segundos para o usuário ver a confirmação antes de fechar
-        setTimeout(() => {
-          onScan(cleanCode)
-          // Pequeno delay adicional antes de limpar estado
-          setTimeout(() => {
-            setIsProcessing(false)
-            setScannedCode(null)
-          }, 300)
-        }, 2000)
-      }
-    },
-    [isProcessing, scannedCode, onScan]
-  )
-
-  // Scanning contínuo
-  const startScanning = useCallback(() => {
-    if (scanIntervalRef.current) {
-      clearInterval(scanIntervalRef.current)
-    }
-
-    // Escanear a cada 300ms - intervalo estável para não sobrecarregar
-    scanIntervalRef.current = setInterval(() => {
-      // Verificar refs diretamente para evitar problemas de closure
-      if (!videoRef.current || !readerRef.current) return
-
-      const video = videoRef.current
-
-      // Verificar se o video está pronto
-      if (video.readyState < 2 || video.videoWidth === 0) return
-
-      // Usar uma flag local para verificar se já está processando
-      // Isso evita múltiplas detecções do mesmo código
-      try {
-        // Tentar decodificar diretamente do video element
-        readerRef.current
-          .decodeFromVideoElement(video)
-          .then(result => {
-            if (result) {
-              handleScan(result.getText())
-            }
-          })
-          .catch(() => {
-            // Silencioso - é normal não encontrar código em cada frame
-          })
-      } catch {
-        // Silencioso
-      }
-    }, 300)
-  }, [handleScan]) // Removido isProcessing e scannedCode das dependências
-
-  // Função para iniciar a câmera (otimizada para iOS)
-  const startCamera = useCallback(async () => {
-    setCameraState('requesting')
-    setError(null)
-
-    // Parar qualquer stream anterior
-    stopCamera()
-
-    // Pequeno delay para iOS processar
-    await new Promise(resolve => setTimeout(resolve, 100))
-
-    try {
-      // Constraints otimizadas para iOS Safari
-      const constraints: MediaStreamConstraints = {
-        audio: false,
-        video: {
-          facingMode: { ideal: facingMode },
-          // iOS funciona melhor com resoluções específicas
-          width: isIOS ? { ideal: 1280, max: 1920 } : { ideal: 1280 },
-          height: isIOS ? { ideal: 720, max: 1080 } : { ideal: 720 },
-        },
-      }
-
-      console.log('📸 Solicitando câmera...', { facingMode, isIOS })
-
-      // Timeout para evitar travamento no iOS
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Timeout ao acessar câmera')), 15000)
-      })
-
-      const stream = await Promise.race([
-        navigator.mediaDevices.getUserMedia(constraints),
-        timeoutPromise,
-      ])
-
-      console.log('✅ Stream obtido:', stream.getVideoTracks()[0]?.label)
-
-      streamRef.current = stream
-
-      // Verificar se torch está disponível
-      const videoTrack = stream.getVideoTracks()[0]
-      if (videoTrack) {
-        try {
-          const capabilities = videoTrack.getCapabilities?.()
-          setTorchAvailable(!!(capabilities as { torch?: boolean })?.torch)
-        } catch {
-          setTorchAvailable(false)
-        }
-      }
-
-      // Configurar video element
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-
-        // iOS requer que o play seja chamado após srcObject
-        const playVideo = async () => {
-          try {
-            await videoRef.current?.play()
-            return true
-          } catch (playError) {
-            console.warn('Play error:', playError)
-            return false
-          }
-        }
-
-        // Tentar play várias vezes para iOS
-        let playSuccess = await playVideo()
-        if (!playSuccess && isIOS) {
-          await new Promise(resolve => setTimeout(resolve, 200))
-          playSuccess = await playVideo()
-        }
-        if (!playSuccess && isIOS) {
-          await new Promise(resolve => setTimeout(resolve, 500))
-          await playVideo()
-        }
-
-        // Aguardar video estar pronto
-        await new Promise<void>(resolve => {
-          const video = videoRef.current
-          if (!video) return resolve()
-
-          if (video.readyState >= 2) {
-            resolve()
-          } else {
-            const handleCanPlay = () => {
-              video.removeEventListener('canplay', handleCanPlay)
-              video.removeEventListener('loadedmetadata', handleCanPlay)
-              resolve()
-            }
-            video.addEventListener('canplay', handleCanPlay)
-            video.addEventListener('loadedmetadata', handleCanPlay)
-
-            // Timeout de segurança
-            setTimeout(resolve, 5000)
-          }
-        })
-
-        setCameraState('active')
-
-        // Pequeno delay antes de iniciar scanning
-        setTimeout(() => {
-          startScanning()
-        }, 500)
-      }
-    } catch (err) {
-      console.error('❌ Erro ao acessar câmera:', err)
-
-      let errorMessage = 'Não foi possível acessar a câmera.'
-
-      if (err instanceof Error) {
-        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-          errorMessage = 'Permissão de câmera negada. Verifique as configurações do navegador.'
-        } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-          errorMessage = 'Nenhuma câmera encontrada no dispositivo.'
-        } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
-          errorMessage = 'A câmera está sendo usada por outro aplicativo.'
-        } else if (err.name === 'OverconstrainedError') {
-          errorMessage = 'Configurações de câmera não suportadas. Tente trocar a câmera.'
-        } else if (err.message === 'Timeout ao acessar câmera') {
-          errorMessage = 'A câmera demorou muito para responder. Tente novamente.'
-        }
-      }
-
-      setError(errorMessage)
-      setCameraState('error')
-    }
-  }, [facingMode, isIOS, stopCamera, startScanning])
-
-  // Iniciar câmera quando o modal abrir
-  // IMPORTANTE: A câmera deve ficar aberta indefinidamente até:
-  // 1. Leitura bem-sucedida do código de barras
-  // 2. Usuário fechar o modal manualmente
+  // Iniciar/parar scanner quando modal abre/fecha
   useEffect(() => {
     if (isOpen) {
-      startCamera()
+      // Delay para garantir que o container está no DOM
+      const timer = setTimeout(() => {
+        startScanner()
+      }, 300)
+      return () => clearTimeout(timer)
+    } else {
+      stopScanner()
+      return undefined
+    }
+  }, [isOpen, startScanner, stopScanner])
+
+  // Alternar câmera
+  const toggleCamera = useCallback(async () => {
+    await stopScanner()
+
+    if (cameras.length > 1) {
+      setCurrentCameraIndex(prev => (prev + 1) % cameras.length)
     }
 
-    return () => {
-      stopCamera()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]) // Apenas isOpen como dependência para evitar re-renders
-
-  // Reiniciar câmera quando trocar de facingMode
-  useEffect(() => {
-    if (isOpen && cameraState !== 'idle') {
-      startCamera()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [facingMode]) // Separado para troca de câmera
-
-  // Alternar câmera frontal/traseira
-  const toggleCamera = useCallback(() => {
     setFacingMode(prev => (prev === 'environment' ? 'user' : 'environment'))
     setRetryCount(0)
-  }, [])
+
+    // Reiniciar após mudança
+    setTimeout(() => {
+      startScanner()
+    }, 200)
+  }, [cameras.length, stopScanner, startScanner])
 
   // Alternar flash
   const toggleTorch = useCallback(async () => {
-    if (!torchAvailable || !streamRef.current) return
-
-    const videoTrack = streamRef.current.getVideoTracks()[0]
-    if (!videoTrack) return
+    if (!torchAvailable || !scannerRef.current) return
 
     try {
-      await videoTrack.applyConstraints({
-        advanced: [{ torch: !torchOn } as MediaTrackConstraintSet],
-      })
-      setTorchOn(!torchOn)
+      const capabilities = scannerRef.current.getRunningTrackCameraCapabilities()
+      const torchFeature = capabilities.torchFeature()
+      if (torchFeature?.isSupported()) {
+        torchFeature.apply(!torchOn)
+        setTorchOn(!torchOn)
+      }
     } catch (err) {
       console.error('Erro ao alternar flash:', err)
     }
   }, [torchAvailable, torchOn])
 
   // Tentar novamente
-  const handleRetry = useCallback(() => {
+  const handleRetry = useCallback(async () => {
     setRetryCount(prev => prev + 1)
-    startCamera()
-  }, [startCamera])
+    await stopScanner()
+    setTimeout(() => {
+      startScanner()
+    }, 200)
+  }, [stopScanner, startScanner])
 
   // Fechar scanner
-  const handleClose = useCallback(() => {
-    stopCamera()
+  const handleClose = useCallback(async () => {
+    await stopScanner()
     setScannedCode(null)
-    setIsProcessing(false)
     setError(null)
     setRetryCount(0)
     onClose()
-  }, [stopCamera, onClose])
+  }, [stopScanner, onClose])
 
   if (!isOpen) return null
 
   return (
     <div
-      className='fixed inset-0 z-50 bg-black overflow-hidden touch-none select-none'
+      className='fixed inset-0 z-50 bg-black'
       style={{
-        // Garantir que ocupe toda a tela
         width: '100vw',
-        height: '100dvh', // dvh funciona melhor em mobile
+        height: '100dvh',
       }}
     >
       {/* Header */}
-      <div className='absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/80 to-transparent p-4'>
-        <div className='flex items-center justify-between pt-safe'>
+      <div className='absolute top-0 left-0 right-0 z-20 bg-gradient-to-b from-black/90 to-transparent p-4 pt-safe'>
+        <div className='flex items-center justify-between'>
           <button
             onClick={handleClose}
-            className='flex items-center gap-2 text-white hover:text-gray-300 transition-colors'
+            className='flex items-center gap-2 text-white hover:text-gray-300 transition-colors p-2'
           >
             <X className='w-6 h-6' />
             <span className='text-sm font-medium'>Fechar</span>
           </button>
 
           <div className='flex items-center gap-3'>
-            {/* Botão Flash */}
             {torchAvailable && (
               <button
                 onClick={toggleTorch}
-                title='Ligar/Desligar Flash'
                 aria-label='Ligar ou desligar flash'
-                className={`p-2 rounded-full transition-colors ${
-                  torchOn ? 'bg-yellow-500 text-black' : 'bg-white/20 text-white hover:bg-white/30'
+                className={`p-3 rounded-full transition-colors ${
+                  torchOn ? 'bg-yellow-500 text-black' : 'bg-white/20 text-white'
                 }`}
               >
                 <Flashlight className='w-5 h-5' />
               </button>
             )}
 
-            {/* Botão Trocar Câmera */}
             <button
               onClick={toggleCamera}
-              title='Trocar Câmera'
-              aria-label='Trocar entre câmera frontal e traseira'
-              className='p-2 rounded-full bg-white/20 text-white hover:bg-white/30 transition-colors'
+              aria-label='Trocar câmera'
+              className='p-3 rounded-full bg-white/20 text-white'
             >
               <SwitchCamera className='w-5 h-5' />
             </button>
@@ -475,53 +390,42 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
       </div>
 
       {/* Área do Scanner */}
-      <div className='relative w-full h-full flex items-center justify-center overflow-hidden'>
-        {/* Video element - sempre presente para iOS */}
-        <video
-          ref={videoRef}
-          className={`absolute inset-0 w-full h-full ${cameraState !== 'active' ? 'hidden' : ''}`}
+      <div className='relative w-full h-full flex items-center justify-center'>
+        {/* Container do html5-qrcode - IMPORTANTE: deve ter este ID */}
+        <div
+          id={SCANNER_CONTAINER_ID}
+          ref={containerRef}
+          className='w-full h-full'
           style={{
-            objectFit: 'cover',
-            // Garantir que o vídeo cubra toda a tela sem distorção
-            minWidth: '100%',
-            minHeight: '100%',
-            // Centralizar o vídeo
-            transform: 'translate(-50%, -50%)',
-            top: '50%',
-            left: '50%',
-            position: 'absolute',
+            display: cameraState === 'active' ? 'block' : 'none',
           }}
-          playsInline
-          muted
-          autoPlay
-          webkit-playsinline='true'
         />
 
         {/* Estado: Erro */}
         {cameraState === 'error' && (
-          <div className='flex flex-col items-center justify-center p-8 text-center'>
+          <div className='absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-black'>
             <CameraOff className='w-16 h-16 text-red-500 mb-4' />
             <h3 className='text-xl font-semibold text-white mb-2'>Câmera não disponível</h3>
-            <p className='text-gray-400 mb-4 max-w-xs'>{error}</p>
+            <p className='text-gray-400 mb-6 max-w-xs'>{error}</p>
             <div className='flex gap-3'>
               <button
                 onClick={handleRetry}
-                className='flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition-colors'
+                className='flex items-center gap-2 px-5 py-3 bg-violet-600 text-white rounded-xl'
               >
                 <RefreshCw className='w-4 h-4' />
                 Tentar novamente
               </button>
               <button
                 onClick={toggleCamera}
-                className='flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors'
+                className='flex items-center gap-2 px-5 py-3 bg-gray-700 text-white rounded-xl'
               >
                 <SwitchCamera className='w-4 h-4' />
                 Trocar câmera
               </button>
             </div>
             {isIOS && (
-              <p className='text-amber-400 text-sm mt-4'>
-                💡 Dica iOS: Tente trocar para câmera frontal e depois voltar para traseira
+              <p className='text-amber-400 text-sm mt-6'>
+                💡 No iOS, vá em Ajustes → Safari → Câmera e permita acesso
               </p>
             )}
             {retryCount > 0 && (
@@ -530,94 +434,74 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
           </div>
         )}
 
-        {/* Estado: Solicitando */}
+        {/* Estado: Carregando */}
         {cameraState === 'requesting' && (
-          <div className='flex flex-col items-center justify-center'>
+          <div className='absolute inset-0 flex flex-col items-center justify-center bg-black'>
             <Loader2 className='w-12 h-12 text-violet-500 animate-spin mb-4' />
             <p className='text-gray-400'>Iniciando câmera...</p>
             {isIOS && (
               <p className='text-gray-500 text-sm mt-2 max-w-xs text-center'>
-                No iOS, pode ser necessário permitir acesso à câmera nas configurações do Safari
+                Permita o acesso à câmera quando solicitado
               </p>
             )}
           </div>
         )}
 
-        {/* Overlay com Guia de Scan - Apenas quando ativo */}
-        {cameraState === 'active' && (
-          <div className='absolute inset-0 pointer-events-none'>
-            {/* Escurecimento das bordas */}
-            <div className='absolute inset-0 bg-black/50' />
+        {/* Overlay com feedback de sucesso */}
+        {scannedCode && (
+          <div className='absolute inset-0 flex items-center justify-center bg-black/80 z-30'>
+            <div className='flex flex-col items-center gap-4 p-8 bg-green-500/20 rounded-2xl border-2 border-green-500'>
+              <CheckCircle className='w-20 h-20 text-green-500 animate-bounce' />
+              <p className='text-green-400 font-bold text-xl'>Código lido!</p>
+              <p className='text-gray-400 text-sm font-mono'>{scannedCode.substring(0, 25)}...</p>
+            </div>
+          </div>
+        )}
 
-            {/* Área de scan transparente */}
+        {/* Overlay com guia de scan */}
+        {cameraState === 'active' && !scannedCode && (
+          <div className='absolute inset-0 pointer-events-none z-10'>
+            {/* Escurecimento */}
+            <div className='absolute inset-0 bg-black/40' />
+
+            {/* Área de scan */}
             <div className='absolute inset-0 flex items-center justify-center'>
-              <div className='relative w-[85%] max-w-md h-32'>
-                {/* Cantos do quadro */}
-                <div className='absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-violet-500 rounded-tl-lg' />
-                <div className='absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-violet-500 rounded-tr-lg' />
-                <div className='absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-violet-500 rounded-bl-lg' />
-                <div className='absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-violet-500 rounded-br-lg' />
+              <div className='relative w-[85%] max-w-md h-36'>
+                {/* Cantos */}
+                <div className='absolute top-0 left-0 w-10 h-10 border-t-4 border-l-4 border-violet-500 rounded-tl-xl' />
+                <div className='absolute top-0 right-0 w-10 h-10 border-t-4 border-r-4 border-violet-500 rounded-tr-xl' />
+                <div className='absolute bottom-0 left-0 w-10 h-10 border-b-4 border-l-4 border-violet-500 rounded-bl-xl' />
+                <div className='absolute bottom-0 right-0 w-10 h-10 border-b-4 border-r-4 border-violet-500 rounded-br-xl' />
 
                 {/* Área transparente */}
                 <div
-                  className='absolute inset-0 bg-transparent'
-                  style={{
-                    boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.5)',
-                  }}
+                  className='absolute inset-0'
+                  style={{ boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.5)' }}
                 />
 
-                {/* Linha de scan animada */}
-                {!scannedCode && (
-                  <div className='absolute inset-x-0 top-1/2 -translate-y-1/2'>
-                    <div className='h-0.5 bg-gradient-to-r from-transparent via-violet-500 to-transparent animate-pulse' />
-                  </div>
-                )}
-
-                {/* Feedback de sucesso */}
-                {scannedCode && (
-                  <div className='absolute inset-0 flex flex-col items-center justify-center bg-green-500/30 rounded-lg border-4 border-green-500'>
-                    <CheckCircle className='w-16 h-16 text-green-500 animate-bounce' />
-                    <p className='text-green-400 font-bold mt-2 text-lg'>Lido com sucesso!</p>
-                  </div>
-                )}
+                {/* Linha animada */}
+                <div className='absolute inset-x-0 top-1/2 -translate-y-1/2'>
+                  <div className='h-0.5 bg-gradient-to-r from-transparent via-violet-500 to-transparent animate-pulse' />
+                </div>
               </div>
             </div>
           </div>
         )}
       </div>
 
-      {/* Footer com Instruções */}
-      <div className='absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-black/80 to-transparent p-6 pb-safe'>
-        <div className='text-center'>
-          {scannedCode ? (
-            <div className='flex flex-col items-center gap-3 animate-pulse'>
-              <div className='flex items-center gap-2 bg-green-500/20 px-4 py-2 rounded-full'>
-                <CheckCircle className='w-6 h-6 text-green-500' />
-                <p className='text-green-400 font-bold'>Código detectado!</p>
-              </div>
-              <p className='text-white text-sm'>Processando...</p>
-              <p className='text-gray-400 text-xs font-mono bg-black/30 px-3 py-1 rounded'>
-                {scannedCode.substring(0, 25)}...
-              </p>
+      {/* Footer */}
+      <div className='absolute bottom-0 left-0 right-0 z-20 bg-gradient-to-t from-black/90 to-transparent p-6 pb-safe'>
+        {cameraState === 'active' && !scannedCode && (
+          <div className='text-center'>
+            <div className='flex items-center justify-center gap-2 mb-2'>
+              <ScanLine className='w-5 h-5 text-violet-400' />
+              <p className='text-white font-medium'>Aponte para o código de barras</p>
             </div>
-          ) : cameraState === 'active' ? (
-            <>
-              <div className='flex items-center justify-center gap-2 mb-2'>
-                <ScanLine className='w-5 h-5 text-violet-400' />
-                <p className='text-white font-medium'>Aponte para o código de barras</p>
-              </div>
-              <p className='text-gray-400 text-sm'>
-                Posicione o código de barras do boleto dentro da área destacada
-              </p>
-            </>
-          ) : null}
-        </div>
-
-        {/* Dica de formato */}
-        {cameraState === 'active' && (
-          <div className='mt-4 flex items-center justify-center gap-2 text-xs text-gray-500'>
-            <AlertCircle className='w-4 h-4' />
-            <span>Formatos suportados: Boleto bancário, contas de consumo</span>
+            <p className='text-gray-400 text-sm'>Posicione o código dentro da área destacada</p>
+            <div className='mt-4 flex items-center justify-center gap-2 text-xs text-gray-500'>
+              <AlertCircle className='w-4 h-4' />
+              <span>Boletos, contas de consumo e PIX</span>
+            </div>
           </div>
         )}
       </div>

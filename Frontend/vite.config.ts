@@ -215,8 +215,15 @@ export default defineConfig({
   },
   server: {
     port: 3000,
+    strictPort: true, // ✅ NOVO: Força usar porta 3000, falha se ocupada
     host: '0.0.0.0',
     open: true,
+    hmr: {
+      // ✅ NOVO: Configuração explícita do HMR WebSocket
+      protocol: 'ws',
+      host: 'localhost',
+      port: 3000,
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:8000',
