@@ -62,6 +62,64 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
     /iPad|iPhone|iPod/.test(ua) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
 
+  // Controlar viewport para comportamento de app nativo
+  useEffect(() => {
+    if (!isOpen) return
+
+    // Salvar viewport original
+    const viewportMeta = document.querySelector('meta[name="viewport"]')
+    const originalContent = viewportMeta?.getAttribute('content') || ''
+
+    // Configurar viewport para evitar zoom e comportar como app nativo
+    if (viewportMeta) {
+      viewportMeta.setAttribute(
+        'content',
+        'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover'
+      )
+    }
+
+    // Prevenir scroll e gestos de zoom
+    const preventZoom = (e: TouchEvent) => {
+      if (e.touches.length > 1) {
+        e.preventDefault()
+      }
+    }
+
+    const preventGestureZoom = (e: Event) => {
+      e.preventDefault()
+    }
+
+    document.addEventListener('touchmove', preventZoom, { passive: false })
+    document.addEventListener('gesturestart', preventGestureZoom)
+    document.addEventListener('gesturechange', preventGestureZoom)
+    document.addEventListener('gestureend', preventGestureZoom)
+
+    // Prevenir scroll do body
+    document.body.style.overflow = 'hidden'
+    document.body.style.position = 'fixed'
+    document.body.style.width = '100%'
+    document.body.style.height = '100%'
+
+    return () => {
+      // Restaurar viewport original
+      if (viewportMeta && originalContent) {
+        viewportMeta.setAttribute('content', originalContent)
+      }
+
+      // Remover listeners
+      document.removeEventListener('touchmove', preventZoom)
+      document.removeEventListener('gesturestart', preventGestureZoom)
+      document.removeEventListener('gesturechange', preventGestureZoom)
+      document.removeEventListener('gestureend', preventGestureZoom)
+
+      // Restaurar scroll do body
+      document.body.style.overflow = ''
+      document.body.style.position = ''
+      document.body.style.width = ''
+      document.body.style.height = ''
+    }
+  }, [isOpen])
+
   // Inicializar o reader de código de barras
   useEffect(() => {
     const hints = new Map()
@@ -146,15 +204,18 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
       clearInterval(scanIntervalRef.current)
     }
 
-    // Escanear a cada 250ms (um pouco mais lento para iOS)
+    // Escanear a cada 300ms - intervalo estável para não sobrecarregar
     scanIntervalRef.current = setInterval(() => {
-      if (!videoRef.current || !readerRef.current || isProcessing || scannedCode) return
+      // Verificar refs diretamente para evitar problemas de closure
+      if (!videoRef.current || !readerRef.current) return
 
       const video = videoRef.current
 
       // Verificar se o video está pronto
       if (video.readyState < 2 || video.videoWidth === 0) return
 
+      // Usar uma flag local para verificar se já está processando
+      // Isso evita múltiplas detecções do mesmo código
       try {
         // Tentar decodificar diretamente do video element
         readerRef.current
@@ -170,8 +231,8 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
       } catch {
         // Silencioso
       }
-    }, 250)
-  }, [isProcessing, scannedCode, handleScan])
+    }, 300)
+  }, [handleScan]) // Removido isProcessing e scannedCode das dependências
 
   // Função para iniciar a câmera (otimizada para iOS)
   const startCamera = useCallback(async () => {
@@ -231,7 +292,6 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
         const playVideo = async () => {
           try {
             await videoRef.current?.play()
-            console.log('▶️ Video playing')
             return true
           } catch (playError) {
             console.warn('Play error:', playError)
@@ -302,18 +362,28 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
     }
   }, [facingMode, isIOS, stopCamera, startScanning])
 
-  // Iniciar câmera quando abrir
+  // Iniciar câmera quando o modal abrir
+  // IMPORTANTE: A câmera deve ficar aberta indefinidamente até:
+  // 1. Leitura bem-sucedida do código de barras
+  // 2. Usuário fechar o modal manualmente
   useEffect(() => {
     if (isOpen) {
       startCamera()
-    } else {
-      stopCamera()
     }
 
     return () => {
       stopCamera()
     }
-  }, [isOpen, facingMode, startCamera, stopCamera])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]) // Apenas isOpen como dependência para evitar re-renders
+
+  // Reiniciar câmera quando trocar de facingMode
+  useEffect(() => {
+    if (isOpen && cameraState !== 'idle') {
+      startCamera()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [facingMode]) // Separado para troca de câmera
 
   // Alternar câmera frontal/traseira
   const toggleCamera = useCallback(() => {
@@ -357,7 +427,14 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
   if (!isOpen) return null
 
   return (
-    <div className='fixed inset-0 z-50 bg-black'>
+    <div
+      className='fixed inset-0 z-50 bg-black overflow-hidden touch-none select-none'
+      style={{
+        // Garantir que ocupe toda a tela
+        width: '100vw',
+        height: '100dvh', // dvh funciona melhor em mobile
+      }}
+    >
       {/* Header */}
       <div className='absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/80 to-transparent p-4'>
         <div className='flex items-center justify-between pt-safe'>
@@ -398,11 +475,22 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
       </div>
 
       {/* Área do Scanner */}
-      <div className='relative w-full h-full flex items-center justify-center'>
+      <div className='relative w-full h-full flex items-center justify-center overflow-hidden'>
         {/* Video element - sempre presente para iOS */}
         <video
           ref={videoRef}
-          className={`w-full h-full object-cover ${cameraState !== 'active' ? 'hidden' : ''}`}
+          className={`absolute inset-0 w-full h-full ${cameraState !== 'active' ? 'hidden' : ''}`}
+          style={{
+            objectFit: 'cover',
+            // Garantir que o vídeo cubra toda a tela sem distorção
+            minWidth: '100%',
+            minHeight: '100%',
+            // Centralizar o vídeo
+            transform: 'translate(-50%, -50%)',
+            top: '50%',
+            left: '50%',
+            position: 'absolute',
+          }}
           playsInline
           muted
           autoPlay

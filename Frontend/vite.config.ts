@@ -117,9 +117,23 @@ export default defineConfig({
         sourcemap: false,
         // ✅ Importar SW de Push Notifications
         importScripts: ['/sw-push.js'],
-        // ✅ NOVO: Ignorar URLs externas (localhost:8000, APIs de produção, etc)
-        navigateFallbackDenylist: [/^\/api/, /^http/],
+        // ✅ Ignorar URLs externas e arquivos de desenvolvimento
+        navigateFallbackDenylist: [/^\/api/, /^http/, /\.ts$/, /\.tsx$/],
+        // ✅ NOVO: Não cachear arquivos .ts/.tsx em dev
+        navigateFallbackAllowlist: [/^(?!\/@).*/],
         runtimeCaching: [
+          {
+            // ✅ NOVO: Arquivos de desenvolvimento (.ts, .tsx, /@) - sempre da rede
+            urlPattern: ({ url }) =>
+              url.pathname.includes('/@') ||
+              url.pathname.endsWith('.ts') ||
+              url.pathname.endsWith('.tsx') ||
+              url.pathname.includes('/src/'),
+            handler: 'NetworkOnly',
+            options: {
+              cacheName: 'dev-files',
+            },
+          },
           {
             // HTML - sempre buscar da rede primeiro
             urlPattern: ({ request }) => request.destination === 'document',
@@ -140,13 +154,14 @@ export default defineConfig({
             // JS/CSS - rede primeiro, cache como fallback
             urlPattern: ({ request }) =>
               request.destination === 'script' || request.destination === 'style',
-            handler: 'StaleWhileRevalidate', // ✅ Usa cache, mas atualiza em background
+            handler: 'NetworkFirst', // ✅ MUDANÇA: NetworkFirst para sempre ter arquivos atualizados
             options: {
               cacheName: 'static-resources-v3',
               expiration: {
-                maxEntries: 64,
-                maxAgeSeconds: 60 * 60 * 24, // 24 horas
+                maxEntries: 200, // ✅ AUMENTADO: mais espaço para cache
+                maxAgeSeconds: 60 * 60 * 24 * 7, // ✅ AUMENTADO: 7 dias
               },
+              networkTimeoutSeconds: 5, // ✅ NOVO: timeout antes de usar cache
               cacheableResponse: {
                 statuses: [0, 200],
               },
