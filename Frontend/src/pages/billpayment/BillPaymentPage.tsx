@@ -68,7 +68,7 @@ const CRYPTO_LOGOS: Record<string, string> = {
 }
 
 // Cryptos suportadas para pagamento
-// Usamos Polygon como rede principal - taxas de gas muito baixas!
+// Cada item representa uma combinação token + rede
 const SUPPORTED_CRYPTOS = [
   {
     symbol: 'USDT',
@@ -76,6 +76,23 @@ const SUPPORTED_CRYPTOS = [
     network: 'polygon',
     networkDisplay: 'Polygon',
     category: 'Stablecoin',
+    balanceKey: 'polygon_usdt', // Chave para buscar saldo por rede
+  },
+  {
+    symbol: 'USDT',
+    name: 'Tether USD',
+    network: 'bsc',
+    networkDisplay: 'BSC (BNB Chain)',
+    category: 'Stablecoin',
+    balanceKey: 'bsc_usdt',
+  },
+  {
+    symbol: 'USDT',
+    name: 'Tether USD',
+    network: 'ethereum',
+    networkDisplay: 'Ethereum',
+    category: 'Stablecoin',
+    balanceKey: 'ethereum_usdt',
   },
   {
     symbol: 'USDC',
@@ -83,6 +100,15 @@ const SUPPORTED_CRYPTOS = [
     network: 'polygon',
     networkDisplay: 'Polygon',
     category: 'Stablecoin',
+    balanceKey: 'polygon_usdc',
+  },
+  {
+    symbol: 'USDC',
+    name: 'USD Coin',
+    network: 'bsc',
+    networkDisplay: 'BSC (BNB Chain)',
+    category: 'Stablecoin',
+    balanceKey: 'bsc_usdc',
   },
   {
     symbol: 'MATIC',
@@ -90,13 +116,15 @@ const SUPPORTED_CRYPTOS = [
     network: 'polygon',
     networkDisplay: 'Polygon',
     category: 'Native',
+    balanceKey: 'polygon',
   },
   {
-    symbol: 'BTC',
-    name: 'Bitcoin',
-    network: 'bitcoin',
-    networkDisplay: 'Bitcoin',
+    symbol: 'BNB',
+    name: 'BNB',
+    network: 'bsc',
+    networkDisplay: 'BSC (BNB Chain)',
     category: 'Native',
+    balanceKey: 'bsc',
   },
   {
     symbol: 'ETH',
@@ -104,13 +132,7 @@ const SUPPORTED_CRYPTOS = [
     network: 'ethereum',
     networkDisplay: 'Ethereum',
     category: 'Native',
-  },
-  {
-    symbol: 'SOL',
-    name: 'Solana',
-    network: 'solana',
-    networkDisplay: 'Solana',
-    category: 'Native',
+    balanceKey: 'ethereum',
   },
 ]
 
@@ -138,6 +160,11 @@ const formatDate = (dateString: string) => {
 
 type Step = 'input' | 'validating' | 'select_crypto' | 'quote' | 'confirming' | 'success'
 
+// Interface para saldos por rede
+interface NetworkBalances {
+  [key: string]: number // ex: { polygon_usdt: 89.84, bsc_usdt: 228.52 }
+}
+
 export function BillPaymentPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -146,9 +173,77 @@ export function BillPaymentPage() {
   const { data: wallets } = useWallets()
   const firstWalletId = wallets?.[0]?.id
 
-  // Buscar saldos usando o hook simplificado
-  // useWalletBalances retorna { [symbol: string]: number }
+  // Buscar saldos usando o hook simplificado (para compatibilidade)
   const { balances: cryptoBalances } = useWalletBalances(firstWalletId)
+
+  // Estado para saldos por rede específica
+  const [networkBalances, setNetworkBalances] = useState<NetworkBalances>({})
+
+  // Buscar saldos detalhados por rede quando tiver wallet
+  useEffect(() => {
+    const fetchNetworkBalances = async () => {
+      if (!firstWalletId) return
+
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL || ''}/api/v1/wallets/${firstWalletId}/balances?include_tokens=true`,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem('authToken')}`,
+            },
+          }
+        )
+
+        if (response.ok) {
+          const data = await response.json()
+          console.log('[BillPayment] Saldos por rede:', data)
+
+          // Extrair saldos de cada rede
+          const balances: NetworkBalances = {}
+
+          if (data.balances) {
+            for (const [network, info] of Object.entries(data.balances)) {
+              const networkLower = network.toLowerCase()
+              const balanceInfo = info as any
+
+              // Saldo nativo da rede
+              if (balanceInfo?.balance !== undefined) {
+                balances[networkLower] = parseFloat(balanceInfo.balance) || 0
+              }
+
+              // Tokens da rede (ex: polygon_usdt, bsc_usdt)
+              if (balanceInfo?.tokens) {
+                for (const [token, tokenInfo] of Object.entries(balanceInfo.tokens)) {
+                  const tokenKey = `${networkLower}_${token.toLowerCase()}`
+                  const tokenBalance = (tokenInfo as any)?.balance
+                  if (tokenBalance !== undefined) {
+                    balances[tokenKey] = parseFloat(tokenBalance) || 0
+                  }
+                }
+              }
+            }
+          }
+
+          console.log('[BillPayment] Saldos mapeados por rede:', balances)
+          setNetworkBalances(balances)
+        }
+      } catch (error) {
+        console.error('[BillPayment] Erro ao buscar saldos por rede:', error)
+      }
+    }
+
+    fetchNetworkBalances()
+  }, [firstWalletId])
+
+  // Função para obter saldo de uma crypto específica (por rede)
+  const getBalanceForCrypto = (crypto: (typeof SUPPORTED_CRYPTOS)[0]): number => {
+    // Primeiro tenta pelo balanceKey (específico por rede)
+    if (crypto.balanceKey && networkBalances[crypto.balanceKey] !== undefined) {
+      return networkBalances[crypto.balanceKey] ?? 0
+    }
+    // Fallback para o saldo agregado por símbolo
+    return cryptoBalances[crypto.symbol] ?? 0
+  }
 
   // Estados
   const [step, setStep] = useState<Step>('input')
@@ -680,18 +775,18 @@ export function BillPaymentPage() {
                       <div className='text-left'>
                         <p className='font-medium text-gray-900 dark:text-white'>
                           {selectedCrypto.symbol}
+                          <span className='text-xs text-gray-400 ml-1'>
+                            ({selectedCrypto.networkDisplay})
+                          </span>
                         </p>
                         <p className='text-xs text-gray-500 dark:text-gray-400'>
                           Saldo:{' '}
-                          {formatCrypto(
-                            cryptoBalances[selectedCrypto.symbol] || 0,
-                            selectedCrypto.symbol
-                          )}
+                          {formatCrypto(getBalanceForCrypto(selectedCrypto), selectedCrypto.symbol)}
                         </p>
                       </div>
                     </div>
                   ) : (
-                    <span className='text-gray-400'>Selecione uma crypto</span>
+                    <span className='text-gray-400'>Selecione uma crypto e rede</span>
                   )}
                   <ChevronDown
                     className={`w-5 h-5 text-gray-400 transition-transform ${showCryptoDropdown ? 'rotate-180' : ''}`}
@@ -700,45 +795,56 @@ export function BillPaymentPage() {
 
                 {showCryptoDropdown && (
                   <div className='absolute z-20 w-full mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl max-h-64 overflow-y-auto'>
-                    {SUPPORTED_CRYPTOS.map(crypto => {
-                      const balance = cryptoBalances[crypto.symbol] || 0
-                      const hasBalance = balance > 0
+                    {/* Ordenar: cryptos com saldo primeiro, depois por saldo decrescente */}
+                    {[...SUPPORTED_CRYPTOS]
+                      .sort((a, b) => {
+                        const balanceA = getBalanceForCrypto(a)
+                        const balanceB = getBalanceForCrypto(b)
+                        // Primeiro: com saldo vs sem saldo
+                        if (balanceA > 0 && balanceB === 0) return -1
+                        if (balanceA === 0 && balanceB > 0) return 1
+                        // Segundo: maior saldo primeiro
+                        return balanceB - balanceA
+                      })
+                      .map((crypto, index) => {
+                        const balance = getBalanceForCrypto(crypto)
+                        const hasBalance = balance > 0
 
-                      return (
-                        <button
-                          key={crypto.symbol}
-                          onClick={() => {
-                            setSelectedCrypto(crypto)
-                            setShowCryptoDropdown(false)
-                          }}
-                          className={`w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${!hasBalance ? 'opacity-50' : ''}`}
-                        >
-                          <img
-                            src={CRYPTO_LOGOS[crypto.symbol]}
-                            alt={crypto.symbol}
-                            className='w-8 h-8 rounded-full'
-                          />
-                          <div className='text-left flex-1'>
-                            <p className='font-medium text-gray-900 dark:text-white'>
-                              {crypto.symbol}
-                            </p>
-                            <p className='text-xs text-gray-500 dark:text-gray-400'>
-                              {crypto.name} • {crypto.networkDisplay}
-                            </p>
-                            <p
-                              className={`text-xs font-medium ${hasBalance ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}
-                            >
-                              Saldo: {formatCrypto(balance, crypto.symbol)}
-                            </p>
-                          </div>
-                          {crypto.category === 'Stablecoin' && (
-                            <span className='px-2 py-0.5 bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-400 text-xs rounded-full'>
-                              Estável
-                            </span>
-                          )}
-                        </button>
-                      )
-                    })}
+                        return (
+                          <button
+                            key={`${crypto.symbol}-${crypto.network}-${index}`}
+                            onClick={() => {
+                              setSelectedCrypto(crypto)
+                              setShowCryptoDropdown(false)
+                            }}
+                            className={`w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${!hasBalance ? 'opacity-50' : ''}`}
+                          >
+                            <img
+                              src={CRYPTO_LOGOS[crypto.symbol]}
+                              alt={crypto.symbol}
+                              className='w-8 h-8 rounded-full'
+                            />
+                            <div className='text-left flex-1'>
+                              <p className='font-medium text-gray-900 dark:text-white'>
+                                {crypto.symbol}
+                              </p>
+                              <p className='text-xs text-gray-500 dark:text-gray-400'>
+                                {crypto.name} • {crypto.networkDisplay}
+                              </p>
+                              <p
+                                className={`text-xs font-medium ${hasBalance ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}
+                              >
+                                Saldo: {formatCrypto(balance, crypto.symbol)}
+                              </p>
+                            </div>
+                            {crypto.category === 'Stablecoin' && (
+                              <span className='px-2 py-0.5 bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-400 text-xs rounded-full'>
+                                Estável
+                              </span>
+                            )}
+                          </button>
+                        )
+                      })}
                   </div>
                 )}
               </div>

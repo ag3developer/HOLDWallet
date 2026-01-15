@@ -82,6 +82,7 @@ import {
   AdminSecurityPage,
   AdminWolkPayPage,
   AdminWolkPayDetailPage,
+  AdminBillPaymentPage,
   AdminKYCPage,
 } from '@/pages/admin'
 
@@ -381,6 +382,7 @@ function App() {
             <Route path='/admin/settings' element={<AdminSettingsPage />} />
             <Route path='/admin/wolkpay' element={<AdminWolkPayPage />} />
             <Route path='/admin/wolkpay/:id' element={<AdminWolkPayDetailPage />} />
+            <Route path='/admin/bill-payment' element={<AdminBillPaymentPage />} />
             <Route path='/admin/kyc' element={<AdminKYCPage />} />
             <Route path='/admin/kyc/users' element={<AdminKYCUsersPage />} />
           </Route>

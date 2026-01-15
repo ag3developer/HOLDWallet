@@ -31,6 +31,7 @@ import {
   Sun,
   Moon,
   Monitor,
+  Receipt,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useThemeStore } from '@/stores/useThemeStore'
@@ -46,6 +47,7 @@ const adminNavigation = [
   { name: 'Trades OTC', href: '/admin/trades', icon: TrendingUp, group: 'management' },
   { name: 'P2P & Disputas', href: '/admin/p2p', icon: UserCheck, group: 'management' },
   { name: 'WolkPay', href: '/admin/wolkpay', icon: CreditCard, group: 'management' },
+  { name: 'Boletos', href: '/admin/bill-payment', icon: Receipt, group: 'management' },
   { name: 'Carteiras', href: '/admin/wallets', icon: Wallet, group: 'management' },
   { name: 'Transações', href: '/admin/transactions', icon: Activity, group: 'management' },
   { name: 'Taxas & Receita', href: '/admin/fees', icon: Banknote, group: 'management' },

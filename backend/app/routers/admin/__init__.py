@@ -35,6 +35,7 @@ from .backup import router as backup_router
 from .notifications import router as notifications_router
 from .security import router as security_router
 from .wolkpay_admin import router as wolkpay_admin_router
+from .bill_payment_admin import router as bill_payment_admin_router
 from .kyc_admin import router as kyc_admin_router
 from .user_kyc_admin import router as user_kyc_admin_router
 
@@ -78,6 +79,7 @@ __all__ = [
     "notifications_router",
     "security_router",
     "wolkpay_admin_router",
+    "bill_payment_admin_router",
     "kyc_admin_router",
     "user_kyc_admin_router"
 ]
