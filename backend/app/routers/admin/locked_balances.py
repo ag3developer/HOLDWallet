@@ -26,7 +26,7 @@ from pydantic import BaseModel, Field
 from app.db.database import get_db
 from app.core.security import get_current_user
 from app.models.user import User
-from app.models.wallet import WalletBalance
+from app.models.balance import WalletBalance
 from app.models.wolkpay import WolkPayBillPayment, BillPaymentStatus
 
 logger = logging.getLogger(__name__)
