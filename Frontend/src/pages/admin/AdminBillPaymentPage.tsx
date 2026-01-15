@@ -45,7 +45,7 @@ import {
   Copy,
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
-import api from '@/services/api'
+import { apiClient } from '@/services/api'
 
 // Types
 interface BillPaymentStats {
@@ -323,7 +323,7 @@ export const AdminBillPaymentPage: React.FC = () => {
         params.search = search.trim()
       }
 
-      const response = await api.get<ListResponse>('/admin/wolkpay/bill-payments', { params })
+      const response = await apiClient.get<ListResponse>('/admin/wolkpay/bill-payments', { params })
       setPayments(response.data.payments)
       setStats(response.data.stats)
       setTotalPages(response.data.total_pages)
@@ -354,7 +354,7 @@ export const AdminBillPaymentPage: React.FC = () => {
     if (!selectedPayment) return
     setActionLoading(true)
     try {
-      await api.post(`/admin/wolkpay/bill-payments/${selectedPayment.id}/process-crypto`, {
+      await apiClient.post(`/admin/wolkpay/bill-payments/${selectedPayment.id}/process-crypto`, {
         force_blockchain_transfer: false,
       })
       toast.success('Crypto processada com sucesso!')
@@ -374,7 +374,7 @@ export const AdminBillPaymentPage: React.FC = () => {
     if (!selectedPayment || !bankAuth.trim()) return
     setActionLoading(true)
     try {
-      await api.post(`/admin/wolkpay/bill-payments/${selectedPayment.id}/mark-paid`, {
+      await apiClient.post(`/admin/wolkpay/bill-payments/${selectedPayment.id}/mark-paid`, {
         bank_authentication: bankAuth,
       })
       toast.success('Pagamento marcado como pago!')
@@ -395,7 +395,7 @@ export const AdminBillPaymentPage: React.FC = () => {
     if (!selectedPayment || !rejectReason.trim()) return
     setActionLoading(true)
     try {
-      await api.post(`/admin/wolkpay/bill-payments/${selectedPayment.id}/reject`, {
+      await apiClient.post(`/admin/wolkpay/bill-payments/${selectedPayment.id}/reject`, {
         reason: rejectReason,
         refund_crypto: refundCrypto,
       })
@@ -415,7 +415,7 @@ export const AdminBillPaymentPage: React.FC = () => {
 
   const handleSetProcessing = async (payment: BillPayment) => {
     try {
-      await api.post(`/admin/wolkpay/bill-payments/${payment.id}/set-processing`)
+      await apiClient.post(`/admin/wolkpay/bill-payments/${payment.id}/set-processing`)
       toast.success('Status atualizado para Processando')
       fetchPayments()
     } catch (error: unknown) {
@@ -425,7 +425,7 @@ export const AdminBillPaymentPage: React.FC = () => {
 
   const handleSetPaying = async (payment: BillPayment) => {
     try {
-      await api.post(`/admin/wolkpay/bill-payments/${payment.id}/set-paying`)
+      await apiClient.post(`/admin/wolkpay/bill-payments/${payment.id}/set-paying`)
       toast.success('Status atualizado para Pagando')
       fetchPayments()
     } catch (error: unknown) {
