@@ -569,8 +569,12 @@ class WolkPayBillPayment(Base):
     # Quando a crypto foi debitada da carteira do usuário
     crypto_debited_at = Column(DateTime(timezone=True), nullable=True)
     
-    # Transação interna de débito
-    internal_tx_id = Column(String(36), nullable=True)  # ID da transação interna
+    # Transacao interna de debito
+    internal_tx_id = Column(String(64), nullable=True)  # ID da transacao interna
+    
+    # Hash da transacao blockchain (separado do internal_tx_id)
+    crypto_tx_hash = Column(String(128), nullable=True, index=True)  # TX hash na blockchain
+    crypto_explorer_url = Column(String(500), nullable=True)  # URL do explorer para verificacao
     
     # ========================================
     # PAGAMENTO DO BOLETO
@@ -685,13 +689,13 @@ class WolkPayBillPaymentLog(Base):
     """
     Log de eventos do pagamento de boleto
     
-    Rastreia todo o ciclo de vida do pagamento
+    Rastreia todo o ciclo de vida do pagamento com informacoes detalhadas
     """
     __tablename__ = "wolkpay_bill_payment_logs"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     
-    # Referência ao pagamento
+    # Referencia ao pagamento
     bill_payment_id = Column(String(36), ForeignKey("wolkpay_bill_payments.id"), nullable=False, index=True)
     
     # Evento
@@ -701,18 +705,24 @@ class WolkPayBillPaymentLog(Base):
     old_status = Column(String(30), nullable=True)
     new_status = Column(String(30), nullable=True)
     
-    # Detalhes
+    # Detalhes (JSON)
     details = Column(Text, nullable=True)  # JSON com detalhes do evento
     
     # Ator
-    actor_type = Column(String(20), nullable=False)  # user, system, operator
+    actor_type = Column(String(20), nullable=False)  # user, system, operator, admin
     actor_id = Column(String(36), nullable=True)
+    
+    # Informacoes de contexto (para auditoria)
+    ip_address = Column(String(45), nullable=True)  # IPv4 ou IPv6
+    user_agent = Column(String(500), nullable=True)  # Browser/App info
+    request_id = Column(String(36), nullable=True)  # ID unico da requisicao
     
     # Timestamp
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     
     __table_args__ = (
         Index('ix_wolkpay_bill_log_payment_id', 'bill_payment_id'),
+        Index('ix_wolkpay_bill_log_created_at', 'created_at'),
     )
     
     def __repr__(self):

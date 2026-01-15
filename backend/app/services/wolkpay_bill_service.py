@@ -29,6 +29,7 @@ import json
 from datetime import datetime, timezone, timedelta, date
 from decimal import Decimal, ROUND_UP, ROUND_DOWN
 from typing import Optional, Tuple, Dict, Any
+from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, func
@@ -98,6 +99,64 @@ BANK_CODES = {
     '745': 'Citibank',
     '756': 'Sicoob',
 }
+
+
+@dataclass
+class RequestContext:
+    """
+    Contexto da requisicao para auditoria
+    
+    Usado para capturar informacoes do cliente em todas as operacoes
+    """
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
+    request_id: Optional[str] = None
+    
+    @classmethod
+    def from_request(cls, request) -> 'RequestContext':
+        """
+        Cria contexto a partir de um objeto Request do FastAPI
+        
+        Args:
+            request: FastAPI Request object
+            
+        Returns:
+            RequestContext com dados extraidos
+        """
+        if request is None:
+            return cls()
+        
+        # Obter IP (considera proxies)
+        ip = None
+        if hasattr(request, 'headers'):
+            # X-Forwarded-For para proxies/load balancers
+            forwarded_for = request.headers.get('x-forwarded-for')
+            if forwarded_for:
+                ip = forwarded_for.split(',')[0].strip()
+            else:
+                # X-Real-IP para nginx
+                ip = request.headers.get('x-real-ip')
+        
+        if not ip and hasattr(request, 'client') and request.client:
+            ip = request.client.host
+        
+        # User-Agent
+        user_agent = None
+        if hasattr(request, 'headers'):
+            user_agent = request.headers.get('user-agent')
+        
+        # Request ID (pode vir do header ou gerar novo)
+        request_id = None
+        if hasattr(request, 'headers'):
+            request_id = request.headers.get('x-request-id')
+        if not request_id:
+            request_id = str(uuid.uuid4())
+        
+        return cls(
+            ip_address=ip,
+            user_agent=user_agent,
+            request_id=request_id
+        )
 
 
 class WolkPayBillService:
@@ -441,7 +500,8 @@ class WolkPayBillService:
     async def quote_bill_payment(
         self,
         user_id: str,
-        request: QuoteBillPaymentRequest
+        request: QuoteBillPaymentRequest,
+        context: Optional[RequestContext] = None
     ) -> BillPaymentQuoteResponse:
         """
         Gera cotação para pagamento de boleto
@@ -549,7 +609,7 @@ class WolkPayBillService:
             self.db.add(bill_payment)
             self.db.commit()
             
-            # Log
+            # Log com contexto de auditoria
             await self._log_event(
                 bill_payment.id,
                 "quote_created",
@@ -557,7 +617,10 @@ class WolkPayBillService:
                 BillPaymentStatus.PENDING.value,
                 {"quote_id": quote_id, "crypto_amount": str(crypto_amount)},
                 "user",
-                user_id
+                user_id,
+                ip_address=context.ip_address if context else None,
+                user_agent=context.user_agent if context else None,
+                request_id=context.request_id if context else None
             )
             
             # Monta resumo para UI
@@ -606,7 +669,8 @@ class WolkPayBillService:
     async def confirm_bill_payment(
         self,
         user_id: str,
-        request: ConfirmBillPaymentRequest
+        request: ConfirmBillPaymentRequest,
+        context: Optional[RequestContext] = None
     ) -> BillPaymentResponse:
         """
         Confirma pagamento e DEBITA CRYPTO IMEDIATAMENTE
@@ -682,7 +746,7 @@ class WolkPayBillService:
             
             self.db.commit()
             
-            # Log
+            # Log com contexto de auditoria
             await self._log_event(
                 bill_payment.id,
                 "crypto_debited",
@@ -695,7 +759,10 @@ class WolkPayBillService:
                     "crypto_currency": bill_payment.crypto_currency
                 },
                 "system",
-                None
+                None,
+                ip_address=context.ip_address if context else None,
+                user_agent=context.user_agent if context else None,
+                request_id=context.request_id if context else None
             )
             
             logger.info(
@@ -740,7 +807,8 @@ class WolkPayBillService:
         payment_id: str,
         bank_authentication: str,
         payment_receipt_url: Optional[str] = None,
-        notes: Optional[str] = None
+        notes: Optional[str] = None,
+        context: Optional[RequestContext] = None
     ) -> BillPaymentResponse:
         """
         Operador marca boleto como pago
@@ -769,7 +837,7 @@ class WolkPayBillService:
             
             self.db.commit()
             
-            # Log
+            # Log com contexto de auditoria
             await self._log_event(
                 bill_payment.id,
                 "bill_paid",
@@ -781,7 +849,10 @@ class WolkPayBillService:
                     "notes": notes
                 },
                 "operator",
-                operator_id
+                operator_id,
+                ip_address=context.ip_address if context else None,
+                user_agent=context.user_agent if context else None,
+                request_id=context.request_id if context else None
             )
             
             logger.info(f"✅ Boleto pago: {bill_payment.payment_number} por operador {operator_id}")
@@ -802,7 +873,8 @@ class WolkPayBillService:
         self,
         operator_id: str,
         payment_id: str,
-        reason: str
+        reason: str,
+        context: Optional[RequestContext] = None
     ) -> BillPaymentResponse:
         """
         Reembolsa crypto ao usuário em caso de falha
@@ -840,7 +912,7 @@ class WolkPayBillService:
             
             self.db.commit()
             
-            # Log
+            # Log com contexto de auditoria
             await self._log_event(
                 bill_payment.id,
                 "refunded",
@@ -852,7 +924,10 @@ class WolkPayBillService:
                     "refund_tx_id": refund_tx_id
                 },
                 "operator",
-                operator_id
+                operator_id,
+                ip_address=context.ip_address if context else None,
+                user_agent=context.user_agent if context else None,
+                request_id=context.request_id if context else None
             )
             
             logger.info(f"💰 Reembolso: {bill_payment.crypto_amount} {bill_payment.crypto_currency} devolvido ao usuário {bill_payment.user_id}")
@@ -1309,9 +1384,26 @@ class WolkPayBillService:
         new_status: str,
         details: Dict[str, Any],
         actor_type: str,
-        actor_id: Optional[str]
+        actor_id: Optional[str],
+        ip_address: Optional[str] = None,
+        user_agent: Optional[str] = None,
+        request_id: Optional[str] = None
     ):
-        """Registra evento no log"""
+        """
+        Registra evento no log com informacoes de auditoria
+        
+        Args:
+            bill_payment_id: ID do pagamento
+            event: Tipo do evento (created, quoted, confirmed, etc)
+            old_status: Status anterior
+            new_status: Novo status
+            details: Detalhes adicionais em JSON
+            actor_type: Tipo do ator (user, system, operator, admin)
+            actor_id: ID do ator
+            ip_address: Endereco IP do cliente
+            user_agent: User-Agent do navegador/app
+            request_id: ID unico da requisicao para rastreamento
+        """
         try:
             log = WolkPayBillPaymentLog(
                 id=str(uuid.uuid4()),
@@ -1321,10 +1413,14 @@ class WolkPayBillService:
                 new_status=new_status,
                 details=json.dumps(details) if details else None,
                 actor_type=actor_type,
-                actor_id=actor_id
+                actor_id=actor_id,
+                ip_address=ip_address,
+                user_agent=user_agent[:500] if user_agent and len(user_agent) > 500 else user_agent,
+                request_id=request_id
             )
             self.db.add(log)
             self.db.commit()
+            logger.debug(f"Log registrado: {event} - {bill_payment_id} - IP: {ip_address}")
         except Exception as e:
             logger.error(f"Erro ao registrar log: {e}")
     
@@ -1350,6 +1446,25 @@ class WolkPayBillService:
         }
         
         return explorers.get(network_lower)
+    
+    async def get_payment_timeline(self, payment_id: str) -> list:
+        """
+        Retorna timeline completa do pagamento para o cliente
+        
+        Args:
+            payment_id: ID do pagamento
+            
+        Returns:
+            Lista de passos da timeline
+        """
+        bill_payment = self.db.query(WolkPayBillPayment).filter(
+            WolkPayBillPayment.id == payment_id
+        ).first()
+        
+        if not bill_payment:
+            raise ValueError("Pagamento nao encontrado")
+        
+        return self._build_timeline(bill_payment)
     
     def _build_timeline(self, bill_payment: WolkPayBillPayment) -> list:
         """Constrói timeline do pagamento"""
