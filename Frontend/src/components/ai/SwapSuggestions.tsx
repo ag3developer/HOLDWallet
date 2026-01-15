@@ -17,6 +17,7 @@ import {
   ArrowRight,
 } from 'lucide-react'
 import { SwapSuggestionsResult, SwapSuggestion } from '@/services/aiService'
+import { CryptoIcon } from '@/components/CryptoIcon'
 
 interface SwapSuggestionsProps {
   data: SwapSuggestionsResult | null
@@ -234,6 +235,7 @@ const SwapSuggestions: React.FC<SwapSuggestionsProps> = ({
               {/* Swap visual */}
               <div className='flex items-center justify-center gap-4 p-3 bg-gray-100 dark:bg-gray-800/50 rounded-lg mb-3'>
                 <div className='text-center'>
+                  <CryptoIcon symbol={suggestion.from_symbol} size={32} className='mx-auto mb-1' />
                   <p className='text-lg font-bold text-gray-900 dark:text-white'>
                     {suggestion.from_symbol}
                   </p>
@@ -241,6 +243,7 @@ const SwapSuggestions: React.FC<SwapSuggestionsProps> = ({
                 </div>
                 <ArrowRight className='w-5 h-5 text-gray-400' />
                 <div className='text-center'>
+                  <CryptoIcon symbol={suggestion.to_symbol} size={32} className='mx-auto mb-1' />
                   <p className='text-lg font-bold text-green-400'>{suggestion.to_symbol}</p>
                   <p className='text-xs text-gray-500 dark:text-gray-400'>To</p>
                 </div>

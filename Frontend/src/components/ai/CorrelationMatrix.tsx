@@ -8,6 +8,7 @@
 import React from 'react'
 import { GitBranch, AlertTriangle, CheckCircle, Info, Loader2 } from 'lucide-react'
 import { CorrelationResult } from '@/services/aiService'
+import { CryptoIcon } from '@/components/CryptoIcon'
 
 interface CorrelationMatrixProps {
   data: CorrelationResult | null
@@ -88,7 +89,10 @@ const CorrelationMatrix: React.FC<CorrelationMatrixProps> = ({ data, loading, er
                     key={symbol}
                     className='p-2 text-xs font-medium text-gray-600 dark:text-gray-300 text-center'
                   >
-                    {symbol}
+                    <div className='flex flex-col items-center gap-1'>
+                      <CryptoIcon symbol={symbol} size={20} />
+                      <span>{symbol}</span>
+                    </div>
                   </th>
                 ))}
               </tr>
@@ -97,7 +101,10 @@ const CorrelationMatrix: React.FC<CorrelationMatrixProps> = ({ data, loading, er
               {data.symbols.map(rowSymbol => (
                 <tr key={rowSymbol}>
                   <td className='p-2 text-xs font-medium text-gray-600 dark:text-gray-300'>
-                    {rowSymbol}
+                    <div className='flex items-center gap-2'>
+                      <CryptoIcon symbol={rowSymbol} size={18} />
+                      <span>{rowSymbol}</span>
+                    </div>
                   </td>
                   {data.symbols.map(colSymbol => {
                     const value = data.matrix[rowSymbol]?.[colSymbol] ?? 0

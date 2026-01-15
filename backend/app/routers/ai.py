@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
 import logging
+import asyncio
 
 from app.core.db import get_db
 from app.services.ai import (
@@ -457,6 +458,216 @@ async def validate_predictions(
     
     except Exception as e:
         logger.error(f"Validation error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+# ====================
+# Market Data - Price History & OHLCV (Real Data)
+# ====================
+
+import httpx
+
+# CoinGecko ID mapping
+COINGECKO_IDS = {
+    'BTC': 'bitcoin', 'ETH': 'ethereum', 'MATIC': 'polygon-ecosystem-token',
+    'POL': 'polygon-ecosystem-token', 'BNB': 'binancecoin', 'TRX': 'tron',
+    'USDT': 'tether', 'SOL': 'solana', 'LTC': 'litecoin',
+    'DOGE': 'dogecoin', 'ADA': 'cardano', 'AVAX': 'avalanche-2',
+    'DOT': 'polkadot', 'LINK': 'chainlink', 'SHIB': 'shiba-inu',
+    'XRP': 'ripple', 'USDC': 'usd-coin', 'ATOM': 'cosmos',
+}
+
+# Binance symbol mapping
+BINANCE_SYMBOLS = {
+    'BTC': 'BTCUSDT', 'ETH': 'ETHUSDT', 'MATIC': 'POLUSDT',
+    'POL': 'POLUSDT', 'BNB': 'BNBUSDT', 'SOL': 'SOLUSDT',
+    'LTC': 'LTCUSDT', 'DOGE': 'DOGEUSDT', 'ADA': 'ADAUSDT',
+    'AVAX': 'AVAXUSDT', 'DOT': 'DOTUSDT', 'LINK': 'LINKUSDT',
+    'XRP': 'XRPUSDT', 'TRX': 'TRXUSDT', 'ATOM': 'ATOMUSDT',
+}
+
+
+@router.get("/market/price-history")
+async def get_price_history(
+    symbols: str,  # comma-separated: "BTC,ETH,SOL"
+    days: int = 30
+):
+    """
+    Get historical price data for multiple symbols.
+    Returns daily closing prices for correlation analysis.
+    Uses CoinGecko market_chart API.
+    """
+    try:
+        symbol_list = [s.strip().upper() for s in symbols.split(',')]
+        result = {}
+        
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            for symbol in symbol_list:
+                coin_id = COINGECKO_IDS.get(symbol)
+                if not coin_id:
+                    logger.warning(f"Unknown symbol for price history: {symbol}")
+                    continue
+                
+                try:
+                    url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart"
+                    params = {"vs_currency": "usd", "days": days, "interval": "daily"}
+                    
+                    response = await client.get(url, params=params)
+                    response.raise_for_status()
+                    data = response.json()
+                    
+                    # Extract closing prices
+                    prices = [p[1] for p in data.get("prices", [])]
+                    result[symbol] = prices
+                    
+                    logger.info(f"Fetched {len(prices)} price points for {symbol}")
+                    
+                    # Small delay to avoid rate limiting
+                    await asyncio.sleep(0.3)
+                    
+                except Exception as e:
+                    logger.error(f"Error fetching price history for {symbol}: {e}")
+                    continue
+        
+        return {
+            "symbols": list(result.keys()),
+            "price_history": result,
+            "days": days,
+            "data_points": min([len(p) for p in result.values()]) if result else 0,
+            "fetched_at": datetime.now(timezone.utc).isoformat()
+        }
+    
+    except Exception as e:
+        logger.error(f"Price history error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+@router.get("/market/ohlcv/{symbol}")
+async def get_ohlcv_data(
+    symbol: str,
+    interval: str = "1d",  # 1h, 4h, 1d
+    limit: int = 100
+):
+    """
+    Get OHLCV (candlestick) data for technical indicators.
+    Uses Binance klines API for real-time accurate data.
+    """
+    try:
+        symbol_upper = symbol.upper()
+        binance_symbol = BINANCE_SYMBOLS.get(symbol_upper)
+        
+        if not binance_symbol:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Symbol {symbol} not supported for OHLCV data"
+            )
+        
+        # Map interval to Binance format
+        interval_map = {"1h": "1h", "4h": "4h", "1d": "1d", "1w": "1w"}
+        binance_interval = interval_map.get(interval, "1d")
+        
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            url = "https://api.binance.com/api/v3/klines"
+            params = {
+                "symbol": binance_symbol,
+                "interval": binance_interval,
+                "limit": limit
+            }
+            
+            response = await client.get(url, params=params)
+            response.raise_for_status()
+            klines = response.json()
+            
+            # Parse klines: [open_time, open, high, low, close, volume, ...]
+            ohlcv = {
+                "open": [float(k[1]) for k in klines],
+                "high": [float(k[2]) for k in klines],
+                "low": [float(k[3]) for k in klines],
+                "close": [float(k[4]) for k in klines],
+                "volume": [float(k[5]) for k in klines],
+                "timestamps": [k[0] for k in klines]
+            }
+            
+            return {
+                "symbol": symbol_upper,
+                "interval": interval,
+                "data_points": len(klines),
+                "ohlcv": ohlcv,
+                "fetched_at": datetime.now(timezone.utc).isoformat()
+            }
+    
+    except httpx.HTTPStatusError as e:
+        logger.error(f"Binance API error for {symbol}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Failed to fetch OHLCV data from Binance"
+        )
+    except Exception as e:
+        logger.error(f"OHLCV error for {symbol}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+@router.get("/market/ath/{symbol}")
+async def get_real_ath(symbol: str):
+    """
+    Get real All-Time High data from CoinGecko.
+    Returns actual ATH price and date.
+    """
+    try:
+        symbol_upper = symbol.upper()
+        coin_id = COINGECKO_IDS.get(symbol_upper)
+        
+        if not coin_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Symbol {symbol} not supported"
+            )
+        
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            url = f"https://api.coingecko.com/api/v3/coins/{coin_id}"
+            params = {
+                "localization": "false",
+                "tickers": "false",
+                "market_data": "true",
+                "community_data": "false",
+                "developer_data": "false"
+            }
+            
+            response = await client.get(url, params=params)
+            response.raise_for_status()
+            data = response.json()
+            
+            market_data = data.get("market_data", {})
+            
+            return {
+                "symbol": symbol_upper,
+                "name": data.get("name"),
+                "current_price": market_data.get("current_price", {}).get("usd"),
+                "ath": market_data.get("ath", {}).get("usd"),
+                "ath_date": market_data.get("ath_date", {}).get("usd"),
+                "ath_change_percentage": market_data.get("ath_change_percentage", {}).get("usd"),
+                "atl": market_data.get("atl", {}).get("usd"),
+                "atl_date": market_data.get("atl_date", {}).get("usd"),
+                "fetched_at": datetime.now(timezone.utc).isoformat()
+            }
+    
+    except httpx.HTTPStatusError as e:
+        logger.error(f"CoinGecko API error for {symbol}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Failed to fetch ATH data from CoinGecko"
+        )
+    except Exception as e:
+        logger.error(f"ATH error for {symbol}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)

@@ -16,6 +16,7 @@ import {
   Loader2,
 } from 'lucide-react'
 import { ATHAnalysis as ATHAnalysisType } from '@/services/aiService'
+import { CryptoIcon } from '@/components/CryptoIcon'
 
 interface ATHAnalysisProps {
   data: ATHAnalysisType[] | null
@@ -135,6 +136,7 @@ const ATHAnalysis: React.FC<ATHAnalysisProps> = ({ data, loading, error }) => {
               {/* Top row: Symbol, Zone, ATH status */}
               <div className='flex items-center justify-between mb-3'>
                 <div className='flex items-center gap-3'>
+                  <CryptoIcon symbol={asset.symbol} size={28} />
                   <span className='text-lg font-bold text-gray-900 dark:text-white'>
                     {asset.symbol}
                   </span>

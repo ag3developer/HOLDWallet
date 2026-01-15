@@ -201,7 +201,7 @@ const AIInsightsCard: React.FC<AIInsightsCardProps> = ({
       </div>
 
       {/* Quick Stats Grid */}
-      <div className='grid grid-cols-2 gap-3 mb-4'>
+      <div className='grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4'>
         <QuickStat
           icon={Target}
           label='ATH Recovery'

@@ -218,6 +218,74 @@ export const aiService = {
     })
     return response.data
   },
+
+  // ====================
+  // Market Data - Real Data from APIs
+  // ====================
+
+  /**
+   * Get historical price data for correlation analysis
+   */
+  async getPriceHistory(
+    symbols: string[],
+    days: number = 30
+  ): Promise<{
+    symbols: string[]
+    price_history: Record<string, number[]>
+    days: number
+    data_points: number
+    fetched_at: string
+  }> {
+    const response = await apiClient.get('/ai/market/price-history', {
+      params: { symbols: symbols.join(','), days },
+    })
+    return response.data
+  },
+
+  /**
+   * Get OHLCV data for technical indicators
+   */
+  async getOHLCV(
+    symbol: string,
+    interval: string = '1d',
+    limit: number = 100
+  ): Promise<{
+    symbol: string
+    interval: string
+    data_points: number
+    ohlcv: {
+      open: number[]
+      high: number[]
+      low: number[]
+      close: number[]
+      volume: number[]
+      timestamps: number[]
+    }
+    fetched_at: string
+  }> {
+    const response = await apiClient.get(`/ai/market/ohlcv/${symbol}`, {
+      params: { interval, limit },
+    })
+    return response.data
+  },
+
+  /**
+   * Get real ATH data from CoinGecko
+   */
+  async getRealATH(symbol: string): Promise<{
+    symbol: string
+    name: string
+    current_price: number
+    ath: number
+    ath_date: string
+    ath_change_percentage: number
+    atl: number
+    atl_date: string
+    fetched_at: string
+  }> {
+    const response = await apiClient.get(`/ai/market/ath/${symbol}`)
+    return response.data
+  },
 }
 
 export default aiService
