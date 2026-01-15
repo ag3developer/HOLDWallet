@@ -613,19 +613,71 @@ class WalletBalanceService:
     
     # ============ Private Helper Methods ============
     
+    # Tokens que SEMPRE precisam de rede (não podem ter saldo genérico)
+    TOKENS_REQUIRING_NETWORK = {'USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'USDP'}
+    
+    @staticmethod
+    def _validate_cryptocurrency_format(cryptocurrency: str) -> None:
+        """
+        Valida que stablecoins/tokens não sejam criados em formato genérico.
+        
+        ⚠️ IMPORTANTE: USDT, USDC, etc devem SEMPRE ter rede especificada.
+        Formato válido: polygon_usdt, bsc_usdt, ethereum_usdc
+        Formato INVÁLIDO: USDT, USDC (genérico sem rede)
+        
+        Raises:
+            ValueError: Se tentar criar saldo genérico para stablecoins
+        """
+        crypto_upper = cryptocurrency.upper()
+        
+        # Verifica se é um token que requer rede
+        if crypto_upper in WalletBalanceService.TOKENS_REQUIRING_NETWORK:
+            raise ValueError(
+                f"❌ Não é permitido criar saldo genérico para {crypto_upper}. "
+                f"Stablecoins/tokens devem incluir a rede. "
+                f"Use formato: polygon_{crypto_upper.lower()}, bsc_{crypto_upper.lower()}, etc."
+            )
+        
+        # Verifica se parece ser um token genérico (não tem underscore)
+        if '_' not in cryptocurrency:
+            # Lista de moedas nativas permitidas sem rede
+            native_coins = {'BTC', 'ETH', 'BNB', 'MATIC', 'SOL', 'TRX', 'AVAX', 'DOT'}
+            if crypto_upper not in native_coins:
+                # Loga warning mas permite (pode ser moeda nova)
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(
+                    f"⚠️ Criando saldo para {crypto_upper} sem rede especificada. "
+                    f"Verifique se isso está correto."
+                )
+    
     @staticmethod
     def _create_balance(
         db: Session,
         user_id: Union[str, object],
         cryptocurrency: str
     ) -> Dict:
-        """Create a new balance entry for a user"""
+        """
+        Create a new balance entry for a user.
+        
+        ⚠️ Validação: Não permite criar saldos genéricos para stablecoins.
+        """
         user_id = str(user_id)
-        cryptocurrency = cryptocurrency.upper()
+        
+        # Validar formato antes de criar
+        WalletBalanceService._validate_cryptocurrency_format(cryptocurrency)
+        
+        # Preservar formato original (não converter para uppercase se já tem underscore)
+        if '_' in cryptocurrency:
+            # Formato rede_token: polygon_usdt -> mantém lowercase
+            cryptocurrency_normalized = cryptocurrency.lower()
+        else:
+            # Moeda nativa: BTC, ETH -> uppercase
+            cryptocurrency_normalized = cryptocurrency.upper()
         
         balance = WalletBalance(
             user_id=user_id,
-            cryptocurrency=cryptocurrency,
+            cryptocurrency=cryptocurrency_normalized,
             available_balance=0.0,
             locked_balance=0.0,
             total_balance=0.0,
@@ -639,7 +691,7 @@ class WalletBalanceService:
             'available_balance': 0.0,
             'locked_balance': 0.0,
             'total_balance': 0.0,
-            'cryptocurrency': cryptocurrency,
+            'cryptocurrency': cryptocurrency_normalized,
         }
     
     @staticmethod

@@ -237,13 +237,20 @@ export function BillPaymentPage() {
   }, [firstWalletId])
 
   // Função para obter saldo de uma crypto específica (por rede)
+  // ⚠️ IMPORTANTE: Não usar fallback para saldo genérico!
+  // Sempre retornar apenas o saldo da rede específica
   const getBalanceForCrypto = (crypto: (typeof SUPPORTED_CRYPTOS)[0]): number => {
-    // Primeiro tenta pelo balanceKey (específico por rede)
+    // Usar APENAS o balanceKey (específico por rede: polygon_usdt, bsc_usdt, etc)
+    // NUNCA usar saldo agregado/genérico pois não existe na blockchain
     if (crypto.balanceKey && networkBalances[crypto.balanceKey] !== undefined) {
       return networkBalances[crypto.balanceKey] ?? 0
     }
-    // Fallback para o saldo agregado por símbolo
-    return cryptoBalances[crypto.symbol] ?? 0
+    // Se não encontrou saldo específico da rede, retorna 0
+    // NÃO fazer fallback para saldo genérico!
+    console.warn(
+      `[BillPayment] Saldo não encontrado para ${crypto.balanceKey}. Sem fallback para genérico.`
+    )
+    return 0
   }
 
   // Estados
@@ -824,7 +831,7 @@ export function BillPaymentPage() {
 
                 {showCryptoDropdown && (
                   <div className='absolute z-20 w-full mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl max-h-64 overflow-y-auto'>
-                    {/* Ordenar: cryptos com saldo primeiro, depois por saldo decrescente */}
+                    {/* Ordenar: cryptos com saldo suficiente primeiro, depois por saldo decrescente */}
                     {[...SUPPORTED_CRYPTOS]
                       .sort((a, b) => {
                         const balanceA = getBalanceForCrypto(a)
@@ -838,15 +845,29 @@ export function BillPaymentPage() {
                       .map((crypto, index) => {
                         const balance = getBalanceForCrypto(crypto)
                         const hasBalance = balance > 0
+                        // Estimar o valor necessário em crypto (aproximado)
+                        // billInfo.amount_brl / (preço USD * 6.0 taxa aprox)
+                        const estimatedCryptoNeeded = billInfo
+                          ? (billInfo.amount_brl * 1.05) / 6.0
+                          : 0
+                        const hasSufficientBalance = balance >= estimatedCryptoNeeded
+                        const isDisabled = !hasSufficientBalance
 
                         return (
                           <button
                             key={`${crypto.symbol}-${crypto.network}-${index}`}
                             onClick={() => {
-                              setSelectedCrypto(crypto)
-                              setShowCryptoDropdown(false)
+                              if (!isDisabled) {
+                                setSelectedCrypto(crypto)
+                                setShowCryptoDropdown(false)
+                              }
                             }}
-                            className={`w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${!hasBalance ? 'opacity-50' : ''}`}
+                            disabled={isDisabled}
+                            className={`w-full px-4 py-3 flex items-center gap-3 transition-colors ${
+                              isDisabled
+                                ? 'opacity-40 cursor-not-allowed bg-gray-100 dark:bg-gray-800'
+                                : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                            }`}
                           >
                             <img
                               src={CRYPTO_LOGOS[crypto.symbol]}
@@ -861,9 +882,19 @@ export function BillPaymentPage() {
                                 {crypto.name} • {crypto.networkDisplay}
                               </p>
                               <p
-                                className={`text-xs font-medium ${hasBalance ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}
+                                className={`text-xs font-medium ${
+                                  hasSufficientBalance
+                                    ? 'text-green-600 dark:text-green-400'
+                                    : hasBalance
+                                      ? 'text-amber-500 dark:text-amber-400'
+                                      : 'text-red-500 dark:text-red-400'
+                                }`}
                               >
                                 Saldo: {formatCrypto(balance, crypto.symbol)}
+                                {!hasSufficientBalance && hasBalance && (
+                                  <span className='ml-1 text-red-500'>(insuficiente)</span>
+                                )}
+                                {!hasBalance && <span className='ml-1'>(sem saldo)</span>}
                               </p>
                             </div>
                             {crypto.category === 'Stablecoin' && (

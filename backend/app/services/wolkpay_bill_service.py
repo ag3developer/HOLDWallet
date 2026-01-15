@@ -1036,13 +1036,25 @@ class WolkPayBillService:
         
         O banco armazena em lowercase: polygon_usdt, bsc_usdt, etc.
         
+        ⚠️ IMPORTANTE: Tokens genéricos (USDT, USDC sem rede) NÃO SÃO PERMITIDOS!
+        Sempre deve-se especificar a rede para stablecoins e tokens.
+        
         Exemplos:
         - USDT + polygon -> polygon_usdt
         - USDT + bsc -> bsc_usdt  
-        - USDT + None -> USDT (tenta genérico uppercase)
-        - BTC + None -> BTC
+        - USDT + None -> ERRO! (não permitido)
+        
+        Exceções (moedas nativas):
+        - BTC, ETH, BNB, MATIC podem existir sem rede específica
         """
+        crypto_upper = crypto_currency.upper()
         crypto_lower = crypto_currency.lower()
+        
+        # Moedas nativas que podem existir sem rede específica
+        native_coins = {'BTC', 'ETH', 'BNB', 'MATIC', 'SOL', 'TRX', 'AVAX', 'DOT'}
+        
+        # Stablecoins e tokens que SEMPRE precisam de rede
+        tokens_requiring_network = {'USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'USDP'}
         
         if crypto_network:
             network_lower = crypto_network.lower()
@@ -1063,8 +1075,26 @@ class WolkPayBillService:
             # Formato: polygon_usdt
             return f"{normalized_network}_{crypto_lower}"
         
-        # Sem rede, retorna em uppercase (formato genérico)
-        return crypto_currency.upper()
+        # Sem rede especificada
+        if crypto_upper in tokens_requiring_network:
+            # Stablecoins/tokens SEMPRE precisam de rede - isso é um erro!
+            raise ValueError(
+                f"Rede não especificada para {crypto_upper}. "
+                f"Stablecoins e tokens requerem rede (polygon, bsc, ethereum, etc). "
+                f"Use o formato: {crypto_upper.lower()}_polygon ou {crypto_upper.lower()}_bsc"
+            )
+        
+        # Moedas nativas podem existir sem rede (mas é recomendado especificar)
+        if crypto_upper in native_coins:
+            logger.warning(
+                f"⚠️ Usando moeda nativa {crypto_upper} sem rede específica. "
+                f"Recomendado especificar a rede para evitar ambiguidade."
+            )
+            return crypto_upper
+        
+        # Outras moedas desconhecidas - retorna uppercase mas loga warning
+        logger.warning(f"⚠️ Moeda {crypto_upper} não reconhecida, usando formato genérico.")
+        return crypto_upper
     
     async def _sync_blockchain_balance(
         self,
@@ -1283,42 +1313,29 @@ class WolkPayBillService:
             
             balance_key = self._build_balance_key(crypto_currency, crypto_network)
             
-            try:
-                debit_result = WalletBalanceService.debit_available_balance(
-                    db=self.db,
-                    user_id=user_id,
-                    cryptocurrency=balance_key,
-                    amount=float(amount),
-                    reason=f"Bill Payment: {description}",
-                    reference_id=tx_id
+            # IMPORTANTE: Não usar fallback para token genérico!
+            # Sempre debitar da rede específica (polygon_usdt, bsc_usdt, etc)
+            # Token genérico (USDT, USDC) não existe na blockchain e não deve ser usado
+            
+            if not crypto_network:
+                raise ValueError(
+                    f"Rede não especificada para {crypto_currency}. "
+                    f"É obrigatório especificar a rede (polygon, bsc, ethereum, etc) para débito."
                 )
-                
-                logger.info(
-                    f"✅ Saldo interno debitado: {amount} {balance_key}. "
-                    f"Novo saldo: {debit_result.get('available_balance', 0)}"
-                )
-                
-            except ValueError:
-                # Se não encontrou na rede específica, tenta o token genérico
-                if crypto_network:
-                    crypto_upper = crypto_currency.upper()
-                    logger.info(f"   ⚠️ Saldo não encontrado em {balance_key}, tentando {crypto_upper}...")
-                    
-                    debit_result = WalletBalanceService.debit_available_balance(
-                        db=self.db,
-                        user_id=user_id,
-                        cryptocurrency=crypto_upper,
-                        amount=float(amount),
-                        reason=f"Bill Payment: {description}",
-                        reference_id=tx_id
-                    )
-                    
-                    logger.info(
-                        f"✅ Saldo interno debitado: {amount} {crypto_upper}. "
-                        f"Novo saldo: {debit_result.get('available_balance', 0)}"
-                    )
-                else:
-                    raise
+            
+            debit_result = WalletBalanceService.debit_available_balance(
+                db=self.db,
+                user_id=user_id,
+                cryptocurrency=balance_key,
+                amount=float(amount),
+                reason=f"Bill Payment: {description}",
+                reference_id=tx_id
+            )
+            
+            logger.info(
+                f"✅ Saldo interno debitado: {amount} {balance_key}. "
+                f"Novo saldo: {debit_result.get('available_balance', 0)}"
+            )
             
             logger.info(f"✅ Débito completo! TX: {tx_id}")
             return tx_id
