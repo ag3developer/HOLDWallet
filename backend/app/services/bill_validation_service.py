@@ -352,9 +352,96 @@ class BillValidationService:
     # MOCK (Para desenvolvimento)
     # ============================================
     
+    def _convert_digitable_to_barcode(self, digitable: str) -> tuple:
+        """
+        Extrai valor e fator de vencimento da linha digitável (47 dígitos)
+        
+        LINHA DIGITÁVEL BANCÁRIA (47 dígitos):
+        Formato: AAABC.CCCCX DDDDD.DDDDDY EEEEE.EEEEEZ K UUUUVVVVVVVVVV
+        
+        Campos separados por espaços/pontos quando formatado:
+        - Campo 1 (10 dígitos): AAABC.CCCCX = Banco(3) + Moeda(1) + 5 dígitos livres + DV(1)
+        - Campo 2 (11 dígitos): DDDDD.DDDDDY = 10 dígitos livres + DV(1)
+        - Campo 3 (11 dígitos): EEEEE.EEEEEZ = 10 dígitos livres + DV(1)
+        - Campo 4 (1 dígito): K = DV geral do código de barras
+        - Campo 5 (14 dígitos): UUUUVVVVVVVVVV = Fator(4) + Valor(10)
+        
+        Sem formatação (47 dígitos puros):
+        - Posições 0-9: Campo 1 (com DV na posição 9)
+        - Posições 10-20: Campo 2 (com DV na posição 20)
+        - Posições 21-31: Campo 3 (com DV na posição 31)
+        - Posição 32: DV geral
+        - Posições 33-36: Fator de vencimento (4 dígitos)
+        - Posições 37-46: Valor (10 dígitos, 2 casas decimais)
+        
+        Returns:
+            tuple: (fator_vencimento: int, valor: Decimal)
+        """
+        if len(digitable) != 47:
+            logger.warning(f"⚠️ Linha digitável com tamanho incorreto: {len(digitable)} (esperado 47)")
+            return (0, Decimal('0'))
+        
+        try:
+            # Extrai diretamente das posições corretas
+            fator_str = digitable[33:37]
+            valor_str = digitable[37:47]
+            
+            fator = int(fator_str) if fator_str.isdigit() else 0
+            valor = Decimal(valor_str) / Decimal('100')
+            
+            logger.info(f"📊 Linha digitável extraída:")
+            logger.info(f"   Completo: {digitable}")
+            logger.info(f"   Fator (pos 33-36): '{fator_str}' = {fator}")
+            logger.info(f"   Valor (pos 37-46): '{valor_str}' = R$ {valor:.2f}")
+            
+            return (fator, valor)
+            
+        except Exception as e:
+            logger.error(f"❌ Erro ao extrair da linha digitável: {e}")
+            return (0, Decimal('0'))
+    
+    def _extract_from_barcode_44(self, barcode: str) -> tuple:
+        """
+        Extrai valor e fator do código de barras (44 dígitos)
+        
+        CÓDIGO DE BARRAS BANCÁRIO (44 dígitos):
+        Formato: AAABKFFFFVVVVVVVVVVCCCCCCCCCCCCCCCCCCCCCCCCC
+        
+        - Posições 0-2: Banco (3 dígitos)
+        - Posição 3: Moeda (1 dígito, sempre 9 = Real)
+        - Posição 4: DV geral (1 dígito)
+        - Posições 5-8: Fator de vencimento (4 dígitos)
+        - Posições 9-18: Valor (10 dígitos, 2 casas decimais)
+        - Posições 19-43: Campo livre (25 dígitos)
+        
+        Returns:
+            tuple: (fator_vencimento: int, valor: Decimal)
+        """
+        if len(barcode) != 44:
+            logger.warning(f"⚠️ Código de barras com tamanho incorreto: {len(barcode)} (esperado 44)")
+            return (0, Decimal('0'))
+        
+        try:
+            fator_str = barcode[5:9]
+            valor_str = barcode[9:19]
+            
+            fator = int(fator_str) if fator_str.isdigit() else 0
+            valor = Decimal(valor_str) / Decimal('100')
+            
+            logger.info(f"� Código de barras extraído:")
+            logger.info(f"   Completo: {barcode}")
+            logger.info(f"   Fator (pos 5-8): '{fator_str}' = {fator}")
+            logger.info(f"   Valor (pos 9-18): '{valor_str}' = R$ {valor:.2f}")
+            
+            return (fator, valor)
+            
+        except Exception as e:
+            logger.error(f"❌ Erro ao extrair do código de barras: {e}")
+            return (0, Decimal('0'))
+
     async def _validate_mock(self, barcode: str) -> BillValidationResult:
         """
-        Validação simulada para desenvolvimento
+        Validação local para desenvolvimento
         
         Extrai informações do código de barras e simula dados do beneficiário
         
@@ -365,7 +452,7 @@ class BillValidationService:
         from app.services.wolkpay_bill_service import BANK_CODES
         
         try:
-            logger.info(f"🔍 Processando código de {len(barcode)} dígitos: {barcode[:20]}...")
+            logger.info(f"🔍 Processando código de {len(barcode)} dígitos: {barcode}")
             
             # Identifica se é boleto bancário ou conta de consumo
             is_bank_slip = barcode[0] != '8'
@@ -377,53 +464,64 @@ class BillValidationService:
                 bank_code = barcode[0:3]
                 bank_name = BANK_CODES.get(bank_code, f"Banco {bank_code}")
                 
-                # Verifica se é linha digitável (47 dígitos) ou código de barras (44 dígitos)
-                if len(barcode) == 47:
-                    # LINHA DIGITÁVEL (47 dígitos) - Precisa CONVERTER para código de barras primeiro!
-                    # A linha digitável tem os campos reorganizados com dígitos verificadores
-                    # Formato real: BBBMC.CCCCD CCCCC.CCCCCD CCCCC.CCCCCD D FFFFVVVVVVVVVV
-                    # Onde:
-                    # - Posições 0-3: Banco + Moeda
-                    # - Posição 4-9: Parte do campo livre + DV
-                    # - Posição 10-20: Parte do campo livre + DV  
-                    # - Posição 21-31: Parte do campo livre + DV
-                    # - Posição 32: DV geral
-                    # - Posição 33-36: Fator vencimento (4 dígitos)
-                    # - Posição 37-46: Valor (10 dígitos)
-                    
-                    # Extrai fator e valor das posições CORRETAS da linha digitável
-                    due_factor = int(barcode[33:37])
-                    amount = Decimal(barcode[37:47]) / Decimal('100')
-                    
-                    logger.info(f"🔍 Linha digitável ({len(barcode)} dígitos)")
-                    logger.info(f"🔍 Código completo: {barcode}")
-                    logger.info(f"🔍 Fator (pos 33-36): '{barcode[33:37]}' = {due_factor}")
-                    logger.info(f"🔍 Valor (pos 37-46): '{barcode[37:47]}' = R${amount}")
-                    
-                elif len(barcode) == 44:
+                # Extrai fator e valor baseado no tamanho do código
+                due_factor = 0
+                amount = Decimal('0')
+                
+                if len(barcode) == 44:
                     # CÓDIGO DE BARRAS (44 dígitos)
-                    # Formato: BBBMKFFFFVVVVVVVVVVCCCCCCCCCCCCCCCCCCCCCCC
-                    # Posições:
-                    # 0-2: Banco (3)
-                    # 3: Moeda (1)
-                    # 4: DV geral (1)
-                    # 5-8: Fator vencimento (4 dígitos)
-                    # 9-18: Valor (10 dígitos)
-                    # 19-43: Campo livre (25 dígitos)
-                    due_factor = int(barcode[5:9])
-                    amount = Decimal(barcode[9:19]) / Decimal('100')
+                    due_factor, amount = self._extract_from_barcode_44(barcode)
                     
-                    logger.info(f"🔍 Código de barras ({len(barcode)} dígitos)")
-                    logger.info(f"🔍 Código completo: {barcode}")
-                    logger.info(f"🔍 Fator (pos 5-8): '{barcode[5:9]}' = {due_factor}")
-                    logger.info(f"🔍 Valor (pos 9-18): '{barcode[9:19]}' = R${amount}")
+                elif len(barcode) == 47:
+                    # LINHA DIGITÁVEL (47 dígitos)
+                    due_factor, amount = self._convert_digitable_to_barcode(barcode)
+                    
+                elif len(barcode) == 48:
+                    # Linha digitável com dígito extra - usa primeiros 47
+                    due_factor, amount = self._convert_digitable_to_barcode(barcode[:47])
+                    
+                elif len(barcode) in [45, 46]:
+                    # Código incompleto - linha digitável com dígitos faltando
+                    faltando = 47 - len(barcode)
+                    logger.warning(f"⚠️ Código incompleto: {len(barcode)} dígitos (faltam {faltando})")
+                    
+                    # Retorna erro claro para o usuário
+                    return BillValidationResult(
+                        valid=False,
+                        can_be_paid=False,
+                        barcode=barcode,
+                        error_message=f"Código incompleto ({len(barcode)} dígitos). A linha digitável deve ter 47 dígitos. Verifique se copiou todos os números.",
+                        provider="api"
+                    )
                 else:
-                    # Tamanho inesperado - tenta extrair de qualquer forma
-                    logger.warning(f"⚠️ Tamanho inesperado: {len(barcode)} dígitos")
-                    # Assume que os últimos 10 dígitos são o valor
-                    amount = Decimal(barcode[-10:]) / Decimal('100')
-                    due_factor = 0
-                    logger.info(f"🔍 Valor estimado (últimos 10): '{barcode[-10:]}' = R${amount}")
+                    return BillValidationResult(
+                        valid=False,
+                        can_be_paid=False,
+                        barcode=barcode,
+                        error_message=f"Código de barras inválido ({len(barcode)} dígitos). Use 44 ou 47 dígitos.",
+                        provider="api"
+                    )
+                
+                # Validação de sanidade do valor
+                if amount <= 0:
+                    return BillValidationResult(
+                        valid=False,
+                        can_be_paid=False,
+                        barcode=barcode,
+                        error_message="Não foi possível extrair o valor do boleto.",
+                        provider="api"
+                    )
+                
+                # Valor muito alto provavelmente é erro de extração
+                if amount > Decimal('1000000'):  # Mais de 1 milhão
+                    logger.error(f"❌ Valor extraído muito alto: R$ {amount:.2f} - possível erro de parsing")
+                    return BillValidationResult(
+                        valid=False,
+                        can_be_paid=False,
+                        barcode=barcode,
+                        error_message="Erro ao ler valor do boleto. Verifique se o código está correto.",
+                        provider="api"
+                    )
                 
                 # Calcula data de vencimento usando fator de vencimento
                 # Base: 07/10/1997

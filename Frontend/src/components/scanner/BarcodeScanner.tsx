@@ -90,6 +90,11 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
 
       const cleanCode = code.replace(/\D/g, '')
 
+      console.log('🔍 handleCodeDetected:')
+      console.log('   Input:', code)
+      console.log('   Limpo:', cleanCode)
+      console.log('   Tamanho:', cleanCode.length)
+
       // Valida se é um código de boleto (44-48 dígitos)
       if (cleanCode.length >= 44 && cleanCode.length <= 48) {
         hasScanned.current = true
@@ -102,6 +107,7 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
         }
 
         console.log('✅ Código detectado:', cleanCode.substring(0, 20) + '...')
+        console.log('📤 Enviando para onScan:', cleanCode)
 
         // Fecha e envia após feedback visual
         setTimeout(() => {
@@ -253,32 +259,58 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
     const video = videoRef.current
     const canvas = canvasRef.current
 
-    if (!video || !canvas) return
+    if (!video || !canvas) {
+      console.error('❌ Video ou canvas não disponível')
+      return
+    }
 
     const ctx = canvas.getContext('2d', { willReadFrequently: true })
-    if (!ctx) return
+    if (!ctx) {
+      console.error('❌ Contexto 2D não disponível')
+      return
+    }
+
+    // Configura canvas com dimensões do vídeo
+    canvas.width = video.videoWidth || 1280
+    canvas.height = video.videoHeight || 720
+    console.log(`📐 Canvas configurado: ${canvas.width}x${canvas.height}`)
 
     // Tenta usar BarcodeDetector API nativa (Chrome, Safari 16.4+)
-    const BarcodeDetectorAPI = (window as unknown as { BarcodeDetector?: unknown }).BarcodeDetector
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const BarcodeDetectorAPI = (window as any).BarcodeDetector
 
     if (BarcodeDetectorAPI) {
       try {
-        const detector = new (BarcodeDetectorAPI as new (options: { formats: string[] }) => {
-          detect: (source: HTMLVideoElement) => Promise<Array<{ rawValue: string }>>
-        })({
-          formats: ['itf', 'code_128', 'code_39', 'ean_13', 'qr_code'],
+        // Verifica se o formato ITF é suportado (formato de boletos brasileiros)
+        const supportedFormats = (await BarcodeDetectorAPI.getSupportedFormats?.()) || []
+        console.log('📋 Formatos suportados:', supportedFormats)
+
+        const detector = new BarcodeDetectorAPI({
+          formats: ['itf', 'code_128', 'code_39', 'ean_13', 'codabar'],
         })
 
         scannerRef.current = detector
+        let frameCount = 0
 
         const detectFrame = async () => {
           if (!video || video.paused || video.ended || hasScanned.current) return
 
+          frameCount++
+
           try {
+            // Desenha o frame atual no canvas para debug
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+
             const codes = await detector.detect(video)
-            if (codes.length > 0) {
+            if (codes.length > 0 && codes[0].rawValue) {
+              console.log('🎯 Código detectado pela API nativa:', codes[0].rawValue)
               handleCodeDetected(codes[0].rawValue)
               return
+            }
+
+            // Log a cada 60 frames (~2 segundos)
+            if (frameCount % 60 === 0) {
+              console.log(`🔄 Escaneando... (${frameCount} frames)`)
             }
           } catch {
             // Ignora erros de detecção individuais
@@ -290,58 +322,55 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
         detectFrame()
         console.log('📷 Usando BarcodeDetector API nativa')
         return
-      } catch {
-        console.log('⚠️ BarcodeDetector não disponível, usando fallback')
+      } catch (err) {
+        console.log('⚠️ BarcodeDetector não disponível:', err)
       }
     }
 
-    // Fallback: usa html5-qrcode para decodificação
+    // Fallback: usa html5-qrcode para decodificação via canvas
+    console.log('🔄 Iniciando fallback com html5-qrcode...')
+
     try {
       const { Html5Qrcode } = await import('html5-qrcode')
 
       // Cria elemento temporário para o scanner
-      const scannerId = 'barcode-scanner-fallback'
-      let scannerDiv = document.getElementById(scannerId)
+      const scannerId = 'barcode-scanner-fallback-' + Date.now()
+      const scannerDiv = document.createElement('div')
+      scannerDiv.id = scannerId
+      scannerDiv.style.cssText = 'position:absolute;width:1px;height:1px;overflow:hidden;'
+      document.body.appendChild(scannerDiv)
 
-      if (!scannerDiv) {
-        scannerDiv = document.createElement('div')
-        scannerDiv.id = scannerId
-        scannerDiv.style.display = 'none'
-        document.body.appendChild(scannerDiv)
-      }
-
-      canvas.width = video.videoWidth || 640
-      canvas.height = video.videoHeight || 480
-
-      const detectFrame = () => {
-        if (!video || video.paused || video.ended || hasScanned.current) return
-
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
-
-        // A cada 200ms tenta decodificar
-        animationRef.current = requestAnimationFrame(detectFrame)
-      }
-
-      // Usa o html5-qrcode para escanear da câmera diretamente
-      const html5Scanner = new Html5Qrcode(scannerId)
+      const html5Scanner = new Html5Qrcode(scannerId, { verbose: false })
       scannerRef.current = html5Scanner
 
+      // Usa o stream de vídeo existente em vez de iniciar nova câmera
+      const track = streamRef.current?.getVideoTracks()[0]
+      if (track) {
+        console.log('📹 Usando track de vídeo existente')
+      }
+
+      // Inicia escaneamento da câmera
       await html5Scanner.start(
         { facingMode: 'environment' },
         {
-          fps: 10,
-          qrbox: { width: 280, height: 120 },
+          fps: 15,
+          qrbox: { width: 320, height: 140 },
           aspectRatio: 16 / 9,
         },
         decodedText => {
+          console.log('🎯 Código detectado pelo html5-qrcode:', decodedText)
           handleCodeDetected(decodedText)
+
+          // Para o scanner após detectar
+          html5Scanner.stop().catch(() => {})
+          scannerDiv.remove()
         },
         () => {} // ignora erros de frame
       )
 
       console.log('📷 Usando html5-qrcode fallback')
     } catch (err) {
-      console.error('Erro ao iniciar detecção:', err)
+      console.error('❌ Erro ao iniciar html5-qrcode:', err)
       // Continua mesmo sem detecção automática - usuário pode digitar manualmente
     }
   }, [handleCodeDetected])
@@ -386,10 +415,17 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
   // Handler para entrada manual
   const handleManualSubmit = () => {
     const cleanCode = manualCode.replace(/\D/g, '')
+    console.log('📝 BarcodeScanner - Código manual:')
+    console.log('   Original:', manualCode)
+    console.log('   Limpo:', cleanCode)
+    console.log('   Tamanho:', cleanCode.length)
+
     if (cleanCode.length >= 44 && cleanCode.length <= 48) {
       handleCodeDetected(cleanCode)
+    } else if (cleanCode.length < 44) {
+      setErrorMsg(`Código incompleto (${cleanCode.length} dígitos). Mínimo: 44 dígitos.`)
     } else {
-      setErrorMsg('Código inválido. Digite os 47 dígitos do boleto.')
+      setErrorMsg(`Código muito longo (${cleanCode.length} dígitos). Máximo: 48 dígitos.`)
     }
   }
 
@@ -520,22 +556,23 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
           <div className='absolute inset-0 flex flex-col items-center justify-center bg-black p-8 z-10'>
             <Keyboard className='w-16 h-16 text-violet-500 mb-6' />
             <h3 className='text-xl font-bold text-white mb-2'>Digite o código</h3>
-            <p className='text-gray-400 mb-6 text-center'>
-              Insira os 47 números da linha digitável
-            </p>
+            <p className='text-gray-400 mb-6 text-center'>Insira os 44 a 48 números do boleto</p>
 
             <input
               type='text'
               inputMode='numeric'
               value={manualCode}
-              onChange={e => setManualCode(e.target.value.replace(/\D/g, ''))}
+              onChange={e => {
+                // Remove tudo que não é número e limita a 48 dígitos
+                const digits = e.target.value.replace(/\D/g, '').slice(0, 48)
+                setManualCode(digits)
+              }}
               placeholder='00000.00000 00000.000000 00000.000000 0 00000000000000'
               className='w-full max-w-md px-4 py-4 bg-gray-800 border border-gray-700 rounded-xl text-white text-center font-mono text-lg placeholder:text-gray-600 focus:outline-none focus:border-violet-500'
-              maxLength={48}
               autoFocus
             />
 
-            <p className='text-gray-500 text-sm mt-3 mb-6'>{manualCode.length}/47 dígitos</p>
+            <p className='text-gray-500 text-sm mt-3 mb-6'>{manualCode.length}/44-48 dígitos</p>
 
             {errorMsg && <p className='text-red-400 text-sm mb-4'>{errorMsg}</p>}
 

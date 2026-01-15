@@ -126,6 +126,8 @@ export function BillPaymentPage() {
 
   // Callback quando scanner detecta código
   const handleScanResult = (scannedCode: string) => {
+    console.log('📥 BillPaymentPage recebeu do scanner:', scannedCode)
+    console.log('   Tamanho:', scannedCode.length)
     setBarcode(scannedCode)
     setShowScanner(false)
     // Auto-validar após scan
@@ -165,6 +167,12 @@ export function BillPaymentPage() {
   // Validar boleto
   const handleValidate = async (codeToValidate?: string) => {
     const code = codeToValidate || barcode
+    console.log('🔍 handleValidate:')
+    console.log('   codeToValidate:', codeToValidate)
+    console.log('   barcode (state):', barcode)
+    console.log('   code final:', code)
+    console.log('   Tamanho:', code.length)
+
     if (!code.trim()) {
       setError('Digite o código de barras do boleto')
       return
@@ -175,7 +183,9 @@ export function BillPaymentPage() {
     setStep('validating')
 
     try {
+      console.log('📤 Enviando para API:', code.trim())
       const result = await billPaymentService.validateBill(code.trim())
+      console.log('📥 Resposta da API:', result)
       setBillInfo(result)
 
       if (result.valid) {
