@@ -86,8 +86,9 @@ import {
   AdminKYCPage,
 } from '@/pages/admin'
 
-// Import new KYC Users page
+// Import new admin pages
 import AdminKYCUsersPage from '@/pages/admin/AdminKYCUsersPage'
+import AdminLockedBalancesPage from '@/pages/admin/AdminLockedBalancesPage'
 
 // Protected Route Component (for authenticated users)
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -385,6 +386,7 @@ function App() {
             <Route path='/admin/bill-payment' element={<AdminBillPaymentPage />} />
             <Route path='/admin/kyc' element={<AdminKYCPage />} />
             <Route path='/admin/kyc/users' element={<AdminKYCUsersPage />} />
+            <Route path='/admin/locked-balances' element={<AdminLockedBalancesPage />} />
           </Route>
 
           {/* 404 Page */}

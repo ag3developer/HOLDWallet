@@ -32,6 +32,7 @@ import {
   Moon,
   Monitor,
   Receipt,
+  Lock,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useThemeStore } from '@/stores/useThemeStore'
@@ -49,6 +50,7 @@ const adminNavigation = [
   { name: 'WolkPay', href: '/admin/wolkpay', icon: CreditCard, group: 'management' },
   { name: 'Boletos', href: '/admin/bill-payment', icon: Receipt, group: 'management' },
   { name: 'Carteiras', href: '/admin/wallets', icon: Wallet, group: 'management' },
+  { name: 'Saldos Bloqueados', href: '/admin/locked-balances', icon: Lock, group: 'management' },
   { name: 'Transações', href: '/admin/transactions', icon: Activity, group: 'management' },
   { name: 'Taxas & Receita', href: '/admin/fees', icon: Banknote, group: 'management' },
   { name: 'Carteira Sistema', href: '/admin/system-wallet', icon: Landmark, group: 'management' },

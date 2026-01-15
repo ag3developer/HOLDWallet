@@ -38,6 +38,7 @@ from .wolkpay_admin import router as wolkpay_admin_router
 from .bill_payment_admin import router as bill_payment_admin_router
 from .kyc_admin import router as kyc_admin_router
 from .user_kyc_admin import router as user_kyc_admin_router
+from .locked_balances import router as locked_balances_router
 
 # Create main admin router
 admin_router = APIRouter(prefix="/admin", tags=["Admin"])
@@ -61,6 +62,7 @@ admin_router.include_router(security_router)
 # porque kyc_admin_router tem rota /{verification_id} que captura "users"
 admin_router.include_router(user_kyc_admin_router)
 admin_router.include_router(kyc_admin_router)
+admin_router.include_router(locked_balances_router)
 
 __all__ = [
     "admin_router",
@@ -81,5 +83,6 @@ __all__ = [
     "wolkpay_admin_router",
     "bill_payment_admin_router",
     "kyc_admin_router",
-    "user_kyc_admin_router"
+    "user_kyc_admin_router",
+    "locked_balances_router"
 ]
