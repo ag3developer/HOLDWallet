@@ -648,11 +648,11 @@ async def process_crypto_debit(
         # Log
         log_admin_action(
             db=db,
-            payment_id=payment_id,
+            payment_id=str(payment_id),
             action="process_crypto",
             old_status=old_status,
             new_status=payment.status.value,
-            admin_id=current_user.id,
+            admin_id=str(current_user.id),
             details={
                 "amount": str(payment.crypto_amount),
                 "currency": balance_key,
@@ -699,11 +699,25 @@ async def mark_as_paid(
         if not payment:
             raise HTTPException(status_code=404, detail="Pagamento não encontrado")
         
-        # Verificar status
-        if payment.status not in [BillPaymentStatus.CRYPTO_DEBITED, BillPaymentStatus.PROCESSING, BillPaymentStatus.PAYING]:
+        # Verificar se já está pago
+        if payment.status == BillPaymentStatus.PAID:
             raise HTTPException(
                 status_code=400, 
-                detail=f"Pagamento com status {payment.status.value} não pode ser marcado como pago"
+                detail=f"Este pagamento já foi marcado como PAGO em {payment.paid_at.strftime('%d/%m/%Y %H:%M') if payment.paid_at else 'data desconhecida'}. Autenticação: {payment.bank_authentication or 'N/A'}"
+            )
+        
+        # Verificar status - permitir PENDING, CRYPTO_DEBITED, PROCESSING, PAYING
+        allowed_statuses = [
+            BillPaymentStatus.PENDING,
+            BillPaymentStatus.CRYPTO_DEBITED, 
+            BillPaymentStatus.PROCESSING, 
+            BillPaymentStatus.PAYING
+        ]
+        
+        if payment.status not in allowed_statuses:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Pagamento com status '{payment.status.value}' não pode ser marcado como pago. Status permitidos: PENDING, CRYPTO_DEBITED, PROCESSING, PAYING"
             )
         
         old_status = payment.status.value
@@ -720,11 +734,11 @@ async def mark_as_paid(
         # Log
         log_admin_action(
             db=db,
-            payment_id=payment_id,
+            payment_id=str(payment_id),
             action="mark_paid",
             old_status=old_status,
             new_status=payment.status.value,
-            admin_id=current_user.id,
+            admin_id=str(current_user.id),
             details={
                 "bank_authentication": request.bank_authentication,
                 "payment_receipt_url": request.payment_receipt_url,
@@ -806,11 +820,11 @@ async def reject_payment(
         # Log
         log_admin_action(
             db=db,
-            payment_id=payment_id,
+            payment_id=str(payment_id),
             action="reject",
             old_status=old_status,
             new_status=payment.status.value,
-            admin_id=current_user.id,
+            admin_id=str(current_user.id),
             details={
                 "reason": request.reason,
                 "refund_crypto": request.refund_crypto,
@@ -846,11 +860,14 @@ async def set_processing(
     if not payment:
         raise HTTPException(status_code=404, detail="Pagamento não encontrado")
     
+    if payment.status == BillPaymentStatus.PAID:
+        raise HTTPException(status_code=400, detail="Este pagamento já foi pago")
+    
     old_status = payment.status.value
     payment.status = BillPaymentStatus.PROCESSING
     db.commit()
     
-    log_admin_action(db, payment_id, "set_processing", old_status, payment.status.value, current_user.id)
+    log_admin_action(db, str(payment_id), "set_processing", old_status, payment.status.value, str(current_user.id))
     
     return {"success": True, "payment": payment_to_admin_response(payment, db)}
 
@@ -868,11 +885,14 @@ async def set_paying(
     if not payment:
         raise HTTPException(status_code=404, detail="Pagamento não encontrado")
     
+    if payment.status == BillPaymentStatus.PAID:
+        raise HTTPException(status_code=400, detail="Este pagamento já foi pago")
+    
     old_status = payment.status.value
     payment.status = BillPaymentStatus.PAYING
     db.commit()
     
-    log_admin_action(db, payment_id, "set_paying", old_status, payment.status.value, current_user.id)
+    log_admin_action(db, str(payment_id), "set_paying", old_status, payment.status.value, str(current_user.id))
     
     return {"success": True, "payment": payment_to_admin_response(payment, db)}
 

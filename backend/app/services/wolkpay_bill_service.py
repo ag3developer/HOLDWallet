@@ -1281,6 +1281,171 @@ class WolkPayBillService:
         except Exception as e:
             logger.error(f"Erro ao registrar log: {e}")
     
+    def _get_explorer_url(self, tx_hash: str, network: Optional[str]) -> Optional[str]:
+        """Retorna URL do explorer para a transação"""
+        if not tx_hash or not network:
+            return None
+        
+        network_lower = network.lower()
+        
+        # Mapear network para URL do explorer
+        explorers = {
+            'polygon': f'https://polygonscan.com/tx/{tx_hash}',
+            'polygon_mainnet': f'https://polygonscan.com/tx/{tx_hash}',
+            'bsc': f'https://bscscan.com/tx/{tx_hash}',
+            'bsc_mainnet': f'https://bscscan.com/tx/{tx_hash}',
+            'binance': f'https://bscscan.com/tx/{tx_hash}',
+            'ethereum': f'https://etherscan.io/tx/{tx_hash}',
+            'eth': f'https://etherscan.io/tx/{tx_hash}',
+            'erc20': f'https://etherscan.io/tx/{tx_hash}',
+            'tron': f'https://tronscan.org/#/transaction/{tx_hash}',
+            'trc20': f'https://tronscan.org/#/transaction/{tx_hash}',
+        }
+        
+        return explorers.get(network_lower)
+    
+    def _build_timeline(self, bill_payment: WolkPayBillPayment) -> list:
+        """Constrói timeline do pagamento"""
+        from app.schemas.wolkpay import BillPaymentTimelineStep
+        
+        status = bill_payment.status
+        
+        # Definir os passos da timeline
+        steps = []
+        
+        # 1. Pedido Criado
+        steps.append(BillPaymentTimelineStep(
+            step="created",
+            title="Pedido Criado",
+            description=f"Boleto de R$ {bill_payment.bill_amount_brl:.2f} registrado",
+            timestamp=bill_payment.created_at,
+            completed=True,
+            current=status == BillPaymentStatus.PENDING,
+            failed=False
+        ))
+        
+        # 2. Crypto Debitada
+        crypto_tx_hash = bill_payment.internal_tx_id
+        explorer_url = self._get_explorer_url(crypto_tx_hash, bill_payment.crypto_network) if crypto_tx_hash else None
+        
+        crypto_debited_completed = status in [
+            BillPaymentStatus.CRYPTO_DEBITED,
+            BillPaymentStatus.PROCESSING,
+            BillPaymentStatus.PAYING,
+            BillPaymentStatus.PAID,
+            BillPaymentStatus.REFUNDED
+        ]
+        
+        steps.append(BillPaymentTimelineStep(
+            step="crypto_debited",
+            title="Crypto Debitada",
+            description=f"{bill_payment.crypto_amount:.6f} {bill_payment.crypto_currency} transferido",
+            timestamp=bill_payment.crypto_debited_at,
+            completed=crypto_debited_completed,
+            current=status == BillPaymentStatus.CRYPTO_DEBITED,
+            failed=False,
+            tx_hash=crypto_tx_hash if crypto_debited_completed else None,
+            explorer_url=explorer_url if crypto_debited_completed else None
+        ))
+        
+        # 3. Processando
+        processing_completed = status in [
+            BillPaymentStatus.PROCESSING,
+            BillPaymentStatus.PAYING,
+            BillPaymentStatus.PAID
+        ]
+        
+        steps.append(BillPaymentTimelineStep(
+            step="processing",
+            title="Em Processamento",
+            description="Liquidando ativos para pagamento",
+            timestamp=None,
+            completed=processing_completed,
+            current=status == BillPaymentStatus.PROCESSING,
+            failed=False
+        ))
+        
+        # 4. Pagando Boleto
+        paying_completed = status in [BillPaymentStatus.PAYING, BillPaymentStatus.PAID]
+        
+        steps.append(BillPaymentTimelineStep(
+            step="paying",
+            title="Pagando Boleto",
+            description="Realizando transferência bancária",
+            timestamp=None,
+            completed=paying_completed,
+            current=status == BillPaymentStatus.PAYING,
+            failed=False
+        ))
+        
+        # 5. Pago / Falhou / Reembolsado
+        if status == BillPaymentStatus.PAID:
+            steps.append(BillPaymentTimelineStep(
+                step="paid",
+                title="✅ Boleto Pago",
+                description=f"Autenticação: {bill_payment.bank_authentication}" if bill_payment.bank_authentication else "Pagamento confirmado",
+                timestamp=bill_payment.paid_at,
+                completed=True,
+                current=True,
+                failed=False
+            ))
+        elif status == BillPaymentStatus.FAILED:
+            steps.append(BillPaymentTimelineStep(
+                step="failed",
+                title="❌ Falha no Pagamento",
+                description=bill_payment.failure_reason or "Erro no processamento",
+                timestamp=None,
+                completed=True,
+                current=True,
+                failed=True
+            ))
+        elif status == BillPaymentStatus.REFUNDED:
+            refund_explorer_url = self._get_explorer_url(bill_payment.refund_tx_id, bill_payment.crypto_network)
+            steps.append(BillPaymentTimelineStep(
+                step="refunded",
+                title="↩️ Reembolsado",
+                description=f"{bill_payment.crypto_amount:.6f} {bill_payment.crypto_currency} devolvido",
+                timestamp=bill_payment.refunded_at,
+                completed=True,
+                current=True,
+                failed=False,
+                tx_hash=bill_payment.refund_tx_id,
+                explorer_url=refund_explorer_url
+            ))
+        elif status == BillPaymentStatus.CANCELLED:
+            steps.append(BillPaymentTimelineStep(
+                step="cancelled",
+                title="🚫 Cancelado",
+                description="Pagamento cancelado pelo usuário ou sistema",
+                timestamp=None,
+                completed=True,
+                current=True,
+                failed=True
+            ))
+        elif status == BillPaymentStatus.EXPIRED:
+            steps.append(BillPaymentTimelineStep(
+                step="expired",
+                title="⏰ Expirado",
+                description="Cotação expirou antes da confirmação",
+                timestamp=None,
+                completed=True,
+                current=True,
+                failed=True
+            ))
+        else:
+            # Status intermediários - mostrar passo "Pago" como pendente
+            steps.append(BillPaymentTimelineStep(
+                step="paid",
+                title="Boleto Pago",
+                description="Aguardando confirmação do pagamento",
+                timestamp=None,
+                completed=False,
+                current=False,
+                failed=False
+            ))
+        
+        return steps
+    
     def _build_response(
         self, 
         bill_payment: WolkPayBillPayment,
@@ -1303,8 +1468,16 @@ class WolkPayBillService:
             }
             status_message = status_messages.get(bill_payment.status, "Status desconhecido")
         
+        # URLs do explorer
+        crypto_tx_hash = bill_payment.internal_tx_id
+        crypto_explorer_url = self._get_explorer_url(crypto_tx_hash, bill_payment.crypto_network)
+        refund_explorer_url = self._get_explorer_url(bill_payment.refund_tx_id, bill_payment.crypto_network) if bill_payment.refund_tx_id else None
+        
+        # Construir timeline
+        timeline = self._build_timeline(bill_payment)
+        
         return BillPaymentResponse(
-            id=bill_payment.id,
+            id=str(bill_payment.id),
             payment_number=bill_payment.payment_number,
             status=BillPaymentStatusEnum(bill_payment.status.value),
             barcode=bill_payment.barcode,
@@ -1323,5 +1496,10 @@ class WolkPayBillService:
             paid_at=bill_payment.paid_at,
             payment_receipt_url=bill_payment.payment_receipt_url,
             bank_authentication=bill_payment.bank_authentication,
+            crypto_tx_hash=crypto_tx_hash,
+            crypto_explorer_url=crypto_explorer_url,
+            refund_tx_id=bill_payment.refund_tx_id,
+            refund_explorer_url=refund_explorer_url,
+            timeline=timeline,
             status_message=status_message
         )

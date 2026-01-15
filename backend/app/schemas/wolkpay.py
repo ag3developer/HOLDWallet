@@ -750,6 +750,19 @@ class ConfirmBillPaymentRequest(BaseModel):
         return v
 
 
+class BillPaymentTimelineStep(BaseModel):
+    """Um passo da timeline do pagamento"""
+    step: str  # created, crypto_debited, processing, paying, paid, failed, refunded
+    title: str
+    description: Optional[str] = None
+    timestamp: Optional[datetime] = None
+    completed: bool = False
+    current: bool = False
+    failed: bool = False
+    tx_hash: Optional[str] = None  # Hash da transação blockchain
+    explorer_url: Optional[str] = None  # URL do explorer
+
+
 class BillPaymentResponse(BaseModel):
     """Response do pagamento de boleto"""
     id: str
@@ -776,6 +789,15 @@ class BillPaymentResponse(BaseModel):
     
     payment_receipt_url: Optional[str] = None
     bank_authentication: Optional[str] = None
+    
+    # Blockchain Transaction Hashes
+    crypto_tx_hash: Optional[str] = None  # Hash da transação de débito
+    crypto_explorer_url: Optional[str] = None  # URL do explorer
+    refund_tx_id: Optional[str] = None  # Hash do reembolso (se houver)
+    refund_explorer_url: Optional[str] = None  # URL do explorer do reembolso
+    
+    # Timeline para acompanhamento visual
+    timeline: Optional[List[BillPaymentTimelineStep]] = None
     
     status_message: str
 

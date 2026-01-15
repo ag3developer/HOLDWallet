@@ -15,7 +15,6 @@ import {
   XCircle,
   RefreshCw,
   Loader2,
-  ChevronRight,
   Filter,
   Calendar,
   Building2,
@@ -157,6 +156,7 @@ export function BillPaymentHistoryPage() {
               <button
                 onClick={() => navigate('/bill-payment')}
                 className='p-2 hover:bg-white/10 rounded-lg transition-colors'
+                title='Voltar'
               >
                 <ArrowLeft className='w-5 h-5 text-white' />
               </button>
@@ -353,13 +353,14 @@ export function BillPaymentHistoryPage() {
               <button
                 onClick={() => setSelectedPayment(null)}
                 className='p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors'
+                title='Fechar'
               >
                 <X className='w-5 h-5 text-gray-500' />
               </button>
             </div>
 
-            <div className='p-6 space-y-4'>
-              {/* Status */}
+            <div className='p-6 space-y-6'>
+              {/* Status Header */}
               <div className={`p-4 rounded-xl ${STATUS_CONFIG[selectedPayment.status].bgColor}`}>
                 <div className='flex items-center gap-3'>
                   <span className={STATUS_CONFIG[selectedPayment.status].color}>
@@ -376,8 +377,121 @@ export function BillPaymentHistoryPage() {
                 </div>
               </div>
 
-              {/* Info */}
+              {/* Timeline Section */}
+              {selectedPayment.timeline && selectedPayment.timeline.length > 0 && (
+                <div className='bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4'>
+                  <h4 className='text-sm font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2'>
+                    <Clock className='w-4 h-4' />
+                    Acompanhamento
+                  </h4>
+                  <div className='space-y-0'>
+                    {selectedPayment.timeline.map((step, index) => (
+                      <div key={step.step} className='relative'>
+                        {/* Linha conectora */}
+                        {index < selectedPayment.timeline!.length - 1 && (
+                          <div
+                            className={`absolute left-[11px] top-6 w-0.5 h-full ${
+                              step.completed
+                                ? step.failed
+                                  ? 'bg-red-300 dark:bg-red-600'
+                                  : 'bg-green-300 dark:bg-green-600'
+                                : 'bg-gray-200 dark:bg-gray-600'
+                            }`}
+                          />
+                        )}
+
+                        <div className='flex items-start gap-3 pb-4'>
+                          {/* Indicador */}
+                          <div
+                            className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${
+                              step.current
+                                ? step.failed
+                                  ? 'bg-red-500 text-white'
+                                  : 'bg-violet-500 text-white ring-4 ring-violet-200 dark:ring-violet-900'
+                                : step.completed
+                                  ? step.failed
+                                    ? 'bg-red-500 text-white'
+                                    : 'bg-green-500 text-white'
+                                  : 'bg-gray-200 dark:bg-gray-600 text-gray-400'
+                            }`}
+                          >
+                            {step.completed ? (
+                              step.failed ? (
+                                <XCircle className='w-4 h-4' />
+                              ) : (
+                                <CheckCircle className='w-4 h-4' />
+                              )
+                            ) : step.current ? (
+                              <Loader2 className='w-4 h-4 animate-spin' />
+                            ) : (
+                              <div className='w-2 h-2 rounded-full bg-current' />
+                            )}
+                          </div>
+
+                          {/* Conteúdo */}
+                          <div className='flex-1 min-w-0'>
+                            <p
+                              className={`text-sm font-medium ${
+                                step.current
+                                  ? step.failed
+                                    ? 'text-red-600 dark:text-red-400'
+                                    : 'text-violet-600 dark:text-violet-400'
+                                  : step.completed
+                                    ? 'text-gray-900 dark:text-white'
+                                    : 'text-gray-400 dark:text-gray-500'
+                              }`}
+                            >
+                              {step.title}
+                            </p>
+                            {step.description && (
+                              <p className='text-xs text-gray-500 dark:text-gray-400 mt-0.5'>
+                                {step.description}
+                              </p>
+                            )}
+                            {step.timestamp && (
+                              <p className='text-xs text-gray-400 dark:text-gray-500 mt-1'>
+                                {formatDate(step.timestamp)}
+                              </p>
+                            )}
+
+                            {/* Hash da Transação Blockchain */}
+                            {step.tx_hash && (
+                              <div className='mt-2 p-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600'>
+                                <p className='text-xs text-gray-500 dark:text-gray-400 mb-1'>
+                                  🔗 Hash da Transação:
+                                </p>
+                                <div className='flex items-center gap-2'>
+                                  <code className='text-xs font-mono text-gray-700 dark:text-gray-300 truncate flex-1'>
+                                    {step.tx_hash.slice(0, 10)}...{step.tx_hash.slice(-8)}
+                                  </code>
+                                  {step.explorer_url && (
+                                    <a
+                                      href={step.explorer_url}
+                                      target='_blank'
+                                      rel='noopener noreferrer'
+                                      className='p-1.5 bg-violet-100 dark:bg-violet-500/20 text-violet-600 dark:text-violet-400 rounded-lg hover:bg-violet-200 dark:hover:bg-violet-500/30 transition-colors'
+                                      title='Ver no Explorer'
+                                    >
+                                      <ExternalLink className='w-3 h-3' />
+                                    </a>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Info Details */}
               <div className='space-y-3'>
+                <h4 className='text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2'>
+                  <FileText className='w-4 h-4' />
+                  Informações
+                </h4>
                 <div className='flex justify-between py-2 border-b border-gray-100 dark:border-gray-700'>
                   <span className='text-sm text-gray-500 dark:text-gray-400'>Número</span>
                   <span className='text-sm font-mono text-gray-900 dark:text-white'>
@@ -402,6 +516,11 @@ export function BillPaymentHistoryPage() {
                   <span className='text-sm text-gray-500 dark:text-gray-400'>Crypto Debitada</span>
                   <span className='font-medium text-violet-600 dark:text-violet-400'>
                     {formatCrypto(selectedPayment.crypto_amount, selectedPayment.crypto_currency)}
+                    {selectedPayment.crypto_network && (
+                      <span className='text-xs text-gray-400 ml-1'>
+                        ({selectedPayment.crypto_network})
+                      </span>
+                    )}
                   </span>
                 </div>
                 <div className='flex justify-between py-2 border-b border-gray-100 dark:border-gray-700'>
@@ -427,39 +546,69 @@ export function BillPaymentHistoryPage() {
                     </span>
                   </div>
                 )}
-                <div className='flex justify-between py-2 border-b border-gray-100 dark:border-gray-700'>
-                  <span className='text-sm text-gray-500 dark:text-gray-400'>Criado em</span>
-                  <span className='text-sm text-gray-900 dark:text-white'>
-                    {formatDate(selectedPayment.created_at)}
-                  </span>
-                </div>
-                {selectedPayment.crypto_debited_at && (
-                  <div className='flex justify-between py-2 border-b border-gray-100 dark:border-gray-700'>
-                    <span className='text-sm text-gray-500 dark:text-gray-400'>
-                      Crypto debitada em
-                    </span>
-                    <span className='text-sm text-gray-900 dark:text-white'>
-                      {formatDate(selectedPayment.crypto_debited_at)}
-                    </span>
-                  </div>
-                )}
-                {selectedPayment.paid_at && (
-                  <div className='flex justify-between py-2 border-b border-gray-100 dark:border-gray-700'>
-                    <span className='text-sm text-gray-500 dark:text-gray-400'>Pago em</span>
-                    <span className='text-sm text-green-600 dark:text-green-400'>
-                      {formatDate(selectedPayment.paid_at)}
-                    </span>
-                  </div>
-                )}
                 {selectedPayment.bank_authentication && (
                   <div className='flex justify-between py-2 border-b border-gray-100 dark:border-gray-700'>
-                    <span className='text-sm text-gray-500 dark:text-gray-400'>Autenticação</span>
-                    <span className='text-sm font-mono text-gray-900 dark:text-white'>
+                    <span className='text-sm text-gray-500 dark:text-gray-400'>
+                      Autenticação Bancária
+                    </span>
+                    <span className='text-sm font-mono text-green-600 dark:text-green-400'>
                       {selectedPayment.bank_authentication}
                     </span>
                   </div>
                 )}
               </div>
+
+              {/* Blockchain Transaction Hash - Standalone */}
+              {selectedPayment.crypto_tx_hash && (
+                <div className='bg-violet-50 dark:bg-violet-500/10 rounded-xl p-4'>
+                  <h4 className='text-sm font-semibold text-violet-700 dark:text-violet-300 mb-2'>
+                    🔗 Transação Blockchain
+                  </h4>
+                  <div className='space-y-2'>
+                    <div className='flex items-center justify-between'>
+                      <code className='text-xs font-mono text-violet-600 dark:text-violet-400 truncate max-w-[200px]'>
+                        {selectedPayment.crypto_tx_hash}
+                      </code>
+                      {selectedPayment.crypto_explorer_url && (
+                        <a
+                          href={selectedPayment.crypto_explorer_url}
+                          target='_blank'
+                          rel='noopener noreferrer'
+                          className='flex items-center gap-1 px-3 py-1.5 bg-violet-600 text-white text-xs font-medium rounded-lg hover:bg-violet-700 transition-colors'
+                        >
+                          <ExternalLink className='w-3 h-3' />
+                          Ver no Explorer
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Refund Transaction */}
+              {selectedPayment.refund_tx_id && (
+                <div className='bg-teal-50 dark:bg-teal-500/10 rounded-xl p-4'>
+                  <h4 className='text-sm font-semibold text-teal-700 dark:text-teal-300 mb-2'>
+                    ↩️ Reembolso Blockchain
+                  </h4>
+                  <div className='flex items-center justify-between'>
+                    <code className='text-xs font-mono text-teal-600 dark:text-teal-400 truncate max-w-[200px]'>
+                      {selectedPayment.refund_tx_id}
+                    </code>
+                    {selectedPayment.refund_explorer_url && (
+                      <a
+                        href={selectedPayment.refund_explorer_url}
+                        target='_blank'
+                        rel='noopener noreferrer'
+                        className='flex items-center gap-1 px-3 py-1.5 bg-teal-600 text-white text-xs font-medium rounded-lg hover:bg-teal-700 transition-colors'
+                      >
+                        <ExternalLink className='w-3 h-3' />
+                        Ver no Explorer
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Receipt Link */}
               {selectedPayment.payment_receipt_url && (
@@ -467,10 +616,10 @@ export function BillPaymentHistoryPage() {
                   href={selectedPayment.payment_receipt_url}
                   target='_blank'
                   rel='noopener noreferrer'
-                  className='flex items-center justify-center gap-2 w-full py-3 bg-violet-50 dark:bg-violet-500/10 text-violet-600 dark:text-violet-400 rounded-xl hover:bg-violet-100 dark:hover:bg-violet-500/20 transition-colors'
+                  className='flex items-center justify-center gap-2 w-full py-3 bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400 rounded-xl hover:bg-green-100 dark:hover:bg-green-500/20 transition-colors font-medium'
                 >
                   <ExternalLink className='w-4 h-4' />
-                  Ver Comprovante
+                  Ver Comprovante de Pagamento
                 </a>
               )}
             </div>

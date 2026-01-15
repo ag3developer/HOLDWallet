@@ -102,6 +102,18 @@ export interface ConfirmBillPaymentRequest {
   confirm_debit: boolean
 }
 
+export interface BillPaymentTimelineStep {
+  step: string // created, crypto_debited, processing, paying, paid, failed, refunded
+  title: string
+  description?: string
+  timestamp?: string
+  completed: boolean
+  current: boolean
+  failed: boolean
+  tx_hash?: string // Hash da transação blockchain
+  explorer_url?: string // URL do explorer
+}
+
 export interface BillPayment {
   id: string
   payment_number: string
@@ -122,6 +134,13 @@ export interface BillPayment {
   paid_at?: string
   payment_receipt_url?: string
   bank_authentication?: string
+  // Blockchain Transaction Hashes
+  crypto_tx_hash?: string // Hash da transação de débito
+  crypto_explorer_url?: string // URL do explorer
+  refund_tx_id?: string // Hash do reembolso
+  refund_explorer_url?: string // URL do explorer do reembolso
+  // Timeline
+  timeline?: BillPaymentTimelineStep[]
   status_message: string
 }
 
