@@ -196,8 +196,8 @@ app.include_router(notifications.router, prefix="/notifications", tags=["push-no
 app.include_router(webhooks_bb.router, prefix="", tags=["webhooks-bb"])  # Webhooks Banco do Brasil
 app.include_router(wolkpay.router, prefix="", tags=["wolkpay"])  # WolkPay - Pagamento por terceiros
 app.include_router(wolkpay_bill.router, prefix="", tags=["wolkpay-bill"])  # WolkPay Bill - Pagamento de boletos
+app.include_router(bill_payment_admin_router, prefix="", tags=["bill-payment-admin"])  # Bill Payment Admin - DEVE VIR ANTES de wolkpay_admin
 app.include_router(wolkpay_admin_router, prefix="", tags=["wolkpay-admin"])  # WolkPay Admin
-app.include_router(bill_payment_admin_router, prefix="", tags=["bill-payment-admin"])  # Bill Payment Admin
 app.include_router(kyc.router, prefix="", tags=["kyc"])  # KYC - Verificação de identidade
 app.include_router(ai.router, prefix="", tags=["ai-intelligence"])  # AI Portfolio Intelligence
 # KYC Admin já incluído via admin_router

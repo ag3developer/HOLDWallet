@@ -242,13 +242,13 @@ def payment_to_admin_response(payment: WolkPayBillPayment, db: Session) -> BillP
     is_overdue = days_until_due < 0
     
     return BillPaymentAdminResponse(
-        id=payment.id,
+        id=str(payment.id),
         payment_number=payment.payment_number,
         status=payment.status.value,
         status_display=get_status_display(payment.status),
         
         # Usuário
-        user_id=payment.user_id,
+        user_id=str(payment.user_id),
         user_name=user.username if user else None,
         user_email=user.email if user else None,
         user_phone=getattr(user, 'phone', None) if user else None,
@@ -295,7 +295,7 @@ def payment_to_admin_response(payment: WolkPayBillPayment, db: Session) -> BillP
         crypto_tx_hash=getattr(payment, 'crypto_tx_hash', None),
         
         # Pagamento
-        paid_by_operator_id=payment.paid_by_operator_id,
+        paid_by_operator_id=str(payment.paid_by_operator_id) if payment.paid_by_operator_id else None,
         paid_by_operator_name=operator.username if operator else None,
         payment_receipt_url=payment.payment_receipt_url,
         bank_authentication=payment.bank_authentication,
