@@ -25,6 +25,7 @@ import {
   ArrowRightLeft,
   Users,
   Loader2,
+  Receipt,
 } from 'lucide-react'
 import { apiClient } from '@/services/api'
 
@@ -42,6 +43,14 @@ interface LimitsSettings {
   transaction_limit_brl: number
   p2p_min_order_brl: number
   p2p_max_order_brl: number
+}
+
+interface BillPaymentSettings {
+  wolkpay_service_fee_percentage: number
+  wolkpay_network_fee_percentage: number
+  wolkpay_min_brl: number
+  wolkpay_max_brl: number
+  wolkpay_expiry_minutes: number
 }
 
 interface LocalSettings {
@@ -79,6 +88,17 @@ const updateFees = async (fees: Partial<FeesSettings>): Promise<void> => {
   await apiClient.put('/admin/settings/fees', fees)
 }
 
+// Fetch das configurações de Bill Payment
+const fetchBillPayment = async (): Promise<BillPaymentSettings> => {
+  const { data } = await apiClient.get('/admin/settings/bill-payment')
+  return data.data
+}
+
+// Atualizar configurações de Bill Payment
+const updateBillPayment = async (settings: Partial<BillPaymentSettings>): Promise<void> => {
+  await apiClient.put('/admin/settings/bill-payment', settings)
+}
+
 // Atualizar limites no backend
 const updateLimits = async (limits: Partial<LimitsSettings>): Promise<void> => {
   await apiClient.put('/admin/settings/limits', limits)
@@ -89,6 +109,7 @@ export const AdminSettingsPage: React.FC = () => {
   const [saved, setSaved] = useState(false)
   const [savingFees, setSavingFees] = useState(false)
   const [savingLimits, setSavingLimits] = useState(false)
+  const [savingBillPayment, setSavingBillPayment] = useState(false)
 
   // Local settings (não vão ao backend por enquanto)
   const [localSettings, setLocalSettings] = useState<LocalSettings>({
@@ -130,9 +151,23 @@ export const AdminSettingsPage: React.FC = () => {
     retry: 2,
   })
 
+  // Query para Bill Payment com cache
+  const {
+    data: billPayment,
+    isLoading: loadingBillPayment,
+    error: billPaymentError,
+  } = useQuery({
+    queryKey: ['admin-settings-bill-payment'],
+    queryFn: fetchBillPayment,
+    staleTime: 60000,
+    gcTime: 300000,
+    retry: 2,
+  })
+
   // Estado local para edição de taxas
   const [editedFees, setEditedFees] = useState<FeesSettings | null>(null)
   const [editedLimits, setEditedLimits] = useState<LimitsSettings | null>(null)
+  const [editedBillPayment, setEditedBillPayment] = useState<BillPaymentSettings | null>(null)
 
   // Atualiza estado local quando os dados do servidor chegam
   useEffect(() => {
@@ -146,6 +181,12 @@ export const AdminSettingsPage: React.FC = () => {
       setEditedLimits(limits)
     }
   }, [limits, editedLimits])
+
+  useEffect(() => {
+    if (billPayment && !editedBillPayment) {
+      setEditedBillPayment(billPayment)
+    }
+  }, [billPayment, editedBillPayment])
 
   // Mutations para salvar
   const feesMutation = useMutation({
@@ -161,6 +202,15 @@ export const AdminSettingsPage: React.FC = () => {
     mutationFn: updateLimits,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-settings-limits'] })
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    },
+  })
+
+  const billPaymentMutation = useMutation({
+    mutationFn: updateBillPayment,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-settings-bill-payment'] })
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     },
@@ -188,9 +238,24 @@ export const AdminSettingsPage: React.FC = () => {
     }
   }
 
+  // Handler para salvar Bill Payment
+  const handleSaveBillPayment = async () => {
+    if (!editedBillPayment) return
+    setSavingBillPayment(true)
+    try {
+      await billPaymentMutation.mutateAsync(editedBillPayment)
+    } finally {
+      setSavingBillPayment(false)
+    }
+  }
+
   // Handler para salvar tudo
   const handleSaveAll = async () => {
-    await Promise.all([editedFees && handleSaveFees(), editedLimits && handleSaveLimits()])
+    await Promise.all([
+      editedFees && handleSaveFees(),
+      editedLimits && handleSaveLimits(),
+      editedBillPayment && handleSaveBillPayment(),
+    ])
   }
 
   const updateFeeField = (field: keyof FeesSettings, value: number) => {
@@ -201,11 +266,15 @@ export const AdminSettingsPage: React.FC = () => {
     setEditedLimits(prev => (prev ? { ...prev, [field]: value } : null))
   }
 
+  const updateBillPaymentField = (field: keyof BillPaymentSettings, value: number) => {
+    setEditedBillPayment(prev => (prev ? { ...prev, [field]: value } : null))
+  }
+
   const updateLocalSetting = <K extends keyof LocalSettings>(key: K, value: LocalSettings[K]) => {
     setLocalSettings(prev => ({ ...prev, [key]: value }))
   }
 
-  const loading = loadingFees || loadingLimits
+  const loading = loadingFees || loadingLimits || loadingBillPayment
 
   if (loading) {
     return (
@@ -571,6 +640,170 @@ export const AdminSettingsPage: React.FC = () => {
                   className='w-full px-4 py-2 pl-10 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white'
                 />
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ========== BILL PAYMENT (PAGAMENTO DE BOLETOS) ========== */}
+        <div className='bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border-l-4 border-emerald-500'>
+          <div className='flex items-center justify-between mb-6'>
+            <h2 className='text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2'>
+              <Receipt className='w-5 h-5 text-emerald-600' />
+              Pagamento de Boletos (Bill Payment)
+            </h2>
+            <button
+              onClick={handleSaveBillPayment}
+              disabled={savingBillPayment}
+              className='px-3 py-1.5 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1'
+            >
+              {savingBillPayment ? (
+                <Loader2 className='w-3 h-3 animate-spin' />
+              ) : (
+                <Save className='w-3 h-3' />
+              )}
+              Salvar Bill Payment
+            </button>
+          </div>
+
+          {billPaymentError && (
+            <div className='mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg'>
+              <p className='text-sm text-red-600 dark:text-red-400'>
+                Erro ao carregar configurações de Bill Payment
+              </p>
+            </div>
+          )}
+
+          <div className='grid grid-cols-1 md:grid-cols-2 gap-5'>
+            {/* Taxa de Serviço */}
+            <div>
+              <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                Taxa de Serviço (%)
+              </label>
+              <p className='text-xs text-gray-500 mb-2'>Taxa cobrada sobre o valor do boleto</p>
+              <div className='relative'>
+                <input
+                  type='number'
+                  step='0.01'
+                  min='0'
+                  max='100'
+                  value={editedBillPayment?.wolkpay_service_fee_percentage || 0}
+                  onChange={e =>
+                    updateBillPaymentField('wolkpay_service_fee_percentage', Number(e.target.value))
+                  }
+                  className='w-full px-4 py-2 pr-10 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white'
+                />
+                <span className='absolute right-3 top-1/2 -translate-y-1/2 text-gray-500'>%</span>
+              </div>
+            </div>
+
+            {/* Taxa de Rede */}
+            <div>
+              <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                Taxa de Rede (%)
+              </label>
+              <p className='text-xs text-gray-500 mb-2'>Taxa de rede blockchain para transações</p>
+              <div className='relative'>
+                <input
+                  type='number'
+                  step='0.01'
+                  min='0'
+                  max='100'
+                  value={editedBillPayment?.wolkpay_network_fee_percentage || 0}
+                  onChange={e =>
+                    updateBillPaymentField('wolkpay_network_fee_percentage', Number(e.target.value))
+                  }
+                  className='w-full px-4 py-2 pr-10 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white'
+                />
+                <span className='absolute right-3 top-1/2 -translate-y-1/2 text-gray-500'>%</span>
+              </div>
+            </div>
+
+            {/* Valor Mínimo */}
+            <div>
+              <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                Valor Mínimo (BRL)
+              </label>
+              <p className='text-xs text-gray-500 mb-2'>Valor mínimo de boleto permitido</p>
+              <div className='relative'>
+                <span className='absolute left-3 top-1/2 -translate-y-1/2 text-gray-500'>R$</span>
+                <input
+                  type='number'
+                  step='10'
+                  min='0'
+                  value={editedBillPayment?.wolkpay_min_brl || 0}
+                  onChange={e => updateBillPaymentField('wolkpay_min_brl', Number(e.target.value))}
+                  className='w-full px-4 py-2 pl-10 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white'
+                />
+              </div>
+            </div>
+
+            {/* Valor Máximo */}
+            <div>
+              <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                Valor Máximo (BRL)
+              </label>
+              <p className='text-xs text-gray-500 mb-2'>Valor máximo de boleto permitido</p>
+              <div className='relative'>
+                <span className='absolute left-3 top-1/2 -translate-y-1/2 text-gray-500'>R$</span>
+                <input
+                  type='number'
+                  step='1000'
+                  min='0'
+                  value={editedBillPayment?.wolkpay_max_brl || 0}
+                  onChange={e => updateBillPaymentField('wolkpay_max_brl', Number(e.target.value))}
+                  className='w-full px-4 py-2 pl-10 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white'
+                />
+              </div>
+            </div>
+
+            {/* Expiração da Cotação */}
+            <div className='md:col-span-2'>
+              <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                Expiração da Cotação (minutos)
+              </label>
+              <p className='text-xs text-gray-500 mb-2'>
+                Tempo limite para o usuário confirmar a cotação antes de expirar
+              </p>
+              <div className='relative'>
+                <Clock className='absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 w-4 h-4' />
+                <input
+                  type='number'
+                  step='1'
+                  min='1'
+                  max='60'
+                  value={editedBillPayment?.wolkpay_expiry_minutes || 15}
+                  onChange={e =>
+                    updateBillPaymentField('wolkpay_expiry_minutes', Number(e.target.value))
+                  }
+                  className='w-full px-4 py-2 pl-10 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white'
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Preview das taxas totais */}
+          <div className='mt-6 p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg'>
+            <h4 className='text-sm font-medium text-emerald-800 dark:text-emerald-300 mb-2'>
+              Resumo das Taxas
+            </h4>
+            <div className='text-sm text-emerald-700 dark:text-emerald-400 space-y-1'>
+              <p>
+                Taxa Total:{' '}
+                <span className='font-semibold'>
+                  {(
+                    (editedBillPayment?.wolkpay_service_fee_percentage || 0) +
+                    (editedBillPayment?.wolkpay_network_fee_percentage || 0)
+                  ).toFixed(2)}
+                  %
+                </span>
+              </p>
+              <p>
+                Faixa de Valores:{' '}
+                <span className='font-semibold'>
+                  R$ {(editedBillPayment?.wolkpay_min_brl || 0).toLocaleString('pt-BR')} - R${' '}
+                  {(editedBillPayment?.wolkpay_max_brl || 0).toLocaleString('pt-BR')}
+                </span>
+              </p>
             </div>
           </div>
         </div>

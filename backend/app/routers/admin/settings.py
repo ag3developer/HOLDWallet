@@ -58,6 +58,15 @@ class PaymentMethodsRequest(BaseModel):
     payment_ted_enabled: Optional[bool] = None
 
 
+class BillPaymentSettingsRequest(BaseModel):
+    """Configurações do módulo Bill Payment (Pagamento de Boletos)"""
+    wolkpay_service_fee_percentage: Optional[float] = None
+    wolkpay_network_fee_percentage: Optional[float] = None
+    wolkpay_min_brl: Optional[float] = None
+    wolkpay_max_brl: Optional[float] = None
+    wolkpay_expiry_minutes: Optional[int] = None
+
+
 # === Endpoints de Taxas ===
 
 @router.get("/fees")
@@ -348,6 +357,98 @@ async def update_payment_methods_settings(
         
     except Exception as e:
         logger.error(f"❌ Erro atualizando métodos de pagamento: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+# === Endpoints de Bill Payment (Pagamento de Boletos) ===
+
+@router.get("/bill-payment")
+async def get_bill_payment_settings(
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin)
+):
+    """
+    Retorna configurações do módulo Bill Payment (Pagamento de Boletos)
+    """
+    try:
+        platform_settings_service.initialize_defaults(db)
+        
+        # Buscar configurações específicas de bill payment
+        settings = {
+            "wolkpay_service_fee_percentage": platform_settings_service.get(db, "wolkpay_service_fee_percentage", 3.65),
+            "wolkpay_network_fee_percentage": platform_settings_service.get(db, "wolkpay_network_fee_percentage", 0.15),
+            "wolkpay_min_brl": platform_settings_service.get(db, "wolkpay_min_brl", 100.0),
+            "wolkpay_max_brl": platform_settings_service.get(db, "wolkpay_max_brl", 15000.0),
+            "wolkpay_expiry_minutes": platform_settings_service.get(db, "wolkpay_expiry_minutes", 15),
+        }
+        
+        return {
+            "success": True,
+            "data": settings
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Erro buscando configurações de Bill Payment: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+@router.put("/bill-payment")
+async def update_bill_payment_settings(
+    request: BillPaymentSettingsRequest,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin)
+):
+    """
+    Atualiza configurações do módulo Bill Payment (Pagamento de Boletos)
+    """
+    try:
+        updates = {}
+        
+        if request.wolkpay_service_fee_percentage is not None:
+            updates["wolkpay_service_fee_percentage"] = request.wolkpay_service_fee_percentage
+        
+        if request.wolkpay_network_fee_percentage is not None:
+            updates["wolkpay_network_fee_percentage"] = request.wolkpay_network_fee_percentage
+        
+        if request.wolkpay_min_brl is not None:
+            updates["wolkpay_min_brl"] = request.wolkpay_min_brl
+        
+        if request.wolkpay_max_brl is not None:
+            updates["wolkpay_max_brl"] = request.wolkpay_max_brl
+        
+        if request.wolkpay_expiry_minutes is not None:
+            updates["wolkpay_expiry_minutes"] = request.wolkpay_expiry_minutes
+        
+        if updates:
+            platform_settings_service.set_multiple(
+                db, updates, admin_id=str(current_admin.id)
+            )
+            logger.info(f"⚙️ Admin {current_admin.email} atualizou Bill Payment: {updates}")
+        
+        # Retorna as configurações atualizadas
+        current_settings = {
+            "wolkpay_service_fee_percentage": platform_settings_service.get(db, "wolkpay_service_fee_percentage", 3.65),
+            "wolkpay_network_fee_percentage": platform_settings_service.get(db, "wolkpay_network_fee_percentage", 0.15),
+            "wolkpay_min_brl": platform_settings_service.get(db, "wolkpay_min_brl", 100.0),
+            "wolkpay_max_brl": platform_settings_service.get(db, "wolkpay_max_brl", 15000.0),
+            "wolkpay_expiry_minutes": platform_settings_service.get(db, "wolkpay_expiry_minutes", 15),
+        }
+        
+        return {
+            "success": True,
+            "message": "Configurações de Bill Payment atualizadas com sucesso",
+            "updated": updates,
+            "current": current_settings
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Erro atualizando configurações de Bill Payment: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
