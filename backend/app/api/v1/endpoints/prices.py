@@ -71,7 +71,7 @@ async def get_price(
 async def get_market_overview():
     """Get market overview with major cryptocurrencies."""
     try:
-        major_cryptos = ["btc", "eth", "matic", "bnb", "usdt", "usdc"]
+        major_cryptos = ["btc", "eth", "polygon", "bnb", "usdt", "usdc"]
         currencies = ["usd", "brl"]
         
         prices = await price_service.get_prices(major_cryptos, currencies)

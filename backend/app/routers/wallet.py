@@ -322,7 +322,7 @@ async def get_wallet_balances_by_network(
         # Get prices for conversion (with fallback)
         prices = {}
         try:
-            symbols = ["btc", "eth", "matic", "bnb", "trx", "sol", "ltc", "doge", "ada", "avax", "dot", "link", "shib", "xrp", "usdt", "usdc"]
+            symbols = ["btc", "eth", "polygon", "bnb", "trx", "sol", "ltc", "doge", "ada", "avax", "dot", "link", "shib", "xrp", "usdt", "usdc"]
             prices = await price_client.get_prices(symbols, ["usd", "brl"])
         except Exception as price_error:
             # If price fetch fails, we still return balances but with prices as 0
@@ -374,7 +374,7 @@ async def get_wallet_balances_by_network(
                     # Native token balance
                     network_str = crypto
                     network_to_symbol = {
-                        "polygon": "matic",
+                        "polygon": "polygon",  # Padronizado: usar "polygon" em vez de "matic"
                         "base": "eth",
                         "ethereum": "eth",
                         "bitcoin": "btc",

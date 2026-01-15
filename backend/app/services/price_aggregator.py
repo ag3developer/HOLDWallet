@@ -54,6 +54,7 @@ class CoinGeckoSource(PriceSource):
     SYMBOL_MAP = {
         'BTC': 'bitcoin', 'ETH': 'ethereum', 'MATIC': 'polygon-ecosystem-token',
         'POL': 'polygon-ecosystem-token',  # POL é o novo nome de MATIC
+        'POLYGON': 'polygon-ecosystem-token',  # Padronizado: aceitar POLYGON como símbolo
         'BNB': 'binancecoin', 'TRX': 'tron', 'BASE': 'base',
         'USDT': 'tether', 'SOL': 'solana', 'LTC': 'litecoin',
         'DOGE': 'dogecoin', 'ADA': 'cardano', 'AVAX': 'avalanche-2',
@@ -156,8 +157,9 @@ class BinanceSource(PriceSource):
     
     # Mapeamento de símbolos para pares Binance USD
     SYMBOL_MAP_USD = {
-        'BTC': 'BTCUSDT', 'ETH': 'ETHUSDT', 'MATIC': 'MATICUSDT',
-        'POL': 'MATICUSDT',  # POL usa o mesmo par que MATIC na Binance
+        'BTC': 'BTCUSDT', 'ETH': 'ETHUSDT', 'MATIC': 'POLUSDT',
+        'POL': 'POLUSDT',  # POL é o novo nome de MATIC - usar POLUSDT
+        'POLYGON': 'POLUSDT',  # Padronizado: aceitar POLYGON como símbolo
         'BNB': 'BNBUSDT', 'SOL': 'SOLUSDT', 'ADA': 'ADAUSDT',
         'AVAX': 'AVAXUSDT', 'DOT': 'DOTUSDT', 'LINK': 'LINKUSDT',
         'DOGE': 'DOGEUSDT', 'LTC': 'LTCUSDT', 'XRP': 'XRPUSDT',
@@ -170,7 +172,8 @@ class BinanceSource(PriceSource):
         'BTC': 'BTCBRL', 'ETH': 'ETHBRL', 'USDT': 'USDTBRL',
         'BNB': 'BNBBRL', 'SOL': 'SOLBRL', 'XRP': 'XRPBRL',
         'DOGE': 'DOGEBRL', 'ADA': 'ADABRL', 'DOT': 'DOTBRL',
-        'MATIC': 'MATICBRL', 'POL': 'MATICBRL',  # POL usa o mesmo par que MATIC
+        'MATIC': 'POLBRL', 'POL': 'POLBRL',  # POL é o novo nome - usar POLBRL
+        'POLYGON': 'POLBRL',  # Padronizado: aceitar POLYGON como símbolo
         'AVAX': 'AVAXBRL', 'LINK': 'LINKBRL',
         'LTC': 'LTCBRL', 'USDC': 'USDCBRL',
     }

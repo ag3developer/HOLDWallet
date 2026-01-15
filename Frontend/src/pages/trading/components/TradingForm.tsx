@@ -5,7 +5,6 @@ import { CryptoSelector } from './CryptoSelector'
 import { CurrencyCalculator } from './CurrencyCalculator'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { apiClient } from '@/services/api'
-import { toUSD, currencyManager } from '@/services/currency'
 import { parseApiError } from '@/services/errors'
 
 interface CryptoPrice {
@@ -137,9 +136,16 @@ export function TradingForm({
     if (networkLower.includes('usdt')) return 'USDT'
     if (networkLower.includes('usdc')) return 'USDC'
 
+    // IGNORAR chaves duplicadas que causam soma errada
+    // Backend pode retornar "polygon" E "matic" separados - usar apenas "polygon"
+    if (networkLower === 'matic' || networkLower === 'pol') {
+      console.log(`[TradingForm] IGNORANDO chave duplicada: ${networkLower} (usar apenas polygon)`)
+      return '' // Ignorar - já temos "polygon"
+    }
+
     // Mapping de redes nativas
     const networkMap: Record<string, string> = {
-      polygon: 'MATIC',
+      polygon: 'MATIC', // Usar apenas polygon → MATIC
       ethereum: 'ETH',
       eth: 'ETH',
       bitcoin: 'BTC',
@@ -266,94 +272,23 @@ export function TradingForm({
       setIsTyping(false) // Parou de digitar
       setLoading(true)
       try {
-        // Para VENDA: amount já é em crypto, não precisa conversão
-        // Para COMPRA: amount é em fiat (BRL/USD/EUR), pode precisar conversão
+        // Valor já está em USD (padrão do sistema)
         const amountValue = Number(amount)
-        let amountToSend = amountValue
-        let originalBrlAmount: number | undefined
-        let usdToBrlRate: number | undefined
 
-        // Só converter moeda para COMPRA (fiat → USD)
-        // Para VENDA, o valor já está em crypto (USDT, BTC, etc)
-        if (isBuy && currency !== 'USD') {
-          // Guardar o valor original em BRL para enviar junto com o trade
-          if (currency === 'BRL') {
-            originalBrlAmount = amountValue
-            usdToBrlRate = amountValue / toUSD(amountValue, 'BRL')
-          }
-          // Usar CurrencyManager para conversão real (BRL→USD ou EUR→USD)
-          amountToSend = toUSD(amountValue, currency as 'BRL' | 'EUR')
-          console.log(
-            `[TradingForm] Converting ${amountValue} ${currency} → ${amountToSend.toFixed(2)} USD (rate: ${usdToBrlRate?.toFixed(4)})`
-          )
-        } else if (!isBuy) {
-          // Para VENDA, o valor é em crypto - enviar diretamente
-          // Mas precisamos também obter a taxa USD→BRL para calcular o valor a receber
-          let brlRate = currencyManager.getRate('BRL')
-
-          // Se a taxa não está disponível no CurrencyManager, buscar da API
-          if (!brlRate || brlRate <= 1) {
-            try {
-              const rateResponse = await fetch(
-                'https://economia.awesomeapi.com.br/json/last/USD-BRL'
-              )
-              const rateData = await rateResponse.json()
-              brlRate = Number.parseFloat(rateData.USDBRL?.bid || '6')
-              console.log(`[TradingForm] USD/BRL rate from API: ${brlRate}`)
-            } catch (rateError) {
-              console.warn('[TradingForm] Failed to fetch USD/BRL rate, using fallback:', rateError)
-              brlRate = 6 // Fallback
-            }
-          }
-
-          if (brlRate > 1) {
-            usdToBrlRate = brlRate
-          }
-          console.log(
-            `[TradingForm] SELL: Sending ${amountValue} ${selectedSymbol} directly (usd_to_brl_rate: ${usdToBrlRate?.toFixed(4)})`
-          )
-        }
+        console.log(
+          `[TradingForm] ${isBuy ? 'BUY' : 'SELL'}: ${amountValue} ${isBuy ? 'USD' : selectedSymbol}`
+        )
 
         const response = await apiClient.post('/instant-trade/quote', {
           operation: isBuy ? 'buy' : 'sell',
           symbol: selectedSymbol,
-          [isBuy ? 'fiat_amount' : 'crypto_amount']: amountToSend,
+          [isBuy ? 'fiat_amount' : 'crypto_amount']: amountValue,
         })
 
-        // Enriquecer a quote com valores em BRL para TED/PIX
-        const enrichedQuote: Quote = {
-          ...response.data.quote,
-        }
+        // Usar quote direto do backend (já em USD)
+        const quote: Quote = response.data.quote
 
-        // Para COMPRA: Se o usuário digitou em BRL, adicionar esses valores à quote
-        if (isBuy && currency === 'BRL' && originalBrlAmount && usdToBrlRate) {
-          enrichedQuote.brl_amount = originalBrlAmount
-          // Calcular total em BRL (com spread e taxas)
-          const totalUSD = response.data.quote.total_amount
-          enrichedQuote.brl_total_amount = totalUSD * usdToBrlRate
-          enrichedQuote.usd_to_brl_rate = usdToBrlRate
-          console.log(
-            `[TradingForm] BUY BRL values: amount=${originalBrlAmount}, total=${enrichedQuote.brl_total_amount.toFixed(2)}, rate=${usdToBrlRate.toFixed(4)}`
-          )
-        }
-
-        // Para VENDA: Sempre calcular o valor em BRL que o usuário vai receber
-        if (!isBuy && usdToBrlRate) {
-          const totalUSD = response.data.quote.total_amount
-          const fiatAmountUSD = response.data.quote.fiat_amount
-
-          // brl_amount = valor base em BRL (sem taxas)
-          enrichedQuote.brl_amount = fiatAmountUSD * usdToBrlRate
-          // brl_total_amount = valor líquido que o usuário recebe (com taxas descontadas)
-          enrichedQuote.brl_total_amount = totalUSD * usdToBrlRate
-          enrichedQuote.usd_to_brl_rate = usdToBrlRate
-
-          console.log(
-            `[TradingForm] SELL BRL values: fiat_usd=${fiatAmountUSD.toFixed(2)}, total_usd=${totalUSD.toFixed(2)}, brl_amount=${enrichedQuote.brl_amount.toFixed(2)}, brl_total=${enrichedQuote.brl_total_amount.toFixed(2)}, rate=${usdToBrlRate.toFixed(4)}`
-          )
-        }
-
-        onQuoteReceived(enrichedQuote)
+        onQuoteReceived(quote)
         setLastQuoteTime(Date.now())
         setLastQuotedAmount(amount) // Salvar o valor que foi cotado
       } catch (error: any) {

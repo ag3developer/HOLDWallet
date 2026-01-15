@@ -342,7 +342,7 @@ async def get_wallet_balances_by_network(
     network_symbols = {
         "bitcoin": "btc",
         "ethereum": "eth",
-        "polygon": "matic",
+        "polygon": "polygon",  # Padronizado: usar "polygon" em vez de "matic"
         "bsc": "bnb",
         "tron": "trx",
         "base": "eth",

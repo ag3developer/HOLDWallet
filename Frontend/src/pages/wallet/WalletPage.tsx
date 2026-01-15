@@ -256,10 +256,9 @@ export const WalletPage = () => {
             ? Number.parseFloat(networkBalance.balance || '0')
             : 0
 
-          // Usar preço em tempo real em vez de balance_usd estático da API
+          // ✅ Usar APENAS preço em tempo real - sem fallback para balance_usd antigo
           const marketPriceData = marketPrices[symbol.toUpperCase()]
-          const priceUSD =
-            marketPriceData?.price || Number.parseFloat(networkBalance?.balance_usd || '0')
+          const priceUSD = marketPriceData?.price || 0 // Sem fallback - preço real ou 0
           const balanceUSD = nativeBalance * priceUSD
           // ⚠️ Backend agora retorna APENAS balance_usd, frontend converte para BRL conforme settings
 
