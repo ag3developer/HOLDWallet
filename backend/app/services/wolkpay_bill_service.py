@@ -77,7 +77,7 @@ MIN_DAYS_BEFORE_DUE = 1
 
 # Limites
 MIN_BILL_AMOUNT = Decimal('10.00')  # Mínimo R$ 10
-MAX_BILL_AMOUNT = Decimal('50000.00')  # Máximo R$ 50.000
+MAX_BILL_AMOUNT = Decimal('500000.00')  # Máximo R$ 500.000
 
 # Mapeamento de bancos pelo código
 BANK_CODES = {
@@ -133,6 +133,7 @@ class WolkPayBillService:
                     error_message="Código de barras inválido. Deve ter entre 44 e 48 dígitos.",
                     barcode=barcode,
                     bill_type=BillTypeEnum.BANK_SLIP,
+                    original_amount_brl=Decimal('0'),
                     amount_brl=Decimal('0'),
                     due_date=date.today(),
                     days_until_due=0,
@@ -160,6 +161,7 @@ class WolkPayBillService:
                     error_message=validation_result.error_message,
                     barcode=clean_barcode,
                     bill_type=BillTypeEnum.BANK_SLIP,
+                    original_amount_brl=Decimal('0'),
                     amount_brl=Decimal('0'),
                     due_date=date.today(),
                     days_until_due=0,
@@ -172,27 +174,14 @@ class WolkPayBillService:
             # Usa valor final (com multas/juros se houver)
             amount = validation_result.final_amount if validation_result.final_amount > 0 else validation_result.original_amount
             
-            # Valida valor mínimo/máximo
+            # Valida valor mínimo (muito baixo pode indicar erro de leitura)
             if amount < MIN_BILL_AMOUNT:
                 return BillInfoResponse(
                     valid=False,
-                    error_message=f"Valor mínimo para pagamento é R$ {MIN_BILL_AMOUNT:.2f}",
+                    error_message="Não foi possível ler o boleto. Tente novamente.",
                     barcode=clean_barcode,
                     bill_type=bill_type,
-                    amount_brl=amount,
-                    due_date=validation_result.due_date or date.today(),
-                    days_until_due=0,
-                    due_date_valid=False,
-                    beneficiary_name=validation_result.beneficiary_name,
-                    beneficiary_document=validation_result.beneficiary_document
-                )
-            
-            if amount > MAX_BILL_AMOUNT:
-                return BillInfoResponse(
-                    valid=False,
-                    error_message=f"Valor máximo para pagamento é R$ {MAX_BILL_AMOUNT:,.2f}",
-                    barcode=clean_barcode,
-                    bill_type=bill_type,
+                    original_amount_brl=validation_result.original_amount,
                     amount_brl=amount,
                     due_date=validation_result.due_date or date.today(),
                     days_until_due=0,

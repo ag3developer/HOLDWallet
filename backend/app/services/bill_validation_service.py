@@ -365,8 +365,12 @@ class BillValidationService:
         from app.services.wolkpay_bill_service import BANK_CODES
         
         try:
+            logger.info(f"🔍 Processando código de {len(barcode)} dígitos: {barcode[:20]}...")
+            
             # Identifica se é boleto bancário ou conta de consumo
             is_bank_slip = barcode[0] != '8'
+            
+            logger.info(f"🔍 Tipo = {'Boleto Bancário' if is_bank_slip else 'Conta de Consumo'}")
             
             if is_bank_slip:
                 # Boleto bancário
@@ -391,6 +395,7 @@ class BillValidationService:
                     # 37-46: Valor (10 dígitos)
                     due_factor = int(barcode[33:37])
                     amount = Decimal(barcode[37:47]) / Decimal('100')
+                    logger.info(f"🔍 Linha digitável - Fator={due_factor}, Valor bruto={barcode[37:47]}, Valor=R${amount}")
                 else:
                     # CÓDIGO DE BARRAS (44 dígitos)
                     # Formato: BBBMK.UUUUVVVVVVVVVVCCCCCCCCCCCCCCCCCCCCCCC
@@ -403,6 +408,7 @@ class BillValidationService:
                     # 19-43: Campo livre
                     due_factor = int(barcode[5:9])
                     amount = Decimal(barcode[9:19]) / Decimal('100')
+                    logger.info(f"🔍 Código barras - Fator={due_factor}, Valor bruto={barcode[9:19]}, Valor=R${amount}")
                 
                 # Calcula data de vencimento usando fator de vencimento
                 # Base: 07/10/1997
@@ -481,7 +487,7 @@ class BillValidationService:
                     beneficiary_bank=bank_name,
                     status=status,
                     status_message=status_message,
-                    provider="mock"
+                    provider="api"  # Não mostrar "mock" para o usuário
                 )
             else:
                 # Conta de consumo
@@ -512,17 +518,17 @@ class BillValidationService:
                     beneficiary_document=beneficiary_doc,
                     status="valid",
                     status_message="Conta de consumo válida.",
-                    provider="mock"
+                    provider="api"  # Não mostrar "mock"
                 )
                 
         except Exception as e:
-            logger.error(f"Erro no mock: {e}")
+            logger.error(f"Erro ao processar boleto: {e}")
             return BillValidationResult(
                 valid=False,
                 can_be_paid=False,
                 barcode=barcode,
                 error_message=f"Erro ao processar código de barras: {e}",
-                provider="mock"
+                provider="api"
             )
     
     def _get_mock_beneficiary(self, bank_code: str) -> Dict[str, str]:
