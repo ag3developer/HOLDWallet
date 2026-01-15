@@ -251,15 +251,12 @@ async def process_crypto_deposit_background(trade_id: str, db_url: str):
         trade_id: ID do trade a processar
         db_url: URL do banco para criar nova sessão
     """
-    from sqlalchemy import create_engine
-    from sqlalchemy.orm import sessionmaker
+    from app.core.db import SessionLocal
     
     logger.info(f"🔄 Iniciando depósito automático em background para trade {trade_id}")
     
     try:
-        # Cria nova sessão do banco (background task não tem acesso à sessão original)
-        engine = create_engine(db_url)
-        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+        # Usa o SessionLocal existente para evitar criar engines adicionais
         db = SessionLocal()
         
         try:
@@ -348,16 +345,13 @@ async def process_wolkpay_approval_background(invoice_id: str, db_url: str):
         invoice_id: ID da invoice WolkPay
         db_url: URL do banco para criar nova sessão
     """
-    from sqlalchemy import create_engine
-    from sqlalchemy.orm import sessionmaker
+    from app.core.db import SessionLocal
     
     logger.info(f"🔄 Iniciando aprovação automática WolkPay para invoice {invoice_id}")
     
     try:
-        # Cria nova sessão do banco
-        engine = create_engine(db_url)
-        session_local = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-        db = session_local()
+        # Usa o SessionLocal existente para evitar criar engines adicionais
+        db = SessionLocal()
         
         try:
             # Busca invoice

@@ -139,13 +139,12 @@ class BackupService:
         o backup também é criptografado adicionalmente.
         """
         try:
-            from sqlalchemy import create_engine, text
+            from app.core.db import engine
+            from sqlalchemy import text
             
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             backup_filename = f"holdwallet_keys_{timestamp}.json.gz.enc"
             backup_path = self.backup_dir / backup_filename
-            
-            engine = create_engine(self.db_url)
             
             with engine.connect() as conn:
                 # Buscar chaves do sistema (já criptografadas)

@@ -21,10 +21,10 @@ else:
         settings.DATABASE_URL,
         echo=settings.DEBUG,
         pool_pre_ping=True,      # Verify connection is alive before using
-        pool_recycle=300,        # Recycle connections after 5 minutes (avoid stale)
-        pool_timeout=30,         # Wait max 30 seconds for connection from pool
-        pool_size=3,             # Keep only 3 connections in pool (DO has ~22 max)
-        max_overflow=5,          # Allow up to 5 extra connections when busy
+        pool_recycle=180,        # Recycle connections after 3 minutes (avoid stale faster)
+        pool_timeout=20,         # Wait max 20 seconds for connection from pool
+        pool_size=5,             # Keep 5 connections in pool
+        max_overflow=10,         # Allow up to 10 extra connections when busy (total max 15)
         connect_args={
             "connect_timeout": 10,  # Connection timeout in seconds
             "options": "-c statement_timeout=30000"  # 30 second query timeout
