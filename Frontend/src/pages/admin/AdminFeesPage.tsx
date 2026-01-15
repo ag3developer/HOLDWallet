@@ -159,6 +159,7 @@ export default function AdminFeesPage() {
       otc_spread: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
       network_fee: 'bg-green-500/20 text-green-400 border-green-500/30',
       withdrawal_fee: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+      bill_payment_fee: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
     }
     return colors[type] || 'bg-gray-500/20 text-gray-400 border-gray-500/30'
   }
@@ -169,6 +170,7 @@ export default function AdminFeesPage() {
       otc_spread: 'OTC Spread',
       network_fee: 'Network Fee',
       withdrawal_fee: 'Withdrawal',
+      bill_payment_fee: 'Boleto Fee',
     }
     return labels[type] || type
   }
@@ -185,6 +187,7 @@ export default function AdminFeesPage() {
       spread: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
       network_fee: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
       platform_fee: 'bg-green-500/20 text-green-400 border-green-500/30',
+      bill_payment_fee: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
     }
     return colors[type] || 'bg-gray-500/20 text-gray-400 border-gray-500/30'
   }
@@ -194,6 +197,7 @@ export default function AdminFeesPage() {
       spread: 'Spread',
       network_fee: 'Taxa de Rede',
       platform_fee: 'Total Plataforma',
+      bill_payment_fee: 'Taxa Boleto',
     }
     return labels[type] || type
   }

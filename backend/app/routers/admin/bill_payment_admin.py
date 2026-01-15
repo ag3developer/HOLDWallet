@@ -23,10 +23,11 @@ Date: January 2026
 """
 
 import logging
+import uuid
 from datetime import datetime, timezone, date, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_, or_, desc
+from sqlalchemy import func, and_, or_, desc, text
 from typing import Optional, List
 from decimal import Decimal
 from pydantic import BaseModel, Field
@@ -336,6 +337,74 @@ def log_admin_action(
     )
     db.add(log)
     db.commit()
+
+
+def register_bill_payment_fee(
+    db: Session,
+    payment: WolkPayBillPayment,
+    admin_id: str
+) -> Optional[str]:
+    """
+    Registra as taxas do pagamento de boleto no accounting_entries.
+    Chamado quando um boleto é marcado como PAGO.
+    
+    Registra:
+    - service_fee_brl: Taxa de serviço (aparece em /admin/fees)
+    - network_fee_brl: Taxa de rede (aparece em /admin/fees)
+    
+    Returns:
+        ID do registro criado ou None em caso de erro
+    """
+    try:
+        # Calcular taxa total
+        total_fee = float(payment.service_fee_brl) + float(payment.network_fee_brl)
+        
+        if total_fee <= 0:
+            logger.warning(f"⚠️ Pagamento {payment.payment_number} não tem taxas para registrar")
+            return None
+        
+        entry_id = str(uuid.uuid4())
+        
+        # Inserir no accounting_entries
+        query = text("""
+            INSERT INTO accounting_entries (
+                id, trade_id, reference_code, entry_type, amount, currency,
+                percentage, base_amount, description, status, user_id, created_by, created_at
+            ) VALUES (
+                :id, :trade_id, :reference_code, :entry_type, :amount, :currency,
+                :percentage, :base_amount, :description, :status, :user_id, :created_by, NOW()
+            )
+        """)
+        
+        # Taxa de serviço
+        service_fee_percent = float(payment.service_fee_percent) if payment.service_fee_percent else 0
+        total_fee_percent = service_fee_percent + (float(payment.network_fee_percent) if payment.network_fee_percent else 0)
+        
+        db.execute(query, {
+            "id": entry_id,
+            "trade_id": str(payment.id),
+            "reference_code": payment.payment_number,
+            "entry_type": "bill_payment_fee",
+            "amount": total_fee,
+            "currency": "BRL",
+            "percentage": total_fee_percent,
+            "base_amount": float(payment.bill_amount_brl),
+            "description": f"Taxa de Pagamento de Boleto #{payment.payment_number} - R$ {float(payment.bill_amount_brl):,.2f}",
+            "status": "confirmed",
+            "user_id": str(payment.user_id),
+            "created_by": admin_id
+        })
+        
+        db.commit()
+        
+        logger.info(f"💰 Fee registrada: R$ {total_fee:.2f} para boleto {payment.payment_number}")
+        
+        return entry_id
+        
+    except Exception as e:
+        logger.error(f"❌ Erro ao registrar fee do boleto: {e}")
+        db.rollback()
+        return None
 
 
 # ==========================================
@@ -748,6 +817,16 @@ async def mark_as_paid(
                 "notes": request.notes
             }
         )
+        
+        # Registrar taxas no accounting_entries (aparece em /admin/fees)
+        fee_entry_id = register_bill_payment_fee(
+            db=db,
+            payment=payment,
+            admin_id=str(current_user.id)
+        )
+        
+        if fee_entry_id:
+            logger.info(f"✅ Fee registrada com ID: {fee_entry_id}")
         
         return {
             "success": True,
