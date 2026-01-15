@@ -456,8 +456,12 @@ class WolkPayBillService:
             total_usd = total_brl / brl_usd_rate
             crypto_amount = (total_usd / crypto_usd_rate).quantize(Decimal('0.00000001'), rounding=ROUND_UP)
             
-            # Verifica saldo do usuário
-            user_balance = await self._get_user_crypto_balance(user_id, request.crypto_currency)
+            # Verifica saldo do usuário (passa a rede selecionada)
+            user_balance = await self._get_user_crypto_balance(
+                user_id, 
+                request.crypto_currency,
+                request.crypto_network
+            )
             has_sufficient_balance = user_balance >= crypto_amount
             
             # Gera ID da cotação
@@ -594,10 +598,11 @@ class WolkPayBillService:
             if days_overdue > 60:
                 raise ValueError("Boleto vencido há mais de 60 dias. Consulte o emissor para nova via.")
             
-            # Verifica saldo do usuário
+            # Verifica saldo do usuário (passa a rede selecionada)
             user_balance = await self._get_user_crypto_balance(
                 user_id, 
-                bill_payment.crypto_currency
+                bill_payment.crypto_currency,
+                bill_payment.crypto_network
             )
             
             if user_balance < bill_payment.crypto_amount:
@@ -611,7 +616,8 @@ class WolkPayBillService:
                 user_id=user_id,
                 crypto_currency=bill_payment.crypto_currency,
                 amount=bill_payment.crypto_amount,
-                description=f"Pagamento de boleto {bill_payment.payment_number}"
+                description=f"Pagamento de boleto {bill_payment.payment_number}",
+                crypto_network=bill_payment.crypto_network
             )
             
             # Atualiza status
@@ -894,21 +900,175 @@ class WolkPayBillService:
         logger.info(f"💱 Cotações: {symbol_upper}={crypto_usd_rate} USD, USD/BRL={brl_usd_rate}")
         return crypto_usd_rate, brl_usd_rate
     
-    async def _get_user_crypto_balance(self, user_id: str, crypto_currency: str) -> Decimal:
+    def _build_balance_key(self, crypto_currency: str, crypto_network: Optional[str] = None) -> str:
         """
-        Obtém saldo de crypto do usuário usando WalletBalanceService
+        Constrói a chave de saldo baseada no token e rede.
+        
+        O banco armazena em lowercase: polygon_usdt, bsc_usdt, etc.
+        
+        Exemplos:
+        - USDT + polygon -> polygon_usdt
+        - USDT + bsc -> bsc_usdt  
+        - USDT + None -> USDT (tenta genérico uppercase)
+        - BTC + None -> BTC
+        """
+        crypto_lower = crypto_currency.lower()
+        
+        if crypto_network:
+            network_lower = crypto_network.lower()
+            # Padroniza nomes de rede
+            network_map = {
+                'polygon': 'polygon',
+                'matic': 'polygon',
+                'bsc': 'bsc',
+                'bnb': 'bsc',
+                'binance': 'bsc',
+                'ethereum': 'ethereum',
+                'eth': 'ethereum',
+                'base': 'base',
+                'tron': 'tron',
+                'trx': 'tron',
+            }
+            normalized_network = network_map.get(network_lower, network_lower)
+            # Formato: polygon_usdt
+            return f"{normalized_network}_{crypto_lower}"
+        
+        # Sem rede, retorna em uppercase (formato genérico)
+        return crypto_currency.upper()
+    
+    async def _sync_blockchain_balance(
+        self,
+        user_id: str,
+        crypto_currency: str,
+        crypto_network: str
+    ) -> Optional[Decimal]:
+        """
+        Sincroniza saldo da blockchain para a tabela wallet_balances.
+        
+        Consulta a blockchain e atualiza o saldo interno se necessário.
+        Usado como fallback quando o saldo interno é zero mas pode haver
+        saldo na blockchain.
+        
+        Returns:
+            Novo saldo disponível após sincronização, ou None se falhou
         """
         try:
+            from app.services.blockchain_balance_service import blockchain_balance_service
+            from app.models.address import Address
+            from app.models.wallet import Wallet
+            
+            # Busca o endereço do usuário para a rede
+            address = self.db.query(Address).join(
+                Wallet, Address.wallet_id == Wallet.id
+            ).filter(
+                Wallet.user_id == user_id,
+                Wallet.is_active == True
+            ).first()
+            
+            if not address:
+                logger.warning(f"⚠️ Nenhum endereço encontrado para usuário {user_id}")
+                return None
+            
+            # Consulta saldo na blockchain
+            network_lower = crypto_network.lower()
+            token_lower = crypto_currency.lower()
+            
+            logger.info(f"🔍 Consultando blockchain: {network_lower} {token_lower} para {address.address[:10]}...")
+            
+            # Se for USDT/USDC, consulta saldo de token
+            if token_lower in ['usdt', 'usdc']:
+                result = await blockchain_balance_service.get_token_balance(
+                    network=network_lower,
+                    address=address.address,
+                    token=token_lower
+                )
+            else:
+                # Token nativo
+                result = await blockchain_balance_service.get_native_balance(
+                    network=network_lower,
+                    address=address.address
+                )
+            
+            if result and result.get('success') and result.get('balance', 0) > 0:
+                blockchain_balance = Decimal(str(result['balance']))
+                logger.info(f"📡 Saldo blockchain {network_lower}_{token_lower}: {blockchain_balance}")
+                
+                # Atualiza a tabela wallet_balances
+                balance_key = self._build_balance_key(crypto_currency, crypto_network)
+                
+                # Deposita o saldo (cria ou atualiza)
+                WalletBalanceService.deposit_balance(
+                    db=self.db,
+                    user_id=user_id,
+                    cryptocurrency=balance_key,
+                    amount=float(blockchain_balance),
+                    reason=f"Sync from blockchain ({network_lower})"
+                )
+                
+                logger.info(f"✅ Saldo sincronizado: {balance_key} = {blockchain_balance}")
+                return blockchain_balance
+            else:
+                logger.info(f"ℹ️ Saldo blockchain = 0 ou erro na consulta")
+                return None
+                
+        except Exception as e:
+            logger.error(f"❌ Erro sincronizando saldo blockchain: {e}")
+            return None
+    
+    async def _get_user_crypto_balance(
+        self, 
+        user_id: str, 
+        crypto_currency: str, 
+        crypto_network: Optional[str] = None
+    ) -> Decimal:
+        """
+        Obtém saldo de crypto do usuário usando WalletBalanceService.
+        
+        Busca pela chave composta REDE_TOKEN (ex: polygon_usdt) se rede informada.
+        Se o saldo interno for zero, tenta sincronizar com a blockchain.
+        Se não encontrar na rede específica, tenta o token genérico (ex: USDT).
+        """
+        try:
+            # Primeiro tenta com a rede específica
+            if crypto_network:
+                balance_key = self._build_balance_key(crypto_currency, crypto_network)
+                balance_data = WalletBalanceService.get_balance(
+                    db=self.db,
+                    user_id=user_id,
+                    cryptocurrency=balance_key
+                )
+                
+                if balance_data:
+                    available = Decimal(str(balance_data.get('available_balance', 0)))
+                    if available > 0:
+                        logger.info(f"💰 Saldo {balance_key} do usuário {user_id}: {available}")
+                        return available
+                
+                # Saldo interno é zero - tenta sincronizar com blockchain
+                logger.info(f"⚡ Saldo interno {balance_key} = 0, tentando sincronizar com blockchain...")
+                synced_balance = await self._sync_blockchain_balance(
+                    user_id=user_id,
+                    crypto_currency=crypto_currency,
+                    crypto_network=crypto_network
+                )
+                
+                if synced_balance and synced_balance > 0:
+                    logger.info(f"✅ Sincronizado: {balance_key} = {synced_balance}")
+                    return synced_balance
+            
+            # Fallback: tenta o token genérico (sem prefixo de rede)
+            crypto_upper = crypto_currency.upper()
             balance_data = WalletBalanceService.get_balance(
                 db=self.db,
                 user_id=user_id,
-                cryptocurrency=crypto_currency.upper()
+                cryptocurrency=crypto_upper
             )
             
             if balance_data:
                 available = Decimal(str(balance_data.get('available_balance', 0)))
-                logger.info(f"💰 Saldo {crypto_currency} do usuário {user_id}: {available}")
-                return available
+                if available > 0:
+                    logger.info(f"💰 Saldo {crypto_upper} (genérico) do usuário {user_id}: {available}")
+                    return available
             
             return Decimal('0')
         except Exception as e:
@@ -920,82 +1080,79 @@ class WolkPayBillService:
         user_id: str,
         crypto_currency: str,
         amount: Decimal,
-        description: str
+        description: str,
+        crypto_network: Optional[str] = None
     ) -> str:
         """
-        Debita crypto da carteira do usuário e TRANSFERE para carteira do sistema
+        Debita crypto da carteira do usuário para pagamento de boleto.
         
-        Fluxo:
-        1. Congela (freeze) o valor na carteira do usuário
-        2. Transfere IMEDIATAMENTE para carteira do sistema (SYSTEM_BLOCKCHAIN_WALLET_ID)
+        Debita da rede específica selecionada pelo usuário.
+        Se não encontrar na rede específica, tenta o token genérico.
         
-        A crypto sai da carteira do usuário no momento da confirmação!
+        Args:
+            user_id: ID do usuário
+            crypto_currency: Token (USDT, USDC, BTC, etc)
+            amount: Quantidade a debitar
+            description: Descrição do pagamento
+            crypto_network: Rede selecionada (polygon, bsc, ethereum, etc)
         
         Returns:
             ID da transação interna
         """
-        from app.core.config import settings
-        
         tx_id = f"billpay_debit_{uuid.uuid4().hex[:16]}"
-        system_wallet_id = settings.SYSTEM_BLOCKCHAIN_WALLET_ID
         
         try:
-            # 1. Congela o valor na carteira do usuário
-            logger.info(f"🔒 Congelando {amount} {crypto_currency} do usuário {user_id}...")
+            logger.info(f"💸 Debitando {amount} {crypto_currency} (rede: {crypto_network}) do usuário {user_id}...")
             
-            freeze_result = WalletBalanceService.freeze_balance(
-                db=self.db,
-                user_id=user_id,
-                cryptocurrency=crypto_currency.upper(),
-                amount=float(amount),
-                reason=f"Bill Payment: {description}",
-                reference_id=tx_id
-            )
+            # Constrói a chave de saldo (ex: POLYGON_USDT)
+            balance_key = self._build_balance_key(crypto_currency, crypto_network)
             
-            logger.info(
-                f"✅ Crypto congelada: {amount} {crypto_currency}. "
-                f"Saldo disponível: {freeze_result.get('available_balance', 0)}"
-            )
-            
-            # 2. Transfere IMEDIATAMENTE para carteira do sistema
-            logger.info(f"💸 Transferindo {amount} {crypto_currency} para carteira do sistema...")
-            
-            transfer_result = WalletBalanceService.transfer_balance(
-                db=self.db,
-                from_user_id=user_id,
-                to_user_id=system_wallet_id,
-                cryptocurrency=crypto_currency.upper(),
-                amount=float(amount),
-                reason=f"Bill Payment Transfer: {description}",
-                reference_id=tx_id
-            )
-            
-            logger.info(
-                f"✅ Crypto transferida para sistema: {amount} {crypto_currency}. "
-                f"TX: {tx_id}. Sistema recebeu: {transfer_result.get('available_balance', amount)}"
-            )
-            
-            return tx_id
+            # Tenta debitar da rede específica
+            try:
+                debit_result = WalletBalanceService.debit_available_balance(
+                    db=self.db,
+                    user_id=user_id,
+                    cryptocurrency=balance_key,
+                    amount=float(amount),
+                    reason=f"Bill Payment: {description}",
+                    reference_id=tx_id
+                )
+                
+                logger.info(
+                    f"✅ Crypto debitada: {amount} {balance_key}. "
+                    f"TX: {tx_id}. Novo saldo: {debit_result.get('available_balance', 0)}"
+                )
+                return tx_id
+                
+            except ValueError:
+                # Se não encontrou na rede específica, tenta o token genérico
+                if crypto_network:
+                    crypto_upper = crypto_currency.upper()
+                    logger.info(f"   ⚠️ Saldo não encontrado em {balance_key}, tentando {crypto_upper}...")
+                    
+                    debit_result = WalletBalanceService.debit_available_balance(
+                        db=self.db,
+                        user_id=user_id,
+                        cryptocurrency=crypto_upper,
+                        amount=float(amount),
+                        reason=f"Bill Payment: {description}",
+                        reference_id=tx_id
+                    )
+                    
+                    logger.info(
+                        f"✅ Crypto debitada: {amount} {crypto_upper}. "
+                        f"TX: {tx_id}. Novo saldo: {debit_result.get('available_balance', 0)}"
+                    )
+                    return tx_id
+                raise
             
         except ValueError as e:
             logger.error(f"❌ Falha ao debitar crypto: {e}")
-            # Se falhou no transfer, tenta descongelar
-            try:
-                WalletBalanceService.unfreeze_balance(
-                    db=self.db,
-                    user_id=user_id,
-                    cryptocurrency=crypto_currency.upper(),
-                    amount=float(amount),
-                    reason=f"Rollback: {str(e)}",
-                    reference_id=f"{tx_id}_rollback"
-                )
-            except Exception:
-                pass  # Se não conseguir descongelar, log já foi feito
             raise
         except Exception as e:
             logger.error(f"❌ Erro inesperado ao debitar crypto: {e}")
             raise ValueError(f"Erro ao processar débito: {str(e)}")
-    
+
     async def _credit_user_crypto(
         self,
         user_id: str,
@@ -1006,36 +1163,20 @@ class WolkPayBillService:
         """
         Credita crypto na carteira do usuário (reembolso)
         
-        Transfere da carteira do sistema de volta para o usuário
+        Adiciona saldo diretamente na carteira do usuário.
+        Usado para reembolsos de pagamentos de boleto.
         
         Returns:
             ID da transação interna
         """
-        from app.core.config import settings
-        
         tx_id = f"billpay_refund_{uuid.uuid4().hex[:16]}"
-        system_wallet_id = settings.SYSTEM_BLOCKCHAIN_WALLET_ID
         
         try:
-            # 1. Primeiro congela na carteira do sistema (para poder transferir)
-            logger.info(f"🔒 Preparando reembolso de {amount} {crypto_currency} para usuário {user_id}...")
+            logger.info(f"� Creditando reembolso de {amount} {crypto_currency} ao usuário {user_id}...")
             
-            WalletBalanceService.freeze_balance(
+            result = WalletBalanceService.credit_balance(
                 db=self.db,
-                user_id=system_wallet_id,
-                cryptocurrency=crypto_currency.upper(),
-                amount=float(amount),
-                reason=f"Bill Payment Refund Preparation: {description}",
-                reference_id=f"{tx_id}_prep"
-            )
-            
-            # 2. Transfere do sistema para o usuário
-            logger.info(f"💸 Transferindo {amount} {crypto_currency} de volta para usuário {user_id}...")
-            
-            result = WalletBalanceService.transfer_balance(
-                db=self.db,
-                from_user_id=system_wallet_id,
-                to_user_id=user_id,
+                user_id=user_id,
                 cryptocurrency=crypto_currency.upper(),
                 amount=float(amount),
                 reason=f"Bill Payment Refund: {description}",

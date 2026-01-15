@@ -48,11 +48,11 @@ import billPaymentService, {
   BillInfo,
   BillPaymentQuote,
   BillPayment,
-  BILL_PAYMENT_CONFIG,
   STATUS_CONFIG,
   BILL_TYPE_CONFIG,
 } from '@/services/billPayment'
-import { usePrices } from '@/hooks/usePrices'
+import { useWalletBalances } from '@/hooks/useWalletBalances'
+import { useWallets } from '@/hooks/useWallet'
 import { BarcodeScanner } from '@/components/scanner'
 
 // Logos das cryptos - usando CoinGecko
@@ -68,15 +68,50 @@ const CRYPTO_LOGOS: Record<string, string> = {
 }
 
 // Cryptos suportadas para pagamento
+// Usamos Polygon como rede principal - taxas de gas muito baixas!
 const SUPPORTED_CRYPTOS = [
-  { symbol: 'USDT', name: 'Tether USD', network: 'TRC20', category: 'Stablecoin' },
-  { symbol: 'USDC', name: 'USD Coin', network: 'ERC20', category: 'Stablecoin' },
-  { symbol: 'BTC', name: 'Bitcoin', network: 'bitcoin', category: 'Native' },
-  { symbol: 'ETH', name: 'Ethereum', network: 'ethereum', category: 'Native' },
-  { symbol: 'BNB', name: 'BNB Chain', network: 'bsc', category: 'Native' },
-  { symbol: 'TRX', name: 'TRON', network: 'tron', category: 'Native' },
-  { symbol: 'SOL', name: 'Solana', network: 'solana', category: 'Native' },
-  { symbol: 'MATIC', name: 'Polygon', network: 'polygon', category: 'Native' },
+  {
+    symbol: 'USDT',
+    name: 'Tether USD',
+    network: 'polygon',
+    networkDisplay: 'Polygon',
+    category: 'Stablecoin',
+  },
+  {
+    symbol: 'USDC',
+    name: 'USD Coin',
+    network: 'polygon',
+    networkDisplay: 'Polygon',
+    category: 'Stablecoin',
+  },
+  {
+    symbol: 'MATIC',
+    name: 'Polygon',
+    network: 'polygon',
+    networkDisplay: 'Polygon',
+    category: 'Native',
+  },
+  {
+    symbol: 'BTC',
+    name: 'Bitcoin',
+    network: 'bitcoin',
+    networkDisplay: 'Bitcoin',
+    category: 'Native',
+  },
+  {
+    symbol: 'ETH',
+    name: 'Ethereum',
+    network: 'ethereum',
+    networkDisplay: 'Ethereum',
+    category: 'Native',
+  },
+  {
+    symbol: 'SOL',
+    name: 'Solana',
+    network: 'solana',
+    networkDisplay: 'Solana',
+    category: 'Native',
+  },
 ]
 
 const formatCurrency = (amount: number, currency = 'BRL') => {
@@ -106,6 +141,14 @@ type Step = 'input' | 'validating' | 'select_crypto' | 'quote' | 'confirming' | 
 export function BillPaymentPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+
+  // Buscar carteiras do usuário
+  const { data: wallets } = useWallets()
+  const firstWalletId = wallets?.[0]?.id
+
+  // Buscar saldos usando o hook simplificado
+  // useWalletBalances retorna { [symbol: string]: number }
+  const { balances: cryptoBalances } = useWalletBalances(firstWalletId)
 
   // Estados
   const [step, setStep] = useState<Step>('input')
@@ -639,7 +682,11 @@ export function BillPaymentPage() {
                           {selectedCrypto.symbol}
                         </p>
                         <p className='text-xs text-gray-500 dark:text-gray-400'>
-                          {selectedCrypto.name}
+                          Saldo:{' '}
+                          {formatCrypto(
+                            cryptoBalances[selectedCrypto.symbol] || 0,
+                            selectedCrypto.symbol
+                          )}
                         </p>
                       </div>
                     </div>
@@ -653,35 +700,45 @@ export function BillPaymentPage() {
 
                 {showCryptoDropdown && (
                   <div className='absolute z-20 w-full mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl max-h-64 overflow-y-auto'>
-                    {SUPPORTED_CRYPTOS.map(crypto => (
-                      <button
-                        key={crypto.symbol}
-                        onClick={() => {
-                          setSelectedCrypto(crypto)
-                          setShowCryptoDropdown(false)
-                        }}
-                        className='w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors'
-                      >
-                        <img
-                          src={CRYPTO_LOGOS[crypto.symbol]}
-                          alt={crypto.symbol}
-                          className='w-8 h-8 rounded-full'
-                        />
-                        <div className='text-left flex-1'>
-                          <p className='font-medium text-gray-900 dark:text-white'>
-                            {crypto.symbol}
-                          </p>
-                          <p className='text-xs text-gray-500 dark:text-gray-400'>
-                            {crypto.name} • {crypto.network}
-                          </p>
-                        </div>
-                        {crypto.category === 'Stablecoin' && (
-                          <span className='px-2 py-0.5 bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-400 text-xs rounded-full'>
-                            Estável
-                          </span>
-                        )}
-                      </button>
-                    ))}
+                    {SUPPORTED_CRYPTOS.map(crypto => {
+                      const balance = cryptoBalances[crypto.symbol] || 0
+                      const hasBalance = balance > 0
+
+                      return (
+                        <button
+                          key={crypto.symbol}
+                          onClick={() => {
+                            setSelectedCrypto(crypto)
+                            setShowCryptoDropdown(false)
+                          }}
+                          className={`w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${!hasBalance ? 'opacity-50' : ''}`}
+                        >
+                          <img
+                            src={CRYPTO_LOGOS[crypto.symbol]}
+                            alt={crypto.symbol}
+                            className='w-8 h-8 rounded-full'
+                          />
+                          <div className='text-left flex-1'>
+                            <p className='font-medium text-gray-900 dark:text-white'>
+                              {crypto.symbol}
+                            </p>
+                            <p className='text-xs text-gray-500 dark:text-gray-400'>
+                              {crypto.name} • {crypto.networkDisplay}
+                            </p>
+                            <p
+                              className={`text-xs font-medium ${hasBalance ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}
+                            >
+                              Saldo: {formatCrypto(balance, crypto.symbol)}
+                            </p>
+                          </div>
+                          {crypto.category === 'Stablecoin' && (
+                            <span className='px-2 py-0.5 bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-400 text-xs rounded-full'>
+                              Estável
+                            </span>
+                          )}
+                        </button>
+                      )
+                    })}
                   </div>
                 )}
               </div>

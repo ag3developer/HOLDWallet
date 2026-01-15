@@ -29,6 +29,8 @@ class WalletBalanceService:
         """
         Get user's balance for a specific cryptocurrency.
         
+        Case-insensitive search - works with both 'polygon_usdt' and 'POLYGON_USDT'.
+        
         Returns:
             {
                 'available_balance': float,
@@ -37,9 +39,11 @@ class WalletBalanceService:
                 'cryptocurrency': str
             }
         """
+        from sqlalchemy import func
+        
         balance = db.query(WalletBalance).filter(
             WalletBalance.user_id == str(user_id),
-            WalletBalance.cryptocurrency == cryptocurrency.upper()
+            func.lower(WalletBalance.cryptocurrency) == cryptocurrency.lower()
         ).first()
         
         if not balance:
@@ -397,6 +401,215 @@ class WalletBalanceService:
         history = query.order_by(BalanceHistory.created_at.desc()).limit(limit).offset(offset).all()
         
         return [h.to_dict() for h in history]
+    
+    @staticmethod
+    def debit_locked_balance(
+        db: Session,
+        user_id: Union[str, object],
+        cryptocurrency: str,
+        amount: float,
+        reason: str = "Bill Payment",
+        reference_id: Optional[str] = None
+    ) -> Dict:
+        """
+        Debit (remove) a portion of user's locked balance.
+        Used for bill payments where crypto goes to the system.
+        
+        This is a "burn" operation - the crypto is removed from the user's
+        balance and recorded as a debit (payment) to the system.
+        
+        Raises:
+            ValueError: If insufficient locked balance
+        """
+        user_id = str(user_id)
+        cryptocurrency = cryptocurrency.upper()
+        
+        # Get balance
+        balance = db.query(WalletBalance).filter(
+            WalletBalance.user_id == user_id,
+            WalletBalance.cryptocurrency == cryptocurrency
+        ).first()
+        
+        if not balance:
+            raise ValueError(f"No balance found for {user_id} in {cryptocurrency}")
+        
+        # Check if enough locked balance
+        if balance.locked_balance < amount:
+            raise ValueError(
+                f"Insufficient locked balance. Locked: {balance.locked_balance}, "
+                f"Requested: {amount} {cryptocurrency}"
+            )
+        
+        # Record old state
+        old_available = balance.available_balance
+        old_locked = balance.locked_balance
+        
+        # Debit from locked balance (removes from total too)
+        balance.locked_balance -= amount
+        balance.total_balance -= amount  # Also reduce total since crypto is leaving the wallet
+        balance.last_updated_reason = f"Debited: {reason}"
+        balance.updated_at = datetime.now(timezone.utc)
+        
+        # Record history
+        WalletBalanceService._record_history(
+            db,
+            user_id,
+            cryptocurrency,
+            "debit",
+            amount,
+            old_available,
+            balance.available_balance,
+            old_locked,
+            balance.locked_balance,
+            reference_id,
+            reason
+        )
+        
+        db.add(balance)
+        db.commit()
+        db.refresh(balance)
+        
+        return balance.to_dict()
+    
+    @staticmethod
+    def debit_available_balance(
+        db: Session,
+        user_id: Union[str, object],
+        cryptocurrency: str,
+        amount: float,
+        reason: str = "Bill Payment",
+        reference_id: Optional[str] = None
+    ) -> Dict:
+        """
+        Debit (remove) directly from user's AVAILABLE balance.
+        Used for bill payments - simpler than freeze + debit.
+        
+        This debits directly from available_balance without needing to
+        freeze first. Similar to how Instant Trade works.
+        
+        Case-insensitive search - works with both 'polygon_usdt' and 'POLYGON_USDT'.
+        
+        Raises:
+            ValueError: If insufficient available balance
+        """
+        from sqlalchemy import func
+        
+        user_id = str(user_id)
+        
+        # Get balance (case-insensitive)
+        balance = db.query(WalletBalance).filter(
+            WalletBalance.user_id == user_id,
+            func.lower(WalletBalance.cryptocurrency) == cryptocurrency.lower()
+        ).first()
+        
+        if not balance:
+            raise ValueError(f"No balance found for {user_id} in {cryptocurrency}")
+        
+        # Check if enough available balance
+        if balance.available_balance < amount:
+            raise ValueError(
+                f"Insufficient available balance. Available: {balance.available_balance}, "
+                f"Requested: {amount} {cryptocurrency}"
+            )
+        
+        # Record old state
+        old_available = balance.available_balance
+        old_locked = balance.locked_balance
+        
+        # Debit from available balance (removes from total too)
+        balance.available_balance -= amount
+        balance.total_balance -= amount
+        balance.last_updated_reason = f"Debited: {reason}"
+        balance.updated_at = datetime.now(timezone.utc)
+        
+        # Record history
+        WalletBalanceService._record_history(
+            db,
+            user_id,
+            cryptocurrency,
+            "debit",
+            amount,
+            old_available,
+            balance.available_balance,
+            old_locked,
+            balance.locked_balance,
+            reference_id,
+            reason
+        )
+        
+        db.add(balance)
+        db.commit()
+        db.refresh(balance)
+        
+        return balance.to_dict()
+    
+    @staticmethod
+    def credit_balance(
+        db: Session,
+        user_id: Union[str, object],
+        cryptocurrency: str,
+        amount: float,
+        reason: str = "Refund",
+        reference_id: Optional[str] = None
+    ) -> Dict:
+        """
+        Credit (add) balance directly to user's available balance.
+        Used for refunds from bill payments.
+        
+        This is a "mint" operation - crypto appears in the user's wallet
+        from the system (no source user needed).
+        
+        Creates balance if doesn't exist.
+        """
+        user_id = str(user_id)
+        cryptocurrency = cryptocurrency.upper()
+        
+        # Get or create balance
+        balance = db.query(WalletBalance).filter(
+            WalletBalance.user_id == user_id,
+            WalletBalance.cryptocurrency == cryptocurrency
+        ).first()
+        
+        if not balance:
+            balance = WalletBalance(
+                user_id=user_id,
+                cryptocurrency=cryptocurrency,
+                available_balance=0.0,
+                locked_balance=0.0,
+                total_balance=0.0
+            )
+            db.add(balance)
+        
+        # Record old state
+        old_available = balance.available_balance
+        old_locked = balance.locked_balance
+        
+        # Credit to available balance
+        balance.available_balance += amount
+        balance.total_balance += amount
+        balance.last_updated_reason = f"Credited: {reason}"
+        balance.updated_at = datetime.now(timezone.utc)
+        
+        # Record history
+        WalletBalanceService._record_history(
+            db,
+            user_id,
+            cryptocurrency,
+            "credit",
+            amount,
+            old_available,
+            balance.available_balance,
+            old_locked,
+            balance.locked_balance,
+            reference_id,
+            reason
+        )
+        
+        db.add(balance)
+        db.commit()
+        db.refresh(balance)
+        
+        return balance.to_dict()
     
     # ============ Private Helper Methods ============
     
