@@ -379,36 +379,51 @@ class BillValidationService:
                 
                 # Verifica se é linha digitável (47 dígitos) ou código de barras (44 dígitos)
                 if len(barcode) == 47:
-                    # LINHA DIGITÁVEL (47 dígitos)
-                    # Formato: AAABC.CCCCX DDDDD.DDDDDY EEEEE.EEEEEZ K UUUUVVVVVVVVVV
-                    # Posições:
-                    # 0-2: Banco
-                    # 3: Moeda
-                    # 4-8: Campo livre parte 1
-                    # 9: DV campo 1
-                    # 10-19: Campo livre parte 2
-                    # 20: DV campo 2
-                    # 21-30: Campo livre parte 3
-                    # 31: DV campo 3
-                    # 32: DV geral
-                    # 33-36: Fator vencimento (4 dígitos)
-                    # 37-46: Valor (10 dígitos)
+                    # LINHA DIGITÁVEL (47 dígitos) - Precisa CONVERTER para código de barras primeiro!
+                    # A linha digitável tem os campos reorganizados com dígitos verificadores
+                    # Formato real: BBBMC.CCCCD CCCCC.CCCCCD CCCCC.CCCCCD D FFFFVVVVVVVVVV
+                    # Onde:
+                    # - Posições 0-3: Banco + Moeda
+                    # - Posição 4-9: Parte do campo livre + DV
+                    # - Posição 10-20: Parte do campo livre + DV  
+                    # - Posição 21-31: Parte do campo livre + DV
+                    # - Posição 32: DV geral
+                    # - Posição 33-36: Fator vencimento (4 dígitos)
+                    # - Posição 37-46: Valor (10 dígitos)
+                    
+                    # Extrai fator e valor das posições CORRETAS da linha digitável
                     due_factor = int(barcode[33:37])
                     amount = Decimal(barcode[37:47]) / Decimal('100')
-                    logger.info(f"🔍 Linha digitável - Fator={due_factor}, Valor bruto={barcode[37:47]}, Valor=R${amount}")
-                else:
+                    
+                    logger.info(f"🔍 Linha digitável ({len(barcode)} dígitos)")
+                    logger.info(f"🔍 Código completo: {barcode}")
+                    logger.info(f"🔍 Fator (pos 33-36): '{barcode[33:37]}' = {due_factor}")
+                    logger.info(f"🔍 Valor (pos 37-46): '{barcode[37:47]}' = R${amount}")
+                    
+                elif len(barcode) == 44:
                     # CÓDIGO DE BARRAS (44 dígitos)
-                    # Formato: BBBMK.UUUUVVVVVVVVVVCCCCCCCCCCCCCCCCCCCCCCC
+                    # Formato: BBBMKFFFFVVVVVVVVVVCCCCCCCCCCCCCCCCCCCCCCC
                     # Posições:
-                    # 0-2: Banco
-                    # 3: Moeda
-                    # 4: DV geral
+                    # 0-2: Banco (3)
+                    # 3: Moeda (1)
+                    # 4: DV geral (1)
                     # 5-8: Fator vencimento (4 dígitos)
                     # 9-18: Valor (10 dígitos)
-                    # 19-43: Campo livre
+                    # 19-43: Campo livre (25 dígitos)
                     due_factor = int(barcode[5:9])
                     amount = Decimal(barcode[9:19]) / Decimal('100')
-                    logger.info(f"🔍 Código barras - Fator={due_factor}, Valor bruto={barcode[9:19]}, Valor=R${amount}")
+                    
+                    logger.info(f"🔍 Código de barras ({len(barcode)} dígitos)")
+                    logger.info(f"🔍 Código completo: {barcode}")
+                    logger.info(f"🔍 Fator (pos 5-8): '{barcode[5:9]}' = {due_factor}")
+                    logger.info(f"🔍 Valor (pos 9-18): '{barcode[9:19]}' = R${amount}")
+                else:
+                    # Tamanho inesperado - tenta extrair de qualquer forma
+                    logger.warning(f"⚠️ Tamanho inesperado: {len(barcode)} dígitos")
+                    # Assume que os últimos 10 dígitos são o valor
+                    amount = Decimal(barcode[-10:]) / Decimal('100')
+                    due_factor = 0
+                    logger.info(f"🔍 Valor estimado (últimos 10): '{barcode[-10:]}' = R${amount}")
                 
                 # Calcula data de vencimento usando fator de vencimento
                 # Base: 07/10/1997
