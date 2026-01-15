@@ -62,11 +62,25 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
   const [manualCode, setManualCode] = useState('')
   const hasScanned = useRef(false)
 
-  // Para o stream de vídeo
+  // Para o stream de vídeo e limpa recursos
   const stopStream = useCallback(() => {
     if (animationRef.current) {
       cancelAnimationFrame(animationRef.current)
       animationRef.current = 0
+    }
+
+    // Para o html5-qrcode se estiver ativo
+    if (scannerRef.current) {
+      const scannerData = scannerRef.current as {
+        scanner?: { stop: () => Promise<void> }
+        div?: HTMLElement
+      }
+      if (scannerData.scanner?.stop) {
+        scannerData.scanner.stop().catch(() => {})
+      }
+      if (scannerData.div) {
+        scannerData.div.remove()
+      }
     }
 
     if (streamRef.current) {
@@ -275,18 +289,91 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
     canvas.height = video.videoHeight || 720
     console.log(`📐 Canvas configurado: ${canvas.width}x${canvas.height}`)
 
-    // Tenta usar BarcodeDetector API nativa (Chrome, Safari 16.4+)
+    // ESTRATÉGIA 1: Tenta usar html5-qrcode primeiro (mais confiável para boletos)
+    console.log('🔄 Iniciando detecção com html5-qrcode...')
+
+    try {
+      const { Html5Qrcode, Html5QrcodeSupportedFormats } = await import('html5-qrcode')
+
+      // Cria elemento para o scanner (precisa ser visível para funcionar no iOS)
+      const scannerId = 'barcode-scanner-reader-' + Date.now()
+      const scannerDiv = document.createElement('div')
+      scannerDiv.id = scannerId
+      // Posiciona fora da tela mas ainda "visível" para o DOM
+      scannerDiv.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:640px;height:480px;'
+      document.body.appendChild(scannerDiv)
+
+      const html5Scanner = new Html5Qrcode(scannerId, {
+        verbose: false,
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.ITF, // Boletos brasileiros
+          Html5QrcodeSupportedFormats.CODE_128, // Alguns boletos
+          Html5QrcodeSupportedFormats.CODABAR, // Contas de consumo
+          Html5QrcodeSupportedFormats.CODE_39, // Alternativo
+          Html5QrcodeSupportedFormats.EAN_13, // Produtos
+        ],
+      })
+
+      scannerRef.current = { scanner: html5Scanner, div: scannerDiv }
+
+      // Configuração otimizada para boletos
+      const config = {
+        fps: 10,
+        qrbox: { width: 280, height: 100 }, // Área retangular para código de barras
+        aspectRatio: 1.777, // 16:9
+        disableFlip: false, // Permite flip para tentar ambas orientações
+      }
+
+      console.log('📷 Iniciando html5-qrcode com câmera traseira...')
+
+      await html5Scanner.start(
+        { facingMode: 'environment' },
+        config,
+        (decodedText, decodedResult) => {
+          console.log('🎯 Código detectado pelo html5-qrcode!')
+          console.log('   Texto:', decodedText)
+          console.log('   Formato:', decodedResult?.result?.format?.formatName || 'unknown')
+
+          handleCodeDetected(decodedText)
+
+          // Para o scanner após detectar
+          html5Scanner.stop().catch(() => {})
+          scannerDiv.remove()
+        },
+        errorMessage => {
+          // Ignora erros de frame - são normais quando não há código na imagem
+          // Mas loga ocasionalmente para debug
+          if (Math.random() < 0.01) {
+            console.log('📍 Scanning...', errorMessage.substring(0, 50))
+          }
+        }
+      )
+
+      console.log('✅ html5-qrcode iniciado com sucesso!')
+      return
+    } catch (err) {
+      console.error('❌ Erro ao iniciar html5-qrcode:', err)
+      // Continua para tentar BarcodeDetector API
+    }
+
+    // ESTRATÉGIA 2: Fallback para BarcodeDetector API nativa
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const BarcodeDetectorAPI = (window as any).BarcodeDetector
 
     if (BarcodeDetectorAPI) {
       try {
-        // Verifica se o formato ITF é suportado (formato de boletos brasileiros)
         const supportedFormats = (await BarcodeDetectorAPI.getSupportedFormats?.()) || []
-        console.log('📋 Formatos suportados:', supportedFormats)
+        console.log('📋 BarcodeDetector - Formatos suportados:', supportedFormats)
+
+        // Verifica se ITF é suportado
+        if (!supportedFormats.includes('itf')) {
+          console.warn('⚠️ Formato ITF não suportado neste dispositivo')
+        }
 
         const detector = new BarcodeDetectorAPI({
-          formats: ['itf', 'code_128', 'code_39', 'ean_13', 'codabar'],
+          formats: ['itf', 'code_128', 'code_39', 'ean_13', 'codabar'].filter(
+            f => supportedFormats.length === 0 || supportedFormats.includes(f)
+          ),
         })
 
         scannerRef.current = detector
@@ -298,80 +385,33 @@ export function BarcodeScanner({ onScan, onClose, isOpen }: BarcodeScannerProps)
           frameCount++
 
           try {
-            // Desenha o frame atual no canvas para debug
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
 
             const codes = await detector.detect(video)
             if (codes.length > 0 && codes[0].rawValue) {
               console.log('🎯 Código detectado pela API nativa:', codes[0].rawValue)
+              console.log('   Formato:', codes[0].format)
               handleCodeDetected(codes[0].rawValue)
               return
             }
 
-            // Log a cada 60 frames (~2 segundos)
-            if (frameCount % 60 === 0) {
-              console.log(`🔄 Escaneando... (${frameCount} frames)`)
+            if (frameCount % 90 === 0) {
+              console.log(`🔄 BarcodeDetector escaneando... (${frameCount} frames)`)
             }
           } catch {
-            // Ignora erros de detecção individuais
+            // Ignora erros individuais
           }
 
           animationRef.current = requestAnimationFrame(detectFrame)
         }
 
         detectFrame()
-        console.log('📷 Usando BarcodeDetector API nativa')
-        return
+        console.log('📷 Usando BarcodeDetector API nativa como fallback')
       } catch (err) {
-        console.log('⚠️ BarcodeDetector não disponível:', err)
+        console.error('⚠️ BarcodeDetector falhou:', err)
       }
-    }
-
-    // Fallback: usa html5-qrcode para decodificação via canvas
-    console.log('🔄 Iniciando fallback com html5-qrcode...')
-
-    try {
-      const { Html5Qrcode } = await import('html5-qrcode')
-
-      // Cria elemento temporário para o scanner
-      const scannerId = 'barcode-scanner-fallback-' + Date.now()
-      const scannerDiv = document.createElement('div')
-      scannerDiv.id = scannerId
-      scannerDiv.style.cssText = 'position:absolute;width:1px;height:1px;overflow:hidden;'
-      document.body.appendChild(scannerDiv)
-
-      const html5Scanner = new Html5Qrcode(scannerId, { verbose: false })
-      scannerRef.current = html5Scanner
-
-      // Usa o stream de vídeo existente em vez de iniciar nova câmera
-      const track = streamRef.current?.getVideoTracks()[0]
-      if (track) {
-        console.log('📹 Usando track de vídeo existente')
-      }
-
-      // Inicia escaneamento da câmera
-      await html5Scanner.start(
-        { facingMode: 'environment' },
-        {
-          fps: 15,
-          qrbox: { width: 320, height: 140 },
-          aspectRatio: 16 / 9,
-        },
-        decodedText => {
-          console.log('🎯 Código detectado pelo html5-qrcode:', decodedText)
-          handleCodeDetected(decodedText)
-
-          // Para o scanner após detectar
-          html5Scanner.stop().catch(() => {})
-          scannerDiv.remove()
-        },
-        () => {} // ignora erros de frame
-      )
-
-      console.log('📷 Usando html5-qrcode fallback')
-    } catch (err) {
-      console.error('❌ Erro ao iniciar html5-qrcode:', err)
-      // Continua mesmo sem detecção automática - usuário pode digitar manualmente
+    } else {
+      console.warn('⚠️ Nenhum método de detecção disponível - use entrada manual')
     }
   }, [handleCodeDetected])
 
