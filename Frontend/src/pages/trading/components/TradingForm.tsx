@@ -241,8 +241,9 @@ export function TradingForm({
       clearTimeout(typingTimeoutRef.current)
     }
 
-    // If no valid amount, reset typing state and don't fetch
-    if (!amount || Number(amount) <= 0) {
+    // Validação robusta: garantir que amount é um número válido > 0
+    const numericAmount = Number(amount)
+    if (!amount || !Number.isFinite(numericAmount) || numericAmount <= 0) {
       setIsTyping(false)
       return
     }
@@ -270,11 +271,16 @@ export function TradingForm({
     // Set timeout to fetch quote after user stops typing (DEBOUNCE_MS)
     timeoutRef.current = setTimeout(async () => {
       setIsTyping(false) // Parou de digitar
+
+      // Validação final antes de enviar request
+      const amountValue = Number(amount)
+      if (!Number.isFinite(amountValue) || amountValue <= 0) {
+        console.log('[TradingForm] Skipping quote - invalid amount:', amount)
+        return
+      }
+
       setLoading(true)
       try {
-        // Valor já está em USD (padrão do sistema)
-        const amountValue = Number(amount)
-
         console.log(
           `[TradingForm] ${isBuy ? 'BUY' : 'SELL'}: ${amountValue} ${isBuy ? 'USD' : selectedSymbol}`
         )
