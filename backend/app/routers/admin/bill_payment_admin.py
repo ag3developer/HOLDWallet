@@ -14,6 +14,9 @@ Routes:
 - /admin/wolkpay/bill-payments/{id}/process-crypto - Debitar crypto do usuário
 - /admin/wolkpay/bill-payments/stats - Estatísticas
 - /admin/wolkpay/bill-payments/reports - Relatórios
+- /admin/wolkpay/bill-payments/expired-quotes - Lista cotações expiradas
+- /admin/wolkpay/bill-payments/expire-quotes - Expira cotações em lote
+- /admin/wolkpay/bill-payments/{id}/expire - Expira cotação específica
 
 Author: HOLD Wallet Team
 Date: January 2026
@@ -518,7 +521,7 @@ async def get_payment_details(
         balance_key = f"{payment.crypto_network}_{payment.crypto_currency}".lower() if payment.crypto_network else payment.crypto_currency.upper()
         user_balance = WalletBalanceService.get_balance(
             db=db,
-            user_id=payment.user_id,
+            user_id=str(payment.user_id),
             cryptocurrency=balance_key
         )
         
@@ -587,7 +590,7 @@ async def process_crypto_debit(
         # 1. Verificar saldo
         user_balance = WalletBalanceService.get_balance(
             db=db,
-            user_id=payment.user_id,
+            user_id=str(payment.user_id),
             cryptocurrency=balance_key
         )
         
@@ -603,11 +606,11 @@ async def process_crypto_debit(
         try:
             WalletBalanceService.debit_available_balance(
                 db=db,
-                user_id=payment.user_id,
+                user_id=str(payment.user_id),
                 cryptocurrency=balance_key,
                 amount=float(payment.crypto_amount),
                 reason=f"Bill Payment: {payment.payment_number}",
-                reference_id=payment.id
+                reference_id=str(payment.id)
             )
             logger.info(f"✅ Saldo debitado do DB: {payment.crypto_amount} {balance_key}")
         except ValueError as e:
@@ -619,11 +622,11 @@ async def process_crypto_debit(
             try:
                 blockchain_result = blockchain_withdraw_service.transfer_to_platform(
                     db=db,
-                    user_id=payment.user_id,
+                    user_id=str(payment.user_id),
                     symbol=payment.crypto_currency.upper(),
                     amount=payment.crypto_amount,
                     network=payment.crypto_network.lower(),
-                    reference_id=payment.id
+                    reference_id=str(payment.id)
                 )
                 
                 if blockchain_result.get("success"):
@@ -795,11 +798,11 @@ async def reject_payment(
                 
                 result = WalletBalanceService.credit_balance(
                     db=db,
-                    user_id=payment.user_id,
+                    user_id=str(payment.user_id),
                     cryptocurrency=balance_key,
                     amount=float(payment.crypto_amount),
                     reason=f"Refund Bill Payment: {payment.payment_number}",
-                    reference_id=payment.id
+                    reference_id=str(payment.id)
                 )
                 
                 refund_tx_id = f"refund_{payment_id[:8]}"
@@ -1033,4 +1036,271 @@ async def get_daily_report(
         
     except Exception as e:
         logger.error(f"Erro ao gerar relatório: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==========================================
+# ENDPOINTS - COTAÇÕES EXPIRADAS
+# ==========================================
+
+class ExpireQuotesRequest(BaseModel):
+    """Request para expirar cotações"""
+    dry_run: bool = Field(True, description="Se True, apenas simula sem alterar o banco")
+    hours_threshold: int = Field(24, description="Expirar cotações mais antigas que X horas")
+
+
+class ExpireQuotesResponse(BaseModel):
+    """Response da expiração de cotações"""
+    success: bool
+    dry_run: bool
+    expired_count: int
+    expired_payments: List[dict]
+    message: str
+
+
+@router.get("/expired-quotes")
+async def list_expired_quotes(
+    hours_threshold: int = Query(24, description="Cotações mais antigas que X horas"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Lista cotações PENDING que estão expiradas
+    
+    Cotações expiradas são aquelas que:
+    - Status = PENDING (usuário não confirmou)
+    - quote_expires_at < agora OU created_at < (agora - hours_threshold)
+    
+    Retorna lista de pagamentos que podem ser cancelados.
+    """
+    require_admin(current_user)
+    
+    try:
+        now = datetime.now(timezone.utc)
+        threshold_time = now - timedelta(hours=hours_threshold)
+        
+        # Buscar cotações PENDING expiradas
+        expired_payments = db.query(WolkPayBillPayment).filter(
+            WolkPayBillPayment.status == BillPaymentStatus.PENDING,
+            or_(
+                # Quote expirou explicitamente
+                and_(
+                    WolkPayBillPayment.quote_expires_at.isnot(None),
+                    WolkPayBillPayment.quote_expires_at < now
+                ),
+                # Ou criada há mais de X horas
+                WolkPayBillPayment.created_at < threshold_time
+            )
+        ).order_by(WolkPayBillPayment.created_at.asc()).all()
+        
+        payments_data = []
+        for p in expired_payments:
+            user = db.query(User).filter(User.id == p.user_id).first()
+            
+            # Calcular há quanto tempo expirou
+            if p.quote_expires_at:
+                expired_since = now - p.quote_expires_at.replace(tzinfo=timezone.utc) if p.quote_expires_at.tzinfo is None else now - p.quote_expires_at
+            else:
+                expired_since = now - p.created_at.replace(tzinfo=timezone.utc) if p.created_at.tzinfo is None else now - p.created_at
+            
+            payments_data.append({
+                "id": str(p.id),
+                "payment_number": p.payment_number,
+                "user_name": user.username if user else "N/A",
+                "user_email": user.email if user else "N/A",
+                "bill_amount_brl": float(p.bill_amount_brl),
+                "crypto_amount": float(p.crypto_amount),
+                "crypto_currency": p.crypto_currency,
+                "created_at": p.created_at.isoformat() if p.created_at else None,
+                "quote_expires_at": p.quote_expires_at.isoformat() if p.quote_expires_at else None,
+                "hours_since_creation": (now - (p.created_at.replace(tzinfo=timezone.utc) if p.created_at.tzinfo is None else p.created_at)).total_seconds() / 3600,
+                "expired_since_hours": expired_since.total_seconds() / 3600 if expired_since else 0
+            })
+        
+        return {
+            "expired_count": len(payments_data),
+            "hours_threshold": hours_threshold,
+            "current_time": now.isoformat(),
+            "expired_payments": payments_data
+        }
+        
+    except Exception as e:
+        logger.error(f"Erro ao listar cotações expiradas: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/expire-quotes", response_model=ExpireQuotesResponse)
+async def expire_pending_quotes(
+    request: ExpireQuotesRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Expira/cancela cotações PENDING antigas automaticamente
+    
+    Fluxo:
+    1. Busca todos os pagamentos PENDING com cotação expirada
+    2. Marca cada um como EXPIRED
+    3. Registra log de cada alteração
+    
+    Parâmetros:
+    - dry_run: Se True, apenas simula a operação sem alterar dados
+    - hours_threshold: Expirar cotações criadas há mais de X horas (padrão: 24)
+    
+    Use dry_run=True primeiro para ver o que será afetado!
+    """
+    require_admin(current_user)
+    
+    try:
+        now = datetime.now(timezone.utc)
+        threshold_time = now - timedelta(hours=request.hours_threshold)
+        
+        # Buscar cotações PENDING expiradas
+        expired_payments = db.query(WolkPayBillPayment).filter(
+            WolkPayBillPayment.status == BillPaymentStatus.PENDING,
+            or_(
+                # Quote expirou explicitamente
+                and_(
+                    WolkPayBillPayment.quote_expires_at.isnot(None),
+                    WolkPayBillPayment.quote_expires_at < now
+                ),
+                # Ou criada há mais de X horas
+                WolkPayBillPayment.created_at < threshold_time
+            )
+        ).all()
+        
+        expired_list = []
+        
+        for payment in expired_payments:
+            user = db.query(User).filter(User.id == payment.user_id).first()
+            
+            payment_info = {
+                "id": str(payment.id),
+                "payment_number": payment.payment_number,
+                "user_name": user.username if user else "N/A",
+                "bill_amount_brl": float(payment.bill_amount_brl),
+                "crypto_amount": float(payment.crypto_amount),
+                "crypto_currency": payment.crypto_currency,
+                "created_at": payment.created_at.isoformat() if payment.created_at else None
+            }
+            
+            if not request.dry_run:
+                # Atualizar status para EXPIRED
+                old_status = payment.status.value
+                payment.status = BillPaymentStatus.EXPIRED
+                payment.failure_reason = f"Cotação expirada automaticamente após {request.hours_threshold} horas"
+                
+                # Log da ação
+                log_admin_action(
+                    db=db,
+                    payment_id=str(payment.id),
+                    action="auto_expire",
+                    old_status=old_status,
+                    new_status=payment.status.value,
+                    admin_id=str(current_user.id),
+                    details={
+                        "hours_threshold": request.hours_threshold,
+                        "original_quote_expires_at": payment.quote_expires_at.isoformat() if payment.quote_expires_at else None,
+                        "reason": "Cotação expirada - usuário não confirmou"
+                    }
+                )
+                
+                payment_info["new_status"] = "EXPIRED"
+            else:
+                payment_info["would_be_status"] = "EXPIRED"
+            
+            expired_list.append(payment_info)
+        
+        # Commit apenas se não for dry_run
+        if not request.dry_run and expired_list:
+            db.commit()
+            logger.info(f"✅ {len(expired_list)} cotações expiradas por {current_user.username}")
+        
+        return ExpireQuotesResponse(
+            success=True,
+            dry_run=request.dry_run,
+            expired_count=len(expired_list),
+            expired_payments=expired_list,
+            message=f"{'[DRY RUN] ' if request.dry_run else ''}{len(expired_list)} cotações {'seriam' if request.dry_run else 'foram'} marcadas como expiradas"
+        )
+        
+    except Exception as e:
+        logger.error(f"Erro ao expirar cotações: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{payment_id}/expire")
+async def expire_single_quote(
+    payment_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Expira/cancela uma cotação específica
+    
+    Usado para:
+    - Cancelar manualmente uma cotação PENDING
+    - Limpar cotações que o usuário abandonou
+    
+    Só funciona para pagamentos com status PENDING.
+    """
+    require_admin(current_user)
+    
+    try:
+        payment = db.query(WolkPayBillPayment).filter(
+            WolkPayBillPayment.id == payment_id
+        ).first()
+        
+        if not payment:
+            raise HTTPException(status_code=404, detail="Pagamento não encontrado")
+        
+        # Verificar se está PENDING
+        if payment.status != BillPaymentStatus.PENDING:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Apenas cotações PENDING podem ser expiradas. Status atual: {payment.status.value}"
+            )
+        
+        old_status = payment.status.value
+        
+        # Atualizar para EXPIRED
+        payment.status = BillPaymentStatus.EXPIRED
+        payment.failure_reason = f"Cotação expirada manualmente por {current_user.username}"
+        
+        db.commit()
+        
+        # Log
+        log_admin_action(
+            db=db,
+            payment_id=str(payment_id),
+            action="manual_expire",
+            old_status=old_status,
+            new_status=payment.status.value,
+            admin_id=str(current_user.id),
+            details={
+                "reason": "Cotação expirada manualmente pelo admin"
+            }
+        )
+        
+        user = db.query(User).filter(User.id == payment.user_id).first()
+        
+        return {
+            "success": True,
+            "message": "Cotação expirada com sucesso",
+            "payment": {
+                "id": str(payment.id),
+                "payment_number": payment.payment_number,
+                "user_name": user.username if user else "N/A",
+                "old_status": old_status,
+                "new_status": payment.status.value,
+                "bill_amount_brl": float(payment.bill_amount_brl)
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao expirar cotação: {e}")
+        db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
