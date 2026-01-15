@@ -358,18 +358,38 @@ async def get_wallet_balances_by_network(
                 
                 # Determine network and symbol
                 if "usdt" in crypto or "usdc" in crypto:
-                    # Token balance
+                    # Token balance - determine network and symbol
+                    token_symbol = "usdt" if "usdt" in crypto else "usdc"
                     if "polygon" in crypto:
                         network_str = "polygon"
-                        symbol = "usdt"
+                        symbol = token_symbol
                     elif "base" in crypto:
                         network_str = "base"
-                        symbol = "usdt"
+                        symbol = token_symbol
                     elif "ethereum" in crypto:
                         network_str = "ethereum"
-                        symbol = "usdt"
+                        symbol = token_symbol
+                    elif "bsc" in crypto:
+                        network_str = "bsc"
+                        symbol = token_symbol
+                    elif "tron" in crypto:
+                        network_str = "tron"
+                        symbol = token_symbol
+                    elif "solana" in crypto:
+                        network_str = "solana"
+                        symbol = token_symbol
+                    elif "avalanche" in crypto:
+                        network_str = "avalanche"
+                        symbol = token_symbol
                     else:
-                        continue
+                        # Unknown network, try to extract from crypto name
+                        parts = crypto.replace("_", "-").split("-")
+                        if len(parts) >= 2:
+                            network_str = parts[0]
+                            symbol = token_symbol
+                        else:
+                            logger.warning(f"Unknown network for stablecoin: {crypto}")
+                            continue
                 else:
                     # Native token balance
                     network_str = crypto
@@ -403,8 +423,8 @@ async def get_wallet_balances_by_network(
                 total_usd_value += balance_usd
                 total_brl_value += balance_brl
                 
-                # Add to response
-                balance_key = str(balance.cryptocurrency)
+                # Add to response - use lowercase key for frontend compatibility
+                balance_key = str(balance.cryptocurrency).lower()
                 balances_by_network[balance_key] = NetworkBalanceDetail(
                     network=network_str,
                     address=address_str,
