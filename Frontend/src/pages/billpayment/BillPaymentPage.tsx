@@ -48,6 +48,7 @@ import billPaymentService, {
   BillInfo,
   BillPaymentQuote,
   BillPayment,
+  BillPaymentSettings,
   STATUS_CONFIG,
   BILL_TYPE_CONFIG,
 } from '@/services/billPayment'
@@ -258,6 +259,32 @@ export function BillPaymentPage() {
   const [error, setError] = useState<string | null>(null)
   const [quoteTimeLeft, setQuoteTimeLeft] = useState(0)
   const [copiedBarcode, setCopiedBarcode] = useState(false)
+
+  // Configurações do serviço (carregadas do backend)
+  const [serviceSettings, setServiceSettings] = useState<BillPaymentSettings | null>(null)
+
+  // Buscar configurações do serviço ao carregar
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const settings = await billPaymentService.getSettings()
+        setServiceSettings(settings)
+        console.log('[BillPayment] Configurações carregadas:', settings)
+      } catch (error) {
+        console.error('[BillPayment] Erro ao carregar configurações:', error)
+        // Usa valores padrão se falhar
+        setServiceSettings({
+          service_fee_percent: 3.65,
+          network_fee_percent: 0.35,
+          total_fee_percent: 4.0,
+          min_amount_brl: 100,
+          max_amount_brl: 15000,
+          quote_expiry_minutes: 15,
+        })
+      }
+    }
+    fetchSettings()
+  }, [])
   const [showScanner, setShowScanner] = useState(false)
 
   const inputRef = useRef<HTMLInputElement>(null)
@@ -594,7 +621,9 @@ export function BillPaymentPage() {
                 <div className='p-3 bg-gray-50 dark:bg-gray-700/30 rounded-xl'>
                   <div className='flex items-center gap-2 text-gray-600 dark:text-gray-400'>
                     <Zap className='w-4 h-4' />
-                    <span className='text-xs font-medium'>Taxa: 5%</span>
+                    <span className='text-xs font-medium'>
+                      Taxa: {serviceSettings?.total_fee_percent ?? 4}%
+                    </span>
                   </div>
                 </div>
               </div>

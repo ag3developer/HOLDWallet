@@ -57,28 +57,29 @@ from app.services.price_aggregator import price_aggregator
 from app.services.wallet_balance_service import WalletBalanceService
 from app.services.bill_validation_service import bill_validation_service
 from app.services.blockchain_withdraw_service import blockchain_withdraw_service
+from app.services.platform_settings_service import platform_settings_service
 
 logger = logging.getLogger(__name__)
 
 
 # ============================================
-# CONSTANTES
+# CONSTANTES (valores padrão - serão sobrescritos pelo banco)
 # ============================================
 
-# Taxas
-SERVICE_FEE_PERCENT = Decimal('4.75')
-NETWORK_FEE_PERCENT = Decimal('0.25')
-TOTAL_FEE_PERCENT = Decimal('5.00')
+# Taxas (padrão - carregadas do banco de dados em runtime)
+SERVICE_FEE_PERCENT = Decimal('3.65')  # wolkpay_service_fee_percentage
+NETWORK_FEE_PERCENT = Decimal('0.35')  # wolkpay_network_fee_percentage
+TOTAL_FEE_PERCENT = Decimal('4.00')    # Calculado dinamicamente
 
-# Validade da cotação (5 minutos)
-QUOTE_VALIDITY_MINUTES = 5
+# Validade da cotação (minutos) - wolkpay_expiry_minutes
+QUOTE_VALIDITY_MINUTES = 15
 
 # Mínimo de dias antes do vencimento
 MIN_DAYS_BEFORE_DUE = 1
 
-# Limites
-MIN_BILL_AMOUNT = Decimal('10.00')  # Mínimo R$ 10
-MAX_BILL_AMOUNT = Decimal('500000.00')  # Máximo R$ 500.000
+# Limites - wolkpay_min_brl e wolkpay_max_brl
+MIN_BILL_AMOUNT = Decimal('100.00')
+MAX_BILL_AMOUNT = Decimal('15000.00')
 
 # Mapeamento de bancos pelo código
 BANK_CODES = {
@@ -104,6 +105,33 @@ class WolkPayBillService:
     
     def __init__(self, db: Session):
         self.db = db
+    
+    # ============================================
+    # CONFIGURAÇÕES DO BANCO DE DADOS
+    # ============================================
+    
+    def _get_bill_payment_settings(self) -> dict:
+        """
+        Busca configurações de Bill Payment do banco de dados.
+        Retorna valores do platform_settings ou usa padrões.
+        """
+        return {
+            "service_fee_percent": Decimal(str(platform_settings_service.get(
+                self.db, "wolkpay_service_fee_percentage", 3.65
+            ))),
+            "network_fee_percent": Decimal(str(platform_settings_service.get(
+                self.db, "wolkpay_network_fee_percentage", 0.35
+            ))),
+            "min_brl": Decimal(str(platform_settings_service.get(
+                self.db, "wolkpay_min_brl", 100.0
+            ))),
+            "max_brl": Decimal(str(platform_settings_service.get(
+                self.db, "wolkpay_max_brl", 15000.0
+            ))),
+            "expiry_minutes": int(platform_settings_service.get(
+                self.db, "wolkpay_expiry_minutes", 15
+            ))
+        }
     
     # ============================================
     # 1. VALIDAR BOLETO
@@ -424,14 +452,33 @@ class WolkPayBillService:
         - Quantidade de crypto necessária
         - Verifica saldo do usuário
         
-        Cotação válida por 5 minutos
+        Cotação válida conforme configuração do admin (padrão: 15 minutos)
         """
         try:
+            # ========================================
+            # CARREGA CONFIGURAÇÕES DO BANCO DE DADOS
+            # ========================================
+            settings = self._get_bill_payment_settings()
+            service_fee_percent = settings["service_fee_percent"]
+            network_fee_percent = settings["network_fee_percent"]
+            min_brl = settings["min_brl"]
+            max_brl = settings["max_brl"]
+            expiry_minutes = settings["expiry_minutes"]
+            
+            logger.info(f"📋 Configurações Bill Payment: service={service_fee_percent}%, network={network_fee_percent}%, min=R${min_brl}, max=R${max_brl}, expiry={expiry_minutes}min")
+            
             # Valida boleto primeiro
             bill_info = await self.validate_bill(request.barcode)
             
             if not bill_info.valid:
                 raise ValueError(bill_info.error_message or "Boleto inválido")
+            
+            # Verifica limites de valor
+            bill_amount = bill_info.amount_brl
+            if bill_amount < min_brl:
+                raise ValueError(f"Valor mínimo permitido é R$ {min_brl:,.2f}. Valor do boleto: R$ {bill_amount:,.2f}")
+            if bill_amount > max_brl:
+                raise ValueError(f"Valor máximo permitido é R$ {max_brl:,.2f}. Valor do boleto: R$ {bill_amount:,.2f}")
             
             # Busca usuário
             user = self.db.query(User).filter(User.id == user_id).first()
@@ -441,13 +488,12 @@ class WolkPayBillService:
             # Obtém cotações
             crypto_usd_rate, brl_usd_rate = await self._get_rates(request.crypto_currency)
             
-            # Calcula valores
-            bill_amount = bill_info.amount_brl
-            
+            # Calcula valores com taxas do banco de dados
             # Taxas
-            service_fee = (bill_amount * SERVICE_FEE_PERCENT / Decimal('100')).quantize(Decimal('0.01'), rounding=ROUND_UP)
-            network_fee = (bill_amount * NETWORK_FEE_PERCENT / Decimal('100')).quantize(Decimal('0.01'), rounding=ROUND_UP)
+            service_fee = (bill_amount * service_fee_percent / Decimal('100')).quantize(Decimal('0.01'), rounding=ROUND_UP)
+            network_fee = (bill_amount * network_fee_percent / Decimal('100')).quantize(Decimal('0.01'), rounding=ROUND_UP)
             total_fees = service_fee + network_fee
+            total_fee_percent = service_fee_percent + network_fee_percent
             
             # Total em BRL
             total_brl = bill_amount + total_fees
@@ -468,8 +514,8 @@ class WolkPayBillService:
             # Gera ID da cotação
             quote_id = f"qt_{uuid.uuid4().hex[:16]}"
             
-            # Validade (5 minutos)
-            expires_at = datetime.now(timezone.utc) + timedelta(minutes=QUOTE_VALIDITY_MINUTES)
+            # Validade conforme configuração do admin
+            expires_at = datetime.now(timezone.utc) + timedelta(minutes=expiry_minutes)
             
             # Cria registro pendente (para guardar a cotação)
             bill_payment = WolkPayBillPayment(
@@ -491,9 +537,9 @@ class WolkPayBillService:
                 crypto_usd_rate=crypto_usd_rate,
                 brl_usd_rate=brl_usd_rate,
                 base_amount_brl=bill_amount,
-                service_fee_percent=SERVICE_FEE_PERCENT,
+                service_fee_percent=service_fee_percent,
                 service_fee_brl=service_fee,
-                network_fee_percent=NETWORK_FEE_PERCENT,
+                network_fee_percent=network_fee_percent,
                 network_fee_brl=network_fee,
                 total_amount_brl=total_brl,
                 status=BillPaymentStatus.PENDING,
@@ -515,9 +561,10 @@ class WolkPayBillService:
             )
             
             # Monta resumo para UI
+            total_fee_percent = service_fee_percent + network_fee_percent
             summary = {
                 "bill": f"R$ {bill_amount:,.2f}",
-                "fees": f"R$ {total_fees:,.2f} (5%)",
+                "fees": f"R$ {total_fees:,.2f} ({total_fee_percent}%)",
                 "total_brl": f"R$ {total_brl:,.2f}",
                 "crypto": f"{crypto_amount} {request.crypto_currency.upper()}",
                 "rate": f"1 {request.crypto_currency.upper()} = R$ {(crypto_usd_rate * brl_usd_rate):,.2f}"
@@ -534,15 +581,15 @@ class WolkPayBillService:
                 crypto_amount=crypto_amount,
                 crypto_usd_rate=crypto_usd_rate,
                 brl_usd_rate=brl_usd_rate,
-                service_fee_percent=SERVICE_FEE_PERCENT,
+                service_fee_percent=service_fee_percent,
                 service_fee_brl=service_fee,
-                network_fee_percent=NETWORK_FEE_PERCENT,
+                network_fee_percent=network_fee_percent,
                 network_fee_brl=network_fee,
                 total_fees_brl=total_fees,
                 total_amount_brl=total_brl,
                 total_crypto_amount=crypto_amount,
                 quote_expires_at=expires_at,
-                quote_valid_seconds=QUOTE_VALIDITY_MINUTES * 60,
+                quote_valid_seconds=expiry_minutes * 60,
                 user_crypto_balance=user_balance,
                 has_sufficient_balance=has_sufficient_balance,
                 summary=summary

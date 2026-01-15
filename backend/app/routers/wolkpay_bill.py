@@ -30,6 +30,7 @@ from app.core.security import get_current_user, get_current_admin
 from app.models.user import User
 from app.models.wolkpay import WolkPayBillPayment, BillPaymentStatus
 from app.services.wolkpay_bill_service import WolkPayBillService
+from app.services.platform_settings_service import platform_settings_service
 from app.schemas.wolkpay import (
     ValidateBillRequest,
     BillInfoResponse,
@@ -45,6 +46,43 @@ from app.schemas.wolkpay import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/wolkpay/bill", tags=["WolkPay Bill Payment"])
+
+
+# ============================================
+# ENDPOINTS PÚBLICOS (configurações)
+# ============================================
+
+@router.get("/settings")
+async def get_bill_payment_settings(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Retorna configurações públicas do serviço de Bill Payment
+    
+    Usado pelo frontend para mostrar:
+    - Taxa de serviço e rede
+    - Valor mínimo e máximo permitido
+    - Tempo de expiração da cotação
+    """
+    try:
+        settings = {
+            "service_fee_percent": float(platform_settings_service.get(db, "wolkpay_service_fee_percentage", 3.65)),
+            "network_fee_percent": float(platform_settings_service.get(db, "wolkpay_network_fee_percentage", 0.35)),
+            "total_fee_percent": float(platform_settings_service.get(db, "wolkpay_service_fee_percentage", 3.65)) + 
+                                  float(platform_settings_service.get(db, "wolkpay_network_fee_percentage", 0.35)),
+            "min_amount_brl": float(platform_settings_service.get(db, "wolkpay_min_brl", 100.0)),
+            "max_amount_brl": float(platform_settings_service.get(db, "wolkpay_max_brl", 15000.0)),
+            "quote_expiry_minutes": int(platform_settings_service.get(db, "wolkpay_expiry_minutes", 15)),
+        }
+        
+        return {
+            "success": True,
+            "data": settings
+        }
+    except Exception as e:
+        logger.error(f"Erro ao buscar configurações de Bill Payment: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ============================================

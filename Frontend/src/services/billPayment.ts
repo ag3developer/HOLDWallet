@@ -7,7 +7,7 @@
  * Fluxo:
  * 1. Escanear/digitar código de barras
  * 2. Validar boleto
- * 3. Cotar pagamento (valor + taxas 5%)
+ * 3. Cotar pagamento (valor + taxas configuráveis)
  * 4. Confirmar e debitar crypto IMEDIATAMENTE
  * 5. Boleto é pago pela operação em até 24h úteis
  */
@@ -17,6 +17,15 @@ import { apiClient } from './api'
 // ============================================
 // TIPOS E INTERFACES
 // ============================================
+
+export interface BillPaymentSettings {
+  service_fee_percent: number
+  network_fee_percent: number
+  total_fee_percent: number
+  min_amount_brl: number
+  max_amount_brl: number
+  quote_expiry_minutes: number
+}
 
 export type BillType = 'BANK_SLIP' | 'UTILITY' | 'TAX' | 'OTHER'
 export type BillPaymentStatus =
@@ -249,6 +258,17 @@ export const BILL_TYPE_CONFIG: Record<
 
 const billPaymentService = {
   baseUrl: '/wolkpay/bill',
+
+  /**
+   * Buscar configurações do serviço de Bill Payment
+   * Retorna taxas, limites e tempo de expiração configurados pelo admin
+   */
+  async getSettings(): Promise<BillPaymentSettings> {
+    const response = await apiClient.get<{ success: boolean; data: BillPaymentSettings }>(
+      `${this.baseUrl}/settings`
+    )
+    return response.data.data
+  },
 
   /**
    * Validar código de barras
