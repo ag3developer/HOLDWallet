@@ -710,5 +710,272 @@ class BlockchainWithdrawService:
             }
 
 
+    def transfer_to_platform(
+        self,
+        db: Session,
+        user_id: str,
+        symbol: str,
+        amount: Decimal,
+        network: str = "polygon",
+        reference_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Transfere criptomoeda da wallet do usuário para a plataforma.
+        
+        Método genérico usado para:
+        - Pagamento de boletos
+        - Qualquer operação que precise mover crypto para plataforma
+        
+        NÃO depende de InstantTrade - recebe parâmetros diretos.
+        
+        FLUXO:
+        1. Busca Address do usuário com chave privada criptografada
+        2. Descriptografa chave privada
+        3. Verifica saldo do usuário na blockchain
+        4. Patrocina gas se necessário
+        5. Transfere crypto: User Wallet → Platform Wallet
+        
+        Args:
+            db: Sessão do banco
+            user_id: ID do usuário
+            symbol: Símbolo do token (USDT, USDC, ETH, MATIC, etc)
+            amount: Quantidade a transferir
+            network: Rede blockchain (polygon, ethereum, bsc, base)
+            reference_id: ID de referência (bill_payment_id, etc)
+        
+        Returns:
+            {
+                "success": bool,
+                "tx_hash": str ou None,
+                "from_address": str ou None,
+                "to_address": str ou None,
+                "network": str,
+                "error": str ou None,
+                "gas_sponsor": dict ou None
+            }
+        """
+        try:
+            logger.info(f"🚀 Iniciando transfer_to_platform: {amount} {symbol} na rede {network}")
+            logger.info(f"   User: {user_id}, Ref: {reference_id}")
+            
+            # 0. Verifica se PLATFORM_WALLET_ADDRESS está configurado
+            if not self.platform_wallet_address:
+                logger.error("❌ PLATFORM_WALLET_ADDRESS não configurada!")
+                return {
+                    "success": False,
+                    "tx_hash": None,
+                    "from_address": None,
+                    "to_address": None,
+                    "network": network,
+                    "error": "PLATFORM_WALLET_ADDRESS não configurada no servidor"
+                }
+            
+            # 1. Busca Address do usuário
+            logger.info(f"📍 Buscando address do usuário {user_id} na rede {network}")
+            user_address = self.get_user_address(db, user_id, network)
+            if not user_address:
+                logger.error(f"❌ Address não encontrado para user={user_id}, network={network}")
+                return {
+                    "success": False,
+                    "tx_hash": None,
+                    "from_address": None,
+                    "to_address": None,
+                    "network": network,
+                    "error": f"Address do usuário não encontrado para network={network}"
+                }
+            
+            logger.info(f"✅ Address encontrado: {user_address.address}")
+            
+            # 2. Descriptografa chave privada
+            logger.info(f"🔐 Descriptografando chave privada...")
+            private_key = self.decrypt_user_private_key(user_address.encrypted_private_key)
+            if not private_key:
+                logger.error(f"❌ Falha ao descriptografar chave privada")
+                return {
+                    "success": False,
+                    "tx_hash": None,
+                    "from_address": user_address.address,
+                    "to_address": None,
+                    "network": network,
+                    "error": "Não foi possível descriptografar a chave privada do usuário"
+                }
+            
+            logger.info(f"✅ Chave privada descriptografada")
+            
+            # 3. Conecta na rede
+            logger.info(f"🌐 Conectando na rede {network}...")
+            w3 = self.get_web3(network)
+            if not w3:
+                return {
+                    "success": False,
+                    "tx_hash": None,
+                    "from_address": user_address.address,
+                    "to_address": None,
+                    "network": network,
+                    "error": f"Não foi possível conectar à rede {network}"
+                }
+            
+            # 4. Verifica saldo do usuário
+            logger.info(f"💰 Verificando saldo de {amount} {symbol} em {user_address.address}...")
+            balance_check = self.check_user_balance(
+                w3=w3,
+                address=user_address.address,
+                symbol=symbol,
+                network=network,
+                required_amount=amount
+            )
+            
+            if not balance_check.get("has_enough"):
+                logger.error(f"❌ Saldo insuficiente! Disponível: {balance_check['balance']}, Necessário: {balance_check['required']}")
+                return {
+                    "success": False,
+                    "tx_hash": None,
+                    "from_address": user_address.address,
+                    "to_address": self.platform_wallet_address,
+                    "network": network,
+                    "error": f"Saldo insuficiente na blockchain. Disponível: {balance_check['balance']} {symbol}, Necessário: {balance_check['required']}"
+                }
+            
+            logger.info(f"✅ Saldo suficiente! Disponível: {balance_check['balance']}")
+            
+            # 5. Determina se é token nativo ou ERC20
+            config = self.NETWORK_CONFIG[network.lower()]
+            is_native_token = balance_check.get("is_native", False)
+            
+            if is_native_token:
+                contract_address = None
+            else:
+                normalized_symbol = balance_check.get("normalized_symbol", symbol.upper())
+                contract_address = config["contracts"].get(normalized_symbol) or config["contracts"].get(symbol.upper())
+            
+            is_erc20 = not is_native_token
+            
+            logger.info(f"📋 Token: {symbol}, Native: {is_native_token}, Contract: {contract_address or 'NATIVO'}")
+            
+            # 6. Gas Sponsor: Verifica e patrocina gas se necessário
+            gas_sponsor_result = None
+            network_fee_brl = Decimal("0")
+            
+            logger.info(f"⛽ Verificando necessidade de gas sponsor...")
+            gas_sponsor_result = gas_sponsor_service.sponsor_gas_for_sell(
+                w3=w3,
+                user_address=str(user_address.address),
+                network=network,
+                is_erc20=is_erc20
+            )
+            
+            if gas_sponsor_result.get("error"):
+                logger.error(f"❌ Erro no gas sponsor: {gas_sponsor_result['error']}")
+                return {
+                    "success": False,
+                    "tx_hash": None,
+                    "from_address": user_address.address,
+                    "to_address": self.platform_wallet_address,
+                    "network": network,
+                    "error": f"Erro ao patrocinar gas: {gas_sponsor_result['error']}"
+                }
+            
+            if gas_sponsor_result.get("gas_sponsored"):
+                network_fee_brl = gas_sponsor_result.get("network_fee_brl", Decimal("0"))
+                logger.info(f"✅ Gas patrocinado! Taxa de rede: R$ {network_fee_brl}")
+            else:
+                logger.info(f"✅ Usuário já tem gas suficiente")
+            
+            # 7. Envia a transação
+            tx_hash = None
+            amount_to_send = amount
+            
+            if contract_address is None:
+                # Token nativo - reserva gas
+                gas_price_wei = w3.eth.gas_price
+                gas_cost_wei = gas_price_wei * config["gas_limit"]
+                gas_cost = Decimal(str(w3.from_wei(gas_cost_wei, 'ether')))
+                gas_cost_with_margin = gas_cost * Decimal("1.5")
+                
+                balance_wei = w3.eth.get_balance(Web3.to_checksum_address(str(user_address.address)))
+                current_balance = Decimal(str(w3.from_wei(balance_wei, 'ether')))
+                
+                max_sendable = current_balance - gas_cost_with_margin
+                
+                if max_sendable <= Decimal("0"):
+                    logger.error(f"❌ Saldo insuficiente para gas!")
+                    return {
+                        "success": False,
+                        "tx_hash": None,
+                        "from_address": str(user_address.address),
+                        "to_address": self.platform_wallet_address,
+                        "network": network,
+                        "error": f"Saldo insuficiente para cobrir taxa de gas"
+                    }
+                
+                if amount_to_send > max_sendable:
+                    amount_to_send = max_sendable
+                    logger.warning(f"⚠️ Ajustando valor: {amount} → {amount_to_send}")
+                
+                logger.info(f"📤 Transferindo {amount_to_send} {symbol} (nativo)")
+                tx_hash = self.send_native_token(
+                    w3=w3,
+                    from_address=str(user_address.address),
+                    private_key=private_key,
+                    to_address=self.platform_wallet_address,
+                    amount=amount_to_send,
+                    network=network
+                )
+            else:
+                # Token ERC20
+                logger.info(f"📤 Transferindo {amount_to_send} {symbol} (ERC20)")
+                tx_hash = self.send_erc20_token(
+                    w3=w3,
+                    contract_address=contract_address,
+                    from_address=str(user_address.address),
+                    private_key=private_key,
+                    to_address=self.platform_wallet_address,
+                    amount=amount_to_send,
+                    network=network
+                )
+            
+            if not tx_hash:
+                logger.error("❌ Falha ao enviar transação - tx_hash é None")
+                return {
+                    "success": False,
+                    "tx_hash": None,
+                    "from_address": str(user_address.address),
+                    "to_address": self.platform_wallet_address,
+                    "network": network,
+                    "error": "Falha ao enviar transação blockchain",
+                    "gas_sponsor": gas_sponsor_result
+                }
+            
+            logger.info(f"✅ Crypto transferida para plataforma! TX: {tx_hash}")
+            
+            return {
+                "success": True,
+                "tx_hash": tx_hash,
+                "from_address": user_address.address,
+                "to_address": self.platform_wallet_address,
+                "network": network,
+                "amount_sent": str(amount_to_send),
+                "error": None,
+                "gas_sponsor": {
+                    "sponsored": gas_sponsor_result.get("gas_sponsored", False) if gas_sponsor_result else False,
+                    "gas_tx_hash": gas_sponsor_result.get("gas_tx_hash") if gas_sponsor_result else None,
+                    "network_fee_brl": str(network_fee_brl),
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ Erro no transfer_to_platform: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return {
+                "success": False,
+                "tx_hash": None,
+                "from_address": None,
+                "to_address": None,
+                "network": network,
+                "error": str(e)
+            }
+
+
 # Instância singleton
 blockchain_withdraw_service = BlockchainWithdrawService()

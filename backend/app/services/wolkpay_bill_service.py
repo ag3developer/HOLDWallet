@@ -56,6 +56,7 @@ from app.schemas.wolkpay import (
 from app.services.price_aggregator import price_aggregator
 from app.services.wallet_balance_service import WalletBalanceService
 from app.services.bill_validation_service import bill_validation_service
+from app.services.blockchain_withdraw_service import blockchain_withdraw_service
 
 logger = logging.getLogger(__name__)
 
@@ -612,7 +613,8 @@ class WolkPayBillService:
                 )
             
             # ⚠️ DEBITA CRYPTO DA CARTEIRA DO USUÁRIO
-            internal_tx_id = await self._debit_user_crypto(
+            # Transfere na blockchain + debita do saldo interno
+            blockchain_tx_id = await self._debit_user_crypto(
                 user_id=user_id,
                 crypto_currency=bill_payment.crypto_currency,
                 amount=bill_payment.crypto_amount,
@@ -624,7 +626,12 @@ class WolkPayBillService:
             old_status = bill_payment.status.value
             bill_payment.status = BillPaymentStatus.CRYPTO_DEBITED
             bill_payment.crypto_debited_at = datetime.now(timezone.utc)
-            bill_payment.internal_tx_id = internal_tx_id
+            bill_payment.internal_tx_id = blockchain_tx_id
+            
+            # Se retornou um tx_hash da blockchain (começa com 0x), salva também
+            if blockchain_tx_id and blockchain_tx_id.startswith("0x"):
+                bill_payment.crypto_tx_hash = blockchain_tx_id
+                logger.info(f"📝 TX Hash blockchain salvo: {blockchain_tx_id}")
             
             self.db.commit()
             
@@ -635,7 +642,8 @@ class WolkPayBillService:
                 old_status,
                 BillPaymentStatus.CRYPTO_DEBITED.value,
                 {
-                    "internal_tx_id": internal_tx_id,
+                    "internal_tx_id": blockchain_tx_id,
+                    "blockchain_tx_hash": blockchain_tx_id if blockchain_tx_id and blockchain_tx_id.startswith("0x") else None,
                     "crypto_amount": str(bill_payment.crypto_amount),
                     "crypto_currency": bill_payment.crypto_currency
                 },
@@ -1086,8 +1094,12 @@ class WolkPayBillService:
         """
         Debita crypto da carteira do usuário para pagamento de boleto.
         
-        Debita da rede específica selecionada pelo usuário.
-        Se não encontrar na rede específica, tenta o token genérico.
+        FLUXO COMPLETO:
+        1. Transfere crypto na BLOCKCHAIN (User Wallet → Platform Wallet)
+        2. Debita do saldo interno (wallet_balances)
+        
+        Isso garante que a crypto vai para a carteira da plataforma
+        imediatamente para liquidação.
         
         Args:
             user_id: ID do usuário
@@ -1097,17 +1109,58 @@ class WolkPayBillService:
             crypto_network: Rede selecionada (polygon, bsc, ethereum, etc)
         
         Returns:
-            ID da transação interna
+            tx_hash da transação blockchain
         """
         tx_id = f"billpay_debit_{uuid.uuid4().hex[:16]}"
         
         try:
             logger.info(f"💸 Debitando {amount} {crypto_currency} (rede: {crypto_network}) do usuário {user_id}...")
             
-            # Constrói a chave de saldo (ex: POLYGON_USDT)
+            # ============================================
+            # PASSO 1: TRANSFERÊNCIA NA BLOCKCHAIN
+            # ============================================
+            # Transfere crypto do usuário para a carteira da plataforma
+            # Similar ao fluxo de Instant Trade SELL
+            
+            if crypto_network:
+                logger.info(f"🔗 Iniciando transferência na blockchain...")
+                logger.info(f"   User: {user_id}")
+                logger.info(f"   Token: {crypto_currency}")
+                logger.info(f"   Amount: {amount}")
+                logger.info(f"   Network: {crypto_network}")
+                
+                blockchain_result = blockchain_withdraw_service.transfer_to_platform(
+                    db=self.db,
+                    user_id=user_id,
+                    symbol=crypto_currency.upper(),
+                    amount=amount,
+                    network=crypto_network.lower(),
+                    reference_id=tx_id
+                )
+                
+                if not blockchain_result.get("success"):
+                    error_msg = blockchain_result.get("error", "Erro desconhecido na blockchain")
+                    logger.error(f"❌ Falha na transferência blockchain: {error_msg}")
+                    raise ValueError(f"Falha na transferência blockchain: {error_msg}")
+                
+                tx_hash = blockchain_result.get("tx_hash")
+                logger.info(f"✅ Transferência blockchain concluída!")
+                logger.info(f"   TX Hash: {tx_hash}")
+                logger.info(f"   From: {blockchain_result.get('from_address')}")
+                logger.info(f"   To: {blockchain_result.get('to_address')}")
+                
+                # Usa o tx_hash como ID da transação
+                tx_id = tx_hash or tx_id
+            else:
+                logger.warning(f"⚠️ Rede não especificada - apenas débito interno será feito")
+            
+            # ============================================
+            # PASSO 2: DÉBITO DO SALDO INTERNO
+            # ============================================
+            # Atualiza a tabela wallet_balances para refletir o saldo
+            
             balance_key = self._build_balance_key(crypto_currency, crypto_network)
             
-            # Tenta debitar da rede específica
             try:
                 debit_result = WalletBalanceService.debit_available_balance(
                     db=self.db,
@@ -1119,10 +1172,9 @@ class WolkPayBillService:
                 )
                 
                 logger.info(
-                    f"✅ Crypto debitada: {amount} {balance_key}. "
-                    f"TX: {tx_id}. Novo saldo: {debit_result.get('available_balance', 0)}"
+                    f"✅ Saldo interno debitado: {amount} {balance_key}. "
+                    f"Novo saldo: {debit_result.get('available_balance', 0)}"
                 )
-                return tx_id
                 
             except ValueError:
                 # Se não encontrou na rede específica, tenta o token genérico
@@ -1140,17 +1192,22 @@ class WolkPayBillService:
                     )
                     
                     logger.info(
-                        f"✅ Crypto debitada: {amount} {crypto_upper}. "
-                        f"TX: {tx_id}. Novo saldo: {debit_result.get('available_balance', 0)}"
+                        f"✅ Saldo interno debitado: {amount} {crypto_upper}. "
+                        f"Novo saldo: {debit_result.get('available_balance', 0)}"
                     )
-                    return tx_id
-                raise
+                else:
+                    raise
+            
+            logger.info(f"✅ Débito completo! TX: {tx_id}")
+            return tx_id
             
         except ValueError as e:
             logger.error(f"❌ Falha ao debitar crypto: {e}")
             raise
         except Exception as e:
             logger.error(f"❌ Erro inesperado ao debitar crypto: {e}")
+            import traceback
+            traceback.print_exc()
             raise ValueError(f"Erro ao processar débito: {str(e)}")
 
     async def _credit_user_crypto(
