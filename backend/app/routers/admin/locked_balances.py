@@ -31,7 +31,7 @@ from app.models.wolkpay import WolkPayBillPayment, BillPaymentStatus
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/admin/locked-balances", tags=["Admin Locked Balances"])
+router = APIRouter(prefix="/locked-balances", tags=["Admin Locked Balances"])
 
 
 # ==========================================
