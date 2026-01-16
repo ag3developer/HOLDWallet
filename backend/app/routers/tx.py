@@ -44,7 +44,7 @@ async def get_transactions(
         query = query.filter(Wallet.id == wallet_id)
     
     if network:
-        query = query.filter(Wallet.network == network)
+        query = query.filter(Transaction.network == network)
     
     if status:
         query = query.filter(Transaction.status == status)
@@ -72,7 +72,7 @@ async def get_transactions(
             fee=str(tx.fee) if tx.fee else None,
             status=tx.status,
             block_number=tx.block_number,
-            network=tx.address.wallet.network,
+            network=tx.network,  # Use transaction's network, not wallet's
             token_address=tx.token_address,
             token_symbol=tx.token_symbol,
             created_at=tx.created_at,
@@ -118,7 +118,7 @@ async def get_transaction(
         fee=str(transaction.fee) if transaction.fee else None,
         status=transaction.status,
         block_number=transaction.block_number,
-        network=transaction.address.wallet.network,
+        network=transaction.network,  # Use transaction's network
         token_address=transaction.token_address,
         token_symbol=transaction.token_symbol,
         created_at=transaction.created_at,
