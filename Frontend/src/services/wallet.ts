@@ -64,9 +64,18 @@ class WalletService {
       console.log('✅ Wallets parsed:', wallets)
 
       return Array.isArray(wallets) ? wallets : []
-    } catch (error) {
-      console.error('❌ Error fetching wallets:', error)
-      return []
+    } catch (error: any) {
+      // Log based on error type
+      if (error.isNetworkError || error.code === 'ERR_NETWORK') {
+        console.warn('⚠️ Network error fetching wallets (server may be offline)')
+      } else if (error.code === 'TIMEOUT_ERROR') {
+        console.warn('⚠️ Timeout fetching wallets')
+      } else {
+        console.error('❌ Error fetching wallets:', error)
+      }
+      
+      // Re-throw with network error flag preserved
+      throw error
     }
   }
 

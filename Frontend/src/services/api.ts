@@ -19,6 +19,9 @@ const ENDPOINTS_NEEDING_TRAILING_SLASH = [
 
 class ApiClient {
   private readonly client: AxiosInstance
+  private isServerAvailable: boolean = true
+  private lastServerCheck: number = 0
+  private readonly SERVER_CHECK_INTERVAL = 5000 // 5 seconds
 
   constructor() {
     console.log('🌐 [API Client] Initializing with baseURL:', APP_CONFIG.api.baseUrl)
@@ -27,13 +30,52 @@ class ApiClient {
 
     this.client = axios.create({
       baseURL: APP_CONFIG.api.baseUrl,
-      timeout: 60000, // Aumentado para 60 segundos para operações mais complexas
+      timeout: 15000, // Reduzido para 15 segundos - mais responsivo
       headers: {
         'Content-Type': 'application/json',
       },
     })
 
     this.setupInterceptors()
+    
+    // Check server availability on init (background, non-blocking)
+    setTimeout(() => this.checkServerAvailability(), 100)
+  }
+
+  /**
+   * Quick health check for server availability
+   */
+  private async checkServerAvailability(): Promise<boolean> {
+    const now = Date.now()
+    
+    // Don't check too frequently
+    if (now - this.lastServerCheck < this.SERVER_CHECK_INTERVAL) {
+      return this.isServerAvailable
+    }
+    
+    this.lastServerCheck = now
+    
+    try {
+      // Quick ping with short timeout
+      await axios.get(`${APP_CONFIG.api.baseUrl}/health`, { 
+        timeout: 3000,
+        validateStatus: () => true // Accept any status
+      })
+      this.isServerAvailable = true
+      return true
+    } catch {
+      this.isServerAvailable = false
+      console.warn('[API] ⚠️ Server not available')
+      return false
+    }
+  }
+
+  /**
+   * Mark server as available (called on successful requests)
+   */
+  private markServerAvailable(): void {
+    this.isServerAvailable = true
+    this.lastServerCheck = Date.now()
   }
 
   /**
@@ -132,6 +174,8 @@ class ApiClient {
     // Response interceptor for error handling
     this.client.interceptors.response.use(
       (response: AxiosResponse) => {
+        // Mark server as available on successful response
+        this.markServerAvailable()
         return response
       },
       async error => {
@@ -521,27 +565,64 @@ class ApiClient {
     } else if (error.request) {
       // Request was made but no response received
       const errorMsg = error.message?.toLowerCase() || ''
+      const errorCode = error.code || ''
 
-      // Check for CORS or network issues
+      // Mark server as potentially unavailable
+      this.isServerAvailable = false
+
+      // Check for specific error types
       if (errorMsg.includes('cors') || errorMsg.includes('blocked')) {
         const corsError = new Error(
           'CORS Error: The API server rejected the request. Please check if the backend is running and accessible.'
         )
         ;(corsError as any).code = 'CORS_ERROR'
         ;(corsError as any).originalError = error.message
+        ;(corsError as any).isNetworkError = true
         return corsError
+      }
+
+      // Timeout error
+      if (errorCode === 'ECONNABORTED' || errorMsg.includes('timeout')) {
+        const timeoutError = new Error(
+          'Request timeout: Server took too long to respond. Please try again.'
+        )
+        ;(timeoutError as any).code = 'TIMEOUT_ERROR'
+        ;(timeoutError as any).isNetworkError = true
+        ;(timeoutError as any).isRetryable = true
+        return timeoutError
+      }
+
+      // Connection refused / server not running
+      if (errorCode === 'ERR_NETWORK' || errorMsg.includes('network')) {
+        const netError = new Error(
+          'Connection error: Unable to reach the server. Please check if the API is running.'
+        )
+        ;(netError as any).code = 'ERR_NETWORK'
+        ;(netError as any).isNetworkError = true
+        ;(netError as any).isRetryable = true
+        return netError
       }
 
       // Generic network error
       const netError = new Error(
-        'Network error: No response from server. Please check your connection and ensure the API server is running.'
+        'Network error: No response from server. Please check your connection.'
       )
+      ;(netError as any).code = 'NETWORK_ERROR'
+      ;(netError as any).isNetworkError = true
+      ;(netError as any).isRetryable = true
       ;(netError as any).originalError = error.message
       return netError
     } else {
       // Something else happened
       return new Error(`Request error: ${error.message}`)
     }
+  }
+
+  /**
+   * Check if server is likely available
+   */
+  isServerLikelyAvailable(): boolean {
+    return this.isServerAvailable
   }
 
   // Public HTTP methods

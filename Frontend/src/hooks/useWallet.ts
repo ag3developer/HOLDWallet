@@ -188,10 +188,22 @@ export function useWallets() {
 
         return wallets || []
       } catch (error: any) {
-        console.error('[useWallets] ❌ Error:', error.message)
+        console.error('[useWallets] ❌ Error:', error.message || error)
 
-        // Network errors - retry
-        if (error.message?.includes('Network') || error.code === 'ERR_NETWORK') {
+        // Network errors - check if retryable
+        const isNetworkError = error.isNetworkError || 
+          error.code === 'ERR_NETWORK' || 
+          error.code === 'TIMEOUT_ERROR' ||
+          error.message?.includes('Network') ||
+          error.message?.includes('timeout')
+
+        if (isNetworkError) {
+          // For network errors, return empty array instead of throwing
+          // This prevents the UI from showing error state constantly
+          if (retryCount >= 2) {
+            console.warn('[useWallets] ⚠️ Network error after retries, returning empty')
+            return []
+          }
           throw error // React Query will retry
         }
 
@@ -204,27 +216,35 @@ export function useWallets() {
         throw error
       }
     },
-    staleTime: 20 * 1000, // 20 seconds - more aggressive for Safari
+    staleTime: 15 * 1000, // 15 seconds - more aggressive refresh
     gcTime: 5 * 60 * 1000, // 5 minutes cache
     retry: (failureCount, error: any) => {
       // Token pending - retry more aggressively
       if (error?.message === 'AUTH_TOKEN_PENDING') {
-        return failureCount < 8
+        return failureCount < 5 // Reduced from 8
       }
       // Auth expired - don't retry
       if (error?.message === 'AUTH_EXPIRED') {
         return false
       }
-      // Other errors - retry 3x
-      return failureCount < 3
+      // Network errors - limited retries
+      if (error?.isNetworkError || error?.code === 'ERR_NETWORK') {
+        return failureCount < 2 // Only 2 retries for network errors
+      }
+      // Other errors - retry 2x
+      return failureCount < 2
     },
     retryDelay: (attemptIndex, error: any) => {
       // Token pending - shorter delays
       if (error?.message === 'AUTH_TOKEN_PENDING') {
-        return Math.min(200 * (attemptIndex + 1), 1500)
+        return Math.min(150 * (attemptIndex + 1), 800) // Faster retries
+      }
+      // Network errors - quick retries
+      if (error?.isNetworkError || error?.code === 'ERR_NETWORK') {
+        return Math.min(300 * (attemptIndex + 1), 1000)
       }
       // Other errors - standard backoff
-      return Math.min(500 * 2 ** attemptIndex, 3000)
+      return Math.min(400 * 2 ** attemptIndex, 2000)
     },
     // Enable quando auth está ready OU após timeout forçado
     enabled: authReady || retryCount > 0,
