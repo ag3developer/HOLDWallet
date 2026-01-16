@@ -172,7 +172,18 @@ class ApiClient {
 
         const originalRequest = error.config
 
-        // Handle 401 Unauthorized - token expired
+        // ========================================
+        // 🔴 ARQUITETURA PROFISSIONAL DE ERROS
+        // ========================================
+        // Importar funções de erro padronizadas
+        const { parseErrorResponse, requiresLogout, requiresReauth } = await import(
+          './errors/ErrorCodes'
+        )
+
+        // Tentar parsear resposta padronizada
+        const parsedError = parseErrorResponse(error)
+
+        // Handle 401 Unauthorized - SEMPRE é sessão expirada
         if (error.response?.status === 401 && !originalRequest._retry) {
           originalRequest._retry = true
 
@@ -191,52 +202,40 @@ class ApiClient {
           }
         }
 
-        // Handle 403 Forbidden - but NOT for biometric/2FA token errors
+        // Handle 403 Forbidden - Decisão baseada no código de erro
         if (error.response?.status === 403) {
-          const errorDetail = error.response?.data?.detail
-
-          // Don't logout for biometric/2FA errors - let the UI handle re-authentication
-          if (errorDetail === 'BIOMETRIC_TOKEN_EXPIRED' || errorDetail === 'INVALID_2FA_TOKEN') {
-            console.warn('[API] 403 - Biometric/2FA token issue, not logging out')
-            throw this.handleApiError(error)
-          }
-
-          // Log detailed 403 info for debugging
-          console.error('[API] 🚫 403 Forbidden Details:', {
+          // Log para debug
+          console.warn('[API] 🚫 403 Forbidden:', {
             url: error.config?.url,
-            detail: errorDetail,
-            fullResponse: error.response?.data,
-            hasAuthHeader: !!error.config?.headers?.Authorization,
-            authHeaderPreview: error.config?.headers?.Authorization?.substring(0, 30) + '...',
+            code: parsedError?.code,
+            requires_logout: parsedError?.requires_logout,
+            requires_reauth: parsedError?.requires_reauth,
           })
 
-          // Check if we have a token
-          const token = this.getStoredToken()
-          if (!token) {
-            console.warn('[API] ⚠️ No token found - user needs to login again')
-            this.handleAuthError()
-          } else {
-            // Token exists but 403 - DON'T automatically logout!
-            // 403 can happen for many reasons (validation errors, business rules, etc)
-            // Only logout if the error explicitly indicates auth issues
-            console.warn('[API] ⚠️ Token exists but got 403 - checking error type...')
-
-            // Only logout for explicit auth-related 403 errors
-            const isAuthError =
-              errorDetail?.toLowerCase()?.includes('token') &&
-              (errorDetail?.toLowerCase()?.includes('invalid') ||
-                errorDetail?.toLowerCase()?.includes('expired'))
-
-            if (errorDetail?.includes('IP') || errorDetail?.includes('blocked')) {
-              console.error('[API] 🚫 IP BLOCKED! Contact support.')
-            } else if (isAuthError) {
-              // Only logout if it's clearly a token/auth problem
-              console.warn('[API] 🔐 Auth token issue - forcing re-authentication')
+          // Usar flags do backend se disponíveis, senão inferir do código
+          if (parsedError) {
+            if (parsedError.requires_logout) {
+              console.warn('[API] 🔐 Server requested logout')
               this.handleAuthError()
+            } else if (parsedError.requires_reauth) {
+              // 2FA/Biometric expired - NÃO fazer logout
+              // UI deve mostrar modal de reautenticação
+              console.warn('[API] 🔄 Requires re-authentication (2FA/biometric)')
             } else {
-              // For other 403 errors (validation, business rules), don't logout
-              console.warn('[API] ℹ️ 403 is not auth-related, not logging out')
+              // Erro de negócio/validação - NÃO fazer logout
+              console.warn('[API] ℹ️ Business/validation error, not logging out')
             }
+          } else {
+            // Formato legacy - verificar pelo detail string
+            const errorDetail = error.response?.data?.detail
+
+            // Só fazer logout se não tem token
+            const token = this.getStoredToken()
+            if (!token) {
+              console.warn('[API] ⚠️ No token found - user needs to login again')
+              this.handleAuthError()
+            }
+            // Para outros 403, NÃO fazer logout - deixar a UI tratar
           }
         }
 
