@@ -46,10 +46,11 @@ class BlockchainSigner:
         """Initialize Web3 providers for each network."""
         providers = {}
         
-        # RPC endpoints (use environment variables in production)
+        # RPC endpoints - usando endpoints mais rápidos e confiáveis
+        # IMPORTANTE: RPCs públicos podem ser lentos, considere usar Alchemy/Infura
         rpc_endpoints = {
-            'ethereum': 'https://eth-mainnet.g.alchemy.com/v2/demo',  # Replace with your key
-            'polygon': 'https://polygon-rpc.com',
+            'ethereum': 'https://eth.drpc.org',
+            'polygon': 'https://polygon.drpc.org',  # drpc é mais rápido
             'bsc': 'https://bsc-dataseed.binance.org',
             'base': 'https://mainnet.base.org',
             'avalanche': 'https://api.avax.network/ext/bc/C/rpc',

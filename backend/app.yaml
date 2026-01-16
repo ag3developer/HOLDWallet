@@ -35,7 +35,7 @@ services:
       - key: ETHEREUM_RPC_URL
         value: https://eth.drpc.org
       - key: POLYGON_RPC_URL
-        value: https://polygon-rpc.com
+        value: https://polygon.drpc.org
       - key: BSC_RPC_URL
         value: https://bsc-dataseed1.binance.org
       - key: TRANSFBANK_ENABLED

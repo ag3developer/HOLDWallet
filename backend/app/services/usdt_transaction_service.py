@@ -54,8 +54,8 @@ class USDTTransactionService:
         # RPC endpoints para cada blockchain (inicializa em __init__)
         # Usa settings se disponível, caso contrário usa defaults públicos
         self.RPC_ENDPOINTS = {
-            'ethereum': getattr(settings, 'ETHEREUM_RPC_URL', None) or 'https://eth.llamarpc.com',
-            'polygon': getattr(settings, 'POLYGON_RPC_URL', None) or 'https://polygon-rpc.com',
+            'ethereum': getattr(settings, 'ETHEREUM_RPC_URL', None) or 'https://eth.drpc.org',
+            'polygon': getattr(settings, 'POLYGON_RPC_URL', None) or 'https://polygon.drpc.org',
             'bsc': getattr(settings, 'BSC_RPC_URL', None) or 'https://bsc-dataseed.binance.org',
             'arbitrum': getattr(settings, 'ARBITRUM_RPC_URL', None) or 'https://arb1.arbitrum.io/rpc',
             'optimism': getattr(settings, 'OPTIMISM_RPC_URL', None) or 'https://mainnet.optimism.io',

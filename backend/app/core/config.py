@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     BSCSCAN_API_KEY: Optional[str] = None
     
     # RPC URLs
-    POLYGON_RPC_URL: str = "https://polygon-rpc.com"
+    POLYGON_RPC_URL: str = "https://polygon.drpc.org"
     ETHEREUM_RPC_URL: str = "https://eth-mainnet.alchemyapi.io/v2/your-key"
     BSC_RPC_URL: str = "https://bsc-dataseed.binance.org"
     BASE_RPC_URL: str = "https://mainnet.base.org"
