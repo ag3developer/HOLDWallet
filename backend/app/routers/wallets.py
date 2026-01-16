@@ -878,12 +878,16 @@ async def send_transaction(
     
     Set `mode: "non-custodial"` to prepare transaction for external signing.
     """
+    # Variável para rastrear se precisamos consumir o token biométrico após sucesso
+    biometric_token_to_consume = None
+    
+    # Importar serviços de autenticação
+    from app.services.two_factor_service import two_factor_service
+    from app.services.webauthn_service import webauthn_service
+    from app.models.two_factor import TwoFactorAuth
+    
     try:
         # 🔐 VERIFY 2FA OR BIOMETRIC (if enabled)
-        from app.services.two_factor_service import two_factor_service
-        from app.services.webauthn_service import webauthn_service
-        from app.models.two_factor import TwoFactorAuth
-        
         logger.info(f"🔍 Checking 2FA/Biometric for user {current_user.id}")
         
         two_fa = db.query(TwoFactorAuth).filter(
@@ -907,13 +911,18 @@ async def send_transaction(
             
             # Check if it's a biometric token
             if request.two_factor_token.startswith("bio_"):
-                logger.info("🔐 Verifying biometric token...")
+                logger.info("🔐 Verifying biometric token (not consuming yet)...")
+                # IMPORTANTE: consume=False para verificar sem consumir
+                # O token só será consumido após a transação ser bem sucedida
                 is_valid = webauthn_service.verify_biometric_token(
                     current_user.id,
-                    request.two_factor_token
+                    request.two_factor_token,
+                    consume=False  # Não consumir ainda!
                 )
                 if is_valid:
-                    logger.info(f"✅ Biometric token verified for transaction from user {current_user.id}")
+                    logger.info(f"✅ Biometric token verified (pending consumption) for user {current_user.id}")
+                    # Guardar o token para consumir após sucesso
+                    biometric_token_to_consume = request.two_factor_token
                 else:
                     logger.error("Invalid or expired biometric token")
                     raise HTTPException(
@@ -1176,6 +1185,12 @@ async def send_transaction(
                 'base': f'https://basescan.org/tx/{tx_hash}',
                 'avalanche': f'https://snowtrace.io/tx/{tx_hash}'
             }
+            
+            # 🔐 CONSUMIR TOKEN BIOMÉTRICO APÓS SUCESSO
+            # O token só é marcado como usado DEPOIS que a transação foi enviada com sucesso
+            if biometric_token_to_consume:
+                logger.info("🔐 Consuming biometric token after successful transaction...")
+                webauthn_service.consume_biometric_token(biometric_token_to_consume)
             
             return {
                 "success": True,

@@ -122,16 +122,25 @@ class WebAuthnService:
             del self._biometric_tokens[token]
         return len(tokens_to_remove)
     
-    def verify_biometric_token(self, user_id, token: str) -> bool:
+    def verify_biometric_token(self, user_id, token: str, consume: bool = True) -> bool:
         """
         Verifica se um token biométrico é válido para o usuário.
         Usa APENAS banco de dados - sem fallback para memória.
+        
+        Args:
+            user_id: ID do usuário
+            token: Token biométrico
+            consume: Se True, marca o token como usado (padrão). 
+                     Se False, apenas valida sem consumir (útil para verificação prévia).
+        
+        IMPORTANTE: Para transações, use consume=False na verificação inicial,
+        e depois chame consume_biometric_token() apenas se a transação for bem sucedida.
         """
         if not token or not token.startswith("bio_"):
             logger.warning(f"Invalid token format: {token[:20] if token else 'None'}...")
             return False
         
-        logger.info(f"🔍 Verifying biometric token for user {user_id}: {token[:25]}...")
+        logger.info(f"🔍 Verifying biometric token for user {user_id}: {token[:25]}... (consume={consume})")
         
         try:
             from app.models.security import BiometricToken
@@ -180,12 +189,15 @@ class WebAuthnService:
                     logger.warning(f"❌ Token EXPIRED for user {user_id}")
                     return False
                 
-                # Token válido - marcar como usado IMEDIATAMENTE
-                token_record.is_used = True
-                token_record.used_at = datetime.now(timezone.utc)
-                db.commit()
+                # Token válido - marcar como usado apenas se consume=True
+                if consume:
+                    token_record.is_used = True
+                    token_record.used_at = datetime.now(timezone.utc)
+                    db.commit()
+                    logger.info(f"✅ Biometric token VERIFIED and CONSUMED for user {user_id}")
+                else:
+                    logger.info(f"✅ Biometric token VERIFIED (not consumed yet) for user {user_id}")
                 
-                logger.info(f"✅ Biometric token VERIFIED and CONSUMED for user {user_id}")
                 return True
             finally:
                 db.close()
@@ -193,6 +205,38 @@ class WebAuthnService:
             logger.error(f"❌ Database error verifying biometric token: {e}")
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
+            return False
+    
+    def consume_biometric_token(self, token: str) -> bool:
+        """
+        Consome (marca como usado) um token biométrico.
+        Chamar APÓS a transação ser bem sucedida.
+        """
+        if not token or not token.startswith("bio_"):
+            return False
+        
+        try:
+            from app.models.security import BiometricToken
+            
+            db = SessionLocal()
+            try:
+                token_record = db.query(BiometricToken).filter(
+                    BiometricToken.token == token,
+                    BiometricToken.is_used == False
+                ).first()
+                
+                if token_record:
+                    token_record.is_used = True
+                    token_record.used_at = datetime.now(timezone.utc)
+                    db.commit()
+                    logger.info(f"✅ Biometric token CONSUMED after successful transaction")
+                    return True
+                
+                return False
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"Error consuming biometric token: {e}")
             return False
     
     def _verify_biometric_token_memory(self, user_id, token: str) -> bool:
