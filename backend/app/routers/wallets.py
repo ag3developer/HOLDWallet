@@ -1316,6 +1316,13 @@ async def send_transaction(
             # Get private key
             private_key = bip44_address.PrivateKey().Raw().ToHex()
             
+            # Debug: verificar se endereço derivado corresponde ao do banco
+            derived_address = bip44_address.PublicKey().ToAddress()
+            logger.info(f"🔍 Endereço do banco: {from_address}")
+            logger.info(f"🔍 Endereço derivado: {derived_address}")
+            if derived_address.lower() != from_address.lower():
+                logger.warning(f"⚠️  ENDEREÇOS NÃO CORRESPONDEM! Banco: {from_address}, Derivado: {derived_address}")
+            
             # Get gas price based on fee level (needed for both tokens and native)
             gas_estimates = await blockchain_signer.estimate_gas_price(request.network, request.fee_level)
             selected_gas = gas_estimates.get(request.fee_level, gas_estimates['standard'])

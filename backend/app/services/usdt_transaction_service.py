@@ -386,13 +386,18 @@ class USDTTransactionService:
         ⚠️ SEGURO: private_key deve vir de source confiável (ambiente, BD criptografado)
         """
         try:
+            logger.info(f"🚀 Iniciando sign_and_send_transaction: {from_address} -> {to_address}, {amount} {token} on {network}")
+            
             # Preparar transação
             prep = self.prepare_transaction(
                 from_address, to_address, amount, token, network, fee_level
             )
             
             if not prep.get('valid'):
+                logger.error(f"❌ prepare_transaction falhou: {prep.get('error')}")
                 return {'error': prep.get('error'), 'tx_hash': None}
+            
+            logger.info(f"✅ Transação preparada: nonce={prep.get('nonce')}, gas={prep.get('gas')}")
             
             w3 = self.web3_instances[network.lower()]
             
@@ -424,9 +429,12 @@ class USDTTransactionService:
             if not decrypted_key.startswith('0x') and len(decrypted_key) == 64:
                 decrypted_key = '0x' + decrypted_key
             
+            logger.info(f"🔐 Tentando criar account com chave de {len(decrypted_key)} caracteres")
+            
             # Criar account
             try:
                 account = w3.eth.account.from_key(decrypted_key)
+                logger.info(f"✅ Account criado: {account.address}")
             except Exception as e:
                 logger.error(f"Erro ao carregar chave privada: {e}")
                 return {
@@ -435,21 +443,28 @@ class USDTTransactionService:
                 }
             
             # Validar que é o endereço correto
-            if account.address.lower() != Web3.to_checksum_address(from_address).lower():
+            expected_address = Web3.to_checksum_address(from_address)
+            logger.info(f"🔍 Comparando: account.address={account.address.lower()} vs expected={expected_address.lower()}")
+            
+            if account.address.lower() != expected_address.lower():
+                logger.error(f"❌ Endereço não corresponde! Account: {account.address}, Expected: {expected_address}")
                 return {
                     'error': 'Chave privada não corresponde ao endereço',
                     'tx_hash': None
                 }
             
             # Assinar transação
+            logger.info(f"📝 Assinando transação com tx_dict: nonce={prep['tx_dict'].get('nonce')}, gas={prep['tx_dict'].get('gas')}")
             signed_tx = w3.eth.account.sign_transaction(
                 prep['tx_dict'],
                 decrypted_key
             )
+            logger.info("✅ Transação assinada com sucesso")
             
             # Enviar transação (com tratamento de erro robusto)
             # Compatible with web3.py v5 and v6+
             raw_tx = getattr(signed_tx, 'rawTransaction', None) or getattr(signed_tx, 'raw_transaction', None)
+            logger.info(f"📤 Enviando raw transaction ({len(raw_tx) if raw_tx else 0} bytes)")
             try:
                 tx_hash = w3.eth.send_raw_transaction(raw_tx)
                 tx_hash_hex = tx_hash.hex()
