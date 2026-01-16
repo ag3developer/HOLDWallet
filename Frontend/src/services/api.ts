@@ -216,15 +216,26 @@ class ApiClient {
             console.warn('[API] ⚠️ No token found - user needs to login again')
             this.handleAuthError()
           } else {
-            // Token exists but 403 - likely expired or invalid
-            console.warn('[API] ⚠️ Token exists but got 403 - token may be expired/invalid')
-            // Check if it's an IP block message
+            // Token exists but 403 - DON'T automatically logout!
+            // 403 can happen for many reasons (validation errors, business rules, etc)
+            // Only logout if the error explicitly indicates auth issues
+            console.warn('[API] ⚠️ Token exists but got 403 - checking error type...')
+
+            // Only logout for explicit auth-related 403 errors
+            const isAuthError =
+              errorDetail?.toLowerCase()?.includes('token') &&
+              (errorDetail?.toLowerCase()?.includes('invalid') ||
+                errorDetail?.toLowerCase()?.includes('expired'))
+
             if (errorDetail?.includes('IP') || errorDetail?.includes('blocked')) {
               console.error('[API] 🚫 IP BLOCKED! Contact support.')
-            } else {
-              // Token is invalid - force logout
-              console.warn('[API] 🔐 Forcing re-authentication')
+            } else if (isAuthError) {
+              // Only logout if it's clearly a token/auth problem
+              console.warn('[API] 🔐 Auth token issue - forcing re-authentication')
               this.handleAuthError()
+            } else {
+              // For other 403 errors (validation, business rules), don't logout
+              console.warn('[API] ℹ️ 403 is not auth-related, not logging out')
             }
           }
         }
