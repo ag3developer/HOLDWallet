@@ -250,3 +250,117 @@ async def delete_credential(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Erro ao remover credencial: {str(e)}"
         )
+
+
+@router.get("/diagnostic")
+async def diagnostic_biometric_tables(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    🔍 Endpoint de diagnóstico para verificar tabelas de autenticação biométrica.
+    Requer autenticação.
+    """
+    from sqlalchemy import text
+    from datetime import datetime, timezone
+    
+    result = {
+        "biometric_tokens_table": {"exists": False, "count": 0, "recent_tokens": []},
+        "webauthn_credentials_table": {"exists": False, "count": 0, "user_credentials": []},
+        "memory_tokens": {"count": 0},
+        "issues": [],
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+    
+    try:
+        # 1. Verificar tabela biometric_tokens
+        try:
+            check_table = db.execute(text("""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_name = 'biometric_tokens'
+                )
+            """))
+            result["biometric_tokens_table"]["exists"] = check_table.scalar()
+            
+            if result["biometric_tokens_table"]["exists"]:
+                # Contar registros
+                count_result = db.execute(text("SELECT COUNT(*) FROM biometric_tokens"))
+                result["biometric_tokens_table"]["count"] = count_result.scalar()
+                
+                # Tokens recentes do usuário atual
+                tokens_result = db.execute(text("""
+                    SELECT id, LEFT(token, 30) as token_prefix, expires_at, is_used, created_at
+                    FROM biometric_tokens
+                    WHERE user_id = :user_id
+                    ORDER BY created_at DESC
+                    LIMIT 5
+                """), {"user_id": str(current_user.id)})
+                
+                for row in tokens_result:
+                    expired = row.expires_at < datetime.now(timezone.utc) if row.expires_at else True
+                    result["biometric_tokens_table"]["recent_tokens"].append({
+                        "id": row.id,
+                        "token_prefix": row.token_prefix + "...",
+                        "expires_at": row.expires_at.isoformat() if row.expires_at else None,
+                        "is_used": row.is_used,
+                        "is_expired": expired,
+                        "created_at": row.created_at.isoformat() if row.created_at else None
+                    })
+        except Exception as e:
+            result["issues"].append(f"Erro ao verificar biometric_tokens: {str(e)}")
+        
+        # 2. Verificar tabela webauthn_credentials
+        try:
+            check_table = db.execute(text("""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_name = 'webauthn_credentials'
+                )
+            """))
+            result["webauthn_credentials_table"]["exists"] = check_table.scalar()
+            
+            if result["webauthn_credentials_table"]["exists"]:
+                # Contar registros totais
+                count_result = db.execute(text("SELECT COUNT(*) FROM webauthn_credentials"))
+                result["webauthn_credentials_table"]["count"] = count_result.scalar()
+                
+                # Credenciais do usuário atual
+                creds_result = db.execute(text("""
+                    SELECT credential_name, created_at, last_used_at, sign_count
+                    FROM webauthn_credentials
+                    WHERE user_id = :user_id
+                """), {"user_id": current_user.id})
+                
+                for row in creds_result:
+                    result["webauthn_credentials_table"]["user_credentials"].append({
+                        "name": row.credential_name,
+                        "created_at": row.created_at.isoformat() if row.created_at else None,
+                        "last_used_at": row.last_used_at.isoformat() if row.last_used_at else None,
+                        "sign_count": row.sign_count
+                    })
+        except Exception as e:
+            result["issues"].append(f"Erro ao verificar webauthn_credentials: {str(e)}")
+        
+        # 3. Verificar tokens em memória
+        result["memory_tokens"]["count"] = len(webauthn_service._biometric_tokens)
+        
+        # 4. Diagnóstico final
+        if not result["biometric_tokens_table"]["exists"]:
+            result["issues"].append("❌ Tabela biometric_tokens NÃO existe - tokens só funcionam em memória!")
+        elif result["biometric_tokens_table"]["count"] == 0:
+            result["issues"].append("⚠️ Tabela biometric_tokens vazia - pode estar usando só memória")
+            
+        if not result["webauthn_credentials_table"]["exists"]:
+            result["issues"].append("❌ Tabela webauthn_credentials NÃO existe - biometria não funciona!")
+        
+        if not result["issues"]:
+            result["status"] = "✅ OK - Todas as tabelas existem"
+        else:
+            result["status"] = "⚠️ Problemas encontrados"
+            
+    except Exception as e:
+        result["issues"].append(f"Erro geral: {str(e)}")
+        result["status"] = "❌ Erro"
+    
+    return result

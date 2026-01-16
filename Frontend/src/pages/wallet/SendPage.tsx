@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import {
   Send,
   Loader2,
@@ -27,6 +27,9 @@ import { transactionService } from '@/services/transactionService'
 import { webAuthnService } from '@/services/webauthn'
 
 export const SendPage = () => {
+  // Ref para prevenir double-submit (mais confiável que state)
+  const isSubmittingRef = useRef(false)
+
   // Estados principais
   const [showSuccess, setShowSuccess] = useState(false)
   const [selectedToken, setSelectedToken] = useState<string>('USDT')
@@ -556,6 +559,17 @@ export const SendPage = () => {
   }
 
   const handleSubmit2FA = async () => {
+    // Proteção contra double-click/double-submit usando ref (mais confiável)
+    if (isSubmittingRef.current) {
+      console.log('⚠️ [REF] Transaction already in progress, ignoring duplicate call')
+      return
+    }
+
+    if (loading || biometricLoading) {
+      console.log('⚠️ [STATE] Transaction already in progress, ignoring duplicate call')
+      return
+    }
+
     if (!twoFAToken || twoFAToken.length < 6) {
       notificationService.showWarning('Código 2FA inválido (mínimo 6 dígitos)')
       return
@@ -565,6 +579,9 @@ export const SendPage = () => {
       notificationService.showWarning('Nenhuma transação pendente')
       return
     }
+
+    // Marcar como em progresso IMEDIATAMENTE (antes de qualquer await)
+    isSubmittingRef.current = true
 
     try {
       setLoading(true)
@@ -619,18 +636,34 @@ export const SendPage = () => {
       notificationService.showError(err)
     } finally {
       setLoading(false)
+      isSubmittingRef.current = false // Reset ref
     }
   }
 
   // Handler for biometric authentication
   const handleBiometricAuth = async () => {
+    // Proteção contra double-click/double-submit usando ref (mais confiável)
+    if (isSubmittingRef.current) {
+      console.log('⚠️ [REF] Transaction already in progress, ignoring duplicate call')
+      return
+    }
+
+    if (biometricLoading || loading) {
+      console.log('⚠️ [STATE] Biometric auth already in progress, ignoring duplicate call')
+      return
+    }
+
     if (!pendingTransaction) {
       notificationService.showWarning('Nenhuma transação pendente')
       return
     }
 
+    // Marcar como em progresso IMEDIATAMENTE (antes de qualquer await)
+    isSubmittingRef.current = true
+
     try {
       setBiometricLoading(true)
+      setLoading(true) // Double protection
       console.log('🔐 Autenticando com biometria...')
 
       const biometricToken = await webAuthnService.authenticate()
@@ -700,6 +733,8 @@ export const SendPage = () => {
       setAuthMethod('2fa')
     } finally {
       setBiometricLoading(false)
+      setLoading(false) // Reset double protection
+      isSubmittingRef.current = false // Reset ref
     }
   }
 

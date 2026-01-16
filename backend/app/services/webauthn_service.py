@@ -123,52 +123,77 @@ class WebAuthnService:
         return len(tokens_to_remove)
     
     def verify_biometric_token(self, user_id, token: str) -> bool:
-        """Verifica se um token biométrico é válido para o usuário (usando banco de dados)"""
+        """
+        Verifica se um token biométrico é válido para o usuário.
+        Usa APENAS banco de dados - sem fallback para memória.
+        """
         if not token or not token.startswith("bio_"):
+            logger.warning(f"Invalid token format: {token[:20] if token else 'None'}...")
             return False
+        
+        logger.info(f"🔍 Verifying biometric token for user {user_id}: {token[:25]}...")
         
         try:
             from app.models.security import BiometricToken
             
             db = SessionLocal()
             try:
-                # Buscar token no banco
+                logger.info("📊 Querying biometric_tokens table...")
+                
+                # Buscar token no banco (não usado ainda)
                 token_record = db.query(BiometricToken).filter(
                     BiometricToken.token == token,
                     BiometricToken.is_used == False
                 ).first()
                 
                 if not token_record:
-                    logger.warning(f"Biometric token not found in DB: {token[:20]}...")
-                    # Try memory fallback
-                    return self._verify_biometric_token_memory(user_id, token)
+                    # Verificar se o token existe mas já foi usado
+                    used_token = db.query(BiometricToken).filter(
+                        BiometricToken.token == token
+                    ).first()
+                    
+                    if used_token:
+                        if used_token.is_used:
+                            logger.error(f"❌ Token ALREADY USED at {used_token.used_at} (created at {used_token.created_at})")
+                            return False
+                        else:
+                            logger.warning(f"⚠️ Token exists but query failed: is_used={used_token.is_used}")
+                    else:
+                        logger.warning(f"❌ Biometric token NOT FOUND in database: {token[:25]}...")
+                    
+                    return False
+                
+                logger.info(f"✅ Token found in DB: user_id={token_record.user_id}, expires_at={token_record.expires_at}, is_used={token_record.is_used}")
                 
                 # Verificar se pertence ao usuário
                 if str(token_record.user_id) != str(user_id):
-                    logger.warning(f"Biometric token user mismatch: expected {user_id}, got {token_record.user_id}")
+                    logger.warning(f"❌ Token user mismatch: expected {user_id}, got {token_record.user_id}")
                     return False
                 
                 # Verificar expiração
-                if datetime.now(timezone.utc) > token_record.expires_at:
-                    # Remover token expirado
+                now = datetime.now(timezone.utc)
+                logger.info(f"⏰ Checking expiration: now={now}, expires_at={token_record.expires_at}")
+                
+                if now > token_record.expires_at:
                     db.delete(token_record)
                     db.commit()
-                    logger.warning(f"Biometric token expired for user {user_id}")
+                    logger.warning(f"❌ Token EXPIRED for user {user_id}")
                     return False
                 
-                # Token válido - marcar como usado
+                # Token válido - marcar como usado IMEDIATAMENTE
                 token_record.is_used = True
                 token_record.used_at = datetime.now(timezone.utc)
                 db.commit()
                 
-                logger.info(f"Biometric token verified and consumed from DB for user {user_id}")
+                logger.info(f"✅ Biometric token VERIFIED and CONSUMED for user {user_id}")
                 return True
             finally:
                 db.close()
         except Exception as e:
-            logger.error(f"Error verifying biometric token in DB: {e}")
-            # Fallback to memory
-            return self._verify_biometric_token_memory(user_id, token)
+            logger.error(f"❌ Database error verifying biometric token: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            return False
     
     def _verify_biometric_token_memory(self, user_id, token: str) -> bool:
         """Fallback: Verifica token em memória"""
