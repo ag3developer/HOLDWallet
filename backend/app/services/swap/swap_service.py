@@ -31,31 +31,13 @@ logger = logging.getLogger(__name__)
 # Cache de cotações (em produção, usar Redis)
 quote_cache: Dict[str, Dict] = {}
 
-# Configuração das System Wallets (carteiras da plataforma)
-# Em produção, buscar do banco de dados ou vault seguro
-SYSTEM_WALLETS = {
-    # chain_id: { address, private_key_env }
-    137: {  # Polygon
-        "address": os.getenv("SYSTEM_WALLET_POLYGON_ADDRESS", ""),
-        "private_key_env": "SYSTEM_WALLET_POLYGON_PRIVATE_KEY",
-    },
-    56: {  # BSC
-        "address": os.getenv("SYSTEM_WALLET_BSC_ADDRESS", ""),
-        "private_key_env": "SYSTEM_WALLET_BSC_PRIVATE_KEY",
-    },
-    1: {  # Ethereum
-        "address": os.getenv("SYSTEM_WALLET_ETH_ADDRESS", ""),
-        "private_key_env": "SYSTEM_WALLET_ETH_PRIVATE_KEY",
-    },
-    42161: {  # Arbitrum
-        "address": os.getenv("SYSTEM_WALLET_ARBITRUM_ADDRESS", ""),
-        "private_key_env": "SYSTEM_WALLET_ARBITRUM_PRIVATE_KEY",
-    },
-    8453: {  # Base
-        "address": os.getenv("SYSTEM_WALLET_BASE_ADDRESS", ""),
-        "private_key_env": "SYSTEM_WALLET_BASE_PRIVATE_KEY",
-    },
-}
+# Configuração da Platform Wallet (carteira multi-chain da plataforma)
+# Em redes EVM, o mesmo endereço funciona em todas as redes
+PLATFORM_WALLET_ADDRESS = os.getenv("PLATFORM_WALLET_ADDRESS", "")
+PLATFORM_WALLET_PRIVATE_KEY = os.getenv("PLATFORM_WALLET_PRIVATE_KEY", "")
+
+# Redes EVM suportadas para swap
+SUPPORTED_CHAINS = [137, 56, 1, 42161, 8453, 43114]  # Polygon, BSC, ETH, Arbitrum, Base, Avalanche
 
 
 class SwapService:
@@ -63,12 +45,12 @@ class SwapService:
     Serviço principal de swap.
     
     Fluxo:
-    1. Quote: Obtém cotação do 1inch usando endereço da System Wallet
+    1. Quote: Obtém cotação do 1inch usando endereço da Platform Wallet
     2. Execute: 
-       a) User envia tokens para System Wallet
-       b) System Wallet executa swap no DEX
-       c) System Wallet envia resultado para User (menos taxa)
-       d) Taxa fica retida na System Wallet
+       a) User envia tokens para Platform Wallet
+       b) Platform Wallet executa swap no DEX
+       c) Platform Wallet envia resultado para User (menos taxa)
+       d) Taxa fica retida na Platform Wallet
     """
     
     def __init__(self):
@@ -77,21 +59,25 @@ class SwapService:
         self.signer = BlockchainSigner()
         self.quote_validity_seconds = 60
     
-    def get_system_wallet(self, chain_id: int) -> Dict[str, str]:
-        """Obter endereço e chave da System Wallet para uma rede."""
-        wallet_config = SYSTEM_WALLETS.get(chain_id)
-        if not wallet_config:
-            raise ValueError(f"System Wallet não configurada para chain {chain_id}")
+    def get_system_wallet(self, chain_id: int) -> Optional[Dict[str, str]]:
+        """
+        Obter endereço e chave da Platform Wallet (multi-chain).
         
-        address = wallet_config["address"]
-        private_key = os.getenv(wallet_config["private_key_env"], "")
+        Como é uma carteira EVM, o mesmo endereço funciona em todas as redes.
+        """
+        # Verificar se a chain é suportada
+        if chain_id not in SUPPORTED_CHAINS:
+            logger.warning(f"⚠️ Chain {chain_id} não suportada para swap")
+            return None
         
-        if not address or not private_key:
-            raise ValueError(f"System Wallet não configurada para chain {chain_id}")
+        # Verificar se a Platform Wallet está configurada
+        if not PLATFORM_WALLET_ADDRESS or not PLATFORM_WALLET_PRIVATE_KEY:
+            logger.warning(f"⚠️ Platform Wallet não configurada - usando modo direto")
+            return None
         
         return {
-            "address": address,
-            "private_key": private_key,
+            "address": PLATFORM_WALLET_ADDRESS,
+            "private_key": PLATFORM_WALLET_PRIVATE_KEY,
         }
         
     async def get_quote(
@@ -122,18 +108,14 @@ class SwapService:
         try:
             logger.info(f"🔄 Iniciando cotação: {from_token[:10]}... → {to_token[:10]}...")
             
-            # 0. Obter System Wallet para esta rede
-            try:
-                system_wallet = self.get_system_wallet(chain_id)
-                system_wallet_address = system_wallet["address"]
-            except ValueError as e:
-                return {
-                    "success": False,
-                    "error": "network_not_supported",
-                    "message": str(e),
-                }
+            # 0. Verificar System Wallet (opcional em modo dev)
+            system_wallet = self.get_system_wallet(chain_id)
+            use_direct_mode = system_wallet is None
             
-            # 1. Obter cotação do 1inch (usando endereço da SYSTEM WALLET)
+            if use_direct_mode:
+                logger.info("📱 Usando modo direto (sem System Wallet)")
+            
+            # 1. Obter cotação do 1inch
             quote_result = await self.oneinch.get_quote(
                 chain_id=chain_id,
                 from_token=from_token,

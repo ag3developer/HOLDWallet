@@ -62,6 +62,17 @@ class OneInchService:
         self.base_url = "https://api.1inch.dev"
         self.timeout = 30.0
         
+        # Preços de fallback para desenvolvimento (em USD)
+        self._fallback_prices = {
+            "MATIC": 0.85, "POL": 0.85,
+            "ETH": 3500, "WETH": 3500,
+            "BNB": 600, "WBNB": 600,
+            "AVAX": 35, "WAVAX": 35,
+            "ARB": 1.5,
+            "USDT": 1.0, "USDC": 1.0, "DAI": 1.0, "BUSD": 1.0,
+            "WBTC": 95000, "BTC": 95000,
+        }
+        
     def _get_headers(self) -> Dict[str, str]:
         """Headers para requisições à API."""
         headers = {
@@ -71,6 +82,81 @@ class OneInchService:
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
         return headers
+    
+    def _get_fallback_quote(
+        self,
+        chain_id: int,
+        from_token: str,
+        to_token: str,
+        amount: str,
+    ) -> Dict[str, Any]:
+        """
+        Gerar cotação de fallback para desenvolvimento.
+        Usa preços estimados quando a API key não está configurada.
+        """
+        # Mapear tokens para símbolos conhecidos
+        token_symbols = {
+            # Native tokens
+            "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee": {
+                137: "MATIC", 56: "BNB", 1: "ETH", 42161: "ETH", 8453: "ETH", 43114: "AVAX"
+            },
+            # USDT por rede
+            "0xc2132d05d31c914a87c6611c10748aeb04b58e8f": "USDT",  # Polygon
+            "0x55d398326f99059ff775485246999027b3197955": "USDT",  # BSC
+            "0xdac17f958d2ee523a2206206994597c13d831ec7": "USDT",  # ETH
+            "0x9702230a8ea53601f5cd2dc00fdbc13d4df4a8c7": "USDT",  # Avalanche
+            # USDC por rede
+            "0x2791bca1f2de4661ed88a30c99a7a9449aa84174": "USDC",  # Polygon
+            "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d": "USDC",  # BSC
+            "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "USDC",  # ETH
+            "0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e": "USDC",  # Avalanche
+            "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913": "USDC",  # Base
+            "0xaf88d065e77c8cc2239327c5edb3a432268e5831": "USDC",  # Arbitrum
+            # WETH
+            "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619": "WETH",  # Polygon
+            "0x2170ed0880ac9a755fd29b2688956bd959f933f8": "ETH",   # BSC (ETH)
+            "0x49d5c2bdffac6ce2bfdb6640f4f80f226bc10bab": "WETH",  # Avalanche
+        }
+        
+        # Obter símbolo do token de origem
+        from_token_lower = from_token.lower()
+        if from_token_lower == "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee":
+            from_symbol = token_symbols[from_token_lower].get(chain_id, "ETH")
+        else:
+            from_symbol = token_symbols.get(from_token_lower, "UNKNOWN")
+        
+        # Obter símbolo do token de destino
+        to_token_lower = to_token.lower()
+        if to_token_lower == "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee":
+            to_symbol = token_symbols[to_token_lower].get(chain_id, "ETH")
+        else:
+            to_symbol = token_symbols.get(to_token_lower, "UNKNOWN")
+        
+        # Obter preços
+        from_price = self._fallback_prices.get(from_symbol, 1.0)
+        to_price = self._fallback_prices.get(to_symbol, 1.0)
+        
+        # Calcular quantidade de saída (com 0.3% de slippage simulado)
+        from_amount_float = float(amount) / 1e18  # Assumindo 18 decimals
+        value_usd = from_amount_float * from_price
+        to_amount_float = (value_usd / to_price) * 0.997  # 0.3% fee
+        
+        # Determinar decimals do token de destino
+        to_decimals = 6 if to_symbol in ["USDT", "USDC"] else 18
+        to_amount_wei = int(to_amount_float * (10 ** to_decimals))
+        
+        logger.info(f"📊 Fallback quote: {from_amount_float} {from_symbol} (~${value_usd:.2f}) → {to_amount_float:.6f} {to_symbol}")
+        
+        return {
+            "success": True,
+            "from_token": from_token,
+            "to_token": to_token,
+            "from_amount": amount,
+            "to_amount": str(to_amount_wei),
+            "gas_estimate": 150000,
+            "protocols": [["Fallback (dev mode)"]],
+            "raw_response": {"fallback": True, "from_symbol": from_symbol, "to_symbol": to_symbol},
+        }
     
     async def get_quote(
         self,
@@ -101,6 +187,11 @@ class OneInchService:
             # Normalizar endereços
             from_token = from_token if from_token else NATIVE_TOKEN_ADDRESS
             to_token = to_token if to_token else NATIVE_TOKEN_ADDRESS
+            
+            # Se não tem API key, usar fallback para desenvolvimento
+            if not self.api_key:
+                logger.warning("⚠️ ONEINCH_API_KEY não configurada - usando modo fallback")
+                return self._get_fallback_quote(chain_id, from_token, to_token, amount)
             
             url = f"{self.base_url}/swap/v6.0/{chain_id}/quote"
             params = {
@@ -135,6 +226,12 @@ class OneInchService:
                 else:
                     error_msg = response.text
                     logger.error(f"❌ 1inch quote error: {response.status_code} - {error_msg}")
+                    
+                    # Se for erro de autenticação, usar fallback
+                    if response.status_code == 401:
+                        logger.warning("⚠️ API Key inválida - usando modo fallback")
+                        return self._get_fallback_quote(chain_id, from_token, to_token, amount)
+                    
                     return {
                         "success": False,
                         "error": f"1inch API error: {response.status_code}",

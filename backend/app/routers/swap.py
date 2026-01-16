@@ -32,6 +32,7 @@ CHAIN_ID_TO_NETWORK = {
     42161: "arbitrum",
     8453: "base",
     1: "ethereum",
+    43114: "avalanche",
 }
 
 # Mapeamento de network para RPC URL
@@ -104,9 +105,37 @@ async def get_swap_quote(
     A cotação é válida por 60 segundos.
     """
     try:
-        # Obter endereço da carteira do usuário
-        # TODO: Buscar do banco baseado no chain_id
-        user_address = getattr(current_user, 'polygon_address', None)
+        # Converter chain_id para network name
+        network = CHAIN_ID_TO_NETWORK.get(request.chain_id)
+        if not network:
+            # Tentar adicionar Avalanche se faltar no mapeamento
+            if request.chain_id == 43114:
+                network = "avalanche"
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Rede não suportada: chain_id={request.chain_id}"
+                )
+        
+        # Buscar carteiras do usuário
+        wallets = db.query(Wallet).filter(
+            Wallet.user_id == current_user.id,
+            Wallet.is_active == True
+        ).all()
+        
+        if not wallets:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Usuário não possui carteira"
+            )
+        
+        # Redes EVM compartilham o mesmo endereço
+        evm_networks = ["ethereum", "polygon", "bsc", "arbitrum", "base", "avalanche"]
+        
+        # Buscar endereço do usuário para esta rede
+        user_address = await _get_user_address_for_network(
+            wallets, network, evm_networks, db
+        )
         
         if not user_address:
             raise HTTPException(
