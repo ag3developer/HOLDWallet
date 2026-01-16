@@ -163,6 +163,10 @@ class BlockchainSigner:
             tx_hash = w3.eth.send_raw_transaction(raw_tx)
             tx_hash_hex = tx_hash.hex()
             
+            # Garantir que o hash tenha o prefixo 0x
+            if not tx_hash_hex.startswith('0x'):
+                tx_hash_hex = f"0x{tx_hash_hex}"
+            
             logger.info(f"✅ Transaction broadcast: {tx_hash_hex}")
             
             # Transaction details for database

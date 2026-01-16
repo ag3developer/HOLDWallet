@@ -531,7 +531,12 @@ class EthereumTransactionService:
         """Verifica status via RPC"""
         try:
             import httpx
-            async with httpx.AsyncClient() as client:
+            
+            # Garantir que o hash tenha o prefixo 0x
+            if tx_hash and not tx_hash.startswith('0x'):
+                tx_hash = f"0x{tx_hash}"
+            
+            async with httpx.AsyncClient(timeout=10.0) as client:
                 payload = {
                     "jsonrpc": "2.0",
                     "method": "eth_getTransactionReceipt",
@@ -555,7 +560,8 @@ class EthereumTransactionService:
                         }
                     else:
                         return {"status": "pending", "confirmations": 0}
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Erro ao verificar TX {tx_hash}: {e}")
             return {"status": "unknown", "confirmations": 0}
     
     async def _get_latest_block(self) -> int:

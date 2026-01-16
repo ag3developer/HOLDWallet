@@ -5,6 +5,7 @@ import {
   Clock,
   CheckCircle,
   AlertCircle,
+  XCircle,
   Loader2,
   Search,
   Filter,
@@ -229,7 +230,9 @@ const EXPLORER_URLS: Record<string, string> = {
 
 // Status badge helper
 const getStatusBadge = (status: string) => {
-  switch (status) {
+  const statusLower = status?.toLowerCase() || ''
+
+  switch (statusLower) {
     case 'confirmed':
       return (
         <span className='inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'>
@@ -238,6 +241,8 @@ const getStatusBadge = (status: string) => {
         </span>
       )
     case 'pending':
+    case 'created':
+    case 'signed':
       return (
         <span className='inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'>
           <Clock className='w-3 h-3' />
@@ -251,8 +256,22 @@ const getStatusBadge = (status: string) => {
           Falhou
         </span>
       )
+    case 'cancelled':
+    case 'canceled':
+      return (
+        <span className='inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-900/30 text-gray-600 dark:text-gray-400'>
+          <XCircle className='w-3 h-3' />
+          Cancelada
+        </span>
+      )
     default:
-      return null
+      // Se não for um status conhecido, mostra como pendente
+      return (
+        <span className='inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'>
+          <Clock className='w-3 h-3' />
+          Pendente
+        </span>
+      )
   }
 }
 
@@ -694,9 +713,15 @@ export const TransactionsPage = () => {
 
   // Abrir explorer
   const handleOpenExplorer = (hash: string, network: string) => {
-    const baseUrl = EXPLORER_URLS[network]
-    if (baseUrl) {
-      window.open(`${baseUrl}/${hash}`, '_blank')
+    const baseUrl = EXPLORER_URLS[network.toLowerCase()]
+    if (baseUrl && hash) {
+      // Garantir que o hash tenha o prefixo 0x para redes EVM
+      let formattedHash = hash
+      const evmNetworks = ['ethereum', 'polygon', 'bsc', 'base', 'avalanche']
+      if (evmNetworks.includes(network.toLowerCase()) && !hash.startsWith('0x')) {
+        formattedHash = `0x${hash}`
+      }
+      window.open(`${baseUrl}/${formattedHash}`, '_blank')
     }
   }
 
@@ -960,18 +985,20 @@ export const TransactionsPage = () => {
         </div>
       )}
 
-      {/* Transactions List */}
+      {/* Transactions List - Com scroll para mais de 5 transações */}
       {!isLoading && paginatedTransactions.length > 0 && (
-        <div className='space-y-2'>
-          {paginatedTransactions.map(tx => (
-            <TransactionRow
-              key={tx.id}
-              tx={tx}
-              walletAddresses={walletAddresses}
-              copyToClipboard={handleCopyToClipboard}
-              openExplorer={handleOpenExplorer}
-            />
-          ))}
+        <div className='max-h-[380px] sm:max-h-[420px] lg:max-h-[500px] overflow-y-auto tx-scroll'>
+          <div className='space-y-2 pr-1'>
+            {paginatedTransactions.map(tx => (
+              <TransactionRow
+                key={tx.id}
+                tx={tx}
+                walletAddresses={walletAddresses}
+                copyToClipboard={handleCopyToClipboard}
+                openExplorer={handleOpenExplorer}
+              />
+            ))}
+          </div>
         </div>
       )}
 
