@@ -30,14 +30,14 @@ class ApiClient {
 
     this.client = axios.create({
       baseURL: APP_CONFIG.api.baseUrl,
-      timeout: 15000, // Reduzido para 15 segundos - mais responsivo
+      timeout: 30000, // 30 segundos - timeout padrão mais generoso
       headers: {
         'Content-Type': 'application/json',
       },
     })
 
     this.setupInterceptors()
-    
+
     // Check server availability on init (background, non-blocking)
     setTimeout(() => this.checkServerAvailability(), 100)
   }
@@ -47,19 +47,19 @@ class ApiClient {
    */
   private async checkServerAvailability(): Promise<boolean> {
     const now = Date.now()
-    
+
     // Don't check too frequently
     if (now - this.lastServerCheck < this.SERVER_CHECK_INTERVAL) {
       return this.isServerAvailable
     }
-    
+
     this.lastServerCheck = now
-    
+
     try {
       // Quick ping with short timeout
-      await axios.get(`${APP_CONFIG.api.baseUrl}/health`, { 
+      await axios.get(`${APP_CONFIG.api.baseUrl}/health`, {
         timeout: 3000,
-        validateStatus: () => true // Accept any status
+        validateStatus: () => true, // Accept any status
       })
       this.isServerAvailable = true
       return true

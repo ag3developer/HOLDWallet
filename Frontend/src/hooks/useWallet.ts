@@ -191,8 +191,9 @@ export function useWallets() {
         console.error('[useWallets] ❌ Error:', error.message || error)
 
         // Network errors - check if retryable
-        const isNetworkError = error.isNetworkError || 
-          error.code === 'ERR_NETWORK' || 
+        const isNetworkError =
+          error.isNetworkError ||
+          error.code === 'ERR_NETWORK' ||
           error.code === 'TIMEOUT_ERROR' ||
           error.message?.includes('Network') ||
           error.message?.includes('timeout')

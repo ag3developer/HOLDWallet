@@ -52,6 +52,14 @@ export function useLogin() {
     onError: error => {
       console.error('Login error:', error)
     },
+    // Retry em caso de timeout ou erro de rede
+    retry: (failureCount, error: any) => {
+      const isNetworkError =
+        error?.isNetworkError || error?.code === 'TIMEOUT_ERROR' || error?.code === 'ERR_NETWORK'
+      // Retry até 2x para erros de rede/timeout
+      return isNetworkError && failureCount < 2
+    },
+    retryDelay: 1000, // 1 segundo entre tentativas
   })
 }
 

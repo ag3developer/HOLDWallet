@@ -73,7 +73,7 @@ class WalletService {
       } else {
         console.error('❌ Error fetching wallets:', error)
       }
-      
+
       // Re-throw with network error flag preserved
       throw error
     }

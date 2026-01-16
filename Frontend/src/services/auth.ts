@@ -2,16 +2,23 @@ import { User, LoginRequest, RegisterRequest, AuthResponse } from '@/types'
 import { apiClient } from './api'
 import { apiConfig } from '@/config/api'
 
+// Timeout maior para operações de autenticação (30 segundos)
+const AUTH_TIMEOUT = 30000
+
 class AuthService {
   // Login user
   async login(credentials: LoginRequest): Promise<AuthResponse> {
-    const response = await apiClient.post(apiConfig.auth.login, credentials)
+    const response = await apiClient.post(apiConfig.auth.login, credentials, {
+      timeout: AUTH_TIMEOUT, // Timeout maior para login
+    })
     return response.data
   }
 
   // Register new user
   async register(userData: RegisterRequest): Promise<AuthResponse> {
-    const response = await apiClient.post(apiConfig.auth.signup, userData)
+    const response = await apiClient.post(apiConfig.auth.signup, userData, {
+      timeout: AUTH_TIMEOUT, // Timeout maior para registro
+    })
     return response.data
   }
 
@@ -19,7 +26,9 @@ class AuthService {
   async logout(): Promise<void> {
     try {
       console.log('[AuthService] 🚪 Sending logout request to server')
-      const response = await apiClient.post(apiConfig.auth.logout)
+      const response = await apiClient.post(apiConfig.auth.logout, undefined, {
+        timeout: 10000, // Timeout de 10s para logout (menos crítico)
+      })
       console.log('[AuthService] ✅ Logout response:', response.status)
     } catch (error: any) {
       // Log the error but don't throw - user will be logged out locally anyway
@@ -33,7 +42,13 @@ class AuthService {
 
   // Refresh authentication token
   async refreshToken(token: string): Promise<AuthResponse> {
-    const response = await apiClient.post(apiConfig.auth.refresh, { token })
+    const response = await apiClient.post(
+      apiConfig.auth.refresh,
+      { token },
+      {
+        timeout: AUTH_TIMEOUT,
+      }
+    )
     return response.data
   }
 
@@ -43,6 +58,7 @@ class AuthService {
       headers: {
         Authorization: `Bearer ${token}`,
       },
+      timeout: AUTH_TIMEOUT,
     })
     return response.data
   }

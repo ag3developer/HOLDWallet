@@ -1285,43 +1285,80 @@ async def send_transaction(
         else:
             logger.info("🔒 CUSTODIAL MODE: Signing transaction on backend")
             
-            # Get encrypted seed from wallet
             from app.services.crypto_service import CryptoService
-            from bip_utils import Bip39SeedGenerator, Bip44, Bip44Coins, Bip44Changes
             crypto_service = CryptoService()
             
-            # Decrypt seed phrase
-            mnemonic = crypto_service.decrypt_data(str(wallet.encrypted_seed))
+            private_key = None
             
-            # Generate seed from mnemonic
-            seed_bytes = Bip39SeedGenerator(mnemonic).Generate()
+            # PRIORITY 1: Use encrypted_private_key from address (most reliable)
+            if address_obj.encrypted_private_key:
+                logger.info("🔑 Using encrypted_private_key from address table")
+                try:
+                    private_key = crypto_service.decrypt_data(str(address_obj.encrypted_private_key))
+                    
+                    # Verify the key matches the address
+                    from eth_account import Account
+                    account = Account.from_key(private_key)
+                    if account.address.lower() == from_address.lower():
+                        logger.info(f"✅ Private key verified - matches address {from_address}")
+                    else:
+                        logger.warning(f"⚠️ Key mismatch! Address: {from_address}, Key derives: {account.address}")
+                        private_key = None  # Reset to try derivation
+                except Exception as e:
+                    logger.error(f"❌ Error decrypting private key: {e}")
+                    private_key = None
             
-            # Determine coin type based on network
-            network_lower = request.network.lower()
-            if network_lower in ["ethereum", "polygon", "bsc", "base", "avalanche"]:
-                # EVM networks use Ethereum coin type (60)
-                bip44_coin = Bip44Coins.ETHEREUM
-            elif network_lower == "bitcoin":
-                bip44_coin = Bip44Coins.BITCOIN
-            else:
-                # Default to Ethereum for unknown EVM networks
-                bip44_coin = Bip44Coins.ETHEREUM
+            # PRIORITY 2: Fallback to BIP44 derivation from mnemonic
+            if not private_key and wallet.encrypted_seed:
+                logger.info("🔑 Falling back to BIP44 derivation from mnemonic")
+                try:
+                    from bip_utils import Bip39SeedGenerator, Bip44, Bip44Coins, Bip44Changes
+                    
+                    mnemonic = crypto_service.decrypt_data(str(wallet.encrypted_seed))
+                    seed_bytes = Bip39SeedGenerator(mnemonic).Generate()
+                    
+                    # Determine coin type based on network
+                    network_lower = request.network.lower()
+                    if network_lower in ["ethereum", "polygon", "bsc", "base", "avalanche"]:
+                        bip44_coin = Bip44Coins.ETHEREUM
+                    elif network_lower == "bitcoin":
+                        bip44_coin = Bip44Coins.BITCOIN
+                    else:
+                        bip44_coin = Bip44Coins.ETHEREUM
+                    
+                    # Derive using derivation_index from address or default to 0
+                    derivation_index = int(address_obj.derivation_index) if address_obj.derivation_index else 0
+                    
+                    bip44_mnemonic = Bip44.FromSeed(seed_bytes, bip44_coin)
+                    bip44_account = bip44_mnemonic.Purpose().Coin().Account(0)
+                    bip44_change = bip44_account.Change(Bip44Changes.CHAIN_EXT)
+                    bip44_address = bip44_change.AddressIndex(derivation_index)
+                    
+                    private_key = bip44_address.PrivateKey().Raw().ToHex()
+                    derived_address = bip44_address.PublicKey().ToAddress()
+                    
+                    logger.info(f"🔍 Derived address (index {derivation_index}): {derived_address}")
+                    
+                    if derived_address.lower() != from_address.lower():
+                        logger.warning(f"⚠️ BIP44 derivation mismatch! DB: {from_address}, Derived: {derived_address}")
+                        raise HTTPException(
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail="Unable to derive correct private key for this address"
+                        )
+                except HTTPException:
+                    raise
+                except Exception as e:
+                    logger.error(f"❌ Error deriving from mnemonic: {e}")
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail=f"Failed to derive private key: {str(e)}"
+                    )
             
-            # Derive private key using BIP44 path: m/44'/60'/0'/0/0
-            bip44_mnemonic = Bip44.FromSeed(seed_bytes, bip44_coin)
-            bip44_account = bip44_mnemonic.Purpose().Coin().Account(0)
-            bip44_change = bip44_account.Change(Bip44Changes.CHAIN_EXT)
-            bip44_address = bip44_change.AddressIndex(0)
-            
-            # Get private key
-            private_key = bip44_address.PrivateKey().Raw().ToHex()
-            
-            # Debug: verificar se endereço derivado corresponde ao do banco
-            derived_address = bip44_address.PublicKey().ToAddress()
-            logger.info(f"🔍 Endereço do banco: {from_address}")
-            logger.info(f"🔍 Endereço derivado: {derived_address}")
-            if derived_address.lower() != from_address.lower():
-                logger.warning(f"⚠️  ENDEREÇOS NÃO CORRESPONDEM! Banco: {from_address}, Derivado: {derived_address}")
+            if not private_key:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="No private key available for this address"
+                )
             
             # Get gas price based on fee level (needed for both tokens and native)
             gas_estimates = await blockchain_signer.estimate_gas_price(request.network, request.fee_level)

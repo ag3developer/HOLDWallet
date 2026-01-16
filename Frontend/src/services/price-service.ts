@@ -118,13 +118,13 @@ class PriceService {
 
     const client = axios.create({
       baseURL: APP_CONFIG.api.baseUrl,
-      timeout: 20000, // 20s timeout - maior tolerância
+      timeout: 20000, // 20s timeout - servidor pode ser lento
       headers: { 'Content-Type': 'application/json' },
     })
 
     try {
       console.log(
-        `[PriceService] Fetching from /prices/batch: ${symbolsQuery} (in ${currency.toUpperCase()})`
+        `[PriceService] Fetching from /prices/batch: ${symbolsQuery.substring(0, 50)}... (in ${currency.toUpperCase()})`
       )
       const response = await client.get('/prices/batch', {
         params: {
@@ -140,16 +140,23 @@ class PriceService {
         return result
       }
 
-      console.warn('[PriceService] ⚠️ Response has no prices:', data)
+      console.warn('[PriceService] ⚠️ Response has no prices')
       return {}
     } catch (error: unknown) {
+      // Tratamento silencioso para erros comuns
       if (axios.isAxiosError(error)) {
-        console.error(
-          `[PriceService] ❌ Failed to fetch prices (${error.response?.status}):`,
-          error.message
-        )
+        const isTimeout = error.code === 'ECONNABORTED' || error.message?.includes('timeout')
+        const isNetwork = error.code === 'ERR_NETWORK' || !error.response
+
+        if (isTimeout) {
+          console.warn('[PriceService] ⏱️ Timeout fetching prices - server may be slow')
+        } else if (isNetwork) {
+          console.warn('[PriceService] 🌐 Network error fetching prices - server may be offline')
+        } else {
+          console.warn(`[PriceService] ⚠️ Error fetching prices (${error.response?.status})`)
+        }
       } else {
-        console.error('[PriceService] ❌ Failed to fetch prices:', error)
+        console.warn('[PriceService] ⚠️ Error fetching prices')
       }
       // ⚠️ SEM FALLBACK - Retorna vazio para evitar preços incorretos em trading
       return {}

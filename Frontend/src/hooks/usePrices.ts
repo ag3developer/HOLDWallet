@@ -16,8 +16,10 @@ interface UsePricesResult {
   refetch: () => Promise<void>
 }
 
-// Intervalo de atualização em ms (10 segundos para trading em tempo real)
-const REFRESH_INTERVAL_MS = 10000
+// Intervalo de atualização em ms (15 segundos - balanceado entre real-time e performance)
+const REFRESH_INTERVAL_MS = 15000
+// Intervalo após erro (30 segundos - evitar sobrecarregar servidor com problemas)
+const ERROR_REFRESH_INTERVAL_MS = 30000
 
 /**
  * Hook para buscar preços em TEMPO REAL de múltiplas criptomoedas
@@ -79,7 +81,7 @@ export function usePrices(symbols: string[], currency: string = 'USD'): UsePrice
     } catch (err) {
       const errorMessage = err instanceof Error ? err : new Error('Unknown error occurred')
       setError(errorMessage)
-      console.error('[usePrices] ❌ Error fetching prices:', errorMessage)
+      console.warn('[usePrices] ⚠️ Error fetching prices (will retry)')
       // Manter preços anteriores em caso de erro (não limpar)
     } finally {
       setLoading(false)
@@ -91,13 +93,16 @@ export function usePrices(symbols: string[], currency: string = 'USD'): UsePrice
     // Fetch inicial
     fetchPrices()
 
-    // Atualizar a cada 10 segundos para trading em tempo real
+    // Usar intervalo maior se houver erro, menor se tudo ok
+    const getInterval = () => (error ? ERROR_REFRESH_INTERVAL_MS : REFRESH_INTERVAL_MS)
+
+    // Atualizar periodicamente
     const interval = setInterval(() => {
       fetchPrices()
-    }, REFRESH_INTERVAL_MS)
+    }, getInterval())
 
     return () => clearInterval(interval)
-  }, [fetchPrices])
+  }, [fetchPrices, error])
 
   return {
     prices,
