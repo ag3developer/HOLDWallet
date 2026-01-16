@@ -1360,6 +1360,283 @@ async def send_transaction(
                     detail="No private key available for this address"
                 )
             
+            # ============================================
+            # ROTEAMENTO POR REDE (Multi-Chain Support)
+            # ============================================
+            network_lower = request.network.lower()
+            tx_hash = None
+            tx_details = {}
+            explorer_url = ""
+            fee_paid = "0"
+            
+            # ============================================
+            # BITCOIN
+            # ============================================
+            if network_lower == 'bitcoin':
+                logger.info("🔶 BITCOIN: Usando btc_service")
+                from app.services.btc_service import btc_service
+                
+                try:
+                    from bitcoinlib.keys import Key
+                    # Converter hex para WIF
+                    key = Key(import_key=private_key, network='bitcoin')
+                    private_key_wif = key.wif()
+                except Exception as e:
+                    logger.error(f"❌ Erro convertendo key para WIF: {e}")
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail=f"Erro ao processar chave Bitcoin: {str(e)}"
+                    )
+                
+                result = await btc_service.send_btc(
+                    from_address=from_address,
+                    to_address=request.to_address,
+                    amount_btc=float(request.amount),
+                    private_key_wif=private_key_wif,
+                    fee_level=request.fee_level or 'hour'
+                )
+                
+                if not result.success:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Erro ao enviar BTC: {result.error}"
+                    )
+                
+                tx_hash = result.tx_hash
+                explorer_url = result.explorer_url or f"https://blockstream.info/tx/{tx_hash}"
+                fee_paid = str(result.fee_paid)
+            
+            # ============================================
+            # TRON (TRX e USDT-TRC20)
+            # ============================================
+            elif network_lower == 'tron':
+                logger.info("🔺 TRON: Usando tron_service")
+                from app.services.tron_service import tron_service
+                
+                # Verificar se é USDT-TRC20
+                if request.token_symbol and request.token_symbol.upper() == 'USDT':
+                    logger.info("🔺 Enviando USDT-TRC20")
+                    result = await tron_service.send_trc20(
+                        from_address=from_address,
+                        to_address=request.to_address,
+                        amount=float(request.amount),
+                        private_key_hex=private_key
+                    )
+                else:
+                    result = await tron_service.send_trx(
+                        from_address=from_address,
+                        to_address=request.to_address,
+                        amount_trx=float(request.amount),
+                        private_key_hex=private_key
+                    )
+                
+                if not result.success:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Erro ao enviar {'USDT-TRC20' if request.token_symbol else 'TRX'}: {result.error}"
+                    )
+                
+                tx_hash = result.tx_hash
+                explorer_url = result.explorer_url or f"https://tronscan.org/#/transaction/{tx_hash}"
+                fee_paid = str(result.fee_paid)
+            
+            # ============================================
+            # SOLANA
+            # ============================================
+            elif network_lower == 'solana':
+                logger.info("☀️ SOLANA: Usando sol_service")
+                from app.services.sol_service import SOLService
+                import base58
+                
+                sol_service = SOLService()
+                
+                # Converter hex para base58 se necessário
+                try:
+                    if len(private_key) == 64 and all(c in '0123456789abcdefABCDEF' for c in private_key):
+                        pk_bytes = bytes.fromhex(private_key)
+                        private_key_b58 = base58.b58encode(pk_bytes).decode()
+                    else:
+                        private_key_b58 = private_key
+                except Exception as e:
+                    logger.error(f"❌ Erro convertendo key para base58: {e}")
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail=f"Erro ao processar chave Solana: {str(e)}"
+                    )
+                
+                result = await sol_service.send_sol(
+                    from_address=from_address,
+                    to_address=request.to_address,
+                    amount_sol=float(request.amount),
+                    private_key_base58=private_key_b58
+                )
+                
+                if not result.success:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Erro ao enviar SOL: {result.error}"
+                    )
+                
+                tx_hash = result.tx_hash
+                explorer_url = result.explorer_url or f"https://explorer.solana.com/tx/{tx_hash}"
+                fee_paid = str(result.fee_paid)
+            
+            # ============================================
+            # XRP (Ripple)
+            # ============================================
+            elif network_lower == 'xrp':
+                logger.info("💎 XRP: Usando xrp_service")
+                from app.services.xrp_service import xrp_service
+                
+                result = await xrp_service.send_xrp(
+                    from_address=from_address,
+                    to_address=request.to_address,
+                    amount_xrp=float(request.amount),
+                    private_key_hex=private_key,
+                    destination_tag=request.memo if request.memo and request.memo.isdigit() else None
+                )
+                
+                if not result.success:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Erro ao enviar XRP: {result.error}"
+                    )
+                
+                tx_hash = result.tx_hash
+                explorer_url = result.explorer_url or f"https://xrpscan.com/tx/{tx_hash}"
+                fee_paid = str(result.fee_paid)
+            
+            # ============================================
+            # LITECOIN
+            # ============================================
+            elif network_lower == 'litecoin':
+                logger.info("🪙 LITECOIN: Usando ltc_service")
+                from app.services.ltc_doge_service import ltc_service
+                
+                try:
+                    from bitcoinlib.keys import Key
+                    key = Key(import_key=private_key, network='litecoin')
+                    private_key_wif = key.wif()
+                except Exception as e:
+                    logger.error(f"❌ Erro convertendo key para WIF: {e}")
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail=f"Erro ao processar chave Litecoin: {str(e)}"
+                    )
+                
+                result = await ltc_service.send_ltc(
+                    from_address=from_address,
+                    to_address=request.to_address,
+                    amount_ltc=float(request.amount),
+                    private_key_wif=private_key_wif
+                )
+                
+                if not result.success:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Erro ao enviar LTC: {result.error}"
+                    )
+                
+                tx_hash = result.tx_hash
+                explorer_url = result.explorer_url or f"https://blockchair.com/litecoin/transaction/{tx_hash}"
+                fee_paid = str(result.fee_paid)
+            
+            # ============================================
+            # DOGECOIN
+            # ============================================
+            elif network_lower == 'dogecoin':
+                logger.info("🐕 DOGECOIN: Usando doge_service")
+                from app.services.ltc_doge_service import doge_service
+                
+                try:
+                    from bitcoinlib.keys import Key
+                    key = Key(import_key=private_key, network='dogecoin')
+                    private_key_wif = key.wif()
+                except Exception as e:
+                    logger.error(f"❌ Erro convertendo key para WIF: {e}")
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail=f"Erro ao processar chave Dogecoin: {str(e)}"
+                    )
+                
+                result = await doge_service.send_doge(
+                    from_address=from_address,
+                    to_address=request.to_address,
+                    amount_doge=float(request.amount),
+                    private_key_wif=private_key_wif
+                )
+                
+                if not result.success:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Erro ao enviar DOGE: {result.error}"
+                    )
+                
+                tx_hash = result.tx_hash
+                explorer_url = result.explorer_url or f"https://blockchair.com/dogecoin/transaction/{tx_hash}"
+                fee_paid = str(result.fee_paid)
+            
+            # ============================================
+            # EVM CHAINS (Ethereum, Polygon, BSC, Base, Avalanche)
+            # ============================================
+            else:
+                # Código EVM original abaixo
+                pass
+            
+            # Se já processou uma rede não-EVM, salvar e retornar
+            if tx_hash and network_lower in ['bitcoin', 'tron', 'solana', 'xrp', 'litecoin', 'dogecoin']:
+                # Salvar transação no banco
+                try:
+                    transaction_record = Transaction(
+                        user_id=current_user.id,
+                        address_id=address_obj.id if address_obj else None,
+                        tx_hash=tx_hash,
+                        from_address=from_address,
+                        to_address=request.to_address,
+                        amount=str(request.amount),
+                        fee=fee_paid,
+                        network=request.network,
+                        status=TransactionStatus.pending,
+                        token_address=request.token_address,
+                        token_symbol=request.token_symbol,
+                        memo=request.note,
+                        broadcasted_at=datetime.utcnow(),
+                    )
+                    db.add(transaction_record)
+                    db.commit()
+                    db.refresh(transaction_record)
+                    transaction_id = transaction_record.id
+                    
+                    logger.info(f"✅ Transaction saved: ID={transaction_id}, Hash={tx_hash}")
+                except Exception as db_error:
+                    logger.error(f"❌ Error saving transaction: {db_error}")
+                    transaction_id = None
+                
+                # Consumir token biométrico se necessário
+                if biometric_token_to_consume:
+                    logger.info("🔐 Consuming biometric token...")
+                    webauthn_service.consume_biometric_token(biometric_token_to_consume)
+                
+                return {
+                    "success": True,
+                    "mode": "custodial",
+                    "transaction_id": transaction_id or "pending_save",
+                    "tx_hash": tx_hash,
+                    "network": request.network,
+                    "from_address": from_address,
+                    "to_address": request.to_address,
+                    "amount": request.amount,
+                    "fee": fee_paid,
+                    "fee_level": request.fee_level,
+                    "status": "pending",
+                    "explorer_url": explorer_url,
+                    "message": f"✅ Transação {request.network.upper()} enviada com sucesso!"
+                }
+            
+            # ============================================
+            # CÓDIGO EVM ORIGINAL (continua abaixo)
+            # ============================================
+            
             # Get gas price based on fee level (needed for both tokens and native)
             gas_estimates = await blockchain_signer.estimate_gas_price(request.network, request.fee_level)
             selected_gas = gas_estimates.get(request.fee_level, gas_estimates['standard'])
