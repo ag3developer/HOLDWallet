@@ -22,6 +22,7 @@ import {
   MessageCircle,
   BookOpen,
   Activity,
+  BookUser,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { seedVerificationService } from '../../services/seed-verification-service'
@@ -35,6 +36,7 @@ import {
   LinkedInIcon,
   YouTubeIcon,
 } from '../../components/icons/SocialIcons'
+import AddressBookPage from './AddressBookPage'
 
 // Import dos logos das moedas
 import bitcoinLogo from '../../assets/crypto-icons/btc.svg'
@@ -81,7 +83,7 @@ interface TokenPreferences {
 export const SettingsPage = () => {
   const [showAllNetworks, setShowAllNetworks] = useState(true)
   const [activeTab, setActiveTab] = useState<
-    'networks' | 'security' | 'backup' | 'privacy' | 'about'
+    'networks' | 'security' | 'backup' | 'privacy' | 'about' | 'addressbook'
   >('networks')
   const [lockTimeout, setLockTimeout] = useState<string>('15 minutos')
   const [requirePassword, setRequirePassword] = useState(false)
@@ -550,6 +552,7 @@ export const SettingsPage = () => {
         <div className='flex space-x-1 p-1 bg-gray-100 dark:bg-gray-700/50'>
           {[
             { id: 'networks', label: 'Redes', icon: Coins },
+            { id: 'addressbook', label: 'Agenda', icon: BookUser },
             { id: 'security', label: 'Segurança', icon: Shield },
             { id: 'backup', label: 'Backup', icon: Download },
             { id: 'privacy', label: 'Privacidade', icon: Lock },
@@ -864,6 +867,9 @@ export const SettingsPage = () => {
             </div>
           </>
         )}
+
+        {/* Address Book Section */}
+        {activeTab === 'addressbook' && <AddressBookPage />}
 
         {/* Security Section */}
         {activeTab === 'security' && (

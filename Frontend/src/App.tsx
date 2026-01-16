@@ -44,6 +44,7 @@ import { EducationPage } from '@/pages/education/EducationPage'
 import { SettingsPage } from '@/pages/settings/SettingsPage'
 import { CreateWalletPage } from '@/pages/wallet/CreateWalletPage'
 import { SettingsPage as WalletSettingsPage } from '@/pages/wallet/SettingsPage'
+import AddressBookPage from '@/pages/wallet/AddressBookPage'
 import { NetworkComparison } from '@/components/NetworkComparison'
 import { TraderProfileEditPage } from '@/pages/p2p/TraderProfileEditPage'
 import { NotificationsPage } from '@/pages/notifications/NotificationsPage'
@@ -319,6 +320,7 @@ function App() {
             <Route path='wallet/create' element={<CreateWalletPage />} />
             <Route path='wallet/settings' element={<WalletSettingsPage />} />
             <Route path='wallet/networks' element={<NetworkComparison />} />
+            <Route path='wallet/address-book' element={<AddressBookPage />} />
             <Route path='p2p' element={<P2PPage />} />
             <Route path='p2p/create-order' element={<CreateOrderPage />} />
             <Route path='p2p/my-orders' element={<MyOrdersPage />} />

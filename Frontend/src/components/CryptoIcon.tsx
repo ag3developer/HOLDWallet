@@ -8,6 +8,7 @@ interface CryptoIconProps extends ImgHTMLAttributes<HTMLImageElement> {
 }
 
 const symbolMap: Record<string, string> = {
+  // Símbolos
   BTC: 'btc',
   ETH: 'eth',
   USDT: 'usdt',
@@ -15,7 +16,7 @@ const symbolMap: Record<string, string> = {
   BNB: 'bnb',
   MATIC: 'matic',
   TRX: 'trx',
-  BASE: 'base', // ✅ Base agora tem seu próprio ícone
+  BASE: 'base',
   SOL: 'sol',
   LTC: 'ltc',
   DOGE: 'doge',
@@ -27,6 +28,23 @@ const symbolMap: Record<string, string> = {
   XRP: 'xrp',
   DAI: 'dai',
   BUSD: 'busd',
+  // Nomes de redes (minúsculo)
+  bitcoin: 'btc',
+  ethereum: 'eth',
+  polygon: 'matic',
+  bsc: 'bnb',
+  tron: 'trx',
+  base: 'base',
+  solana: 'sol',
+  litecoin: 'ltc',
+  dogecoin: 'doge',
+  cardano: 'ada',
+  avalanche: 'avax',
+  polkadot: 'dot',
+  chainlink: 'link',
+  xrp: 'xrp',
+  arbitrum: 'eth',
+  optimism: 'eth',
 }
 
 // Mapa de ícones locais importados
@@ -35,7 +53,10 @@ const localIconMap: Record<string, string> = {
 }
 
 export const CryptoIcon = ({ symbol, size = 24, className = '', ...props }: CryptoIconProps) => {
-  const iconName = symbolMap[symbol?.toUpperCase()] || 'btc'
+  // Tentar encontrar pelo símbolo original (lowercase para nomes de redes) ou uppercase (para símbolos)
+  const normalizedSymbol = symbol?.toLowerCase() || ''
+  const iconName =
+    symbolMap[normalizedSymbol] || symbolMap[symbol?.toUpperCase()] || normalizedSymbol || 'btc'
   const localIcon = localIconMap[iconName]
 
   // Tentar primeiro o arquivo local se existir, depois a CDN
