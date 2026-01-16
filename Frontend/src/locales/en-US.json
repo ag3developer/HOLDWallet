@@ -54,6 +54,7 @@
     "wallet": "Wallet",
     "marketplace": "Marketplace",
     "instantTrade": "Instant Trade",
+    "swap": "Swap",
     "wolkpay": "WolkPay",
     "billPayment": "Pay Bills",
     "chat": "Chat",
@@ -704,6 +705,75 @@
       "loginButton": "Access my account",
       "loginMessage": "Login with your email and password to get started",
       "note": "Use the email and password you registered to login. We recommend enabling 2FA for better security."
+    }
+  },
+  "swap": {
+    "title": "Token Swap",
+    "subtitle": "Exchange tokens at the best rates via DEX aggregators",
+    "youPay": "You Pay",
+    "youReceive": "You Receive",
+    "selectToken": "Select token",
+    "searchToken": "Search token...",
+    "popularTokens": "Popular Tokens",
+    "balance": "Balance",
+    "max": "MAX",
+    "halfAmount": "50%",
+    "enterAmount": "Enter amount",
+    "connectWallet": "Connect Wallet",
+    "insufficientBalance": "Insufficient Balance",
+    "selectTokens": "Select Tokens",
+    "getQuote": "Get Quote",
+    "gettingQuote": "Getting quote...",
+    "reviewSwap": "Review Swap",
+    "confirmSwap": "Confirm Swap",
+    "confirmingSwap": "Confirming...",
+    "swapDetails": "Swap Details",
+    "rate": "Rate",
+    "priceImpact": "Price Impact",
+    "minimumReceived": "Minimum Received",
+    "networkFee": "Network Fee",
+    "platformFee": "Platform Fee",
+    "route": "Route",
+    "slippageTolerance": "Slippage Tolerance",
+    "transactionDeadline": "Transaction Deadline",
+    "minutes": "minutes",
+    "settings": "Settings",
+    "auto": "Auto",
+    "custom": "Custom",
+    "network": "Network",
+    "selectNetwork": "Select Network",
+    "confirmTitle": "Confirm Swap",
+    "confirmDescription": "Review the details and confirm your swap",
+    "statusPending": "Processing",
+    "statusPendingDesc": "Your swap is being processed...",
+    "statusCompleted": "Completed!",
+    "statusCompletedDesc": "Your swap has been successfully completed",
+    "statusFailed": "Failed",
+    "statusFailedDesc": "Your swap failed. Please try again.",
+    "viewTransaction": "View Transaction",
+    "tryAgain": "Try Again",
+    "newSwap": "New Swap",
+    "transactionId": "Transaction ID",
+    "errors": {
+      "quoteError": "Error getting quote",
+      "swapError": "Error executing swap",
+      "insufficientLiquidity": "Insufficient liquidity",
+      "priceChanged": "Price changed, get new quote",
+      "networkError": "Network error, try again"
+    },
+    "warnings": {
+      "highPriceImpact": "High price impact! Consider reducing amount.",
+      "lowLiquidity": "Low liquidity for this pair"
+    },
+    "info": {
+      "feeInfo": "A small platform fee is charged to support the service",
+      "slippageInfo": "Maximum price variation accepted during swap"
+    },
+    "promoBanner": {
+      "title": "Token Swap",
+      "badge": "New",
+      "description": "Exchange tokens at the best rates via DEX aggregators",
+      "cta": "Try Now"
     }
   }
 }

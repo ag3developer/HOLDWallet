@@ -25,7 +25,9 @@ import {
   BarChart3,
   Wallet,
   RefreshCw,
+  ArrowLeftRight,
 } from 'lucide-react'
+import { Link } from 'react-router-dom'
 
 interface Quote {
   quote_id: string
@@ -294,6 +296,45 @@ export function InstantTradePage() {
           </div>
         </div>
       </div>
+
+      {/* Swap Promo Banner */}
+      <Link to='/swap' className='block group'>
+        <div className='relative overflow-hidden bg-gradient-to-r from-purple-600 via-blue-600 to-cyan-500 rounded-2xl p-4 md:p-5 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.01]'>
+          {/* Background Pattern */}
+          <div className='absolute inset-0 opacity-10'>
+            <div className='absolute top-0 right-0 w-32 h-32 bg-white rounded-full blur-3xl transform translate-x-10 -translate-y-10' />
+            <div className='absolute bottom-0 left-0 w-24 h-24 bg-white rounded-full blur-2xl transform -translate-x-5 translate-y-5' />
+          </div>
+
+          <div className='relative flex items-center justify-between'>
+            <div className='flex items-center gap-4'>
+              <div className='p-3 bg-white/20 backdrop-blur-sm rounded-xl'>
+                <ArrowLeftRight className='w-6 h-6 text-white' />
+              </div>
+              <div>
+                <div className='flex items-center gap-2'>
+                  <h3 className='text-lg md:text-xl font-bold text-white'>
+                    {t('swap.promoBanner.title', 'Token Swap')}
+                  </h3>
+                  <span className='px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-yellow-400 text-yellow-900 rounded-full'>
+                    {t('swap.promoBanner.badge', 'New')}
+                  </span>
+                </div>
+                <p className='text-sm text-white/80 mt-0.5'>
+                  {t(
+                    'swap.promoBanner.description',
+                    'Exchange tokens at the best rates via DEX aggregators'
+                  )}
+                </p>
+              </div>
+            </div>
+            <div className='hidden sm:flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-xl text-white font-medium group-hover:bg-white/30 transition-colors'>
+              <span>{t('swap.promoBanner.cta', 'Try Now')}</span>
+              <ArrowUpRight className='w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform' />
+            </div>
+          </div>
+        </div>
+      </Link>
 
       {/* Market Prices Carousel */}
       <MarketPricesCarousel

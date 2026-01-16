@@ -29,6 +29,7 @@ import {
   ArrowLeftRight,
   Brain,
   Receipt,
+  CircleDollarSign,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/useAuthStore'
 
@@ -50,7 +51,8 @@ const navigation: NavItem[] = [
   // Carteira & Trading
   { name: 'wallet', href: '/wallet', icon: Wallet, group: 'trading' },
   { name: 'instantTrade', href: '/instant-trade', icon: Zap, group: 'trading', badge: 'Hot' },
-  { name: 'wolkpay', href: '/wolkpay', icon: ArrowLeftRight, group: 'trading', badge: 'Novo' },
+  { name: 'swap', href: '/swap', icon: ArrowLeftRight, group: 'trading', badge: 'Novo' },
+  { name: 'wolkpay', href: '/wolkpay', icon: CircleDollarSign, group: 'trading' },
   { name: 'marketplace', href: '/p2p', icon: ShoppingBag, group: 'trading' },
 
   // Comunicação

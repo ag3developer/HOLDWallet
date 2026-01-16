@@ -32,6 +32,7 @@ import { OrderDetailsPage } from '@/pages/p2p/OrderDetailsPage'
 import { EditOrderPage } from '@/pages/p2p/EditOrderPage'
 import { TradeProcessPage } from '@/pages/p2p/TradeProcessPage'
 import { InstantTradePage } from '@/pages/trading/InstantTradePage'
+import { SwapPage } from '@/pages/swap/SwapPage'
 import { ChatPage } from '@/pages/chat/ChatPage'
 import { ProfilePage } from '@/pages/profile/ProfilePage'
 import { KYCPage } from '@/pages/kyc/KYCPage'
@@ -329,6 +330,7 @@ function App() {
             <Route path='p2p/trade/:tradeId' element={<TradeProcessPage />} />
             <Route path='p2p/trader-profile/edit' element={<TraderProfileEditPage />} />
             <Route path='instant-trade' element={<InstantTradePage />} />
+            <Route path='swap' element={<SwapPage />} />
             <Route path='chat/*' element={<ChatPage />} />
             <Route path='profile/*' element={<ProfilePage />} />
             <Route path='kyc/*' element={<KYCPage />} />
