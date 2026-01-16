@@ -730,6 +730,17 @@ class SendTransactionRequest(BaseModel):
     token_symbol: Optional[str] = Field(None, description="Token symbol (e.g., USDT, USDC)")
     token_address: Optional[str] = Field(None, description="Token contract address")
 
+
+class ValidateSendRequest(BaseModel):
+    """Request to validate a transaction BEFORE asking for authentication."""
+    wallet_id: str = Field(..., description="Wallet UUID")
+    to_address: str = Field(..., description="Recipient address")
+    amount: str = Field(..., description="Amount to send")
+    network: str = Field(..., description="Blockchain network")
+    fee_level: str = Field(default="standard", description="Fee speed: slow, standard, fast")
+    token_symbol: Optional[str] = Field(None, description="Token symbol (e.g., USDT, USDC)")
+    token_address: Optional[str] = Field(None, description="Token contract address")
+
 @router.post("/validate-address")
 async def validate_address(
     request: ValidateAddressRequest,
@@ -759,6 +770,273 @@ async def validate_address(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to validate address: {str(e)}"
         )
+
+
+@router.post("/validate-send")
+async def validate_send_transaction(
+    request: ValidateSendRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    🔍 PRÉ-VALIDAÇÃO DE TRANSAÇÃO
+    
+    Este endpoint DEVE ser chamado ANTES de pedir biometria/2FA ao usuário.
+    Ele verifica na blockchain:
+    
+    1. ✅ Se a carteira existe e pertence ao usuário
+    2. ✅ Se o endereço de destino é válido
+    3. ✅ Se há saldo REAL suficiente (consulta blockchain)
+    4. ✅ Se há gas suficiente para a transação
+    5. ✅ Estima o custo total (valor + gas)
+    
+    FLUXO CORRETO:
+    Frontend → validate-send → OK → Pede biometria/2FA → send
+    
+    Returns:
+        - valid: true se pode prosseguir com autenticação
+        - error: mensagem de erro se inválido
+        - balance: saldo real na blockchain
+        - gas_estimate: estimativa de gas
+        - total_cost: custo total (valor + gas)
+    """
+    from web3 import Web3
+    from decimal import Decimal
+    
+    logger.info(f"🔍 Pre-validating transaction for user {current_user.id}")
+    logger.info(f"   Wallet: {request.wallet_id}")
+    logger.info(f"   To: {request.to_address}")
+    logger.info(f"   Amount: {request.amount} on {request.network}")
+    
+    try:
+        # 1. Verificar se a carteira existe e pertence ao usuário
+        wallet = db.query(Wallet).filter(
+            Wallet.id == uuid.UUID(request.wallet_id),
+            Wallet.user_id == current_user.id
+        ).first()
+        
+        if not wallet:
+            logger.warning(f"❌ Wallet not found: {request.wallet_id}")
+            return {
+                "valid": False,
+                "error": "WALLET_NOT_FOUND",
+                "message": "Carteira não encontrada"
+            }
+        
+        # 2. Obter endereço da carteira para a rede
+        address_obj = db.query(Address).filter(
+            Address.wallet_id == wallet.id,
+            Address.network == request.network,
+            Address.is_active == True
+        ).first()
+        
+        if not address_obj:
+            logger.warning(f"❌ No address for network {request.network}")
+            return {
+                "valid": False,
+                "error": "NO_ADDRESS_FOR_NETWORK",
+                "message": f"Endereço não encontrado para rede {request.network}"
+            }
+        
+        from_address = str(address_obj.address)
+        logger.info(f"   From address: {from_address}")
+        
+        # 3. Validar endereço de destino
+        try:
+            if not Web3.is_address(request.to_address):
+                return {
+                    "valid": False,
+                    "error": "INVALID_TO_ADDRESS",
+                    "message": "Endereço de destino inválido"
+                }
+        except Exception:
+            return {
+                "valid": False,
+                "error": "INVALID_TO_ADDRESS",
+                "message": "Endereço de destino inválido"
+            }
+        
+        # 4. Consultar saldo REAL na blockchain
+        # Usar o blockchain_signer que já está configurado
+        network_lower = request.network.lower()
+        w3 = blockchain_signer.providers.get(network_lower)
+        
+        if not w3 or not w3.is_connected():
+            logger.error(f"❌ Not connected to {network_lower}")
+            return {
+                "valid": False,
+                "error": "NETWORK_UNAVAILABLE",
+                "message": f"Não foi possível conectar à rede {request.network}"
+            }
+        
+        # Verificar se é transação de token ou moeda nativa
+        is_token = request.token_symbol and request.token_symbol.upper() in ['USDT', 'USDC']
+        
+        if is_token:
+            # Para tokens, verificar saldo do token E saldo de gas
+            from app.config.token_contracts import get_token_address, get_token_decimals, ERC20_ABI
+            
+            token_address = get_token_address(request.token_symbol, request.network)
+            if not token_address:
+                return {
+                    "valid": False,
+                    "error": "TOKEN_NOT_SUPPORTED",
+                    "message": f"{request.token_symbol} não suportado em {request.network}"
+                }
+            
+            decimals = get_token_decimals(request.token_symbol, request.network)
+            
+            # Saldo do token
+            try:
+                contract = w3.eth.contract(
+                    address=Web3.to_checksum_address(token_address),
+                    abi=ERC20_ABI
+                )
+                token_balance_wei = contract.functions.balanceOf(
+                    Web3.to_checksum_address(from_address)
+                ).call()
+                token_balance = Decimal(token_balance_wei) / (10 ** decimals)
+            except Exception as e:
+                logger.error(f"❌ Error fetching token balance: {e}")
+                return {
+                    "valid": False,
+                    "error": "BALANCE_CHECK_FAILED",
+                    "message": "Erro ao consultar saldo do token"
+                }
+            
+            # Saldo nativo para gas
+            try:
+                native_balance_wei = w3.eth.get_balance(Web3.to_checksum_address(from_address))
+                native_balance = Decimal(native_balance_wei) / (10 ** 18)
+            except Exception as e:
+                logger.error(f"❌ Error fetching native balance: {e}")
+                return {
+                    "valid": False,
+                    "error": "BALANCE_CHECK_FAILED",
+                    "message": "Erro ao consultar saldo para gas"
+                }
+            
+            # Estimar gas para token transfer
+            try:
+                gas_price = w3.eth.gas_price
+                gas_limit = 65000  # ERC20 transfer típico
+                gas_cost_wei = gas_price * gas_limit
+                gas_cost = Decimal(gas_cost_wei) / (10 ** 18)
+            except Exception as e:
+                logger.warning(f"⚠️ Gas estimate failed, using default: {e}")
+                gas_cost = Decimal("0.01")  # Fallback
+            
+            amount_decimal = Decimal(request.amount)
+            
+            # Verificar saldo do token
+            if token_balance < amount_decimal:
+                logger.warning(f"❌ Insufficient token balance: {token_balance} < {amount_decimal}")
+                return {
+                    "valid": False,
+                    "error": "INSUFFICIENT_TOKEN_BALANCE",
+                    "message": f"Saldo insuficiente de {request.token_symbol}",
+                    "balance": str(token_balance),
+                    "required": str(amount_decimal),
+                    "native_balance": str(native_balance)
+                }
+            
+            # Verificar saldo para gas
+            if native_balance < gas_cost:
+                native_symbol = {"polygon": "MATIC", "ethereum": "ETH", "bsc": "BNB", "base": "ETH"}.get(network_lower, "NATIVE")
+                logger.warning(f"❌ Insufficient gas: {native_balance} < {gas_cost}")
+                return {
+                    "valid": False,
+                    "error": "INSUFFICIENT_GAS",
+                    "message": f"Saldo insuficiente de {native_symbol} para gas",
+                    "balance": str(native_balance),
+                    "gas_required": str(gas_cost),
+                    "native_symbol": native_symbol
+                }
+            
+            logger.info(f"✅ Pre-validation PASSED for token transfer")
+            return {
+                "valid": True,
+                "message": "Transação pode ser realizada",
+                "from_address": from_address,
+                "to_address": request.to_address,
+                "amount": request.amount,
+                "token_symbol": request.token_symbol,
+                "token_balance": str(token_balance),
+                "native_balance": str(native_balance),
+                "gas_estimate": str(gas_cost),
+                "network": request.network,
+                "requires_auth": True  # Indica que precisa de 2FA/biometria
+            }
+        
+        else:
+            # Transação de moeda nativa (MATIC, ETH, BNB, etc)
+            try:
+                balance_wei = w3.eth.get_balance(Web3.to_checksum_address(from_address))
+                balance = Decimal(balance_wei) / (10 ** 18)
+                logger.info(f"   Blockchain balance: {balance}")
+            except Exception as e:
+                logger.error(f"❌ Error fetching balance: {e}")
+                return {
+                    "valid": False,
+                    "error": "BALANCE_CHECK_FAILED",
+                    "message": "Erro ao consultar saldo na blockchain"
+                }
+            
+            # Estimar gas
+            try:
+                gas_price = w3.eth.gas_price
+                gas_limit = 21000  # Transfer simples
+                gas_cost_wei = gas_price * gas_limit
+                gas_cost = Decimal(gas_cost_wei) / (10 ** 18)
+                logger.info(f"   Gas estimate: {gas_cost}")
+            except Exception as e:
+                logger.warning(f"⚠️ Gas estimate failed, using default: {e}")
+                gas_cost = Decimal("0.001")  # Fallback
+            
+            amount_decimal = Decimal(request.amount)
+            total_required = amount_decimal + gas_cost
+            
+            # Verificar saldo total (valor + gas)
+            if balance < total_required:
+                native_symbol = {"polygon": "MATIC", "ethereum": "ETH", "bsc": "BNB", "base": "ETH"}.get(network_lower, "NATIVE")
+                logger.warning(f"❌ Insufficient balance: {balance} < {total_required}")
+                return {
+                    "valid": False,
+                    "error": "INSUFFICIENT_BALANCE",
+                    "message": f"Saldo insuficiente de {native_symbol}",
+                    "balance": str(balance),
+                    "amount": str(amount_decimal),
+                    "gas_estimate": str(gas_cost),
+                    "total_required": str(total_required),
+                    "shortfall": str(total_required - balance)
+                }
+            
+            logger.info(f"✅ Pre-validation PASSED for native transfer")
+            return {
+                "valid": True,
+                "message": "Transação pode ser realizada",
+                "from_address": from_address,
+                "to_address": request.to_address,
+                "amount": request.amount,
+                "balance": str(balance),
+                "gas_estimate": str(gas_cost),
+                "total_required": str(total_required),
+                "remaining_after": str(balance - total_required),
+                "network": request.network,
+                "requires_auth": True  # Indica que precisa de 2FA/biometria
+            }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Error in validate-send: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return {
+            "valid": False,
+            "error": "VALIDATION_FAILED",
+            "message": f"Erro na validação: {str(e)}"
+        }
 
 
 @router.post("/estimate-fee")
