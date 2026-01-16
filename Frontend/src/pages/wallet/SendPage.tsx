@@ -10,8 +10,6 @@ import {
   Turtle,
   Zap,
   Rocket,
-  Fingerprint,
-  Shield,
   ExternalLink,
   ArrowRight,
   Info,
@@ -26,6 +24,17 @@ import { QRCodeScanner } from '@/components/QRCodeScanner'
 import { transactionService } from '@/services/transactionService'
 import { webAuthnService } from '@/services/webauthn'
 import { sendService } from '@/services/sendService'
+
+// Timeline step types
+type TimelineStep =
+  | 'idle'
+  | 'validating_address'
+  | 'checking_balance'
+  | 'estimating_gas'
+  | 'awaiting_biometric'
+  | 'sending'
+  | 'success'
+  | 'error'
 
 export const SendPage = () => {
   // Ref para prevenir double-submit (mais confiável que state)
@@ -45,12 +54,16 @@ export const SendPage = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedFeeSpeed, setSelectedFeeSpeed] = useState<'slow' | 'standard' | 'fast'>('standard')
-  const [show2FADialog, setShow2FADialog] = useState(false)
-  const [twoFAToken, setTwoFAToken] = useState<string>('')
-  const [pendingTransaction, setPendingTransaction] = useState<any>(null)
-  const [authMethod, setAuthMethod] = useState<'biometric' | '2fa'>('biometric')
   const [biometricAvailable, setBiometricAvailable] = useState(false)
   const [biometricLoading, setBiometricLoading] = useState(false)
+
+  // Timeline state (novo fluxo simplificado)
+  const [timelineStep, setTimelineStep] = useState<TimelineStep>('idle')
+  const [validationData, setValidationData] = useState<{
+    balance?: string
+    gasEstimate?: string
+    totalRequired?: string
+  }>({})
 
   // Estado para detalhes da transação enviada (para tela de sucesso)
   const [sentTransaction, setSentTransaction] = useState<{
@@ -493,45 +506,48 @@ export const SendPage = () => {
 
   const handleSend = async () => {
     if (!validateForm()) return
+
+    // Prevenir double-submit
+    if (isSubmittingRef.current || loading) return
+    isSubmittingRef.current = true
+
     try {
       setLoading(true)
       setError(null)
+      setTimelineStep('validating_address')
 
-      // Precisamos do endereço "from" - vamos usar a carteira do token selecionado
+      // Buscar carteira
       const selectedWalletData = walletsWithAddresses.find(
         w => w.symbol === selectedToken && w.network === selectedNetwork
       )
 
       if (!selectedWalletData) {
         setError('Nenhuma carteira encontrada para este token')
+        setTimelineStep('error')
         setLoading(false)
+        isSubmittingRef.current = false
         return
       }
 
-      // Usar o endereço específico da rede (não o first_address genérico)
       if (!selectedWalletData.address) {
         setError('Endereço da carteira não disponível para esta rede')
+        setTimelineStep('error')
         setLoading(false)
+        isSubmittingRef.current = false
         return
       }
 
-      // Buscar a carteira completa para obter o ID
       const fullWallet = apiWallets?.find(w => String(w.id) === String(selectedWalletData.walletId))
       if (!fullWallet) {
         setError('Carteira não encontrada')
+        setTimelineStep('error')
         setLoading(false)
+        isSubmittingRef.current = false
         return
       }
 
-      console.log('📝 Iniciando transação...')
-      console.log('Carteira ID:', fullWallet.id)
-      console.log('De:', selectedWalletData.address)
-      console.log('Para:', toAddress)
-      console.log('Valor:', amount)
-      console.log('Rede:', selectedNetwork)
-
-      // � PASSO 1: VALIDAR NA BLOCKCHAIN ANTES DE PEDIR 2FA
-      console.log('🔍 Validando saldo na blockchain...')
+      // STEP 1: Validar endereço e saldo na blockchain
+      setTimelineStep('checking_balance')
       const isToken = ['USDT', 'USDC'].includes(selectedToken.toUpperCase())
 
       const validation = await sendService.validateSend({
@@ -542,257 +558,119 @@ export const SendPage = () => {
         token_symbol: isToken ? selectedToken : undefined,
       })
 
-      console.log('📋 Resultado da validação:', validation)
-
-      // Se a validação falhou, mostrar erro e NÃO pedir 2FA
       if (!validation.valid) {
-        console.error('❌ Validação falhou:', validation.message)
-
-        // Mensagem amigável baseada no erro
         let errorMsg = validation.message || 'Transação não pode ser realizada'
-
         if (validation.error === 'INSUFFICIENT_BALANCE') {
           errorMsg = `Saldo insuficiente. Disponível: ${validation.balance || '0'}`
         } else if (validation.error === 'INSUFFICIENT_TOKEN_BALANCE') {
           errorMsg = `Saldo de ${selectedToken} insuficiente. Disponível: ${validation.balance || '0'}`
         } else if (validation.error === 'INSUFFICIENT_GAS') {
-          errorMsg = `Saldo insuficiente para pagar a taxa de rede (gas)`
+          errorMsg = 'Saldo insuficiente para pagar a taxa de rede (gas)'
         } else if (validation.error === 'INVALID_TO_ADDRESS') {
           errorMsg = 'Endereço de destino inválido'
         }
-
         setError(errorMsg)
-        notificationService.showError(null, errorMsg)
+        setTimelineStep('error')
         setLoading(false)
+        isSubmittingRef.current = false
         return
       }
 
-      console.log('✅ Validação passou! Saldo real:', validation.balance)
+      setValidationData({
+        ...(validation.balance ? { balance: validation.balance } : {}),
+        ...(validation.gas_estimate ? { gasEstimate: validation.gas_estimate } : {}),
+        ...(validation.total_required ? { totalRequired: validation.total_required } : {}),
+      })
 
-      // 💰 PASSO 2: Estimar taxas
-      console.log('💰 Estimando taxa de gás...')
+      // STEP 2: Estimar gas
+      setTimelineStep('estimating_gas')
       const feeEstimate = await transactionService.estimateFee({
         wallet_id: String(fullWallet.id),
         to_address: toAddress,
         amount: amount,
         network: selectedNetwork,
       })
-      console.log('✅ Taxas estimadas:', feeEstimate)
 
-      // Guardar os dados da transação pendente (inclui dados da validação)
-      setPendingTransaction({
-        wallet_id: String(fullWallet.id),
-        to_address: toAddress,
-        amount: amount,
-        network: selectedNetwork,
-        fee_preference: selectedFeeSpeed,
-        token_symbol: selectedToken,
-        memo: memo || undefined,
-        feeEstimate: feeEstimate,
-        // Dados da validação para referência
-        validation: {
-          balance: validation.balance,
-          gasEstimate: validation.gas_estimate,
-          remainingAfter: validation.remaining_after,
-        },
-      })
+      let biometricToken: string | undefined
 
-      // 🔐 PASSO 3: Agora sim, mostrar diálogo 2FA (saldo já foi validado)
-      setShow2FADialog(true)
-      setLoading(false)
-    } catch (err: any) {
-      console.error('❌ Erro ao preparar envio:', err)
-      setError(err.message || 'Erro ao validar transação')
-      notificationService.showError(err, 'Erro ao validar transação')
-      setLoading(false)
-    }
-  }
+      // STEP 3: Verificar se biometria está disponível e ativada
+      if (biometricAvailable) {
+        setTimelineStep('awaiting_biometric')
 
-  const handleSubmit2FA = async () => {
-    // Proteção contra double-click/double-submit usando ref (mais confiável)
-    if (isSubmittingRef.current) {
-      console.log('⚠️ [REF] Transaction already in progress, ignoring duplicate call')
-      return
-    }
+        try {
+          setBiometricLoading(true)
+          const bioResult = await webAuthnService.authenticate()
+          biometricToken = bioResult || undefined
+        } catch (error_) {
+          console.log('Biometria falhou, enviando sem autenticação extra:', error_)
+          // Continua para enviar sem biometria
+        } finally {
+          setBiometricLoading(false)
+        }
+      }
 
-    if (loading || biometricLoading) {
-      console.log('⚠️ [STATE] Transaction already in progress, ignoring duplicate call')
-      return
-    }
-
-    if (!twoFAToken || twoFAToken.length < 6) {
-      notificationService.showWarning('Código 2FA inválido (mínimo 6 dígitos)')
-      return
-    }
-
-    if (!pendingTransaction) {
-      notificationService.showWarning('Nenhuma transação pendente')
-      return
-    }
-
-    // Marcar como em progresso IMEDIATAMENTE (antes de qualquer await)
-    isSubmittingRef.current = true
-
-    try {
-      setLoading(true)
-      console.log('✍️ Enviando transação com 2FA...')
-      console.log('Token 2FA:', twoFAToken)
-      console.log('Transação pendente:', pendingTransaction)
-
-      // Chamar o serviço que usa o novo endpoint /wallets/send
+      // STEP 4: Enviar transação
+      setTimelineStep('sending')
+      const memoValue = memo || undefined
       const result = await transactionService.sendTransaction(
         {
-          ...pendingTransaction,
+          wallet_id: String(fullWallet.id),
+          to_address: toAddress,
+          amount: amount,
+          network: selectedNetwork,
+          fee_preference: selectedFeeSpeed === 'slow' ? 'standard' : selectedFeeSpeed,
+          token_symbol: selectedToken,
+          ...(memoValue ? { memo: memoValue } : {}),
         },
         undefined,
-        twoFAToken // Passar o token 2FA
+        biometricToken // Pode ser undefined se biometria não disponível/falhou
       )
 
-      console.log('✅ Transação concluída:', result)
-
-      // Guardar detalhes completos da transação para exibição
+      // Sucesso!
       const tokenData = getSelectedTokenData()
+      const feeValue = feeEstimate?.fee_estimates?.standard_fee
       setSentTransaction({
         txHash: result.txHash,
-        fromAddress: tokenData?.address || '',
-        toAddress: pendingTransaction.to_address,
-        amount: pendingTransaction.amount,
-        token: pendingTransaction.token_symbol,
-        network: pendingTransaction.network,
+        fromAddress: selectedWalletData.address || tokenData?.address || '',
+        toAddress: toAddress,
+        amount: amount,
+        token: selectedToken,
+        network: selectedNetwork,
         transactionId: generateTransactionId(result.txHash),
         timestamp: new Date(),
-        fee: pendingTransaction.feeEstimate?.fee_usd || undefined,
+        ...(feeValue ? { fee: feeValue } : {}),
       })
 
       setTxHash(result.txHash)
+      setTimelineStep('success')
       setShowSuccess(true)
       notificationService.showSuccess('Transação enviada com sucesso!')
 
-      // Adicionar notificação no centro de notificações
       appNotifications.transactionSent(
         result.txHash,
-        Number.parseFloat(pendingTransaction.amount),
-        pendingTransaction.token_symbol,
-        pendingTransaction.to_address
+        Number.parseFloat(amount),
+        selectedToken,
+        toAddress
       )
-
-      // Limpar estado 2FA
-      setShow2FADialog(false)
-      setTwoFAToken('')
-      setPendingTransaction(null)
     } catch (err: any) {
       console.error('Erro ao enviar:', err)
       setError(err.message || 'Erro ao enviar transação')
-      notificationService.showError(err)
+      setTimelineStep('error')
+      notificationService.showError(err, 'Erro ao enviar transação')
     } finally {
       setLoading(false)
-      isSubmittingRef.current = false // Reset ref
-    }
-  }
-
-  // Handler for biometric authentication
-  const handleBiometricAuth = async () => {
-    // Proteção contra double-click/double-submit usando ref (mais confiável)
-    if (isSubmittingRef.current) {
-      console.log('⚠️ [REF] Transaction already in progress, ignoring duplicate call')
-      return
-    }
-
-    if (biometricLoading || loading) {
-      console.log('⚠️ [STATE] Biometric auth already in progress, ignoring duplicate call')
-      return
-    }
-
-    if (!pendingTransaction) {
-      notificationService.showWarning('Nenhuma transação pendente')
-      return
-    }
-
-    // Marcar como em progresso IMEDIATAMENTE (antes de qualquer await)
-    isSubmittingRef.current = true
-
-    try {
-      setBiometricLoading(true)
-      setLoading(true) // Double protection
-      console.log('🔐 Autenticando com biometria...')
-
-      const biometricToken = await webAuthnService.authenticate()
-
-      if (biometricToken) {
-        console.log('✅ Biometria verificada! Token:', biometricToken.substring(0, 20) + '...')
-
-        // Send transaction with biometric token
-        const result = await transactionService.sendTransaction(
-          {
-            ...pendingTransaction,
-          },
-          undefined,
-          biometricToken // Token biométrico real do servidor
-        )
-
-        console.log('✅ Transação concluída:', result)
-
-        // Guardar detalhes completos da transação para exibição
-        const tokenData = getSelectedTokenData()
-        setSentTransaction({
-          txHash: result.txHash,
-          fromAddress: tokenData?.address || '',
-          toAddress: pendingTransaction.to_address,
-          amount: pendingTransaction.amount,
-          token: pendingTransaction.token_symbol,
-          network: pendingTransaction.network,
-          transactionId: generateTransactionId(result.txHash),
-          timestamp: new Date(),
-          fee: pendingTransaction.feeEstimate?.fee_usd || undefined,
-        })
-
-        setTxHash(result.txHash)
-        setShowSuccess(true)
-        notificationService.showSuccess('Transação enviada com sucesso!')
-
-        // Adicionar notificação no centro de notificações
-        appNotifications.transactionSent(
-          result.txHash,
-          Number.parseFloat(pendingTransaction.amount),
-          pendingTransaction.token_symbol,
-          pendingTransaction.to_address
-        )
-
-        // Limpar estado
-        setShow2FADialog(false)
-        setTwoFAToken('')
-        setPendingTransaction(null)
-      } else {
-        notificationService.showWarning('Falha na autenticação biométrica. Tente novamente.')
-        setAuthMethod('2fa')
-      }
-    } catch (err: any) {
-      console.error('Erro na biometria:', err)
-
-      // Check if biometric token expired - need to re-authenticate
-      if (
-        err.message?.includes('BIOMETRIC_TOKEN_EXPIRED') ||
-        err.response?.data?.detail === 'BIOMETRIC_TOKEN_EXPIRED'
-      ) {
-        notificationService.showWarning('Token biométrico expirado. Autentique novamente.')
-        // Keep dialog open, user can try biometric again
-        return
-      }
-
-      notificationService.showInfo('Biometria falhou. Use o código 2FA.')
-      setAuthMethod('2fa')
-    } finally {
       setBiometricLoading(false)
-      setLoading(false) // Reset double protection
-      isSubmittingRef.current = false // Reset ref
+      isSubmittingRef.current = false
     }
   }
 
-  const handleCancel2FA = () => {
-    setShow2FADialog(false)
-    setTwoFAToken('')
-    setPendingTransaction(null)
+  // Cancelar envio e resetar timeline
+  const handleCancelSend = () => {
+    setTimelineStep('idle')
     setError(null)
+    setLoading(false)
+    setBiometricLoading(false)
+    isSubmittingRef.current = false
   }
 
   const resetForm = () => {
@@ -803,6 +681,8 @@ export const SendPage = () => {
     setTxHash('')
     setShowSuccess(false)
     setSentTransaction(null)
+    setTimelineStep('idle')
+    setValidationData({})
   }
 
   if (walletsWithAddresses.length === 0) {
@@ -1226,7 +1106,7 @@ export const SendPage = () => {
             {loading ? (
               <>
                 <Loader2 className='w-4 h-4 animate-spin' />
-                Preparando...
+                Processando...
               </>
             ) : (
               <>
@@ -1236,6 +1116,213 @@ export const SendPage = () => {
               </>
             )}
           </button>
+
+          {/* Timeline de Progresso - Aparece durante o envio */}
+          {timelineStep !== 'idle' && timelineStep !== 'success' && (
+            <div className='mt-4 p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700'>
+              <div className='space-y-3'>
+                {/* Step: Validando endereço */}
+                <div className='flex items-center gap-3'>
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                      timelineStep === 'validating_address'
+                        ? 'bg-blue-100 dark:bg-blue-900/50'
+                        : [
+                              'checking_balance',
+                              'estimating_gas',
+                              'awaiting_biometric',
+                              'sending',
+                            ].includes(timelineStep)
+                          ? 'bg-green-100 dark:bg-green-900/50'
+                          : 'bg-gray-100 dark:bg-gray-700'
+                    }`}
+                  >
+                    {timelineStep === 'validating_address' ? (
+                      <Loader2 className='w-4 h-4 text-blue-600 animate-spin' />
+                    ) : [
+                        'checking_balance',
+                        'estimating_gas',
+                        'awaiting_biometric',
+                        'sending',
+                      ].includes(timelineStep) ? (
+                      <CheckCircle className='w-4 h-4 text-green-600' />
+                    ) : (
+                      <div className='w-2 h-2 bg-gray-400 rounded-full' />
+                    )}
+                  </div>
+                  <span
+                    className={`text-sm ${
+                      [
+                        'checking_balance',
+                        'estimating_gas',
+                        'awaiting_biometric',
+                        'sending',
+                      ].includes(timelineStep)
+                        ? 'text-green-700 dark:text-green-300'
+                        : timelineStep === 'validating_address'
+                          ? 'text-blue-700 dark:text-blue-300'
+                          : 'text-gray-400'
+                    }`}
+                  >
+                    Validando endereço
+                  </span>
+                </div>
+
+                {/* Step: Verificando saldo */}
+                <div className='flex items-center gap-3'>
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                      timelineStep === 'checking_balance'
+                        ? 'bg-blue-100 dark:bg-blue-900/50'
+                        : ['estimating_gas', 'awaiting_biometric', 'sending'].includes(timelineStep)
+                          ? 'bg-green-100 dark:bg-green-900/50'
+                          : 'bg-gray-100 dark:bg-gray-700'
+                    }`}
+                  >
+                    {timelineStep === 'checking_balance' ? (
+                      <Loader2 className='w-4 h-4 text-blue-600 animate-spin' />
+                    ) : ['estimating_gas', 'awaiting_biometric', 'sending'].includes(
+                        timelineStep
+                      ) ? (
+                      <CheckCircle className='w-4 h-4 text-green-600' />
+                    ) : (
+                      <div className='w-2 h-2 bg-gray-400 rounded-full' />
+                    )}
+                  </div>
+                  <div className='flex-1'>
+                    <span
+                      className={`text-sm ${
+                        ['estimating_gas', 'awaiting_biometric', 'sending'].includes(timelineStep)
+                          ? 'text-green-700 dark:text-green-300'
+                          : timelineStep === 'checking_balance'
+                            ? 'text-blue-700 dark:text-blue-300'
+                            : 'text-gray-400'
+                      }`}
+                    >
+                      Verificando saldo
+                    </span>
+                    {validationData.balance &&
+                      ['estimating_gas', 'awaiting_biometric', 'sending'].includes(
+                        timelineStep
+                      ) && (
+                        <p className='text-xs text-gray-500'>
+                          Disponível: {validationData.balance}
+                        </p>
+                      )}
+                  </div>
+                </div>
+
+                {/* Step: Estimando taxa */}
+                <div className='flex items-center gap-3'>
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                      timelineStep === 'estimating_gas'
+                        ? 'bg-blue-100 dark:bg-blue-900/50'
+                        : ['awaiting_biometric', 'sending'].includes(timelineStep)
+                          ? 'bg-green-100 dark:bg-green-900/50'
+                          : 'bg-gray-100 dark:bg-gray-700'
+                    }`}
+                  >
+                    {timelineStep === 'estimating_gas' ? (
+                      <Loader2 className='w-4 h-4 text-blue-600 animate-spin' />
+                    ) : ['awaiting_biometric', 'sending'].includes(timelineStep) ? (
+                      <CheckCircle className='w-4 h-4 text-green-600' />
+                    ) : (
+                      <div className='w-2 h-2 bg-gray-400 rounded-full' />
+                    )}
+                  </div>
+                  <span
+                    className={`text-sm ${
+                      ['awaiting_biometric', 'sending'].includes(timelineStep)
+                        ? 'text-green-700 dark:text-green-300'
+                        : timelineStep === 'estimating_gas'
+                          ? 'text-blue-700 dark:text-blue-300'
+                          : 'text-gray-400'
+                    }`}
+                  >
+                    Estimando taxa de rede
+                  </span>
+                </div>
+
+                {/* Step: Biometria (só aparece se disponível) */}
+                {biometricAvailable && (
+                  <div className='flex items-center gap-3'>
+                    <div
+                      className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                        timelineStep === 'awaiting_biometric'
+                          ? 'bg-blue-100 dark:bg-blue-900/50'
+                          : timelineStep === 'sending'
+                            ? 'bg-green-100 dark:bg-green-900/50'
+                            : 'bg-gray-100 dark:bg-gray-700'
+                      }`}
+                    >
+                      {timelineStep === 'awaiting_biometric' ? (
+                        <Loader2 className='w-4 h-4 text-blue-600 animate-spin' />
+                      ) : timelineStep === 'sending' ? (
+                        <CheckCircle className='w-4 h-4 text-green-600' />
+                      ) : (
+                        <div className='w-2 h-2 bg-gray-400 rounded-full' />
+                      )}
+                    </div>
+                    <span
+                      className={`text-sm ${
+                        timelineStep === 'sending'
+                          ? 'text-green-700 dark:text-green-300'
+                          : timelineStep === 'awaiting_biometric'
+                            ? 'text-blue-700 dark:text-blue-300'
+                            : 'text-gray-400'
+                      }`}
+                    >
+                      Confirmando biometria
+                    </span>
+                  </div>
+                )}
+
+                {/* Step: Enviando */}
+                <div className='flex items-center gap-3'>
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                      timelineStep === 'sending'
+                        ? 'bg-blue-100 dark:bg-blue-900/50'
+                        : 'bg-gray-100 dark:bg-gray-700'
+                    }`}
+                  >
+                    {timelineStep === 'sending' ? (
+                      <Loader2 className='w-4 h-4 text-blue-600 animate-spin' />
+                    ) : (
+                      <div className='w-2 h-2 bg-gray-400 rounded-full' />
+                    )}
+                  </div>
+                  <span
+                    className={`text-sm ${
+                      timelineStep === 'sending'
+                        ? 'text-blue-700 dark:text-blue-300'
+                        : 'text-gray-400'
+                    }`}
+                  >
+                    Enviando para blockchain
+                  </span>
+                </div>
+              </div>
+
+              {/* Erro inline */}
+              {timelineStep === 'error' && error && (
+                <div className='mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg'>
+                  <div className='flex items-center gap-2 text-red-700 dark:text-red-300'>
+                    <AlertCircle className='w-4 h-4' />
+                    <span className='text-sm font-medium'>Erro</span>
+                  </div>
+                  <p className='text-xs text-red-600 dark:text-red-400 mt-1'>{error}</p>
+                  <button
+                    onClick={handleCancelSend}
+                    className='mt-2 text-xs text-red-600 hover:text-red-700 underline'
+                  >
+                    Tentar novamente
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -1265,170 +1352,6 @@ export const SendPage = () => {
             >
               Fechar
             </button>
-          </div>
-        </div>
-      )}
-
-      {/* 2FA Dialog Modal */}
-      {show2FADialog && (
-        <div className='fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4'>
-          <div className='bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full'>
-            <div className='flex items-center gap-2 mb-2'>
-              <Shield className='w-5 h-5 text-blue-500' />
-              <h3 className='text-lg font-semibold text-gray-900 dark:text-white'>
-                Autenticação de Segurança
-              </h3>
-            </div>
-            <p className='text-sm text-gray-600 dark:text-gray-400 mb-4'>
-              {biometricAvailable
-                ? 'Use biometria ou código 2FA para confirmar a transação'
-                : 'Digite o código de 6 dígitos do seu aplicativo autenticador'}
-            </p>
-
-            {error && (
-              <div className='bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 mb-4 flex gap-2'>
-                <AlertCircle className='w-5 h-5 text-red-500 flex-shrink-0 mt-0.5' />
-                <p className='text-red-800 dark:text-red-200 text-sm'>{error}</p>
-              </div>
-            )}
-
-            {/* Auth Method Selection - Show if biometric available */}
-            {biometricAvailable && (
-              <div className='flex gap-2 mb-4'>
-                <button
-                  type='button'
-                  onClick={() => setAuthMethod('biometric')}
-                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 transition-all ${
-                    authMethod === 'biometric'
-                      ? 'border-blue-500 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'
-                      : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-blue-300'
-                  }`}
-                >
-                  <Fingerprint className='w-4 h-4' />
-                  <span className='text-sm font-medium'>Biometria</span>
-                </button>
-                <button
-                  type='button'
-                  onClick={() => setAuthMethod('2fa')}
-                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 transition-all ${
-                    authMethod === '2fa'
-                      ? 'border-blue-500 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'
-                      : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-blue-300'
-                  }`}
-                >
-                  <Shield className='w-4 h-4' />
-                  <span className='text-sm font-medium'>Código 2FA</span>
-                </button>
-              </div>
-            )}
-
-            {/* Exibir taxas estimadas */}
-            {pendingTransaction?.feeEstimate && (
-              <div className='bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4'>
-                <div className='flex items-center gap-2 mb-3'>
-                  <Zap className='w-4 h-4 text-blue-600 dark:text-blue-400' />
-                  <p className='text-xs font-semibold text-blue-900 dark:text-blue-200'>
-                    Taxa de Gás Estimada
-                  </p>
-                </div>
-                <div className='grid grid-cols-3 gap-3 text-xs'>
-                  <div className='bg-white dark:bg-gray-700 rounded p-2 text-center'>
-                    <p className='text-gray-600 dark:text-gray-400 text-xs mb-1'>Slow</p>
-                    <p className='font-mono font-semibold text-blue-700 dark:text-blue-300 text-sm break-words'>
-                      {Number.parseFloat(
-                        pendingTransaction.feeEstimate.fee_estimates.slow_fee
-                      ).toFixed(8)}
-                    </p>
-                  </div>
-                  <div className='bg-white dark:bg-gray-700 rounded p-2 text-center'>
-                    <p className='text-gray-600 dark:text-gray-400 text-xs mb-1'>Standard</p>
-                    <p className='font-mono font-semibold text-blue-700 dark:text-blue-300 text-sm break-words'>
-                      {Number.parseFloat(
-                        pendingTransaction.feeEstimate.fee_estimates.standard_fee
-                      ).toFixed(8)}
-                    </p>
-                  </div>
-                  <div className='bg-white dark:bg-gray-700 rounded p-2 text-center'>
-                    <p className='text-gray-600 dark:text-gray-400 text-xs mb-1'>Fast</p>
-                    <p className='font-mono font-semibold text-blue-700 dark:text-blue-300 text-sm break-words'>
-                      {Number.parseFloat(
-                        pendingTransaction.feeEstimate.fee_estimates.fast_fee
-                      ).toFixed(8)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Biometric Auth Section */}
-            {authMethod === 'biometric' && biometricAvailable ? (
-              <div className='text-center py-6 mb-4'>
-                <div className='w-16 h-16 mx-auto bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mb-4'>
-                  <Fingerprint className='w-8 h-8 text-blue-600 dark:text-blue-400' />
-                </div>
-                <p className='text-sm text-gray-600 dark:text-gray-400 mb-2'>
-                  Clique no botão abaixo para autenticar
-                </p>
-                <p className='text-xs text-green-600 dark:text-green-400'>
-                  Face ID / Touch ID disponível
-                </p>
-              </div>
-            ) : (
-              /* 2FA Code Input */
-              <div className='mb-6'>
-                <label className='block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2'>
-                  Código 2FA
-                </label>
-                <input
-                  type='text'
-                  placeholder='000000'
-                  value={twoFAToken}
-                  onChange={e => setTwoFAToken(e.target.value.replaceAll(/\D/g, '').slice(0, 8))}
-                  maxLength={8}
-                  className='w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-gray-900 dark:text-white text-sm font-mono text-center text-2xl tracking-widest'
-                />
-                <p className='text-xs text-gray-500 dark:text-gray-400 mt-1'>
-                  {twoFAToken.length}/6 dígitos
-                </p>
-              </div>
-            )}
-
-            <div className='flex gap-3'>
-              <button
-                onClick={handleCancel2FA}
-                disabled={loading || biometricLoading}
-                className='flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 text-gray-900 dark:text-white rounded-lg transition-colors text-sm font-medium'
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={
-                  authMethod === 'biometric' && biometricAvailable
-                    ? handleBiometricAuth
-                    : handleSubmit2FA
-                }
-                disabled={
-                  loading || biometricLoading || (authMethod === '2fa' && twoFAToken.length < 6)
-                }
-                className='flex-1 px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors text-sm font-medium flex items-center justify-center gap-2'
-              >
-                {loading || biometricLoading ? (
-                  <>
-                    <Loader2 className='w-4 h-4 animate-spin' />
-                    {biometricLoading ? 'Autenticando...' : 'Enviando...'}
-                  </>
-                ) : (
-                  <>
-                    {authMethod === 'biometric' && biometricAvailable ? (
-                      <Fingerprint className='w-4 h-4' />
-                    ) : (
-                      <Send className='w-4 h-4' />
-                    )}
-                    {authMethod === 'biometric' && biometricAvailable ? 'Autenticar' : 'Enviar'}
-                  </>
-                )}
-              </button>
-            </div>
           </div>
         </div>
       )}

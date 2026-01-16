@@ -1137,96 +1137,82 @@ async def send_transaction(
     db: Session = Depends(get_db)
 ):
     """
-    🚀 Send blockchain transaction - Supports CUSTODIAL and NON-CUSTODIAL modes
+    Send blockchain transaction - Simplified authentication model
+    
+    **AUTHENTICATION MODEL:**
+    - If user has biometric enabled AND provides biometric token: verify biometric
+    - If user has 2FA enabled AND provides 2FA token: verify 2FA
+    - Otherwise: use session authentication (user is already logged in)
+    
+    This follows the same model as popular Web3 wallets (MetaMask, Trust Wallet)
+    where being logged in is sufficient for most transactions.
     
     **CUSTODIAL MODE (default):**
     - Backend signs the transaction with user's encrypted private key
     - Fast, convenient, no external wallet needed
-    - Returns transaction hash immediately
     
     **NON-CUSTODIAL MODE:**
-    - Returns unsigned transaction data for external signing (MetaMask, etc)
-    - User signs with their own wallet
-    - Maximum security and control
-    
-    **🔐 TWO-FACTOR AUTHENTICATION:**
-    - If 2FA is enabled, you MUST provide `two_factor_token`
-    - This adds an extra layer of security for transactions
-    - Biometric tokens (starting with 'bio_') are also accepted as alternative to 2FA
-    
-    Set `mode: "non-custodial"` to prepare transaction for external signing.
+    - Returns unsigned transaction data for external signing
     """
-    # Variável para rastrear se precisamos consumir o token biométrico após sucesso
+    # Variable to track if we need to consume biometric token after success
     biometric_token_to_consume = None
     
-    # Importar serviços de autenticação
+    # Import auth services
     from app.services.two_factor_service import two_factor_service
     from app.services.webauthn_service import webauthn_service
     from app.models.two_factor import TwoFactorAuth
     
     try:
-        # 🔐 VERIFY 2FA OR BIOMETRIC (if enabled)
-        logger.info(f"🔍 Checking 2FA/Biometric for user {current_user.id}")
+        # Check if user provided authentication token
+        logger.info(f"Processing send request for user {current_user.id}")
         
+        # Check 2FA status (for info only - not blocking)
         two_fa = db.query(TwoFactorAuth).filter(
             TwoFactorAuth.user_id == current_user.id,
             TwoFactorAuth.is_enabled == True
         ).first()
         
-        logger.info(f"📋 2FA Status: {two_fa}")
-        
-        if two_fa:
-            logger.info(f"⚠️  2FA is ENABLED for user {current_user.id}")
-            # 2FA is enabled - token is required
-            if not request.two_factor_token:
-                logger.warning("No 2FA/biometric token provided")
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="2FA token required. Please provide your authenticator code or use biometric authentication."
-                )
+        # If token provided, verify it
+        if request.two_factor_token:
+            logger.info(f"Token provided, verifying...")
             
-            logger.info(f"✓ Token provided: {request.two_factor_token[:20]}...")
-            
-            # Check if it's a biometric token
             if request.two_factor_token.startswith("bio_"):
-                logger.info("🔐 Verifying biometric token (not consuming yet)...")
-                # IMPORTANTE: consume=False para verificar sem consumir
-                # O token só será consumido após a transação ser bem sucedida
+                # Biometric token
+                logger.info("Verifying biometric token...")
                 is_valid = webauthn_service.verify_biometric_token(
                     current_user.id,
                     request.two_factor_token,
-                    consume=False  # Não consumir ainda!
+                    consume=False  # Don't consume yet
                 )
                 if is_valid:
-                    logger.info(f"✅ Biometric token verified (pending consumption) for user {current_user.id}")
-                    # Guardar o token para consumir após sucesso
+                    logger.info(f"Biometric token verified for user {current_user.id}")
                     biometric_token_to_consume = request.two_factor_token
                 else:
-                    logger.error("Invalid or expired biometric token")
+                    logger.error("Invalid biometric token")
                     raise HTTPException(
                         status_code=status.HTTP_403_FORBIDDEN,
                         detail="BIOMETRIC_TOKEN_EXPIRED"
                     )
             else:
-                # Verify 2FA token (TOTP or backup code)
-                logger.info("🔐 Verifying 2FA token...")
-                is_valid = await two_factor_service.verify_2fa_for_action(
-                    db,
-                    current_user,
-                    request.two_factor_token
-                )
-                
-                logger.info(f"2FA validation result: {is_valid}")
-                if not is_valid:
-                    logger.error("Invalid 2FA token")
-                    raise HTTPException(
-                        status_code=status.HTTP_403_FORBIDDEN,
-                        detail="INVALID_2FA_TOKEN"
+                # 2FA TOTP token
+                if two_fa:
+                    logger.info("Verifying 2FA token...")
+                    is_valid = await two_factor_service.verify_2fa_for_action(
+                        db,
+                        current_user,
+                        request.two_factor_token
                     )
-                
-                logger.info(f"✅ 2FA verified for transaction from user {current_user.id}")
+                    if not is_valid:
+                        logger.error("Invalid 2FA token")
+                        raise HTTPException(
+                            status_code=status.HTTP_403_FORBIDDEN,
+                            detail="INVALID_2FA_TOKEN"
+                        )
+                    logger.info(f"2FA verified for user {current_user.id}")
         else:
-            logger.info(f"✓ 2FA is NOT enabled for user {current_user.id}, proceeding without 2FA check")
+            # No token provided - use session authentication
+            # This is valid! User is already authenticated via JWT
+            logger.info(f"No auth token provided, using session for user {current_user.id}")
         
         # Verify wallet belongs to user
         wallet = db.query(Wallet).filter(
