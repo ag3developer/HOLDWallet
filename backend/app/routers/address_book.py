@@ -3,7 +3,7 @@ Address Book Router - API para gerenciamento da agenda de endereços
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import or_, func
+from sqlalchemy import or_, func, String
 from typing import List, Optional
 from pydantic import BaseModel, Field, validator
 from datetime import datetime
@@ -183,11 +183,12 @@ async def list_address_book(
             query = query.filter(AddressBook.network == network.lower())
         
         if category:
-            try:
-                cat = WalletCategory(category.lower())
-                query = query.filter(AddressBook.wallet_category == cat)
-            except ValueError:
-                pass
+            # Usar o valor da string diretamente para comparação com o enum do banco
+            category_lower = category.lower()
+            if category_lower in ['exchange', 'wallet', 'personal', 'other']:
+                query = query.filter(
+                    func.cast(AddressBook.wallet_category, String) == category_lower
+                )
         
         if search:
             search_term = f"%{search}%"
@@ -211,12 +212,12 @@ async def list_address_book(
         
         exchanges_count = db.query(AddressBook).filter(
             AddressBook.user_id == current_user.id,
-            AddressBook.wallet_category == WalletCategory.EXCHANGE
+            func.cast(AddressBook.wallet_category, String) == 'exchange'
         ).count()
         
         wallets_count = db.query(AddressBook).filter(
             AddressBook.user_id == current_user.id,
-            AddressBook.wallet_category == WalletCategory.WALLET
+            func.cast(AddressBook.wallet_category, String) == 'wallet'
         ).count()
         
         # Ordenar: favoritos primeiro, depois por uso, depois por nome
@@ -573,24 +574,29 @@ async def list_supported_networks(
     current_user: User = Depends(get_current_user),
 ):
     """
-    Lista todas as redes blockchain suportadas.
+    Lista todas as redes blockchain suportadas e stablecoins.
     """
     networks = [
-        {"value": "ethereum", "name": "Ethereum", "symbol": "ETH"},
-        {"value": "polygon", "name": "Polygon", "symbol": "MATIC"},
-        {"value": "bsc", "name": "BNB Chain", "symbol": "BNB"},
-        {"value": "bitcoin", "name": "Bitcoin", "symbol": "BTC"},
-        {"value": "tron", "name": "Tron", "symbol": "TRX"},
-        {"value": "solana", "name": "Solana", "symbol": "SOL"},
-        {"value": "xrp", "name": "XRP Ledger", "symbol": "XRP"},
-        {"value": "litecoin", "name": "Litecoin", "symbol": "LTC"},
-        {"value": "dogecoin", "name": "Dogecoin", "symbol": "DOGE"},
-        {"value": "base", "name": "Base", "symbol": "ETH"},
-        {"value": "avalanche", "name": "Avalanche", "symbol": "AVAX"},
-        {"value": "arbitrum", "name": "Arbitrum", "symbol": "ETH"},
-        {"value": "optimism", "name": "Optimism", "symbol": "ETH"},
-        {"value": "cardano", "name": "Cardano", "symbol": "ADA"},
-        {"value": "polkadot", "name": "Polkadot", "symbol": "DOT"},
+        # Blockchains
+        {"value": "ethereum", "name": "Ethereum", "symbol": "ETH", "type": "blockchain"},
+        {"value": "polygon", "name": "Polygon", "symbol": "MATIC", "type": "blockchain"},
+        {"value": "bsc", "name": "BNB Chain", "symbol": "BNB", "type": "blockchain"},
+        {"value": "bitcoin", "name": "Bitcoin", "symbol": "BTC", "type": "blockchain"},
+        {"value": "tron", "name": "Tron", "symbol": "TRX", "type": "blockchain"},
+        {"value": "solana", "name": "Solana", "symbol": "SOL", "type": "blockchain"},
+        {"value": "xrp", "name": "XRP Ledger", "symbol": "XRP", "type": "blockchain"},
+        {"value": "litecoin", "name": "Litecoin", "symbol": "LTC", "type": "blockchain"},
+        {"value": "dogecoin", "name": "Dogecoin", "symbol": "DOGE", "type": "blockchain"},
+        {"value": "base", "name": "Base", "symbol": "ETH", "type": "blockchain"},
+        {"value": "avalanche", "name": "Avalanche", "symbol": "AVAX", "type": "blockchain"},
+        {"value": "arbitrum", "name": "Arbitrum", "symbol": "ETH", "type": "blockchain"},
+        {"value": "optimism", "name": "Optimism", "symbol": "ETH", "type": "blockchain"},
+        {"value": "cardano", "name": "Cardano", "symbol": "ADA", "type": "blockchain"},
+        {"value": "polkadot", "name": "Polkadot", "symbol": "DOT", "type": "blockchain"},
+        # Stablecoins
+        {"value": "usdt", "name": "Tether", "symbol": "USDT", "type": "stablecoin"},
+        {"value": "usdc", "name": "USD Coin", "symbol": "USDC", "type": "stablecoin"},
+        {"value": "dai", "name": "DAI", "symbol": "DAI", "type": "stablecoin"},
     ]
     
     return {"networks": networks}

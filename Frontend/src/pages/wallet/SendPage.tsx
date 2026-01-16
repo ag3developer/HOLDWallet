@@ -13,6 +13,10 @@ import {
   ExternalLink,
   ArrowRight,
   Info,
+  BookUser,
+  X,
+  Star,
+  Search,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import notificationService from '@/services/notificationService'
@@ -24,6 +28,7 @@ import { QRCodeScanner } from '@/components/QRCodeScanner'
 import { transactionService } from '@/services/transactionService'
 import { webAuthnService } from '@/services/webauthn'
 import { sendService } from '@/services/sendService'
+import { apiClient } from '@/services/api'
 
 // Timeline step types
 type TimelineStep =
@@ -35,6 +40,19 @@ type TimelineStep =
   | 'sending'
   | 'success'
   | 'error'
+
+// Tipo para entrada da agenda
+interface AddressBookEntry {
+  id: number
+  name: string
+  address: string
+  network: string
+  wallet_type: string
+  wallet_category: string
+  memo?: string
+  notes?: string
+  is_favorite: boolean
+}
 
 export const SendPage = () => {
   // Ref para prevenir double-submit (mais confiável que state)
@@ -56,6 +74,12 @@ export const SendPage = () => {
   const [selectedFeeSpeed, setSelectedFeeSpeed] = useState<'slow' | 'standard' | 'fast'>('standard')
   const [biometricAvailable, setBiometricAvailable] = useState(false)
   const [biometricLoading, setBiometricLoading] = useState(false)
+
+  // Estados para Address Book
+  const [showAddressBook, setShowAddressBook] = useState(false)
+  const [addressBookEntries, setAddressBookEntries] = useState<AddressBookEntry[]>([])
+  const [addressBookLoading, setAddressBookLoading] = useState(false)
+  const [addressBookSearch, setAddressBookSearch] = useState('')
 
   // Timeline state (novo fluxo simplificado)
   const [timelineStep, setTimelineStep] = useState<TimelineStep>('idle')
@@ -95,6 +119,52 @@ export const SendPage = () => {
     }
     checkBiometric()
   }, [])
+
+  // Função para carregar a agenda de endereços
+  const loadAddressBook = async (search?: string) => {
+    try {
+      setAddressBookLoading(true)
+      const params = new URLSearchParams()
+      if (search) params.append('search', search)
+      const response = await apiClient.get(`/address-book/?${params.toString()}`)
+      setAddressBookEntries(response.data.addresses || [])
+    } catch (error) {
+      console.error('Erro ao carregar agenda:', error)
+      toast.error('Erro ao carregar agenda de endereços')
+    } finally {
+      setAddressBookLoading(false)
+    }
+  }
+
+  // Função para selecionar um endereço da agenda
+  const handleSelectFromAddressBook = (entry: AddressBookEntry) => {
+    setToAddress(entry.address)
+    if (entry.memo) setMemo(entry.memo)
+
+    // Se a entrada tem uma rede definida, tentar usar
+    if (entry.network) {
+      // Mapear rede da agenda para a rede do seletor
+      const networkMap: Record<string, string> = {
+        ethereum: 'ethereum',
+        polygon: 'polygon',
+        bsc: 'bsc',
+        bitcoin: 'bitcoin',
+        tron: 'tron',
+        solana: 'solana',
+        base: 'base',
+        arbitrum: 'arbitrum',
+        optimism: 'optimism',
+      }
+      const mappedNetwork = networkMap[entry.network.toLowerCase()]
+      if (mappedNetwork) {
+        setSelectedNetwork(mappedNetwork)
+      }
+    }
+
+    setShowAddressBook(false)
+    setAddressBookSearch('')
+    toast.success(`Endereço de "${entry.name}" selecionado`)
+  }
 
   // Dados da API - useWallets retorna { data, isLoading, etc }
   const { data: apiWallets, isLoading: isWalletsLoading } = useWallets()
@@ -989,6 +1059,16 @@ export const SendPage = () => {
                 )}
               </div>
               <button
+                onClick={() => {
+                  loadAddressBook()
+                  setShowAddressBook(true)
+                }}
+                className='px-3 py-2 bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200 dark:hover:bg-blue-800/50 rounded-lg'
+                title='Agenda de Endereços'
+              >
+                <BookUser className='w-4 h-4 text-blue-600 dark:text-blue-400' />
+              </button>
+              <button
                 onClick={() => setShowQRScanner(true)}
                 className='px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg'
                 title='Escanear QR'
@@ -1352,6 +1432,132 @@ export const SendPage = () => {
             >
               Fechar
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Address Book Modal */}
+      {showAddressBook && (
+        <div className='fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4'>
+          <div className='bg-white dark:bg-gray-800 rounded-t-3xl sm:rounded-2xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col'>
+            {/* Header */}
+            <div className='p-4 border-b border-gray-200 dark:border-gray-700'>
+              <div className='flex items-center justify-between mb-3'>
+                <div className='flex items-center gap-3'>
+                  <div className='w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center'>
+                    <BookUser className='w-5 h-5 text-white' />
+                  </div>
+                  <div>
+                    <h2 className='text-lg font-bold text-gray-900 dark:text-white'>
+                      Agenda de Endereços
+                    </h2>
+                    <p className='text-xs text-gray-500'>Selecione um endereço salvo</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowAddressBook(false)
+                    setAddressBookSearch('')
+                  }}
+                  className='p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg'
+                >
+                  <X className='w-5 h-5 text-gray-500' />
+                </button>
+              </div>
+
+              {/* Search */}
+              <div className='relative'>
+                <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400' />
+                <input
+                  type='text'
+                  placeholder='Buscar por nome ou endereço...'
+                  value={addressBookSearch}
+                  onChange={e => {
+                    setAddressBookSearch(e.target.value)
+                    loadAddressBook(e.target.value)
+                  }}
+                  className='w-full pl-10 pr-4 py-2.5 bg-gray-100 dark:bg-gray-700 border-0 rounded-xl text-sm focus:ring-2 focus:ring-blue-500'
+                />
+              </div>
+            </div>
+
+            {/* Lista de Endereços */}
+            <div className='flex-1 overflow-y-auto p-4 space-y-2'>
+              {addressBookLoading ? (
+                <div className='flex items-center justify-center py-8'>
+                  <Loader2 className='w-6 h-6 text-blue-500 animate-spin' />
+                </div>
+              ) : addressBookEntries.length === 0 ? (
+                <div className='text-center py-8'>
+                  <BookUser className='w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3' />
+                  <p className='text-sm text-gray-500'>
+                    {addressBookSearch
+                      ? 'Nenhum endereço encontrado'
+                      : 'Nenhum endereço salvo na agenda'}
+                  </p>
+                </div>
+              ) : (
+                addressBookEntries.map(entry => (
+                  <button
+                    key={entry.id}
+                    onClick={() => handleSelectFromAddressBook(entry)}
+                    className='w-full p-3 bg-gray-50 dark:bg-gray-700/50 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl border border-gray-200 dark:border-gray-600 transition-colors text-left'
+                  >
+                    <div className='flex items-start gap-3'>
+                      {/* Icon */}
+                      <div className='w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-600 flex items-center justify-center flex-shrink-0'>
+                        <CryptoIcon symbol={entry.network} size={20} />
+                      </div>
+
+                      <div className='flex-1 min-w-0'>
+                        {/* Name & Favorite */}
+                        <div className='flex items-center gap-2 mb-1'>
+                          <h3 className='font-semibold text-gray-900 dark:text-white truncate'>
+                            {entry.name}
+                          </h3>
+                          {entry.is_favorite && (
+                            <Star className='w-4 h-4 text-yellow-500 fill-yellow-500 flex-shrink-0' />
+                          )}
+                        </div>
+
+                        {/* Address */}
+                        <p className='text-xs text-gray-500 font-mono truncate'>
+                          {entry.address.slice(0, 10)}...{entry.address.slice(-8)}
+                        </p>
+
+                        {/* Tags */}
+                        <div className='flex items-center gap-2 mt-1.5'>
+                          <span className='inline-flex items-center gap-1 px-2 py-0.5 bg-gray-200 dark:bg-gray-600 rounded-full text-xs text-gray-600 dark:text-gray-300'>
+                            {entry.network.toUpperCase()}
+                          </span>
+                          {entry.memo && (
+                            <span className='text-xs text-gray-400 truncate'>
+                              Memo: {entry.memo}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Arrow */}
+                      <ArrowRight className='w-4 h-4 text-gray-400 flex-shrink-0 mt-2' />
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className='p-4 border-t border-gray-200 dark:border-gray-700'>
+              <button
+                onClick={() => {
+                  setShowAddressBook(false)
+                  setAddressBookSearch('')
+                }}
+                className='w-full py-2.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-medium text-sm transition-colors'
+              >
+                Cancelar
+              </button>
+            </div>
           </div>
         </div>
       )}

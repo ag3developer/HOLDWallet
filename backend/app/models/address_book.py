@@ -73,8 +73,17 @@ class AddressBook(Base):
     network = Column(String(50), nullable=False, index=True)  # ethereum, polygon, bitcoin, etc.
     
     # Tipo de carteira/destino
-    wallet_type = Column(SQLEnum(WalletType), default=WalletType.OTHER, nullable=False)
-    wallet_category = Column(SQLEnum(WalletCategory), default=WalletCategory.OTHER, nullable=False)
+    # Usa values_callable para garantir que os valores do enum (minúsculos) sejam usados nas queries
+    wallet_type = Column(
+        SQLEnum(WalletType, values_callable=lambda x: [e.value for e in x]),
+        default=WalletType.OTHER,
+        nullable=False
+    )
+    wallet_category = Column(
+        SQLEnum(WalletCategory, values_callable=lambda x: [e.value for e in x]),
+        default=WalletCategory.OTHER,
+        nullable=False
+    )
     
     # Informações adicionais
     memo = Column(String(255), nullable=True)  # Memo/Tag (para XRP, BNB, etc)

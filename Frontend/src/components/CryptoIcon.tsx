@@ -45,6 +45,10 @@ const symbolMap: Record<string, string> = {
   xrp: 'xrp',
   arbitrum: 'eth',
   optimism: 'eth',
+  // Stablecoins (minúsculo)
+  usdt: 'usdt',
+  usdc: 'usdc',
+  dai: 'dai',
 }
 
 // Mapa de ícones locais importados

@@ -68,6 +68,7 @@ interface NetworkOption {
   value: string
   name: string
   symbol: string
+  type?: string // 'blockchain' | 'stablecoin'
 }
 
 // Mapeamento de ícones de exchanges/wallets usando lucide-react
@@ -507,6 +508,13 @@ export default function AddressBookPage() {
                           {entry.network.toUpperCase()}
                         </span>
 
+                        {/* Stablecoin badge */}
+                        {networks.find(n => n.value === entry.network)?.type === 'stablecoin' && (
+                          <span className='inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 dark:bg-green-900/30 rounded-full text-xs text-green-600 dark:text-green-400'>
+                            Stablecoin
+                          </span>
+                        )}
+
                         {/* Categoria */}
                         <span
                           className={`inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded-full text-xs ${categoryInfo?.color || 'text-gray-500'}`}
@@ -618,7 +626,7 @@ export default function AddressBookPage() {
               {/* Rede */}
               <div>
                 <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1'>
-                  Rede Blockchain *
+                  Rede / Token *
                 </label>
                 <div className='relative'>
                   <button
@@ -632,6 +640,11 @@ export default function AddressBookPage() {
                         {networks.find(n => n.value === formData.network)?.name || 'Selecionar'} (
                         {networks.find(n => n.value === formData.network)?.symbol || ''})
                       </span>
+                      {networks.find(n => n.value === formData.network)?.type === 'stablecoin' && (
+                        <span className='px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 text-xs rounded-full'>
+                          Stablecoin
+                        </span>
+                      )}
                     </div>
                     <ChevronDown
                       className={`w-5 h-5 text-gray-400 transition-transform ${showNetworkDropdown ? 'rotate-180' : ''}`}
@@ -639,28 +652,69 @@ export default function AddressBookPage() {
                   </button>
                   {showNetworkDropdown && (
                     <div className='absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 max-h-60 overflow-y-auto'>
-                      {networks.map(n => (
-                        <button
-                          key={n.value}
-                          type='button'
-                          onClick={() => {
-                            setFormData({ ...formData, network: n.value })
-                            setShowNetworkDropdown(false)
-                          }}
-                          className={`w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
-                            formData.network === n.value ? 'bg-blue-50 dark:bg-blue-900/30' : ''
-                          }`}
-                        >
-                          <CryptoIcon symbol={n.value} size={20} />
-                          <span className='flex-1 text-left text-gray-900 dark:text-white'>
-                            {n.name}
-                          </span>
-                          <span className='text-sm text-gray-500'>{n.symbol}</span>
-                          {formData.network === n.value && (
-                            <Check className='w-4 h-4 text-blue-500' />
-                          )}
-                        </button>
-                      ))}
+                      {/* Blockchains */}
+                      <div className='px-4 py-2 bg-gray-50 dark:bg-gray-750 border-b border-gray-200 dark:border-gray-700'>
+                        <span className='text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase'>
+                          Blockchains
+                        </span>
+                      </div>
+                      {networks
+                        .filter(n => n.type !== 'stablecoin')
+                        .map(n => (
+                          <button
+                            key={n.value}
+                            type='button'
+                            onClick={() => {
+                              setFormData({ ...formData, network: n.value })
+                              setShowNetworkDropdown(false)
+                            }}
+                            className={`w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                              formData.network === n.value ? 'bg-blue-50 dark:bg-blue-900/30' : ''
+                            }`}
+                          >
+                            <CryptoIcon symbol={n.value} size={20} />
+                            <span className='flex-1 text-left text-gray-900 dark:text-white'>
+                              {n.name}
+                            </span>
+                            <span className='text-sm text-gray-500'>{n.symbol}</span>
+                            {formData.network === n.value && (
+                              <Check className='w-4 h-4 text-blue-500' />
+                            )}
+                          </button>
+                        ))}
+                      {/* Stablecoins */}
+                      <div className='px-4 py-2 bg-gray-50 dark:bg-gray-750 border-b border-t border-gray-200 dark:border-gray-700'>
+                        <span className='text-xs font-semibold text-green-600 dark:text-green-400 uppercase'>
+                          Stablecoins
+                        </span>
+                      </div>
+                      {networks
+                        .filter(n => n.type === 'stablecoin')
+                        .map(n => (
+                          <button
+                            key={n.value}
+                            type='button'
+                            onClick={() => {
+                              setFormData({ ...formData, network: n.value })
+                              setShowNetworkDropdown(false)
+                            }}
+                            className={`w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                              formData.network === n.value ? 'bg-blue-50 dark:bg-blue-900/30' : ''
+                            }`}
+                          >
+                            <CryptoIcon symbol={n.value} size={20} />
+                            <span className='flex-1 text-left text-gray-900 dark:text-white'>
+                              {n.name}
+                            </span>
+                            <span className='text-sm text-gray-500'>{n.symbol}</span>
+                            <span className='px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 text-xs rounded-full'>
+                              Stable
+                            </span>
+                            {formData.network === n.value && (
+                              <Check className='w-4 h-4 text-blue-500' />
+                            )}
+                          </button>
+                        ))}
                     </div>
                   )}
                 </div>
