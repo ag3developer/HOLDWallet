@@ -307,6 +307,51 @@ export const useAuthStore = create<AuthStore>()(
             return
           }
 
+          // ✅ NEW: Handle network/timeout errors gracefully
+          // Don't logout on network errors - keep user authenticated with cached data
+          const isNetworkError =
+            error.code === 'ERR_NETWORK' ||
+            error.code === 'TIMEOUT_ERROR' ||
+            error.code === 'NETWORK_ERROR' ||
+            error.isNetworkError === true ||
+            error.message?.toLowerCase().includes('timeout') ||
+            error.message?.toLowerCase().includes('network')
+
+          if (isNetworkError) {
+            console.warn(
+              '[AuthStore] 🌐 Network/timeout error during token validation - keeping auth state',
+              {
+                error: error.message,
+                code: error.code,
+              }
+            )
+
+            // Try to use cached user data from IndexedDB
+            const cachedUser = authStorage.getUser<User>()
+            if (cachedUser && token) {
+              set({
+                user: cachedUser,
+                token: token,
+                isAuthenticated: true,
+                isLoading: false,
+                error: null,
+              })
+              console.log('[AuthStore] ✅ Using cached user data due to network error')
+              return
+            }
+
+            // If we have a token but no cached user, still keep authenticated
+            // The user can retry later when network is available
+            if (token) {
+              const currentUser = get().user
+              if (currentUser) {
+                set({ isLoading: false })
+                console.log('[AuthStore] ✅ Keeping existing auth state due to network error')
+                return
+              }
+            }
+          }
+
           // Token is invalid, clear auth state
           console.error('[AuthStore] Token validation failed:', error.message)
           set({

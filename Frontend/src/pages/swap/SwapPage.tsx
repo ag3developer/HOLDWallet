@@ -106,6 +106,12 @@ const NETWORKS: Network[] = [
     icon: 'https://assets.coingecko.com/coins/images/279/small/ethereum.png',
     color: 'from-gray-500 to-gray-600',
   },
+  {
+    id: 43114,
+    name: 'Avalanche',
+    icon: 'https://assets.coingecko.com/coins/images/12559/small/Avalanche_Circle_RedWhite_Trans.png',
+    color: 'from-red-500 to-red-600',
+  },
 ]
 
 // Helper function to get token logo URI from CoinGecko
@@ -303,12 +309,43 @@ const POPULAR_TOKENS: Record<number, Token[]> = {
       logoURI: 'https://assets.coingecko.com/coins/images/7598/small/wrapped_bitcoin_wbtc.png',
     },
   ],
+  43114: [
+    {
+      address: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+      symbol: 'AVAX',
+      name: 'Avalanche',
+      decimals: 18,
+      logoURI:
+        'https://assets.coingecko.com/coins/images/12559/small/Avalanche_Circle_RedWhite_Trans.png',
+    },
+    {
+      address: '0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E',
+      symbol: 'USDC',
+      name: 'USD Coin',
+      decimals: 6,
+      logoURI: 'https://assets.coingecko.com/coins/images/6319/small/usdc.png',
+    },
+    {
+      address: '0x9702230A8Ea53601f5cD2dc00fDBc13d4dF4A8c7',
+      symbol: 'USDT',
+      name: 'Tether USD',
+      decimals: 6,
+      logoURI: 'https://assets.coingecko.com/coins/images/325/small/Tether.png',
+    },
+    {
+      address: '0x49D5c2BdFfac6CE2BFdB6640F4F80f226bc10bAB',
+      symbol: 'WETH.e',
+      name: 'Wrapped Ether',
+      decimals: 18,
+      logoURI: 'https://assets.coingecko.com/coins/images/279/small/ethereum.png',
+    },
+  ],
 }
 
 const getDefaultNetwork = (): Network => NETWORKS[0]!
 const getDefaultTokens = (chainId: number): Token[] => POPULAR_TOKENS[chainId] ?? []
 
-// Token Selector Modal
+// Token Selector Modal - Mobile Optimized
 const TokenSelectorModal = ({
   isOpen,
   onClose,
@@ -342,21 +379,27 @@ const TokenSelectorModal = ({
   if (!isOpen) return null
 
   return (
-    <div className='fixed inset-0 z-50 flex items-center justify-center p-4'>
+    <div className='fixed inset-0 z-50 flex items-end sm:items-center justify-center'>
       <button
         type='button'
         className='absolute inset-0 bg-black/60 backdrop-blur-sm'
         onClick={onClose}
         aria-label='Close token selector'
       />
-      <div className='relative w-full max-w-md bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden'>
+      {/* Mobile: Full width bottom sheet, Desktop: Centered modal */}
+      <div className='relative w-full sm:max-w-md bg-white dark:bg-gray-900 rounded-t-3xl sm:rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden max-h-[85vh] sm:max-h-[80vh] flex flex-col safe-area-bottom'>
+        {/* Drag Handle - Mobile only */}
+        <div className='flex justify-center pt-3 pb-1 sm:hidden'>
+          <div className='w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full' />
+        </div>
+
         {/* Header */}
         <div className='flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700'>
           <h3 className='text-lg font-semibold text-gray-900 dark:text-white'>{title}</h3>
           <button
             onClick={onClose}
             aria-label='Close'
-            className='p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors'
+            className='p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors touch-manipulation'
           >
             <X className='w-5 h-5 text-gray-500' />
           </button>
@@ -371,13 +414,17 @@ const TokenSelectorModal = ({
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder={t('swap.searchToken')}
-              className='w-full pl-10 pr-4 py-3 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500'
+              className='w-full pl-10 pr-4 py-3.5 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-base'
+              autoComplete='off'
+              autoCorrect='off'
+              autoCapitalize='off'
+              spellCheck='false'
             />
           </div>
         </div>
 
-        {/* Token List */}
-        <div className='max-h-[400px] overflow-y-auto'>
+        {/* Token List - Scrollable */}
+        <div className='flex-1 overflow-y-auto overscroll-contain'>
           {filteredTokens.length === 0 ? (
             <div className='p-8 text-center'>
               <Wallet className='w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3' />
@@ -400,13 +447,13 @@ const TokenSelectorModal = ({
                     onClose()
                   }}
                   className={cn(
-                    'w-full flex items-center gap-3 p-3 rounded-xl transition-colors',
+                    'w-full flex items-center gap-3 p-3.5 rounded-xl transition-colors touch-manipulation active:scale-[0.98]',
                     selectedToken?.address === token.address
                       ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
-                      : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                      : 'hover:bg-gray-100 dark:hover:bg-gray-800 active:bg-gray-200 dark:active:bg-gray-700'
                   )}
                 >
-                  <div className='w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden'>
+                  <div className='w-11 h-11 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden flex-shrink-0'>
                     {token.logoURI ? (
                       <img
                         src={token.logoURI}
@@ -419,12 +466,16 @@ const TokenSelectorModal = ({
                       </span>
                     )}
                   </div>
-                  <div className='flex-1 text-left'>
-                    <p className='font-semibold text-gray-900 dark:text-white'>{token.symbol}</p>
-                    <p className='text-sm text-gray-500 dark:text-gray-400'>{token.name}</p>
+                  <div className='flex-1 text-left min-w-0'>
+                    <p className='font-semibold text-gray-900 dark:text-white truncate'>
+                      {token.symbol}
+                    </p>
+                    <p className='text-sm text-gray-500 dark:text-gray-400 truncate'>
+                      {token.name}
+                    </p>
                   </div>
                   {token.balance && (
-                    <div className='text-right'>
+                    <div className='text-right flex-shrink-0'>
                       <p className='font-medium text-gray-900 dark:text-white'>{token.balance}</p>
                       {token.balanceUSD !== undefined && (
                         <p className='text-sm text-gray-500 dark:text-gray-400'>
@@ -434,7 +485,7 @@ const TokenSelectorModal = ({
                     </div>
                   )}
                   {selectedToken?.address === token.address && (
-                    <CheckCircle2 className='w-5 h-5 text-blue-500' />
+                    <CheckCircle2 className='w-5 h-5 text-blue-500 flex-shrink-0' />
                   )}
                 </button>
               ))}
@@ -446,7 +497,7 @@ const TokenSelectorModal = ({
   )
 }
 
-// Settings Modal
+// Settings Modal - Mobile Optimized
 const SettingsModal = ({
   isOpen,
   onClose,
@@ -466,14 +517,19 @@ const SettingsModal = ({
   const slippageOptions = [0.1, 0.5, 1]
 
   return (
-    <div className='fixed inset-0 z-50 flex items-center justify-center p-4'>
+    <div className='fixed inset-0 z-50 flex items-end sm:items-center justify-center'>
       <button
         type='button'
         className='absolute inset-0 bg-black/60 backdrop-blur-sm'
         onClick={onClose}
         aria-label='Close settings'
       />
-      <div className='relative w-full max-w-sm bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 p-6'>
+      <div className='relative w-full sm:max-w-sm bg-white dark:bg-gray-900 rounded-t-3xl sm:rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 p-6 safe-area-bottom'>
+        {/* Drag Handle - Mobile only */}
+        <div className='flex justify-center -mt-3 mb-4 sm:hidden'>
+          <div className='w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full' />
+        </div>
+
         <div className='flex items-center justify-between mb-6'>
           <h3 className='text-lg font-semibold text-gray-900 dark:text-white'>
             {t('swap.settings')}
@@ -481,7 +537,7 @@ const SettingsModal = ({
           <button
             onClick={onClose}
             aria-label='Close'
-            className='p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors'
+            className='p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors touch-manipulation'
           >
             <X className='w-5 h-5 text-gray-500' />
           </button>
@@ -493,7 +549,7 @@ const SettingsModal = ({
               {t('swap.slippageTolerance')}
               <div className='group relative'>
                 <Info className='w-4 h-4 text-gray-400 cursor-help' />
-                <div className='absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all'>
+                <div className='absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 pointer-events-none'>
                   {t('swap.slippageTooltip')}
                 </div>
               </div>
@@ -507,10 +563,10 @@ const SettingsModal = ({
                     setCustomSlippage('')
                   }}
                   className={cn(
-                    'flex-1 py-2.5 rounded-xl font-medium text-sm transition-all',
+                    'flex-1 py-3 rounded-xl font-medium text-sm transition-all touch-manipulation active:scale-[0.97]',
                     slippage === option && !customSlippage
                       ? 'bg-blue-500 text-white'
-                      : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600'
                   )}
                 >
                   {option}%
@@ -519,6 +575,7 @@ const SettingsModal = ({
               <div className='flex-1 relative'>
                 <input
                   type='number'
+                  inputMode='decimal'
                   value={customSlippage}
                   onChange={e => {
                     setCustomSlippage(e.target.value)
@@ -527,7 +584,7 @@ const SettingsModal = ({
                     }
                   }}
                   placeholder={t('swap.custom')}
-                  className='w-full py-2.5 px-3 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500'
+                  className='w-full py-3 px-3 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500'
                 />
                 <span className='absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400'>
                   %
@@ -550,7 +607,7 @@ const SettingsModal = ({
   )
 }
 
-// Swap Confirmation Modal
+// Swap Confirmation Modal - Mobile Optimized
 const SwapConfirmationModal = ({
   isOpen,
   onClose,
@@ -569,25 +626,30 @@ const SwapConfirmationModal = ({
   if (!isOpen) return null
 
   return (
-    <div className='fixed inset-0 z-50 flex items-center justify-center p-4'>
+    <div className='fixed inset-0 z-50 flex items-end sm:items-center justify-center'>
       <button
         type='button'
         className='absolute inset-0 bg-black/60 backdrop-blur-sm'
         onClick={onClose}
         aria-label='Close confirmation'
       />
-      <div className='relative w-full max-w-md bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden'>
-        <div className='p-6'>
-          <h3 className='text-xl font-bold text-gray-900 dark:text-white text-center mb-6'>
+      <div className='relative w-full sm:max-w-md bg-white dark:bg-gray-900 rounded-t-3xl sm:rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden max-h-[90vh] flex flex-col safe-area-bottom'>
+        {/* Drag Handle - Mobile only */}
+        <div className='flex justify-center pt-3 pb-1 sm:hidden'>
+          <div className='w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full' />
+        </div>
+
+        <div className='p-5 sm:p-6 overflow-y-auto'>
+          <h3 className='text-xl font-bold text-gray-900 dark:text-white text-center mb-5'>
             {t('swap.confirmSwap')}
           </h3>
 
           {/* Token Flow */}
-          <div className='space-y-4 mb-6'>
+          <div className='space-y-3 mb-5'>
             {/* From */}
             <div className='flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-xl'>
               <div className='flex items-center gap-3'>
-                <div className='w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden'>
+                <div className='w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden flex-shrink-0'>
                   {quote.from_token.logoURI ? (
                     <img
                       src={quote.from_token.logoURI}
@@ -598,14 +660,16 @@ const SwapConfirmationModal = ({
                     <span className='text-sm font-bold'>{quote.from_token.symbol.slice(0, 2)}</span>
                   )}
                 </div>
-                <div>
+                <div className='min-w-0'>
                   <p className='text-sm text-gray-500 dark:text-gray-400'>{t('swap.youPay')}</p>
-                  <p className='font-semibold text-gray-900 dark:text-white'>
+                  <p className='font-semibold text-gray-900 dark:text-white truncate'>
                     {quote.from_token.symbol}
                   </p>
                 </div>
               </div>
-              <p className='text-xl font-bold text-gray-900 dark:text-white'>{quote.from_amount}</p>
+              <p className='text-lg sm:text-xl font-bold text-gray-900 dark:text-white'>
+                {quote.from_amount}
+              </p>
             </div>
 
             {/* Arrow */}
@@ -618,7 +682,7 @@ const SwapConfirmationModal = ({
             {/* To */}
             <div className='flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-xl'>
               <div className='flex items-center gap-3'>
-                <div className='w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden'>
+                <div className='w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden flex-shrink-0'>
                   {quote.to_token.logoURI ? (
                     <img
                       src={quote.to_token.logoURI}
@@ -629,29 +693,29 @@ const SwapConfirmationModal = ({
                     <span className='text-sm font-bold'>{quote.to_token.symbol.slice(0, 2)}</span>
                   )}
                 </div>
-                <div>
+                <div className='min-w-0'>
                   <p className='text-sm text-gray-500 dark:text-gray-400'>{t('swap.youReceive')}</p>
-                  <p className='font-semibold text-gray-900 dark:text-white'>
+                  <p className='font-semibold text-gray-900 dark:text-white truncate'>
                     {quote.to_token.symbol}
                   </p>
                 </div>
               </div>
-              <p className='text-xl font-bold text-green-600 dark:text-green-400'>
+              <p className='text-lg sm:text-xl font-bold text-green-600 dark:text-green-400'>
                 {quote.to_amount}
               </p>
             </div>
           </div>
 
           {/* Details */}
-          <div className='space-y-3 mb-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-xl'>
-            <div className='flex justify-between text-sm'>
+          <div className='space-y-2.5 mb-5 p-4 bg-gray-50 dark:bg-gray-800 rounded-xl text-sm'>
+            <div className='flex justify-between'>
               <span className='text-gray-500 dark:text-gray-400'>{t('swap.exchangeRate')}</span>
-              <span className='text-gray-900 dark:text-white font-medium'>
+              <span className='text-gray-900 dark:text-white font-medium text-right'>
                 1 {quote.from_token.symbol} = {quote.exchange_rate.toFixed(6)}{' '}
                 {quote.to_token.symbol}
               </span>
             </div>
-            <div className='flex justify-between text-sm'>
+            <div className='flex justify-between'>
               <span className='text-gray-500 dark:text-gray-400'>{t('swap.priceImpact')}</span>
               <span
                 className={cn(
@@ -666,19 +730,19 @@ const SwapConfirmationModal = ({
                 {quote.price_impact.toFixed(2)}%
               </span>
             </div>
-            <div className='flex justify-between text-sm'>
+            <div className='flex justify-between'>
               <span className='text-gray-500 dark:text-gray-400'>{t('swap.platformFee')}</span>
               <span className='text-gray-900 dark:text-white font-medium'>
                 {quote.fee_percentage}% (~${quote.fee_usd.toFixed(2)})
               </span>
             </div>
-            <div className='flex justify-between text-sm'>
+            <div className='flex justify-between'>
               <span className='text-gray-500 dark:text-gray-400'>{t('swap.networkFee')}</span>
               <span className='text-gray-900 dark:text-white font-medium'>
                 ~${quote.gas_usd.toFixed(2)}
               </span>
             </div>
-            <div className='flex justify-between text-sm pt-2 border-t border-gray-200 dark:border-gray-700'>
+            <div className='flex justify-between pt-2 border-t border-gray-200 dark:border-gray-700'>
               <span className='text-gray-500 dark:text-gray-400'>{t('swap.minimumReceived')}</span>
               <span className='text-gray-900 dark:text-white font-medium'>
                 {quote.to_amount_min} {quote.to_token.symbol}
@@ -691,24 +755,24 @@ const SwapConfirmationModal = ({
             <button
               onClick={onClose}
               disabled={isLoading}
-              className='flex-1 py-3 px-4 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-semibold rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors disabled:opacity-50'
+              className='flex-1 py-3.5 px-4 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-semibold rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600 transition-colors disabled:opacity-50 touch-manipulation'
             >
               {t('common.cancel')}
             </button>
             <button
               onClick={onConfirm}
               disabled={isLoading}
-              className='flex-1 py-3 px-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold rounded-xl hover:from-blue-600 hover:to-purple-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2'
+              className='flex-1 py-3.5 px-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold rounded-xl hover:from-blue-600 hover:to-purple-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2 touch-manipulation active:scale-[0.98]'
             >
               {isLoading ? (
                 <>
                   <Loader2 className='w-5 h-5 animate-spin' />
-                  {t('swap.processing')}
+                  <span className='hidden sm:inline'>{t('swap.processing')}</span>
                 </>
               ) : (
                 <>
                   <CheckCircle2 className='w-5 h-5' />
-                  {t('swap.confirmSwap')}
+                  <span>{t('swap.confirmSwap')}</span>
                 </>
               )}
             </button>
@@ -1055,98 +1119,106 @@ export function SwapPage() {
   }
 
   return (
-    <div className='min-h-screen pb-20 lg:pb-0'>
-      {/* Header */}
-      <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6'>
+    <div className='min-h-screen pb-24 sm:pb-20 lg:pb-0 px-4 sm:px-0'>
+      {/* Header - Responsive */}
+      <div className='flex flex-col gap-4 mb-5 sm:mb-6'>
         <div>
-          <div className='flex items-center gap-3 mb-1'>
-            <h1 className='text-2xl md:text-3xl font-bold text-gray-900 dark:text-white'>
+          <div className='flex items-center gap-2 sm:gap-3 mb-1'>
+            <h1 className='text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-white'>
               {t('swap.title')}
             </h1>
-            <div className='flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-200 dark:border-blue-800 rounded-full'>
-              <ArrowDownUp className='w-3.5 h-3.5 text-blue-500' />
+            <div className='flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-0.5 sm:py-1 bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-200 dark:border-blue-800 rounded-full'>
+              <ArrowDownUp className='w-3 sm:w-3.5 h-3 sm:h-3.5 text-blue-500' />
               <span className='text-xs font-medium text-blue-700 dark:text-blue-400'>DEX</span>
             </div>
           </div>
-          <p className='text-gray-500 dark:text-gray-400 text-sm'>{t('swap.subtitle')}</p>
+          <p className='text-gray-500 dark:text-gray-400 text-xs sm:text-sm'>
+            {t('swap.subtitle')}
+          </p>
         </div>
 
-        {/* Network Selector */}
-        <div className='flex items-center gap-2 flex-wrap'>
-          {NETWORKS.slice(0, 4).map(network => (
+        {/* Network Selector - Horizontal scroll on mobile */}
+        <div className='flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap scrollbar-hide'>
+          {NETWORKS.map(network => (
             <button
               key={network.id}
               onClick={() => setSelectedNetwork(network)}
               className={cn(
-                'flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all',
+                'flex items-center gap-1.5 sm:gap-2 px-3 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all flex-shrink-0 touch-manipulation active:scale-[0.97]',
                 selectedNetwork.id === network.id
                   ? `bg-gradient-to-r ${network.color} text-white shadow-lg`
-                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 active:bg-gray-100 dark:active:bg-gray-700'
               )}
             >
-              <img src={network.icon} alt={network.name} className='w-5 h-5 rounded-full' />
+              <img
+                src={network.icon}
+                alt={network.name}
+                className='w-4 sm:w-5 h-4 sm:h-5 rounded-full'
+              />
               <span>{network.name}</span>
             </button>
           ))}
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className='grid lg:grid-cols-3 gap-6'>
+      {/* Main Content - Stack on mobile, grid on desktop */}
+      <div className='grid lg:grid-cols-3 gap-4 sm:gap-6'>
         {/* Swap Card */}
         <div className='lg:col-span-2'>
           <div className='bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden'>
             {/* Card Header */}
-            <div className='flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700'>
-              <div className='flex items-center gap-2'>
-                <div className='p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl'>
-                  <ArrowDownUp className='w-5 h-5 text-white' />
+            <div className='flex items-center justify-between p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700'>
+              <div className='flex items-center gap-2 sm:gap-3'>
+                <div className='p-1.5 sm:p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg sm:rounded-xl'>
+                  <ArrowDownUp className='w-4 sm:w-5 h-4 sm:h-5 text-white' />
                 </div>
                 <div>
-                  <h2 className='font-bold text-gray-900 dark:text-white'>
+                  <h2 className='font-bold text-sm sm:text-base text-gray-900 dark:text-white'>
                     {t('swap.swapTokens')}
                   </h2>
-                  <p className='text-xs text-gray-500 dark:text-gray-400'>{t('swap.bestRates')}</p>
+                  <p className='text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 hidden sm:block'>
+                    {t('swap.bestRates')}
+                  </p>
                 </div>
               </div>
               <button
                 onClick={() => setShowSettings(true)}
                 aria-label='Open settings'
-                className='p-2.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors'
+                className='p-2 sm:p-2.5 hover:bg-gray-100 dark:hover:bg-gray-800 active:bg-gray-200 dark:active:bg-gray-700 rounded-lg sm:rounded-xl transition-colors touch-manipulation'
               >
-                <Settings className='w-5 h-5 text-gray-500' />
+                <Settings className='w-4 sm:w-5 h-4 sm:h-5 text-gray-500' />
               </button>
             </div>
 
             {/* Swap Form */}
-            <div className='p-4 md:p-6 space-y-4'>
+            <div className='p-3 sm:p-4 md:p-6 space-y-3 sm:space-y-4'>
               {/* Show Status if swap in progress */}
               {swapStatus && <SwapStatusCard status={swapStatus} onClose={handleCloseStatus} />}
 
               {!swapStatus && (
                 <>
                   {/* From Token */}
-                  <div className='p-4 bg-gray-50 dark:bg-gray-800 rounded-xl'>
+                  <div className='p-3 sm:p-4 bg-gray-50 dark:bg-gray-800 rounded-xl'>
                     <div className='flex items-center justify-between mb-2'>
-                      <span className='text-sm text-gray-500 dark:text-gray-400'>
+                      <span className='text-xs sm:text-sm text-gray-500 dark:text-gray-400'>
                         {t('swap.youPay')}
                       </span>
                       {fromToken?.balance && (
                         <button
                           onClick={() => setFromAmount(fromToken.balance ?? '')}
-                          className='text-xs text-blue-500 hover:text-blue-600 font-medium'
+                          className='text-[10px] sm:text-xs text-blue-500 hover:text-blue-600 active:text-blue-700 font-medium touch-manipulation'
                         >
                           {t('swap.balance')}: {fromToken.balance}
                         </button>
                       )}
                     </div>
-                    <div className='flex items-center gap-3'>
+                    <div className='flex items-center gap-2 sm:gap-3'>
                       <button
                         onClick={() => setShowFromTokenModal(true)}
                         aria-label='Select from token'
-                        className='flex items-center gap-2 px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-gray-300 dark:hover:border-gray-600 transition-colors'
+                        className='flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg sm:rounded-xl hover:border-gray-300 dark:hover:border-gray-600 active:bg-gray-50 dark:active:bg-gray-800 transition-colors touch-manipulation flex-shrink-0'
                       >
-                        <div className='w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden'>
+                        <div className='w-6 sm:w-8 h-6 sm:h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden'>
                           {fromToken?.logoURI ? (
                             <img
                               src={fromToken.logoURI}
@@ -1154,56 +1226,57 @@ export function SwapPage() {
                               className='w-full h-full object-cover'
                             />
                           ) : (
-                            <span className='text-xs font-bold'>
+                            <span className='text-[10px] sm:text-xs font-bold'>
                               {fromToken?.symbol?.slice(0, 2)}
                             </span>
                           )}
                         </div>
-                        <span className='font-semibold text-gray-900 dark:text-white'>
+                        <span className='font-semibold text-xs sm:text-sm text-gray-900 dark:text-white'>
                           {fromToken?.symbol ?? t('swap.selectToken')}
                         </span>
-                        <ChevronDown className='w-4 h-4 text-gray-400' />
+                        <ChevronDown className='w-3 sm:w-4 h-3 sm:h-4 text-gray-400' />
                       </button>
                       <input
                         type='number'
+                        inputMode='decimal'
                         value={fromAmount}
                         onChange={e => setFromAmount(e.target.value)}
                         placeholder='0.00'
-                        className='flex-1 text-right text-2xl font-bold bg-transparent text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none'
+                        className='flex-1 min-w-0 text-right text-lg sm:text-2xl font-bold bg-transparent text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none'
                       />
                     </div>
                   </div>
 
                   {/* Swap Button */}
-                  <div className='flex justify-center -my-2 relative z-10'>
+                  <div className='flex justify-center -my-1.5 sm:-my-2 relative z-10'>
                     <button
                       onClick={handleSwapTokens}
                       aria-label='Swap token positions'
-                      className='p-3 bg-white dark:bg-gray-900 border-4 border-gray-50 dark:border-gray-800 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors shadow-lg hover:shadow-xl active:scale-95'
+                      className='p-2 sm:p-3 bg-white dark:bg-gray-900 border-4 border-gray-50 dark:border-gray-800 rounded-lg sm:rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 active:bg-gray-200 dark:active:bg-gray-700 transition-colors shadow-lg hover:shadow-xl active:scale-95 touch-manipulation'
                     >
-                      <ArrowDownUp className='w-5 h-5 text-blue-500' />
+                      <ArrowDownUp className='w-4 sm:w-5 h-4 sm:h-5 text-blue-500' />
                     </button>
                   </div>
 
                   {/* To Token */}
-                  <div className='p-4 bg-gray-50 dark:bg-gray-800 rounded-xl'>
+                  <div className='p-3 sm:p-4 bg-gray-50 dark:bg-gray-800 rounded-xl'>
                     <div className='flex items-center justify-between mb-2'>
-                      <span className='text-sm text-gray-500 dark:text-gray-400'>
+                      <span className='text-xs sm:text-sm text-gray-500 dark:text-gray-400'>
                         {t('swap.youReceive')}
                       </span>
                       {quote && (
-                        <span className='text-xs text-gray-400'>
+                        <span className='text-[10px] sm:text-xs text-gray-400'>
                           ~${((Number.parseFloat(toAmount) || 0) * 1).toFixed(2)}
                         </span>
                       )}
                     </div>
-                    <div className='flex items-center gap-3'>
+                    <div className='flex items-center gap-2 sm:gap-3'>
                       <button
                         onClick={() => setShowToTokenModal(true)}
                         aria-label='Select to token'
-                        className='flex items-center gap-2 px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-gray-300 dark:hover:border-gray-600 transition-colors'
+                        className='flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg sm:rounded-xl hover:border-gray-300 dark:hover:border-gray-600 active:bg-gray-50 dark:active:bg-gray-800 transition-colors touch-manipulation flex-shrink-0'
                       >
-                        <div className='w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden'>
+                        <div className='w-6 sm:w-8 h-6 sm:h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden'>
                           {toToken?.logoURI ? (
                             <img
                               src={toToken.logoURI}
@@ -1211,26 +1284,26 @@ export function SwapPage() {
                               className='w-full h-full object-cover'
                             />
                           ) : (
-                            <span className='text-xs font-bold'>
+                            <span className='text-[10px] sm:text-xs font-bold'>
                               {toToken?.symbol?.slice(0, 2)}
                             </span>
                           )}
                         </div>
-                        <span className='font-semibold text-gray-900 dark:text-white'>
+                        <span className='font-semibold text-xs sm:text-sm text-gray-900 dark:text-white'>
                           {toToken?.symbol ?? t('swap.selectToken')}
                         </span>
-                        <ChevronDown className='w-4 h-4 text-gray-400' />
+                        <ChevronDown className='w-3 sm:w-4 h-3 sm:h-4 text-gray-400' />
                       </button>
-                      <div className='flex-1 text-right'>
+                      <div className='flex-1 min-w-0 text-right'>
                         {isQuoteLoading ? (
-                          <Loader2 className='w-6 h-6 text-blue-500 animate-spin ml-auto' />
+                          <Loader2 className='w-5 sm:w-6 h-5 sm:h-6 text-blue-500 animate-spin ml-auto' />
                         ) : (
                           <input
                             type='text'
                             value={toAmount}
                             readOnly
                             placeholder='0.00'
-                            className='w-full text-right text-2xl font-bold bg-transparent text-green-600 dark:text-green-400 placeholder:text-gray-400 focus:outline-none'
+                            className='w-full text-right text-lg sm:text-2xl font-bold bg-transparent text-green-600 dark:text-green-400 placeholder:text-gray-400 focus:outline-none'
                           />
                         )}
                       </div>
@@ -1239,14 +1312,14 @@ export function SwapPage() {
 
                   {/* Quote Details */}
                   {quote && (
-                    <div className='p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl space-y-2'>
-                      <div className='flex justify-between text-sm'>
+                    <div className='p-3 sm:p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl space-y-1.5 sm:space-y-2 text-xs sm:text-sm'>
+                      <div className='flex justify-between'>
                         <span className='text-gray-600 dark:text-gray-400'>{t('swap.rate')}</span>
-                        <span className='text-gray-900 dark:text-white font-medium'>
+                        <span className='text-gray-900 dark:text-white font-medium text-right'>
                           1 {fromToken?.symbol} = {quote.exchange_rate.toFixed(6)} {toToken?.symbol}
                         </span>
                       </div>
-                      <div className='flex justify-between text-sm'>
+                      <div className='flex justify-between'>
                         <span className='text-gray-600 dark:text-gray-400'>
                           {t('swap.platformFee')}
                         </span>
@@ -1254,7 +1327,7 @@ export function SwapPage() {
                           {quote.fee_percentage}% (~${quote.fee_usd.toFixed(2)})
                         </span>
                       </div>
-                      <div className='flex justify-between text-sm'>
+                      <div className='flex justify-between'>
                         <span className='text-gray-600 dark:text-gray-400'>
                           {t('swap.estimatedGas')}
                         </span>
@@ -1267,9 +1340,9 @@ export function SwapPage() {
 
                   {/* Error */}
                   {error && (
-                    <div className='flex items-center gap-2 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl'>
-                      <AlertCircle className='w-5 h-5 text-red-500 flex-shrink-0' />
-                      <p className='text-sm text-red-600 dark:text-red-400'>{error}</p>
+                    <div className='flex items-start gap-2 p-3 sm:p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl'>
+                      <AlertCircle className='w-4 sm:w-5 h-4 sm:h-5 text-red-500 flex-shrink-0 mt-0.5' />
+                      <p className='text-xs sm:text-sm text-red-600 dark:text-red-400'>{error}</p>
                     </div>
                   )}
 
@@ -1277,14 +1350,14 @@ export function SwapPage() {
                   <button
                     onClick={() => setShowConfirmation(true)}
                     disabled={!quote || isLoading || isQuoteLoading}
-                    className='w-full py-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold rounded-xl hover:from-blue-600 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg hover:shadow-xl active:scale-[0.99]'
+                    className='w-full py-3.5 sm:py-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold text-sm sm:text-base rounded-xl hover:from-blue-600 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg hover:shadow-xl active:scale-[0.99] touch-manipulation'
                   >
                     {(() => {
                       if (isQuoteLoading) {
                         return (
                           <>
-                            <Loader2 className='w-5 h-5 animate-spin' />
-                            {t('swap.gettingQuote')}
+                            <Loader2 className='w-4 sm:w-5 h-4 sm:h-5 animate-spin' />
+                            <span>{t('swap.gettingQuote')}</span>
                           </>
                         )
                       }
@@ -1296,8 +1369,8 @@ export function SwapPage() {
                       }
                       return (
                         <>
-                          <ArrowDownUp className='w-5 h-5' />
-                          {t('swap.swapNow')}
+                          <ArrowDownUp className='w-4 sm:w-5 h-4 sm:h-5' />
+                          <span>{t('swap.swapNow')}</span>
                         </>
                       )
                     })()}
@@ -1308,50 +1381,50 @@ export function SwapPage() {
           </div>
         </div>
 
-        {/* Sidebar - Benefits & Info */}
-        <div className='lg:col-span-1 space-y-6'>
+        {/* Sidebar - Benefits & Info (hidden on mobile, shown below swap card as compact cards) */}
+        <div className='lg:col-span-1 space-y-4 sm:space-y-6'>
           {/* Benefits Card */}
-          <div className='bg-white dark:bg-gray-900 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6'>
-            <h3 className='font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2'>
-              <Zap className='w-5 h-5 text-blue-500' />
+          <div className='bg-white dark:bg-gray-900 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6'>
+            <h3 className='font-bold text-sm sm:text-base text-gray-900 dark:text-white mb-3 sm:mb-4 flex items-center gap-2'>
+              <Zap className='w-4 sm:w-5 h-4 sm:h-5 text-blue-500' />
               {t('swap.whySwapHere')}
             </h3>
-            <div className='space-y-4'>
-              <div className='flex items-start gap-3'>
-                <div className='p-2 bg-green-100 dark:bg-green-900/30 rounded-lg'>
-                  <TrendingUp className='w-4 h-4 text-green-600 dark:text-green-400' />
+            <div className='space-y-3 sm:space-y-4'>
+              <div className='flex items-start gap-2 sm:gap-3'>
+                <div className='p-1.5 sm:p-2 bg-green-100 dark:bg-green-900/30 rounded-lg flex-shrink-0'>
+                  <TrendingUp className='w-3.5 sm:w-4 h-3.5 sm:h-4 text-green-600 dark:text-green-400' />
                 </div>
-                <div>
-                  <p className='font-semibold text-sm text-gray-900 dark:text-white'>
+                <div className='min-w-0'>
+                  <p className='font-semibold text-xs sm:text-sm text-gray-900 dark:text-white'>
                     {t('swap.benefitBestRates')}
                   </p>
-                  <p className='text-xs text-gray-500 dark:text-gray-400'>
+                  <p className='text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 line-clamp-2'>
                     {t('swap.benefitBestRatesDesc')}
                   </p>
                 </div>
               </div>
-              <div className='flex items-start gap-3'>
-                <div className='p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg'>
-                  <Shield className='w-4 h-4 text-blue-600 dark:text-blue-400' />
+              <div className='flex items-start gap-2 sm:gap-3'>
+                <div className='p-1.5 sm:p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex-shrink-0'>
+                  <Shield className='w-3.5 sm:w-4 h-3.5 sm:h-4 text-blue-600 dark:text-blue-400' />
                 </div>
-                <div>
-                  <p className='font-semibold text-sm text-gray-900 dark:text-white'>
+                <div className='min-w-0'>
+                  <p className='font-semibold text-xs sm:text-sm text-gray-900 dark:text-white'>
                     {t('swap.benefitSecure')}
                   </p>
-                  <p className='text-xs text-gray-500 dark:text-gray-400'>
+                  <p className='text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 line-clamp-2'>
                     {t('swap.benefitSecureDesc')}
                   </p>
                 </div>
               </div>
-              <div className='flex items-start gap-3'>
-                <div className='p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg'>
-                  <Fuel className='w-4 h-4 text-purple-600 dark:text-purple-400' />
+              <div className='flex items-start gap-2 sm:gap-3'>
+                <div className='p-1.5 sm:p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex-shrink-0'>
+                  <Fuel className='w-3.5 sm:w-4 h-3.5 sm:h-4 text-purple-600 dark:text-purple-400' />
                 </div>
-                <div>
-                  <p className='font-semibold text-sm text-gray-900 dark:text-white'>
+                <div className='min-w-0'>
+                  <p className='font-semibold text-xs sm:text-sm text-gray-900 dark:text-white'>
                     {t('swap.benefitLowFees')}
                   </p>
-                  <p className='text-xs text-gray-500 dark:text-gray-400'>
+                  <p className='text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 line-clamp-2'>
                     {t('swap.benefitLowFeesDesc')}
                   </p>
                 </div>
@@ -1362,35 +1435,35 @@ export function SwapPage() {
           {/* Quick Link to Instant Trade */}
           <Link
             to='/instant-trade'
-            className='block p-4 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200 dark:border-amber-800 rounded-xl hover:shadow-md transition-all group'
+            className='block p-3 sm:p-4 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200 dark:border-amber-800 rounded-xl hover:shadow-md active:scale-[0.99] transition-all group touch-manipulation'
           >
-            <div className='flex items-center gap-3'>
-              <div className='p-2 bg-gradient-to-br from-amber-500 to-orange-500 rounded-xl'>
-                <Wallet className='w-5 h-5 text-white' />
+            <div className='flex items-center gap-2 sm:gap-3'>
+              <div className='p-1.5 sm:p-2 bg-gradient-to-br from-amber-500 to-orange-500 rounded-lg sm:rounded-xl flex-shrink-0'>
+                <Wallet className='w-4 sm:w-5 h-4 sm:h-5 text-white' />
               </div>
-              <div className='flex-1'>
-                <p className='font-semibold text-gray-900 dark:text-white'>
+              <div className='flex-1 min-w-0'>
+                <p className='font-semibold text-xs sm:text-sm text-gray-900 dark:text-white'>
                   {t('swap.buyWithFiat')}
                 </p>
-                <p className='text-xs text-gray-500 dark:text-gray-400'>
+                <p className='text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 truncate'>
                   {t('swap.buyWithFiatDesc')}
                 </p>
               </div>
-              <ChevronRight className='w-5 h-5 text-gray-400 group-hover:translate-x-1 transition-transform' />
+              <ChevronRight className='w-4 sm:w-5 h-4 sm:h-5 text-gray-400 group-hover:translate-x-1 transition-transform flex-shrink-0' />
             </div>
           </Link>
 
-          {/* Supported Networks */}
-          <div className='bg-white dark:bg-gray-900 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6'>
-            <h3 className='font-bold text-gray-900 dark:text-white mb-4'>
+          {/* Supported Networks - Compact on mobile */}
+          <div className='bg-white dark:bg-gray-900 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6'>
+            <h3 className='font-bold text-sm sm:text-base text-gray-900 dark:text-white mb-3 sm:mb-4'>
               {t('swap.supportedNetworks')}
             </h3>
-            <div className='grid grid-cols-2 gap-2'>
+            <div className='grid grid-cols-3 sm:grid-cols-2 gap-1.5 sm:gap-2'>
               {NETWORKS.map(network => (
                 <div
                   key={network.id}
                   className={cn(
-                    'flex items-center gap-2 p-2 rounded-lg',
+                    'flex items-center gap-1.5 sm:gap-2 p-1.5 sm:p-2 rounded-lg',
                     selectedNetwork.id === network.id
                       ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
                       : 'bg-gray-50 dark:bg-gray-800'
@@ -1399,12 +1472,12 @@ export function SwapPage() {
                   <img
                     src={network.icon}
                     alt={network.name}
-                    className='w-5 h-5'
+                    className='w-4 sm:w-5 h-4 sm:h-5'
                     onError={e => {
                       e.currentTarget.style.display = 'none'
                     }}
                   />
-                  <span className='text-sm font-medium text-gray-700 dark:text-gray-300'>
+                  <span className='text-[10px] sm:text-sm font-medium text-gray-700 dark:text-gray-300 truncate'>
                     {network.name}
                   </span>
                 </div>

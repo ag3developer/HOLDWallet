@@ -53,14 +53,31 @@ class AuthService {
   }
 
   // Get current user profile
-  async getCurrentUser(token: string): Promise<User> {
-    const response = await apiClient.get(apiConfig.user.profile, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      timeout: AUTH_TIMEOUT,
-    })
-    return response.data
+  async getCurrentUser(token: string, retryCount = 0): Promise<User> {
+    try {
+      const response = await apiClient.get(apiConfig.user.profile, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        timeout: AUTH_TIMEOUT,
+      })
+      return response.data
+    } catch (error: any) {
+      // Retry once on timeout (server cold start)
+      const isTimeout =
+        error.code === 'TIMEOUT_ERROR' ||
+        error.code === 'ECONNABORTED' ||
+        error.message?.toLowerCase().includes('timeout')
+
+      if (isTimeout && retryCount < 1) {
+        console.warn('[AuthService] ⏱️ getCurrentUser timeout, retrying...')
+        // Wait a bit before retry
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        return this.getCurrentUser(token, retryCount + 1)
+      }
+
+      throw error
+    }
   }
 
   // Update user profile
