@@ -25,6 +25,7 @@ import { useWalletAddresses } from '@/hooks/useWalletAddresses'
 import { QRCodeScanner } from '@/components/QRCodeScanner'
 import { transactionService } from '@/services/transactionService'
 import { webAuthnService } from '@/services/webauthn'
+import { sendService } from '@/services/sendService'
 
 export const SendPage = () => {
   // Ref para prevenir double-submit (mais confiável que state)
@@ -494,6 +495,7 @@ export const SendPage = () => {
     if (!validateForm()) return
     try {
       setLoading(true)
+      setError(null)
 
       // Precisamos do endereço "from" - vamos usar a carteira do token selecionado
       const selectedWalletData = walletsWithAddresses.find(
@@ -502,12 +504,14 @@ export const SendPage = () => {
 
       if (!selectedWalletData) {
         setError('Nenhuma carteira encontrada para este token')
+        setLoading(false)
         return
       }
 
       // Usar o endereço específico da rede (não o first_address genérico)
       if (!selectedWalletData.address) {
         setError('Endereço da carteira não disponível para esta rede')
+        setLoading(false)
         return
       }
 
@@ -515,17 +519,57 @@ export const SendPage = () => {
       const fullWallet = apiWallets?.find(w => String(w.id) === String(selectedWalletData.walletId))
       if (!fullWallet) {
         setError('Carteira não encontrada')
+        setLoading(false)
         return
       }
 
       console.log('📝 Iniciando transação...')
       console.log('Carteira ID:', fullWallet.id)
-      console.log('De:', selectedWalletData.address) // 🔑 Endereço específico da rede
+      console.log('De:', selectedWalletData.address)
       console.log('Para:', toAddress)
       console.log('Valor:', amount)
       console.log('Rede:', selectedNetwork)
 
-      // Estimar taxas ANTES de enviar
+      // � PASSO 1: VALIDAR NA BLOCKCHAIN ANTES DE PEDIR 2FA
+      console.log('🔍 Validando saldo na blockchain...')
+      const isToken = ['USDT', 'USDC'].includes(selectedToken.toUpperCase())
+
+      const validation = await sendService.validateSend({
+        wallet_id: String(fullWallet.id),
+        to_address: toAddress,
+        amount: amount,
+        network: selectedNetwork,
+        token_symbol: isToken ? selectedToken : undefined,
+      })
+
+      console.log('📋 Resultado da validação:', validation)
+
+      // Se a validação falhou, mostrar erro e NÃO pedir 2FA
+      if (!validation.valid) {
+        console.error('❌ Validação falhou:', validation.message)
+
+        // Mensagem amigável baseada no erro
+        let errorMsg = validation.message || 'Transação não pode ser realizada'
+
+        if (validation.error === 'INSUFFICIENT_BALANCE') {
+          errorMsg = `Saldo insuficiente. Disponível: ${validation.balance || '0'}`
+        } else if (validation.error === 'INSUFFICIENT_TOKEN_BALANCE') {
+          errorMsg = `Saldo de ${selectedToken} insuficiente. Disponível: ${validation.balance || '0'}`
+        } else if (validation.error === 'INSUFFICIENT_GAS') {
+          errorMsg = `Saldo insuficiente para pagar a taxa de rede (gas)`
+        } else if (validation.error === 'INVALID_TO_ADDRESS') {
+          errorMsg = 'Endereço de destino inválido'
+        }
+
+        setError(errorMsg)
+        notificationService.showError(null, errorMsg)
+        setLoading(false)
+        return
+      }
+
+      console.log('✅ Validação passou! Saldo real:', validation.balance)
+
+      // 💰 PASSO 2: Estimar taxas
       console.log('💰 Estimando taxa de gás...')
       const feeEstimate = await transactionService.estimateFee({
         wallet_id: String(fullWallet.id),
@@ -535,7 +579,7 @@ export const SendPage = () => {
       })
       console.log('✅ Taxas estimadas:', feeEstimate)
 
-      // Guardar os dados da transação pendente
+      // Guardar os dados da transação pendente (inclui dados da validação)
       setPendingTransaction({
         wallet_id: String(fullWallet.id),
         to_address: toAddress,
@@ -545,15 +589,21 @@ export const SendPage = () => {
         token_symbol: selectedToken,
         memo: memo || undefined,
         feeEstimate: feeEstimate,
+        // Dados da validação para referência
+        validation: {
+          balance: validation.balance,
+          gasEstimate: validation.gas_estimate,
+          remainingAfter: validation.remaining_after,
+        },
       })
 
-      // Mostrar diálogo 2FA
+      // 🔐 PASSO 3: Agora sim, mostrar diálogo 2FA (saldo já foi validado)
       setShow2FADialog(true)
       setLoading(false)
     } catch (err: any) {
       console.error('❌ Erro ao preparar envio:', err)
-      setError(err.message || 'Erro ao estimar taxa ou preparar transação')
-      notificationService.showError(err, 'Erro ao estimar taxa')
+      setError(err.message || 'Erro ao validar transação')
+      notificationService.showError(err, 'Erro ao validar transação')
       setLoading(false)
     }
   }

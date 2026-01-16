@@ -81,7 +81,75 @@ export interface TransactionStatusResponse {
   block_number?: number
 }
 
+// Interface para validação pré-envio (consulta blockchain)
+export interface ValidateSendRequest {
+  wallet_id: string
+  to_address: string
+  amount: string
+  network: string
+  fee_level?: 'slow' | 'standard' | 'fast' | undefined
+  token_symbol?: string | undefined
+  token_address?: string | undefined
+}
+
+export interface ValidateSendResponse {
+  valid: boolean
+  error?: string
+  message?: string
+  from_address?: string
+  to_address?: string
+  amount?: string
+  balance?: string
+  token_balance?: string
+  native_balance?: string
+  gas_estimate?: string
+  gas_required?: string
+  total_required?: string
+  remaining_after?: string
+  shortfall?: string
+  network?: string
+  token_symbol?: string
+  native_symbol?: string
+  requires_auth?: boolean
+}
+
 class SendService {
+  /**
+   * PRÉ-VALIDAÇÃO DE TRANSAÇÃO
+   * Deve ser chamado ANTES de pedir biometria/2FA
+   * Verifica na blockchain: saldo real, gas disponível, endereço válido
+   */
+  async validateSend(data: ValidateSendRequest): Promise<ValidateSendResponse> {
+    try {
+      console.log('[SendService] Pre-validating transaction:', {
+        wallet_id: data.wallet_id,
+        to_address: data.to_address,
+        amount: data.amount,
+        network: data.network,
+        token_symbol: data.token_symbol,
+      })
+
+      const response = await apiClient.post<ValidateSendResponse>('/wallets/validate-send', data)
+
+      console.log('[SendService] Pre-validation response:', response.data)
+      return response.data
+    } catch (error: any) {
+      console.error('[SendService] Pre-validation error:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+      })
+
+      // Retornar objeto de erro em vez de throw para manter compatibilidade
+      return {
+        valid: false,
+        error: error.response?.data?.error || 'VALIDATION_FAILED',
+        message:
+          error.response?.data?.message || error.response?.data?.detail || 'Falha na validação',
+      }
+    }
+  }
+
   /**
    * Validate a blockchain address
    */
