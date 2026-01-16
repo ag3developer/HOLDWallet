@@ -18,9 +18,16 @@ export interface Transaction {
 
 export interface TransactionListResponse {
   transactions: Transaction[]
-  total_count: number
+  total: number
+  total_count?: number // Para compatibilidade
   offset: number
   limit: number
+  has_more?: boolean
+}
+
+// Getter para total_count (compatibilidade)
+export const getTotalCount = (response: TransactionListResponse): number => {
+  return response.total_count ?? response.total
 }
 
 export interface TransactionFilters {
@@ -95,6 +102,34 @@ class TransactionService {
   }
 
   /**
+   * Atualizar status de transações pendentes
+   * Verifica na blockchain se transações pendentes foram confirmadas ou falharam
+   */
+  async refreshPendingTransactions(): Promise<{
+    success: boolean
+    checked: number
+    updated: number
+    confirmed: string[]
+    failed: string[]
+    message: string
+  }> {
+    try {
+      const response = await this.apiClient.post<{
+        success: boolean
+        checked: number
+        updated: number
+        confirmed: string[]
+        failed: string[]
+        message: string
+      }>('/tx/refresh-pending')
+      return response.data
+    } catch (error: any) {
+      console.error('Error refreshing pending transactions:', error)
+      throw new Error(error.response?.data?.detail || 'Erro ao atualizar transações pendentes.')
+    }
+  }
+
+  /**
    * Buscar transações reais do blockchain para uma carteira
    */
   async getWalletBlockchainTransactions(
@@ -122,6 +157,7 @@ class TransactionService {
 
       return {
         transactions: response.data.transactions,
+        total: response.data.total,
         total_count: response.data.total,
         offset: 0,
         limit,

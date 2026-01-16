@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 import uuid
+import logging
 
 from app.core.db import get_db
 from app.core.security import get_current_user
@@ -10,44 +11,78 @@ from app.core.exceptions import NotFoundError, ValidationError, BlockchainError
 from app.models.user import User
 from app.models.wallet import Wallet
 from app.models.address import Address
-from app.models.transaction import Transaction
+from app.models.transaction import Transaction, TransactionStatus
 from app.services.blockchain_service import BlockchainService
 from app.schemas.transaction import (
     TransactionResponse, TransactionListResponse, TransactionSendRequest,
     TransactionEstimateRequest, TransactionEstimateResponse
 )
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter()
 
 @router.get("/", response_model=TransactionListResponse)
 async def get_transactions(
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
     wallet_id: Optional[uuid.UUID] = Query(None, description="Filter by wallet ID"),
     network: Optional[str] = Query(None, description="Filter by network"),
-    status: Optional[str] = Query(None, description="Filter by status"),
-    limit: int = Query(20, ge=1, le=100),
+    tx_status: Optional[str] = Query(None, alias="status", description="Filter by status"),
+    limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
     date_from: Optional[datetime] = Query(None, description="Filter from date"),
-    date_to: Optional[datetime] = Query(None, description="Filter to date")
+    date_to: Optional[datetime] = Query(None, description="Filter to date"),
+    check_pending: bool = Query(True, description="Verificar status de transações pendentes")
 ):
     """
     Get transaction history for the user.
+    Busca transações do banco de dados.
+    Se check_pending=True, verifica status de transações pendentes na blockchain.
     """
-    # Build query to get user's transactions through their wallets
-    query = db.query(Transaction).join(Address).join(Wallet).filter(
-        Wallet.user_id == current_user.id
+    # ============================================
+    # VERIFICAR TRANSAÇÕES PENDENTES (background)
+    # ============================================
+    if check_pending:
+        try:
+            from app.services.transaction_service import transaction_status_checker
+            
+            # Verificar e atualizar transações pendentes em background
+            result = await transaction_status_checker.check_and_update_pending_transactions(
+                db=db,
+                user_id=current_user.id,
+                limit=20
+            )
+            
+            if result["updated"] > 0:
+                logger.info(f"✅ {result['updated']} transações atualizadas para user_id={current_user.id}")
+                if result["confirmed"]:
+                    logger.info(f"   Confirmadas: {result['confirmed']}")
+                if result["failed"]:
+                    logger.info(f"   Falharam: {result['failed']}")
+        except Exception as e:
+            logger.warning(f"⚠️ Erro ao verificar transações pendentes: {e}")
+            # Não interrompe a consulta principal
+    
+    # ============================================
+    # BUSCAR TRANSAÇÕES
+    # ============================================
+    # Buscar transações diretamente pelo user_id (mais eficiente)
+    query = db.query(Transaction).filter(
+        Transaction.user_id == current_user.id
     )
     
     # Apply filters
     if wallet_id:
-        query = query.filter(Wallet.id == wallet_id)
+        # Se wallet_id fornecido, buscar via address_id
+        query = query.join(Address).join(Wallet).filter(Wallet.id == wallet_id)
     
     if network:
         query = query.filter(Transaction.network == network)
     
-    if status:
-        query = query.filter(Transaction.status == status)
+    if tx_status:
+        query = query.filter(Transaction.status == tx_status)
     
     if date_from:
         query = query.filter(Transaction.created_at >= date_from)
@@ -63,19 +98,26 @@ async def get_transactions(
     
     transaction_responses = []
     for tx in transactions:
+        # Mapear status para string amigável
+        status_str = tx.status.value if hasattr(tx.status, 'value') else str(tx.status)
+        
         transaction_responses.append(TransactionResponse(
             id=tx.id,
-            hash=tx.hash,
+            hash=tx.tx_hash,
+            tx_hash=tx.tx_hash,
             from_address=tx.from_address,
             to_address=tx.to_address,
             amount=str(tx.amount),
             fee=str(tx.fee) if tx.fee else None,
-            status=tx.status,
+            status=status_str,
+            confirmations=tx.confirmations or 0,
             block_number=tx.block_number,
-            network=tx.network,  # Use transaction's network, not wallet's
+            network=tx.network,
             token_address=tx.token_address,
             token_symbol=tx.token_symbol,
+            memo=tx.memo,
             created_at=tx.created_at,
+            updated_at=tx.updated_at,
             confirmed_at=tx.confirmed_at
         ))
     
@@ -85,11 +127,48 @@ async def get_transactions(
     return TransactionListResponse(
         transactions=transaction_responses,
         total=total_count,
-        total_count=total_count,
         offset=offset,
         limit=limit,
         has_more=has_more
     )
+
+
+@router.post("/refresh-pending")
+async def refresh_pending_transactions(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    limit: int = Query(20, ge=1, le=50, description="Máximo de transações a verificar")
+):
+    """
+    Força a verificação e atualização de status de transações pendentes.
+    
+    Útil para atualizar o status de 'pending' para 'confirmed' ou 'failed'.
+    """
+    try:
+        from app.services.transaction_service import transaction_status_checker
+        
+        result = await transaction_status_checker.check_and_update_pending_transactions(
+            db=db,
+            user_id=current_user.id,
+            limit=limit
+        )
+        
+        return {
+            "success": True,
+            "checked": result["checked"],
+            "updated": result["updated"],
+            "confirmed": result["confirmed"],
+            "failed": result["failed"],
+            "message": f"Verificadas {result['checked']} transações, {result['updated']} atualizadas"
+        }
+        
+    except Exception as e:
+        logger.error(f"Erro ao atualizar transações pendentes: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao verificar transações: {str(e)}"
+        )
+
 
 @router.get("/{transaction_id}", response_model=TransactionResponse)
 async def get_transaction(

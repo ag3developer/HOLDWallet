@@ -590,5 +590,274 @@ class BSCTransactionService(EthereumTransactionService):
         super().__init__(rpc_url=settings.BSC_RPC_URL)
 
 
+class BaseTransactionService(EthereumTransactionService):
+    """Serviço para transações Base"""
+    
+    def __init__(self):
+        super().__init__(rpc_url=getattr(settings, 'BASE_RPC_URL', 'https://mainnet.base.org'))
+
+
+class AvalancheTransactionService(EthereumTransactionService):
+    """Serviço para transações Avalanche"""
+    
+    def __init__(self):
+        super().__init__(rpc_url=getattr(settings, 'AVALANCHE_RPC_URL', 'https://api.avax.network/ext/bc/C/rpc'))
+
+
+# ============================================
+# Serviço para verificar status de transações
+# ============================================
+class TransactionStatusChecker:
+    """Serviço para verificar e atualizar status de transações pendentes"""
+    
+    def __init__(self):
+        self.bitcoin_service = BitcoinTransactionService()
+        self.ethereum_service = EthereumTransactionService()
+        self.polygon_service = PolygonTransactionService()
+        self.bsc_service = BSCTransactionService()
+        self.base_service = BaseTransactionService()
+        self.avalanche_service = AvalancheTransactionService()
+    
+    async def check_and_update_pending_transactions(
+        self,
+        db: Session,
+        user_id: int,
+        limit: int = 20
+    ) -> Dict[str, Any]:
+        """
+        Verifica e atualiza status de todas as transações pendentes do usuário.
+        
+        Returns:
+            {
+                "checked": int,
+                "updated": int,
+                "confirmed": List[tx_hash],
+                "failed": List[tx_hash]
+            }
+        """
+        from app.models.transaction import Transaction, TransactionStatus
+        
+        results = {
+            "checked": 0,
+            "updated": 0,
+            "confirmed": [],
+            "failed": []
+        }
+        
+        try:
+            # Buscar transações pendentes do usuário
+            pending_transactions = db.query(Transaction).filter(
+                Transaction.user_id == user_id,
+                Transaction.status == TransactionStatus.pending,
+                Transaction.tx_hash.isnot(None)
+            ).order_by(Transaction.created_at.desc()).limit(limit).all()
+            
+            if not pending_transactions:
+                logger.info(f"✅ Nenhuma transação pendente para user_id={user_id}")
+                return results
+            
+            logger.info(f"🔍 Verificando {len(pending_transactions)} transações pendentes para user_id={user_id}")
+            
+            for tx in pending_transactions:
+                results["checked"] += 1
+                
+                try:
+                    # Obter status na blockchain baseado na rede
+                    status_info = await self._get_tx_status_by_network(tx.network, tx.tx_hash)
+                    
+                    new_status = status_info.get("status", "pending")
+                    
+                    # Se status mudou, atualizar
+                    if new_status != "pending" and new_status != tx.status.value:
+                        old_status = tx.status.value
+                        
+                        if new_status == "confirmed":
+                            tx.status = TransactionStatus.confirmed
+                            tx.confirmed_at = datetime.now(timezone.utc)
+                            results["confirmed"].append(tx.tx_hash)
+                        elif new_status == "failed":
+                            tx.status = TransactionStatus.failed
+                            results["failed"].append(tx.tx_hash)
+                        
+                        tx.confirmations = status_info.get("confirmations", 0)
+                        tx.block_number = status_info.get("block_number")
+                        tx.updated_at = datetime.now(timezone.utc)
+                        
+                        results["updated"] += 1
+                        logger.info(f"✅ TX {tx.tx_hash[:16]}... atualizada: {old_status} → {new_status}")
+                
+                except Exception as e:
+                    logger.warning(f"⚠️ Erro ao verificar TX {tx.tx_hash}: {e}")
+                    continue
+            
+            # Commit todas as atualizações
+            if results["updated"] > 0:
+                db.commit()
+                logger.info(f"✅ {results['updated']} transações atualizadas no banco")
+            
+            return results
+            
+        except Exception as e:
+            logger.error(f"❌ Erro ao verificar transações pendentes: {e}")
+            db.rollback()
+            raise
+    
+    async def _get_tx_status_by_network(self, network: str, tx_hash: str) -> Dict[str, Any]:
+        """Obtém status da transação na blockchain correspondente"""
+        network_lower = network.lower() if network else ""
+        
+        try:
+            if network_lower == "bitcoin":
+                return await self.bitcoin_service.get_transaction_status(tx_hash)
+            elif network_lower == "ethereum":
+                return await self.ethereum_service.get_transaction_status(tx_hash)
+            elif network_lower == "polygon":
+                return await self.polygon_service.get_transaction_status(tx_hash)
+            elif network_lower == "bsc":
+                return await self.bsc_service.get_transaction_status(tx_hash)
+            elif network_lower == "base":
+                return await self.base_service.get_transaction_status(tx_hash)
+            elif network_lower == "avalanche":
+                return await self.avalanche_service.get_transaction_status(tx_hash)
+            elif network_lower == "tron":
+                return await self._check_tron_status(tx_hash)
+            elif network_lower == "solana":
+                return await self._check_solana_status(tx_hash)
+            elif network_lower == "xrp":
+                return await self._check_xrp_status(tx_hash)
+            elif network_lower in ["litecoin", "dogecoin"]:
+                return await self._check_utxo_status(network_lower, tx_hash)
+            else:
+                logger.warning(f"⚠️ Rede não suportada para verificação: {network}")
+                return {"status": "pending", "confirmations": 0}
+        except Exception as e:
+            logger.error(f"❌ Erro ao verificar status para {network}/{tx_hash}: {e}")
+            return {"status": "unknown", "confirmations": 0}
+    
+    async def _check_tron_status(self, tx_hash: str) -> Dict[str, Any]:
+        """Verifica status de transação TRON"""
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(
+                    f"https://api.trongrid.io/v1/transactions/{tx_hash}"
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    if data.get("data") and len(data["data"]) > 0:
+                        tx_data = data["data"][0]
+                        ret = tx_data.get("ret", [{}])[0]
+                        contract_ret = ret.get("contractRet", "")
+                        
+                        if contract_ret == "SUCCESS":
+                            return {
+                                "status": "confirmed",
+                                "confirmations": 1,
+                                "block_number": tx_data.get("blockNumber"),
+                                "final": True
+                            }
+                        elif contract_ret in ["REVERT", "OUT_OF_ENERGY"]:
+                            return {"status": "failed", "confirmations": 0}
+                
+                return {"status": "pending", "confirmations": 0}
+        except Exception as e:
+            logger.warning(f"Erro ao verificar TRON TX: {e}")
+            return {"status": "unknown", "confirmations": 0}
+    
+    async def _check_solana_status(self, tx_hash: str) -> Dict[str, Any]:
+        """Verifica status de transação Solana"""
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                payload = {
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "getTransaction",
+                    "params": [tx_hash, {"encoding": "json", "maxSupportedTransactionVersion": 0}]
+                }
+                response = await client.post(
+                    "https://api.mainnet-beta.solana.com",
+                    json=payload
+                )
+                if response.status_code == 200:
+                    result = response.json().get("result")
+                    if result:
+                        meta = result.get("meta", {})
+                        if meta.get("err") is None:
+                            return {
+                                "status": "confirmed",
+                                "confirmations": 1,
+                                "block_number": result.get("slot"),
+                                "final": True
+                            }
+                        else:
+                            return {"status": "failed", "confirmations": 0}
+                
+                return {"status": "pending", "confirmations": 0}
+        except Exception as e:
+            logger.warning(f"Erro ao verificar Solana TX: {e}")
+            return {"status": "unknown", "confirmations": 0}
+    
+    async def _check_xrp_status(self, tx_hash: str) -> Dict[str, Any]:
+        """Verifica status de transação XRP"""
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                payload = {
+                    "method": "tx",
+                    "params": [{"transaction": tx_hash, "binary": False}]
+                }
+                response = await client.post(
+                    "https://xrplcluster.com",
+                    json=payload
+                )
+                if response.status_code == 200:
+                    result = response.json().get("result", {})
+                    if result.get("validated"):
+                        tx_result = result.get("meta", {}).get("TransactionResult", "")
+                        if tx_result == "tesSUCCESS":
+                            return {
+                                "status": "confirmed",
+                                "confirmations": 1,
+                                "block_number": result.get("ledger_index"),
+                                "final": True
+                            }
+                        else:
+                            return {"status": "failed", "confirmations": 0}
+                
+                return {"status": "pending", "confirmations": 0}
+        except Exception as e:
+            logger.warning(f"Erro ao verificar XRP TX: {e}")
+            return {"status": "unknown", "confirmations": 0}
+    
+    async def _check_utxo_status(self, network: str, tx_hash: str) -> Dict[str, Any]:
+        """Verifica status de transações UTXO (LTC, DOGE) via Blockchair"""
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(
+                    f"https://api.blockchair.com/{network}/dashboards/transaction/{tx_hash}"
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    tx_data = data.get("data", {}).get(tx_hash, {}).get("transaction", {})
+                    
+                    if tx_data:
+                        block_id = tx_data.get("block_id")
+                        if block_id and block_id > 0:
+                            return {
+                                "status": "confirmed",
+                                "confirmations": 1,  # Simplificado
+                                "block_number": block_id,
+                                "final": True
+                            }
+                
+                return {"status": "pending", "confirmations": 0}
+        except Exception as e:
+            logger.warning(f"Erro ao verificar {network} TX: {e}")
+            return {"status": "unknown", "confirmations": 0}
+
+
 # Instância global do serviço
 transaction_service = TransactionService()
+transaction_status_checker = TransactionStatusChecker()
