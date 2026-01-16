@@ -37,9 +37,9 @@ interface Token {
   symbol: string
   name: string
   decimals: number
-  logoURI?: string
-  balance?: string
-  balanceUSD?: number
+  logoURI?: string | undefined
+  balance?: string | undefined
+  balanceUSD?: number | undefined
 }
 
 interface SwapQuote {
@@ -107,6 +107,55 @@ const NETWORKS: Network[] = [
     color: 'from-gray-500 to-gray-600',
   },
 ]
+
+// Helper function to get token logo URI from CoinGecko
+const getTokenLogoURI = (symbol: string): string => {
+  const SYMBOL_TO_LOGO: Record<string, string> = {
+    ETH: 'https://assets.coingecko.com/coins/images/279/small/ethereum.png',
+    WETH: 'https://assets.coingecko.com/coins/images/279/small/ethereum.png',
+    MATIC: 'https://assets.coingecko.com/coins/images/4713/small/matic-token-icon.png',
+    POL: 'https://assets.coingecko.com/coins/images/4713/small/matic-token-icon.png',
+    BNB: 'https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png',
+    USDT: 'https://assets.coingecko.com/coins/images/325/small/Tether.png',
+    USDC: 'https://assets.coingecko.com/coins/images/6319/small/usdc.png',
+    DAI: 'https://assets.coingecko.com/coins/images/9956/small/Badge_Dai.png',
+    WBTC: 'https://assets.coingecko.com/coins/images/7598/small/wrapped_bitcoin_wbtc.png',
+    BTC: 'https://assets.coingecko.com/coins/images/1/small/bitcoin.png',
+    LINK: 'https://assets.coingecko.com/coins/images/877/small/chainlink-new-logo.png',
+    UNI: 'https://assets.coingecko.com/coins/images/12504/small/uniswap-uni.png',
+    AAVE: 'https://assets.coingecko.com/coins/images/12645/small/AAVE.png',
+    ARB: 'https://assets.coingecko.com/coins/images/16547/small/photo_2023-03-29_21.47.00.jpeg',
+    OP: 'https://assets.coingecko.com/coins/images/25244/small/Optimism.png',
+    AVAX: 'https://assets.coingecko.com/coins/images/12559/small/Avalanche_Circle_RedWhite_Trans.png',
+    SOL: 'https://assets.coingecko.com/coins/images/4128/small/solana.png',
+    DOGE: 'https://assets.coingecko.com/coins/images/5/small/dogecoin.png',
+    SHIB: 'https://assets.coingecko.com/coins/images/11939/small/shiba.png',
+    LTC: 'https://assets.coingecko.com/coins/images/2/small/litecoin.png',
+    TRX: 'https://assets.coingecko.com/coins/images/1094/small/tron-logo.png',
+    XRP: 'https://assets.coingecko.com/coins/images/44/small/xrp-symbol-white-128.png',
+    ADA: 'https://assets.coingecko.com/coins/images/975/small/cardano.png',
+    DOT: 'https://assets.coingecko.com/coins/images/12171/small/polkadot.png',
+    ATOM: 'https://assets.coingecko.com/coins/images/1481/small/cosmos_hub.png',
+    FTM: 'https://assets.coingecko.com/coins/images/4001/small/Fantom_round.png',
+    NEAR: 'https://assets.coingecko.com/coins/images/10365/small/near.jpg',
+    CRV: 'https://assets.coingecko.com/coins/images/12124/small/Curve.png',
+    MKR: 'https://assets.coingecko.com/coins/images/1364/small/Mark_Maker.png',
+    COMP: 'https://assets.coingecko.com/coins/images/10775/small/COMP.png',
+    SNX: 'https://assets.coingecko.com/coins/images/3406/small/SNX.png',
+    SUSHI: 'https://assets.coingecko.com/coins/images/12271/small/512x512_Logo_no_chop.png',
+    '1INCH': 'https://assets.coingecko.com/coins/images/13469/small/1inch-token.png',
+    GRT: 'https://assets.coingecko.com/coins/images/13397/small/Graph_Token.png',
+    LDO: 'https://assets.coingecko.com/coins/images/13573/small/Lido_DAO.png',
+    APE: 'https://assets.coingecko.com/coins/images/24383/small/apecoin.jpg',
+    SAND: 'https://assets.coingecko.com/coins/images/12129/small/sandbox_logo.jpg',
+    MANA: 'https://assets.coingecko.com/coins/images/878/small/decentraland-mana.png',
+  }
+
+  return (
+    SYMBOL_TO_LOGO[symbol.toUpperCase()] ||
+    'https://assets.coingecko.com/coins/images/279/small/ethereum.png'
+  )
+}
 
 // Popular tokens (fallback) - Using CDN URLs for token logos
 const POPULAR_TOKENS: Record<number, Token[]> = {
@@ -267,6 +316,8 @@ const TokenSelectorModal = ({
   onSelect,
   selectedToken,
   title,
+  showBalances = false,
+  emptyMessage,
 }: {
   isOpen: boolean
   onClose: () => void
@@ -274,6 +325,8 @@ const TokenSelectorModal = ({
   onSelect: (token: Token) => void
   selectedToken: Token | undefined
   title: string
+  showBalances?: boolean
+  emptyMessage?: string
 }) => {
   const { t } = useTranslation()
   const [search, setSearch] = useState('')
@@ -326,8 +379,16 @@ const TokenSelectorModal = ({
         {/* Token List */}
         <div className='max-h-[400px] overflow-y-auto'>
           {filteredTokens.length === 0 ? (
-            <div className='p-8 text-center text-gray-500 dark:text-gray-400'>
-              {t('swap.noTokensFound')}
+            <div className='p-8 text-center'>
+              <Wallet className='w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3' />
+              <p className='text-gray-500 dark:text-gray-400'>
+                {emptyMessage || t('swap.noTokensFound')}
+              </p>
+              {showBalances && (
+                <p className='text-sm text-gray-400 dark:text-gray-500 mt-2'>
+                  {t('swap.depositTokensHint')}
+                </p>
+              )}
             </div>
           ) : (
             <div className='p-2'>
@@ -794,7 +855,9 @@ export function SwapPage() {
   const [fromAmount, setFromAmount] = useState('')
   const [toAmount, setToAmount] = useState('')
   const [slippage, setSlippage] = useState(0.5)
-  const [tokens, setTokens] = useState<Token[]>(() => getDefaultTokens(137))
+  const [availableTokens, setAvailableTokens] = useState<Token[]>(() => getDefaultTokens(137))
+  const [userTokens, setUserTokens] = useState<Token[]>([])
+  const [loadingBalances, setLoadingBalances] = useState(false)
   const [quote, setQuote] = useState<SwapQuote | null>(null)
   const [swapStatus, setSwapStatus] = useState<SwapStatus | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -807,25 +870,80 @@ export function SwapPage() {
   const [showSettings, setShowSettings] = useState(false)
   const [showConfirmation, setShowConfirmation] = useState(false)
 
-  // Load tokens for selected network
+  // Load user token balances (tokens the user owns)
   useEffect(() => {
-    const loadTokens = async () => {
+    const loadUserBalances = async () => {
+      setLoadingBalances(true)
+      try {
+        const response = await apiClient.get(`/swap/user-balances/${selectedNetwork.id}`)
+        if (response && typeof response === 'object' && 'tokens' in response) {
+          const balanceTokens = (
+            response as {
+              tokens: Array<{
+                address: string
+                symbol: string
+                name: string
+                decimals: number
+                balance: string
+                balance_formatted: string
+                balance_usd: string
+                price_usd: string
+                logo_url: string
+              }>
+            }
+          ).tokens.map(tkn => ({
+            address: tkn.address,
+            symbol: tkn.symbol,
+            name: tkn.name,
+            decimals: tkn.decimals,
+            logoURI: tkn.logo_url || undefined,
+            balance: tkn.balance_formatted,
+            balanceUSD: Number.parseFloat(tkn.balance_usd),
+          }))
+          setUserTokens(balanceTokens)
+
+          // Set default from token (first user token with balance)
+          if (balanceTokens.length > 0) {
+            setFromToken(balanceTokens[0])
+          }
+        }
+      } catch {
+        // User may not have any tokens
+        setUserTokens([])
+      } finally {
+        setLoadingBalances(false)
+      }
+    }
+    loadUserBalances()
+  }, [selectedNetwork.id])
+
+  // Load available tokens from DEX aggregators (all supported tokens)
+  useEffect(() => {
+    const loadAvailableTokens = async () => {
       try {
         const response = await apiClient.get(`/swap/tokens/${selectedNetwork.id}`)
         if (response && typeof response === 'object' && 'tokens' in response) {
-          setTokens((response as { tokens: Token[] }).tokens)
+          const supportedTokens = (response as { tokens: Token[] }).tokens.map(tkn => ({
+            ...tkn,
+            logoURI: getTokenLogoURI(tkn.symbol),
+          }))
+          setAvailableTokens(supportedTokens)
+
+          // Set default to token (second token, or first if only one)
+          if (supportedTokens.length > 1) {
+            setToToken(supportedTokens[1])
+          } else if (supportedTokens.length === 1) {
+            setToToken(supportedTokens[0])
+          }
         }
       } catch {
         // Fallback to popular tokens
-        setTokens(getDefaultTokens(selectedNetwork.id))
+        setAvailableTokens(getDefaultTokens(selectedNetwork.id))
       }
     }
-    loadTokens()
+    loadAvailableTokens()
 
-    // Reset tokens when network changes
-    const networkTokens = getDefaultTokens(selectedNetwork.id)
-    setFromToken(networkTokens[0])
-    setToToken(networkTokens[1])
+    // Reset state when network changes
     setFromAmount('')
     setToAmount('')
     setQuote(null)
@@ -1297,22 +1415,29 @@ export function SwapPage() {
       </div>
 
       {/* Modals */}
+      {/* FROM Token: Show only user's tokens with balance */}
       <TokenSelectorModal
         isOpen={showFromTokenModal}
         onClose={() => setShowFromTokenModal(false)}
-        tokens={tokens}
+        tokens={userTokens}
         onSelect={setFromToken}
         selectedToken={fromToken}
         title={t('swap.selectFromToken')}
+        showBalances
+        emptyMessage={loadingBalances ? t('swap.loadingBalances') : t('swap.noTokensInWallet')}
       />
 
+      {/* TO Token: Show all available tokens from DEX aggregators */}
       <TokenSelectorModal
         isOpen={showToTokenModal}
         onClose={() => setShowToTokenModal(false)}
-        tokens={tokens.filter(tkn => tkn.address !== fromToken?.address)}
+        tokens={availableTokens.filter(
+          (tkn: Token) => tkn.address.toLowerCase() !== fromToken?.address.toLowerCase()
+        )}
         onSelect={setToToken}
         selectedToken={toToken}
         title={t('swap.selectToToken')}
+        emptyMessage={t('swap.noTokensAvailable')}
       />
 
       <SettingsModal

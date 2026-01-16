@@ -43,6 +43,11 @@ CHAIN_CONFIG = {
         "native_token": "ETH",
         "wrapped_native": "0x4200000000000000000000000000000000000006",  # WETH Base
     },
+    43114: {
+        "name": "avalanche",
+        "native_token": "AVAX",
+        "wrapped_native": "0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7",  # WAVAX
+    },
 }
 
 # Endereço nativo (representa ETH/MATIC/BNB)
