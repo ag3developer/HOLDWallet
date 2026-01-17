@@ -27,6 +27,7 @@ interface SwapSuggestionsProps {
   loading?: boolean
   error?: string | null
   onExecuteSwap?: (suggestion: SwapSuggestion) => void
+  formatCurrency?: (amountUSD: number) => string
 }
 
 const getPriorityStyle = (priority: number) => {
@@ -147,7 +148,16 @@ const SwapSuggestions: React.FC<SwapSuggestionsProps> = ({
   loading,
   error,
   onExecuteSwap,
+  formatCurrency,
 }) => {
+  // Helper: format price with user currency or fallback
+  const formatPrice = (value: number) => {
+    if (formatCurrency) {
+      return formatCurrency(value)
+    }
+    return formatUSD(value)
+  }
+
   if (loading) {
     return (
       <div className='flex flex-col items-center justify-center p-12 space-y-4 bg-white dark:bg-gray-900/80 rounded-2xl border border-gray-200 dark:border-gray-700/50'>
@@ -242,7 +252,7 @@ const SwapSuggestions: React.FC<SwapSuggestionsProps> = ({
             <TrendingUp className='w-4 h-4 text-green-400' />
           </div>
           <p className='text-2xl font-bold text-green-400'>
-            {formatUSD(data.summary.total_suggested_swap_value)}
+            {formatPrice(data.summary.total_suggested_swap_value)}
           </p>
           <p className='text-xs text-gray-500 dark:text-gray-400'>Valor Total</p>
         </div>
@@ -325,7 +335,7 @@ const SwapSuggestions: React.FC<SwapSuggestionsProps> = ({
               {/* Amount */}
               <div className='text-center mb-4 p-3 bg-white dark:bg-gray-800/50 rounded-xl'>
                 <p className='text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-indigo-500'>
-                  {formatUSD(suggestion.suggested_amount_usd)}
+                  {formatPrice(suggestion.suggested_amount_usd)}
                 </p>
                 <p className='text-xs text-gray-500 dark:text-gray-400'>Valor Sugerido</p>
               </div>

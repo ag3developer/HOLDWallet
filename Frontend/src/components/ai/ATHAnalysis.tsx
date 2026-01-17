@@ -25,6 +25,7 @@ interface ATHAnalysisProps {
   data: ATHAnalysisType[] | null
   loading?: boolean
   error?: string | null
+  formatCurrency?: (amountUSD: number) => string
 }
 
 // Zone color mapping
@@ -88,7 +89,15 @@ const formatNumber = (num: number, decimals: number = 2) => {
   return `$${num.toFixed(decimals)}`
 }
 
-const ATHAnalysis: React.FC<ATHAnalysisProps> = ({ data, loading, error }) => {
+const ATHAnalysis: React.FC<ATHAnalysisProps> = ({ data, loading, error, formatCurrency }) => {
+  // Helper: format price with user currency or fallback
+  const formatPrice = (value: number) => {
+    if (formatCurrency) {
+      return formatCurrency(value)
+    }
+    return formatNumber(value)
+  }
+
   if (loading) {
     return (
       <div className='flex flex-col items-center justify-center p-12 space-y-4 bg-white dark:bg-gray-900/80 rounded-2xl border border-gray-200 dark:border-gray-700/50'>
@@ -220,13 +229,13 @@ const ATHAnalysis: React.FC<ATHAnalysisProps> = ({ data, loading, error }) => {
                 <div>
                   <p className='text-xs text-gray-500 dark:text-gray-400 mb-1'>Current Price</p>
                   <p className='text-base font-semibold text-gray-900 dark:text-white'>
-                    {formatNumber(asset.current_price)}
+                    {formatPrice(asset.current_price)}
                   </p>
                 </div>
                 <div>
                   <p className='text-xs text-gray-500 dark:text-gray-400 mb-1'>ATH Price</p>
                   <p className='text-base font-semibold text-gray-600 dark:text-gray-300'>
-                    {formatNumber(asset.ath_price)}
+                    {formatPrice(asset.ath_price)}
                   </p>
                 </div>
               </div>

@@ -25,6 +25,7 @@ interface TechnicalIndicatorsProps {
   data: TechnicalIndicatorsType | null
   loading?: boolean
   error?: string | null
+  formatCurrency?: (amountUSD: number) => string
 }
 
 const getSignalColor = (signal: string): string => {
@@ -91,7 +92,20 @@ const SignalIcon: React.FC<{ signal: string }> = ({ signal }) => {
   return <Minus className='w-4 h-4 text-yellow-400' />
 }
 
-const TechnicalIndicators: React.FC<TechnicalIndicatorsProps> = ({ data, loading, error }) => {
+const TechnicalIndicators: React.FC<TechnicalIndicatorsProps> = ({
+  data,
+  loading,
+  error,
+  formatCurrency,
+}) => {
+  // Helper: format price with user currency or fallback
+  const formatPrice = (value: number) => {
+    if (formatCurrency) {
+      return formatCurrency(value)
+    }
+    return `$${value.toFixed(0)}`
+  }
+
   if (loading) {
     return (
       <div className='flex flex-col items-center justify-center p-12 space-y-4 bg-white dark:bg-gray-900/80 rounded-2xl border border-gray-200 dark:border-gray-700/50'>
@@ -248,7 +262,7 @@ const TechnicalIndicators: React.FC<TechnicalIndicatorsProps> = ({ data, loading
               <div className='text-center p-3 bg-blue-500/10 rounded-xl border border-blue-500/20'>
                 <p className='text-xs text-gray-500 dark:text-gray-400 mb-1'>SMA 20</p>
                 <p className='text-lg font-bold text-blue-500'>
-                  ${indicators.trend.sma.sma_20.toFixed(0)}
+                  {formatPrice(indicators.trend.sma.sma_20)}
                 </p>
               </div>
             )}
@@ -256,7 +270,7 @@ const TechnicalIndicators: React.FC<TechnicalIndicatorsProps> = ({ data, loading
               <div className='text-center p-3 bg-purple-500/10 rounded-xl border border-purple-500/20'>
                 <p className='text-xs text-gray-500 dark:text-gray-400 mb-1'>SMA 50</p>
                 <p className='text-lg font-bold text-purple-500'>
-                  ${indicators.trend.sma.sma_50.toFixed(0)}
+                  {formatPrice(indicators.trend.sma.sma_50)}
                 </p>
               </div>
             )}
@@ -264,7 +278,7 @@ const TechnicalIndicators: React.FC<TechnicalIndicatorsProps> = ({ data, loading
               <div className='text-center p-3 bg-orange-500/10 rounded-xl border border-orange-500/20'>
                 <p className='text-xs text-gray-500 dark:text-gray-400 mb-1'>SMA 200</p>
                 <p className='text-lg font-bold text-orange-500'>
-                  ${indicators.trend.sma.sma_200.toFixed(0)}
+                  {formatPrice(indicators.trend.sma.sma_200)}
                 </p>
               </div>
             )}
@@ -339,19 +353,19 @@ const TechnicalIndicators: React.FC<TechnicalIndicatorsProps> = ({ data, loading
             <div className='text-center p-3 bg-red-500/10 rounded-xl border border-red-500/20'>
               <p className='text-xs text-gray-500 dark:text-gray-400 mb-1'>Upper</p>
               <p className='text-lg font-bold text-red-500'>
-                ${indicators.volatility.bollinger.upper.toFixed(0)}
+                {formatPrice(indicators.volatility.bollinger.upper)}
               </p>
             </div>
             <div className='text-center p-3 bg-yellow-500/10 rounded-xl border border-yellow-500/20'>
               <p className='text-xs text-gray-500 dark:text-gray-400 mb-1'>Middle</p>
               <p className='text-lg font-bold text-yellow-500'>
-                ${indicators.volatility.bollinger.middle.toFixed(0)}
+                {formatPrice(indicators.volatility.bollinger.middle)}
               </p>
             </div>
             <div className='text-center p-3 bg-green-500/10 rounded-xl border border-green-500/20'>
               <p className='text-xs text-gray-500 dark:text-gray-400 mb-1'>Lower</p>
               <p className='text-lg font-bold text-green-500'>
-                ${indicators.volatility.bollinger.lower.toFixed(0)}
+                {formatPrice(indicators.volatility.bollinger.lower)}
               </p>
             </div>
             <div className='text-center p-3 bg-white dark:bg-gray-800/50 rounded-xl'>
@@ -370,7 +384,7 @@ const TechnicalIndicators: React.FC<TechnicalIndicatorsProps> = ({ data, loading
             <div className='text-center p-4 bg-orange-500/10 rounded-xl border border-orange-500/20'>
               <p className='text-xs text-gray-500 dark:text-gray-400 mb-1'>Value</p>
               <p className='text-2xl font-bold text-orange-500'>
-                ${indicators.volatility.atr.value.toFixed(2)}
+                {formatPrice(indicators.volatility.atr.value)}
               </p>
             </div>
             <div className='text-center p-4 bg-cyan-500/10 rounded-xl border border-cyan-500/20'>

@@ -38,6 +38,7 @@ import {
   TechnicalIndicators as TechnicalIndicatorsType,
 } from '@/services/aiService'
 import { apiClient } from '@/services/api'
+import { useCurrencyStore } from '@/stores/useCurrencyStore'
 
 type TabType = 'overview' | 'ath' | 'correlation' | 'swap' | 'indicators'
 
@@ -96,6 +97,9 @@ const AIIntelligencePage: React.FC<AIIntelligencePageProps> = ({ onBack }) => {
   const [activeTab, setActiveTab] = useState<TabType>('overview')
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+
+  // Currency store - for displaying values in user's preferred currency
+  const { formatCurrency } = useCurrencyStore()
 
   // Real data states
   const [portfolio, setPortfolio] = useState<PortfolioAsset[]>([])
@@ -630,13 +634,7 @@ const AIIntelligencePage: React.FC<AIIntelligencePageProps> = ({ onBack }) => {
                 <div className='text-right'>
                   <p className='text-xs text-gray-500 dark:text-gray-400'>Valor Total</p>
                   <p className='text-lg font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent'>
-                    $
-                    {portfolio
-                      .reduce((sum, a) => sum + a.value_usd, 0)
-                      .toLocaleString('en-US', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
+                    {formatCurrency(portfolio.reduce((sum, a) => sum + a.value_usd, 0))}
                   </p>
                 </div>
                 <div className='p-2 bg-green-100 dark:bg-green-900/30 rounded-xl'>
@@ -759,7 +757,7 @@ const AIIntelligencePage: React.FC<AIIntelligencePageProps> = ({ onBack }) => {
                           </div>
                           <div className='text-right'>
                             <span className='text-lg font-bold text-yellow-500'>
-                              ${top.suggested_amount_usd.toFixed(0)}
+                              {formatCurrency(top.suggested_amount_usd)}
                             </span>
                             <p className='text-[10px] text-gray-500'>sugerido</p>
                           </div>
@@ -800,7 +798,12 @@ const AIIntelligencePage: React.FC<AIIntelligencePageProps> = ({ onBack }) => {
         )}
 
         {!loading && !dataLoadError && activeTab === 'ath' && (
-          <ATHAnalysis data={athData} loading={loading} error={athError} />
+          <ATHAnalysis
+            data={athData}
+            loading={loading}
+            error={athError}
+            formatCurrency={formatCurrency}
+          />
         )}
 
         {!loading && !dataLoadError && activeTab === 'correlation' && (
@@ -808,7 +811,12 @@ const AIIntelligencePage: React.FC<AIIntelligencePageProps> = ({ onBack }) => {
         )}
 
         {!loading && !dataLoadError && activeTab === 'swap' && (
-          <SwapSuggestions data={swapData} loading={loading} error={swapError} />
+          <SwapSuggestions
+            data={swapData}
+            loading={loading}
+            error={swapError}
+            formatCurrency={formatCurrency}
+          />
         )}
 
         {!loading && !dataLoadError && activeTab === 'indicators' && (
@@ -840,7 +848,12 @@ const AIIntelligencePage: React.FC<AIIntelligencePageProps> = ({ onBack }) => {
               </div>
             </div>
 
-            <TechnicalIndicators data={indicatorsData} loading={loading} error={indicatorsError} />
+            <TechnicalIndicators
+              data={indicatorsData}
+              loading={loading}
+              error={indicatorsError}
+              formatCurrency={formatCurrency}
+            />
           </div>
         )}
       </div>
