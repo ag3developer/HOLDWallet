@@ -1119,64 +1119,62 @@ export function SwapPage() {
   }
 
   return (
-    <div className='min-h-screen pb-24 sm:pb-20 lg:pb-0 px-4 sm:px-0'>
+    <div className='min-h-screen pb-24 sm:pb-20 lg:pb-0 px-3 sm:px-4 md:px-6 max-w-7xl mx-auto'>
       {/* Header - Responsive */}
-      <div className='flex flex-col gap-4 mb-5 sm:mb-6'>
+      <div className='flex flex-col gap-3 sm:gap-4 mb-4 sm:mb-6'>
         <div>
-          <div className='flex items-center gap-2 sm:gap-3 mb-1'>
-            <h1 className='text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-white'>
+          <div className='flex items-center gap-2 mb-1'>
+            <h1 className='text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white'>
               {t('swap.title')}
             </h1>
-            <div className='flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-0.5 sm:py-1 bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-200 dark:border-blue-800 rounded-full'>
-              <ArrowDownUp className='w-3 sm:w-3.5 h-3 sm:h-3.5 text-blue-500' />
-              <span className='text-xs font-medium text-blue-700 dark:text-blue-400'>DEX</span>
+            <div className='flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-200 dark:border-blue-800 rounded-full'>
+              <ArrowDownUp className='w-3 h-3 text-blue-500' />
+              <span className='text-[10px] sm:text-xs font-medium text-blue-700 dark:text-blue-400'>
+                DEX
+              </span>
             </div>
           </div>
-          <p className='text-gray-500 dark:text-gray-400 text-xs sm:text-sm'>
+          <p className='text-gray-500 dark:text-gray-400 text-[11px] sm:text-xs md:text-sm'>
             {t('swap.subtitle')}
           </p>
         </div>
 
         {/* Network Selector - Horizontal scroll on mobile */}
-        <div className='flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap scrollbar-hide'>
+        <div className='flex gap-1.5 sm:gap-2 overflow-x-auto pb-2 -mx-3 px-3 sm:-mx-4 sm:px-4 md:mx-0 md:px-0 md:flex-wrap scrollbar-hide'>
           {NETWORKS.map(network => (
             <button
               key={network.id}
               onClick={() => setSelectedNetwork(network)}
               className={cn(
-                'flex items-center gap-1.5 sm:gap-2 px-3 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all flex-shrink-0 touch-manipulation active:scale-[0.97]',
+                'flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-[10px] sm:text-xs md:text-sm font-medium transition-all flex-shrink-0 touch-manipulation active:scale-[0.97]',
                 selectedNetwork.id === network.id
                   ? `bg-gradient-to-r ${network.color} text-white shadow-lg`
                   : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 active:bg-gray-100 dark:active:bg-gray-700'
               )}
             >
-              <img
-                src={network.icon}
-                alt={network.name}
-                className='w-4 sm:w-5 h-4 sm:h-5 rounded-full'
-              />
-              <span>{network.name}</span>
+              <img src={network.icon} alt={network.name} className='w-4 h-4 rounded-full' />
+              <span className='whitespace-nowrap'>{network.name}</span>
             </button>
           ))}
         </div>
       </div>
 
       {/* Main Content - Stack on mobile, grid on desktop */}
-      <div className='grid lg:grid-cols-3 gap-4 sm:gap-6'>
+      <div className='grid lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6'>
         {/* Swap Card */}
         <div className='lg:col-span-2'>
-          <div className='bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden'>
+          <div className='bg-white dark:bg-gray-900 rounded-xl sm:rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden'>
             {/* Card Header */}
-            <div className='flex items-center justify-between p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700'>
-              <div className='flex items-center gap-2 sm:gap-3'>
-                <div className='p-1.5 sm:p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg sm:rounded-xl'>
-                  <ArrowDownUp className='w-4 sm:w-5 h-4 sm:h-5 text-white' />
+            <div className='flex items-center justify-between p-2.5 sm:p-3 md:p-4 border-b border-gray-200 dark:border-gray-700'>
+              <div className='flex items-center gap-2'>
+                <div className='p-1.5 sm:p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg'>
+                  <ArrowDownUp className='w-3.5 sm:w-4 md:w-5 h-3.5 sm:h-4 md:h-5 text-white' />
                 </div>
                 <div>
-                  <h2 className='font-bold text-sm sm:text-base text-gray-900 dark:text-white'>
+                  <h2 className='font-bold text-xs sm:text-sm md:text-base text-gray-900 dark:text-white'>
                     {t('swap.swapTokens')}
                   </h2>
-                  <p className='text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 hidden sm:block'>
+                  <p className='text-[9px] sm:text-[10px] md:text-xs text-gray-500 dark:text-gray-400 hidden xs:block'>
                     {t('swap.bestRates')}
                   </p>
                 </div>
@@ -1184,41 +1182,41 @@ export function SwapPage() {
               <button
                 onClick={() => setShowSettings(true)}
                 aria-label='Open settings'
-                className='p-2 sm:p-2.5 hover:bg-gray-100 dark:hover:bg-gray-800 active:bg-gray-200 dark:active:bg-gray-700 rounded-lg sm:rounded-xl transition-colors touch-manipulation'
+                className='p-1.5 sm:p-2 hover:bg-gray-100 dark:hover:bg-gray-800 active:bg-gray-200 dark:active:bg-gray-700 rounded-lg transition-colors touch-manipulation'
               >
                 <Settings className='w-4 sm:w-5 h-4 sm:h-5 text-gray-500' />
               </button>
             </div>
 
             {/* Swap Form */}
-            <div className='p-3 sm:p-4 md:p-6 space-y-3 sm:space-y-4'>
+            <div className='p-2.5 sm:p-3 md:p-4 lg:p-6 space-y-2.5 sm:space-y-3 md:space-y-4'>
               {/* Show Status if swap in progress */}
               {swapStatus && <SwapStatusCard status={swapStatus} onClose={handleCloseStatus} />}
 
               {!swapStatus && (
                 <>
                   {/* From Token */}
-                  <div className='p-3 sm:p-4 bg-gray-50 dark:bg-gray-800 rounded-xl'>
-                    <div className='flex items-center justify-between mb-2'>
-                      <span className='text-xs sm:text-sm text-gray-500 dark:text-gray-400'>
+                  <div className='p-2.5 sm:p-3 md:p-4 bg-gray-50 dark:bg-gray-800 rounded-lg sm:rounded-xl'>
+                    <div className='flex items-center justify-between mb-1.5 sm:mb-2'>
+                      <span className='text-[10px] sm:text-xs md:text-sm text-gray-500 dark:text-gray-400'>
                         {t('swap.youPay')}
                       </span>
                       {fromToken?.balance && (
                         <button
                           onClick={() => setFromAmount(fromToken.balance ?? '')}
-                          className='text-[10px] sm:text-xs text-blue-500 hover:text-blue-600 active:text-blue-700 font-medium touch-manipulation'
+                          className='text-[9px] sm:text-[10px] md:text-xs text-blue-500 hover:text-blue-600 active:text-blue-700 font-medium touch-manipulation'
                         >
                           {t('swap.balance')}: {fromToken.balance}
                         </button>
                       )}
                     </div>
-                    <div className='flex items-center gap-2 sm:gap-3'>
+                    <div className='flex items-center gap-2'>
                       <button
                         onClick={() => setShowFromTokenModal(true)}
                         aria-label='Select from token'
-                        className='flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg sm:rounded-xl hover:border-gray-300 dark:hover:border-gray-600 active:bg-gray-50 dark:active:bg-gray-800 transition-colors touch-manipulation flex-shrink-0'
+                        className='flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 md:px-3 py-1 sm:py-1.5 md:py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-gray-300 dark:hover:border-gray-600 active:bg-gray-50 dark:active:bg-gray-800 transition-colors touch-manipulation flex-shrink-0'
                       >
-                        <div className='w-6 sm:w-8 h-6 sm:h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden'>
+                        <div className='w-5 sm:w-6 md:w-8 h-5 sm:h-6 md:h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden'>
                           {fromToken?.logoURI ? (
                             <img
                               src={fromToken.logoURI}
@@ -1226,15 +1224,15 @@ export function SwapPage() {
                               className='w-full h-full object-cover'
                             />
                           ) : (
-                            <span className='text-[10px] sm:text-xs font-bold'>
+                            <span className='text-[8px] sm:text-[10px] md:text-xs font-bold'>
                               {fromToken?.symbol?.slice(0, 2)}
                             </span>
                           )}
                         </div>
-                        <span className='font-semibold text-xs sm:text-sm text-gray-900 dark:text-white'>
+                        <span className='font-semibold text-[10px] sm:text-xs md:text-sm text-gray-900 dark:text-white max-w-[60px] sm:max-w-none truncate'>
                           {fromToken?.symbol ?? t('swap.selectToken')}
                         </span>
-                        <ChevronDown className='w-3 sm:w-4 h-3 sm:h-4 text-gray-400' />
+                        <ChevronDown className='w-3 h-3 text-gray-400 flex-shrink-0' />
                       </button>
                       <input
                         type='number'
@@ -1242,41 +1240,41 @@ export function SwapPage() {
                         value={fromAmount}
                         onChange={e => setFromAmount(e.target.value)}
                         placeholder='0.00'
-                        className='flex-1 min-w-0 text-right text-lg sm:text-2xl font-bold bg-transparent text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none'
+                        className='flex-1 min-w-0 text-right text-base sm:text-lg md:text-2xl font-bold bg-transparent text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none'
                       />
                     </div>
                   </div>
 
                   {/* Swap Button */}
-                  <div className='flex justify-center -my-1.5 sm:-my-2 relative z-10'>
+                  <div className='flex justify-center -my-1 sm:-my-1.5 md:-my-2 relative z-10'>
                     <button
                       onClick={handleSwapTokens}
                       aria-label='Swap token positions'
-                      className='p-2 sm:p-3 bg-white dark:bg-gray-900 border-4 border-gray-50 dark:border-gray-800 rounded-lg sm:rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 active:bg-gray-200 dark:active:bg-gray-700 transition-colors shadow-lg hover:shadow-xl active:scale-95 touch-manipulation'
+                      className='p-1.5 sm:p-2 md:p-3 bg-white dark:bg-gray-900 border-4 border-gray-50 dark:border-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 active:bg-gray-200 dark:active:bg-gray-700 transition-colors shadow-lg hover:shadow-xl active:scale-95 touch-manipulation'
                     >
-                      <ArrowDownUp className='w-4 sm:w-5 h-4 sm:h-5 text-blue-500' />
+                      <ArrowDownUp className='w-3.5 sm:w-4 md:w-5 h-3.5 sm:h-4 md:h-5 text-blue-500' />
                     </button>
                   </div>
 
                   {/* To Token */}
-                  <div className='p-3 sm:p-4 bg-gray-50 dark:bg-gray-800 rounded-xl'>
-                    <div className='flex items-center justify-between mb-2'>
-                      <span className='text-xs sm:text-sm text-gray-500 dark:text-gray-400'>
+                  <div className='p-2.5 sm:p-3 md:p-4 bg-gray-50 dark:bg-gray-800 rounded-lg sm:rounded-xl'>
+                    <div className='flex items-center justify-between mb-1.5 sm:mb-2'>
+                      <span className='text-[10px] sm:text-xs md:text-sm text-gray-500 dark:text-gray-400'>
                         {t('swap.youReceive')}
                       </span>
                       {quote && (
-                        <span className='text-[10px] sm:text-xs text-gray-400'>
+                        <span className='text-[9px] sm:text-[10px] md:text-xs text-gray-400'>
                           ~${((Number.parseFloat(toAmount) || 0) * 1).toFixed(2)}
                         </span>
                       )}
                     </div>
-                    <div className='flex items-center gap-2 sm:gap-3'>
+                    <div className='flex items-center gap-2'>
                       <button
                         onClick={() => setShowToTokenModal(true)}
                         aria-label='Select to token'
-                        className='flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg sm:rounded-xl hover:border-gray-300 dark:hover:border-gray-600 active:bg-gray-50 dark:active:bg-gray-800 transition-colors touch-manipulation flex-shrink-0'
+                        className='flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 md:px-3 py-1 sm:py-1.5 md:py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-gray-300 dark:hover:border-gray-600 active:bg-gray-50 dark:active:bg-gray-800 transition-colors touch-manipulation flex-shrink-0'
                       >
-                        <div className='w-6 sm:w-8 h-6 sm:h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden'>
+                        <div className='w-5 sm:w-6 md:w-8 h-5 sm:h-6 md:h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden'>
                           {toToken?.logoURI ? (
                             <img
                               src={toToken.logoURI}
@@ -1284,26 +1282,26 @@ export function SwapPage() {
                               className='w-full h-full object-cover'
                             />
                           ) : (
-                            <span className='text-[10px] sm:text-xs font-bold'>
+                            <span className='text-[8px] sm:text-[10px] md:text-xs font-bold'>
                               {toToken?.symbol?.slice(0, 2)}
                             </span>
                           )}
                         </div>
-                        <span className='font-semibold text-xs sm:text-sm text-gray-900 dark:text-white'>
+                        <span className='font-semibold text-[10px] sm:text-xs md:text-sm text-gray-900 dark:text-white max-w-[60px] sm:max-w-none truncate'>
                           {toToken?.symbol ?? t('swap.selectToken')}
                         </span>
-                        <ChevronDown className='w-3 sm:w-4 h-3 sm:h-4 text-gray-400' />
+                        <ChevronDown className='w-3 h-3 text-gray-400 flex-shrink-0' />
                       </button>
                       <div className='flex-1 min-w-0 text-right'>
                         {isQuoteLoading ? (
-                          <Loader2 className='w-5 sm:w-6 h-5 sm:h-6 text-blue-500 animate-spin ml-auto' />
+                          <Loader2 className='w-4 sm:w-5 md:w-6 h-4 sm:h-5 md:h-6 text-blue-500 animate-spin ml-auto' />
                         ) : (
                           <input
                             type='text'
                             value={toAmount}
                             readOnly
                             placeholder='0.00'
-                            className='w-full text-right text-lg sm:text-2xl font-bold bg-transparent text-green-600 dark:text-green-400 placeholder:text-gray-400 focus:outline-none'
+                            className='w-full text-right text-base sm:text-lg md:text-2xl font-bold bg-transparent text-green-600 dark:text-green-400 placeholder:text-gray-400 focus:outline-none'
                           />
                         )}
                       </div>
@@ -1312,11 +1310,13 @@ export function SwapPage() {
 
                   {/* Quote Details */}
                   {quote && (
-                    <div className='p-3 sm:p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl space-y-1.5 sm:space-y-2 text-xs sm:text-sm'>
-                      <div className='flex justify-between'>
-                        <span className='text-gray-600 dark:text-gray-400'>{t('swap.rate')}</span>
-                        <span className='text-gray-900 dark:text-white font-medium text-right'>
-                          1 {fromToken?.symbol} = {quote.exchange_rate.toFixed(6)} {toToken?.symbol}
+                    <div className='p-2.5 sm:p-3 md:p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg sm:rounded-xl space-y-1 sm:space-y-1.5 md:space-y-2 text-[10px] sm:text-xs md:text-sm'>
+                      <div className='flex justify-between gap-2'>
+                        <span className='text-gray-600 dark:text-gray-400 flex-shrink-0'>
+                          {t('swap.rate')}
+                        </span>
+                        <span className='text-gray-900 dark:text-white font-medium text-right truncate'>
+                          1 {fromToken?.symbol} = {quote.exchange_rate.toFixed(4)} {toToken?.symbol}
                         </span>
                       </div>
                       <div className='flex justify-between'>
@@ -1340,9 +1340,11 @@ export function SwapPage() {
 
                   {/* Error */}
                   {error && (
-                    <div className='flex items-start gap-2 p-3 sm:p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl'>
-                      <AlertCircle className='w-4 sm:w-5 h-4 sm:h-5 text-red-500 flex-shrink-0 mt-0.5' />
-                      <p className='text-xs sm:text-sm text-red-600 dark:text-red-400'>{error}</p>
+                    <div className='flex items-start gap-2 p-2.5 sm:p-3 md:p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg sm:rounded-xl'>
+                      <AlertCircle className='w-4 h-4 text-red-500 flex-shrink-0 mt-0.5' />
+                      <p className='text-[10px] sm:text-xs md:text-sm text-red-600 dark:text-red-400'>
+                        {error}
+                      </p>
                     </div>
                   )}
 
@@ -1350,13 +1352,13 @@ export function SwapPage() {
                   <button
                     onClick={() => setShowConfirmation(true)}
                     disabled={!quote || isLoading || isQuoteLoading}
-                    className='w-full py-3.5 sm:py-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold text-sm sm:text-base rounded-xl hover:from-blue-600 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg hover:shadow-xl active:scale-[0.99] touch-manipulation'
+                    className='w-full py-3 sm:py-3.5 md:py-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold text-xs sm:text-sm md:text-base rounded-lg sm:rounded-xl hover:from-blue-600 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg hover:shadow-xl active:scale-[0.99] touch-manipulation'
                   >
                     {(() => {
                       if (isQuoteLoading) {
                         return (
                           <>
-                            <Loader2 className='w-4 sm:w-5 h-4 sm:h-5 animate-spin' />
+                            <Loader2 className='w-4 h-4 animate-spin' />
                             <span>{t('swap.gettingQuote')}</span>
                           </>
                         )
@@ -1369,7 +1371,7 @@ export function SwapPage() {
                       }
                       return (
                         <>
-                          <ArrowDownUp className='w-4 sm:w-5 h-4 sm:h-5' />
+                          <ArrowDownUp className='w-4 h-4' />
                           <span>{t('swap.swapNow')}</span>
                         </>
                       )
@@ -1381,50 +1383,50 @@ export function SwapPage() {
           </div>
         </div>
 
-        {/* Sidebar - Benefits & Info (hidden on mobile, shown below swap card as compact cards) */}
-        <div className='lg:col-span-1 space-y-4 sm:space-y-6'>
+        {/* Sidebar - Benefits & Info */}
+        <div className='lg:col-span-1 space-y-3 sm:space-y-4 md:space-y-6'>
           {/* Benefits Card */}
-          <div className='bg-white dark:bg-gray-900 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6'>
-            <h3 className='font-bold text-sm sm:text-base text-gray-900 dark:text-white mb-3 sm:mb-4 flex items-center gap-2'>
-              <Zap className='w-4 sm:w-5 h-4 sm:h-5 text-blue-500' />
+          <div className='bg-white dark:bg-gray-900 rounded-xl sm:rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4 md:p-6'>
+            <h3 className='font-bold text-xs sm:text-sm md:text-base text-gray-900 dark:text-white mb-2.5 sm:mb-3 md:mb-4 flex items-center gap-2'>
+              <Zap className='w-4 h-4 text-blue-500' />
               {t('swap.whySwapHere')}
             </h3>
-            <div className='space-y-3 sm:space-y-4'>
-              <div className='flex items-start gap-2 sm:gap-3'>
-                <div className='p-1.5 sm:p-2 bg-green-100 dark:bg-green-900/30 rounded-lg flex-shrink-0'>
-                  <TrendingUp className='w-3.5 sm:w-4 h-3.5 sm:h-4 text-green-600 dark:text-green-400' />
+            <div className='space-y-2.5 sm:space-y-3 md:space-y-4'>
+              <div className='flex items-start gap-2'>
+                <div className='p-1.5 bg-green-100 dark:bg-green-900/30 rounded-lg flex-shrink-0'>
+                  <TrendingUp className='w-3 sm:w-3.5 h-3 sm:h-3.5 text-green-600 dark:text-green-400' />
                 </div>
                 <div className='min-w-0'>
-                  <p className='font-semibold text-xs sm:text-sm text-gray-900 dark:text-white'>
+                  <p className='font-semibold text-[10px] sm:text-xs md:text-sm text-gray-900 dark:text-white'>
                     {t('swap.benefitBestRates')}
                   </p>
-                  <p className='text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 line-clamp-2'>
+                  <p className='text-[9px] sm:text-[10px] md:text-xs text-gray-500 dark:text-gray-400 line-clamp-2'>
                     {t('swap.benefitBestRatesDesc')}
                   </p>
                 </div>
               </div>
-              <div className='flex items-start gap-2 sm:gap-3'>
-                <div className='p-1.5 sm:p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex-shrink-0'>
-                  <Shield className='w-3.5 sm:w-4 h-3.5 sm:h-4 text-blue-600 dark:text-blue-400' />
+              <div className='flex items-start gap-2'>
+                <div className='p-1.5 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex-shrink-0'>
+                  <Shield className='w-3 sm:w-3.5 h-3 sm:h-3.5 text-blue-600 dark:text-blue-400' />
                 </div>
                 <div className='min-w-0'>
-                  <p className='font-semibold text-xs sm:text-sm text-gray-900 dark:text-white'>
+                  <p className='font-semibold text-[10px] sm:text-xs md:text-sm text-gray-900 dark:text-white'>
                     {t('swap.benefitSecure')}
                   </p>
-                  <p className='text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 line-clamp-2'>
+                  <p className='text-[9px] sm:text-[10px] md:text-xs text-gray-500 dark:text-gray-400 line-clamp-2'>
                     {t('swap.benefitSecureDesc')}
                   </p>
                 </div>
               </div>
-              <div className='flex items-start gap-2 sm:gap-3'>
-                <div className='p-1.5 sm:p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex-shrink-0'>
-                  <Fuel className='w-3.5 sm:w-4 h-3.5 sm:h-4 text-purple-600 dark:text-purple-400' />
+              <div className='flex items-start gap-2'>
+                <div className='p-1.5 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex-shrink-0'>
+                  <Fuel className='w-3 sm:w-3.5 h-3 sm:h-3.5 text-purple-600 dark:text-purple-400' />
                 </div>
                 <div className='min-w-0'>
-                  <p className='font-semibold text-xs sm:text-sm text-gray-900 dark:text-white'>
+                  <p className='font-semibold text-[10px] sm:text-xs md:text-sm text-gray-900 dark:text-white'>
                     {t('swap.benefitLowFees')}
                   </p>
-                  <p className='text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 line-clamp-2'>
+                  <p className='text-[9px] sm:text-[10px] md:text-xs text-gray-500 dark:text-gray-400 line-clamp-2'>
                     {t('swap.benefitLowFeesDesc')}
                   </p>
                 </div>
@@ -1435,35 +1437,35 @@ export function SwapPage() {
           {/* Quick Link to Instant Trade */}
           <Link
             to='/instant-trade'
-            className='block p-3 sm:p-4 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200 dark:border-amber-800 rounded-xl hover:shadow-md active:scale-[0.99] transition-all group touch-manipulation'
+            className='block p-2.5 sm:p-3 md:p-4 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200 dark:border-amber-800 rounded-lg sm:rounded-xl hover:shadow-md active:scale-[0.99] transition-all group touch-manipulation'
           >
-            <div className='flex items-center gap-2 sm:gap-3'>
-              <div className='p-1.5 sm:p-2 bg-gradient-to-br from-amber-500 to-orange-500 rounded-lg sm:rounded-xl flex-shrink-0'>
-                <Wallet className='w-4 sm:w-5 h-4 sm:h-5 text-white' />
+            <div className='flex items-center gap-2'>
+              <div className='p-1.5 bg-gradient-to-br from-amber-500 to-orange-500 rounded-lg flex-shrink-0'>
+                <Wallet className='w-3.5 sm:w-4 md:w-5 h-3.5 sm:h-4 md:h-5 text-white' />
               </div>
               <div className='flex-1 min-w-0'>
-                <p className='font-semibold text-xs sm:text-sm text-gray-900 dark:text-white'>
+                <p className='font-semibold text-[10px] sm:text-xs md:text-sm text-gray-900 dark:text-white'>
                   {t('swap.buyWithFiat')}
                 </p>
-                <p className='text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 truncate'>
+                <p className='text-[9px] sm:text-[10px] md:text-xs text-gray-500 dark:text-gray-400 truncate'>
                   {t('swap.buyWithFiatDesc')}
                 </p>
               </div>
-              <ChevronRight className='w-4 sm:w-5 h-4 sm:h-5 text-gray-400 group-hover:translate-x-1 transition-transform flex-shrink-0' />
+              <ChevronRight className='w-4 h-4 text-gray-400 group-hover:translate-x-1 transition-transform flex-shrink-0' />
             </div>
           </Link>
 
           {/* Supported Networks - Compact on mobile */}
-          <div className='bg-white dark:bg-gray-900 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6'>
-            <h3 className='font-bold text-sm sm:text-base text-gray-900 dark:text-white mb-3 sm:mb-4'>
+          <div className='bg-white dark:bg-gray-900 rounded-xl sm:rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4 md:p-6'>
+            <h3 className='font-bold text-xs sm:text-sm md:text-base text-gray-900 dark:text-white mb-2.5 sm:mb-3 md:mb-4'>
               {t('swap.supportedNetworks')}
             </h3>
-            <div className='grid grid-cols-3 sm:grid-cols-2 gap-1.5 sm:gap-2'>
+            <div className='grid grid-cols-3 gap-1 sm:gap-1.5 md:gap-2'>
               {NETWORKS.map(network => (
                 <div
                   key={network.id}
                   className={cn(
-                    'flex items-center gap-1.5 sm:gap-2 p-1.5 sm:p-2 rounded-lg',
+                    'flex items-center gap-1 p-1.5 sm:p-2 rounded-lg',
                     selectedNetwork.id === network.id
                       ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
                       : 'bg-gray-50 dark:bg-gray-800'
@@ -1472,12 +1474,12 @@ export function SwapPage() {
                   <img
                     src={network.icon}
                     alt={network.name}
-                    className='w-4 sm:w-5 h-4 sm:h-5'
+                    className='w-3.5 sm:w-4 h-3.5 sm:h-4 flex-shrink-0'
                     onError={e => {
                       e.currentTarget.style.display = 'none'
                     }}
                   />
-                  <span className='text-[10px] sm:text-sm font-medium text-gray-700 dark:text-gray-300 truncate'>
+                  <span className='text-[9px] sm:text-[10px] md:text-xs font-medium text-gray-700 dark:text-gray-300 truncate'>
                     {network.name}
                   </span>
                 </div>
