@@ -242,44 +242,44 @@ export function CryptoSelector({
         </div>
 
         {/* Category Tabs */}
-        <div className='px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex gap-2'>
+        <div className='px-3 py-2 border-b border-gray-100 dark:border-gray-700 flex gap-1.5 overflow-x-auto'>
           <button
             onClick={() => setActiveCategory('all')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            className={`flex-1 min-w-0 px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${
               activeCategory === 'all'
                 ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
                 : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
             }`}
           >
-            <span className='flex items-center gap-1.5'>
-              <Coins className='w-4 h-4' />
-              Todas
+            <span className='flex items-center justify-center gap-1'>
+              <Coins className='w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0' />
+              <span>Todas</span>
             </span>
           </button>
           <button
             onClick={() => setActiveCategory('popular')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            className={`flex-1 min-w-0 px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${
               activeCategory === 'popular'
                 ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
                 : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
             }`}
           >
-            <span className='flex items-center gap-1.5'>
-              <Star className='w-4 h-4' />
-              Popular
+            <span className='flex items-center justify-center gap-1'>
+              <Star className='w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0' />
+              <span>Popular</span>
             </span>
           </button>
           <button
             onClick={() => setActiveCategory('stablecoins')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            className={`flex-1 min-w-0 px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${
               activeCategory === 'stablecoins'
                 ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
                 : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
             }`}
           >
-            <span className='flex items-center gap-1.5'>
-              <DollarSign className='w-4 h-4' />
-              Stablecoins
+            <span className='flex items-center justify-center gap-1'>
+              <DollarSign className='w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0' />
+              <span>Stables</span>
             </span>
           </button>
         </div>
@@ -308,17 +308,17 @@ export function CryptoSelector({
                   <button
                     key={crypto.symbol}
                     onClick={() => handleSelect(crypto.symbol)}
-                    className={`w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${
+                    className={`w-full flex items-center justify-between px-4 py-3 min-h-[64px] hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${
                       isSelected ? 'bg-blue-50 dark:bg-blue-900/20' : ''
                     }`}
                   >
-                    <div className='flex items-center gap-3'>
+                    <div className='flex items-center gap-3 min-w-0 flex-1'>
                       {/* Logo */}
-                      <div className='relative'>
+                      <div className='relative flex-shrink-0'>
                         <img
                           src={CRYPTO_LOGOS[crypto.symbol]}
                           alt={crypto.symbol}
-                          className={`w-10 h-10 rounded-full ${
+                          className={`w-10 h-10 rounded-full object-cover ${
                             isSelected
                               ? 'ring-2 ring-blue-500'
                               : 'ring-1 ring-gray-200 dark:ring-gray-700'
@@ -345,7 +345,7 @@ export function CryptoSelector({
                       </div>
 
                       {/* Info */}
-                      <div className='flex flex-col items-start'>
+                      <div className='flex flex-col items-start min-w-0'>
                         <div className='flex items-center gap-2'>
                           <span
                             className={`font-semibold ${
@@ -357,21 +357,21 @@ export function CryptoSelector({
                             {crypto.symbol}
                           </span>
                           {isStable && (
-                            <span className='px-1.5 py-0.5 text-[10px] font-semibold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded'>
+                            <span className='px-1.5 py-0.5 text-[10px] font-semibold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded flex-shrink-0'>
                               STABLE
                             </span>
                           )}
                         </div>
-                        <span className='text-xs text-gray-500 dark:text-gray-400 truncate max-w-[140px] sm:max-w-[200px]'>
+                        <span className='text-xs text-gray-500 dark:text-gray-400 truncate max-w-[120px] sm:max-w-[180px]'>
                           {crypto.name}
                         </span>
                       </div>
                     </div>
 
                     {/* Price Info */}
-                    <div className='flex flex-col items-end'>
+                    <div className='flex flex-col items-end flex-shrink-0 ml-2'>
                       <span
-                        className={`font-medium ${
+                        className={`font-medium text-sm ${
                           isSelected
                             ? 'text-blue-600 dark:text-blue-400'
                             : 'text-gray-900 dark:text-white'

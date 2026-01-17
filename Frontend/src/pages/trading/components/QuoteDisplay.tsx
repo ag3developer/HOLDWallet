@@ -64,7 +64,7 @@ export function QuoteDisplay({ quote, onConfirmClick }: QuoteDisplayProps) {
       maximumFractionDigits: 2,
     }).format(value)
   }
-  
+
   // Alias para compatibilidade
   const formatValue = formatBRL
 
@@ -107,7 +107,7 @@ export function QuoteDisplay({ quote, onConfirmClick }: QuoteDisplayProps) {
         </div>
       </div>
 
-      {/* Quote Content */}
+      {/* Quote Content - Simplified View */}
       <div className='p-5 space-y-3'>
         {isBuy ? (
           <>
@@ -116,26 +116,6 @@ export function QuoteDisplay({ quote, onConfirmClick }: QuoteDisplayProps) {
               <span className='text-sm text-gray-600 dark:text-gray-400'>Você Paga</span>
               <span className='font-semibold text-gray-900 dark:text-white'>
                 {formatValue(quote.fiat_amount ?? 0)}
-              </span>
-            </div>
-
-            {/* Spread Cost */}
-            <div className='flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl'>
-              <span className='text-sm text-gray-600 dark:text-gray-400'>
-                Spread ({(quote.spread_percentage ?? 0).toFixed(2)}%)
-              </span>
-              <span className='font-medium text-red-600 dark:text-red-400'>
-                -{formatValue(quote.spread_amount ?? 0)}
-              </span>
-            </div>
-
-            {/* Network Fee */}
-            <div className='flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl'>
-              <span className='text-sm text-gray-600 dark:text-gray-400'>
-                Taxa ({(quote.network_fee_percentage ?? 0).toFixed(2)}%)
-              </span>
-              <span className='font-medium text-red-600 dark:text-red-400'>
-                -{formatValue(quote.network_fee_amount ?? 0)}
               </span>
             </div>
 
@@ -157,34 +137,6 @@ export function QuoteDisplay({ quote, onConfirmClick }: QuoteDisplayProps) {
               <span className='text-sm text-gray-600 dark:text-gray-400'>Você Vende</span>
               <span className='font-semibold text-gray-900 dark:text-white'>
                 {(quote.crypto_amount ?? 0).toFixed(6)} {quote.symbol}
-              </span>
-            </div>
-
-            {/* Market Value */}
-            <div className='flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl'>
-              <span className='text-sm text-gray-600 dark:text-gray-400'>Valor de Mercado</span>
-              <span className='font-medium text-gray-900 dark:text-white'>
-                {formatValue(quote.fiat_amount ?? 0)}
-              </span>
-            </div>
-
-            {/* Spread Cost */}
-            <div className='flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl'>
-              <span className='text-sm text-gray-600 dark:text-gray-400'>
-                Spread ({(quote.spread_percentage ?? 0).toFixed(2)}%)
-              </span>
-              <span className='font-medium text-red-600 dark:text-red-400'>
-                -{formatValue(quote.spread_amount ?? 0)}
-              </span>
-            </div>
-
-            {/* Network Fee */}
-            <div className='flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl'>
-              <span className='text-sm text-gray-600 dark:text-gray-400'>
-                Taxa ({(quote.network_fee_percentage ?? 0).toFixed(2)}%)
-              </span>
-              <span className='font-medium text-red-600 dark:text-red-400'>
-                -{formatValue(quote.network_fee_amount ?? 0)}
               </span>
             </div>
 
