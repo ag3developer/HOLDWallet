@@ -64,12 +64,15 @@ const ALL_CRYPTO_SYMBOLS = [
 
 // Mapear nome da rede/token para símbolo da criptomoeda
 const getSymbolFromKey = (key: string): string => {
-  // Verificar se é um token (ex: ethereum_usdt, polygon_usdc)
+  // Verificar se é um token (ex: ethereum_usdt, polygon_usdc, polygon_tray)
   if (key.includes('_usdt') || key.includes('_USDT')) {
     return 'USDT'
   }
   if (key.includes('_usdc') || key.includes('_USDC')) {
     return 'USDC'
+  }
+  if (key.includes('_tray') || key.includes('_TRAY')) {
+    return 'TRAY'
   }
 
   // Caso contrário, mapear rede para símbolo
@@ -281,10 +284,10 @@ export const WalletPage = () => {
           })
         })
 
-        // 🪙 TAMBÉM PROCESSAR TOKENS (USDT, USDC, etc)
+        // 🪙 TAMBÉM PROCESSAR TOKENS (USDT, USDC, TRAY, etc)
         for (const [key, value] of Object.entries(realBalances)) {
           const keyLower = String(key).toLowerCase()
-          const tokenMatch = keyLower.match(/^([a-z0-9]+)_(usdt|usdc)$/)
+          const tokenMatch = keyLower.match(/^([a-z0-9]+)_(usdt|usdc|tray)$/)
 
           console.log(
             `[WalletPage] Checking key: ${key} (${keyLower}), match: ${tokenMatch ? 'YES' : 'NO'}`
@@ -322,9 +325,15 @@ export const WalletPage = () => {
               `[WalletPage] Adding token: ${tokenName}, balance=${balance}, price=${priceUSD}`
             )
 
-            // Cor padrão para tokens stablecoin
-            const tokenColor =
-              tokenName === 'USDT' ? 'from-green-400 to-green-600' : 'from-blue-400 to-blue-600'
+            // Cor padrão para tokens
+            let tokenColor = 'from-blue-400 to-blue-600'
+            if (tokenName === 'USDT') {
+              tokenColor = 'from-green-400 to-green-600'
+            } else if (tokenName === 'USDC') {
+              tokenColor = 'from-blue-400 to-blue-600'
+            } else if (tokenName === 'TRAY') {
+              tokenColor = 'from-purple-400 to-purple-600'
+            }
 
             expandedWallets.push({
               id: `${wallet.id}-${key}`,

@@ -11,6 +11,7 @@ const STABLECOIN_VALID_NETWORKS: Record<string, string[]> = {
   USDT: ['polygon', 'ethereum', 'bsc', 'tron', 'avalanche', 'base', 'arbitrum', 'optimism'],
   USDC: ['polygon', 'ethereum', 'bsc', 'solana', 'avalanche', 'base', 'arbitrum', 'optimism'],
   DAI: ['polygon', 'ethereum', 'bsc'],
+  TRAY: ['polygon'], // TRAY está apenas na Polygon
 }
 
 // Rede padrão recomendada para cada token (taxas mais baixas)
@@ -18,6 +19,7 @@ const DEFAULT_NETWORK_FOR_TOKEN: Record<string, string> = {
   USDT: 'polygon', // Polygon tem taxas mínimas
   USDC: 'polygon',
   DAI: 'polygon',
+  TRAY: 'polygon', // TRAY é um token na Polygon
   BTC: 'bitcoin',
   ETH: 'ethereum',
   BNB: 'bsc',
@@ -102,6 +104,7 @@ export const ReceivePage = () => {
     const defaultTokenPrefs = {
       usdt: true,
       usdc: true,
+      tray: true,
     }
     if (saved) {
       const savedPrefs = JSON.parse(saved)
@@ -305,6 +308,7 @@ export const ReceivePage = () => {
           const tokenNames: Record<string, { name: string; isStablecoin: boolean }> = {
             USDT: { name: 'Tether', isStablecoin: true },
             USDC: { name: 'USD Coin', isStablecoin: true },
+            TRAY: { name: 'Trayon', isStablecoin: false },
             BTC: { name: 'Bitcoin', isStablecoin: false },
             ETH: { name: 'Ethereum', isStablecoin: false },
             BNB: { name: 'Binance', isStablecoin: false },
@@ -330,6 +334,9 @@ export const ReceivePage = () => {
           }
           if (wallet.symbol === 'USDC' && !tokenPreferences.usdc) {
             return // Skip USDC se desativado
+          }
+          if (wallet.symbol === 'TRAY' && !tokenPreferences.tray) {
+            return // Skip TRAY se desativado
           }
 
           uniqueTokens.set(wallet.symbol, {

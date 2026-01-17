@@ -231,6 +231,7 @@ export const SendPage = () => {
     const defaultTokenPrefs = {
       usdt: true,
       usdc: true,
+      tray: true,
     }
     if (saved) {
       const savedPrefs = JSON.parse(saved)
@@ -289,12 +290,12 @@ export const SendPage = () => {
           console.log('🔍 [DEBUG] Token processing - balancesData keys:', Object.keys(balancesData))
           console.log('🔍 [DEBUG] balanceQueryResult:', balanceQueryResult)
 
-          // Procurar por chaves de tokens (polygon_usdt, polygon_usdc, etc)
+          // Procurar por chaves de tokens (polygon_usdt, polygon_usdc, polygon_tray, etc)
           for (const [key, value] of Object.entries(balancesData)) {
             console.log(`🔍 [DEBUG] Checking key: "${key}" against token pattern`)
             // Detectar se é uma chave de token (rede_token) - mais flexível
             const keyLower = String(key).toLowerCase()
-            const tokenMatch = keyLower.match(/^([a-z0-9]+)_(usdt|usdc)$/)
+            const tokenMatch = keyLower.match(/^([a-z0-9]+)_(usdt|usdc|tray)$/)
 
             if (tokenMatch && tokenMatch.length >= 3) {
               const networkKey = tokenMatch[1]
@@ -307,6 +308,9 @@ export const SendPage = () => {
               }
               if (tokenName === 'USDC' && !tokenPreferences.usdc) {
                 continue // Skip USDC se desativado
+              }
+              if (tokenName === 'TRAY' && !tokenPreferences.tray) {
+                continue // Skip TRAY se desativado
               }
 
               const balance = value?.balance ? Number(value.balance) : 0
@@ -362,6 +366,7 @@ export const SendPage = () => {
         const tokenNames: Record<string, { name: string; isStablecoin: boolean }> = {
           USDT: { name: 'Tether', isStablecoin: true },
           USDC: { name: 'USD Coin', isStablecoin: true },
+          TRAY: { name: 'Trayon', isStablecoin: false },
           BTC: { name: 'Bitcoin', isStablecoin: false },
           ETH: { name: 'Ethereum', isStablecoin: false },
           BNB: { name: 'Binance', isStablecoin: false },
@@ -387,6 +392,9 @@ export const SendPage = () => {
         }
         if (wallet.symbol === 'USDC' && !tokenPreferences.usdc) {
           return // Skip USDC se desativado
+        }
+        if (wallet.symbol === 'TRAY' && !tokenPreferences.tray) {
+          return // Skip TRAY se desativado
         }
 
         if (uniqueTokens.has(wallet.symbol)) {
