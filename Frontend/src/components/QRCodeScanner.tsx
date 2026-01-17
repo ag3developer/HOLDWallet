@@ -8,23 +8,17 @@ interface QRCodeScannerProps {
   onScan: (address: string) => void
 }
 
+// ID fixo para evitar problemas de sincronização com o DOM
+const SCANNER_ELEMENT_ID = 'qr-scanner-container'
+
 export const QRCodeScanner = ({ isOpen, onClose, onScan }: QRCodeScannerProps) => {
   const scannerRef = useRef<Html5Qrcode | null>(null)
   const [isScanning, setIsScanning] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [scannedAddress, setScannedAddress] = useState<string | null>(null)
+  const [domReady, setDomReady] = useState(false)
   const isMountedRef = useRef(true)
   const isStoppingRef = useRef(false)
-
-  // ID fixo para o elemento - usar estado para forçar re-render quando muda
-  const [scannerId, setScannerId] = useState(() => `qr-reader-${Date.now()}`)
-
-  // Gera novo ID quando abre (antes do render)
-  useEffect(() => {
-    if (isOpen) {
-      setScannerId(`qr-reader-${Date.now()}`)
-    }
-  }, [isOpen])
 
   useEffect(() => {
     isMountedRef.current = true
@@ -73,73 +67,101 @@ export const QRCodeScanner = ({ isOpen, onClose, onScan }: QRCodeScannerProps) =
     }
   }, [])
 
+  // Reset state when closing
   useEffect(() => {
     if (!isOpen) {
-      // Limpar estado
       setError(null)
       setScannedAddress(null)
-
-      // Parar scanner se estiver rodando
+      setDomReady(false)
       stopScanner()
-      return
+    }
+  }, [isOpen, stopScanner])
+
+  // Notify when DOM element is ready
+  useEffect(() => {
+    if (!isOpen || scannedAddress || error) {
+      return undefined
     }
 
+    // Use requestAnimationFrame to ensure DOM is painted
+    const frameId = requestAnimationFrame(() => {
+      const checkElement = () => {
+        const element = document.getElementById(SCANNER_ELEMENT_ID)
+        if (element) {
+          setDomReady(true)
+        } else {
+          // Retry after a short delay
+          setTimeout(checkElement, 50)
+        }
+      }
+      checkElement()
+    })
+
+    return () => cancelAnimationFrame(frameId)
+  }, [isOpen, scannedAddress, error])
+
+  // Handle successful scan
+  const handleScanSuccess = useCallback(
+    async (decodedText: string) => {
+      if (!isMountedRef.current) return
+
+      console.log('[QRCodeScanner] QR Code detectado:', decodedText)
+      setScannedAddress(decodedText)
+      setIsScanning(false)
+
+      await stopScanner()
+
+      if (isMountedRef.current) {
+        onScan(decodedText)
+        setTimeout(() => {
+          if (isMountedRef.current) {
+            onClose()
+          }
+        }, 1500)
+      }
+    },
+    [stopScanner, onScan, onClose]
+  )
+
+  // Start scanner when DOM is ready
+  useEffect(() => {
+    if (!domReady || !isOpen || scannedAddress || error) return
+
     const startScanner = async () => {
-      // Aguardar o DOM estar pronto com tempo maior
-      await new Promise(resolve => setTimeout(resolve, 300))
+      // Garantir que scanner anterior foi parado
+      await stopScanner()
 
       if (!isMountedRef.current || !isOpen) return
 
-      const element = document.getElementById(scannerId)
+      const element = document.getElementById(SCANNER_ELEMENT_ID)
       if (!element) {
-        console.error('[QRCodeScanner] Elemento não encontrado:', scannerId)
+        console.error('[QRCodeScanner] Elemento não encontrado após domReady')
         setError('Elemento scanner não encontrado. Tente novamente.')
         return
       }
 
-      // Garantir que scanner anterior foi parado
-      await stopScanner()
-
       try {
-        console.log('[QRCodeScanner] Iniciando scanner com ID:', scannerId)
-        const html5QrCode = new Html5Qrcode(scannerId, { verbose: false })
+        console.log('[QRCodeScanner] Iniciando scanner...')
+        const html5QrCode = new Html5Qrcode(SCANNER_ELEMENT_ID, { verbose: false })
         scannerRef.current = html5QrCode
 
         await html5QrCode.start(
-          { facingMode: 'environment' }, // Câmera traseira
+          { facingMode: 'environment' },
           {
             fps: 10,
             qrbox: { width: 250, height: 250 },
-            aspectRatio: 1.0,
+            aspectRatio: 1,
           },
-          (decodedText: string) => {
-            // QR Code escaneado com sucesso
-            if (!isMountedRef.current) return
-
-            setScannedAddress(decodedText)
-            setIsScanning(false)
-
-            // Parar scanner e notificar
-            stopScanner().then(() => {
-              if (isMountedRef.current) {
-                onScan(decodedText)
-                setTimeout(() => {
-                  if (isMountedRef.current) {
-                    onClose()
-                  }
-                }, 1500)
-              }
-            })
-          },
+          handleScanSuccess,
           () => {
             // Erro ao escanear (normal durante o processo)
-            // Silenciar para não poluir console
           }
         )
 
         if (isMountedRef.current) {
           setIsScanning(true)
           setError(null)
+          console.log('[QRCodeScanner] Scanner iniciado com sucesso')
         }
       } catch (err) {
         console.error('[QRCodeScanner] Erro ao iniciar:', err)
@@ -153,12 +175,62 @@ export const QRCodeScanner = ({ isOpen, onClose, onScan }: QRCodeScannerProps) =
     startScanner()
 
     return () => {
-      // Cleanup ao desmontar ou quando isOpen muda
       stopScanner()
     }
-  }, [isOpen, scannerId, onScan, onClose, stopScanner])
+  }, [domReady, isOpen, scannedAddress, error, handleScanSuccess, stopScanner])
 
   if (!isOpen) return null
+
+  // Renderizar conteúdo baseado no estado
+  const renderContent = () => {
+    if (error) {
+      return (
+        <div className='text-center py-12'>
+          <AlertCircle className='w-16 h-16 text-red-500 mx-auto mb-4' />
+          <p className='text-red-600 dark:text-red-400 mb-4'>{error}</p>
+          <button
+            onClick={onClose}
+            className='px-6 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors'
+          >
+            Fechar
+          </button>
+        </div>
+      )
+    }
+
+    if (scannedAddress) {
+      return (
+        <div className='text-center py-12'>
+          <CheckCircle className='w-16 h-16 text-green-500 mx-auto mb-4 animate-pulse' />
+          <p className='text-lg font-semibold text-green-600 dark:text-green-400 mb-2'>
+            Endereço Escaneado!
+          </p>
+          <p className='text-sm text-gray-600 dark:text-gray-400 font-mono bg-gray-100 dark:bg-gray-900 rounded-lg p-3 break-all'>
+            {scannedAddress}
+          </p>
+        </div>
+      )
+    }
+
+    return (
+      <div>
+        <div
+          id={SCANNER_ELEMENT_ID}
+          className='rounded-lg overflow-hidden border-4 border-blue-500 min-h-[300px]'
+        />
+        {isScanning && (
+          <div className='mt-4 text-center'>
+            <div className='inline-flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg'>
+              <div className='w-2 h-2 bg-blue-500 rounded-full animate-pulse' />
+              <p className='text-sm text-blue-600 dark:text-blue-400 font-medium'>
+                Procurando QR Code...
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className='fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4'>
@@ -187,45 +259,7 @@ export const QRCodeScanner = ({ isOpen, onClose, onScan }: QRCodeScannerProps) =
 
         {/* Scanner Area */}
         <div className='p-6'>
-          {error ? (
-            <div className='text-center py-12'>
-              <AlertCircle className='w-16 h-16 text-red-500 mx-auto mb-4' />
-              <p className='text-red-600 dark:text-red-400 mb-4'>{error}</p>
-              <button
-                onClick={onClose}
-                className='px-6 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors'
-              >
-                Fechar
-              </button>
-            </div>
-          ) : scannedAddress ? (
-            <div className='text-center py-12'>
-              <CheckCircle className='w-16 h-16 text-green-500 mx-auto mb-4 animate-pulse' />
-              <p className='text-lg font-semibold text-green-600 dark:text-green-400 mb-2'>
-                Endereço Escaneado!
-              </p>
-              <p className='text-sm text-gray-600 dark:text-gray-400 font-mono bg-gray-100 dark:bg-gray-900 rounded-lg p-3 break-all'>
-                {scannedAddress}
-              </p>
-            </div>
-          ) : (
-            <div>
-              <div
-                id={scannerId}
-                className='rounded-lg overflow-hidden border-4 border-blue-500 min-h-[300px]'
-              />
-              {isScanning && (
-                <div className='mt-4 text-center'>
-                  <div className='inline-flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg'>
-                    <div className='w-2 h-2 bg-blue-500 rounded-full animate-pulse' />
-                    <p className='text-sm text-blue-600 dark:text-blue-400 font-medium'>
-                      Procurando QR Code...
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+          {renderContent()}
 
           {/* Instruções */}
           {!error && !scannedAddress && (
