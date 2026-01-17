@@ -457,6 +457,32 @@ HOLD Wallet - Sistema de Taxas e Comissões
               </div>
             </div>
 
+            {/* Card: DEX Tokens (TRAY, etc) */}
+            <div className='bg-gradient-to-br from-purple-100 dark:from-purple-900/30 to-pink-50 dark:to-pink-800/20 border border-purple-200 dark:border-purple-700/30 rounded-xl p-4 hover:border-purple-400 dark:hover:border-purple-600/50 transition-all'>
+              <div className='flex items-center justify-between'>
+                <p className='text-sm text-gray-500 dark:text-gray-400'>DEX Tokens</p>
+                <p className='text-xl font-bold text-purple-600 dark:text-purple-400'>
+                  {(walletStatus.cached_balances?.TRAY || 0).toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 4,
+                  })}
+                </p>
+              </div>
+              <div className='flex items-center gap-4 mt-3'>
+                <div className='flex items-center gap-2 bg-black/10 dark:bg-black/20 px-2 py-1 rounded-lg'>
+                  <img src={trayLogo} alt='TRAY' className='w-4 h-4' />
+                  <span className='text-xs text-gray-700 dark:text-gray-300 font-medium'>
+                    TRAY: {(walletStatus.cached_balances?.TRAY || 0).toFixed(4)}
+                  </span>
+                </div>
+                <div className='flex items-center gap-1.5'>
+                  <span className='text-[10px] text-purple-500 dark:text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded'>
+                    Polygon
+                  </span>
+                </div>
+              </div>
+            </div>
+
             {/* Card: Gas Fees (Nativos) */}
             <div className='bg-gradient-to-br from-purple-100 dark:from-purple-900/30 to-purple-50 dark:to-purple-800/20 border border-purple-200 dark:border-purple-700/30 rounded-xl p-4 hover:border-purple-400 dark:hover:border-purple-600/50 transition-all'>
               <p className='text-sm text-gray-500 dark:text-gray-400 mb-3'>Gas Fees</p>

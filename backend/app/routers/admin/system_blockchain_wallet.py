@@ -261,6 +261,7 @@ async def get_wallet_status(
         total_usdt = 0.0
         total_usdc = 0.0
         total_dai = 0.0
+        total_tray = 0.0
         
         for addr in addresses:
             crypto = addr.network.upper()
@@ -272,12 +273,17 @@ async def get_wallet_status(
             total_usdt += addr.cached_usdt_balance or 0.0
             total_usdc += addr.cached_usdc_balance or 0.0
             total_dai += addr.cached_dai_balance or 0.0
+            # TRAY (apenas Polygon, verificar se atributo existe)
+            if hasattr(addr, 'cached_tray_balance'):
+                total_tray += addr.cached_tray_balance or 0.0
         
         # Adicionar totais de stablecoins ao dict de saldos
         balances["USDT"] = total_usdt
         balances["USDC"] = total_usdc
         if total_dai > 0:
             balances["DAI"] = total_dai
+        # Adicionar TRAY (DEX Token)
+        balances["TRAY"] = total_tray
         
         return {
             "success": True,
