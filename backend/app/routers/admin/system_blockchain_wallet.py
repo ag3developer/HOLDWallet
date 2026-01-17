@@ -347,16 +347,17 @@ async def refresh_balances(
         # Criar mapa de endereços por rede (incluindo tokens)
         address_map = {}
         for addr in addresses:
+            network_str = str(addr.network)  # Converter para string pura
             # Adicionar rede nativa
-            address_map[addr.network] = addr.address
+            address_map[network_str] = addr.address
             
             # Se for EVM, adicionar consultas para USDT e USDC
-            if addr.network in evm_networks:
-                address_map[f"{addr.network}_usdt"] = addr.address
-                address_map[f"{addr.network}_usdc"] = addr.address
+            if network_str in evm_networks:
+                address_map[f"{network_str}_usdt"] = addr.address
+                address_map[f"{network_str}_usdc"] = addr.address
             
             # TRAY está apenas na Polygon
-            if addr.network == "polygon":
+            if network_str == "polygon":
                 address_map["polygon_tray"] = addr.address
         
         # Consultar saldos em paralelo (nativos + tokens)
@@ -367,7 +368,7 @@ async def refresh_balances(
         total_tray = 0
         
         for addr in addresses:
-            network = addr.network
+            network = str(addr.network)  # Converter para string pura
             native_balance = 0
             usdt_balance = 0
             usdc_balance = 0
@@ -410,7 +411,7 @@ async def refresh_balances(
             # Guardar para resposta
             consolidated_balances[network] = {
                 "native": native_balance,
-                "native_symbol": balances.get(network, {}).get("symbol", network.upper()),
+                "native_symbol": balances.get(network, {}).get("symbol", network.upper()) if network in balances else network.upper(),
                 "usdt": usdt_balance,
                 "usdc": usdc_balance,
                 "tray": tray_balance if network == "polygon" else 0,

@@ -74,6 +74,7 @@ interface NetworkPreferences {
   chainlink: boolean
   shiba: boolean
   xrp: boolean
+  tray: boolean
 }
 
 interface TokenPreferences {
@@ -117,6 +118,7 @@ export const SettingsPage = () => {
     chainlink: true,
     shiba: true,
     xrp: true,
+    tray: true,
   })
 
   const [tokenPreferences, setTokenPreferences] = useState<TokenPreferences>({
@@ -213,6 +215,7 @@ export const SettingsPage = () => {
       chainlink: true,
       shiba: true,
       xrp: true,
+      tray: true,
     }
     setNetworkPreferences(allEnabled)
     localStorage.setItem('wallet_network_preferences', JSON.stringify(allEnabled))
@@ -239,6 +242,7 @@ export const SettingsPage = () => {
       chainlink: false,
       shiba: false,
       xrp: false,
+      tray: false,
     }
     setNetworkPreferences(allDisabled)
     localStorage.setItem('wallet_network_preferences', JSON.stringify(allDisabled))
@@ -512,6 +516,13 @@ export const SettingsPage = () => {
       logo: xrpLogo,
       color: 'bg-gray-700',
     },
+    {
+      key: 'tray' as const,
+      name: 'TRAY (Trayon)',
+      symbol: 'TRAY',
+      logo: trayLogo,
+      color: 'bg-purple-600',
+    },
   ]
 
   // Mapa de estilos de cores para cada rede
@@ -531,6 +542,7 @@ export const SettingsPage = () => {
     chainlink: 'bg-blue-700 ring-blue-600',
     shiba: 'bg-orange-600 ring-orange-500',
     xrp: 'bg-gray-700 ring-gray-600',
+    tray: 'bg-purple-600 ring-purple-500',
   }
 
   return (
