@@ -44,6 +44,7 @@ const symbolMap: Record<string, string> = {
   avalanche: 'avax',
   polkadot: 'dot',
   chainlink: 'link',
+  shiba: 'shib',
   xrp: 'xrp',
   arbitrum: 'eth',
   optimism: 'eth',
@@ -60,16 +61,22 @@ const localIconMap: Record<string, string> = {
   tray: trayLogo,
 }
 
+// Mapa de URLs alternativas para ícones que não estão no CDN principal
+const alternativeIconUrls: Record<string, string> = {
+  shib: 'https://cryptologos.cc/logos/shiba-inu-shib-logo.svg',
+}
+
 export const CryptoIcon = ({ symbol, size = 24, className = '', ...props }: CryptoIconProps) => {
   // Tentar encontrar pelo símbolo original (lowercase para nomes de redes) ou uppercase (para símbolos)
   const normalizedSymbol = symbol?.toLowerCase() || ''
   const iconName =
     symbolMap[normalizedSymbol] || symbolMap[symbol?.toUpperCase()] || normalizedSymbol || 'btc'
   const localIcon = localIconMap[iconName]
+  const alternativeUrl = alternativeIconUrls[iconName]
 
-  // Tentar primeiro o arquivo local se existir, depois a CDN
+  // Tentar primeiro o arquivo local se existir, depois URL alternativa, depois a CDN
   const cdnPath = `https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/svg/color/${iconName}.svg`
-  const initialSrc = localIcon || cdnPath
+  const initialSrc = localIcon || alternativeUrl || cdnPath
 
   const [src, setSrc] = useState(initialSrc)
 

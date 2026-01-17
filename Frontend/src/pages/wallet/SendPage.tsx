@@ -303,12 +303,13 @@ export const SendPage = () => {
           console.log('🔍 [DEBUG] Token processing - balancesData keys:', Object.keys(balancesData))
           console.log('🔍 [DEBUG] balanceQueryResult:', balanceQueryResult)
 
-          // Procurar por chaves de tokens (polygon_usdt, polygon_usdc, polygon_tray, etc)
+          // Procurar por chaves de tokens (polygon_usdt, polygon_usdc, etc)
+          // NOTA: TRAY já é processado no loop de supportedNetworks, não incluir aqui para evitar duplicação
           for (const [key, value] of Object.entries(balancesData)) {
             console.log(`🔍 [DEBUG] Checking key: "${key}" against token pattern`)
             // Detectar se é uma chave de token (rede_token) - mais flexível
             const keyLower = String(key).toLowerCase()
-            const tokenMatch = keyLower.match(/^([a-z0-9]+)_(usdt|usdc|tray)$/)
+            const tokenMatch = keyLower.match(/^([a-z0-9]+)_(usdt|usdc)$/)
 
             if (tokenMatch && tokenMatch.length >= 3) {
               const networkKey = tokenMatch[1]
@@ -322,9 +323,7 @@ export const SendPage = () => {
               if (tokenName === 'USDC' && !tokenPreferences.usdc) {
                 continue // Skip USDC se desativado
               }
-              if (tokenName === 'TRAY' && !tokenPreferences.tray) {
-                continue // Skip TRAY se desativado
-              }
+              // NOTA: TRAY é processado no loop de supportedNetworks, não aqui
 
               const balance = value?.balance ? Number(value.balance) : 0
               const balanceUSD = value?.balance_usd ? Number(value.balance_usd) : 0

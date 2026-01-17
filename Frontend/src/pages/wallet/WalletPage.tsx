@@ -75,6 +75,12 @@ const getSymbolFromKey = (key: string): string => {
   if (key.includes('_tray') || key.includes('_TRAY')) {
     return 'TRAY'
   }
+  if (key.includes('_shib') || key.includes('_SHIB')) {
+    return 'SHIB'
+  }
+  if (key.includes('_link') || key.includes('_LINK')) {
+    return 'LINK'
+  }
 
   // Caso contrário, mapear rede para símbolo
   const networkToSymbol: Record<string, string> = {
@@ -258,12 +264,30 @@ export const WalletPage = () => {
         filteredNetworks.forEach(({ network, symbol, color }) => {
           // Buscar saldo real desta rede
           // TRAY é um token na Polygon, então buscar como polygon_tray
+          // SHIB é um token ERC-20 na Ethereum/Polygon
           let networkBalance
           let nativeBalance
 
           if (network === 'tray') {
             // TRAY é um token ERC-20 na Polygon
             networkBalance = realBalances['polygon_tray'] || realBalances['polygon_TRAY']
+            nativeBalance = networkBalance ? Number.parseFloat(networkBalance.balance || '0') : 0
+          } else if (network === 'shiba') {
+            // SHIB é um token ERC-20 na Ethereum ou Polygon
+            networkBalance =
+              realBalances['ethereum_shib'] ||
+              realBalances['ethereum_SHIB'] ||
+              realBalances['polygon_shib'] ||
+              realBalances['polygon_SHIB']
+            nativeBalance = networkBalance ? Number.parseFloat(networkBalance.balance || '0') : 0
+          } else if (network === 'chainlink') {
+            // LINK é um token ERC-20 na Ethereum ou Polygon
+            networkBalance =
+              realBalances['ethereum_link'] ||
+              realBalances['ethereum_LINK'] ||
+              realBalances['polygon_link'] ||
+              realBalances['polygon_LINK'] ||
+              realBalances[network]
             nativeBalance = networkBalance ? Number.parseFloat(networkBalance.balance || '0') : 0
           } else {
             networkBalance = realBalances[network]
@@ -278,6 +302,7 @@ export const WalletPage = () => {
 
           // Adicionar label de rede se for Base ou outra rede com mesmo símbolo
           // TRAY mostra "Polygon" pois é um token na Polygon
+          // SHIB e LINK são tokens na Ethereum/Polygon
           let networkLabel = ` (${symbol})`
           let displayNetwork = network
           if (network === 'base') {
@@ -285,6 +310,12 @@ export const WalletPage = () => {
           } else if (network === 'tray') {
             networkLabel = ` (${symbol})`
             displayNetwork = 'polygon' // TRAY roda na Polygon
+          } else if (network === 'shiba') {
+            networkLabel = ` (${symbol})`
+            displayNetwork = 'ethereum' // SHIB principal é na Ethereum
+          } else if (network === 'chainlink') {
+            networkLabel = ` (${symbol})`
+            displayNetwork = 'ethereum' // LINK principal é na Ethereum
           }
 
           expandedWallets.push({
@@ -302,11 +333,13 @@ export const WalletPage = () => {
           })
         })
 
-        // 🪙 TAMBÉM PROCESSAR TOKENS (USDT, USDC, etc) - TRAY agora aparece como card principal
+        // 🪙 TAMBÉM PROCESSAR TOKENS (USDT, USDC, etc) - TRAY, SHIB, LINK aparecem como cards principais
+        // NÃO duplicar SHIB e LINK aqui pois já são processados acima como "redes"
         for (const [key, value] of Object.entries(realBalances)) {
           const keyLower = String(key).toLowerCase()
-          // TRAY é processado como card de rede, então não processar aqui como token
-          const tokenMatch = keyLower.match(/^([a-z0-9]+)_(usdt|usdc)$/)
+          // TRAY, SHIB e LINK são processados como cards de "rede", não duplicar aqui
+          // Processar apenas: USDT, USDC, UNI, PEPE, WBTC, DAI
+          const tokenMatch = keyLower.match(/^([a-z0-9]+)_(usdt|usdc|uni|pepe|wbtc|dai)$/)
 
           console.log(
             `[WalletPage] Checking key: ${key} (${keyLower}), match: ${tokenMatch ? 'YES' : 'NO'}`
@@ -346,6 +379,10 @@ export const WalletPage = () => {
               tokenColor = 'from-green-400 to-green-600'
             } else if (tokenName === 'USDC') {
               tokenColor = 'from-blue-400 to-blue-600'
+            } else if (tokenName === 'SHIB') {
+              tokenColor = 'from-orange-400 to-red-500'
+            } else if (tokenName === 'LINK') {
+              tokenColor = 'from-blue-500 to-indigo-600'
             }
 
             expandedWallets.push({
