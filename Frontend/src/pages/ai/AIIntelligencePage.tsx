@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Brain,
   Target,
@@ -80,20 +81,8 @@ const isTimeoutErr = (error: unknown): boolean => {
   return false
 }
 
-// Helper to get user-friendly error message
-const getErrorMsg = (error: unknown): string => {
-  if (isTimeoutErr(error)) {
-    return 'O servidor está demorando para responder. Isso pode acontecer em horários de pico.'
-  }
-  if (error instanceof Error) {
-    if (error.message.includes('Network Error') || error.message.includes('ERR_NETWORK')) {
-      return 'Sem conexão com o servidor. Verifique sua internet.'
-    }
-  }
-  return 'Erro ao carregar dados. Tente novamente.'
-}
-
 const AIIntelligencePage: React.FC<AIIntelligencePageProps> = ({ onBack }) => {
+  const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState<TabType>('overview')
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -124,6 +113,19 @@ const AIIntelligencePage: React.FC<AIIntelligencePageProps> = ({ onBack }) => {
   // Retry tracking
   const retryCountRef = useRef(0)
   const MAX_RETRIES = 2
+
+  // Helper to get user-friendly error message
+  const getErrorMsg = (error: unknown): string => {
+    if (isTimeoutErr(error)) {
+      return t('aiIntelligence.errors.timeout')
+    }
+    if (error instanceof Error) {
+      if (error.message.includes('Network Error') || error.message.includes('ERR_NETWORK')) {
+        return t('aiIntelligence.errors.networkError')
+      }
+    }
+    return t('aiIntelligence.errors.generic')
+  }
 
   // ===================
   // Fetch Real Portfolio from User's Wallet (with retry logic)
@@ -278,9 +280,7 @@ const AIIntelligencePage: React.FC<AIIntelligencePageProps> = ({ onBack }) => {
       console.log('[AI] Portfolio loaded:', realPortfolio.length, 'assets')
 
       if (realPortfolio.length === 0) {
-        setDataLoadError(
-          'Nenhum ativo encontrado no seu portfolio. Deposite cripto para usar a AI Intelligence.'
-        )
+        setDataLoadError(t('aiIntelligence.errors.noData'))
         setLoading(false)
         return
       }
@@ -310,7 +310,7 @@ const AIIntelligencePage: React.FC<AIIntelligencePageProps> = ({ onBack }) => {
       const validAthResults = athResults.filter((r): r is ATHAnalysisType => r !== null)
       setAthData(validAthResults.length > 0 ? validAthResults : null)
       if (validAthResults.length === 0) {
-        setAthError('Não foi possível carregar dados ATH')
+        setAthError(t('aiIntelligence.errors.generic'))
       }
 
       // 4. Fetch correlation data using real price history
@@ -321,10 +321,10 @@ const AIIntelligencePage: React.FC<AIIntelligencePageProps> = ({ onBack }) => {
           setCorrelationData(correlationResult)
         } catch (err) {
           console.error('Correlation error:', err)
-          setCorrelationError('Falha ao calcular correlações')
+          setCorrelationError(t('aiIntelligence.errors.generic'))
         }
       } else {
-        setCorrelationError('Dados insuficientes para correlação')
+        setCorrelationError(t('aiIntelligence.errors.insufficientData'))
       }
 
       // 5. Fetch swap suggestions
@@ -334,7 +334,7 @@ const AIIntelligencePage: React.FC<AIIntelligencePageProps> = ({ onBack }) => {
         setSwapData(swapResult)
       } catch (err) {
         console.error('Swap error:', err)
-        setSwapError('Falha ao obter sugestões de swap')
+        setSwapError(t('aiIntelligence.errors.generic'))
       }
 
       // 6. Fetch OHLCV for technical indicators (default BTC or first portfolio asset)
@@ -348,11 +348,11 @@ const AIIntelligencePage: React.FC<AIIntelligencePageProps> = ({ onBack }) => {
           const indicatorsResult = await aiService.getTechnicalIndicators(indicatorSymbol, ohlcv)
           setIndicatorsData(indicatorsResult)
         } else {
-          setIndicatorsError('Falha ao carregar dados OHLCV')
+          setIndicatorsError(t('aiIntelligence.errors.generic'))
         }
       } catch (err) {
         console.error('Indicators error:', err)
-        setIndicatorsError('Falha ao calcular indicadores')
+        setIndicatorsError(t('aiIntelligence.errors.generic'))
       }
     } catch (error) {
       console.error('[AI] Error loading data:', error)
@@ -360,7 +360,7 @@ const AIIntelligencePage: React.FC<AIIntelligencePageProps> = ({ onBack }) => {
       // Set appropriate error message based on error type
       if (isTimeoutErr(error)) {
         setIsTimeoutError(true)
-        setDataLoadError('O servidor está demorando. Tente novamente em alguns segundos.')
+        setDataLoadError(t('aiIntelligence.errors.timeout'))
       } else {
         setDataLoadError(getErrorMsg(error))
       }
@@ -410,11 +410,11 @@ const AIIntelligencePage: React.FC<AIIntelligencePageProps> = ({ onBack }) => {
         const indicatorsResult = await aiService.getTechnicalIndicators(symbol, ohlcv)
         setIndicatorsData(indicatorsResult)
       } else {
-        setIndicatorsError('Falha ao carregar dados OHLCV')
+        setIndicatorsError(t('aiIntelligence.errors.generic'))
       }
     } catch (err) {
       console.error('Indicators fetch error:', err)
-      setIndicatorsError('Failed to calculate indicators')
+      setIndicatorsError(t('aiIntelligence.errors.generic'))
     }
   }
 
@@ -454,7 +454,7 @@ const AIIntelligencePage: React.FC<AIIntelligencePageProps> = ({ onBack }) => {
               <div>
                 <div className='flex items-center gap-2'>
                   <h1 className='text-xl sm:text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent'>
-                    AI Intelligence
+                    {t('aiIntelligence.title')}
                   </h1>
                   <span className='px-2 py-0.5 text-[10px] font-bold bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-full uppercase tracking-wide'>
                     Pro
@@ -462,7 +462,7 @@ const AIIntelligencePage: React.FC<AIIntelligencePageProps> = ({ onBack }) => {
                 </div>
                 <p className='text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1'>
                   <Cpu className='w-3 h-3' />
-                  Análise Avançada de Portfolio
+                  {t('aiIntelligence.subtitle')}
                 </p>
               </div>
             </div>
@@ -476,7 +476,9 @@ const AIIntelligencePage: React.FC<AIIntelligencePageProps> = ({ onBack }) => {
               ) : (
                 <RefreshCw className='w-4 h-4 text-gray-600 dark:text-gray-400' />
               )}
-              <span className='text-sm font-medium hidden sm:inline'>Atualizar</span>
+              <span className='text-sm font-medium hidden sm:inline'>
+                {t('aiIntelligence.refresh')}
+              </span>
             </button>
           </div>
 
@@ -485,31 +487,31 @@ const AIIntelligencePage: React.FC<AIIntelligencePageProps> = ({ onBack }) => {
             <TabButton
               active={activeTab === 'overview'}
               icon={Eye}
-              label='Visão Geral'
+              label={t('aiIntelligence.tabs.overview')}
               onClick={() => setActiveTab('overview')}
             />
             <TabButton
               active={activeTab === 'ath'}
               icon={Target}
-              label='ATH Analysis'
+              label={t('aiIntelligence.tabs.ath')}
               onClick={() => setActiveTab('ath')}
             />
             <TabButton
               active={activeTab === 'correlation'}
               icon={GitBranch}
-              label='Correlação'
+              label={t('aiIntelligence.tabs.correlation')}
               onClick={() => setActiveTab('correlation')}
             />
             <TabButton
               active={activeTab === 'swap'}
               icon={ArrowRightLeft}
-              label='Sugestões'
+              label={t('aiIntelligence.tabs.swap')}
               onClick={() => setActiveTab('swap')}
             />
             <TabButton
               active={activeTab === 'indicators'}
               icon={Activity}
-              label='Indicadores'
+              label={t('aiIntelligence.tabs.indicators')}
               onClick={() => setActiveTab('indicators')}
             />
           </div>
@@ -532,10 +534,10 @@ const AIIntelligencePage: React.FC<AIIntelligencePageProps> = ({ onBack }) => {
             </div>
             <div className='text-center space-y-2'>
               <h3 className='text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent'>
-                AI Processando...
+                {t('aiIntelligence.portfolio.analyzing')}
               </h3>
               <p className='text-sm text-gray-500 dark:text-gray-400 max-w-xs'>
-                Analisando seu portfolio com inteligência artificial avançada
+                {t('aiIntelligence.description')}
               </p>
               <div className='flex items-center justify-center gap-2 pt-2'>
                 <div className='w-2 h-2 bg-blue-500 rounded-full animate-bounce' />
@@ -569,7 +571,9 @@ const AIIntelligencePage: React.FC<AIIntelligencePageProps> = ({ onBack }) => {
             </div>
             <div className='text-center max-w-md space-y-3'>
               <h3 className='text-xl font-bold text-gray-900 dark:text-white'>
-                {isTimeoutError ? 'Servidor Ocupado' : 'Atenção'}
+                {isTimeoutError
+                  ? t('aiIntelligence.errors.timeout')
+                  : t('aiIntelligence.errors.generic')}
               </h3>
               <p className='text-sm text-gray-600 dark:text-gray-400'>{dataLoadError}</p>
 
@@ -590,12 +594,12 @@ const AIIntelligencePage: React.FC<AIIntelligencePageProps> = ({ onBack }) => {
                 {refreshing ? (
                   <>
                     <Loader2 className='w-4 h-4 animate-spin' />
-                    Carregando...
+                    {t('aiIntelligence.refreshing')}
                   </>
                 ) : (
                   <>
                     <RefreshCw className='w-4 h-4' />
-                    Tentar Novamente
+                    {t('aiIntelligence.errors.tryAgain')}
                   </>
                 )}
               </button>
@@ -626,17 +630,21 @@ const AIIntelligencePage: React.FC<AIIntelligencePageProps> = ({ onBack }) => {
                 <div>
                   <p className='text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2'>
                     <Zap className='w-4 h-4 text-yellow-500' />
-                    Analisando {portfolio.length} {portfolio.length === 1 ? 'ativo' : 'ativos'}
+                    {t('aiIntelligence.portfolio.analyzing')} {portfolio.length}{' '}
+                    {t('aiIntelligence.portfolio.assets')}
                   </p>
                   <p className='text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1'>
                     <Shield className='w-3 h-3' />
-                    Portfolio Real • Dados em tempo real
+                    {t('aiIntelligence.portfolio.realPortfolio')} •{' '}
+                    {t('aiIntelligence.portfolio.realTimeData')}
                   </p>
                 </div>
               </div>
               <div className='flex items-center gap-3'>
                 <div className='text-right'>
-                  <p className='text-xs text-gray-500 dark:text-gray-400'>Valor Total</p>
+                  <p className='text-xs text-gray-500 dark:text-gray-400'>
+                    {t('aiIntelligence.portfolio.totalValue')}
+                  </p>
                   <p className='text-lg font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent'>
                     {formatCurrency(portfolio.reduce((sum, a) => sum + a.value_usd, 0))}
                   </p>
@@ -673,10 +681,10 @@ const AIIntelligencePage: React.FC<AIIntelligencePageProps> = ({ onBack }) => {
                         </div>
                         <div>
                           <span className='text-sm font-semibold text-gray-900 dark:text-white'>
-                            Top ATH
+                            {t('aiIntelligence.ath.title')}
                           </span>
                           <p className='text-[10px] text-gray-500 dark:text-gray-400'>
-                            Maior potencial
+                            {t('aiIntelligence.ath.potentialGain')}
                           </p>
                         </div>
                       </div>
@@ -730,10 +738,10 @@ const AIIntelligencePage: React.FC<AIIntelligencePageProps> = ({ onBack }) => {
                         </div>
                         <div>
                           <span className='text-sm font-semibold text-gray-900 dark:text-white'>
-                            Sugestão AI
+                            {t('aiIntelligence.swap.title')}
                           </span>
                           <p className='text-[10px] text-gray-500 dark:text-gray-400'>
-                            Rebalanceamento
+                            {t('aiIntelligence.swap.type.rebalance')}
                           </p>
                         </div>
                       </div>
@@ -779,20 +787,28 @@ const AIIntelligencePage: React.FC<AIIntelligencePageProps> = ({ onBack }) => {
                       <Rocket className='w-5 h-5 text-white' />
                     </div>
                     <div>
-                      <span className='text-sm font-semibold text-white'>Status AI</span>
-                      <p className='text-[10px] text-white/70'>Análise completa</p>
+                      <span className='text-sm font-semibold text-white'>
+                        {t('aiIntelligence.title')}
+                      </span>
+                      <p className='text-[10px] text-white/70'>
+                        {t('aiIntelligence.overview.title')}
+                      </p>
                     </div>
                   </div>
                   <div className='grid grid-cols-2 gap-3'>
                     <div className='p-3 bg-white/10 rounded-xl backdrop-blur-sm'>
                       <BarChart3 className='w-4 h-4 text-white/80 mb-1' />
                       <p className='text-lg font-bold text-white'>{portfolio.length}</p>
-                      <p className='text-[10px] text-white/70'>Ativos</p>
+                      <p className='text-[10px] text-white/70'>
+                        {t('aiIntelligence.portfolio.assets')}
+                      </p>
                     </div>
                     <div className='p-3 bg-white/10 rounded-xl backdrop-blur-sm'>
                       <Activity className='w-4 h-4 text-white/80 mb-1' />
                       <p className='text-lg font-bold text-white'>{athData?.length || 0}</p>
-                      <p className='text-[10px] text-white/70'>Análises</p>
+                      <p className='text-[10px] text-white/70'>
+                        {t('aiIntelligence.overview.indicators')}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -830,7 +846,7 @@ const AIIntelligencePage: React.FC<AIIntelligencePageProps> = ({ onBack }) => {
               <div className='flex items-center gap-2 mb-3'>
                 <Activity className='w-4 h-4 text-blue-500' />
                 <span className='text-sm font-medium text-gray-700 dark:text-gray-300'>
-                  Selecione um ativo para análise técnica
+                  {t('aiIntelligence.indicators.title')}
                 </span>
               </div>
               <div className='flex gap-2 flex-wrap'>

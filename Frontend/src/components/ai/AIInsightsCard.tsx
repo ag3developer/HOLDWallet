@@ -6,6 +6,7 @@
  */
 
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Brain,
   Target,
@@ -110,6 +111,8 @@ const AIInsightsCard: React.FC<AIInsightsCardProps> = ({
   loading,
   onNavigate,
 }) => {
+  const { t } = useTranslation()
+
   if (loading) {
     return (
       <div className='relative overflow-hidden p-8 bg-white dark:bg-gray-900/80 rounded-3xl border border-gray-200 dark:border-gray-700/50 shadow-xl'>
@@ -123,7 +126,9 @@ const AIInsightsCard: React.FC<AIInsightsCardProps> = ({
             <Sparkles className='w-5 h-5 text-yellow-400 absolute -top-1 -right-1 animate-pulse' />
           </div>
           <Loader2 className='w-6 h-6 text-purple-500 animate-spin' />
-          <p className='text-sm text-gray-500 dark:text-gray-400'>Analisando seu portfolio...</p>
+          <p className='text-sm text-gray-500 dark:text-gray-400'>
+            {t('aiIntelligence.portfolio.analyzing')}
+          </p>
         </div>
       </div>
     )
@@ -217,14 +222,14 @@ const AIInsightsCard: React.FC<AIInsightsCardProps> = ({
           </div>
           <div>
             <h2 className='text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2'>
-              AI Portfolio Intelligence
+              {t('aiIntelligence.title')}
               <span className='px-2 py-0.5 text-[10px] font-bold bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-full uppercase'>
                 Pro
               </span>
             </h2>
             <p className='text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1'>
               <Zap className='w-3 h-3 text-yellow-500' />
-              Powered by machine learning
+              {t('aiIntelligence.description')}
             </p>
           </div>
         </div>
@@ -248,9 +253,11 @@ const AIInsightsCard: React.FC<AIInsightsCardProps> = ({
       <div className='relative grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6'>
         <QuickStat
           icon={Target}
-          label='ATH Recovery'
+          label={t('aiIntelligence.overview.athRecovery')}
           value={`${avgRecovery.toFixed(0)}%`}
-          subtitle={athData ? `${athData.length} ativos analisados` : undefined}
+          subtitle={
+            athData ? `${athData.length} ${t('aiIntelligence.portfolio.assets')}` : undefined
+          }
           color={
             avgRecovery >= 80
               ? 'text-green-500'
@@ -269,9 +276,17 @@ const AIInsightsCard: React.FC<AIInsightsCardProps> = ({
         />
         <QuickStat
           icon={GitBranch}
-          label='Diversificação'
-          value={highCorrelations === 0 ? 'Ótima' : `${highCorrelations} alertas`}
-          subtitle={correlationData ? `${correlationData.symbols.length} pares` : undefined}
+          label={t('aiIntelligence.overview.diversification')}
+          value={
+            highCorrelations === 0
+              ? t('aiIntelligence.swap.health.excellent')
+              : `${highCorrelations} ${t('aiIntelligence.overview.indicators')}`
+          }
+          subtitle={
+            correlationData
+              ? `${correlationData.symbols.length} ${t('aiIntelligence.portfolio.assets')}`
+              : undefined
+          }
           color={highCorrelations === 0 ? 'text-green-500' : 'text-orange-500'}
           bgGradient={
             highCorrelations === 0
@@ -282,10 +297,12 @@ const AIInsightsCard: React.FC<AIInsightsCardProps> = ({
         />
         <QuickStat
           icon={ArrowRightLeft}
-          label='Sugestões'
+          label={t('aiIntelligence.overview.suggestions')}
           value={totalSuggestions}
           subtitle={
-            swapData ? `${swapData.summary.high_priority_count} prioridade alta` : undefined
+            swapData
+              ? `${swapData.summary.high_priority_count} ${t('aiIntelligence.swap.priority.high')}`
+              : undefined
           }
           color={totalSuggestions === 0 ? 'text-green-500' : 'text-blue-500'}
           bgGradient={
@@ -297,12 +314,12 @@ const AIInsightsCard: React.FC<AIInsightsCardProps> = ({
         />
         <QuickStat
           icon={Activity}
-          label='Status'
+          label={t('aiIntelligence.overview.healthStatus')}
           value={
             swapData?.summary.health_status === 'HEALTHY'
-              ? 'Saudável'
+              ? t('aiIntelligence.swap.health.excellent')
               : swapData?.summary.health_status === 'MODERATE'
-                ? 'Moderado'
+                ? t('aiIntelligence.swap.health.fair')
                 : swapData?.summary.health_status || 'N/A'
           }
           color={
@@ -328,7 +345,7 @@ const AIInsightsCard: React.FC<AIInsightsCardProps> = ({
         <div className='relative space-y-3'>
           <h3 className='text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2 mb-3'>
             <TrendingUp className='w-4 h-4 text-blue-500' />
-            Principais Insights
+            {t('aiIntelligence.overview.title')}
           </h3>
           <div className='grid gap-2 sm:grid-cols-2'>
             {insights.slice(0, 4).map((insight, idx) => (
@@ -348,15 +365,15 @@ const AIInsightsCard: React.FC<AIInsightsCardProps> = ({
           <div className='p-4 bg-gray-100 dark:bg-gray-800 rounded-full mb-4'>
             <Brain className='w-10 h-10 opacity-50' />
           </div>
-          <p className='text-sm font-medium'>Adicione ativos para receber insights</p>
-          <p className='text-xs mt-1'>A análise requer pelo menos 2 ativos</p>
+          <p className='text-sm font-medium'>{t('aiIntelligence.errors.noData')}</p>
+          <p className='text-xs mt-1'>{t('aiIntelligence.errors.insufficientData')}</p>
         </div>
       )}
 
       {/* Powered by AI badge */}
       <div className='relative mt-6 pt-4 border-t border-gray-200 dark:border-gray-700/50 flex items-center justify-center gap-2 text-xs text-gray-400 dark:text-gray-500'>
         <Sparkles className='w-3 h-3 text-yellow-500' />
-        <span>Análise AI atualiza a cada 5 minutos</span>
+        <span>{t('aiIntelligence.lastUpdate')}</span>
       </div>
     </div>
   )

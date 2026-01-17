@@ -6,6 +6,7 @@
  */
 
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   TrendingUp,
   TrendingDown,
@@ -28,60 +29,6 @@ interface ATHAnalysisProps {
   formatCurrency?: (amountUSD: number) => string
 }
 
-// Zone color mapping
-const getZoneStyle = (zone: string) => {
-  switch (zone) {
-    case 'ATH_ZONE':
-      return {
-        bg: 'bg-gradient-to-r from-green-500/10 to-emerald-500/10',
-        border: 'border-green-500/30',
-        text: 'text-green-500 dark:text-green-400',
-        label: 'ATH Zone',
-        icon: Trophy,
-      }
-    case 'STRONG':
-      return {
-        bg: 'bg-gradient-to-r from-emerald-500/10 to-teal-500/10',
-        border: 'border-emerald-500/30',
-        text: 'text-emerald-500 dark:text-emerald-400',
-        label: 'Forte',
-        icon: TrendingUp,
-      }
-    case 'RECOVERING':
-      return {
-        bg: 'bg-gradient-to-r from-yellow-500/10 to-amber-500/10',
-        border: 'border-yellow-500/30',
-        text: 'text-yellow-500 dark:text-yellow-400',
-        label: 'Recuperando',
-        icon: Zap,
-      }
-    case 'WEAK':
-      return {
-        bg: 'bg-gradient-to-r from-orange-500/10 to-amber-500/10',
-        border: 'border-orange-500/30',
-        text: 'text-orange-500 dark:text-orange-400',
-        label: 'Fraco',
-        icon: AlertTriangle,
-      }
-    case 'CAPITULATION':
-      return {
-        bg: 'bg-gradient-to-r from-red-500/10 to-rose-500/10',
-        border: 'border-red-500/30',
-        text: 'text-red-500 dark:text-red-400',
-        label: 'Capitulação',
-        icon: TrendingDown,
-      }
-    default:
-      return {
-        bg: 'bg-gradient-to-r from-gray-500/10 to-slate-500/10',
-        border: 'border-gray-500/30',
-        text: 'text-gray-500 dark:text-gray-400',
-        label: 'Desconhecido',
-        icon: AlertTriangle,
-      }
-  }
-}
-
 const formatNumber = (num: number, decimals: number = 2) => {
   if (num >= 1e9) return `$${(num / 1e9).toFixed(decimals)}B`
   if (num >= 1e6) return `$${(num / 1e6).toFixed(decimals)}M`
@@ -90,6 +37,62 @@ const formatNumber = (num: number, decimals: number = 2) => {
 }
 
 const ATHAnalysis: React.FC<ATHAnalysisProps> = ({ data, loading, error, formatCurrency }) => {
+  const { t } = useTranslation()
+
+  // Zone color mapping
+  const getZoneStyle = (zone: string) => {
+    switch (zone) {
+      case 'ATH_ZONE':
+        return {
+          bg: 'bg-gradient-to-r from-green-500/10 to-emerald-500/10',
+          border: 'border-green-500/30',
+          text: 'text-green-500 dark:text-green-400',
+          label: t('aiIntelligence.ath.zones.atATH'),
+          icon: Trophy,
+        }
+      case 'STRONG':
+        return {
+          bg: 'bg-gradient-to-r from-emerald-500/10 to-teal-500/10',
+          border: 'border-emerald-500/30',
+          text: 'text-emerald-500 dark:text-emerald-400',
+          label: t('aiIntelligence.ath.zones.strong'),
+          icon: TrendingUp,
+        }
+      case 'RECOVERING':
+        return {
+          bg: 'bg-gradient-to-r from-yellow-500/10 to-amber-500/10',
+          border: 'border-yellow-500/30',
+          text: 'text-yellow-500 dark:text-yellow-400',
+          label: t('aiIntelligence.ath.analysis.recovering'),
+          icon: Zap,
+        }
+      case 'WEAK':
+        return {
+          bg: 'bg-gradient-to-r from-orange-500/10 to-amber-500/10',
+          border: 'border-orange-500/30',
+          text: 'text-orange-500 dark:text-orange-400',
+          label: t('aiIntelligence.ath.zones.weak'),
+          icon: AlertTriangle,
+        }
+      case 'CAPITULATION':
+        return {
+          bg: 'bg-gradient-to-r from-red-500/10 to-rose-500/10',
+          border: 'border-red-500/30',
+          text: 'text-red-500 dark:text-red-400',
+          label: t('aiIntelligence.ath.analysis.declining'),
+          icon: TrendingDown,
+        }
+      default:
+        return {
+          bg: 'bg-gradient-to-r from-gray-500/10 to-slate-500/10',
+          border: 'border-gray-500/30',
+          text: 'text-gray-500 dark:text-gray-400',
+          label: t('aiIntelligence.ath.analysis.neutral'),
+          icon: AlertTriangle,
+        }
+    }
+  }
+
   // Helper: format price with user currency or fallback
   const formatPrice = (value: number) => {
     if (formatCurrency) {
@@ -108,7 +111,9 @@ const ATHAnalysis: React.FC<ATHAnalysisProps> = ({ data, loading, error, formatC
           </div>
         </div>
         <Loader2 className='w-6 h-6 text-blue-500 animate-spin' />
-        <p className='text-sm text-gray-500 dark:text-gray-400'>Analisando dados ATH...</p>
+        <p className='text-sm text-gray-500 dark:text-gray-400'>
+          {t('aiIntelligence.portfolio.analyzing')}
+        </p>
       </div>
     )
   }
@@ -130,7 +135,7 @@ const ATHAnalysis: React.FC<ATHAnalysisProps> = ({ data, loading, error, formatC
         <div className='p-4 bg-gray-100 dark:bg-gray-800 rounded-full mb-4'>
           <Target className='w-12 h-12 opacity-50' />
         </div>
-        <p className='text-sm font-medium'>Nenhum dado ATH disponível</p>
+        <p className='text-sm font-medium'>{t('aiIntelligence.errors.noData')}</p>
       </div>
     )
   }
@@ -150,14 +155,18 @@ const ATHAnalysis: React.FC<ATHAnalysisProps> = ({ data, loading, error, formatC
           </div>
           <div>
             <h3 className='text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2'>
-              ATH Analysis
+              {t('aiIntelligence.ath.title')}
               <Sparkles className='w-4 h-4 text-yellow-500' />
             </h3>
-            <p className='text-xs text-gray-500 dark:text-gray-400'>Análise All-Time High</p>
+            <p className='text-xs text-gray-500 dark:text-gray-400'>
+              {t('aiIntelligence.ath.subtitle')}
+            </p>
           </div>
         </div>
         <div className='px-3 py-1.5 bg-blue-500/10 rounded-xl'>
-          <span className='text-sm font-semibold text-blue-500'>{data.length} ativos</span>
+          <span className='text-sm font-semibold text-blue-500'>
+            {data.length} {t('aiIntelligence.portfolio.assets')}
+          </span>
         </div>
       </div>
 
@@ -227,13 +236,17 @@ const ATHAnalysis: React.FC<ATHAnalysisProps> = ({ data, loading, error, formatC
               {/* Price row */}
               <div className='grid grid-cols-2 gap-4 mb-3'>
                 <div>
-                  <p className='text-xs text-gray-500 dark:text-gray-400 mb-1'>Current Price</p>
+                  <p className='text-xs text-gray-500 dark:text-gray-400 mb-1'>
+                    {t('aiIntelligence.ath.currentPrice')}
+                  </p>
                   <p className='text-base font-semibold text-gray-900 dark:text-white'>
                     {formatPrice(asset.current_price)}
                   </p>
                 </div>
                 <div>
-                  <p className='text-xs text-gray-500 dark:text-gray-400 mb-1'>ATH Price</p>
+                  <p className='text-xs text-gray-500 dark:text-gray-400 mb-1'>
+                    {t('aiIntelligence.ath.athPrice')}
+                  </p>
                   <p className='text-base font-semibold text-gray-600 dark:text-gray-300'>
                     {formatPrice(asset.ath_price)}
                   </p>
@@ -243,7 +256,9 @@ const ATHAnalysis: React.FC<ATHAnalysisProps> = ({ data, loading, error, formatC
               {/* Progress bar */}
               <div className='mb-3'>
                 <div className='flex justify-between mb-1'>
-                  <span className='text-xs text-gray-500 dark:text-gray-400'>Recovery</span>
+                  <span className='text-xs text-gray-500 dark:text-gray-400'>
+                    {t('aiIntelligence.ath.recovery')}
+                  </span>
                   <span className={`text-xs font-medium ${zoneStyle.text}`}>
                     {asset.recovery_percent.toFixed(1)}%
                   </span>
@@ -265,7 +280,9 @@ const ATHAnalysis: React.FC<ATHAnalysisProps> = ({ data, loading, error, formatC
                     ) : (
                       <TrendingUp className='w-3 h-3 text-green-400' />
                     )}
-                    <span className='text-xs text-gray-500 dark:text-gray-400'>From ATH</span>
+                    <span className='text-xs text-gray-500 dark:text-gray-400'>
+                      {t('aiIntelligence.ath.distanceFromATH')}
+                    </span>
                   </div>
                   <p className={`text-sm font-bold ${distanceColor}`}>
                     -{asset.distance_from_ath_percent.toFixed(1)}%
@@ -275,7 +292,9 @@ const ATHAnalysis: React.FC<ATHAnalysisProps> = ({ data, loading, error, formatC
                 <div className='p-2 bg-gray-100 dark:bg-gray-800/50 rounded-lg'>
                   <div className='flex items-center justify-center gap-1 mb-1'>
                     <ArrowUp className='w-3 h-3 text-blue-400' />
-                    <span className='text-xs text-gray-500 dark:text-gray-400'>Upside</span>
+                    <span className='text-xs text-gray-500 dark:text-gray-400'>
+                      {t('aiIntelligence.ath.potentialGain')}
+                    </span>
                   </div>
                   <p className='text-sm font-bold text-blue-400'>
                     +{asset.potential_upside_percent.toFixed(1)}%
@@ -285,7 +304,9 @@ const ATHAnalysis: React.FC<ATHAnalysisProps> = ({ data, loading, error, formatC
                 <div className='p-2 bg-gray-100 dark:bg-gray-800/50 rounded-lg'>
                   <div className='flex items-center justify-center gap-1 mb-1'>
                     <Clock className='w-3 h-3 text-purple-400' />
-                    <span className='text-xs text-gray-500 dark:text-gray-400'>Days</span>
+                    <span className='text-xs text-gray-500 dark:text-gray-400'>
+                      {t('aiIntelligence.ath.athDate')}
+                    </span>
                   </div>
                   <p className='text-sm font-bold text-purple-400'>{asset.days_since_ath}d</p>
                 </div>

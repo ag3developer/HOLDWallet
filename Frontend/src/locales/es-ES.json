@@ -508,5 +508,169 @@
     "cryptoPrice": "Precio de la cripto",
     "expiresIn": "Expira en",
     "seconds": "segundos"
+  },
+  "aiIntelligence": {
+    "title": "AI Intelligence",
+    "subtitle": "Análisis inteligente de tu portafolio",
+    "description": "Insights con IA para optimizar tus inversiones",
+    "back": "Volver",
+    "refresh": "Actualizar",
+    "refreshing": "Actualizando...",
+    "lastUpdate": "Última actualización",
+    "tabs": {
+      "overview": "Resumen",
+      "ath": "ATH",
+      "correlation": "Correlación",
+      "swap": "Swap",
+      "indicators": "Indicadores"
+    },
+    "portfolio": {
+      "analyzing": "Analizando",
+      "assets": "activos",
+      "realPortfolio": "Portafolio Real",
+      "realTimeData": "Datos en tiempo real",
+      "totalValue": "Valor Total"
+    },
+    "overview": {
+      "title": "Resumen del Portafolio",
+      "insights": "Insights AI",
+      "athRecovery": "Recuperación ATH",
+      "assetsAnalyzed": "activos analizados",
+      "diversification": "Diversificación",
+      "alerts": "alertas",
+      "pairs": "pares",
+      "excellent": "Excelente",
+      "suggestions": "Sugerencias",
+      "highPriority": "alta prioridad",
+      "topAth": "Top ATH",
+      "greatestPotential": "Mayor potencial",
+      "aiSuggestion": "Sugerencia AI",
+      "topSwap": "Mejor swap",
+      "suggested": "sugerido",
+      "aiStatus": "Estado AI",
+      "completeAnalysis": "Análisis completo",
+      "activeAssets": "Activos",
+      "analyzed": "Analizados"
+    },
+    "ath": {
+      "title": "Análisis ATH",
+      "subtitle": "Distancia del All-Time High",
+      "description": "Compara el precio actual con el máximo histórico",
+      "currentPrice": "Precio Actual",
+      "athPrice": "Precio ATH",
+      "recovery": "Recuperación",
+      "potentialUpside": "Potencial de Alza",
+      "zones": {
+        "athZone": "Zona ATH",
+        "strong": "Fuerte",
+        "recovering": "Recuperando",
+        "weak": "Débil",
+        "capitulation": "Capitulación",
+        "unknown": "Desconocido"
+      },
+      "loading": "Analizando datos ATH...",
+      "noData": "Sin datos ATH disponibles",
+      "atAth": "En ATH",
+      "upside": "potencial"
+    },
+    "correlation": {
+      "title": "Matriz de Correlación",
+      "subtitle": "Correlación entre activos",
+      "description": "Comprende cómo se mueven juntos tus activos",
+      "high": "Alta",
+      "medium": "Media",
+      "low": "Baja",
+      "negative": "Negativa",
+      "positive": "Positiva",
+      "neutral": "Neutra",
+      "loading": "Calculando correlaciones...",
+      "noData": "Datos insuficientes para correlación",
+      "warning": "Alta correlación reduce diversificación"
+    },
+    "swap": {
+      "title": "Sugerencias de Swap",
+      "subtitle": "Rebalanceo inteligente",
+      "description": "Optimiza tu portafolio con sugerencias de intercambio",
+      "from": "De",
+      "to": "A",
+      "suggestedAmount": "Monto Sugerido",
+      "reason": "Razón",
+      "priority": {
+        "high": "Alta",
+        "medium": "Media",
+        "low": "Baja"
+      },
+      "type": {
+        "takeProfit": "Tomar Ganancias",
+        "reduceCorrelation": "Reducir Correlación",
+        "rebalance": "Rebalancear",
+        "accumulate": "Acumular"
+      },
+      "health": {
+        "excellent": "Excelente",
+        "good": "Bueno",
+        "needsAttention": "Necesita Atención",
+        "critical": "Crítico"
+      },
+      "loading": "Analizando portafolio...",
+      "noSuggestions": "Sin sugerencias por el momento",
+      "portfolioHealthy": "¡Tu portafolio está saludable!",
+      "healthScore": "Puntuación",
+      "totalValue": "Valor Total",
+      "executeSwap": "Ejecutar Swap"
+    },
+    "indicators": {
+      "title": "Indicadores Técnicos",
+      "subtitle": "Análisis técnico avanzado",
+      "description": "RSI, MACD, Bandas de Bollinger y más",
+      "selectAsset": "Selecciona un activo para análisis técnico",
+      "momentum": "Momentum",
+      "trend": "Tendencia",
+      "volatility": "Volatilidad",
+      "volume": "Volumen",
+      "rsi": {
+        "title": "RSI (14)",
+        "overbought": "Sobrecomprado",
+        "oversold": "Sobrevendido",
+        "neutral": "Neutral"
+      },
+      "macd": {
+        "title": "MACD",
+        "bullish": "Alcista",
+        "bearish": "Bajista",
+        "signal": "Señal"
+      },
+      "bollinger": {
+        "title": "Bandas de Bollinger",
+        "upper": "Superior",
+        "middle": "Media",
+        "lower": "Inferior",
+        "position": "Posición"
+      },
+      "sma": {
+        "title": "Medias Móviles"
+      },
+      "stochastic": {
+        "title": "Estocástico"
+      },
+      "atr": {
+        "title": "ATR (14)",
+        "value": "Valor",
+        "percent": "% del Precio"
+      },
+      "obv": {
+        "title": "OBV",
+        "trend": "Tendencia"
+      },
+      "loading": "Calculando indicadores..."
+    },
+    "errors": {
+      "loadingFailed": "Error al cargar datos",
+      "timeout": "El servidor está tardando mucho. Puede ocurrir en horas pico.",
+      "networkError": "Sin conexión al servidor. Verifica tu internet.",
+      "generic": "Error al cargar datos. Intenta de nuevo.",
+      "tryAgain": "Intentar de Nuevo",
+      "retrying": "Reintentando..."
+    }
   }
 }

@@ -6,6 +6,7 @@
  */
 
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   GitBranch,
   AlertTriangle,
@@ -66,6 +67,8 @@ const getSeverityStyle = (severity: string) => {
 }
 
 const CorrelationMatrix: React.FC<CorrelationMatrixProps> = ({ data, loading, error }) => {
+  const { t } = useTranslation()
+
   if (loading) {
     return (
       <div className='flex flex-col items-center justify-center p-12 space-y-4 bg-white dark:bg-gray-900/80 rounded-2xl border border-gray-200 dark:border-gray-700/50'>
@@ -76,7 +79,9 @@ const CorrelationMatrix: React.FC<CorrelationMatrixProps> = ({ data, loading, er
           </div>
         </div>
         <Loader2 className='w-6 h-6 text-purple-500 animate-spin' />
-        <p className='text-sm text-gray-500 dark:text-gray-400'>Calculando correlações...</p>
+        <p className='text-sm text-gray-500 dark:text-gray-400'>
+          {t('aiIntelligence.portfolio.analyzing')}
+        </p>
       </div>
     )
   }
@@ -98,8 +103,8 @@ const CorrelationMatrix: React.FC<CorrelationMatrixProps> = ({ data, loading, er
         <div className='p-4 bg-gray-100 dark:bg-gray-800 rounded-full mb-4'>
           <GitBranch className='w-12 h-12 opacity-50' />
         </div>
-        <p className='text-sm font-medium'>Nenhum dado de correlação disponível</p>
-        <p className='text-xs mt-1 opacity-70'>Adicione mais ativos para analisar diversificação</p>
+        <p className='text-sm font-medium'>{t('aiIntelligence.errors.noData')}</p>
+        <p className='text-xs mt-1 opacity-70'>{t('aiIntelligence.errors.insufficientData')}</p>
       </div>
     )
   }
@@ -114,10 +119,12 @@ const CorrelationMatrix: React.FC<CorrelationMatrixProps> = ({ data, loading, er
           </div>
           <div>
             <h3 className='text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2'>
-              Correlation Analysis
+              {t('aiIntelligence.correlation.title')}
               <Sparkles className='w-4 h-4 text-yellow-500' />
             </h3>
-            <p className='text-xs text-gray-500 dark:text-gray-400'>Diversificação do portfólio</p>
+            <p className='text-xs text-gray-500 dark:text-gray-400'>
+              {t('aiIntelligence.correlation.subtitle')}
+            </p>
           </div>
         </div>
         <div className='flex items-center gap-2'>

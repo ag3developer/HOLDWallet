@@ -782,5 +782,169 @@
       "description": "Exchange tokens at the best rates via DEX aggregators",
       "cta": "Try Now"
     }
+  },
+  "aiIntelligence": {
+    "title": "AI Intelligence",
+    "subtitle": "Smart portfolio analysis",
+    "description": "AI-powered insights to optimize your investments",
+    "back": "Back",
+    "refresh": "Refresh",
+    "refreshing": "Refreshing...",
+    "lastUpdate": "Last update",
+    "tabs": {
+      "overview": "Overview",
+      "ath": "ATH",
+      "correlation": "Correlation",
+      "swap": "Swap",
+      "indicators": "Indicators"
+    },
+    "portfolio": {
+      "analyzing": "Analyzing",
+      "assets": "assets",
+      "realPortfolio": "Real Portfolio",
+      "realTimeData": "Real-time data",
+      "totalValue": "Total Value"
+    },
+    "overview": {
+      "title": "Portfolio Summary",
+      "insights": "AI Insights",
+      "athRecovery": "ATH Recovery",
+      "assetsAnalyzed": "assets analyzed",
+      "diversification": "Diversification",
+      "alerts": "alerts",
+      "pairs": "pairs",
+      "excellent": "Excellent",
+      "suggestions": "Suggestions",
+      "highPriority": "high priority",
+      "topAth": "Top ATH",
+      "greatestPotential": "Greatest potential",
+      "aiSuggestion": "AI Suggestion",
+      "topSwap": "Best swap",
+      "suggested": "suggested",
+      "aiStatus": "AI Status",
+      "completeAnalysis": "Complete analysis",
+      "activeAssets": "Assets",
+      "analyzed": "Analyzed"
+    },
+    "ath": {
+      "title": "ATH Analysis",
+      "subtitle": "Distance from All-Time High",
+      "description": "Compare current price with historical maximum",
+      "currentPrice": "Current Price",
+      "athPrice": "ATH Price",
+      "recovery": "Recovery",
+      "potentialUpside": "Potential Upside",
+      "zones": {
+        "athZone": "ATH Zone",
+        "strong": "Strong",
+        "recovering": "Recovering",
+        "weak": "Weak",
+        "capitulation": "Capitulation",
+        "unknown": "Unknown"
+      },
+      "loading": "Analyzing ATH data...",
+      "noData": "No ATH data available",
+      "atAth": "At ATH",
+      "upside": "potential"
+    },
+    "correlation": {
+      "title": "Correlation Matrix",
+      "subtitle": "Asset correlation",
+      "description": "Understand how your assets move together",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low",
+      "negative": "Negative",
+      "positive": "Positive",
+      "neutral": "Neutral",
+      "loading": "Calculating correlations...",
+      "noData": "Insufficient data for correlation",
+      "warning": "High correlation reduces diversification"
+    },
+    "swap": {
+      "title": "Swap Suggestions",
+      "subtitle": "Smart rebalancing",
+      "description": "Optimize your portfolio with swap suggestions",
+      "from": "From",
+      "to": "To",
+      "suggestedAmount": "Suggested Amount",
+      "reason": "Reason",
+      "priority": {
+        "high": "High",
+        "medium": "Medium",
+        "low": "Low"
+      },
+      "type": {
+        "takeProfit": "Take Profit",
+        "reduceCorrelation": "Reduce Correlation",
+        "rebalance": "Rebalance",
+        "accumulate": "Accumulate"
+      },
+      "health": {
+        "excellent": "Excellent",
+        "good": "Good",
+        "needsAttention": "Needs Attention",
+        "critical": "Critical"
+      },
+      "loading": "Analyzing portfolio...",
+      "noSuggestions": "No suggestions at the moment",
+      "portfolioHealthy": "Your portfolio is healthy!",
+      "healthScore": "Score",
+      "totalValue": "Total Value",
+      "executeSwap": "Execute Swap"
+    },
+    "indicators": {
+      "title": "Technical Indicators",
+      "subtitle": "Advanced technical analysis",
+      "description": "RSI, MACD, Bollinger Bands and more",
+      "selectAsset": "Select an asset for technical analysis",
+      "momentum": "Momentum",
+      "trend": "Trend",
+      "volatility": "Volatility",
+      "volume": "Volume",
+      "rsi": {
+        "title": "RSI (14)",
+        "overbought": "Overbought",
+        "oversold": "Oversold",
+        "neutral": "Neutral"
+      },
+      "macd": {
+        "title": "MACD",
+        "bullish": "Bullish",
+        "bearish": "Bearish",
+        "signal": "Signal"
+      },
+      "bollinger": {
+        "title": "Bollinger Bands",
+        "upper": "Upper",
+        "middle": "Middle",
+        "lower": "Lower",
+        "position": "Position"
+      },
+      "sma": {
+        "title": "Moving Averages"
+      },
+      "stochastic": {
+        "title": "Stochastic"
+      },
+      "atr": {
+        "title": "ATR (14)",
+        "value": "Value",
+        "percent": "% of Price"
+      },
+      "obv": {
+        "title": "OBV",
+        "trend": "Trend"
+      },
+      "loading": "Calculating indicators..."
+    },
+    "errors": {
+      "loadingFailed": "Failed to load data",
+      "timeout": "The server is taking too long to respond. This can happen during peak hours.",
+      "networkError": "No connection to server. Check your internet.",
+      "generic": "Error loading data. Please try again.",
+      "tryAgain": "Try Again",
+      "retrying": "Retrying..."
+    }
   }
 }

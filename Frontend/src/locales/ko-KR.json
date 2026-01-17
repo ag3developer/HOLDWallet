@@ -448,5 +448,194 @@
     "cryptoPrice": "암호화폐 가격",
     "expiresIn": "만료까지",
     "seconds": "초"
+  },
+  "aiIntelligence": {
+    "title": "AI 인텔리전스",
+    "subtitle": "AI 분석을 통한 스마트한 투자 결정",
+    "description": "인공지능이 포트폴리오를 분석하고 시장 동향에 기반한 전략적 추천을 제공합니다",
+    "back": "뒤로",
+    "refresh": "새로고침",
+    "refreshing": "새로고침 중...",
+    "lastUpdate": "마지막 업데이트",
+    "tabs": {
+      "overview": "개요",
+      "ath": "ATH 분석",
+      "correlation": "상관관계",
+      "swap": "스왑 제안",
+      "indicators": "지표"
+    },
+    "portfolio": {
+      "analyzing": "포트폴리오 분석 중...",
+      "assets": "자산",
+      "realPortfolio": "실제 포트폴리오",
+      "realTimeData": "실시간 데이터",
+      "totalValue": "총 가치",
+      "change24h": "24시간 변동",
+      "dominance": "점유율"
+    },
+    "overview": {
+      "title": "개요",
+      "athRecovery": "ATH 회복",
+      "diversification": "분산화",
+      "suggestions": "제안",
+      "indicators": "지표",
+      "portfolioScore": "포트폴리오 점수",
+      "healthStatus": "건강 상태",
+      "riskLevel": "위험 수준",
+      "low": "낮음",
+      "medium": "중간",
+      "high": "높음",
+      "excellent": "우수",
+      "good": "양호",
+      "fair": "보통",
+      "poor": "불량"
+    },
+    "ath": {
+      "title": "ATH 분석",
+      "subtitle": "최고가로부터의 거리 분석",
+      "currentPrice": "현재 가격",
+      "athPrice": "ATH 가격",
+      "athDate": "ATH 날짜",
+      "recovery": "회복률",
+      "distanceFromATH": "ATH로부터의 거리",
+      "potentialGain": "잠재적 수익",
+      "zones": {
+        "strong": "강력한 회복 구간",
+        "moderate": "중간 회복 구간",
+        "weak": "약한 회복 구간",
+        "nearATH": "ATH 근접",
+        "atATH": "ATH 도달"
+      },
+      "analysis": {
+        "bullish": "상승세",
+        "bearish": "하락세",
+        "neutral": "중립",
+        "recovering": "회복 중",
+        "declining": "하락 중"
+      },
+      "recommendation": "추천",
+      "accumulate": "적립 추천",
+      "hold": "보유 추천",
+      "takeProfit": "차익 실현 고려"
+    },
+    "correlation": {
+      "title": "상관관계 매트릭스",
+      "subtitle": "자산 간 가격 상관관계",
+      "positive": "양의 상관관계",
+      "negative": "음의 상관관계",
+      "neutral": "상관관계 없음",
+      "strong": "강함",
+      "moderate": "중간",
+      "weak": "약함",
+      "perfect": "완벽",
+      "diversified": "분산됨",
+      "concentrated": "집중됨",
+      "coefficient": "상관계수",
+      "interpretation": "해석",
+      "highCorrelation": "높은 상관관계는 같은 방향으로 움직임을 의미합니다",
+      "lowCorrelation": "낮은 상관관계는 좋은 분산화를 의미합니다",
+      "negativeCorrelation": "음의 상관관계는 헤지 기회를 의미합니다"
+    },
+    "swap": {
+      "title": "스왑 제안",
+      "subtitle": "AI 추천 포트폴리오 최적화",
+      "from": "보내는 자산",
+      "to": "받는 자산",
+      "amount": "수량",
+      "reason": "이유",
+      "confidence": "신뢰도",
+      "impact": "영향",
+      "execute": "실행",
+      "priority": {
+        "high": "높은 우선순위",
+        "medium": "중간 우선순위",
+        "low": "낮은 우선순위"
+      },
+      "type": {
+        "rebalance": "리밸런싱",
+        "takeProfit": "차익 실현",
+        "accumulate": "적립",
+        "diversify": "분산화",
+        "reduceRisk": "위험 감소"
+      },
+      "health": {
+        "excellent": "우수",
+        "good": "양호",
+        "fair": "보통",
+        "poor": "불량",
+        "critical": "위험"
+      },
+      "noSuggestions": "현재 제안이 없습니다",
+      "portfolioOptimal": "포트폴리오가 최적화되어 있습니다"
+    },
+    "indicators": {
+      "title": "기술 지표",
+      "subtitle": "시장 지표 및 신호",
+      "rsi": {
+        "title": "RSI",
+        "fullName": "상대강도지수",
+        "overbought": "과매수",
+        "oversold": "과매도",
+        "neutral": "중립",
+        "description": "모멘텀 오실레이터"
+      },
+      "macd": {
+        "title": "MACD",
+        "fullName": "이동평균수렴확산",
+        "bullish": "상승 신호",
+        "bearish": "하락 신호",
+        "crossover": "크로스오버",
+        "description": "추세 추종 지표"
+      },
+      "bollinger": {
+        "title": "볼린저 밴드",
+        "upper": "상단 밴드",
+        "middle": "중간 밴드",
+        "lower": "하단 밴드",
+        "squeeze": "스퀴즈",
+        "breakout": "돌파",
+        "description": "변동성 지표"
+      },
+      "movingAverage": {
+        "title": "이동평균",
+        "sma": "단순이동평균",
+        "ema": "지수이동평균",
+        "goldenCross": "골든크로스",
+        "deathCross": "데드크로스",
+        "above": "위",
+        "below": "아래"
+      },
+      "volume": {
+        "title": "거래량 분석",
+        "high": "높은 거래량",
+        "low": "낮은 거래량",
+        "average": "평균 거래량",
+        "increasing": "증가 중",
+        "decreasing": "감소 중"
+      },
+      "signal": {
+        "buy": "매수",
+        "sell": "매도",
+        "hold": "보유",
+        "strongBuy": "강력 매수",
+        "strongSell": "강력 매도"
+      },
+      "timeframe": {
+        "1h": "1시간",
+        "4h": "4시간",
+        "1d": "1일",
+        "1w": "1주",
+        "1m": "1개월"
+      }
+    },
+    "errors": {
+      "timeout": "요청 시간이 초과되었습니다. 다시 시도해 주세요.",
+      "networkError": "네트워크 오류가 발생했습니다",
+      "generic": "데이터를 불러오는 중 오류가 발생했습니다",
+      "tryAgain": "다시 시도",
+      "retrying": "재시도 중...",
+      "noData": "데이터가 없습니다",
+      "insufficientData": "분석에 필요한 데이터가 부족합니다"
+    }
   }
 }

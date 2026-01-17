@@ -449,5 +449,194 @@
     "cryptoPrice": "暗号通貨価格",
     "expiresIn": "期限切れまで",
     "seconds": "秒"
+  },
+  "aiIntelligence": {
+    "title": "AI インテリジェンス",
+    "subtitle": "AI分析によるスマートな投資判断",
+    "description": "人工知能があなたのポートフォリオを分析し、市場動向に基づいた戦略的な推奨を提供します",
+    "back": "戻る",
+    "refresh": "更新",
+    "refreshing": "更新中...",
+    "lastUpdate": "最終更新",
+    "tabs": {
+      "overview": "概要",
+      "ath": "ATH分析",
+      "correlation": "相関関係",
+      "swap": "スワップ提案",
+      "indicators": "指標"
+    },
+    "portfolio": {
+      "analyzing": "ポートフォリオを分析中...",
+      "assets": "資産",
+      "realPortfolio": "実際のポートフォリオ",
+      "realTimeData": "リアルタイムデータ",
+      "totalValue": "総額",
+      "change24h": "24時間変動",
+      "dominance": "ドミナンス"
+    },
+    "overview": {
+      "title": "概要",
+      "athRecovery": "ATH回復",
+      "diversification": "分散化",
+      "suggestions": "提案",
+      "indicators": "指標",
+      "portfolioScore": "ポートフォリオスコア",
+      "healthStatus": "健全性",
+      "riskLevel": "リスクレベル",
+      "low": "低",
+      "medium": "中",
+      "high": "高",
+      "excellent": "優秀",
+      "good": "良好",
+      "fair": "普通",
+      "poor": "不良"
+    },
+    "ath": {
+      "title": "ATH分析",
+      "subtitle": "最高値からの距離分析",
+      "currentPrice": "現在価格",
+      "athPrice": "ATH価格",
+      "athDate": "ATH日付",
+      "recovery": "回復率",
+      "distanceFromATH": "ATHからの距離",
+      "potentialGain": "潜在的利益",
+      "zones": {
+        "strong": "強い回復ゾーン",
+        "moderate": "中程度の回復ゾーン",
+        "weak": "弱い回復ゾーン",
+        "nearATH": "ATH近く",
+        "atATH": "ATHにあり"
+      },
+      "analysis": {
+        "bullish": "強気",
+        "bearish": "弱気",
+        "neutral": "中立",
+        "recovering": "回復中",
+        "declining": "下落中"
+      },
+      "recommendation": "推奨",
+      "accumulate": "蓄積推奨",
+      "hold": "保持推奨",
+      "takeProfit": "利確検討"
+    },
+    "correlation": {
+      "title": "相関マトリックス",
+      "subtitle": "資産間の価格相関",
+      "positive": "正の相関",
+      "negative": "負の相関",
+      "neutral": "相関なし",
+      "strong": "強い",
+      "moderate": "中程度",
+      "weak": "弱い",
+      "perfect": "完全",
+      "diversified": "分散済み",
+      "concentrated": "集中",
+      "coefficient": "相関係数",
+      "interpretation": "解釈",
+      "highCorrelation": "高相関は同方向の動きを示します",
+      "lowCorrelation": "低相関は良い分散を示します",
+      "negativeCorrelation": "負の相関はヘッジ機会を示します"
+    },
+    "swap": {
+      "title": "スワップ提案",
+      "subtitle": "AI推奨のポートフォリオ最適化",
+      "from": "送り元",
+      "to": "送り先",
+      "amount": "数量",
+      "reason": "理由",
+      "confidence": "信頼度",
+      "impact": "影響",
+      "execute": "実行",
+      "priority": {
+        "high": "高優先度",
+        "medium": "中優先度",
+        "low": "低優先度"
+      },
+      "type": {
+        "rebalance": "リバランス",
+        "takeProfit": "利確",
+        "accumulate": "蓄積",
+        "diversify": "分散化",
+        "reduceRisk": "リスク軽減"
+      },
+      "health": {
+        "excellent": "優秀",
+        "good": "良好",
+        "fair": "普通",
+        "poor": "不良",
+        "critical": "危機的"
+      },
+      "noSuggestions": "現時点で提案はありません",
+      "portfolioOptimal": "ポートフォリオは最適化されています"
+    },
+    "indicators": {
+      "title": "テクニカル指標",
+      "subtitle": "市場指標とシグナル",
+      "rsi": {
+        "title": "RSI",
+        "fullName": "相対力指数",
+        "overbought": "買われすぎ",
+        "oversold": "売られすぎ",
+        "neutral": "中立",
+        "description": "モメンタムオシレーター"
+      },
+      "macd": {
+        "title": "MACD",
+        "fullName": "移動平均収束発散法",
+        "bullish": "強気シグナル",
+        "bearish": "弱気シグナル",
+        "crossover": "クロスオーバー",
+        "description": "トレンドフォロー指標"
+      },
+      "bollinger": {
+        "title": "ボリンジャーバンド",
+        "upper": "上限バンド",
+        "middle": "中間バンド",
+        "lower": "下限バンド",
+        "squeeze": "スクイーズ",
+        "breakout": "ブレイクアウト",
+        "description": "ボラティリティ指標"
+      },
+      "movingAverage": {
+        "title": "移動平均",
+        "sma": "単純移動平均",
+        "ema": "指数移動平均",
+        "goldenCross": "ゴールデンクロス",
+        "deathCross": "デッドクロス",
+        "above": "上",
+        "below": "下"
+      },
+      "volume": {
+        "title": "出来高分析",
+        "high": "高出来高",
+        "low": "低出来高",
+        "average": "平均出来高",
+        "increasing": "増加中",
+        "decreasing": "減少中"
+      },
+      "signal": {
+        "buy": "買い",
+        "sell": "売り",
+        "hold": "保持",
+        "strongBuy": "強い買い",
+        "strongSell": "強い売り"
+      },
+      "timeframe": {
+        "1h": "1時間",
+        "4h": "4時間",
+        "1d": "1日",
+        "1w": "1週間",
+        "1m": "1ヶ月"
+      }
+    },
+    "errors": {
+      "timeout": "リクエストがタイムアウトしました。再試行してください。",
+      "networkError": "ネットワークエラーが発生しました",
+      "generic": "データの読み込み中にエラーが発生しました",
+      "tryAgain": "再試行",
+      "retrying": "再試行中...",
+      "noData": "データがありません",
+      "insufficientData": "分析に必要なデータが不足しています"
+    }
   }
 }

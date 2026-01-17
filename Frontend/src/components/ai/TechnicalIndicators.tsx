@@ -6,6 +6,7 @@
  */
 
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Activity,
   TrendingUp,
@@ -98,6 +99,8 @@ const TechnicalIndicators: React.FC<TechnicalIndicatorsProps> = ({
   error,
   formatCurrency,
 }) => {
+  const { t } = useTranslation()
+
   // Helper: format price with user currency or fallback
   const formatPrice = (value: number) => {
     if (formatCurrency) {
@@ -116,7 +119,9 @@ const TechnicalIndicators: React.FC<TechnicalIndicatorsProps> = ({
           </div>
         </div>
         <Loader2 className='w-6 h-6 text-cyan-500 animate-spin' />
-        <p className='text-sm text-gray-500 dark:text-gray-400'>Calculando indicadores...</p>
+        <p className='text-sm text-gray-500 dark:text-gray-400'>
+          {t('aiIntelligence.portfolio.analyzing')}
+        </p>
       </div>
     )
   }
@@ -138,7 +143,7 @@ const TechnicalIndicators: React.FC<TechnicalIndicatorsProps> = ({
         <div className='p-4 bg-gray-100 dark:bg-gray-800 rounded-full mb-4'>
           <Activity className='w-12 h-12 opacity-50' />
         </div>
-        <p className='text-sm font-medium'>Nenhum dado de indicador disponível</p>
+        <p className='text-sm font-medium'>{t('aiIntelligence.errors.noData')}</p>
       </div>
     )
   }
@@ -155,10 +160,12 @@ const TechnicalIndicators: React.FC<TechnicalIndicatorsProps> = ({
           </div>
           <div>
             <h3 className='text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2'>
-              Technical Indicators
+              {t('aiIntelligence.indicators.title')}
               <Sparkles className='w-4 h-4 text-yellow-500' />
             </h3>
-            <p className='text-xs text-gray-500 dark:text-gray-400'>Análise técnica avançada</p>
+            <p className='text-xs text-gray-500 dark:text-gray-400'>
+              {t('aiIntelligence.indicators.subtitle')}
+            </p>
           </div>
         </div>
         <span className='px-3 py-1.5 text-sm font-bold bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-500 rounded-xl border border-cyan-500/30'>

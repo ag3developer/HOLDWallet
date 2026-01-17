@@ -6,6 +6,7 @@
  */
 
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   ArrowRightLeft,
   TrendingUp,
@@ -28,100 +29,6 @@ interface SwapSuggestionsProps {
   error?: string | null
   onExecuteSwap?: (suggestion: SwapSuggestion) => void
   formatCurrency?: (amountUSD: number) => string
-}
-
-const getPriorityStyle = (priority: number) => {
-  if (priority >= 8) {
-    return {
-      bg: 'bg-gradient-to-r from-red-500/10 to-rose-500/10',
-      border: 'border-red-500/30',
-      text: 'text-red-400',
-      label: 'Alta',
-      icon: Zap,
-    }
-  }
-  if (priority >= 5) {
-    return {
-      bg: 'bg-gradient-to-r from-yellow-500/10 to-amber-500/10',
-      border: 'border-yellow-500/30',
-      text: 'text-yellow-400',
-      label: 'Média',
-      icon: AlertTriangle,
-    }
-  }
-  return {
-    bg: 'bg-gradient-to-r from-blue-500/10 to-indigo-500/10',
-    border: 'border-blue-500/30',
-    text: 'text-blue-400',
-    label: 'Baixa',
-    icon: Shield,
-  }
-}
-
-const getTypeStyle = (type: string) => {
-  switch (type) {
-    case 'take_profit':
-      return {
-        bg: 'bg-gradient-to-r from-green-500/10 to-emerald-500/10',
-        border: 'border-green-500/30',
-        text: 'text-green-400',
-        label: 'Take Profit',
-      }
-    case 'reduce_correlation':
-      return {
-        bg: 'bg-gradient-to-r from-purple-500/10 to-violet-500/10',
-        border: 'border-purple-500/30',
-        text: 'text-purple-400',
-        label: 'Reduzir Correlação',
-      }
-    case 'rebalance':
-      return {
-        bg: 'bg-gradient-to-r from-blue-500/10 to-indigo-500/10',
-        border: 'border-blue-500/30',
-        text: 'text-blue-400',
-        label: 'Rebalancear',
-      }
-    case 'accumulate':
-      return {
-        bg: 'bg-gradient-to-r from-emerald-500/10 to-teal-500/10',
-        border: 'border-emerald-500/30',
-        text: 'text-emerald-400',
-        label: 'Acumular',
-      }
-    default:
-      return {
-        bg: 'bg-gradient-to-r from-gray-500/10 to-slate-500/10',
-        border: 'border-gray-500/30',
-        text: 'text-gray-400',
-        label: type,
-      }
-  }
-}
-
-const getHealthStyle = (status: string) => {
-  switch (status) {
-    case 'HEALTHY':
-      return {
-        bg: 'bg-gradient-to-r from-green-500/20 to-emerald-500/20',
-        border: 'border-green-500/30',
-        text: 'text-green-400',
-        label: 'Saudável',
-      }
-    case 'MODERATE':
-      return {
-        bg: 'bg-gradient-to-r from-yellow-500/20 to-amber-500/20',
-        border: 'border-yellow-500/30',
-        text: 'text-yellow-400',
-        label: 'Moderado',
-      }
-    default:
-      return {
-        bg: 'bg-gradient-to-r from-red-500/20 to-rose-500/20',
-        border: 'border-red-500/30',
-        text: 'text-red-400',
-        label: 'Atenção',
-      }
-  }
 }
 
 // Helper functions for allocation diff styling
@@ -150,6 +57,102 @@ const SwapSuggestions: React.FC<SwapSuggestionsProps> = ({
   onExecuteSwap,
   formatCurrency,
 }) => {
+  const { t } = useTranslation()
+
+  const getPriorityStyle = (priority: number) => {
+    if (priority >= 8) {
+      return {
+        bg: 'bg-gradient-to-r from-red-500/10 to-rose-500/10',
+        border: 'border-red-500/30',
+        text: 'text-red-400',
+        label: t('aiIntelligence.swap.priority.high'),
+        icon: Zap,
+      }
+    }
+    if (priority >= 5) {
+      return {
+        bg: 'bg-gradient-to-r from-yellow-500/10 to-amber-500/10',
+        border: 'border-yellow-500/30',
+        text: 'text-yellow-400',
+        label: t('aiIntelligence.swap.priority.medium'),
+        icon: AlertTriangle,
+      }
+    }
+    return {
+      bg: 'bg-gradient-to-r from-blue-500/10 to-indigo-500/10',
+      border: 'border-blue-500/30',
+      text: 'text-blue-400',
+      label: t('aiIntelligence.swap.priority.low'),
+      icon: Shield,
+    }
+  }
+
+  const getTypeStyle = (type: string) => {
+    switch (type) {
+      case 'take_profit':
+        return {
+          bg: 'bg-gradient-to-r from-green-500/10 to-emerald-500/10',
+          border: 'border-green-500/30',
+          text: 'text-green-400',
+          label: t('aiIntelligence.swap.type.takeProfit'),
+        }
+      case 'reduce_correlation':
+        return {
+          bg: 'bg-gradient-to-r from-purple-500/10 to-violet-500/10',
+          border: 'border-purple-500/30',
+          text: 'text-purple-400',
+          label: t('aiIntelligence.swap.type.reduceRisk'),
+        }
+      case 'rebalance':
+        return {
+          bg: 'bg-gradient-to-r from-blue-500/10 to-indigo-500/10',
+          border: 'border-blue-500/30',
+          text: 'text-blue-400',
+          label: t('aiIntelligence.swap.type.rebalance'),
+        }
+      case 'accumulate':
+        return {
+          bg: 'bg-gradient-to-r from-emerald-500/10 to-teal-500/10',
+          border: 'border-emerald-500/30',
+          text: 'text-emerald-400',
+          label: t('aiIntelligence.swap.type.accumulate'),
+        }
+      default:
+        return {
+          bg: 'bg-gradient-to-r from-gray-500/10 to-slate-500/10',
+          border: 'border-gray-500/30',
+          text: 'text-gray-400',
+          label: type,
+        }
+    }
+  }
+
+  const getHealthStyle = (status: string) => {
+    switch (status) {
+      case 'HEALTHY':
+        return {
+          bg: 'bg-gradient-to-r from-green-500/20 to-emerald-500/20',
+          border: 'border-green-500/30',
+          text: 'text-green-400',
+          label: t('aiIntelligence.swap.health.excellent'),
+        }
+      case 'MODERATE':
+        return {
+          bg: 'bg-gradient-to-r from-yellow-500/20 to-amber-500/20',
+          border: 'border-yellow-500/30',
+          text: 'text-yellow-400',
+          label: t('aiIntelligence.swap.health.fair'),
+        }
+      default:
+        return {
+          bg: 'bg-gradient-to-r from-red-500/20 to-rose-500/20',
+          border: 'border-red-500/30',
+          text: 'text-red-400',
+          label: t('aiIntelligence.swap.health.poor'),
+        }
+    }
+  }
+
   // Helper: format price with user currency or fallback
   const formatPrice = (value: number) => {
     if (formatCurrency) {
@@ -168,7 +171,9 @@ const SwapSuggestions: React.FC<SwapSuggestionsProps> = ({
           </div>
         </div>
         <Loader2 className='w-6 h-6 text-blue-500 animate-spin' />
-        <p className='text-sm text-gray-500 dark:text-gray-400'>Analisando portfólio...</p>
+        <p className='text-sm text-gray-500 dark:text-gray-400'>
+          {t('aiIntelligence.portfolio.analyzing')}
+        </p>
       </div>
     )
   }
@@ -190,7 +195,7 @@ const SwapSuggestions: React.FC<SwapSuggestionsProps> = ({
         <div className='p-4 bg-gray-100 dark:bg-gray-800 rounded-full mb-4'>
           <ArrowRightLeft className='w-12 h-12 opacity-50' />
         </div>
-        <p className='text-sm font-medium'>Nenhuma sugestão de swap disponível</p>
+        <p className='text-sm font-medium'>{t('aiIntelligence.swap.noSuggestions')}</p>
       </div>
     )
   }
@@ -207,10 +212,12 @@ const SwapSuggestions: React.FC<SwapSuggestionsProps> = ({
           </div>
           <div>
             <h3 className='text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2'>
-              Swap Suggestions
+              {t('aiIntelligence.swap.title')}
               <Sparkles className='w-4 h-4 text-yellow-500' />
             </h3>
-            <p className='text-xs text-gray-500 dark:text-gray-400'>Recomendações inteligentes</p>
+            <p className='text-xs text-gray-500 dark:text-gray-400'>
+              {t('aiIntelligence.swap.subtitle')}
+            </p>
           </div>
         </div>
         <span
@@ -229,7 +236,9 @@ const SwapSuggestions: React.FC<SwapSuggestionsProps> = ({
           <p className='text-2xl font-bold text-gray-900 dark:text-white'>
             {data.summary.total_suggestions}
           </p>
-          <p className='text-xs text-gray-500 dark:text-gray-400'>Sugestões</p>
+          <p className='text-xs text-gray-500 dark:text-gray-400'>
+            {t('aiIntelligence.overview.suggestions')}
+          </p>
         </div>
         <div className='text-center p-3 bg-blue-500/10 rounded-xl'>
           <div className='flex items-center justify-center gap-2 mb-2'>
@@ -238,14 +247,18 @@ const SwapSuggestions: React.FC<SwapSuggestionsProps> = ({
           <p className='text-2xl font-bold text-blue-400'>
             {data.summary.portfolio_balance_score}%
           </p>
-          <p className='text-xs text-gray-500 dark:text-gray-400'>Score</p>
+          <p className='text-xs text-gray-500 dark:text-gray-400'>
+            {t('aiIntelligence.overview.portfolioScore')}
+          </p>
         </div>
         <div className='text-center p-3 bg-red-500/10 rounded-xl'>
           <div className='flex items-center justify-center gap-2 mb-2'>
             <Zap className='w-4 h-4 text-red-400' />
           </div>
           <p className='text-2xl font-bold text-red-400'>{data.summary.high_priority_count}</p>
-          <p className='text-xs text-gray-500 dark:text-gray-400'>Alta Prioridade</p>
+          <p className='text-xs text-gray-500 dark:text-gray-400'>
+            {t('aiIntelligence.swap.priority.high')}
+          </p>
         </div>
         <div className='text-center p-3 bg-green-500/10 rounded-xl'>
           <div className='flex items-center justify-center gap-2 mb-2'>
@@ -254,7 +267,9 @@ const SwapSuggestions: React.FC<SwapSuggestionsProps> = ({
           <p className='text-2xl font-bold text-green-400'>
             {formatPrice(data.summary.total_suggested_swap_value)}
           </p>
-          <p className='text-xs text-gray-500 dark:text-gray-400'>Valor Total</p>
+          <p className='text-xs text-gray-500 dark:text-gray-400'>
+            {t('aiIntelligence.portfolio.totalValue')}
+          </p>
         </div>
       </div>
 
@@ -267,9 +282,11 @@ const SwapSuggestions: React.FC<SwapSuggestionsProps> = ({
               <CheckCircle className='w-10 h-10 text-green-400' />
             </div>
           </div>
-          <p className='text-lg font-bold text-green-400'>Portfólio Saudável</p>
+          <p className='text-lg font-bold text-green-400'>
+            {t('aiIntelligence.swap.health.excellent')}
+          </p>
           <p className='text-sm text-gray-500 dark:text-gray-400 mt-1'>
-            Nenhum rebalanceamento necessário no momento
+            {t('aiIntelligence.swap.portfolioOptimal')}
           </p>
         </div>
       )}
@@ -316,7 +333,9 @@ const SwapSuggestions: React.FC<SwapSuggestionsProps> = ({
                   <p className='text-lg font-bold text-gray-900 dark:text-white'>
                     {suggestion.from_symbol}
                   </p>
-                  <p className='text-xs text-gray-500 dark:text-gray-400'>De</p>
+                  <p className='text-xs text-gray-500 dark:text-gray-400'>
+                    {t('aiIntelligence.swap.from')}
+                  </p>
                 </div>
                 <div className='flex flex-col items-center'>
                   <div className='p-2 bg-blue-500/20 rounded-full'>
@@ -328,7 +347,9 @@ const SwapSuggestions: React.FC<SwapSuggestionsProps> = ({
                     <CryptoIcon symbol={suggestion.to_symbol} size={36} className='mx-auto' />
                   </div>
                   <p className='text-lg font-bold text-green-400'>{suggestion.to_symbol}</p>
-                  <p className='text-xs text-gray-500 dark:text-gray-400'>Para</p>
+                  <p className='text-xs text-gray-500 dark:text-gray-400'>
+                    {t('aiIntelligence.swap.to')}
+                  </p>
                 </div>
               </div>
 
@@ -337,7 +358,9 @@ const SwapSuggestions: React.FC<SwapSuggestionsProps> = ({
                 <p className='text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-indigo-500'>
                   {formatPrice(suggestion.suggested_amount_usd)}
                 </p>
-                <p className='text-xs text-gray-500 dark:text-gray-400'>Valor Sugerido</p>
+                <p className='text-xs text-gray-500 dark:text-gray-400'>
+                  {t('aiIntelligence.swap.amount')}
+                </p>
               </div>
 
               {/* Reason & Impact */}
