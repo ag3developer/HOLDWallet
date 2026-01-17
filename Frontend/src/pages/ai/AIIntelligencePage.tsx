@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Brain,
   Target,
@@ -18,6 +18,8 @@ import {
   Lightbulb,
   Rocket,
   Eye,
+  WifiOff,
+  Clock,
 } from 'lucide-react'
 import {
   AIInsightsCard,
@@ -64,6 +66,32 @@ const TabButton: React.FC<TabButtonProps> = ({ active, icon: Icon, label, onClic
   </button>
 )
 
+// Helper to check if error is timeout-related
+const isTimeoutErr = (error: unknown): boolean => {
+  if (error instanceof Error) {
+    return (
+      error.message.toLowerCase().includes('timeout') ||
+      error.message.toLowerCase().includes('took too long') ||
+      (error as any).code === 'TIMEOUT_ERROR' ||
+      (error as any).code === 'ECONNABORTED'
+    )
+  }
+  return false
+}
+
+// Helper to get user-friendly error message
+const getErrorMsg = (error: unknown): string => {
+  if (isTimeoutErr(error)) {
+    return 'O servidor está demorando para responder. Isso pode acontecer em horários de pico.'
+  }
+  if (error instanceof Error) {
+    if (error.message.includes('Network Error') || error.message.includes('ERR_NETWORK')) {
+      return 'Sem conexão com o servidor. Verifique sua internet.'
+    }
+  }
+  return 'Erro ao carregar dados. Tente novamente.'
+}
+
 const AIIntelligencePage: React.FC<AIIntelligencePageProps> = ({ onBack }) => {
   const [activeTab, setActiveTab] = useState<TabType>('overview')
   const [loading, setLoading] = useState(true)
@@ -87,26 +115,36 @@ const AIIntelligencePage: React.FC<AIIntelligencePageProps> = ({ onBack }) => {
   const [swapError, setSwapError] = useState<string | null>(null)
   const [indicatorsError, setIndicatorsError] = useState<string | null>(null)
   const [dataLoadError, setDataLoadError] = useState<string | null>(null)
+  const [isTimeoutError, setIsTimeoutError] = useState(false)
+
+  // Retry tracking
+  const retryCountRef = useRef(0)
+  const MAX_RETRIES = 2
 
   // ===================
-  // Fetch Real Portfolio from User's Wallet
+  // Fetch Real Portfolio from User's Wallet (with retry logic)
   // ===================
-  const fetchRealPortfolio = useCallback(async (): Promise<PortfolioAsset[]> => {
+  const fetchRealPortfolio = useCallback(async (retry = 0): Promise<PortfolioAsset[]> => {
     try {
-      // Get user's wallets
-      const walletsResp = await apiClient.get('/wallets/')
+      // Get user's wallets with increased timeout for slow connections
+      const walletsResp = await apiClient.get('/wallets/', {
+        timeout: 45000, // 45 seconds for AI page
+      })
       const wallets = walletsResp.data
       if (!wallets?.length) return []
 
       const walletId = wallets[0].id
 
       // Get balances with tokens
-      const balanceResp = await apiClient.get(`/wallets/${walletId}/balances?include_tokens=true`)
+      const balanceResp = await apiClient.get(`/wallets/${walletId}/balances?include_tokens=true`, {
+        timeout: 45000,
+      })
       const balances = balanceResp.data.balances || {}
 
       // Get current prices
       const pricesResp = await apiClient.get('/prices/batch', {
         params: { symbols: 'BTC,ETH,SOL,MATIC,BNB,ADA,DOT,LINK,AVAX,LTC,DOGE,XRP,TRX' },
+        timeout: 30000,
       })
       const prices = pricesResp.data.prices || {}
 
@@ -165,6 +203,19 @@ const AIIntelligencePage: React.FC<AIIntelligencePageProps> = ({ onBack }) => {
       return portfolioAssets
     } catch (error) {
       console.error('Error fetching real portfolio:', error)
+
+      // Auto-retry on timeout (up to MAX_RETRIES)
+      if (isTimeoutErr(error) && retry < MAX_RETRIES) {
+        console.log(`[AI] Retrying portfolio fetch (attempt ${retry + 1}/${MAX_RETRIES})...`)
+        await new Promise(resolve => setTimeout(resolve, 2000)) // Wait 2 seconds before retry
+        return fetchRealPortfolio(retry + 1)
+      }
+
+      // Track timeout errors for UI feedback
+      if (isTimeoutErr(error)) {
+        setIsTimeoutError(true)
+      }
+
       return []
     }
   }, [])
@@ -297,9 +348,18 @@ const AIIntelligencePage: React.FC<AIIntelligencePageProps> = ({ onBack }) => {
       }
     } catch (error) {
       console.error('[AI] Error loading data:', error)
-      setDataLoadError('Erro ao carregar dados. Tente novamente.')
+
+      // Set appropriate error message based on error type
+      if (isTimeoutErr(error)) {
+        setIsTimeoutError(true)
+        setDataLoadError('O servidor está demorando. Tente novamente em alguns segundos.')
+      } else {
+        setDataLoadError(getErrorMsg(error))
+      }
     }
 
+    // Reset retry count on successful completion or final failure
+    retryCountRef.current = 0
     setLoading(false)
   }, [fetchRealPortfolio, fetchRealPriceHistory, fetchRealOHLCV])
 
@@ -308,9 +368,11 @@ const AIIntelligencePage: React.FC<AIIntelligencePageProps> = ({ onBack }) => {
     fetchAllData()
   }, [fetchAllData])
 
-  // Refresh handler
+  // Refresh handler with reset of error states
   const handleRefresh = async () => {
     setRefreshing(true)
+    setIsTimeoutError(false)
+    setDataLoadError(null)
     await fetchAllData()
     setRefreshing(false)
   }
@@ -476,24 +538,58 @@ const AIIntelligencePage: React.FC<AIIntelligencePageProps> = ({ onBack }) => {
           </div>
         )}
 
-        {/* Error State - Premium */}
+        {/* Error State - Premium with Timeout-specific UI */}
         {!loading && dataLoadError && (
           <div className='flex flex-col items-center justify-center py-16 space-y-6'>
             <div className='relative'>
-              <div className='absolute inset-0 bg-yellow-500/20 rounded-full blur-xl animate-pulse' />
-              <div className='relative p-6 bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/30 dark:to-orange-900/30 rounded-full border border-yellow-200 dark:border-yellow-800'>
-                <AlertCircle className='w-14 h-14 text-yellow-500' />
+              <div
+                className={`absolute inset-0 ${isTimeoutError ? 'bg-orange-500/20' : 'bg-yellow-500/20'} rounded-full blur-xl animate-pulse`}
+              />
+              <div
+                className={`relative p-6 rounded-full border ${
+                  isTimeoutError
+                    ? 'bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-900/30 dark:to-amber-900/30 border-orange-200 dark:border-orange-800'
+                    : 'bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/30 dark:to-orange-900/30 border-yellow-200 dark:border-yellow-800'
+                }`}
+              >
+                {isTimeoutError ? (
+                  <Clock className='w-14 h-14 text-orange-500' />
+                ) : (
+                  <AlertCircle className='w-14 h-14 text-yellow-500' />
+                )}
               </div>
             </div>
             <div className='text-center max-w-md space-y-3'>
-              <h3 className='text-xl font-bold text-gray-900 dark:text-white'>Atenção</h3>
+              <h3 className='text-xl font-bold text-gray-900 dark:text-white'>
+                {isTimeoutError ? 'Servidor Ocupado' : 'Atenção'}
+              </h3>
               <p className='text-sm text-gray-600 dark:text-gray-400'>{dataLoadError}</p>
+
+              {isTimeoutError && (
+                <div className='flex items-center justify-center gap-2 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-xl border border-orange-200 dark:border-orange-800/50'>
+                  <WifiOff className='w-4 h-4 text-orange-500' />
+                  <p className='text-xs text-orange-600 dark:text-orange-400'>
+                    Dica: Tente novamente em horários de menor movimento
+                  </p>
+                </div>
+              )}
+
               <button
                 onClick={handleRefresh}
-                className='mt-4 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium rounded-xl transition-all shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 flex items-center gap-2 mx-auto'
+                disabled={refreshing}
+                className='mt-4 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 text-white font-medium rounded-xl transition-all shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 flex items-center gap-2 mx-auto'
               >
-                <RefreshCw className='w-4 h-4' />
-                Tentar Novamente
+                {refreshing ? (
+                  <>
+                    <Loader2 className='w-4 h-4 animate-spin' />
+                    Carregando...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className='w-4 h-4' />
+                    Tentar Novamente
+                  </>
+                )}
               </button>
             </div>
           </div>
