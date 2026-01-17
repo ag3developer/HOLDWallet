@@ -257,6 +257,7 @@ export const SendPage = () => {
           { network: 'bsc', symbol: 'BNB' },
           { network: 'tron', symbol: 'TRX' },
           { network: 'base', symbol: 'BASE' },
+          { network: 'tray', symbol: 'TRAY' },
           { network: 'solana', symbol: 'SOL' },
           { network: 'litecoin', symbol: 'LTC' },
           { network: 'dogecoin', symbol: 'DOGE' },
@@ -269,15 +270,27 @@ export const SendPage = () => {
         ]
 
         supportedNetworks.forEach(({ network, symbol }) => {
-          const networkBalance = balanceQueryResult?.data?.[network]
+          // TRAY é um token na Polygon, buscar de polygon_tray
+          let networkBalance
+          let address
+
+          if (network === 'tray') {
+            networkBalance =
+              balanceQueryResult?.data?.['polygon_tray'] ||
+              balanceQueryResult?.data?.['polygon_TRAY']
+            address = networkAddresses['polygon'] || '' // Usa endereço Polygon
+          } else {
+            networkBalance = balanceQueryResult?.data?.[network]
+            address = networkAddresses[network] || '' // 🔑 Endereço específico por rede
+          }
+
           const balance = networkBalance?.balance ? Number(networkBalance.balance) : 0
           const balanceUSD = networkBalance?.balance_usd ? Number(networkBalance.balance_usd) : 0
-          const address = networkAddresses[network] || '' // 🔑 Endereço específico por rede
 
           expandedWallets.push({
             walletId: wallet.id,
             symbol,
-            network,
+            network: network === 'tray' ? 'polygon' : network, // TRAY mostra polygon como rede
             address, // 🔑 Agora com endereço específico por rede
             balance,
             balanceUSD,

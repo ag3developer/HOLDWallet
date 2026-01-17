@@ -235,6 +235,7 @@ export const WalletPage = () => {
           { network: 'bsc', symbol: 'BNB', color: 'from-yellow-400 to-yellow-600' },
           { network: 'tron', symbol: 'TRX', color: 'from-red-400 to-red-600' },
           { network: 'base', symbol: 'BASE', color: 'from-blue-500 to-blue-700' },
+          { network: 'tray', symbol: 'TRAY', color: 'from-purple-500 to-purple-700' },
           { network: 'solana', symbol: 'SOL', color: 'from-purple-500 to-pink-500' },
           { network: 'litecoin', symbol: 'LTC', color: 'from-gray-400 to-gray-600' },
           { network: 'dogecoin', symbol: 'DOGE', color: 'from-yellow-300 to-yellow-500' },
@@ -255,10 +256,18 @@ export const WalletPage = () => {
 
         filteredNetworks.forEach(({ network, symbol, color }) => {
           // Buscar saldo real desta rede
-          const networkBalance = realBalances[network]
-          const nativeBalance = networkBalance
-            ? Number.parseFloat(networkBalance.balance || '0')
-            : 0
+          // TRAY é um token na Polygon, então buscar como polygon_tray
+          let networkBalance
+          let nativeBalance
+
+          if (network === 'tray') {
+            // TRAY é um token ERC-20 na Polygon
+            networkBalance = realBalances['polygon_tray'] || realBalances['polygon_TRAY']
+            nativeBalance = networkBalance ? Number.parseFloat(networkBalance.balance || '0') : 0
+          } else {
+            networkBalance = realBalances[network]
+            nativeBalance = networkBalance ? Number.parseFloat(networkBalance.balance || '0') : 0
+          }
 
           // ✅ Usar APENAS preço em tempo real - sem fallback para balance_usd antigo
           const marketPriceData = marketPrices[symbol.toUpperCase()]
@@ -267,14 +276,22 @@ export const WalletPage = () => {
           // ⚠️ Backend agora retorna APENAS balance_usd, frontend converte para BRL conforme settings
 
           // Adicionar label de rede se for Base ou outra rede com mesmo símbolo
-          const networkLabel = network === 'base' ? ` (${symbol} - Base)` : ` (${symbol})`
+          // TRAY mostra "Polygon" pois é um token na Polygon
+          let networkLabel = ` (${symbol})`
+          let displayNetwork = network
+          if (network === 'base') {
+            networkLabel = ` (${symbol} - Base)`
+          } else if (network === 'tray') {
+            networkLabel = ` (${symbol})`
+            displayNetwork = 'polygon' // TRAY roda na Polygon
+          }
 
           expandedWallets.push({
             id: `${wallet.id}-${network}`,
             walletId: wallet.id,
             name: `${wallet.name}${networkLabel}`,
             symbol: symbol,
-            network: network,
+            network: displayNetwork,
             balance: nativeBalance,
             balanceUSD: balanceUSD,
             balanceBRL: balanceUSD, // Temporário: será convertido para BRL no display via formatCurrency()
@@ -284,10 +301,11 @@ export const WalletPage = () => {
           })
         })
 
-        // 🪙 TAMBÉM PROCESSAR TOKENS (USDT, USDC, TRAY, etc)
+        // 🪙 TAMBÉM PROCESSAR TOKENS (USDT, USDC, etc) - TRAY agora aparece como card principal
         for (const [key, value] of Object.entries(realBalances)) {
           const keyLower = String(key).toLowerCase()
-          const tokenMatch = keyLower.match(/^([a-z0-9]+)_(usdt|usdc|tray)$/)
+          // TRAY é processado como card de rede, então não processar aqui como token
+          const tokenMatch = keyLower.match(/^([a-z0-9]+)_(usdt|usdc)$/)
 
           console.log(
             `[WalletPage] Checking key: ${key} (${keyLower}), match: ${tokenMatch ? 'YES' : 'NO'}`
@@ -309,10 +327,6 @@ export const WalletPage = () => {
               console.log(`[WalletPage] USDC disabled, skipping`)
               continue // Skip USDC se desativado
             }
-            if (tokenName === 'TRAY' && !tokenPreferences.tray) {
-              console.log(`[WalletPage] TRAY disabled, skipping`)
-              continue // Skip TRAY se desativado
-            }
 
             const balance = (value as any)?.balance ? Number.parseFloat((value as any).balance) : 0
 
@@ -331,8 +345,6 @@ export const WalletPage = () => {
               tokenColor = 'from-green-400 to-green-600'
             } else if (tokenName === 'USDC') {
               tokenColor = 'from-blue-400 to-blue-600'
-            } else if (tokenName === 'TRAY') {
-              tokenColor = 'from-purple-400 to-purple-600'
             }
 
             expandedWallets.push({
@@ -423,6 +435,7 @@ export const WalletPage = () => {
         'bsc',
         'tron',
         'base',
+        'tray',
         'solana',
         'litecoin',
         'dogecoin',

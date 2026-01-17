@@ -39,7 +39,7 @@ const DEFAULT_NETWORK_FOR_TOKEN: Record<string, string> = {
 
 // Função para verificar se um token pode existir em uma rede
 const isValidNetworkForToken = (token: string, network: string): boolean => {
-  // Stablecoins têm redes específicas
+  // Stablecoins e tokens específicos têm redes específicas
   if (STABLECOIN_VALID_NETWORKS[token]) {
     return STABLECOIN_VALID_NETWORKS[token].includes(network)
   }
@@ -60,6 +60,7 @@ const isValidNetworkForToken = (token: string, network: string): boolean => {
     BASE: 'base',
     LINK: 'ethereum',
     SHIB: 'ethereum',
+    TRAY: 'polygon', // TRAY é um token na Polygon
   }
   return nativeTokenNetworks[token] === network
 }
@@ -79,6 +80,7 @@ export const ReceivePage = () => {
       bsc: true,
       tron: true,
       base: true,
+      tray: true,
       solana: true,
       litecoin: true,
       dogecoin: true,
@@ -176,6 +178,7 @@ export const ReceivePage = () => {
           { network: 'bsc', symbol: 'BNB' },
           { network: 'tron', symbol: 'TRX' },
           { network: 'base', symbol: 'BASE' },
+          { network: 'tray', symbol: 'TRAY' },
           { network: 'solana', symbol: 'SOL' },
           { network: 'litecoin', symbol: 'LTC' },
           { network: 'dogecoin', symbol: 'DOGE' },
@@ -188,12 +191,15 @@ export const ReceivePage = () => {
         ]
 
         supportedNetworks.forEach(({ network, symbol }) => {
-          const address = networkAddresses[network] || ''
+          // TRAY usa endereço Polygon
+          const address =
+            network === 'tray' ? networkAddresses['polygon'] || '' : networkAddresses[network] || ''
+
           expandedWallets.push({
             id: `${wallet.id}-${network}`,
             walletId: wallet.id,
             symbol,
-            network,
+            network: network === 'tray' ? 'polygon' : network, // TRAY mostra polygon como rede
             address,
             balance: balanceData?.data?.balance ? Number(balanceData.data.balance) : 0,
             balanceUSD: balanceData?.data?.balance_usd ? Number(balanceData.data.balance_usd) : 0,
