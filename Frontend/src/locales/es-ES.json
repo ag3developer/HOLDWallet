@@ -550,7 +550,10 @@
       "aiStatus": "Estado AI",
       "completeAnalysis": "Análisis completo",
       "activeAssets": "Activos",
-      "analyzed": "Analizados"
+      "analyzed": "Analizados",
+      "healthStatus": "Estado de Salud",
+      "portfolioScore": "Puntuación",
+      "indicators": "indicadores"
     },
     "ath": {
       "title": "Análisis ATH",
@@ -560,7 +563,18 @@
       "athPrice": "Precio ATH",
       "recovery": "Recuperación",
       "potentialUpside": "Potencial de Alza",
+      "distanceFromATH": "Del ATH",
+      "potentialGain": "Potencial",
+      "athDate": "Días",
+      "analysis": {
+        "bullish": "Alcista",
+        "bearish": "Bajista",
+        "neutral": "Neutral",
+        "recovering": "Recuperando",
+        "declining": "En Declive"
+      },
       "zones": {
+        "atATH": "En ATH",
         "athZone": "Zona ATH",
         "strong": "Fuerte",
         "recovering": "Recuperando",
@@ -603,18 +617,22 @@
       "type": {
         "takeProfit": "Tomar Ganancias",
         "reduceCorrelation": "Reducir Correlación",
+        "reduceRisk": "Reducir Riesgo",
         "rebalance": "Rebalancear",
         "accumulate": "Acumular"
       },
       "health": {
         "excellent": "Excelente",
         "good": "Bueno",
+        "fair": "Regular",
+        "poor": "Malo",
         "needsAttention": "Necesita Atención",
         "critical": "Crítico"
       },
       "loading": "Analizando portafolio...",
       "noSuggestions": "Sin sugerencias por el momento",
       "portfolioHealthy": "¡Tu portafolio está saludable!",
+      "portfolioOptimal": "Tu portafolio está optimizado",
       "healthScore": "Puntuación",
       "totalValue": "Valor Total",
       "executeSwap": "Ejecutar Swap"

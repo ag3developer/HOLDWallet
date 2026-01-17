@@ -203,71 +203,73 @@ const SwapSuggestions: React.FC<SwapSuggestionsProps> = ({
   const healthStyle = getHealthStyle(data.summary.health_status)
 
   return (
-    <div className='space-y-5'>
+    <div className='space-y-3 sm:space-y-5'>
       {/* Premium Header */}
-      <div className='flex items-center justify-between p-4 bg-white dark:bg-gray-900/80 rounded-2xl border border-gray-200 dark:border-gray-700/50'>
-        <div className='flex items-center gap-3'>
-          <div className='p-2.5 bg-gradient-to-br from-blue-500/20 to-indigo-500/20 rounded-xl'>
-            <ArrowRightLeft className='w-5 h-5 text-blue-500' />
+      <div className='flex items-center justify-between p-3 sm:p-4 bg-white dark:bg-gray-900/80 rounded-xl sm:rounded-2xl border border-gray-200 dark:border-gray-700/50'>
+        <div className='flex items-center gap-2 sm:gap-3'>
+          <div className='p-2 sm:p-2.5 bg-gradient-to-br from-blue-500/20 to-indigo-500/20 rounded-lg sm:rounded-xl'>
+            <ArrowRightLeft className='w-4 h-4 sm:w-5 sm:h-5 text-blue-500' />
           </div>
           <div>
-            <h3 className='text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2'>
+            <h3 className='text-sm sm:text-lg font-bold text-gray-900 dark:text-white flex items-center gap-1.5 sm:gap-2'>
               {t('aiIntelligence.swap.title')}
-              <Sparkles className='w-4 h-4 text-yellow-500' />
+              <Sparkles className='w-3 h-3 sm:w-4 sm:h-4 text-yellow-500' />
             </h3>
-            <p className='text-xs text-gray-500 dark:text-gray-400'>
+            <p className='text-[10px] sm:text-xs text-gray-500 dark:text-gray-400'>
               {t('aiIntelligence.swap.subtitle')}
             </p>
           </div>
         </div>
         <span
-          className={`px-3 py-1.5 text-xs font-semibold rounded-xl ${healthStyle.bg} ${healthStyle.text} border ${healthStyle.border}`}
+          className={`px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs font-semibold rounded-lg sm:rounded-xl ${healthStyle.bg} ${healthStyle.text} border ${healthStyle.border}`}
         >
           {healthStyle.label}
         </span>
       </div>
 
       {/* Premium Summary Card */}
-      <div className='grid grid-cols-2 gap-4 p-5 bg-white dark:bg-gray-900/80 rounded-2xl border border-gray-200 dark:border-gray-700/50'>
-        <div className='text-center p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl'>
-          <div className='flex items-center justify-center gap-2 mb-2'>
-            <PieChart className='w-4 h-4 text-gray-400' />
+      <div className='grid grid-cols-2 gap-2 sm:gap-4 p-3 sm:p-5 bg-white dark:bg-gray-900/80 rounded-xl sm:rounded-2xl border border-gray-200 dark:border-gray-700/50'>
+        <div className='text-center p-2 sm:p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg sm:rounded-xl'>
+          <div className='flex items-center justify-center gap-1.5 sm:gap-2 mb-1 sm:mb-2'>
+            <PieChart className='w-3 h-3 sm:w-4 sm:h-4 text-gray-400' />
           </div>
-          <p className='text-2xl font-bold text-gray-900 dark:text-white'>
+          <p className='text-base sm:text-2xl font-bold text-gray-900 dark:text-white'>
             {data.summary.total_suggestions}
           </p>
-          <p className='text-xs text-gray-500 dark:text-gray-400'>
+          <p className='text-[10px] sm:text-xs text-gray-500 dark:text-gray-400'>
             {t('aiIntelligence.overview.suggestions')}
           </p>
         </div>
-        <div className='text-center p-3 bg-blue-500/10 rounded-xl'>
-          <div className='flex items-center justify-center gap-2 mb-2'>
-            <Target className='w-4 h-4 text-blue-400' />
+        <div className='text-center p-2 sm:p-3 bg-blue-500/10 rounded-lg sm:rounded-xl'>
+          <div className='flex items-center justify-center gap-1.5 sm:gap-2 mb-1 sm:mb-2'>
+            <Target className='w-3 h-3 sm:w-4 sm:h-4 text-blue-400' />
           </div>
-          <p className='text-2xl font-bold text-blue-400'>
+          <p className='text-base sm:text-2xl font-bold text-blue-400'>
             {data.summary.portfolio_balance_score}%
           </p>
-          <p className='text-xs text-gray-500 dark:text-gray-400'>
+          <p className='text-[10px] sm:text-xs text-gray-500 dark:text-gray-400'>
             {t('aiIntelligence.overview.portfolioScore')}
           </p>
         </div>
-        <div className='text-center p-3 bg-red-500/10 rounded-xl'>
-          <div className='flex items-center justify-center gap-2 mb-2'>
-            <Zap className='w-4 h-4 text-red-400' />
+        <div className='text-center p-2 sm:p-3 bg-red-500/10 rounded-lg sm:rounded-xl'>
+          <div className='flex items-center justify-center gap-1.5 sm:gap-2 mb-1 sm:mb-2'>
+            <Zap className='w-3 h-3 sm:w-4 sm:h-4 text-red-400' />
           </div>
-          <p className='text-2xl font-bold text-red-400'>{data.summary.high_priority_count}</p>
-          <p className='text-xs text-gray-500 dark:text-gray-400'>
+          <p className='text-base sm:text-2xl font-bold text-red-400'>
+            {data.summary.high_priority_count}
+          </p>
+          <p className='text-[10px] sm:text-xs text-gray-500 dark:text-gray-400'>
             {t('aiIntelligence.swap.priority.high')}
           </p>
         </div>
-        <div className='text-center p-3 bg-green-500/10 rounded-xl'>
-          <div className='flex items-center justify-center gap-2 mb-2'>
-            <TrendingUp className='w-4 h-4 text-green-400' />
+        <div className='text-center p-2 sm:p-3 bg-green-500/10 rounded-lg sm:rounded-xl'>
+          <div className='flex items-center justify-center gap-1.5 sm:gap-2 mb-1 sm:mb-2'>
+            <TrendingUp className='w-3 h-3 sm:w-4 sm:h-4 text-green-400' />
           </div>
-          <p className='text-2xl font-bold text-green-400'>
+          <p className='text-base sm:text-2xl font-bold text-green-400'>
             {formatPrice(data.summary.total_suggested_swap_value)}
           </p>
-          <p className='text-xs text-gray-500 dark:text-gray-400'>
+          <p className='text-[10px] sm:text-xs text-gray-500 dark:text-gray-400'>
             {t('aiIntelligence.portfolio.totalValue')}
           </p>
         </div>
@@ -275,8 +277,8 @@ const SwapSuggestions: React.FC<SwapSuggestionsProps> = ({
 
       {/* No suggestions - healthy portfolio */}
       {data.suggestions.length === 0 && (
-        <div className='flex flex-col items-center justify-center p-8 bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/30 rounded-2xl'>
-          <div className='relative mb-4'>
+        <div className='flex flex-col items-center justify-center p-6 sm:p-8 bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/30 rounded-xl sm:rounded-2xl'>
+          <div className='relative mb-3 sm:mb-4'>
             <div className='absolute inset-0 bg-green-500/20 rounded-full blur-xl animate-pulse' />
             <div className='relative p-4 bg-green-500/20 rounded-full'>
               <CheckCircle className='w-10 h-10 text-green-400' />

@@ -490,7 +490,10 @@
       "aiStatus": "AI状态",
       "completeAnalysis": "完整分析",
       "activeAssets": "活跃资产",
-      "analyzed": "已分析"
+      "analyzed": "已分析",
+      "healthStatus": "健康状态",
+      "portfolioScore": "评分",
+      "indicators": "指标"
     },
     "ath": {
       "title": "ATH分析",
@@ -500,7 +503,18 @@
       "athPrice": "ATH价格",
       "recovery": "恢复",
       "potentialUpside": "上涨潜力",
+      "distanceFromATH": "距ATH",
+      "potentialGain": "潜力",
+      "athDate": "天",
+      "analysis": {
+        "bullish": "看涨",
+        "bearish": "看跌",
+        "neutral": "中性",
+        "recovering": "恢复中",
+        "declining": "下跌中"
+      },
       "zones": {
+        "atATH": "在ATH",
         "athZone": "ATH区域",
         "strong": "强势",
         "recovering": "恢复中",
@@ -543,18 +557,22 @@
       "type": {
         "takeProfit": "获利了结",
         "reduceCorrelation": "降低相关性",
+        "reduceRisk": "降低风险",
         "rebalance": "再平衡",
         "accumulate": "积累"
       },
       "health": {
         "excellent": "优秀",
         "good": "良好",
+        "fair": "一般",
+        "poor": "差",
         "needsAttention": "需要关注",
         "critical": "危急"
       },
       "loading": "分析投资组合...",
       "noSuggestions": "暂无建议",
       "portfolioHealthy": "您的投资组合很健康！",
+      "portfolioOptimal": "您的投资组合已优化",
       "healthScore": "评分",
       "totalValue": "总价值",
       "executeSwap": "执行兑换"

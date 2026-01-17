@@ -99,37 +99,39 @@ const CorrelationMatrix: React.FC<CorrelationMatrixProps> = ({ data, loading, er
 
   if (!data || data.symbols.length === 0) {
     return (
-      <div className='flex flex-col items-center justify-center p-12 text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-900/80 rounded-2xl border border-gray-200 dark:border-gray-700/50'>
-        <div className='p-4 bg-gray-100 dark:bg-gray-800 rounded-full mb-4'>
-          <GitBranch className='w-12 h-12 opacity-50' />
+      <div className='flex flex-col items-center justify-center p-8 sm:p-12 text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-900/80 rounded-xl sm:rounded-2xl border border-gray-200 dark:border-gray-700/50'>
+        <div className='p-3 sm:p-4 bg-gray-100 dark:bg-gray-800 rounded-full mb-3 sm:mb-4'>
+          <GitBranch className='w-8 h-8 sm:w-12 sm:h-12 opacity-50' />
         </div>
-        <p className='text-sm font-medium'>{t('aiIntelligence.errors.noData')}</p>
-        <p className='text-xs mt-1 opacity-70'>{t('aiIntelligence.errors.insufficientData')}</p>
+        <p className='text-xs sm:text-sm font-medium'>{t('aiIntelligence.errors.noData')}</p>
+        <p className='text-[10px] sm:text-xs mt-1 opacity-70'>
+          {t('aiIntelligence.errors.insufficientData')}
+        </p>
       </div>
     )
   }
 
   return (
-    <div className='space-y-5'>
+    <div className='space-y-3 sm:space-y-5'>
       {/* Premium Header */}
-      <div className='flex items-center justify-between p-4 bg-white dark:bg-gray-900/80 rounded-2xl border border-gray-200 dark:border-gray-700/50'>
-        <div className='flex items-center gap-3'>
-          <div className='p-2.5 bg-gradient-to-br from-purple-500/20 to-indigo-500/20 rounded-xl'>
-            <GitBranch className='w-5 h-5 text-purple-500' />
+      <div className='flex items-center justify-between p-3 sm:p-4 bg-white dark:bg-gray-900/80 rounded-xl sm:rounded-2xl border border-gray-200 dark:border-gray-700/50'>
+        <div className='flex items-center gap-2 sm:gap-3'>
+          <div className='p-2 sm:p-2.5 bg-gradient-to-br from-purple-500/20 to-indigo-500/20 rounded-lg sm:rounded-xl'>
+            <GitBranch className='w-4 h-4 sm:w-5 sm:h-5 text-purple-500' />
           </div>
           <div>
-            <h3 className='text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2'>
+            <h3 className='text-sm sm:text-lg font-bold text-gray-900 dark:text-white flex items-center gap-1.5 sm:gap-2'>
               {t('aiIntelligence.correlation.title')}
-              <Sparkles className='w-4 h-4 text-yellow-500' />
+              <Sparkles className='w-3 h-3 sm:w-4 sm:h-4 text-yellow-500' />
             </h3>
-            <p className='text-xs text-gray-500 dark:text-gray-400'>
+            <p className='text-[10px] sm:text-xs text-gray-500 dark:text-gray-400'>
               {t('aiIntelligence.correlation.subtitle')}
             </p>
           </div>
         </div>
         <div className='flex items-center gap-2'>
-          <div className='px-3 py-1.5 bg-purple-500/10 rounded-xl'>
-            <span className='text-xs font-semibold text-purple-500'>
+          <div className='px-2 sm:px-3 py-1 sm:py-1.5 bg-purple-500/10 rounded-lg sm:rounded-xl'>
+            <span className='text-[10px] sm:text-xs font-semibold text-purple-500'>
               {data.lookback_days} dias • {data.data_points} pts
             </span>
           </div>
@@ -137,20 +139,20 @@ const CorrelationMatrix: React.FC<CorrelationMatrixProps> = ({ data, loading, er
       </div>
 
       {/* Matrix with Premium Styling */}
-      <div className='overflow-x-auto bg-white dark:bg-gray-900/80 rounded-2xl border border-gray-200 dark:border-gray-700/50 p-4'>
+      <div className='overflow-x-auto bg-white dark:bg-gray-900/80 rounded-xl sm:rounded-2xl border border-gray-200 dark:border-gray-700/50 p-2 sm:p-4'>
         <div className='inline-block min-w-full'>
           <table className='w-full border-collapse'>
             <thead>
               <tr>
-                <th className='p-2 text-xs text-gray-500 dark:text-gray-400 text-left'></th>
+                <th className='p-1 sm:p-2 text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 text-left'></th>
                 {data.symbols.map(symbol => (
                   <th
                     key={symbol}
-                    className='p-2 text-xs font-medium text-gray-600 dark:text-gray-300 text-center'
+                    className='p-1 sm:p-2 text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-300 text-center'
                   >
-                    <div className='flex flex-col items-center gap-1'>
-                      <CryptoIcon symbol={symbol} size={20} />
-                      <span className='font-semibold'>{symbol}</span>
+                    <div className='flex flex-col items-center gap-0.5 sm:gap-1'>
+                      <CryptoIcon symbol={symbol} size={16} />
+                      <span className='font-semibold text-[9px] sm:text-xs'>{symbol}</span>
                     </div>
                   </th>
                 ))}
@@ -159,10 +161,10 @@ const CorrelationMatrix: React.FC<CorrelationMatrixProps> = ({ data, loading, er
             <tbody>
               {data.symbols.map(rowSymbol => (
                 <tr key={rowSymbol}>
-                  <td className='p-2 text-xs font-medium text-gray-600 dark:text-gray-300'>
-                    <div className='flex items-center gap-2'>
-                      <CryptoIcon symbol={rowSymbol} size={18} />
-                      <span className='font-semibold'>{rowSymbol}</span>
+                  <td className='p-1 sm:p-2 text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-300'>
+                    <div className='flex items-center gap-1 sm:gap-2'>
+                      <CryptoIcon symbol={rowSymbol} size={14} />
+                      <span className='font-semibold text-[9px] sm:text-xs'>{rowSymbol}</span>
                     </div>
                   </td>
                   {data.symbols.map(colSymbol => {
@@ -170,10 +172,10 @@ const CorrelationMatrix: React.FC<CorrelationMatrixProps> = ({ data, loading, er
                     const isMainDiagonal = rowSymbol === colSymbol
 
                     return (
-                      <td key={`${rowSymbol}-${colSymbol}`} className='p-1'>
+                      <td key={`${rowSymbol}-${colSymbol}`} className='p-0.5 sm:p-1'>
                         <div
                           className={`
-                            w-14 h-14 flex items-center justify-center rounded-xl shadow-sm
+                            w-9 h-9 sm:w-14 sm:h-14 flex items-center justify-center rounded-lg sm:rounded-xl shadow-sm
                             ${isMainDiagonal ? 'bg-gray-200 dark:bg-gray-700' : getCorrelationColor(value)}
                             ${isMainDiagonal ? 'opacity-50' : 'opacity-90'}
                             transition-all duration-200 hover:opacity-100 hover:scale-110 hover:shadow-lg cursor-pointer
@@ -181,7 +183,7 @@ const CorrelationMatrix: React.FC<CorrelationMatrixProps> = ({ data, loading, er
                           title={`${rowSymbol} - ${colSymbol}: ${(value * 100).toFixed(0)}%`}
                         >
                           <span
-                            className={`text-sm font-bold ${
+                            className={`text-[10px] sm:text-sm font-bold ${
                               isMainDiagonal
                                 ? 'text-gray-500 dark:text-gray-400'
                                 : 'text-white drop-shadow-sm'
@@ -201,56 +203,64 @@ const CorrelationMatrix: React.FC<CorrelationMatrixProps> = ({ data, loading, er
       </div>
 
       {/* Premium Legend */}
-      <div className='flex flex-wrap items-center justify-center gap-4 p-4 bg-white dark:bg-gray-900/80 rounded-2xl border border-gray-200 dark:border-gray-700/50'>
-        <div className='flex items-center gap-2 group'>
-          <div className='w-4 h-4 rounded-lg bg-gradient-to-br from-red-500 to-rose-600 shadow-sm group-hover:scale-110 transition-transform' />
-          <span className='text-xs text-gray-500 dark:text-gray-400 font-medium'>Alta (80%+)</span>
+      <div className='flex flex-wrap items-center justify-center gap-2 sm:gap-4 p-3 sm:p-4 bg-white dark:bg-gray-900/80 rounded-xl sm:rounded-2xl border border-gray-200 dark:border-gray-700/50'>
+        <div className='flex items-center gap-1.5 sm:gap-2 group'>
+          <div className='w-3 h-3 sm:w-4 sm:h-4 rounded-md sm:rounded-lg bg-gradient-to-br from-red-500 to-rose-600 shadow-sm group-hover:scale-110 transition-transform' />
+          <span className='text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 font-medium'>
+            Alta (80%+)
+          </span>
         </div>
-        <div className='flex items-center gap-2 group'>
-          <div className='w-4 h-4 rounded-lg bg-gradient-to-br from-yellow-500 to-amber-500 shadow-sm group-hover:scale-110 transition-transform' />
-          <span className='text-xs text-gray-500 dark:text-gray-400 font-medium'>
+        <div className='flex items-center gap-1.5 sm:gap-2 group'>
+          <div className='w-3 h-3 sm:w-4 sm:h-4 rounded-md sm:rounded-lg bg-gradient-to-br from-yellow-500 to-amber-500 shadow-sm group-hover:scale-110 transition-transform' />
+          <span className='text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 font-medium'>
             Média (40-60%)
           </span>
         </div>
-        <div className='flex items-center gap-2 group'>
-          <div className='w-4 h-4 rounded-lg bg-gradient-to-br from-green-500 to-teal-600 shadow-sm group-hover:scale-110 transition-transform' />
-          <span className='text-xs text-gray-500 dark:text-gray-400 font-medium'>
+        <div className='flex items-center gap-1.5 sm:gap-2 group'>
+          <div className='w-3 h-3 sm:w-4 sm:h-4 rounded-md sm:rounded-lg bg-gradient-to-br from-green-500 to-teal-600 shadow-sm group-hover:scale-110 transition-transform' />
+          <span className='text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 font-medium'>
             Baixa (0-20%)
           </span>
         </div>
-        <div className='flex items-center gap-2 group'>
-          <div className='w-4 h-4 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 shadow-sm group-hover:scale-110 transition-transform' />
-          <span className='text-xs text-gray-500 dark:text-gray-400 font-medium'>Negativa</span>
+        <div className='flex items-center gap-1.5 sm:gap-2 group'>
+          <div className='w-3 h-3 sm:w-4 sm:h-4 rounded-md sm:rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 shadow-sm group-hover:scale-110 transition-transform' />
+          <span className='text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 font-medium'>
+            Negativa
+          </span>
         </div>
       </div>
 
       {/* High Correlations Warning */}
       {data.high_correlations.length > 0 && (
-        <div className='p-5 bg-gradient-to-r from-orange-500/10 to-amber-500/10 border border-orange-500/30 rounded-2xl'>
-          <div className='flex items-center gap-3 mb-3'>
-            <div className='p-2 bg-orange-500/20 rounded-xl'>
-              <AlertTriangle className='w-5 h-5 text-orange-500' />
+        <div className='p-3 sm:p-5 bg-gradient-to-r from-orange-500/10 to-amber-500/10 border border-orange-500/30 rounded-xl sm:rounded-2xl'>
+          <div className='flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3'>
+            <div className='p-1.5 sm:p-2 bg-orange-500/20 rounded-lg sm:rounded-xl'>
+              <AlertTriangle className='w-4 h-4 sm:w-5 sm:h-5 text-orange-500' />
             </div>
             <div>
-              <span className='text-sm font-bold text-orange-500'>Alta Correlação Detectada</span>
-              <p className='text-xs text-gray-500 dark:text-gray-400'>
+              <span className='text-xs sm:text-sm font-bold text-orange-500'>
+                Alta Correlação Detectada
+              </span>
+              <p className='text-[10px] sm:text-xs text-gray-500 dark:text-gray-400'>
                 Ativos se movem juntos, reduzindo diversificação
               </p>
             </div>
           </div>
-          <ul className='space-y-2'>
+          <ul className='space-y-1.5 sm:space-y-2'>
             {data.high_correlations.slice(0, 3).map(item => (
               <li
                 key={`high-${item.pair[0]}-${item.pair[1]}`}
-                className='flex items-center justify-between p-3 bg-white/50 dark:bg-gray-800/50 rounded-xl'
+                className='flex items-center justify-between p-2 sm:p-3 bg-white/50 dark:bg-gray-800/50 rounded-lg sm:rounded-xl'
               >
-                <div className='flex items-center gap-2'>
-                  <TrendingUp className='w-4 h-4 text-orange-400' />
-                  <span className='text-sm font-medium text-gray-700 dark:text-gray-200'>
+                <div className='flex items-center gap-1.5 sm:gap-2'>
+                  <TrendingUp className='w-3 h-3 sm:w-4 sm:h-4 text-orange-400' />
+                  <span className='text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-200'>
                     {item.pair[0]} ↔ {item.pair[1]}
                   </span>
                 </div>
-                <span className={`text-sm font-bold ${getCorrelationTextColor(item.correlation)}`}>
+                <span
+                  className={`text-xs sm:text-sm font-bold ${getCorrelationTextColor(item.correlation)}`}
+                >
                   {(item.correlation * 100).toFixed(0)}%
                 </span>
               </li>

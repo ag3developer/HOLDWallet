@@ -146,32 +146,32 @@ const ATHAnalysis: React.FC<ATHAnalysisProps> = ({ data, loading, error, formatC
   )
 
   return (
-    <div className='space-y-4'>
+    <div className='space-y-3 sm:space-y-4'>
       {/* Header */}
-      <div className='flex items-center justify-between p-4 bg-white dark:bg-gray-900/80 rounded-2xl border border-gray-200 dark:border-gray-700/50'>
-        <div className='flex items-center gap-3'>
-          <div className='p-2.5 bg-gradient-to-br from-blue-500/20 to-indigo-500/20 rounded-xl'>
-            <Target className='w-5 h-5 text-blue-500' />
+      <div className='flex items-center justify-between p-3 sm:p-4 bg-white dark:bg-gray-900/80 rounded-xl sm:rounded-2xl border border-gray-200 dark:border-gray-700/50'>
+        <div className='flex items-center gap-2 sm:gap-3'>
+          <div className='p-2 sm:p-2.5 bg-gradient-to-br from-blue-500/20 to-indigo-500/20 rounded-lg sm:rounded-xl'>
+            <Target className='w-4 h-4 sm:w-5 sm:h-5 text-blue-500' />
           </div>
           <div>
-            <h3 className='text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2'>
+            <h3 className='text-sm sm:text-lg font-bold text-gray-900 dark:text-white flex items-center gap-1.5 sm:gap-2'>
               {t('aiIntelligence.ath.title')}
-              <Sparkles className='w-4 h-4 text-yellow-500' />
+              <Sparkles className='w-3 h-3 sm:w-4 sm:h-4 text-yellow-500' />
             </h3>
-            <p className='text-xs text-gray-500 dark:text-gray-400'>
+            <p className='text-[10px] sm:text-xs text-gray-500 dark:text-gray-400'>
               {t('aiIntelligence.ath.subtitle')}
             </p>
           </div>
         </div>
-        <div className='px-3 py-1.5 bg-blue-500/10 rounded-xl'>
-          <span className='text-sm font-semibold text-blue-500'>
+        <div className='px-2 sm:px-3 py-1 sm:py-1.5 bg-blue-500/10 rounded-lg sm:rounded-xl'>
+          <span className='text-xs sm:text-sm font-semibold text-blue-500'>
             {data.length} {t('aiIntelligence.portfolio.assets')}
           </span>
         </div>
       </div>
 
       {/* Asset Cards */}
-      <div className='grid gap-4 md:grid-cols-2'>
+      <div className='grid gap-3 sm:gap-4 md:grid-cols-2'>
         {sortedData.map((asset, index) => {
           const zoneStyle = getZoneStyle(asset.zone)
           const ZoneIcon = zoneStyle.icon
@@ -198,72 +198,74 @@ const ATHAnalysis: React.FC<ATHAnalysisProps> = ({ data, loading, error, formatC
           return (
             <div
               key={asset.symbol}
-              className={`relative overflow-hidden p-5 rounded-2xl border ${zoneStyle.border} ${zoneStyle.bg} transition-all duration-300 hover:shadow-xl hover:scale-[1.01]`}
+              className={`relative overflow-hidden p-3 sm:p-5 rounded-xl sm:rounded-2xl border ${zoneStyle.border} ${zoneStyle.bg} transition-all duration-300 hover:shadow-xl hover:scale-[1.01]`}
             >
               {/* Rank badge for top 3 */}
               {index < 3 && (
-                <div className='absolute top-3 right-3 w-7 h-7 bg-gradient-to-br from-yellow-400 to-amber-500 rounded-full flex items-center justify-center shadow-lg'>
-                  <span className='text-xs font-bold text-white'>#{index + 1}</span>
+                <div className='absolute top-2 sm:top-3 right-2 sm:right-3 w-5 h-5 sm:w-7 sm:h-7 bg-gradient-to-br from-yellow-400 to-amber-500 rounded-full flex items-center justify-center shadow-lg'>
+                  <span className='text-[10px] sm:text-xs font-bold text-white'>#{index + 1}</span>
                 </div>
               )}
 
               {/* Zone icon decoration */}
               <div className='absolute -bottom-4 -right-4 opacity-5'>
-                <ZoneIcon className='w-24 h-24' />
+                <ZoneIcon className='w-16 h-16 sm:w-24 sm:h-24' />
               </div>
 
               {/* Top row: Symbol, Zone, ATH status */}
-              <div className='flex items-center justify-between mb-3'>
-                <div className='flex items-center gap-3'>
-                  <CryptoIcon symbol={asset.symbol} size={28} />
-                  <span className='text-lg font-bold text-gray-900 dark:text-white'>
+              <div className='flex items-center justify-between mb-2 sm:mb-3'>
+                <div className='flex items-center gap-2 sm:gap-3'>
+                  <CryptoIcon symbol={asset.symbol} size={24} />
+                  <span className='text-sm sm:text-lg font-bold text-gray-900 dark:text-white'>
                     {asset.symbol}
                   </span>
                   <span
-                    className={`px-2 py-0.5 text-xs font-medium rounded-full ${zoneStyle.bg} ${zoneStyle.text} border ${zoneStyle.border}`}
+                    className={`px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-medium rounded-full ${zoneStyle.bg} ${zoneStyle.text} border ${zoneStyle.border}`}
                   >
                     {zoneStyle.label}
                   </span>
                 </div>
                 {asset.at_ath && (
-                  <div className='flex items-center gap-1 px-2 py-1 bg-green-500/20 rounded-full'>
-                    <TrendingUp className='w-3 h-3 text-green-400' />
-                    <span className='text-xs font-medium text-green-400'>AT ATH</span>
+                  <div className='flex items-center gap-1 px-1.5 sm:px-2 py-0.5 sm:py-1 bg-green-500/20 rounded-full'>
+                    <TrendingUp className='w-2.5 h-2.5 sm:w-3 sm:h-3 text-green-400' />
+                    <span className='text-[10px] sm:text-xs font-medium text-green-400'>
+                      AT ATH
+                    </span>
                   </div>
                 )}
               </div>
 
               {/* Price row */}
-              <div className='grid grid-cols-2 gap-4 mb-3'>
+              <div className='grid grid-cols-2 gap-2 sm:gap-4 mb-2 sm:mb-3'>
                 <div>
-                  <p className='text-xs text-gray-500 dark:text-gray-400 mb-1'>
+                  <p className='text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 mb-0.5 sm:mb-1'>
                     {t('aiIntelligence.ath.currentPrice')}
                   </p>
-                  <p className='text-base font-semibold text-gray-900 dark:text-white'>
+                  <p className='text-xs sm:text-base font-semibold text-gray-900 dark:text-white'>
                     {formatPrice(asset.current_price)}
                   </p>
                 </div>
                 <div>
-                  <p className='text-xs text-gray-500 dark:text-gray-400 mb-1'>
+                  <p className='text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 mb-0.5 sm:mb-1'>
                     {t('aiIntelligence.ath.athPrice')}
                   </p>
-                  <p className='text-base font-semibold text-gray-600 dark:text-gray-300'>
+                  <p className='text-xs sm:text-base font-semibold text-gray-600 dark:text-gray-300'>
                     {formatPrice(asset.ath_price)}
                   </p>
                 </div>
               </div>
 
               {/* Progress bar */}
-              <div className='mb-3'>
-                <div className='flex justify-between mb-1'>
-                  <span className='text-xs text-gray-500 dark:text-gray-400'>
+              <div className='mb-2 sm:mb-3'>
+                <div className='flex justify-between mb-0.5 sm:mb-1'>
+                  <span className='text-[10px] sm:text-xs text-gray-500 dark:text-gray-400'>
                     {t('aiIntelligence.ath.recovery')}
                   </span>
-                  <span className={`text-xs font-medium ${zoneStyle.text}`}>
+                  <span className={`text-[10px] sm:text-xs font-medium ${zoneStyle.text}`}>
                     {asset.recovery_percent.toFixed(1)}%
                   </span>
                 </div>
-                <div className='h-2 bg-gray-200 dark:bg-gray-700/50 rounded-full overflow-hidden'>
+                <div className='h-1.5 sm:h-2 bg-gray-200 dark:bg-gray-700/50 rounded-full overflow-hidden'>
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${progressGradient}`}
                     style={{ width: `${Math.min(asset.recovery_percent, 100)}%` }}
@@ -272,53 +274,55 @@ const ATHAnalysis: React.FC<ATHAnalysisProps> = ({ data, loading, error, formatC
               </div>
 
               {/* Stats row */}
-              <div className='grid grid-cols-3 gap-2 text-center'>
-                <div className='p-2 bg-gray-100 dark:bg-gray-800/50 rounded-lg'>
-                  <div className='flex items-center justify-center gap-1 mb-1'>
+              <div className='grid grid-cols-3 gap-1.5 sm:gap-2 text-center'>
+                <div className='p-1.5 sm:p-2 bg-gray-100 dark:bg-gray-800/50 rounded-md sm:rounded-lg'>
+                  <div className='flex items-center justify-center gap-0.5 sm:gap-1 mb-0.5 sm:mb-1'>
                     {asset.distance_from_ath_percent > 0 ? (
-                      <TrendingDown className='w-3 h-3 text-red-400' />
+                      <TrendingDown className='w-2.5 h-2.5 sm:w-3 sm:h-3 text-red-400' />
                     ) : (
-                      <TrendingUp className='w-3 h-3 text-green-400' />
+                      <TrendingUp className='w-2.5 h-2.5 sm:w-3 sm:h-3 text-green-400' />
                     )}
-                    <span className='text-xs text-gray-500 dark:text-gray-400'>
+                    <span className='text-[8px] sm:text-xs text-gray-500 dark:text-gray-400'>
                       {t('aiIntelligence.ath.distanceFromATH')}
                     </span>
                   </div>
-                  <p className={`text-sm font-bold ${distanceColor}`}>
+                  <p className={`text-[11px] sm:text-sm font-bold ${distanceColor}`}>
                     -{asset.distance_from_ath_percent.toFixed(1)}%
                   </p>
                 </div>
 
-                <div className='p-2 bg-gray-100 dark:bg-gray-800/50 rounded-lg'>
-                  <div className='flex items-center justify-center gap-1 mb-1'>
-                    <ArrowUp className='w-3 h-3 text-blue-400' />
-                    <span className='text-xs text-gray-500 dark:text-gray-400'>
+                <div className='p-1.5 sm:p-2 bg-gray-100 dark:bg-gray-800/50 rounded-md sm:rounded-lg'>
+                  <div className='flex items-center justify-center gap-0.5 sm:gap-1 mb-0.5 sm:mb-1'>
+                    <ArrowUp className='w-2.5 h-2.5 sm:w-3 sm:h-3 text-blue-400' />
+                    <span className='text-[8px] sm:text-xs text-gray-500 dark:text-gray-400'>
                       {t('aiIntelligence.ath.potentialGain')}
                     </span>
                   </div>
-                  <p className='text-sm font-bold text-blue-400'>
+                  <p className='text-[11px] sm:text-sm font-bold text-blue-400'>
                     +{asset.potential_upside_percent.toFixed(1)}%
                   </p>
                 </div>
 
-                <div className='p-2 bg-gray-100 dark:bg-gray-800/50 rounded-lg'>
-                  <div className='flex items-center justify-center gap-1 mb-1'>
-                    <Clock className='w-3 h-3 text-purple-400' />
-                    <span className='text-xs text-gray-500 dark:text-gray-400'>
+                <div className='p-1.5 sm:p-2 bg-gray-100 dark:bg-gray-800/50 rounded-md sm:rounded-lg'>
+                  <div className='flex items-center justify-center gap-0.5 sm:gap-1 mb-0.5 sm:mb-1'>
+                    <Clock className='w-2.5 h-2.5 sm:w-3 sm:h-3 text-purple-400' />
+                    <span className='text-[8px] sm:text-xs text-gray-500 dark:text-gray-400'>
                       {t('aiIntelligence.ath.athDate')}
                     </span>
                   </div>
-                  <p className='text-sm font-bold text-purple-400'>{asset.days_since_ath}d</p>
+                  <p className='text-[11px] sm:text-sm font-bold text-purple-400'>
+                    {asset.days_since_ath}d
+                  </p>
                 </div>
               </div>
 
               {/* Insights */}
               {asset.insights && asset.insights.length > 0 && (
-                <div className='mt-3 pt-3 border-t border-gray-200 dark:border-gray-700/50'>
+                <div className='mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-gray-200 dark:border-gray-700/50'>
                   {asset.insights.slice(0, 2).map(insight => (
                     <p
                       key={insight.message}
-                      className='text-xs text-gray-500 dark:text-gray-400 mb-1'
+                      className='text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 mb-0.5 sm:mb-1'
                     >
                       {insight.message}
                     </p>

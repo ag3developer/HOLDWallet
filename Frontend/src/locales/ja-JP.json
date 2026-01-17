@@ -564,6 +564,7 @@
         "good": "良好",
         "fair": "普通",
         "poor": "不良",
+        "needsAttention": "要注意",
         "critical": "危機的"
       },
       "noSuggestions": "現時点で提案はありません",

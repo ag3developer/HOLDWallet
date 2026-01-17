@@ -563,6 +563,7 @@
         "good": "양호",
         "fair": "보통",
         "poor": "불량",
+        "needsAttention": "주의 필요",
         "critical": "위험"
       },
       "noSuggestions": "현재 제안이 없습니다",

@@ -824,7 +824,10 @@
       "aiStatus": "AI Status",
       "completeAnalysis": "Complete analysis",
       "activeAssets": "Assets",
-      "analyzed": "Analyzed"
+      "analyzed": "Analyzed",
+      "healthStatus": "Health Status",
+      "portfolioScore": "Score",
+      "indicators": "indicators"
     },
     "ath": {
       "title": "ATH Analysis",
@@ -834,7 +837,18 @@
       "athPrice": "ATH Price",
       "recovery": "Recovery",
       "potentialUpside": "Potential Upside",
+      "distanceFromATH": "From ATH",
+      "potentialGain": "Potential",
+      "athDate": "Days",
+      "analysis": {
+        "bullish": "Bullish",
+        "bearish": "Bearish",
+        "neutral": "Neutral",
+        "recovering": "Recovering",
+        "declining": "Declining"
+      },
       "zones": {
+        "atATH": "At ATH",
         "athZone": "ATH Zone",
         "strong": "Strong",
         "recovering": "Recovering",
@@ -877,18 +891,22 @@
       "type": {
         "takeProfit": "Take Profit",
         "reduceCorrelation": "Reduce Correlation",
+        "reduceRisk": "Reduce Risk",
         "rebalance": "Rebalance",
         "accumulate": "Accumulate"
       },
       "health": {
         "excellent": "Excellent",
         "good": "Good",
+        "fair": "Fair",
+        "poor": "Poor",
         "needsAttention": "Needs Attention",
         "critical": "Critical"
       },
       "loading": "Analyzing portfolio...",
       "noSuggestions": "No suggestions at the moment",
       "portfolioHealthy": "Your portfolio is healthy!",
+      "portfolioOptimal": "Your portfolio is optimized",
       "healthScore": "Score",
       "totalValue": "Total Value",
       "executeSwap": "Execute Swap"
@@ -943,6 +961,8 @@
       "timeout": "The server is taking too long to respond. This can happen during peak hours.",
       "networkError": "No connection to server. Check your internet.",
       "generic": "Error loading data. Please try again.",
+      "noData": "Data not available",
+      "insufficientData": "Add more assets to your portfolio",
       "tryAgain": "Try Again",
       "retrying": "Retrying..."
     }
