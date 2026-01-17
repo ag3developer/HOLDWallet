@@ -1,5 +1,6 @@
 import { ImgHTMLAttributes, useState, useEffect } from 'react'
 import baseLogo from '../assets/crypto-icons/base.png'
+import trayLogo from '../assets/crypto-icons/tray.png'
 
 interface CryptoIconProps extends ImgHTMLAttributes<HTMLImageElement> {
   symbol: string
@@ -28,6 +29,7 @@ const symbolMap: Record<string, string> = {
   XRP: 'xrp',
   DAI: 'dai',
   BUSD: 'busd',
+  TRAY: 'tray',
   // Nomes de redes (minúsculo)
   bitcoin: 'btc',
   ethereum: 'eth',
@@ -45,6 +47,7 @@ const symbolMap: Record<string, string> = {
   xrp: 'xrp',
   arbitrum: 'eth',
   optimism: 'eth',
+  tray: 'tray',
   // Stablecoins (minúsculo)
   usdt: 'usdt',
   usdc: 'usdc',
@@ -54,6 +57,7 @@ const symbolMap: Record<string, string> = {
 // Mapa de ícones locais importados
 const localIconMap: Record<string, string> = {
   base: baseLogo,
+  tray: trayLogo,
 }
 
 export const CryptoIcon = ({ symbol, size = 24, className = '', ...props }: CryptoIconProps) => {

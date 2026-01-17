@@ -288,14 +288,95 @@ class PriceCache:
         return False
 
 
+class DexScreenerSource(PriceSource):
+    """DexScreener API para tokens de DEX (QuickSwap, Uniswap, etc.)"""
+    
+    # Mapeamento de símbolos para endereços de contrato (tokens não listados em CEX)
+    TOKEN_ADDRESSES = {
+        'TRAY': {
+            'address': '0x6b62514E925099643abA13B322A62ff6298f8E8A',
+            'chain': 'polygon',
+            'name': 'Trayon'
+        },
+        # Adicionar outros tokens DEX-only aqui
+    }
+    
+    async def fetch_prices(
+        self, 
+        symbols: List[str], 
+        currency: str = "usd"
+    ) -> Dict[str, PriceData]:
+        """Fetch prices from DexScreener for DEX-only tokens"""
+        prices = {}
+        
+        for symbol in symbols:
+            symbol_upper = symbol.upper()
+            token_info = self.TOKEN_ADDRESSES.get(symbol_upper)
+            
+            if not token_info:
+                continue
+            
+            try:
+                url = f"https://api.dexscreener.com/latest/dex/tokens/{token_info['address']}"
+                
+                async with httpx.AsyncClient(timeout=self.timeout) as client:
+                    response = await client.get(url)
+                    
+                    if response.status_code == 200:
+                        data = response.json()
+                        pairs = data.get('pairs', [])
+                        
+                        if pairs:
+                            # Pegar o par com mais liquidez
+                            best_pair = max(pairs, key=lambda p: float(p.get('liquidity', {}).get('usd', 0) or 0))
+                            
+                            price_usd = float(best_pair.get('priceUsd', 0))
+                            change_24h = float(best_pair.get('priceChange', {}).get('h24', 0) or 0)
+                            volume_24h = float(best_pair.get('volume', {}).get('h24', 0) or 0)
+                            liquidity = float(best_pair.get('liquidity', {}).get('usd', 0) or 0)
+                            
+                            if price_usd > 0:
+                                # Se precisar de BRL, converter de USD
+                                if currency.lower() == 'brl':
+                                    # Usar taxa aproximada (ou buscar de outra fonte)
+                                    brl_rate = 6.0  # Taxa aproximada USD/BRL
+                                    final_price = price_usd * brl_rate
+                                else:
+                                    final_price = price_usd
+                                
+                                prices[symbol_upper] = PriceData(
+                                    symbol=symbol_upper,
+                                    price=final_price,
+                                    change_24h=change_24h,
+                                    market_cap=liquidity * 10,  # Estimativa
+                                    volume_24h=volume_24h,
+                                    high_24h=final_price * (1 + abs(change_24h) / 200),
+                                    low_24h=final_price * (1 - abs(change_24h) / 200),
+                                    source=f"dexscreener-{best_pair.get('dexId', 'dex')}",
+                                    timestamp=datetime.now(timezone.utc)
+                                )
+                                
+                                logger.info(f"✅ DexScreener: {symbol_upper} = ${price_usd:.6f} via {best_pair.get('dexId')}")
+                    
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                logger.error(f"DexScreener: Error fetching {symbol_upper} - {str(e)}")
+                continue
+        
+        return prices
+
+
 class PriceAggregator:
     """Aggregates prices from multiple sources with fallback strategy"""
     
     def __init__(self):
         # Binance é PRIMÁRIO (preços mais precisos, especialmente BRL)
         # CoinGecko é FALLBACK (agregador, preços ~2% acima do mercado)
+        # DexScreener para tokens de DEX (QuickSwap, Uniswap, etc.)
         self.binance_source = BinanceSource()
         self.coingecko_source = CoinGeckoSource()
+        self.dexscreener_source = DexScreenerSource()
         self.cache = PriceCache()
         self.cache_ttl = 60  # 60 segundos - evita rate limiting e timeouts
     
@@ -370,6 +451,19 @@ class PriceAggregator:
                     all_prices.update(coingecko_prices)
                     remaining_symbols -= set(coingecko_prices.keys())
                     logger.info(f"✅ CoinGecko: Got {len(coingecko_prices)} prices (fallback)")
+            
+            # 3. Try DexScreener for DEX-only tokens (TRAY, etc.)
+            if remaining_symbols:
+                logger.info(f"🟣 DexScreener (DEX): Fetching {remaining_symbols} in {currency.upper()}")
+                dex_prices = await self.dexscreener_source.fetch_prices(
+                    list(remaining_symbols),
+                    currency
+                )
+                if dex_prices:
+                    all_prices.update(dex_prices)
+                    remaining_symbols -= set(dex_prices.keys())
+                    logger.info(f"✅ DexScreener: Got {len(dex_prices)} prices (DEX tokens)")
+                    
         except asyncio.CancelledError:
             logger.warning(f"⚠️ Price fetch cancelled for {currency.upper()}")
             raise  # Re-raise para permitir shutdown graceful

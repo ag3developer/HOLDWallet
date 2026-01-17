@@ -31,6 +31,7 @@ import {
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { apiClient } from '@/services/api'
+import trayLogo from '@/assets/crypto-icons/tray.png'
 
 type Step = 'info' | 'creating' | 'mnemonic-display' | 'mnemonic-confirm' | 'success'
 
@@ -657,6 +658,7 @@ HOLD Wallet - Sistema de Taxas e Comissões
                             XRP: 'https://cryptologos.cc/logos/xrp-xrp-logo.png',
                             BASE: 'https://cryptologos.cc/logos/ethereum-eth-logo.png',
                             ARBITRUM: 'https://cryptologos.cc/logos/arbitrum-arb-logo.png',
+                            TRAY: trayLogo,
                           }
                           const logo = logoMap[symbol.toUpperCase()]
                           return (

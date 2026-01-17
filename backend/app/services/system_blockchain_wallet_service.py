@@ -75,6 +75,9 @@ class SystemBlockchainWalletService:
         "avalanche_usdc": ("9005", "USDC", True), # USDC na Avalanche
         "base_usdc": ("60", "USDC", True),      # USDC na Base
         "solana_usdc": ("501", "USDC", False),  # USDC na Solana
+        
+        # Token DeFi - TRAY (Trayon) na Polygon
+        "polygon_tray": ("60", "TRAY", True),   # TRAY na Polygon (ERC-20)
     }
     
     def __init__(self):

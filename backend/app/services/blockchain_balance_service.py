@@ -73,6 +73,11 @@ class BlockchainBalanceService:
         "solana": "EPjFWaJy47gIdKjrWw68SWwuScqokQNuSoS16RJSpFj",
     }
     
+    # Contrato do token TRAY (Trayon)
+    TRAY_CONTRACTS = {
+        "polygon": "0x6b62514E925099643abA13B322A62ff6298f8E8A",
+    }
+    
     # Decimais por rede
     DECIMALS = {
         "ethereum": 18,
@@ -332,14 +337,24 @@ class BlockchainBalanceService:
         address: str, 
         token: str = "usdt"
     ) -> Optional[Dict[str, Any]]:
-        """Consulta saldo de token (USDT, USDC) em redes EVM via RPC."""
+        """Consulta saldo de token (USDT, USDC, TRAY) em redes EVM via RPC."""
         try:
             supported_networks = ["ethereum", "polygon", "bsc", "avalanche", "base", "arbitrum"]
             if network not in supported_networks:
                 logger.warning(f"Consulta de token não suportada para {network}")
                 return {"success": False, "error": f"Network {network} not supported for token queries"}
             
-            contracts = self.USDT_CONTRACTS if token.lower() == "usdt" else self.USDC_CONTRACTS
+            # Seleciona o contrato correto baseado no token
+            token_lower = token.lower()
+            if token_lower == "usdt":
+                contracts = self.USDT_CONTRACTS
+            elif token_lower == "usdc":
+                contracts = self.USDC_CONTRACTS
+            elif token_lower == "tray":
+                contracts = self.TRAY_CONTRACTS
+            else:
+                return {"success": False, "error": f"Token {token.upper()} not supported"}
+            
             contract_address = contracts.get(network)
             
             if not contract_address:
@@ -382,8 +397,13 @@ class BlockchainBalanceService:
             if "result" in result and result["result"] != "0x":
                 balance_hex = result["result"]
                 balance_raw = int(balance_hex, 16)
-                # USDT/USDC geralmente tem 6 decimais (exceto BSC USDT que tem 18)
-                decimals = 18 if (network == "bsc" and token.lower() == "usdt") else 6
+                # TRAY tem 18 decimais, USDT/USDC geralmente tem 6 (exceto BSC USDT que tem 18)
+                if token_lower == "tray":
+                    decimals = 18
+                elif network == "bsc" and token_lower == "usdt":
+                    decimals = 18
+                else:
+                    decimals = 6
                 balance = balance_raw / (10 ** decimals)
                 
                 return {
@@ -416,10 +436,15 @@ class BlockchainBalanceService:
         tasks = []
         
         for network, address in addresses.items():
-            # Verificar se é uma rede de stablecoin
-            if "_usdt" in network or "_usdc" in network:
-                base_network = network.replace("_usdt", "").replace("_usdc", "")
-                token = "usdt" if "_usdt" in network else "usdc"
+            # Verificar se é uma rede de token (USDT, USDC, TRAY)
+            if "_usdt" in network or "_usdc" in network or "_tray" in network:
+                base_network = network.replace("_usdt", "").replace("_usdc", "").replace("_tray", "")
+                if "_usdt" in network:
+                    token = "usdt"
+                elif "_usdc" in network:
+                    token = "usdc"
+                else:
+                    token = "tray"
                 tasks.append(self._fetch_token_balance(network, base_network, address, token))
             else:
                 tasks.append(self._fetch_native_balance(network, address))

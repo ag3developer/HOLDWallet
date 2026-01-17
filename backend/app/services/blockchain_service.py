@@ -374,7 +374,7 @@ class EthereumService:
             
             # Buscar tokens se solicitado
             if include_tokens:
-                from app.config.token_contracts import USDT_CONTRACTS, USDC_CONTRACTS
+                from app.config.token_contracts import USDT_CONTRACTS, USDC_CONTRACTS, SHIB_CONTRACTS, TRAY_CONTRACTS
                 
                 # Detectar rede e buscar tokens
                 network = "ethereum"
@@ -426,6 +426,46 @@ class EthereumService:
                             }
                     except Exception as e:
                         logger.error(f"Erro ao buscar USDC em {network}: {str(e)}")
+                
+                # Buscar SHIB (Shiba Inu)
+                if network in SHIB_CONTRACTS:
+                    try:
+                        shib_contract = SHIB_CONTRACTS[network]
+                        logger.info(f"📋 SHIB Contract: {shib_contract['address']}")
+                        shib_balance = await self.get_token_balance(
+                            address,
+                            shib_contract['address'],
+                            shib_contract.get('decimals', 18)
+                        )
+                        if shib_balance > 0:
+                            balance_data["token_balances"][shib_contract['address'].lower()] = {
+                                'symbol': 'SHIB',
+                                'balance': str(shib_balance),
+                                'decimals': shib_contract.get('decimals', 18)
+                            }
+                            logger.info(f"✅ SHIB adicionado: {shib_balance}")
+                    except Exception as e:
+                        logger.error(f"Erro ao buscar SHIB em {network}: {str(e)}")
+                
+                # Buscar TRAY (Trayon) - Token na Polygon/QuickSwap
+                if network in TRAY_CONTRACTS:
+                    try:
+                        tray_contract = TRAY_CONTRACTS[network]
+                        logger.info(f"📋 TRAY Contract: {tray_contract['address']}")
+                        tray_balance = await self.get_token_balance(
+                            address,
+                            tray_contract['address'],
+                            tray_contract.get('decimals', 18)
+                        )
+                        if tray_balance > 0:
+                            balance_data["token_balances"][tray_contract['address'].lower()] = {
+                                'symbol': 'TRAY',
+                                'balance': str(tray_balance),
+                                'decimals': tray_contract.get('decimals', 18)
+                            }
+                            logger.info(f"✅ TRAY adicionado: {tray_balance}")
+                    except Exception as e:
+                        logger.error(f"Erro ao buscar TRAY em {network}: {str(e)}")
             
             return balance_data
     
@@ -813,12 +853,48 @@ class ShibaService(EthereumService):
     def __init__(self):
         super().__init__(rpc_url=settings.ETHEREUM_RPC_URL)
         self.token_address = "0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE"
+        self.decimals = 18
     
-    async def get_balance(self, address: str) -> Dict[str, Any]:
-        """Obtém saldo SHIB de um endereço"""
-        # SHIB é um token ERC-20, precisaria consultar o contrato
-        # Por simplicidade, retornando 0 por enquanto
-        return {"native_balance": "0", "network": "shiba"}
+    async def get_balance(self, address: str, include_tokens: bool = False) -> Dict[str, Any]:
+        """Obtém saldo SHIB de um endereço consultando o contrato ERC-20"""
+        try:
+            from web3 import Web3
+            w3 = Web3(Web3.HTTPProvider(self.rpc_url))
+            
+            if not w3.is_connected():
+                logger.error("Não conectado à rede Ethereum para buscar SHIB")
+                return {"native_balance": "0", "network": "shiba"}
+            
+            # ABI mínima para balanceOf
+            ERC20_ABI = [
+                {"constant": True, "inputs": [{"name": "_owner", "type": "address"}], 
+                 "name": "balanceOf", "outputs": [{"name": "balance", "type": "uint256"}], "type": "function"}
+            ]
+            
+            contract = w3.eth.contract(
+                address=w3.to_checksum_address(self.token_address), 
+                abi=ERC20_ABI
+            )
+            
+            balance_raw = contract.functions.balanceOf(
+                w3.to_checksum_address(address)
+            ).call()
+            
+            # Converter para formato decimal (SHIB tem 18 decimais)
+            balance = Decimal(balance_raw) / Decimal(10 ** self.decimals)
+            
+            logger.info(f"✅ SHIB balance para {address}: {balance}")
+            
+            return {
+                "native_balance": str(balance),
+                "balance_raw": str(balance_raw),
+                "network": "shiba",
+                "symbol": "SHIB"
+            }
+            
+        except Exception as e:
+            logger.error(f"Erro ao obter saldo SHIB: {e}")
+            return {"native_balance": "0", "network": "shiba"}
 
 
 class XRPService:

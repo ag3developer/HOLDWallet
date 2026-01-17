@@ -56,6 +56,7 @@ import xrpLogo from '../../assets/crypto-icons/xrp.svg'
 import usdtLogo from '../../assets/crypto-icons/usdt.svg'
 import usdcLogo from '../../assets/crypto-icons/usdc.svg'
 import baseLogo from '../../assets/crypto-icons/base.png'
+import trayLogo from '../../assets/crypto-icons/tray.png'
 
 interface NetworkPreferences {
   bitcoin: boolean
@@ -78,6 +79,7 @@ interface NetworkPreferences {
 interface TokenPreferences {
   usdt: boolean
   usdc: boolean
+  tray: boolean
 }
 
 export const SettingsPage = () => {
@@ -120,6 +122,7 @@ export const SettingsPage = () => {
   const [tokenPreferences, setTokenPreferences] = useState<TokenPreferences>({
     usdt: true,
     usdc: true,
+    tray: true,
   })
 
   // Carregar preferências do localStorage
@@ -707,15 +710,15 @@ export const SettingsPage = () => {
               </div>
             </div>
 
-            {/* Stablecoin Token Preferences */}
+            {/* Token Preferences */}
             <div className='bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6'>
               <div className='flex items-center justify-between mb-6'>
                 <div>
                   <h3 className='text-lg font-semibold text-gray-900 dark:text-white mb-1'>
-                    Preferências de Stablecoins
+                    Preferências de Tokens
                   </h3>
                   <p className='text-sm text-gray-600 dark:text-gray-400'>
-                    Escolha quais stablecoins você deseja visualizar
+                    Escolha quais tokens você deseja visualizar
                   </p>
                 </div>
               </div>
@@ -735,6 +738,13 @@ export const SettingsPage = () => {
                     description: 'Disponível em Ethereum, Polygon, Arbitrum, Optimism, Base',
                     color: 'from-blue-400 to-blue-600',
                     icon: usdcLogo,
+                  },
+                  {
+                    key: 'tray' as const,
+                    name: 'TRAY (Trayon)',
+                    description: 'Disponível na rede Polygon - DEX QuickSwap',
+                    color: 'from-purple-400 to-purple-600',
+                    icon: trayLogo,
                   },
                 ].map(token => (
                   <button
@@ -786,9 +796,9 @@ export const SettingsPage = () => {
 
               <div className='mt-4 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg'>
                 <p className='text-sm text-amber-800 dark:text-amber-200'>
-                  💡 <strong>Dica:</strong> Os stablecoins aparecem em vários blockchains.
-                  Ativar/desativar aqui irá mostrar ou esconder todos os pares nos diferentes
-                  blockchains.
+                  💡 <strong>Dica:</strong> Os tokens podem estar disponíveis em diferentes
+                  blockchains. Ativar/desativar aqui irá mostrar ou esconder os tokens nas carteiras
+                  correspondentes.
                 </p>
               </div>
             </div>

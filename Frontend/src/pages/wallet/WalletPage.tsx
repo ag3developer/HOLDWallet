@@ -186,6 +186,7 @@ export const WalletPage = () => {
     const defaultTokenPrefs = {
       usdt: true,
       usdc: true,
+      tray: true,
     }
 
     try {
@@ -304,6 +305,10 @@ export const WalletPage = () => {
             if (tokenName === 'USDC' && !tokenPreferences.usdc) {
               console.log(`[WalletPage] USDC disabled, skipping`)
               continue // Skip USDC se desativado
+            }
+            if (tokenName === 'TRAY' && !tokenPreferences.tray) {
+              console.log(`[WalletPage] TRAY disabled, skipping`)
+              continue // Skip TRAY se desativado
             }
 
             const balance = (value as any)?.balance ? Number.parseFloat((value as any).balance) : 0

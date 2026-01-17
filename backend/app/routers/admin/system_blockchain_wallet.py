@@ -312,7 +312,7 @@ async def refresh_balances(
     
     Consulta APIs públicas para obter saldos atualizados:
     - Saldos nativos (ETH, MATIC, BNB, etc.)
-    - Tokens ERC-20: USDT, USDC, DAI
+    - Tokens ERC-20: USDT, USDC, DAI, TRAY
     """
     try:
         from app.services.blockchain_balance_service import blockchain_balance_service
@@ -348,17 +348,24 @@ async def refresh_balances(
             if addr.network in evm_networks:
                 address_map[f"{addr.network}_usdt"] = addr.address
                 address_map[f"{addr.network}_usdc"] = addr.address
+            
+            # TRAY está apenas na Polygon
+            if addr.network == "polygon":
+                address_map["polygon_tray"] = addr.address
         
         # Consultar saldos em paralelo (nativos + tokens)
         balances = await blockchain_balance_service.get_all_balances(address_map)
         
         # Consolidar saldos por endereço
         consolidated_balances = {}
+        total_tray = 0
+        
         for addr in addresses:
             network = addr.network
             native_balance = 0
             usdt_balance = 0
             usdc_balance = 0
+            tray_balance = 0
             
             # Saldo nativo
             if network in balances:
@@ -378,6 +385,14 @@ async def refresh_balances(
                     usdc_data = balances[usdc_key]
                     usdc_balance = usdc_data.get("balance", 0) if usdc_data.get("success") else 0
             
+            # TRAY (apenas Polygon)
+            if network == "polygon":
+                tray_key = "polygon_tray"
+                if tray_key in balances:
+                    tray_data = balances[tray_key]
+                    tray_balance = tray_data.get("balance", 0) if tray_data.get("success") else 0
+                    total_tray = tray_balance
+            
             # Atualizar no banco (saldos nativo e tokens)
             addr.cached_balance = native_balance
             addr.cached_usdt_balance = usdt_balance
@@ -390,6 +405,7 @@ async def refresh_balances(
                 "native_symbol": balances.get(network, {}).get("symbol", network.upper()),
                 "usdt": usdt_balance,
                 "usdc": usdc_balance,
+                "tray": tray_balance if network == "polygon" else 0,
                 "total_stables_usd": usdt_balance + usdc_balance
             }
         
@@ -406,6 +422,7 @@ async def refresh_balances(
             "totals": {
                 "USDT": total_usdt,
                 "USDC": total_usdc,
+                "TRAY": total_tray,
                 "total_stables": total_usdt + total_usdc
             },
             "updated_at": datetime.now().isoformat()

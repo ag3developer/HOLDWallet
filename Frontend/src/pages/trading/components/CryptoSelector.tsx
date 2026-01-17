@@ -10,6 +10,7 @@ import {
   Coins,
   DollarSign,
 } from 'lucide-react'
+import trayLogo from '@/assets/crypto-icons/tray.png'
 
 interface CryptoPrice {
   symbol: string
@@ -47,6 +48,7 @@ const CRYPTO_LOGOS: Record<string, string> = {
   SHIB: 'https://assets.coingecko.com/coins/images/11939/large/shiba.png',
   XRP: 'https://assets.coingecko.com/coins/images/44/large/xrp-symbol-white-128.png',
   DAI: 'https://assets.coingecko.com/coins/images/9956/large/4943.png',
+  TRAY: trayLogo,
 }
 
 // Categorias de moedas

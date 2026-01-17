@@ -8,6 +8,7 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { useCurrencyStore } from '@/stores/useCurrencyStore'
+import trayLogo from '@/assets/crypto-icons/tray.png'
 
 interface CryptoPrice {
   symbol: string
@@ -44,6 +45,7 @@ const CRYPTO_LOGOS: Record<string, string> = {
   LINK: 'https://assets.coingecko.com/coins/images/877/large/chainlink-new-logo.png?1696502009',
   SHIB: 'https://assets.coingecko.com/coins/images/11939/large/shiba.png?1622619446',
   XRP: 'https://assets.coingecko.com/coins/images/44/large/xrp-symbol-white-128.png?1696501442',
+  TRAY: trayLogo,
 }
 
 export function MarketPricesCarousel({
@@ -171,11 +173,15 @@ export function MarketPricesCarousel({
               className={`flex-shrink-0 p-1 rounded-xl ${isSelected ? 'bg-white/20' : 'bg-gray-100 dark:bg-gray-600'}`}
             >
               <img
-                src={CRYPTO_LOGOS[crypto.symbol] || ''}
+                src={
+                  CRYPTO_LOGOS[crypto.symbol] ||
+                  `https://ui-avatars.com/api/?name=${crypto.symbol}&background=6366f1&color=fff&size=48&bold=true`
+                }
                 alt={crypto.symbol}
                 className={`rounded-lg ${isMobile ? 'w-12 h-12' : 'w-9 h-9'}`}
                 onError={e => {
-                  e.currentTarget.style.display = 'none'
+                  // Fallback para ícone genérico com inicial
+                  e.currentTarget.src = `https://ui-avatars.com/api/?name=${crypto.symbol}&background=6366f1&color=fff&size=48&bold=true`
                 }}
               />
             </div>

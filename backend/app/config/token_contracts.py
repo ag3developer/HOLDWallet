@@ -114,6 +114,120 @@ DAI_CONTRACTS = {
     }
 }
 
+# SHIB (Shiba Inu) - Endereços em diferentes blockchains
+SHIB_CONTRACTS = {
+    'ethereum': {
+        'address': '0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE',
+        'decimals': 18,
+        'name': 'Shiba Inu'
+    },
+    'polygon': {
+        'address': '0x6f8a06447Ff6FcF75d803135a7de15CE88C1d4ec',
+        'decimals': 18,
+        'name': 'Shiba Inu (PoS)'
+    },
+    'bsc': {
+        'address': '0x2859e4544C4bB03966803b044A93563Bd2D0DD4D',
+        'decimals': 18,
+        'name': 'Shiba Inu (BSC)'
+    },
+    'arbitrum': {
+        'address': '0x5033833c9fe8B9d3E09EEd2f73d2aaF7E3872571',
+        'decimals': 18,
+        'name': 'Shiba Inu (Arbitrum)'
+    }
+}
+
+# LINK (Chainlink) - Endereços em diferentes blockchains
+LINK_CONTRACTS = {
+    'ethereum': {
+        'address': '0x514910771AF9Ca656af840dff83E8264EcF986CA',
+        'decimals': 18,
+        'name': 'Chainlink'
+    },
+    'polygon': {
+        'address': '0x53E0bca35eC356BD5ddDFebbD1Fc0fD03FaBad39',
+        'decimals': 18,
+        'name': 'Chainlink (PoS)'
+    },
+    'bsc': {
+        'address': '0xF8A0BF9cF54Bb92F17374d9e9A321E6a111a51bD',
+        'decimals': 18,
+        'name': 'Chainlink (BSC)'
+    },
+    'arbitrum': {
+        'address': '0xf97f4df75117a78c1A5a0DBb814Af92458539FB4',
+        'decimals': 18,
+        'name': 'Chainlink (Arbitrum)'
+    }
+}
+
+# UNI (Uniswap) - Endereços em diferentes blockchains
+UNI_CONTRACTS = {
+    'ethereum': {
+        'address': '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984',
+        'decimals': 18,
+        'name': 'Uniswap'
+    },
+    'polygon': {
+        'address': '0xb33EaAd8d922B1083446DC23f610c2567fB5180f',
+        'decimals': 18,
+        'name': 'Uniswap (PoS)'
+    },
+    'bsc': {
+        'address': '0xBf5140A22578168FD562DCcF235E5D43A02ce9B1',
+        'decimals': 18,
+        'name': 'Uniswap (BSC)'
+    },
+    'arbitrum': {
+        'address': '0xFa7F8980b0f1E64A2062791cc3b0871572f1F7f0',
+        'decimals': 18,
+        'name': 'Uniswap (Arbitrum)'
+    }
+}
+
+# PEPE - Endereços em diferentes blockchains
+PEPE_CONTRACTS = {
+    'ethereum': {
+        'address': '0x6982508145454Ce325dDbE47a25d4ec3d2311933',
+        'decimals': 18,
+        'name': 'Pepe'
+    },
+    'bsc': {
+        'address': '0x25d887Ce7a35172C62FeBFd67a1856F20FaEbB00',
+        'decimals': 18,
+        'name': 'Pepe (BSC)'
+    }
+}
+
+# WBTC (Wrapped Bitcoin) - Endereços em diferentes blockchains
+WBTC_CONTRACTS = {
+    'ethereum': {
+        'address': '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
+        'decimals': 8,
+        'name': 'Wrapped Bitcoin'
+    },
+    'polygon': {
+        'address': '0x1BFD67037B42Cf73acF2047067bd4F2C47D9BfD6',
+        'decimals': 8,
+        'name': 'Wrapped Bitcoin (PoS)'
+    },
+    'arbitrum': {
+        'address': '0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f',
+        'decimals': 8,
+        'name': 'Wrapped Bitcoin (Arbitrum)'
+    }
+}
+
+# TRAY (Trayon) - Token na Polygon
+TRAY_CONTRACTS = {
+    'polygon': {
+        'address': '0x6b62514E925099643abA13B322A62ff6298f8E8A',
+        'decimals': 18,
+        'name': 'Trayon'
+    }
+}
+
 # ERC-20 ABI - Interface padrão para tokens ERC-20
 ERC20_ABI = [
     {
@@ -228,7 +342,13 @@ TRON_TRC20_ABI = [
 TOKEN_CONTRACTS = {
     'USDT': USDT_CONTRACTS,
     'USDC': USDC_CONTRACTS,
-    'DAI': DAI_CONTRACTS
+    'DAI': DAI_CONTRACTS,
+    'SHIB': SHIB_CONTRACTS,
+    'LINK': LINK_CONTRACTS,
+    'UNI': UNI_CONTRACTS,
+    'PEPE': PEPE_CONTRACTS,
+    'WBTC': WBTC_CONTRACTS,
+    'TRAY': TRAY_CONTRACTS,
 }
 
 # Mapeamento de redes para ABI

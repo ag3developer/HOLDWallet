@@ -438,7 +438,8 @@ async def get_wallet_balances_by_network(
                     logger.info(f"📊 Saldos de tokens encontrados para {address_str}: {token_balances}")
                     
                     # Verificar USDT e USDC
-                    from app.config.token_contracts import USDT_CONTRACTS, USDC_CONTRACTS
+                    from app.config.token_contracts import USDT_CONTRACTS, USDC_CONTRACTS, SHIB_CONTRACTS, TRAY_CONTRACTS, TOKEN_CONTRACTS
+                    from app.services.price_aggregator import price_aggregator
                     
                     # Processar USDT
                     if network_str.lower() in USDT_CONTRACTS:
@@ -491,6 +492,70 @@ async def get_wallet_balances_by_network(
                                     logger.info(f"✅ USDC balance on {network_str}: {usdc_balance}")
                                 else:
                                     logger.info(f"⚠️  USDC (0 balance) on {network_str}")
+                    
+                    # Processar SHIB
+                    if network_str.lower() in SHIB_CONTRACTS:
+                        shib_address = SHIB_CONTRACTS[network_str.lower()]['address'].lower()
+                        for token_addr, token_data in token_balances.items():
+                            if token_addr.lower() == shib_address:
+                                shib_balance = Decimal(str(token_data.get('balance', '0')))
+                                
+                                # Buscar preço do SHIB
+                                try:
+                                    shib_prices = await price_aggregator.get_prices(['SHIB'], 'usd')
+                                    shib_price_data = shib_prices.get('SHIB')
+                                    shib_price = Decimal(str(shib_price_data.price)) if shib_price_data else Decimal('0')
+                                except:
+                                    shib_price = Decimal('0.00001')  # Fallback
+                                
+                                balance_usd = shib_balance * shib_price
+                                
+                                if shib_balance > 0:
+                                    total_usd_value += balance_usd
+                                
+                                balances_by_network[f"{network_str}_shib"] = NetworkBalanceDetail(
+                                    network=f"{network_str} (SHIB)",
+                                    address=address_str,
+                                    balance=str(shib_balance),
+                                    price_usd=f"{shib_price:.8f}",
+                                    price_loading=shib_price == 0,
+                                    balance_usd=f"{balance_usd:.2f}",
+                                    last_updated=datetime.utcnow()
+                                )
+                                if shib_balance > 0:
+                                    logger.info(f"✅ SHIB balance on {network_str}: {shib_balance}")
+                    
+                    # Processar TRAY (Trayon)
+                    if network_str.lower() in TRAY_CONTRACTS:
+                        tray_address = TRAY_CONTRACTS[network_str.lower()]['address'].lower()
+                        for token_addr, token_data in token_balances.items():
+                            if token_addr.lower() == tray_address:
+                                tray_balance = Decimal(str(token_data.get('balance', '0')))
+                                
+                                # Buscar preço do TRAY via DexScreener
+                                try:
+                                    tray_prices = await price_aggregator.get_prices(['TRAY'], 'usd')
+                                    tray_price_data = tray_prices.get('TRAY')
+                                    tray_price = Decimal(str(tray_price_data.price)) if tray_price_data else Decimal('0')
+                                except:
+                                    tray_price = Decimal('0.20')  # Fallback baseado no preço atual
+                                
+                                balance_usd = tray_balance * tray_price
+                                
+                                if tray_balance > 0:
+                                    total_usd_value += balance_usd
+                                
+                                balances_by_network[f"{network_str}_tray"] = NetworkBalanceDetail(
+                                    network=f"{network_str} (TRAY)",
+                                    address=address_str,
+                                    balance=str(tray_balance),
+                                    price_usd=f"{tray_price:.6f}",
+                                    price_loading=tray_price == 0,
+                                    balance_usd=f"{balance_usd:.2f}",
+                                    last_updated=datetime.utcnow()
+                                )
+                                if tray_balance > 0:
+                                    logger.info(f"✅ TRAY balance on {network_str}: {tray_balance} (${balance_usd:.2f})")
             
             except Exception as e:
                 logger.error(f"Error fetching balance for {network_str} address {address_str}: {str(e)}")

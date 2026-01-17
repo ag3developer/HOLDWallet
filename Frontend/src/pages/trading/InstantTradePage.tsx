@@ -86,6 +86,9 @@ const SUPPORTED_CRYPTOS = [
   { symbol: 'USDT', name: 'Tether USD', category: 'Stablecoin' },
   { symbol: 'USDC', name: 'USD Coin', category: 'Stablecoin' },
   { symbol: 'DAI', name: 'Dai Stablecoin', category: 'Stablecoin' },
+
+  // 🟣 TOKENS DEX
+  { symbol: 'TRAY', name: 'Trayon', category: 'DeFi' },
 ]
 
 const generatePriceVariation = (
