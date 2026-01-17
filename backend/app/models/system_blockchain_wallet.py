@@ -111,6 +111,7 @@ class SystemBlockchainAddress(Base):
     cached_usdt_balance = Column(Float, default=0.0)  # USDT na rede
     cached_usdc_balance = Column(Float, default=0.0)  # USDC na rede
     cached_dai_balance = Column(Float, default=0.0)   # DAI na rede
+    cached_tray_balance = Column(Float, default=0.0)  # TRAY na rede (Polygon only)
     
     # Status
     is_active = Column(Boolean, default=True, nullable=False)

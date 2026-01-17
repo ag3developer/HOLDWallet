@@ -397,6 +397,8 @@ async def refresh_balances(
             addr.cached_balance = native_balance
             addr.cached_usdt_balance = usdt_balance
             addr.cached_usdc_balance = usdc_balance
+            if network == "polygon":
+                addr.cached_tray_balance = tray_balance
             addr.cached_balance_updated_at = datetime.now()
             
             # Guardar para resposta
