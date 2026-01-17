@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react'
 import { Clock, ChevronDown, Zap, ArrowRight, CheckCircle2 } from 'lucide-react'
-import { useCurrencyStore } from '@/stores/useCurrencyStore'
 
 interface Quote {
   quote_id: string
@@ -23,7 +22,6 @@ interface QuoteDisplayProps {
 }
 
 export function QuoteDisplay({ quote, onConfirmClick }: QuoteDisplayProps) {
-  const { formatCurrency } = useCurrencyStore()
   const [timeLeft, setTimeLeft] = useState(quote?.expires_in_seconds ?? 0)
   const [showDetails, setShowDetails] = useState(false)
 
@@ -46,8 +44,10 @@ export function QuoteDisplay({ quote, onConfirmClick }: QuoteDisplayProps) {
 
   if (!quote) return null
 
-  // Use formatCurrency from the store - it handles USD→BRL conversion automatically
-  const formatValue = (value: number | undefined): string => {
+  // ⚠️ IMPORTANTE: Os valores do backend JÁ ESTÃO EM BRL!
+  // NÃO usar formatCurrency que converte USD→BRL, pois já está em BRL
+  // Apenas formatar o número como moeda brasileira
+  const formatBRL = (value: number | undefined): string => {
     if (
       value === null ||
       value === undefined ||
@@ -55,10 +55,18 @@ export function QuoteDisplay({ quote, onConfirmClick }: QuoteDisplayProps) {
       Number.isNaN(value) ||
       !Number.isFinite(value)
     ) {
-      return formatCurrency(0)
+      return 'R$ 0,00'
     }
-    return formatCurrency(value)
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value)
   }
+  
+  // Alias para compatibilidade
+  const formatValue = formatBRL
 
   const isBuy = quote.operation === 'buy'
   const isExpiring = timeLeft <= 15
