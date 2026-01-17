@@ -145,9 +145,13 @@ const AIIntelligencePage: React.FC<AIIntelligencePageProps> = ({ onBack }) => {
       })
       const balances = balanceResp.data.balances || {}
 
-      // Get current prices
+      // Get current prices - IMPORTANT: Always fetch in USD for consistent calculations
+      // The backend defaults to BRL, but AI Intelligence calculates value_usd, so we need USD prices
       const pricesResp = await apiClient.get('/prices/batch', {
-        params: { symbols: 'BTC,ETH,SOL,MATIC,BNB,ADA,DOT,LINK,AVAX,LTC,DOGE,XRP,TRX' },
+        params: {
+          symbols: 'BTC,ETH,SOL,MATIC,BNB,ADA,DOT,LINK,AVAX,LTC,DOGE,XRP,TRX',
+          fiat: 'usd', // Always fetch USD prices for value_usd calculation
+        },
         timeout: 30000,
       })
       const prices = pricesResp.data.prices || {}
