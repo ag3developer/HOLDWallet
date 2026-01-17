@@ -230,6 +230,7 @@ export const DashboardPage = () => {
       'LINK',
       'SHIB',
       'XRP',
+      'TRAY',
     ],
     []
   )
@@ -911,7 +912,7 @@ export const DashboardPage = () => {
                                       ))}
                                   </div>
 
-                                  {/* 🪙 TOKENS SECTION (USDT, USDC, etc) */}
+                                  {/* 🪙 TOKENS SECTION (USDT, USDC, TRAY, etc) */}
                                   <div className='mt-4 pt-4 border-t border-gray-100 dark:border-gray-600'>
                                     <p className='text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3'>
                                       Stablecoins
@@ -921,9 +922,9 @@ export const DashboardPage = () => {
                                         const walletIndex = walletIds.indexOf(walletIdStr)
                                         const balanceQuery = balancesQueries[walletIndex]
                                         const balanceData = balanceQuery?.data || {}
-                                        const tokens: any[] = []
+                                        const stablecoins: any[] = []
 
-                                        // Procurar por tokens no balanceData
+                                        // Procurar por stablecoins no balanceData
                                         for (const [key, value] of Object.entries(balanceData)) {
                                           const keyLower = String(key).toLowerCase()
 
@@ -931,7 +932,7 @@ export const DashboardPage = () => {
                                           if (keyLower.includes('usdt')) {
                                             const networkName =
                                               keyLower.split('_')[0]?.toUpperCase() ?? 'UNKNOWN'
-                                            tokens.push({
+                                            stablecoins.push({
                                               id: key,
                                               symbol: 'USDT',
                                               name: `USDT (${networkName})`,
@@ -944,7 +945,7 @@ export const DashboardPage = () => {
                                           if (keyLower.includes('usdc')) {
                                             const networkName =
                                               keyLower.split('_')[0]?.toUpperCase() ?? 'UNKNOWN'
-                                            tokens.push({
+                                            stablecoins.push({
                                               id: key,
                                               symbol: 'USDC',
                                               name: `USDC (${networkName})`,
@@ -954,8 +955,8 @@ export const DashboardPage = () => {
                                           }
                                         }
 
-                                        // Se não encontrou tokens, retorna mensagem
-                                        if (tokens.length === 0) {
+                                        // Se não encontrou stablecoins, retorna mensagem
+                                        if (stablecoins.length === 0) {
                                           return (
                                             <p className='text-xs text-gray-500 dark:text-gray-400 col-span-full'>
                                               {t('dashboard.noStablecoinsFound')}
@@ -963,8 +964,8 @@ export const DashboardPage = () => {
                                           )
                                         }
 
-                                        // Renderizar tokens
-                                        return tokens.map(token => {
+                                        // Renderizar stablecoins
+                                        return stablecoins.map(token => {
                                           const bgColorGreen = 'bg-green-100 dark:bg-green-600/20'
                                           const bgColorBlue = 'bg-blue-100 dark:bg-blue-600/20'
                                           const borderColorGreen =
@@ -1020,6 +1021,98 @@ export const DashboardPage = () => {
                                       })()}
                                     </div>
                                   </div>
+
+                                  {/* 🎯 TOKENS SECTION (TRAY, etc) */}
+                                  {(() => {
+                                    const walletIndex = walletIds.indexOf(walletIdStr)
+                                    const balanceQuery = balancesQueries[walletIndex]
+                                    const balanceData = balanceQuery?.data || {}
+                                    const customTokens: any[] = []
+
+                                    // Procurar por tokens customizados (TRAY, etc)
+                                    for (const [key, value] of Object.entries(balanceData)) {
+                                      const keyLower = String(key).toLowerCase()
+
+                                      // Detectar TRAY (polygon_tray)
+                                      if (keyLower.includes('tray')) {
+                                        const networkName =
+                                          keyLower.split('_')[0]?.toUpperCase() ?? 'POLYGON'
+                                        const balance = Number.parseFloat(
+                                          (value as any)?.balance || '0'
+                                        )
+                                        // Só mostrar se tiver saldo
+                                        if (balance > 0) {
+                                          customTokens.push({
+                                            id: key,
+                                            symbol: 'TRAY',
+                                            name: `Trayon (${networkName})`,
+                                            balance: value,
+                                            color: 'purple',
+                                          })
+                                        }
+                                      }
+                                    }
+
+                                    // Se não tem tokens, não renderiza a seção
+                                    if (customTokens.length === 0) {
+                                      return null
+                                    }
+
+                                    return (
+                                      <div className='mt-4 pt-4 border-t border-gray-100 dark:border-gray-600'>
+                                        <div className='flex items-center gap-2 mb-3'>
+                                          <p className='text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest'>
+                                            Tokens
+                                          </p>
+                                          <span className='px-2 py-0.5 text-[10px] font-bold bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-full'>
+                                            {customTokens.length}
+                                          </span>
+                                        </div>
+                                        <div className='grid grid-cols-1 md:grid-cols-2 gap-2'>
+                                          {customTokens.map(token => {
+                                            const balance = Number.parseFloat(
+                                              token.balance?.balance || '0'
+                                            )
+                                            // TRAY não tem preço no marketPrices, usar 0
+                                            const priceUSD = marketPrices[token.symbol]?.price ?? 0
+                                            const totalUSD = balance * priceUSD
+
+                                            return (
+                                              <div
+                                                key={token.id}
+                                                className='flex items-center justify-between p-3 bg-purple-100 dark:bg-purple-600/20 rounded-xl border border-purple-300 dark:border-purple-600/50 hover:border-purple-400 dark:hover:border-purple-500 transition-all'
+                                              >
+                                                <div className='flex items-center space-x-2'>
+                                                  <div className='w-8 h-8 flex items-center justify-center rounded-lg bg-purple-200 dark:bg-purple-500/20'>
+                                                    <CryptoIcon symbol={token.symbol} size={24} />
+                                                  </div>
+                                                  <div>
+                                                    <p className='font-medium text-gray-900 dark:text-white text-xs'>
+                                                      {token.symbol}
+                                                    </p>
+                                                    <p className='text-xs text-gray-500 dark:text-gray-400'>
+                                                      {token.name.split('(')[1]?.replace(')', '') ||
+                                                        'Polygon'}
+                                                    </p>
+                                                  </div>
+                                                </div>
+                                                <div className='text-right'>
+                                                  <p className='font-semibold text-gray-900 dark:text-white text-xs'>
+                                                    {balance.toFixed(2)} {token.symbol}
+                                                  </p>
+                                                  <p className='text-xs text-gray-500 dark:text-gray-400'>
+                                                    {priceUSD > 0
+                                                      ? formatCurrency(totalUSD)
+                                                      : 'Sem cotação'}
+                                                  </p>
+                                                </div>
+                                              </div>
+                                            )
+                                          })}
+                                        </div>
+                                      </div>
+                                    )
+                                  })()}
                                 </div>
                               )}
                             </div>

@@ -60,6 +60,7 @@ const ALL_CRYPTO_SYMBOLS = [
   'XRP',
   'USDT',
   'USDC',
+  'TRAY',
 ]
 
 // Mapear nome da rede/token para símbolo da criptomoeda

@@ -639,7 +639,9 @@ export const SendPage = () => {
 
       // STEP 1: Validar endereço e saldo na blockchain
       setTimelineStep('checking_balance')
-      const isToken = ['USDT', 'USDC'].includes(selectedToken.toUpperCase())
+      // Tokens ERC20 suportados (USDT, USDC, TRAY, etc)
+      const erc20Tokens = ['USDT', 'USDC', 'TRAY', 'DAI', 'SHIB', 'LINK', 'UNI', 'PEPE', 'WBTC']
+      const isToken = erc20Tokens.includes(selectedToken.toUpperCase())
 
       const validation = await sendService.validateSend({
         wallet_id: String(fullWallet.id),

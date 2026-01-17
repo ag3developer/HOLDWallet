@@ -1706,27 +1706,36 @@ async def send_transaction(
             gas_estimates = await blockchain_signer.estimate_gas_price(request.network, request.fee_level)
             selected_gas = gas_estimates.get(request.fee_level, gas_estimates['standard'])
             
-            # DETECTAR SE É TOKEN USDT OU USDC
-            is_usdt = request.token_symbol and request.token_symbol.upper() == 'USDT'
-            is_usdc = request.token_symbol and request.token_symbol.upper() == 'USDC'
+            # ============================================
+            # DETECTAR SE É TOKEN ERC20 (USDT, USDC, TRAY, etc)
+            # ============================================
+            from app.config.token_contracts import TOKEN_CONTRACTS, get_token_contract
+            
+            is_erc20_token = False
+            token_contract = None
+            network_lower = request.network.lower()
+            
+            # Verificar se token_symbol está em TOKEN_CONTRACTS
+            if request.token_symbol:
+                token_upper = request.token_symbol.upper()
+                if token_upper in TOKEN_CONTRACTS:
+                    try:
+                        token_contract = get_token_contract(token_upper, network_lower)
+                        is_erc20_token = True
+                        logger.info(f"🪙 Detectado token ERC20: {token_upper} na rede {network_lower}")
+                    except ValueError as e:
+                        # Token existe mas não nessa rede
+                        logger.warning(f"⚠️ {token_upper} não disponível em {network_lower}: {e}")
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"{token_upper} não suportado na rede {request.network}"
+                        )
             
             tx_hash = None
             tx_details = None
             
-            if is_usdt or is_usdc:
-                logger.info(f"🪙 Detectado token {request.token_symbol} - usando USDTTransactionService")
-                
-                # Obter endereço do contrato
-                contracts = USDT_CONTRACTS if is_usdt else USDC_CONTRACTS
-                network_lower = request.network.lower()
-                
-                if network_lower not in contracts:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"{request.token_symbol} não suportado na rede {request.network}"
-                    )
-                
-                token_contract = contracts[network_lower]
+            if is_erc20_token and token_contract:
+                logger.info(f"🪙 Enviando token ERC20 {request.token_symbol} - usando USDTTransactionService")
                 
                 logger.info(f"📝 Preparando transação {request.token_symbol}:")
                 logger.info(f"  De: {from_address}")
@@ -1786,10 +1795,8 @@ async def send_transaction(
             # Determine token_address for database
             if request.token_address:
                 db_token_address = request.token_address
-            elif is_usdt:
-                db_token_address = USDT_CONTRACTS.get(request.network.lower(), {}).get('address')
-            elif is_usdc:
-                db_token_address = USDC_CONTRACTS.get(request.network.lower(), {}).get('address')
+            elif is_erc20_token and token_contract:
+                db_token_address = token_contract['address']
             else:
                 db_token_address = None
             
