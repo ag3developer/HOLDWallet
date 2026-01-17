@@ -82,45 +82,68 @@ class InstantTradeService:
             logger.warning(f"⚠️ Erro ao buscar network_fee_percentage: {e}")
         return self.DEFAULT_NETWORK_FEE_PERCENTAGE
 
-    async def get_current_price(self, symbol: str) -> Decimal:
-        """Get current crypto price from price_aggregator API (ALWAYS real-time, NO fallback)"""
-        symbol_upper = symbol.upper()
+    async def get_current_price(self, symbol: str, currency: str = "brl") -> Decimal:
+        """Get current crypto price from price_aggregator API (ALWAYS real-time, NO fallback)
         
-        # Stablecoins sempre têm preço fixo de $1.00
-        if symbol_upper in ["USDT", "USDC", "DAI", "BUSD"]:
-            logger.info(f"Returning fixed price $1.00 for stablecoin {symbol_upper}")
-            return Decimal("1.00")
+        Args:
+            symbol: Cryptocurrency symbol (e.g., "BTC", "USDT")
+            currency: Target currency for the price (default: "brl" for Brazilian Real)
+        
+        Returns:
+            Price in the specified currency
+        """
+        symbol_upper = symbol.upper()
+        currency_lower = currency.lower()
         
         # Always get from price_aggregator API (real-time prices)
         try:
-            # Get prices from aggregator (async)
-            prices = await price_aggregator.get_prices([symbol_upper], currency="usd")
+            # Get prices from aggregator (async) - SEMPRE buscar preço real, mesmo stablecoins
+            prices = await price_aggregator.get_prices([symbol_upper], currency=currency_lower)
             if symbol_upper in prices:
                 price_data = prices[symbol_upper]
-                logger.info(f"Got real-time price for {symbol_upper}: ${price_data.price} USD from API")
+                logger.info(f"Got real-time price for {symbol_upper}: {price_data.price} {currency_lower.upper()} from API")
                 return Decimal(str(price_data.price))
         except Exception as e:
             logger.error(f"Failed to get price from API for {symbol_upper}: {str(e)}")
+            
+            # Fallback para stablecoins: usar cotação USD/BRL aproximada
+            if symbol_upper in ["USDT", "USDC", "DAI", "BUSD"]:
+                if currency_lower == "brl":
+                    # Usar cotação aproximada do dólar se não conseguir buscar
+                    usd_brl_rate = Decimal("6.00")  # Taxa aproximada USD/BRL
+                    logger.warning(f"Using fallback USD/BRL rate of {usd_brl_rate} for {symbol_upper}")
+                    return usd_brl_rate
+                else:
+                    logger.info(f"Returning fixed price $1.00 for stablecoin {symbol_upper}")
+                    return Decimal("1.00")
+            
             raise ValidationError(f"Unable to fetch price for {symbol_upper}. Please try again.")
         
         # Symbol not found in API response
         raise ValidationError(f"Symbol {symbol_upper} not found in price data")
 
     async def calculate_quote(self, operation: str, symbol: str, amount: Decimal) -> Dict[str, Any]:
-        """Calculate quote with fees and cache it"""
+        """Calculate quote with fees and cache it
+        
+        IMPORTANTE: Os valores de fiat são em BRL (Real Brasileiro).
+        O preço é buscado em BRL para calcular corretamente quanto crypto o usuário receberá.
+        """
         symbol_upper = symbol.upper()
-        price = await self.get_current_price(symbol_upper)
+        
+        # Buscar preço em BRL (não USD!) porque o usuário paga em BRL
+        price = await self.get_current_price(symbol_upper, currency="brl")
+        logger.info(f"[Quote] {symbol_upper} price in BRL: R$ {price}")
 
         # Initialize variables for both operations
-        fiat_amount = 0
-        crypto_amount = 0
-        spread_amount = 0
-        fee = 0
-        total = 0
+        fiat_amount = Decimal("0")
+        crypto_amount = Decimal("0")
+        spread_amount = Decimal("0")
+        fee = Decimal("0")
+        total = Decimal("0")
 
         if operation == "buy":
             # For buy: usuário PAGA spread + taxa de rede (ambos são revenue da plataforma)
-            fiat_amount = amount  # Input: quanto o usuário quer gastar (total)
+            fiat_amount = amount  # Input: quanto o usuário quer gastar em BRL (total)
             
             # Taxa de rede: cobrada do valor total
             fee = fiat_amount * (self.NETWORK_FEE_PERCENTAGE / 100)
@@ -139,6 +162,8 @@ class InstantTradeService:
             # Crypto recebido: menos devido ao preço OTC mais alto
             crypto_amount = fiat_after_fee / otc_price
             
+            logger.info(f"[Quote BUY] fiat={fiat_amount} BRL, fee={fee}, fiat_after_fee={fiat_after_fee}, price={price}, otc_price={otc_price}, crypto={crypto_amount}")
+            
             # Total: usuário paga o valor que especificou
             total = fiat_amount
 
@@ -147,7 +172,7 @@ class InstantTradeService:
             # Plataforma compra ABAIXO do mercado (spread) e cobra taxa
             crypto_amount = amount  # Input is crypto (quanto o usuário está vendendo)
             
-            # 1. Valor de mercado (preço justo, sem spreads)
+            # 1. Valor de mercado em BRL (preço justo, sem spreads)
             market_value = amount * price
             
             # 2. Spread: plataforma compra X% mais barato (LUCRO da plataforma)
@@ -165,10 +190,12 @@ class InstantTradeService:
             # 6. Valores para exibição
             fiat_amount = market_value  # Mostrar valor de mercado para comparação
             
-            # 7. Total: quanto o usuário efetivamente recebe
+            # 7. Total: quanto o usuário efetivamente recebe em BRL
             # = Valor OTC - Taxa de rede
             # = (Mercado - Spread) - Taxa
             total = otc_value - fee
+            
+            logger.info(f"[Quote SELL] crypto={crypto_amount}, market_value={market_value} BRL, otc_value={otc_value}, fee={fee}, total={total} BRL")
 
         # Generate quote ID
         quote_id = f"quote_{uuid.uuid4().hex[:12]}"
