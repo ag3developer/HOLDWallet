@@ -6,7 +6,16 @@
  */
 
 import React from 'react'
-import { GitBranch, AlertTriangle, CheckCircle, Info, Loader2 } from 'lucide-react'
+import {
+  GitBranch,
+  AlertTriangle,
+  Info,
+  Loader2,
+  Sparkles,
+  TrendingUp,
+  TrendingDown,
+  Shield,
+} from 'lucide-react'
 import { CorrelationResult } from '@/services/aiService'
 import { CryptoIcon } from '@/components/CryptoIcon'
 
@@ -17,14 +26,14 @@ interface CorrelationMatrixProps {
 }
 
 const getCorrelationColor = (value: number): string => {
-  if (value >= 0.8) return 'bg-red-500'
-  if (value >= 0.6) return 'bg-orange-500'
-  if (value >= 0.4) return 'bg-yellow-500'
-  if (value >= 0.2) return 'bg-green-400'
-  if (value >= 0) return 'bg-green-500'
-  if (value >= -0.2) return 'bg-blue-400'
-  if (value >= -0.4) return 'bg-blue-500'
-  return 'bg-purple-500'
+  if (value >= 0.8) return 'bg-gradient-to-br from-red-500 to-rose-600'
+  if (value >= 0.6) return 'bg-gradient-to-br from-orange-500 to-amber-600'
+  if (value >= 0.4) return 'bg-gradient-to-br from-yellow-500 to-amber-500'
+  if (value >= 0.2) return 'bg-gradient-to-br from-green-400 to-emerald-500'
+  if (value >= 0) return 'bg-gradient-to-br from-green-500 to-teal-600'
+  if (value >= -0.2) return 'bg-gradient-to-br from-blue-400 to-cyan-500'
+  if (value >= -0.4) return 'bg-gradient-to-br from-blue-500 to-indigo-600'
+  return 'bg-gradient-to-br from-purple-500 to-violet-600'
 }
 
 const getCorrelationTextColor = (value: number): string => {
@@ -33,52 +42,95 @@ const getCorrelationTextColor = (value: number): string => {
   return 'text-green-400'
 }
 
+// Helper function for severity styling
+const getSeverityStyle = (severity: string) => {
+  if (severity === 'high') {
+    return {
+      bg: 'bg-gradient-to-r from-red-500/10 to-rose-500/10',
+      border: 'border-red-500/30',
+      iconColor: 'text-red-400',
+    }
+  }
+  if (severity === 'medium') {
+    return {
+      bg: 'bg-gradient-to-r from-yellow-500/10 to-amber-500/10',
+      border: 'border-yellow-500/30',
+      iconColor: 'text-yellow-400',
+    }
+  }
+  return {
+    bg: 'bg-gradient-to-r from-blue-500/10 to-indigo-500/10',
+    border: 'border-blue-500/30',
+    iconColor: 'text-blue-400',
+  }
+}
+
 const CorrelationMatrix: React.FC<CorrelationMatrixProps> = ({ data, loading, error }) => {
   if (loading) {
     return (
-      <div className='flex flex-col items-center justify-center p-8 space-y-4'>
-        <Loader2 className='w-8 h-8 text-blue-500 animate-spin' />
-        <p className='text-sm text-gray-500 dark:text-gray-400'>Calculating correlations...</p>
+      <div className='flex flex-col items-center justify-center p-12 space-y-4 bg-white dark:bg-gray-900/80 rounded-2xl border border-gray-200 dark:border-gray-700/50'>
+        <div className='relative'>
+          <div className='absolute inset-0 bg-purple-500/20 rounded-full blur-xl animate-pulse' />
+          <div className='relative p-4 bg-gradient-to-br from-purple-500/10 to-indigo-500/10 rounded-full'>
+            <GitBranch className='w-10 h-10 text-purple-500' />
+          </div>
+        </div>
+        <Loader2 className='w-6 h-6 text-purple-500 animate-spin' />
+        <p className='text-sm text-gray-500 dark:text-gray-400'>Calculando correlações...</p>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className='flex items-center gap-3 p-4 bg-red-500/10 border border-red-500/30 rounded-lg'>
-        <AlertTriangle className='w-5 h-5 text-red-400' />
-        <p className='text-sm text-red-400'>{error}</p>
+      <div className='flex items-center gap-3 p-5 bg-gradient-to-r from-red-500/10 to-rose-500/10 border border-red-500/30 rounded-2xl'>
+        <div className='p-2 bg-red-500/20 rounded-xl'>
+          <AlertTriangle className='w-5 h-5 text-red-500' />
+        </div>
+        <p className='text-sm font-medium text-red-500 dark:text-red-400'>{error}</p>
       </div>
     )
   }
 
   if (!data || data.symbols.length === 0) {
     return (
-      <div className='flex flex-col items-center justify-center p-8 text-gray-500 dark:text-gray-400'>
-        <GitBranch className='w-12 h-12 mb-3 opacity-50' />
-        <p className='text-sm'>No correlation data available</p>
-        <p className='text-xs mt-1'>Add more assets to analyze diversification</p>
+      <div className='flex flex-col items-center justify-center p-12 text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-900/80 rounded-2xl border border-gray-200 dark:border-gray-700/50'>
+        <div className='p-4 bg-gray-100 dark:bg-gray-800 rounded-full mb-4'>
+          <GitBranch className='w-12 h-12 opacity-50' />
+        </div>
+        <p className='text-sm font-medium'>Nenhum dado de correlação disponível</p>
+        <p className='text-xs mt-1 opacity-70'>Adicione mais ativos para analisar diversificação</p>
       </div>
     )
   }
 
   return (
-    <div className='space-y-4'>
-      {/* Header */}
-      <div className='flex items-center justify-between mb-4'>
-        <div className='flex items-center gap-2'>
-          <GitBranch className='w-5 h-5 text-purple-400' />
-          <h3 className='text-lg font-semibold text-gray-900 dark:text-white'>
-            Correlation Analysis
-          </h3>
+    <div className='space-y-5'>
+      {/* Premium Header */}
+      <div className='flex items-center justify-between p-4 bg-white dark:bg-gray-900/80 rounded-2xl border border-gray-200 dark:border-gray-700/50'>
+        <div className='flex items-center gap-3'>
+          <div className='p-2.5 bg-gradient-to-br from-purple-500/20 to-indigo-500/20 rounded-xl'>
+            <GitBranch className='w-5 h-5 text-purple-500' />
+          </div>
+          <div>
+            <h3 className='text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2'>
+              Correlation Analysis
+              <Sparkles className='w-4 h-4 text-yellow-500' />
+            </h3>
+            <p className='text-xs text-gray-500 dark:text-gray-400'>Diversificação do portfólio</p>
+          </div>
         </div>
-        <span className='text-xs text-gray-500 dark:text-gray-400'>
-          {data.lookback_days} days, {data.data_points} data points
-        </span>
+        <div className='flex items-center gap-2'>
+          <div className='px-3 py-1.5 bg-purple-500/10 rounded-xl'>
+            <span className='text-xs font-semibold text-purple-500'>
+              {data.lookback_days} dias • {data.data_points} pts
+            </span>
+          </div>
+        </div>
       </div>
 
-      {/* Matrix */}
-      <div className='overflow-x-auto'>
+      {/* Matrix with Premium Styling */}
+      <div className='overflow-x-auto bg-white dark:bg-gray-900/80 rounded-2xl border border-gray-200 dark:border-gray-700/50 p-4'>
         <div className='inline-block min-w-full'>
           <table className='w-full border-collapse'>
             <thead>
@@ -91,7 +143,7 @@ const CorrelationMatrix: React.FC<CorrelationMatrixProps> = ({ data, loading, er
                   >
                     <div className='flex flex-col items-center gap-1'>
                       <CryptoIcon symbol={symbol} size={20} />
-                      <span>{symbol}</span>
+                      <span className='font-semibold'>{symbol}</span>
                     </div>
                   </th>
                 ))}
@@ -103,7 +155,7 @@ const CorrelationMatrix: React.FC<CorrelationMatrixProps> = ({ data, loading, er
                   <td className='p-2 text-xs font-medium text-gray-600 dark:text-gray-300'>
                     <div className='flex items-center gap-2'>
                       <CryptoIcon symbol={rowSymbol} size={18} />
-                      <span>{rowSymbol}</span>
+                      <span className='font-semibold'>{rowSymbol}</span>
                     </div>
                   </td>
                   {data.symbols.map(colSymbol => {
@@ -114,16 +166,18 @@ const CorrelationMatrix: React.FC<CorrelationMatrixProps> = ({ data, loading, er
                       <td key={`${rowSymbol}-${colSymbol}`} className='p-1'>
                         <div
                           className={`
-                            w-12 h-12 flex items-center justify-center rounded-lg
+                            w-14 h-14 flex items-center justify-center rounded-xl shadow-sm
                             ${isMainDiagonal ? 'bg-gray-200 dark:bg-gray-700' : getCorrelationColor(value)}
-                            ${isMainDiagonal ? 'opacity-50' : 'opacity-80'}
-                            transition-all hover:opacity-100 hover:scale-110
+                            ${isMainDiagonal ? 'opacity-50' : 'opacity-90'}
+                            transition-all duration-200 hover:opacity-100 hover:scale-110 hover:shadow-lg cursor-pointer
                           `}
                           title={`${rowSymbol} - ${colSymbol}: ${(value * 100).toFixed(0)}%`}
                         >
                           <span
-                            className={`text-xs font-bold ${
-                              isMainDiagonal ? 'text-gray-500 dark:text-gray-400' : 'text-white'
+                            className={`text-sm font-bold ${
+                              isMainDiagonal
+                                ? 'text-gray-500 dark:text-gray-400'
+                                : 'text-white drop-shadow-sm'
                             }`}
                           >
                             {(value * 100).toFixed(0)}%
@@ -139,105 +193,126 @@ const CorrelationMatrix: React.FC<CorrelationMatrixProps> = ({ data, loading, er
         </div>
       </div>
 
-      {/* Legend */}
-      <div className='flex items-center justify-center gap-4 py-2'>
-        <div className='flex items-center gap-2'>
-          <div className='w-3 h-3 rounded bg-red-500' />
-          <span className='text-xs text-gray-500 dark:text-gray-400'>High (80%+)</span>
+      {/* Premium Legend */}
+      <div className='flex flex-wrap items-center justify-center gap-4 p-4 bg-white dark:bg-gray-900/80 rounded-2xl border border-gray-200 dark:border-gray-700/50'>
+        <div className='flex items-center gap-2 group'>
+          <div className='w-4 h-4 rounded-lg bg-gradient-to-br from-red-500 to-rose-600 shadow-sm group-hover:scale-110 transition-transform' />
+          <span className='text-xs text-gray-500 dark:text-gray-400 font-medium'>Alta (80%+)</span>
         </div>
-        <div className='flex items-center gap-2'>
-          <div className='w-3 h-3 rounded bg-yellow-500' />
-          <span className='text-xs text-gray-500 dark:text-gray-400'>Medium (40-60%)</span>
+        <div className='flex items-center gap-2 group'>
+          <div className='w-4 h-4 rounded-lg bg-gradient-to-br from-yellow-500 to-amber-500 shadow-sm group-hover:scale-110 transition-transform' />
+          <span className='text-xs text-gray-500 dark:text-gray-400 font-medium'>
+            Média (40-60%)
+          </span>
         </div>
-        <div className='flex items-center gap-2'>
-          <div className='w-3 h-3 rounded bg-green-500' />
-          <span className='text-xs text-gray-500 dark:text-gray-400'>Low (0-20%)</span>
+        <div className='flex items-center gap-2 group'>
+          <div className='w-4 h-4 rounded-lg bg-gradient-to-br from-green-500 to-teal-600 shadow-sm group-hover:scale-110 transition-transform' />
+          <span className='text-xs text-gray-500 dark:text-gray-400 font-medium'>
+            Baixa (0-20%)
+          </span>
+        </div>
+        <div className='flex items-center gap-2 group'>
+          <div className='w-4 h-4 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 shadow-sm group-hover:scale-110 transition-transform' />
+          <span className='text-xs text-gray-500 dark:text-gray-400 font-medium'>Negativa</span>
         </div>
       </div>
 
       {/* High Correlations Warning */}
       {data.high_correlations.length > 0 && (
-        <div className='p-4 bg-orange-500/10 border border-orange-500/30 rounded-xl'>
-          <div className='flex items-center gap-2 mb-2'>
-            <AlertTriangle className='w-4 h-4 text-orange-400' />
-            <span className='text-sm font-medium text-orange-400'>High Correlation Detected</span>
+        <div className='p-5 bg-gradient-to-r from-orange-500/10 to-amber-500/10 border border-orange-500/30 rounded-2xl'>
+          <div className='flex items-center gap-3 mb-3'>
+            <div className='p-2 bg-orange-500/20 rounded-xl'>
+              <AlertTriangle className='w-5 h-5 text-orange-500' />
+            </div>
+            <div>
+              <span className='text-sm font-bold text-orange-500'>Alta Correlação Detectada</span>
+              <p className='text-xs text-gray-500 dark:text-gray-400'>
+                Ativos se movem juntos, reduzindo diversificação
+              </p>
+            </div>
           </div>
-          <ul className='space-y-1'>
-            {data.high_correlations.slice(0, 3).map((item, idx) => (
-              <li key={`high-${idx}`} className='flex items-center justify-between text-sm'>
-                <span className='text-gray-600 dark:text-gray-300'>
-                  {item.pair[0]} - {item.pair[1]}
-                </span>
-                <span className={getCorrelationTextColor(item.correlation)}>
+          <ul className='space-y-2'>
+            {data.high_correlations.slice(0, 3).map(item => (
+              <li
+                key={`high-${item.pair[0]}-${item.pair[1]}`}
+                className='flex items-center justify-between p-3 bg-white/50 dark:bg-gray-800/50 rounded-xl'
+              >
+                <div className='flex items-center gap-2'>
+                  <TrendingUp className='w-4 h-4 text-orange-400' />
+                  <span className='text-sm font-medium text-gray-700 dark:text-gray-200'>
+                    {item.pair[0]} ↔ {item.pair[1]}
+                  </span>
+                </div>
+                <span className={`text-sm font-bold ${getCorrelationTextColor(item.correlation)}`}>
                   {(item.correlation * 100).toFixed(0)}%
                 </span>
               </li>
             ))}
           </ul>
-          <p className='text-xs text-gray-500 dark:text-gray-400 mt-2'>
-            Highly correlated assets move together, reducing diversification benefit
-          </p>
         </div>
       )}
 
       {/* Low Correlations (Good) */}
       {data.low_correlations.length > 0 && (
-        <div className='p-4 bg-green-500/10 border border-green-500/30 rounded-xl'>
-          <div className='flex items-center gap-2 mb-2'>
-            <CheckCircle className='w-4 h-4 text-green-400' />
-            <span className='text-sm font-medium text-green-400'>Good Diversification</span>
+        <div className='p-5 bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/30 rounded-2xl'>
+          <div className='flex items-center gap-3 mb-3'>
+            <div className='p-2 bg-green-500/20 rounded-xl'>
+              <Shield className='w-5 h-5 text-green-500' />
+            </div>
+            <div>
+              <span className='text-sm font-bold text-green-500'>Boa Diversificação</span>
+              <p className='text-xs text-gray-500 dark:text-gray-400'>
+                Baixa correlação reduz volatilidade do portfólio
+              </p>
+            </div>
           </div>
-          <ul className='space-y-1'>
-            {data.low_correlations.slice(0, 3).map((item, idx) => (
-              <li key={`low-${idx}`} className='flex items-center justify-between text-sm'>
-                <span className='text-gray-600 dark:text-gray-300'>
-                  {item.pair[0]} - {item.pair[1]}
+          <ul className='space-y-2'>
+            {data.low_correlations.slice(0, 3).map(item => (
+              <li
+                key={`low-${item.pair[0]}-${item.pair[1]}`}
+                className='flex items-center justify-between p-3 bg-white/50 dark:bg-gray-800/50 rounded-xl'
+              >
+                <div className='flex items-center gap-2'>
+                  <TrendingDown className='w-4 h-4 text-green-400' />
+                  <span className='text-sm font-medium text-gray-700 dark:text-gray-200'>
+                    {item.pair[0]} ↔ {item.pair[1]}
+                  </span>
+                </div>
+                <span className='text-sm font-bold text-green-400'>
+                  {(item.correlation * 100).toFixed(0)}%
                 </span>
-                <span className='text-green-400'>{(item.correlation * 100).toFixed(0)}%</span>
               </li>
             ))}
           </ul>
-          <p className='text-xs text-gray-500 dark:text-gray-400 mt-2'>
-            Low correlation assets help reduce portfolio volatility
-          </p>
         </div>
       )}
 
       {/* Insights */}
       {data.insights && data.insights.length > 0 && (
-        <div className='space-y-2'>
-          {data.insights.slice(0, 3).map((insight, idx) => (
-            <div
-              key={`insight-${idx}`}
-              className={`p-3 rounded-lg border ${
-                insight.severity === 'high'
-                  ? 'bg-red-500/10 border-red-500/30'
-                  : insight.severity === 'medium'
-                    ? 'bg-yellow-500/10 border-yellow-500/30'
-                    : 'bg-blue-500/10 border-blue-500/30'
-              }`}
-            >
-              <div className='flex items-start gap-2'>
-                <Info
-                  className={`w-4 h-4 mt-0.5 ${
-                    insight.severity === 'high'
-                      ? 'text-red-400'
-                      : insight.severity === 'medium'
-                        ? 'text-yellow-400'
-                        : 'text-blue-400'
-                  }`}
-                />
-                <div>
-                  <p className='text-sm font-medium text-gray-900 dark:text-white'>
-                    {insight.title}
-                  </p>
-                  <p className='text-xs text-gray-500 dark:text-gray-400 mt-0.5'>
-                    {insight.message}
-                  </p>
+        <div className='space-y-3'>
+          {data.insights.slice(0, 3).map(insight => {
+            const style = getSeverityStyle(insight.severity)
+            return (
+              <div
+                key={insight.title}
+                className={`p-4 rounded-2xl border ${style.bg} ${style.border}`}
+              >
+                <div className='flex items-start gap-3'>
+                  <div className={`p-1.5 ${style.bg} rounded-lg`}>
+                    <Info className={`w-4 h-4 ${style.iconColor}`} />
+                  </div>
+                  <div>
+                    <p className='text-sm font-bold text-gray-900 dark:text-white'>
+                      {insight.title}
+                    </p>
+                    <p className='text-xs text-gray-500 dark:text-gray-400 mt-1'>
+                      {insight.message}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>

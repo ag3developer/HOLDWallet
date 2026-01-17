@@ -18,6 +18,9 @@ import {
   ChevronRight,
   Loader2,
   Sparkles,
+  Zap,
+  TrendingUp,
+  Shield,
 } from 'lucide-react'
 import { ATHAnalysis, CorrelationResult, SwapSuggestionsResult } from '@/services/aiService'
 
@@ -35,21 +38,35 @@ const QuickStat: React.FC<{
   value: string | number
   subtitle?: string | undefined
   color?: string | undefined
+  bgGradient?: string | undefined
   onClick?: (() => void) | undefined
-}> = ({ icon: Icon, label, value, subtitle, color = 'text-blue-400', onClick }) => (
+}> = ({
+  icon: Icon,
+  label,
+  value,
+  subtitle,
+  color = 'text-blue-400',
+  bgGradient = 'from-blue-500/10 to-indigo-500/10',
+  onClick,
+}) => (
   <button
     onClick={onClick}
-    className='flex items-center gap-3 p-3 bg-gray-100 dark:bg-gray-800/50 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700/50 transition-all w-full text-left'
+    className='group relative overflow-hidden flex items-center gap-3 p-4 bg-white dark:bg-gray-800/80 rounded-2xl hover:shadow-lg transition-all duration-300 w-full text-left border border-gray-100 dark:border-gray-700/50'
   >
-    <div className={`p-2 rounded-lg bg-gray-200 dark:bg-gray-700/50`}>
+    <div
+      className={`absolute inset-0 bg-gradient-to-br ${bgGradient} opacity-0 group-hover:opacity-100 transition-opacity duration-300`}
+    />
+    <div className={`relative p-2.5 rounded-xl bg-gradient-to-br ${bgGradient}`}>
       <Icon className={`w-5 h-5 ${color}`} />
     </div>
-    <div className='flex-1 min-w-0'>
-      <p className='text-xs text-gray-500 dark:text-gray-400'>{label}</p>
-      <p className={`text-lg font-bold ${color}`}>{value}</p>
-      {subtitle && <p className='text-xs text-gray-400 dark:text-gray-500 truncate'>{subtitle}</p>}
+    <div className='relative flex-1 min-w-0'>
+      <p className='text-xs text-gray-500 dark:text-gray-400 font-medium'>{label}</p>
+      <p className={`text-xl font-bold ${color}`}>{value}</p>
+      {subtitle && (
+        <p className='text-[10px] text-gray-400 dark:text-gray-500 truncate'>{subtitle}</p>
+      )}
     </div>
-    <ChevronRight className='w-4 h-4 text-gray-400 dark:text-gray-500' />
+    <ChevronRight className='relative w-4 h-4 text-gray-400 dark:text-gray-500 group-hover:translate-x-1 transition-transform' />
   </button>
 )
 
@@ -58,10 +75,13 @@ const InsightBadge: React.FC<{
   message: string
 }> = ({ type, message }) => {
   const styles = {
-    success: 'bg-green-500/10 border-green-500/30 text-green-400',
-    warning: 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400',
-    danger: 'bg-red-500/10 border-red-500/30 text-red-400',
-    info: 'bg-blue-500/10 border-blue-500/30 text-blue-400',
+    success:
+      'bg-gradient-to-r from-green-500/10 to-emerald-500/10 border-green-500/30 text-green-500 dark:text-green-400',
+    warning:
+      'bg-gradient-to-r from-yellow-500/10 to-amber-500/10 border-yellow-500/30 text-yellow-600 dark:text-yellow-400',
+    danger:
+      'bg-gradient-to-r from-red-500/10 to-rose-500/10 border-red-500/30 text-red-500 dark:text-red-400',
+    info: 'bg-gradient-to-r from-blue-500/10 to-indigo-500/10 border-blue-500/30 text-blue-500 dark:text-blue-400',
   }
 
   const icons = {
@@ -74,9 +94,11 @@ const InsightBadge: React.FC<{
   const Icon = icons[type]
 
   return (
-    <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${styles[type]}`}>
+    <div
+      className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${styles[type]} backdrop-blur-sm`}
+    >
       <Icon className='w-4 h-4 shrink-0' />
-      <span className='text-xs'>{message}</span>
+      <span className='text-sm font-medium'>{message}</span>
     </div>
   )
 }
@@ -90,14 +112,18 @@ const AIInsightsCard: React.FC<AIInsightsCardProps> = ({
 }) => {
   if (loading) {
     return (
-      <div className='p-6 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700/50'>
-        <div className='flex flex-col items-center justify-center py-8 space-y-4'>
+      <div className='relative overflow-hidden p-8 bg-white dark:bg-gray-900/80 rounded-3xl border border-gray-200 dark:border-gray-700/50 shadow-xl'>
+        <div className='absolute inset-0 bg-gradient-to-br from-blue-500/5 via-purple-500/5 to-indigo-500/5' />
+        <div className='relative flex flex-col items-center justify-center py-8 space-y-4'>
           <div className='relative'>
-            <Brain className='w-12 h-12 text-blue-500' />
+            <div className='absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full blur-xl opacity-30 animate-pulse' />
+            <div className='relative p-4 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full'>
+              <Brain className='w-12 h-12 text-blue-500' />
+            </div>
             <Sparkles className='w-5 h-5 text-yellow-400 absolute -top-1 -right-1 animate-pulse' />
           </div>
-          <Loader2 className='w-6 h-6 text-blue-500 animate-spin' />
-          <p className='text-sm text-gray-500 dark:text-gray-400'>Analyzing your portfolio...</p>
+          <Loader2 className='w-6 h-6 text-purple-500 animate-spin' />
+          <p className='text-sm text-gray-500 dark:text-gray-400'>Analisando seu portfolio...</p>
         </div>
       </div>
     )
@@ -172,76 +198,126 @@ const AIInsightsCard: React.FC<AIInsightsCardProps> = ({
   const highCorrelations = correlationData?.high_correlations.length || 0
 
   return (
-    <div className='p-6 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700/50'>
+    <div className='relative overflow-hidden p-6 bg-white dark:bg-gray-900/80 rounded-3xl border border-gray-200 dark:border-gray-700/50 shadow-xl'>
+      {/* Background decorations */}
+      <div className='absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-blue-500/5 to-purple-500/5 rounded-full -translate-y-32 translate-x-32' />
+      <div className='absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-indigo-500/5 to-blue-500/5 rounded-full translate-y-24 -translate-x-24' />
+
       {/* Header */}
-      <div className='flex items-center justify-between mb-6'>
-        <div className='flex items-center gap-3'>
+      <div className='relative flex items-center justify-between mb-6'>
+        <div className='flex items-center gap-4'>
           <div className='relative'>
-            <Brain className='w-8 h-8 text-blue-500' />
-            <Sparkles className='w-4 h-4 text-yellow-400 absolute -top-1 -right-1' />
+            <div className='absolute inset-0 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl blur-lg opacity-40' />
+            <div className='relative p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl shadow-lg'>
+              <Brain className='w-7 h-7 text-white' />
+            </div>
+            <div className='absolute -top-1 -right-1 p-1 bg-yellow-400 rounded-full shadow-lg'>
+              <Sparkles className='w-3 h-3 text-yellow-900' />
+            </div>
           </div>
           <div>
-            <h2 className='text-xl font-bold text-gray-900 dark:text-white'>
+            <h2 className='text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2'>
               AI Portfolio Intelligence
+              <span className='px-2 py-0.5 text-[10px] font-bold bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-full uppercase'>
+                Pro
+              </span>
             </h2>
-            <p className='text-xs text-gray-500 dark:text-gray-400'>Powered by machine learning</p>
+            <p className='text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1'>
+              <Zap className='w-3 h-3 text-yellow-500' />
+              Powered by machine learning
+            </p>
           </div>
         </div>
         <div
-          className={`px-3 py-1 rounded-full text-xs font-medium ${
+          className={`px-4 py-2 rounded-xl text-sm font-bold shadow-sm ${
             portfolioScore >= 80
-              ? 'bg-green-500/20 text-green-400'
+              ? 'bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-500 border border-green-500/30'
               : portfolioScore >= 60
-                ? 'bg-yellow-500/20 text-yellow-400'
-                : 'bg-red-500/20 text-red-400'
+                ? 'bg-gradient-to-r from-yellow-500/20 to-amber-500/20 text-yellow-500 border border-yellow-500/30'
+                : 'bg-gradient-to-r from-red-500/20 to-rose-500/20 text-red-500 border border-red-500/30'
           }`}
         >
-          Score: {portfolioScore}%
+          <div className='flex items-center gap-2'>
+            <Shield className='w-4 h-4' />
+            Score: {portfolioScore}%
+          </div>
         </div>
       </div>
 
       {/* Quick Stats Grid */}
-      <div className='grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4'>
+      <div className='relative grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6'>
         <QuickStat
           icon={Target}
           label='ATH Recovery'
           value={`${avgRecovery.toFixed(0)}%`}
-          subtitle={athData ? `${athData.length} assets analyzed` : undefined}
+          subtitle={athData ? `${athData.length} ativos analisados` : undefined}
           color={
             avgRecovery >= 80
-              ? 'text-green-400'
+              ? 'text-green-500'
               : avgRecovery >= 50
-                ? 'text-yellow-400'
-                : 'text-red-400'
+                ? 'text-yellow-500'
+                : 'text-red-500'
+          }
+          bgGradient={
+            avgRecovery >= 80
+              ? 'from-green-500/10 to-emerald-500/10'
+              : avgRecovery >= 50
+                ? 'from-yellow-500/10 to-amber-500/10'
+                : 'from-red-500/10 to-rose-500/10'
           }
           onClick={() => onNavigate?.('ath')}
         />
         <QuickStat
           icon={GitBranch}
-          label='Diversification'
-          value={highCorrelations === 0 ? 'Good' : `${highCorrelations} issues`}
-          subtitle={correlationData ? `${correlationData.symbols.length} pairs` : undefined}
-          color={highCorrelations === 0 ? 'text-green-400' : 'text-orange-400'}
+          label='Diversificação'
+          value={highCorrelations === 0 ? 'Ótima' : `${highCorrelations} alertas`}
+          subtitle={correlationData ? `${correlationData.symbols.length} pares` : undefined}
+          color={highCorrelations === 0 ? 'text-green-500' : 'text-orange-500'}
+          bgGradient={
+            highCorrelations === 0
+              ? 'from-green-500/10 to-emerald-500/10'
+              : 'from-orange-500/10 to-amber-500/10'
+          }
           onClick={() => onNavigate?.('correlation')}
         />
         <QuickStat
           icon={ArrowRightLeft}
-          label='Suggestions'
+          label='Sugestões'
           value={totalSuggestions}
-          subtitle={swapData ? `${swapData.summary.high_priority_count} high priority` : undefined}
-          color={totalSuggestions === 0 ? 'text-green-400' : 'text-blue-400'}
+          subtitle={
+            swapData ? `${swapData.summary.high_priority_count} prioridade alta` : undefined
+          }
+          color={totalSuggestions === 0 ? 'text-green-500' : 'text-blue-500'}
+          bgGradient={
+            totalSuggestions === 0
+              ? 'from-green-500/10 to-emerald-500/10'
+              : 'from-blue-500/10 to-indigo-500/10'
+          }
           onClick={() => onNavigate?.('swap')}
         />
         <QuickStat
           icon={Activity}
-          label='Health Status'
-          value={swapData?.summary.health_status || 'N/A'}
+          label='Status'
+          value={
+            swapData?.summary.health_status === 'HEALTHY'
+              ? 'Saudável'
+              : swapData?.summary.health_status === 'MODERATE'
+                ? 'Moderado'
+                : swapData?.summary.health_status || 'N/A'
+          }
           color={
             swapData?.summary.health_status === 'HEALTHY'
-              ? 'text-green-400'
+              ? 'text-green-500'
               : swapData?.summary.health_status === 'MODERATE'
-                ? 'text-yellow-400'
-                : 'text-red-400'
+                ? 'text-yellow-500'
+                : 'text-red-500'
+          }
+          bgGradient={
+            swapData?.summary.health_status === 'HEALTHY'
+              ? 'from-green-500/10 to-emerald-500/10'
+              : swapData?.summary.health_status === 'MODERATE'
+                ? 'from-yellow-500/10 to-amber-500/10'
+                : 'from-red-500/10 to-rose-500/10'
           }
           onClick={() => onNavigate?.('indicators')}
         />
@@ -249,33 +325,38 @@ const AIInsightsCard: React.FC<AIInsightsCardProps> = ({
 
       {/* Key Insights */}
       {insights.length > 0 && (
-        <div className='space-y-2'>
-          <h3 className='text-sm font-medium text-gray-500 dark:text-gray-400 mb-2'>
-            Key Insights
+        <div className='relative space-y-3'>
+          <h3 className='text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2 mb-3'>
+            <TrendingUp className='w-4 h-4 text-blue-500' />
+            Principais Insights
           </h3>
-          {insights.slice(0, 4).map((insight, idx) => (
-            <InsightBadge
-              key={`insight-${insight.type}-${idx}`}
-              type={insight.type}
-              message={insight.message}
-            />
-          ))}
+          <div className='grid gap-2 sm:grid-cols-2'>
+            {insights.slice(0, 4).map((insight, idx) => (
+              <InsightBadge
+                key={`insight-${insight.type}-${idx}`}
+                type={insight.type}
+                message={insight.message}
+              />
+            ))}
+          </div>
         </div>
       )}
 
       {/* No Data State */}
       {!athData && !correlationData && !swapData && (
-        <div className='flex flex-col items-center justify-center py-6 text-gray-500 dark:text-gray-400'>
-          <Brain className='w-10 h-10 mb-3 opacity-50' />
-          <p className='text-sm'>Add assets to get AI insights</p>
-          <p className='text-xs mt-1'>Portfolio analysis requires at least 2 assets</p>
+        <div className='relative flex flex-col items-center justify-center py-8 text-gray-500 dark:text-gray-400'>
+          <div className='p-4 bg-gray-100 dark:bg-gray-800 rounded-full mb-4'>
+            <Brain className='w-10 h-10 opacity-50' />
+          </div>
+          <p className='text-sm font-medium'>Adicione ativos para receber insights</p>
+          <p className='text-xs mt-1'>A análise requer pelo menos 2 ativos</p>
         </div>
       )}
 
       {/* Powered by AI badge */}
-      <div className='mt-4 pt-4 border-t border-gray-200 dark:border-gray-700/50 flex items-center justify-center gap-2 text-xs text-gray-400 dark:text-gray-500'>
-        <Sparkles className='w-3 h-3' />
-        <span>AI analysis updates every 5 minutes</span>
+      <div className='relative mt-6 pt-4 border-t border-gray-200 dark:border-gray-700/50 flex items-center justify-center gap-2 text-xs text-gray-400 dark:text-gray-500'>
+        <Sparkles className='w-3 h-3 text-yellow-500' />
+        <span>Análise AI atualiza a cada 5 minutos</span>
       </div>
     </div>
   )
