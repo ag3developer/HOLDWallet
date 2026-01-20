@@ -76,6 +76,7 @@ interface SendModalProps {
   preselectedNetwork?: string
   preselectedToken?: string
   availableBalance?: number
+  onSuccess?: () => void
 }
 
 interface SendResponse {
@@ -100,6 +101,7 @@ export const SystemWalletSendModal: React.FC<SendModalProps> = ({
   preselectedNetwork,
   preselectedToken,
   availableBalance,
+  onSuccess,
 }) => {
   const queryClient = useQueryClient()
   const [step, setStep] = useState<'form' | 'confirm' | 'success' | 'error'>('form')
@@ -161,6 +163,8 @@ export const SystemWalletSendModal: React.FC<SendModalProps> = ({
         toast.success('Transacao enviada com sucesso!')
         // Invalida cache para atualizar saldos
         queryClient.invalidateQueries({ queryKey: ['admin-system-wallet-status'] })
+        // Callback externo
+        onSuccess?.()
       } else {
         setErrorMessage('Erro desconhecido ao enviar transacao')
         setStep('error')

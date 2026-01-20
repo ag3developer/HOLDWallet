@@ -22,8 +22,10 @@ import {
   EyeOff,
   X,
   Zap,
+  Send,
 } from 'lucide-react'
 import { apiClient } from '@/services/api'
+import { SystemWalletSendModal } from '@/components/admin/SystemWalletSendModal'
 
 // Tipos
 interface SystemWallet {
@@ -282,7 +284,8 @@ const CreateWalletModal: React.FC<{
 const WalletCard: React.FC<{
   wallet: SystemWallet
   onRefresh: () => void
-}> = ({ wallet, onRefresh }) => {
+  onSend: (walletName: string) => void
+}> = ({ wallet, onRefresh, onSend }) => {
   const [expanded, setExpanded] = useState(false)
   const queryClient = useQueryClient()
 
@@ -346,6 +349,21 @@ const WalletCard: React.FC<{
           </div>
         </div>
         <div className='flex items-center gap-3'>
+          <button
+            onClick={e => {
+              e.stopPropagation()
+              onSend(wallet.name)
+            }}
+            disabled={wallet.is_locked}
+            className={`p-2 rounded-lg transition-colors ${
+              wallet.is_locked
+                ? 'bg-gray-500/10 text-gray-500 cursor-not-allowed'
+                : 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20'
+            }`}
+            title={wallet.is_locked ? 'Desbloqueie para enviar' : 'Enviar'}
+          >
+            <Send className='w-4 h-4' />
+          </button>
           <button
             onClick={e => {
               e.stopPropagation()
@@ -423,7 +441,14 @@ const WalletCard: React.FC<{
 // Pagina principal
 export const AdminSystemWalletsPage: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [showSendModal, setShowSendModal] = useState(false)
+  const [selectedWalletForSend, setSelectedWalletForSend] = useState<string>('main_fees_wallet')
   const queryClient = useQueryClient()
+
+  const handleOpenSendModal = (walletName: string) => {
+    setSelectedWalletForSend(walletName)
+    setShowSendModal(true)
+  }
 
   const {
     data: wallets,
@@ -548,6 +573,7 @@ export const AdminSystemWalletsPage: React.FC = () => {
                   refetch()
                   queryClient.invalidateQueries({ queryKey: ['system-wallets-summary'] })
                 }}
+                onSend={handleOpenSendModal}
               />
             ))}
           </div>
@@ -570,6 +596,17 @@ export const AdminSystemWalletsPage: React.FC = () => {
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onCreated={() => {
+          refetch()
+          queryClient.invalidateQueries({ queryKey: ['system-wallets-summary'] })
+        }}
+      />
+
+      {/* Modal de enviar */}
+      <SystemWalletSendModal
+        isOpen={showSendModal}
+        onClose={() => setShowSendModal(false)}
+        walletName={selectedWalletForSend}
+        onSuccess={() => {
           refetch()
           queryClient.invalidateQueries({ queryKey: ['system-wallets-summary'] })
         }}
