@@ -41,6 +41,12 @@ class SystemWalletSendRequest(BaseModel):
         max_length=500,
         description="Nota/memo opcional para registro"
     )
+    two_factor_code: Optional[str] = Field(
+        default=None,
+        min_length=6,
+        max_length=6,
+        description="Codigo 2FA (6 digitos) - obrigatorio para envios"
+    )
     
     @validator('network')
     def validate_network(cls, v):

@@ -12,7 +12,7 @@ ENDPOINTS:
 - POST /admin/system-wallet/send - Enviar crypto para endereço externo (NOVO)
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Header
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import Optional, List, Dict, Any
@@ -731,6 +731,7 @@ async def get_network_balance(
 @router.post("/send")
 async def send_from_system_wallet(
     request: SystemWalletSendRequest,
+    x_2fa_code: Optional[str] = Header(None, alias="X-2FA-Code"),
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
@@ -766,11 +767,23 @@ async def send_from_system_wallet(
         logger.info(f"  Amount: {request.amount}")
         logger.info(f"  Token: {request.token}")
         
-        # TODO: Verificar 2FA se configurado
-        # if request.two_factor_code:
-        #     from app.services.two_factor_service import verify_2fa
-        #     if not verify_2fa(current_user.id, request.two_factor_code):
-        #         raise HTTPException(status_code=401, detail="Codigo 2FA invalido")
+        # Verificar 2FA (obrigatório para envios de crypto)
+        # Aceita código do body (request.two_factor_code) ou do header (X-2FA-Code)
+        two_fa_code = request.two_factor_code or x_2fa_code
+        
+        if two_fa_code:
+            from app.services.two_factor_service import TwoFactorService
+            two_factor_service = TwoFactorService()
+            is_valid = await two_factor_service.verify_2fa_for_action(db, current_user, two_fa_code)
+            if not is_valid:
+                logger.warning(f"  2FA inválido para admin {current_user.email}")
+                raise HTTPException(status_code=401, detail="Código 2FA inválido")
+            logger.info("  2FA verificado com sucesso")
+        else:
+            # Se usuário tem 2FA habilitado, exigir código
+            if current_user.two_factor_enabled:
+                raise HTTPException(status_code=400, detail="Código 2FA obrigatório para envios")
+            logger.info("  2FA não configurado, prosseguindo sem verificação")
         
         # Executar envio
         result = await system_wallet_send_service.send_from_system_wallet(
