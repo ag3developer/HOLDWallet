@@ -785,45 +785,193 @@ async def send_from_system_wallet(
                 raise HTTPException(status_code=400, detail="Código 2FA obrigatório para envios")
             logger.info("  2FA não configurado, prosseguindo sem verificação")
         
-        # Executar envio
-        result = await system_wallet_send_service.send_from_system_wallet(
-            db=db,
-            wallet_name=request.wallet_name,
-            network=request.network.lower(),
-            to_address=request.to_address.strip(),
-            amount=Decimal(str(request.amount)),
-            token=request.token.lower(),
-            admin_user_id=str(current_user.id),
-            memo=request.memo
-        )
+        # ============================================
+        # USAR A MESMA LÓGICA DO blockchain_deposit_service
+        # que usa PLATFORM_WALLET_PRIVATE_KEY do .env
+        # ============================================
+        from app.services.blockchain_deposit_service import BlockchainDepositService
+        from app.core.config import settings
+        from web3 import Web3
+        from eth_account import Account
         
-        if not result.get("success"):
-            logger.warning(f"  Falha no envio: {result.get('error')}")
-            raise HTTPException(
-                status_code=400,
-                detail={
-                    "error_code": result.get("error_code", "SEND_FAILED"),
-                    "message": result.get("message", "Falha ao enviar transacao")
+        network = request.network.lower()
+        token = request.token.upper() if request.token != 'native' else 'native'
+        amount = Decimal(str(request.amount))
+        to_address = request.to_address.strip()
+        
+        # Configuração de redes (mesma do blockchain_deposit_service)
+        NETWORK_CONFIG = {
+            "ethereum": {
+                "rpc_url": settings.ETHEREUM_RPC_URL,
+                "chain_id": 1,
+                "explorer": "https://etherscan.io/tx/",
+                "contracts": {
+                    "USDT": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+                    "USDC": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
                 }
-            )
+            },
+            "polygon": {
+                "rpc_url": settings.POLYGON_RPC_URL,
+                "chain_id": 137,
+                "explorer": "https://polygonscan.com/tx/",
+                "contracts": {
+                    "USDT": "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
+                    "USDC": "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
+                }
+            },
+            "bsc": {
+                "rpc_url": settings.BSC_RPC_URL if hasattr(settings, 'BSC_RPC_URL') else "https://bsc-dataseed.binance.org/",
+                "chain_id": 56,
+                "explorer": "https://bscscan.com/tx/",
+                "contracts": {
+                    "USDT": "0x55d398326f99059fF775485246999027B3197955",
+                    "USDC": "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d",
+                }
+            },
+            "base": {
+                "rpc_url": settings.BASE_RPC_URL if hasattr(settings, 'BASE_RPC_URL') else "https://mainnet.base.org",
+                "chain_id": 8453,
+                "explorer": "https://basescan.org/tx/",
+                "contracts": {
+                    "USDC": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                }
+            },
+            "avalanche": {
+                "rpc_url": settings.AVALANCHE_RPC_URL if hasattr(settings, 'AVALANCHE_RPC_URL') else "https://api.avax.network/ext/bc/C/rpc",
+                "chain_id": 43114,
+                "explorer": "https://snowtrace.io/tx/",
+                "contracts": {
+                    "USDT": "0x9702230A8Ea53601f5cD2dc00fDBc13d4dF4A8c7",
+                    "USDC": "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E",
+                }
+            },
+        }
         
-        logger.info(f"  Sucesso! TX: {result.get('tx_hash')}")
+        if network not in NETWORK_CONFIG:
+            raise HTTPException(status_code=400, detail=f"Rede {network} não suportada para envio automático")
+        
+        config = NETWORK_CONFIG[network]
+        
+        # Verificar se private key está configurada
+        if not settings.PLATFORM_WALLET_PRIVATE_KEY:
+            raise HTTPException(status_code=500, detail="PLATFORM_WALLET_PRIVATE_KEY não configurada no .env!")
+        
+        # Conectar na rede
+        w3 = Web3(Web3.HTTPProvider(config["rpc_url"]))
+        if not w3.is_connected():
+            raise HTTPException(status_code=500, detail=f"Não foi possível conectar à rede {network}")
+        
+        account = Account.from_key(settings.PLATFORM_WALLET_PRIVATE_KEY)
+        from_address = account.address
+        logger.info(f"  From (Platform Wallet): {from_address}")
+        
+        # ABI mínima para ERC20
+        ERC20_ABI = [
+            {
+                "constant": False,
+                "inputs": [
+                    {"name": "_to", "type": "address"},
+                    {"name": "_value", "type": "uint256"}
+                ],
+                "name": "transfer",
+                "outputs": [{"name": "", "type": "bool"}],
+                "type": "function"
+            },
+            {
+                "constant": True,
+                "inputs": [{"name": "_owner", "type": "address"}],
+                "name": "balanceOf",
+                "outputs": [{"name": "balance", "type": "uint256"}],
+                "type": "function"
+            },
+            {
+                "constant": True,
+                "inputs": [],
+                "name": "decimals",
+                "outputs": [{"name": "", "type": "uint8"}],
+                "type": "function"
+            }
+        ]
+        
+        tx_hash = None
+        
+        if token == 'native':
+            # Enviar token nativo (ETH, MATIC, BNB, etc.)
+            amount_wei = w3.to_wei(float(amount), 'ether')
+            nonce = w3.eth.get_transaction_count(account.address)
+            gas_price = w3.eth.gas_price
+            
+            transaction = {
+                'nonce': nonce,
+                'to': Web3.to_checksum_address(to_address),
+                'value': amount_wei,
+                'gas': 21000,
+                'gasPrice': gas_price,
+                'chainId': config["chain_id"]
+            }
+            
+            signed_txn = w3.eth.account.sign_transaction(transaction, settings.PLATFORM_WALLET_PRIVATE_KEY)
+            raw_tx = getattr(signed_txn, 'rawTransaction', None) or getattr(signed_txn, 'raw_transaction', None)
+            tx_hash_bytes = w3.eth.send_raw_transaction(raw_tx)
+            tx_hash = w3.to_hex(tx_hash_bytes)
+            
+        else:
+            # Enviar token ERC20 (USDT, USDC, etc.)
+            contract_address = config["contracts"].get(token)
+            if not contract_address:
+                raise HTTPException(status_code=400, detail=f"Token {token} não suportado na rede {network}")
+            
+            contract = w3.eth.contract(
+                address=Web3.to_checksum_address(contract_address),
+                abi=ERC20_ABI
+            )
+            
+            decimals = contract.functions.decimals().call()
+            amount_units = int(float(amount) * (10 ** decimals))
+            
+            # Verificar saldo
+            token_balance = contract.functions.balanceOf(account.address).call()
+            if token_balance < amount_units:
+                token_balance_decimal = Decimal(str(token_balance)) / Decimal(str(10 ** decimals))
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Saldo {token} insuficiente! Necessário: {amount}, Disponível: {token_balance_decimal}"
+                )
+            
+            nonce = w3.eth.get_transaction_count(account.address)
+            gas_price = w3.eth.gas_price
+            
+            transaction = contract.functions.transfer(
+                Web3.to_checksum_address(to_address),
+                amount_units
+            ).build_transaction({
+                'nonce': nonce,
+                'gas': 100000,
+                'gasPrice': gas_price,
+                'chainId': config["chain_id"]
+            })
+            
+            signed_txn = w3.eth.account.sign_transaction(transaction, settings.PLATFORM_WALLET_PRIVATE_KEY)
+            raw_tx = getattr(signed_txn, 'rawTransaction', None) or getattr(signed_txn, 'raw_transaction', None)
+            tx_hash_bytes = w3.eth.send_raw_transaction(raw_tx)
+            tx_hash = w3.to_hex(tx_hash_bytes)
+        
+        explorer_url = f"{config['explorer']}{tx_hash}"
+        logger.info(f"  Sucesso! TX: {tx_hash}")
         
         return {
             "success": True,
             "message": "Transacao enviada com sucesso",
             "data": {
-                "tx_hash": result.get("tx_hash"),
-                "status": result.get("status", "pending"),
-                "explorer_url": result.get("explorer_url"),
-                "from_address": result.get("from_address"),
-                "to_address": result.get("to_address"),
-                "amount": result.get("amount"),
-                "token": result.get("token"),
-                "network": result.get("network"),
-                "wallet_name": result.get("wallet_name"),
-                "gas_used": result.get("gas_used"),
-                "gas_price": result.get("gas_price")
+                "tx_hash": tx_hash,
+                "status": "pending",
+                "explorer_url": explorer_url,
+                "from_address": from_address,
+                "to_address": to_address,
+                "amount": str(amount),
+                "token": token if token != 'native' else network.upper(),
+                "network": network,
+                "wallet_name": request.wallet_name,
             }
         }
         
