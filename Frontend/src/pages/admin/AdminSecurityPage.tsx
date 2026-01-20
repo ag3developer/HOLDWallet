@@ -297,6 +297,9 @@ export const AdminSecurityPage: React.FC = () => {
   const [biometryEnabled, setBiometryEnabled] = useState<boolean>(false)
   const [biometryLoading, setBiometryLoading] = useState(false)
   const [biometryType, setBiometryType] = useState<string>('fingerprint') // fingerprint, face, iris
+  const [biometryCredentials, setBiometryCredentials] = useState<
+    Array<{ id: string; device_name: string; created_at: string }>
+  >([])
 
   // Queries
   const {
@@ -429,8 +432,13 @@ export const AdminSecurityPage: React.FC = () => {
   const checkAdmin2FA = async () => {
     try {
       const { data } = await apiClient.get('/auth/2fa/status')
-      setAdminHas2FA(data.is_enabled || false)
-    } catch {
+      console.log('🔐 2FA Status Response:', data) // Debug
+      // Backend retorna 'enabled', não 'is_enabled'
+      const isEnabled = data.enabled || data.is_enabled || false
+      console.log('🔐 2FA isEnabled:', isEnabled) // Debug
+      setAdminHas2FA(isEnabled)
+    } catch (error) {
+      console.error('❌ Error checking 2FA status:', error)
       setAdminHas2FA(false)
     }
   }
@@ -505,21 +513,36 @@ export const AdminSecurityPage: React.FC = () => {
   // Verificar se biometria está disponível no dispositivo
   const checkBiometryAvailability = async () => {
     try {
-      // Verificar suporte WebAuthn
+      // 1. Verificar suporte WebAuthn no navegador
       if (globalThis.PublicKeyCredential) {
         const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
         setBiometryAvailable(available)
 
-        // Verificar se já está configurada
-        const storedBiometry = localStorage.getItem('holdwallet_biometry_enabled')
-        setBiometryEnabled(storedBiometry === 'true')
-
-        // Detectar tipo de biometria (simplificado)
+        // 2. Detectar tipo de biometria (simplificado)
         const userAgent = navigator.userAgent.toLowerCase()
         if (userAgent.includes('iphone') || userAgent.includes('ipad')) {
           setBiometryType('face') // Face ID no iOS
         } else {
           setBiometryType('fingerprint') // Fingerprint em outros
+        }
+
+        // 3. IMPORTANTE: Buscar status REAL do backend (não do localStorage!)
+        try {
+          const response = await apiClient.get('/auth/webauthn/status')
+          const { has_biometric, credentials } = response.data
+          console.log('🔐 WebAuthn Status (Backend):', { has_biometric, credentials })
+
+          setBiometryEnabled(has_biometric)
+          setBiometryCredentials(credentials || [])
+
+          // Limpar localStorage antigo (migração)
+          localStorage.removeItem('holdwallet_biometry_enabled')
+          localStorage.removeItem('holdwallet_biometry_credential')
+        } catch (apiError) {
+          console.error('❌ Erro ao verificar biometria no backend:', apiError)
+          // Fallback: assumir que não tem biometria
+          setBiometryEnabled(false)
+          setBiometryCredentials([])
         }
       }
     } catch {
@@ -527,49 +550,85 @@ export const AdminSecurityPage: React.FC = () => {
     }
   }
 
-  // Ativar biometria
+  // Ativar biometria - SALVA NO BACKEND
   const enableBiometry = async () => {
     setBiometryLoading(true)
     try {
-      // Criar credencial WebAuthn
-      const challenge = new Uint8Array(32)
-      crypto.getRandomValues(challenge)
+      // 1. Obter opções de registro do BACKEND
+      const optionsResponse = await apiClient.post('/auth/webauthn/register/options', {
+        authenticator_type: 'platform',
+      })
+      const { options } = optionsResponse.data
+      console.log('📝 Registration options:', options)
 
-      const credential = await navigator.credentials.create({
+      // Converter challenge de base64 para Uint8Array
+      const challengeBase64 = options.challenge
+      const challengeArray = Uint8Array.from(atob(challengeBase64), c => c.codePointAt(0) || 0)
+
+      // Converter user.id de base64 para Uint8Array
+      const userIdArray = Uint8Array.from(atob(options.user.id), c => c.codePointAt(0) || 0)
+
+      // 2. Criar credencial WebAuthn usando as opções do servidor
+      const credential = (await navigator.credentials.create({
         publicKey: {
-          challenge,
+          challenge: challengeArray,
           rp: {
-            name: 'HOLD Wallet Admin',
-            id: globalThis.location.hostname,
+            name: options.rp.name,
+            id: options.rp.id,
           },
           user: {
-            id: new Uint8Array(16),
-            name: 'admin@holdwallet.com',
-            displayName: 'Admin',
+            id: userIdArray,
+            name: options.user.name,
+            displayName: options.user.displayName,
           },
-          pubKeyCredParams: [
-            { alg: -7, type: 'public-key' },
-            { alg: -257, type: 'public-key' },
-          ],
-          authenticatorSelection: {
-            authenticatorAttachment: 'platform',
-            userVerification: 'required',
-          },
-          timeout: 60000,
+          pubKeyCredParams: options.pubKeyCredParams,
+          authenticatorSelection: options.authenticatorSelection,
+          timeout: options.timeout || 60000,
+          excludeCredentials: (options.excludeCredentials || []).map((cred: any) => ({
+            ...cred,
+            id: Uint8Array.from(atob(cred.id), c => c.codePointAt(0) || 0),
+          })),
         },
-      })
+      })) as PublicKeyCredential
 
       if (credential) {
-        // Salvar que biometria foi configurada
-        localStorage.setItem('holdwallet_biometry_enabled', 'true')
-        localStorage.setItem('holdwallet_biometry_credential', credential.id)
-        setBiometryEnabled(true)
-        toast.success(`${biometryType === 'face' ? 'Face ID' : 'Biometria'} ativada com sucesso!`)
+        // 3. Enviar credencial para o BACKEND verificar e salvar
+        const attestationResponse = credential.response as AuthenticatorAttestationResponse
+
+        const credentialData = {
+          id: credential.id,
+          rawId: btoa(String.fromCharCode(...new Uint8Array(credential.rawId))),
+          type: credential.type,
+          response: {
+            clientDataJSON: btoa(
+              String.fromCharCode(...new Uint8Array(attestationResponse.clientDataJSON))
+            ),
+            attestationObject: btoa(
+              String.fromCharCode(...new Uint8Array(attestationResponse.attestationObject))
+            ),
+          },
+        }
+
+        console.log('📤 Sending credential to backend:', credentialData)
+
+        const verifyResponse = await apiClient.post('/auth/webauthn/register/verify', {
+          credential: credentialData,
+          device_name: `${biometryType === 'face' ? 'Face ID' : 'Touch ID'} - ${navigator.userAgent.includes('Mac') ? 'Mac' : 'Device'}`,
+        })
+
+        if (verifyResponse.data.success) {
+          setBiometryEnabled(true)
+          // Recarregar credenciais
+          await checkBiometryAvailability()
+          toast.success(`${biometryType === 'face' ? 'Face ID' : 'Biometria'} ativada com sucesso!`)
+        }
       }
     } catch (error: any) {
-      console.error('Erro ao ativar biometria:', error)
+      console.error('❌ Erro ao ativar biometria:', error)
       if (error.name === 'NotAllowedError') {
         toast.error('Autenticação biométrica cancelada ou negada')
+      } else if (error.response?.data?.detail) {
+        toast.error(error.response.data.detail)
       } else {
         toast.error('Erro ao configurar biometria')
       }
@@ -578,47 +637,99 @@ export const AdminSecurityPage: React.FC = () => {
     }
   }
 
-  // Desativar biometria
-  const disableBiometry = () => {
-    localStorage.removeItem('holdwallet_biometry_enabled')
-    localStorage.removeItem('holdwallet_biometry_credential')
-    setBiometryEnabled(false)
-    toast.success('Biometria desativada')
+  // Desativar biometria - REMOVE DO BACKEND
+  const disableBiometry = async () => {
+    setBiometryLoading(true)
+    try {
+      // Remover todas as credenciais do backend
+      for (const cred of biometryCredentials) {
+        await apiClient.delete('/auth/webauthn/credential', {
+          data: { credential_id: cred.id },
+        })
+      }
+
+      // Limpar localStorage antigo (migração)
+      localStorage.removeItem('holdwallet_biometry_enabled')
+      localStorage.removeItem('holdwallet_biometry_credential')
+
+      setBiometryEnabled(false)
+      setBiometryCredentials([])
+      toast.success('Biometria desativada')
+    } catch (error: any) {
+      console.error('❌ Erro ao desativar biometria:', error)
+      toast.error(error.response?.data?.detail || 'Erro ao desativar biometria')
+    } finally {
+      setBiometryLoading(false)
+    }
   }
 
-  // Testar biometria
+  // Testar biometria - VALIDA NO BACKEND
   const testBiometry = async () => {
     setBiometryLoading(true)
     try {
-      const challenge = new Uint8Array(32)
-      crypto.getRandomValues(challenge)
+      // 1. Obter opções de autenticação do backend
+      const optionsResponse = await apiClient.post('/auth/webauthn/authenticate/options')
+      const { options } = optionsResponse.data
+      console.log('🔐 Authentication options:', options)
 
-      const credentialId = localStorage.getItem('holdwallet_biometry_credential')
-      if (!credentialId) {
-        toast.error('Biometria não configurada')
-        return
-      }
+      // Converter challenge de base64 para Uint8Array
+      const challengeArray = Uint8Array.from(atob(options.challenge), c => c.codePointAt(0) || 0)
 
-      await navigator.credentials.get({
+      // Converter allowCredentials
+      const allowCredentials = (options.allowCredentials || []).map((cred: any) => ({
+        id: Uint8Array.from(atob(cred.id), c => c.codePointAt(0) || 0),
+        type: cred.type,
+        transports: cred.transports || ['internal'],
+      }))
+
+      // 2. Solicitar autenticação biométrica
+      const credential = (await navigator.credentials.get({
         publicKey: {
-          challenge,
-          rpId: globalThis.location.hostname,
-          allowCredentials: [
-            {
-              id: Uint8Array.from(atob(credentialId), c => c.codePointAt(0) || 0),
-              type: 'public-key',
-              transports: ['internal'],
-            },
-          ],
-          userVerification: 'required',
-          timeout: 60000,
+          challenge: challengeArray,
+          rpId: options.rpId,
+          allowCredentials,
+          userVerification: options.userVerification || 'required',
+          timeout: options.timeout || 60000,
         },
-      })
+      })) as PublicKeyCredential
 
-      toast.success('Biometria verificada com sucesso!')
+      if (credential) {
+        // 3. Enviar para o backend verificar
+        const assertionResponse = credential.response as AuthenticatorAssertionResponse
+
+        const credentialData = {
+          id: credential.id,
+          rawId: btoa(String.fromCharCode(...new Uint8Array(credential.rawId))),
+          type: credential.type,
+          response: {
+            clientDataJSON: btoa(
+              String.fromCharCode(...new Uint8Array(assertionResponse.clientDataJSON))
+            ),
+            authenticatorData: btoa(
+              String.fromCharCode(...new Uint8Array(assertionResponse.authenticatorData))
+            ),
+            signature: btoa(String.fromCharCode(...new Uint8Array(assertionResponse.signature))),
+            userHandle: assertionResponse.userHandle
+              ? btoa(String.fromCharCode(...new Uint8Array(assertionResponse.userHandle)))
+              : null,
+          },
+        }
+
+        const verifyResponse = await apiClient.post('/auth/webauthn/authenticate/verify', {
+          credential: credentialData,
+        })
+
+        if (verifyResponse.data.success) {
+          toast.success('✅ Biometria verificada com sucesso!')
+          console.log('🎉 Biometric token:', verifyResponse.data.biometric_token)
+        }
+      }
     } catch (error: any) {
+      console.error('❌ Erro ao testar biometria:', error)
       if (error.name === 'NotAllowedError') {
         toast.error('Autenticação cancelada ou negada')
+      } else if (error.response?.data?.detail) {
+        toast.error(error.response.data.detail)
       } else {
         toast.error('Erro ao verificar biometria')
       }
