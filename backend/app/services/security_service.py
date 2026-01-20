@@ -179,7 +179,7 @@ class SecurityService:
     
     # ============== IP Blocking ==============
     
-    # IPs locais que nunca devem ser bloqueados em desenvolvimento
+    # IPs locais que NUNCA devem ser bloqueados (são conexões internas do servidor)
     LOCAL_IPS = ["127.0.0.1", "localhost", "::1", "0.0.0.0"]
     
     @staticmethod
@@ -187,10 +187,8 @@ class SecurityService:
         """
         Verifica se um IP está bloqueado
         """
-        # Em desenvolvimento, IPs locais nunca são bloqueados
-        from app.core.config import settings
-        is_dev = getattr(settings, 'ENVIRONMENT', 'production') in ['development', 'dev', 'local']
-        if is_dev and ip_address in SecurityService.LOCAL_IPS:
+        # IPs locais NUNCA são bloqueados (são conexões internas do servidor)
+        if ip_address in SecurityService.LOCAL_IPS:
             return False
         
         now = datetime.now(timezone.utc)

@@ -1078,6 +1078,8 @@ async def delete_wallet(
     - Por padrão, não permite excluir carteiras com saldo
     - Use force=true para excluir mesmo com saldo (auditar!)
     """
+    from app.models.address import Address
+    
     try:
         wallet = db.query(Wallet).filter(Wallet.id == wallet_id).first()
         if not wallet:
@@ -1102,15 +1104,29 @@ async def delete_wallet(
         # Registrar antes de deletar
         logger.warning(f"🗑️ DELETANDO wallet {wallet_id} (user: {user_email}) por admin {current_admin.email}")
         
-        # Deletar saldos associados
-        db.query(WalletBalance).filter(WalletBalance.user_id == wallet.user_id).delete()
+        # Converter user_id para string para compatibilidade com banco
+        user_id_str = str(wallet.user_id)
         
-        # Deletar histórico de saldos
-        db.query(BalanceHistory).filter(BalanceHistory.user_id == wallet.user_id).delete()
+        # 1. Deletar endereços associados à wallet (FK constraint)
+        deleted_addresses = db.query(Address).filter(Address.wallet_id == wallet.id).delete()
+        logger.info(f"🗑️ Deletados {deleted_addresses} endereços da wallet")
         
-        # Deletar a wallet
+        # 2. Deletar saldos associados ao usuário
+        deleted_balances = db.query(WalletBalance).filter(WalletBalance.user_id == wallet.user_id).delete()
+        logger.info(f"🗑️ Deletados {deleted_balances} registros de saldo")
+        
+        # 3. Deletar histórico de saldos (user_id pode ser TEXT no banco)
+        # Usar SQL raw para evitar conflito de tipos UUID vs TEXT
+        from sqlalchemy import text
+        result = db.execute(text("DELETE FROM balance_history WHERE user_id = :user_id"), {"user_id": user_id_str})
+        deleted_history = result.rowcount
+        logger.info(f"🗑️ Deletados {deleted_history} registros de histórico")
+        
+        # 4. Deletar a wallet
         db.delete(wallet)
         db.commit()
+        
+        logger.warning(f"✅ Wallet {wallet_id} deletada com sucesso!")
         
         return {
             "success": True,
@@ -1118,7 +1134,12 @@ async def delete_wallet(
             "wallet_id": wallet_id,
             "user_email": user_email,
             "deleted_by": current_admin.email,
-            "deleted_at": datetime.now(timezone.utc).isoformat()
+            "deleted_at": datetime.now(timezone.utc).isoformat(),
+            "details": {
+                "addresses_deleted": deleted_addresses,
+                "balances_deleted": deleted_balances,
+                "history_deleted": deleted_history
+            }
         }
         
     except HTTPException:
@@ -1126,6 +1147,8 @@ async def delete_wallet(
     except Exception as e:
         db.rollback()
         logger.error(f"❌ Erro deletando wallet: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
 
 

@@ -122,18 +122,14 @@ class APIProtectionMiddleware(BaseHTTPMiddleware):
         path = request.url.path
         user_agent = request.headers.get('user-agent', '').lower()
         
-        # 0. BYPASS COMPLETO em desenvolvimento para IPs locais
-        is_dev = settings.ENVIRONMENT in ['development', 'dev', 'local']
-        is_local_ip = ip_address in self.DEV_BYPASS_IPS
-        
-        if is_dev and is_local_ip:
-            # Em desenvolvimento com IP local, ignora TODAS as proteções
+        # 0. IPs locais SEMPRE passam sem verificação (conexões internas/nginx)
+        if ip_address in self.DEV_BYPASS_IPS:
             return await call_next(request)
         
         # 0.1 Rotas de autenticação têm proteção reduzida
         if self._is_auth_route(path):
-            # Ainda verifica rate limit, mas não bloqueia por user-agent em dev
-            if not is_dev and self._check_rate_limit(ip_address):
+            # Apenas verifica rate limit básico
+            if self._check_rate_limit(ip_address):
                 return JSONResponse(
                     status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                     content={

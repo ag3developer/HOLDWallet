@@ -162,7 +162,8 @@ class Mandatory2FAMiddleware(BaseHTTPMiddleware):
                 
                 # Verificar o código 2FA
                 from app.services.crypto_service import crypto_service
-                decrypted_secret = crypto_service.decrypt_data(twofa.secret_encrypted)
+                # O campo é 'secret' (não 'secret_encrypted'), mas o valor está criptografado
+                decrypted_secret = crypto_service.decrypt_data(twofa.secret)
                 
                 if not two_factor_service.verify_token(decrypted_secret, twofa_code):
                     logger.warning(f"🚫 Invalid 2FA code for admin {user_email}")

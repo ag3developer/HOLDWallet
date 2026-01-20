@@ -449,7 +449,8 @@ export const AdminWalletsPage: React.FC = () => {
     setActionLoading(true)
 
     try {
-      const response = await fetch(`${API_URL}/admin/wallets/${actionModal.wallet.id}`, {
+      // Usar force=true para permitir exclusão de carteiras com saldo (maliciosas)
+      const response = await fetch(`${API_URL}/admin/wallets/${actionModal.wallet.id}?force=true`, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${token}`,

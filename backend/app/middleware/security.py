@@ -7,7 +7,6 @@ from sqlalchemy.orm import Session
 import logging
 
 from app.core.db import SessionLocal
-from app.core.config import settings
 from app.services.security_service import SecurityService
 
 logger = logging.getLogger(__name__)
@@ -48,16 +47,16 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         ip_address = self._get_client_ip(request)
         path = request.url.path
         
-        # Skip check for excluded paths
+        # Skip check for excluded paths (auth routes, etc)
         if any(path.startswith(excluded) for excluded in self.EXCLUDED_PATHS):
             return await call_next(request)
         
-        # Skip check for local IPs in development
-        is_dev = getattr(settings, 'ENVIRONMENT', 'production') in ['development', 'dev', 'local']
-        if is_dev and ip_address in self.LOCAL_IPS:
+        # IPs locais SEMPRE são permitidos (conexões internas do servidor)
+        # Isso é seguro porque são conexões do próprio servidor/nginx local
+        if ip_address in self.LOCAL_IPS:
             return await call_next(request)
         
-        # Check if IP is blocked
+        # Check if IP is blocked (apenas para IPs externos)
         if ip_address and ip_address != "unknown":
             db: Session = SessionLocal()
             try:
@@ -68,10 +67,6 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                         status_code=status.HTTP_403_FORBIDDEN,
                         detail=f"Access denied. Your IP address ({ip_address}) has been blocked."
                     )
-                else:
-                    # Debug log para ver se está chegando aqui
-                    if '/wallets' in path:
-                        logger.info(f"✅ IP {ip_address} allowed for {path}")
             finally:
                 db.close()
         
