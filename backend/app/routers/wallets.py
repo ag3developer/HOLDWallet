@@ -1219,6 +1219,16 @@ async def send_transaction(
     **NON-CUSTODIAL MODE:**
     - Returns unsigned transaction data for external signing
     """
+    # ========== VERIFICAR RESTRIÇÕES DE WALLET ==========
+    from app.services.wallet_restriction_service import wallet_restriction_service
+    wallet_restriction_service.check_operation_allowed(
+        db=db,
+        user_id=str(current_user.id),
+        operation_type='withdrawal',
+        raise_exception=True
+    )
+    # ====================================================
+    
     # Variable to track if we need to consume biometric token after success
     biometric_token_to_consume = None
     

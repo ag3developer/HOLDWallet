@@ -485,6 +485,16 @@ async def create_order(
     user_id = str(current_user.id)  # ✅ UUID do usuário autenticado
     print(f"[DEBUG] POST /orders - user_id: {user_id}, data: {order_data}")
     
+    # ========== VERIFICAR RESTRIÇÕES DE WALLET ==========
+    from app.services.wallet_restriction_service import wallet_restriction_service
+    wallet_restriction_service.check_operation_allowed(
+        db=db,
+        user_id=user_id,
+        operation_type='p2p',
+        raise_exception=True
+    )
+    # ====================================================
+    
     try:
         # Extract data from request
         order_type = order_data.get("type", "").lower()  # 'buy' or 'sell'

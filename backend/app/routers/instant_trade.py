@@ -250,6 +250,16 @@ async def create_trade(
         logger.info(f"Creating trade: quote_id={request.quote_id}, payment_method={request.payment_method}, user_id={current_user.id}")
         logger.info(f"BRL values received: brl_amount={request.brl_amount}, brl_total_amount={request.brl_total_amount}, usd_to_brl_rate={request.usd_to_brl_rate}")
         
+        # ========== VERIFICAR RESTRIÇÕES DE WALLET ==========
+        from app.services.wallet_restriction_service import wallet_restriction_service
+        wallet_restriction_service.check_operation_allowed(
+            db=db,
+            user_id=str(current_user.id),
+            operation_type='instant_trade',
+            raise_exception=True
+        )
+        # ====================================================
+        
         # ========== VALIDAÇÃO KYC ==========
         # Verificar se o usuário tem KYC aprovado para o valor da operação
         brl_total = float(request.brl_total_amount) if request.brl_total_amount else 0

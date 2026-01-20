@@ -7,6 +7,7 @@
  */
 
 import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
 import {
   Wallet,
@@ -26,9 +27,7 @@ import {
   DollarSign,
   Coins,
   Lock,
-  Ban,
   Trash2,
-  ShieldOff,
   AlertTriangle,
   ShieldX,
   X,
@@ -209,6 +208,7 @@ function getExplorerUrl(network: string, address: string): string {
 }
 
 export const AdminWalletsPage: React.FC = () => {
+  const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [networkFilter, setNetworkFilter] = useState('all')
@@ -219,9 +219,9 @@ export const AdminWalletsPage: React.FC = () => {
   const [loadingBalances, setLoadingBalances] = useState<Set<string>>(new Set())
   const [syncingBlockchain, setSyncingBlockchain] = useState(false)
 
-  // Estados para ações de segurança
+  // Estados para ações de segurança (apenas delete e blacklist usam modal)
   const [actionModal, setActionModal] = useState<{
-    type: 'block' | 'unblock' | 'delete' | 'blacklist' | null
+    type: 'delete' | 'blacklist' | null
     wallet: AdminWallet | null
     address?: string
     network?: string
@@ -351,128 +351,7 @@ export const AdminWalletsPage: React.FC = () => {
     }
   }
 
-  // ============== FUNÇÕES DE SEGURANÇA ==============
-
-  // Bloquear carteira
-  const handleBlockWallet = async () => {
-    // Verificar autenticação: biometria já verificada OU código 2FA
-    if (!actionModal.wallet) {
-      toast.error('Selecione uma carteira')
-      return
-    }
-
-    if (authMethod === '2fa' && !twoFactorCode) {
-      toast.error('Código 2FA obrigatório')
-      return
-    }
-
-    if (authMethod === 'biometry' && !biometryVerified) {
-      toast.error('Biometria não verificada')
-      return
-    }
-
-    const token = getAuthToken()
-    if (!token) {
-      toast.error('Token não encontrado')
-      return
-    }
-
-    setActionLoading(true)
-
-    try {
-      const headers: Record<string, string> = {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      }
-
-      // Adicionar header de autenticação apropriado
-      if (authMethod === '2fa') {
-        headers['X-2FA-Code'] = twoFactorCode
-      } else {
-        headers['X-Biometry-Verified'] = 'true'
-      }
-
-      const response = await fetch(`${API_URL}/admin/wallets/${actionModal.wallet.id}/block`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ reason: actionReason || 'Bloqueio administrativo' }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.detail || 'Falha ao bloquear carteira')
-      }
-
-      toast.success(`Carteira de ${actionModal.wallet.email} bloqueada com sucesso`)
-      closeModal()
-      refetchWallets()
-    } catch (error: any) {
-      console.error('Erro ao bloquear carteira:', error)
-      toast.error(error.message || 'Erro ao bloquear carteira')
-    } finally {
-      setActionLoading(false)
-    }
-  }
-
-  // Desbloquear carteira
-  const handleUnblockWallet = async () => {
-    if (!actionModal.wallet) {
-      toast.error('Selecione uma carteira')
-      return
-    }
-
-    if (authMethod === '2fa' && !twoFactorCode) {
-      toast.error('Código 2FA obrigatório')
-      return
-    }
-
-    if (authMethod === 'biometry' && !biometryVerified) {
-      toast.error('Biometria não verificada')
-      return
-    }
-
-    const token = getAuthToken()
-    if (!token) {
-      toast.error('Token não encontrado')
-      return
-    }
-
-    setActionLoading(true)
-
-    try {
-      const headers: Record<string, string> = {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      }
-
-      if (authMethod === '2fa') {
-        headers['X-2FA-Code'] = twoFactorCode
-      } else {
-        headers['X-Biometry-Verified'] = 'true'
-      }
-
-      const response = await fetch(`${API_URL}/admin/wallets/${actionModal.wallet.id}/unblock`, {
-        method: 'POST',
-        headers,
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.detail || 'Falha ao desbloquear carteira')
-      }
-
-      toast.success(`Carteira de ${actionModal.wallet.email} desbloqueada com sucesso`)
-      closeModal()
-      refetchWallets()
-    } catch (error: any) {
-      console.error('Erro ao desbloquear carteira:', error)
-      toast.error(error.message || 'Erro ao desbloquear carteira')
-    } finally {
-      setActionLoading(false)
-    }
-  }
+  // ============== FUNCOES DE SEGURANCA ==============
 
   // Excluir carteira
   const handleDeleteWallet = async () => {
@@ -768,7 +647,7 @@ export const AdminWalletsPage: React.FC = () => {
     setBiometryVerified(false)
   }
 
-  // Executar ação baseada no tipo
+  // Executar ação baseada no tipo (apenas delete e blacklist usam modal)
   const executeAction = async () => {
     // Se usar biometria e ainda não verificou, verificar primeiro
     if (authMethod === 'biometry' && !biometryVerified) {
@@ -777,12 +656,6 @@ export const AdminWalletsPage: React.FC = () => {
     }
 
     switch (actionModal.type) {
-      case 'block':
-        handleBlockWallet()
-        break
-      case 'unblock':
-        handleUnblockWallet()
-        break
       case 'delete':
         handleDeleteWallet()
         break
@@ -1119,29 +992,17 @@ export const AdminWalletsPage: React.FC = () => {
                   <div className='flex items-center gap-6'>
                     {/* Botões de Ação de Segurança */}
                     <div className='flex items-center gap-2'>
-                      {wallet.is_active !== false ? (
-                        <button
-                          onClick={e => {
-                            e.stopPropagation()
-                            setActionModal({ type: 'block', wallet })
-                          }}
-                          className='p-2 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/20 transition-colors'
-                          title='Bloquear carteira'
-                        >
-                          <Ban className='h-4 w-4' />
-                        </button>
-                      ) : (
-                        <button
-                          onClick={e => {
-                            e.stopPropagation()
-                            setActionModal({ type: 'unblock', wallet })
-                          }}
-                          className='p-2 rounded-lg bg-green-500/10 hover:bg-green-500/20 text-green-600 dark:text-green-400 border border-green-500/20 transition-colors'
-                          title='Desbloquear carteira'
-                        >
-                          <ShieldOff className='h-4 w-4' />
-                        </button>
-                      )}
+                      {/* Botão para gerenciar bloqueios - navega para página dedicada */}
+                      <button
+                        onClick={e => {
+                          e.stopPropagation()
+                          navigate(`/admin/wallets/${wallet.id}/block`)
+                        }}
+                        className='p-2 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/20 transition-colors'
+                        title='Gerenciar bloqueios e restricoes'
+                      >
+                        <Shield className='h-4 w-4' />
+                      </button>
                       <button
                         onClick={e => {
                           e.stopPropagation()
@@ -1521,27 +1382,19 @@ export const AdminWalletsPage: React.FC = () => {
               className={`px-6 py-4 border-b border-gray-200 dark:border-white/10 rounded-t-2xl ${
                 actionModal.type === 'delete'
                   ? 'bg-red-500/10'
-                  : actionModal.type === 'block'
-                    ? 'bg-amber-500/10'
-                    : actionModal.type === 'blacklist'
-                      ? 'bg-purple-500/10'
-                      : 'bg-green-500/10'
+                  : actionModal.type === 'blacklist'
+                    ? 'bg-purple-500/10'
+                    : 'bg-gray-500/10'
               }`}
             >
               <div className='flex items-center justify-between'>
                 <div className='flex items-center gap-3'>
                   {actionModal.type === 'delete' && <Trash2 className='h-6 w-6 text-red-500' />}
-                  {actionModal.type === 'block' && <Ban className='h-6 w-6 text-amber-500' />}
-                  {actionModal.type === 'unblock' && (
-                    <ShieldOff className='h-6 w-6 text-green-500' />
-                  )}
                   {actionModal.type === 'blacklist' && (
                     <ShieldX className='h-6 w-6 text-purple-500' />
                   )}
                   <h3 className='text-lg font-semibold text-gray-900 dark:text-white'>
                     {actionModal.type === 'delete' && 'Excluir Carteira'}
-                    {actionModal.type === 'block' && 'Bloquear Carteira'}
-                    {actionModal.type === 'unblock' && 'Desbloquear Carteira'}
                     {actionModal.type === 'blacklist' && 'Adicionar à Blacklist'}
                   </h3>
                 </div>
@@ -1563,22 +1416,12 @@ export const AdminWalletsPage: React.FC = () => {
                 className={`flex items-start gap-3 p-4 rounded-xl mb-4 ${
                   actionModal.type === 'delete'
                     ? 'bg-red-500/10 border border-red-500/20'
-                    : actionModal.type === 'block'
-                      ? 'bg-amber-500/10 border border-amber-500/20'
-                      : actionModal.type === 'blacklist'
-                        ? 'bg-purple-500/10 border border-purple-500/20'
-                        : 'bg-green-500/10 border border-green-500/20'
+                    : 'bg-purple-500/10 border border-purple-500/20'
                 }`}
               >
                 <AlertTriangle
                   className={`h-5 w-5 flex-shrink-0 mt-0.5 ${
-                    actionModal.type === 'delete'
-                      ? 'text-red-500'
-                      : actionModal.type === 'block'
-                        ? 'text-amber-500'
-                        : actionModal.type === 'blacklist'
-                          ? 'text-purple-500'
-                          : 'text-green-500'
+                    actionModal.type === 'delete' ? 'text-red-500' : 'text-purple-500'
                   }`}
                 />
                 <div>
@@ -1588,12 +1431,6 @@ export const AdminWalletsPage: React.FC = () => {
                         Esta ação é <strong>irreversível</strong>. A carteira será excluída e todos
                         os endereços serão adicionados à blacklist.
                       </>
-                    )}
-                    {actionModal.type === 'block' && (
-                      <>O usuário não poderá acessar esta carteira ou realizar transações.</>
-                    )}
-                    {actionModal.type === 'unblock' && (
-                      <>A carteira será reativada e o usuário poderá voltar a utilizá-la.</>
                     )}
                     {actionModal.type === 'blacklist' && (
                       <>O endereço será permanentemente bloqueado para novas transações.</>
@@ -1627,10 +1464,8 @@ export const AdminWalletsPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Motivo (opcional para block/delete) */}
-              {(actionModal.type === 'block' ||
-                actionModal.type === 'delete' ||
-                actionModal.type === 'blacklist') && (
+              {/* Motivo (opcional para delete/blacklist) */}
+              {(actionModal.type === 'delete' || actionModal.type === 'blacklist') && (
                 <div className='mb-4'>
                   <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
                     Motivo (opcional)
@@ -1754,11 +1589,7 @@ export const AdminWalletsPage: React.FC = () => {
                 className={`flex-1 px-4 py-2.5 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
                   actionModal.type === 'delete'
                     ? 'bg-red-500 hover:bg-red-600 text-white'
-                    : actionModal.type === 'block'
-                      ? 'bg-amber-500 hover:bg-amber-600 text-white'
-                      : actionModal.type === 'blacklist'
-                        ? 'bg-purple-500 hover:bg-purple-600 text-white'
-                        : 'bg-green-500 hover:bg-green-600 text-white'
+                    : 'bg-purple-500 hover:bg-purple-600 text-white'
                 }`}
               >
                 {actionLoading ? (
@@ -1769,8 +1600,6 @@ export const AdminWalletsPage: React.FC = () => {
                 ) : (
                   <>
                     {actionModal.type === 'delete' && <Trash2 className='h-4 w-4' />}
-                    {actionModal.type === 'block' && <Ban className='h-4 w-4' />}
-                    {actionModal.type === 'unblock' && <ShieldOff className='h-4 w-4' />}
                     {actionModal.type === 'blacklist' && <ShieldX className='h-4 w-4' />}
                     Confirmar
                   </>

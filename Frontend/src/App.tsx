@@ -91,6 +91,7 @@ import {
 // Import new admin pages
 import AdminKYCUsersPage from '@/pages/admin/AdminKYCUsersPage'
 import AdminLockedBalancesPage from '@/pages/admin/AdminLockedBalancesPage'
+import AdminWalletBlockPage from '@/pages/admin/AdminWalletBlockPage'
 
 // Protected Route Component (for authenticated users)
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -374,6 +375,7 @@ function App() {
             <Route path='/admin/trades/:tradeId' element={<AdminTradeDetailPage />} />
             <Route path='/admin/p2p' element={<AdminP2PPage />} />
             <Route path='/admin/wallets' element={<AdminWalletsPage />} />
+            <Route path='/admin/wallets/:walletId/block' element={<AdminWalletBlockPage />} />
             <Route path='/admin/transactions' element={<AdminTransactionsPage />} />
             <Route path='/admin/fees' element={<AdminFeesPage />} />
             <Route path='/admin/system-wallet' element={<AdminSystemWalletPage />} />

@@ -43,6 +43,14 @@ class BalanceAdjustRequest(BaseModel):
 class BlockWalletRequest(BaseModel):
     reason: str
     freeze_balance: bool = True  # Congela o saldo também
+    block_type: str = "full"  # 'full' ou 'partial'
+    # Restrições específicas (usadas quando block_type='partial')
+    restrict_instant_trade: bool = False  # Bloqueia OTC/Trade instantâneo
+    restrict_deposits: bool = False       # Sistema não credita depósitos
+    restrict_withdrawals: bool = False    # Não pode sacar/enviar crypto
+    restrict_p2p: bool = False            # Não pode usar P2P marketplace
+    restrict_transfers: bool = False      # Não pode transferir internamente
+    restrict_swap: bool = False           # Não pode fazer swap entre cryptos
 
 
 class BlacklistAddressRequest(BaseModel):
@@ -945,13 +953,19 @@ async def block_wallet(
     current_admin: User = Depends(get_current_admin)
 ):
     """
-    🚫 Bloqueia uma carteira suspeita.
+    🚫 Bloqueia uma carteira suspeita com opções granulares.
     
-    Ações:
-    - Marca carteira como bloqueada
-    - Opcionalmente congela os saldos
-    - Registra no histórico de auditoria
-    - Bloqueia o usuário dono (opcional)
+    Tipos de bloqueio:
+    - full: Bloqueio total da carteira
+    - partial: Bloqueio de operações específicas
+    
+    Restrições disponíveis (block_type='partial'):
+    - restrict_instant_trade: Bloqueia trades OTC
+    - restrict_deposits: Sistema não credita depósitos
+    - restrict_withdrawals: Não pode sacar/enviar
+    - restrict_p2p: Não pode usar P2P
+    - restrict_transfers: Não pode transferir internamente
+    - restrict_swap: Não pode fazer swap
     """
     try:
         wallet = db.query(Wallet).filter(Wallet.id == wallet_id).first()
@@ -961,15 +975,45 @@ async def block_wallet(
         # Buscar usuário dono
         user = db.query(User).filter(User.id == wallet.user_id).first()
         
-        # Marcar carteira como bloqueada (adiciona campo se não existir)
-        if hasattr(wallet, 'is_blocked'):
+        # Aplicar restrições baseado no tipo de bloqueio
+        restrictions_applied = []
+        
+        if request.block_type == "full":
+            # Bloqueio total
             wallet.is_blocked = True
-        if hasattr(wallet, 'blocked_at'):
             wallet.blocked_at = datetime.now(timezone.utc)
-        if hasattr(wallet, 'blocked_reason'):
             wallet.blocked_reason = request.reason
-        if hasattr(wallet, 'blocked_by'):
             wallet.blocked_by = str(current_admin.id)
+            restrictions_applied.append("full_block")
+        else:
+            # Bloqueio parcial - aplicar restrições específicas
+            wallet.blocked_reason = request.reason
+            wallet.blocked_by = str(current_admin.id)
+            wallet.blocked_at = datetime.now(timezone.utc)
+            
+            if request.restrict_instant_trade:
+                wallet.restrict_instant_trade = True
+                restrictions_applied.append("instant_trade")
+            
+            if request.restrict_deposits:
+                wallet.restrict_deposits = True
+                restrictions_applied.append("deposits")
+            
+            if request.restrict_withdrawals:
+                wallet.restrict_withdrawals = True
+                restrictions_applied.append("withdrawals")
+            
+            if request.restrict_p2p:
+                wallet.restrict_p2p = True
+                restrictions_applied.append("p2p")
+            
+            if request.restrict_transfers:
+                wallet.restrict_transfers = True
+                restrictions_applied.append("transfers")
+            
+            if request.restrict_swap:
+                wallet.restrict_swap = True
+                restrictions_applied.append("swap")
         
         # Congelar saldos se solicitado
         frozen_balances = []
@@ -1003,20 +1047,23 @@ async def block_wallet(
                         balance_after=0,
                         locked_before=old_locked,
                         locked_after=old_locked + old_available,
-                        reason=f"Carteira bloqueada por admin {current_admin.email}: {request.reason}",
+                        reason=f"Carteira bloqueada ({request.block_type}) por admin {current_admin.email}: {request.reason}",
                         reference_id=f"block_{wallet_id}"
                     )
                     db.add(history)
         
         db.commit()
         
-        logger.warning(f"🚫 Wallet {wallet_id} bloqueada por admin {current_admin.email}: {request.reason}")
+        logger.warning(f"🚫 Wallet {wallet_id} bloqueada ({request.block_type}) por admin {current_admin.email}: {request.reason}")
+        logger.warning(f"   Restrições aplicadas: {restrictions_applied}")
         
         return {
             "success": True,
-            "message": f"Wallet blocked successfully",
+            "message": "Wallet blocked successfully",
             "wallet_id": wallet_id,
             "user_email": user.email if user else None,
+            "block_type": request.block_type,
+            "restrictions_applied": restrictions_applied,
             "reason": request.reason,
             "frozen_balances": frozen_balances,
             "blocked_at": datetime.now(timezone.utc).isoformat(),
@@ -1031,6 +1078,7 @@ async def block_wallet(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+
 @router.post("/{wallet_id}/unblock", response_model=dict)
 async def unblock_wallet(
     wallet_id: str,
@@ -1038,19 +1086,26 @@ async def unblock_wallet(
     current_admin: User = Depends(get_current_admin)
 ):
     """
-    ✅ Desbloqueia uma carteira.
+    ✅ Desbloqueia uma carteira e remove todas as restrições.
     """
     try:
         wallet = db.query(Wallet).filter(Wallet.id == wallet_id).first()
         if not wallet:
             raise HTTPException(status_code=404, detail="Wallet not found")
         
-        if hasattr(wallet, 'is_blocked'):
-            wallet.is_blocked = False
-        if hasattr(wallet, 'blocked_at'):
-            wallet.blocked_at = None
-        if hasattr(wallet, 'blocked_reason'):
-            wallet.blocked_reason = None
+        # Remover bloqueio total
+        wallet.is_blocked = False
+        wallet.blocked_at = None
+        wallet.blocked_reason = None
+        wallet.blocked_by = None
+        
+        # Remover todas as restrições granulares
+        wallet.restrict_instant_trade = False
+        wallet.restrict_deposits = False
+        wallet.restrict_withdrawals = False
+        wallet.restrict_p2p = False
+        wallet.restrict_transfers = False
+        wallet.restrict_swap = False
         
         db.commit()
         
@@ -1066,6 +1121,61 @@ async def unblock_wallet(
         raise
     except Exception as e:
         db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{wallet_id}/restrictions", response_model=dict)
+async def get_wallet_restrictions(
+    wallet_id: str,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin)
+):
+    """
+    📋 Retorna todas as restrições ativas de uma carteira.
+    
+    Útil para verificar o status de bloqueio antes de tomar decisões.
+    """
+    try:
+        wallet = db.query(Wallet).filter(Wallet.id == wallet_id).first()
+        if not wallet:
+            raise HTTPException(status_code=404, detail="Wallet not found")
+        
+        user = db.query(User).filter(User.id == wallet.user_id).first()
+        
+        return {
+            "success": True,
+            "wallet_id": wallet_id,
+            "user_id": str(wallet.user_id),
+            "user_email": user.email if user else None,
+            "user_active": user.is_active if user else None,
+            "blocking": {
+                "is_blocked": getattr(wallet, 'is_blocked', False),
+                "blocked_at": getattr(wallet, 'blocked_at', None).isoformat() if getattr(wallet, 'blocked_at', None) else None,
+                "blocked_reason": getattr(wallet, 'blocked_reason', None),
+                "blocked_by": getattr(wallet, 'blocked_by', None),
+            },
+            "restrictions": {
+                "instant_trade": getattr(wallet, 'restrict_instant_trade', False),
+                "deposits": getattr(wallet, 'restrict_deposits', False),
+                "withdrawals": getattr(wallet, 'restrict_withdrawals', False),
+                "p2p": getattr(wallet, 'restrict_p2p', False),
+                "transfers": getattr(wallet, 'restrict_transfers', False),
+                "swap": getattr(wallet, 'restrict_swap', False),
+            },
+            "operations_allowed": {
+                "instant_trade": not getattr(wallet, 'is_blocked', False) and not getattr(wallet, 'restrict_instant_trade', False),
+                "deposits": not getattr(wallet, 'is_blocked', False) and not getattr(wallet, 'restrict_deposits', False),
+                "withdrawals": not getattr(wallet, 'is_blocked', False) and not getattr(wallet, 'restrict_withdrawals', False),
+                "p2p": not getattr(wallet, 'is_blocked', False) and not getattr(wallet, 'restrict_p2p', False),
+                "transfers": not getattr(wallet, 'is_blocked', False) and not getattr(wallet, 'restrict_transfers', False),
+                "swap": not getattr(wallet, 'is_blocked', False) and not getattr(wallet, 'restrict_swap', False),
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Erro obtendo restrições: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
