@@ -722,9 +722,7 @@ export const AdminSecurityPage: React.FC = () => {
           rawId: uint8ArrayToBase64url(new Uint8Array(credential.rawId)),
           type: credential.type,
           response: {
-            clientDataJSON: uint8ArrayToBase64url(
-              new Uint8Array(assertionResponse.clientDataJSON)
-            ),
+            clientDataJSON: uint8ArrayToBase64url(new Uint8Array(assertionResponse.clientDataJSON)),
             authenticatorData: uint8ArrayToBase64url(
               new Uint8Array(assertionResponse.authenticatorData)
             ),
