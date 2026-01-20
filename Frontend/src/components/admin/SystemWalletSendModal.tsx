@@ -145,15 +145,25 @@ export const SystemWalletSendModal: React.FC<SendModalProps> = ({
   // Mutation para enviar
   const sendMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiClient.post<SendResponse>('/admin/system-blockchain-wallet/send', {
-        wallet_name: walletName,
-        network,
-        to_address: toAddress.trim(),
-        amount,
-        token,
-        memo: memo || undefined,
-        two_factor_code: twoFactorCode || undefined,
-      })
+      // Enviar 2FA tanto no body quanto no header para garantir
+      const headers: Record<string, string> = {}
+      if (twoFactorCode) {
+        headers['X-2FA-Code'] = twoFactorCode
+      }
+
+      const response = await apiClient.post<SendResponse>(
+        '/admin/system-blockchain-wallet/send',
+        {
+          wallet_name: walletName,
+          network,
+          to_address: toAddress.trim(),
+          amount,
+          token,
+          memo: memo || undefined,
+          two_factor_code: twoFactorCode || undefined,
+        },
+        { headers }
+      )
       return response.data
     },
     onSuccess: data => {
@@ -172,12 +182,25 @@ export const SystemWalletSendModal: React.FC<SendModalProps> = ({
     },
     onError: (error: any) => {
       console.error('Erro ao enviar:', error)
+
+      // Extrair mensagem de erro de diferentes formatos possíveis
+      let errorMsg = 'Erro ao enviar transacao'
+
       const detail = error.response?.data?.detail
-      if (typeof detail === 'object') {
-        setErrorMessage(detail.message || 'Erro ao enviar transacao')
-      } else {
-        setErrorMessage(detail || error.message || 'Erro ao enviar transacao')
+      if (detail) {
+        if (typeof detail === 'string') {
+          errorMsg = detail
+        } else if (typeof detail === 'object') {
+          // Backend retorna { error_code, message }
+          errorMsg = detail.message || detail.error_code || JSON.stringify(detail)
+        }
+      } else if (error.response?.data?.message) {
+        errorMsg = error.response.data.message
+      } else if (error.message && typeof error.message === 'string') {
+        errorMsg = error.message
       }
+
+      setErrorMessage(errorMsg)
       setStep('error')
     },
   })
@@ -409,19 +432,24 @@ export const SystemWalletSendModal: React.FC<SendModalProps> = ({
                 )}
               </div>
 
-              {/* 2FA Input (optional for now) */}
+              {/* 2FA Input - OBRIGATORIO */}
               <div>
                 <label className='block text-sm font-medium text-gray-300 mb-2'>
-                  Codigo 2FA (opcional)
+                  Codigo 2FA (Authy/Google Authenticator) <span className='text-red-500'>*</span>
                 </label>
                 <input
                   type='text'
                   value={twoFactorCode}
                   onChange={e => setTwoFactorCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder='000000'
+                  placeholder='Digite os 6 digitos'
                   maxLength={6}
-                  className='w-full bg-[#0d0d1a] border border-[#2d2d44] rounded-lg px-4 py-3 text-white text-center tracking-widest font-mono text-lg focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500'
+                  className={`w-full bg-[#0d0d1a] border rounded-lg px-4 py-3 text-white text-center tracking-widest font-mono text-lg focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 ${
+                    twoFactorCode.length === 6 ? 'border-green-500' : 'border-[#2d2d44]'
+                  }`}
                 />
+                {twoFactorCode.length > 0 && twoFactorCode.length < 6 && (
+                  <p className='text-red-400 text-xs mt-1'>Digite os 6 digitos do codigo 2FA</p>
+                )}
               </div>
 
               {/* Action Buttons */}
@@ -435,8 +463,12 @@ export const SystemWalletSendModal: React.FC<SendModalProps> = ({
                 </button>
                 <button
                   onClick={handleConfirm}
-                  disabled={sendMutation.isPending}
-                  className='flex-1 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold rounded-lg hover:from-orange-600 hover:to-orange-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50'
+                  disabled={sendMutation.isPending || twoFactorCode.length !== 6}
+                  className={`flex-1 py-3 font-semibold rounded-lg transition-all flex items-center justify-center gap-2 ${
+                    twoFactorCode.length === 6
+                      ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700'
+                      : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                  } disabled:opacity-50`}
                 >
                   {sendMutation.isPending ? (
                     <>
@@ -446,7 +478,7 @@ export const SystemWalletSendModal: React.FC<SendModalProps> = ({
                   ) : (
                     <>
                       <Send className='w-5 h-5' />
-                      Confirmar Envio
+                      {twoFactorCode.length === 6 ? 'Confirmar Envio' : 'Digite o codigo 2FA'}
                     </>
                   )}
                 </button>
