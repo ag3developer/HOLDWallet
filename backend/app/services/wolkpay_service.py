@@ -181,13 +181,19 @@ class WolkPayService:
             fee_payer = FeePayer(request.fee_payer.value)
             
             if fee_payer == FeePayer.PAYER:
-                # Pagador paga as taxas: total = base + taxas, beneficiário recebe base
+                # Pagador paga as taxas: total = base + taxas, beneficiário recebe valor cheio
                 total_amount_brl = base_amount_brl + total_fees_brl
                 beneficiary_receives_brl = base_amount_brl
+                beneficiary_receives_crypto = request.crypto_amount  # Recebe o valor cheio
             else:
-                # Beneficiário paga as taxas (padrão): total = base, beneficiário recebe base - taxas
+                # Beneficiário paga as taxas (padrão): total = base, beneficiário recebe menos
                 total_amount_brl = base_amount_brl
                 beneficiary_receives_brl = base_amount_brl - total_fees_brl
+                # Calcula crypto líquida: crypto_amount * (1 - taxa_total%)
+                total_fee_percent = service_fee_percent + network_fee_percent
+                beneficiary_receives_crypto = request.crypto_amount * (1 - total_fee_percent / 100)
+            
+            logger.info(f"💰 WolkPay: Criando fatura - Bruto: {request.crypto_amount}, Líquido: {beneficiary_receives_crypto}, Fee Payer: {fee_payer.value}")
             
             # 6. Verificar limite por operação baseado no KYC do usuário
             allowed, message, limits_info = await self._check_user_service_access(user_id, total_amount_brl)
@@ -218,6 +224,7 @@ class WolkPayService:
                 total_amount_brl=total_amount_brl,
                 fee_payer=fee_payer,
                 beneficiary_receives_brl=beneficiary_receives_brl,
+                beneficiary_receives_crypto=beneficiary_receives_crypto,  # NOVO: valor líquido em crypto
                 checkout_token=checkout_token,
                 status=InvoiceStatus.PENDING,
                 expires_at=expires_at
@@ -923,7 +930,33 @@ class WolkPayService:
         crypto_tx_hash = None
         explorer_url = None
         
-        # 5. Enviar crypto usando multi_chain_service
+        # 5. Calcular valor LÍQUIDO de crypto a enviar (descontando taxas se fee_payer=BENEFICIARY)
+        # IMPORTANTE: Sempre enviamos o valor líquido, não o bruto!
+        from app.models.wolkpay import FeePayer
+        
+        if invoice.fee_payer == FeePayer.PAYER:
+            # Pagador paga as taxas: beneficiário recebe o valor cheio de crypto
+            crypto_to_send = invoice.crypto_amount
+            logger.info(f"💰 WolkPay: Fee payer = PAYER, beneficiário recebe valor cheio: {crypto_to_send}")
+        else:
+            # Beneficiário paga as taxas (padrão): precisamos descontar
+            # PRIORIDADE 1: Usar campo beneficiary_receives_crypto se disponível (mais preciso)
+            if invoice.beneficiary_receives_crypto:
+                crypto_to_send = invoice.beneficiary_receives_crypto
+                logger.info(f"💰 WolkPay: Fee payer = BENEFICIARY, usando beneficiary_receives_crypto: {crypto_to_send} (bruto era {invoice.crypto_amount})")
+            # PRIORIDADE 2: Calcular a partir de beneficiary_receives_brl
+            elif invoice.beneficiary_receives_brl and invoice.usd_rate and invoice.brl_rate:
+                # beneficiary_receives_brl = crypto_to_send * usd_rate * brl_rate
+                # crypto_to_send = beneficiary_receives_brl / (usd_rate * brl_rate)
+                crypto_to_send = invoice.beneficiary_receives_brl / (invoice.usd_rate * invoice.brl_rate)
+                logger.info(f"💰 WolkPay: Fee payer = BENEFICIARY, valor líquido calculado de BRL: {crypto_to_send} (bruto era {invoice.crypto_amount})")
+            else:
+                # FALLBACK: calcula usando percentuais de taxa
+                total_fee_percent = (invoice.service_fee_percent or Decimal('3.65')) + (invoice.network_fee_percent or Decimal('0.15'))
+                crypto_to_send = invoice.crypto_amount * (1 - total_fee_percent / 100)
+                logger.info(f"💰 WolkPay: Fee payer = BENEFICIARY (fallback), desconto de {total_fee_percent}%: {crypto_to_send}")
+        
+        # 6. Enviar crypto usando multi_chain_service
         try:
             from app.services.multi_chain_service import multi_chain_service
             from app.models.instant_trade import TradeStatus
@@ -932,11 +965,12 @@ class WolkPayService:
             # O multi_chain_service espera um trade, então criamos uma estrutura compatível
             class WolkPayTradeAdapter:
                 """Adapter para compatibilidade com multi_chain_service"""
-                def __init__(self, invoice, wallet_addr, network):
+                def __init__(self, invoice, wallet_addr, network, crypto_amount_to_send):
                     self.id = invoice.id
                     self.user_id = invoice.beneficiary_id
                     self.symbol = invoice.crypto_currency.upper()
-                    self.crypto_amount = invoice.crypto_amount
+                    # CORRIGIDO: Usar o valor líquido calculado, não o bruto!
+                    self.crypto_amount = crypto_amount_to_send
                     self.wallet_address = wallet_addr
                     self.network = network
                     self.reference_code = invoice.invoice_number
@@ -944,9 +978,9 @@ class WolkPayService:
                     self.status = TradeStatus.PAYMENT_CONFIRMED  # Simula status confirmado
                     self.tx_hash = None  # Será preenchido após envio
             
-            trade_adapter = WolkPayTradeAdapter(invoice, wallet_address, selected_network)
+            trade_adapter = WolkPayTradeAdapter(invoice, wallet_address, selected_network, crypto_to_send)
             
-            logger.info(f"🚀 WolkPay: Enviando {invoice.crypto_amount} {symbol} para {wallet_address} via {selected_network}")
+            logger.info(f"🚀 WolkPay: Enviando {crypto_to_send} {symbol} (líquido) para {wallet_address} via {selected_network}")
             
             try:
                 result = await multi_chain_service.send_crypto(

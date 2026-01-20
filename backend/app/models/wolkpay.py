@@ -119,8 +119,11 @@ class WolkPayInvoice(Base):
     
     # Quem paga as taxas
     fee_payer = Column(SQLEnum(FeePayer), default=FeePayer.BENEFICIARY, nullable=False)
-    # Valor que o beneficiário efetivamente recebe em crypto (descontadas as taxas se fee_payer=BENEFICIARY)
+    # Valor que o beneficiário efetivamente recebe em BRL (descontadas as taxas se fee_payer=BENEFICIARY)
     beneficiary_receives_brl = Column(Numeric(18, 2), nullable=True)
+    # Valor que o beneficiário efetivamente recebe em CRYPTO (descontadas as taxas se fee_payer=BENEFICIARY)
+    # Este é o valor real que será enviado na blockchain
+    beneficiary_receives_crypto = Column(Numeric(28, 18), nullable=True)
     
     # Checkout
     checkout_token = Column(String(64), unique=True, nullable=False, index=True)
