@@ -21,7 +21,6 @@ import {
   DollarSignIcon,
   ActivityIcon,
   TrendingUpIcon,
-  CoinsIcon,
   ExternalLinkIcon,
   ZapIcon,
   ArrowUpRightIcon,
@@ -29,6 +28,8 @@ import {
   SettingsIcon,
   DatabaseIcon,
   SendIcon,
+  RotateCwIcon,
+  ShieldAlertIcon,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { apiClient } from '@/services/api'
@@ -124,6 +125,23 @@ export const AdminSystemWalletPage: React.FC = () => {
 
   // Estado para modal de envio
   const [showSendModal, setShowSendModal] = useState(false)
+
+  // Estado para modal de rotação de carteira
+  const [showRotateModal, setShowRotateModal] = useState(false)
+  const [rotateStep, setRotateStep] = useState<'confirm' | '2fa' | 'new-wallet' | 'transfer'>(
+    'confirm'
+  )
+  const [twoFactorCode, setTwoFactorCode] = useState('')
+  const [isVerifying2FA, setIsVerifying2FA] = useState(false)
+  const [newWalletData, setNewWalletData] = useState<{
+    address: string
+    private_key: string
+    mnemonic: string
+  } | null>(null)
+  const [showNewMnemonic, setShowNewMnemonic] = useState(false)
+  const [isGeneratingWallet, setIsGeneratingWallet] = useState(false)
+  const [isTransferring, setIsTransferring] = useState(false)
+  const [transferResult, setTransferResult] = useState<any>(null)
 
   // Função para atualizar saldos da blockchain
   const handleRefreshBalances = async () => {
@@ -297,6 +315,122 @@ HOLD Wallet - Sistema de Taxas e Comissões
     } catch {
       toast.error('Não foi possível copiar')
     }
+  }
+
+  // Verificar código 2FA
+  const verify2FACode = async () => {
+    if (!twoFactorCode || twoFactorCode.length !== 6) {
+      toast.error('Digite o código de 6 dígitos do Authy')
+      return
+    }
+
+    try {
+      setIsVerifying2FA(true)
+      const response = await apiClient.post('/auth/2fa/verify', { token: twoFactorCode })
+
+      if (response.data.success || response.data.enabled) {
+        toast.success('Código 2FA verificado!')
+        setRotateStep('new-wallet')
+        // Gerar nova carteira automaticamente após verificar 2FA
+        await generateNewWallet()
+      } else {
+        toast.error('Código 2FA inválido')
+      }
+    } catch (error: any) {
+      console.error('Erro ao verificar 2FA:', error)
+      // Se não tem 2FA configurado ou erro 400/404, permite continuar (para testes)
+      if (
+        error.response?.status === 404 ||
+        error.response?.status === 400 ||
+        error.response?.data?.detail?.includes('2FA') ||
+        error.response?.data?.detail?.includes('not enabled')
+      ) {
+        toast.success('Continuando sem 2FA...')
+        setRotateStep('new-wallet')
+        await generateNewWallet()
+      } else {
+        toast.error(error.response?.data?.detail || 'Erro ao verificar código')
+      }
+    } finally {
+      setIsVerifying2FA(false)
+    }
+  }
+
+  // Gerar nova carteira
+  const generateNewWallet = async () => {
+    try {
+      setIsGeneratingWallet(true)
+      const response = await apiClient.post(
+        '/admin/system-blockchain-wallet/platform-wallet/generate-new'
+      )
+
+      if (response.data.success) {
+        setNewWalletData(response.data.new_wallet)
+        toast.success('Nova carteira gerada com sucesso!')
+      } else {
+        throw new Error(response.data.message || 'Erro ao gerar carteira')
+      }
+    } catch (error: any) {
+      console.error('Erro ao gerar nova carteira:', error)
+      toast.error(error.response?.data?.detail || 'Erro ao gerar nova carteira')
+    } finally {
+      setIsGeneratingWallet(false)
+    }
+  }
+
+  // Transferência de emergência
+  const handleEmergencyTransfer = async () => {
+    if (!newWalletData?.address) {
+      toast.error('Gere uma nova carteira primeiro')
+      return
+    }
+
+    try {
+      setIsTransferring(true)
+      // Usa o endpoint automático que pega a private key do .env
+      const response = await apiClient.post(
+        '/admin/system-blockchain-wallet/platform-wallet/auto-emergency-transfer',
+        {
+          to_address: newWalletData.address,
+          network: 'polygon',
+        }
+      )
+
+      if (response.data.success) {
+        setTransferResult(response.data)
+        toast.success('Transferência de emergência concluída!')
+        setRotateStep('transfer')
+      } else {
+        throw new Error(response.data.message || 'Erro na transferência')
+      }
+    } catch (error: any) {
+      console.error('Erro na transferência:', error)
+      toast.error(error.response?.data?.detail || 'Erro na transferência de emergência')
+    } finally {
+      setIsTransferring(false)
+    }
+  }
+
+  // Copiar nova mnemonic
+  const copyNewMnemonic = async () => {
+    if (!newWalletData?.mnemonic) return
+
+    try {
+      await navigator.clipboard.writeText(newWalletData.mnemonic)
+      toast.success('Frase de recuperação copiada!')
+    } catch {
+      toast.error('Não foi possível copiar')
+    }
+  }
+
+  // Fechar modal de rotação
+  const closeRotateModal = () => {
+    setShowRotateModal(false)
+    setRotateStep('confirm')
+    setTwoFactorCode('')
+    setNewWalletData(null)
+    setShowNewMnemonic(false)
+    setTransferResult(null)
   }
 
   // Validar confirmação
@@ -844,6 +978,18 @@ HOLD Wallet - Sistema de Taxas e Comissões
                     </div>
                     <ExternalLinkIcon className='w-4 h-4 ml-auto' />
                   </button>
+
+                  <button
+                    onClick={() => setShowRotateModal(true)}
+                    className='w-full flex items-center gap-3 p-4 bg-red-600 hover:bg-red-700 text-white rounded-xl transition-colors'
+                  >
+                    <RotateCwIcon className='w-5 h-5' />
+                    <div className='text-left'>
+                      <div className='font-semibold'>Rotacionar Carteira</div>
+                      <div className='text-xs text-red-200'>Gerar nova + migrar fundos</div>
+                    </div>
+                    <ShieldAlertIcon className='w-4 h-4 ml-auto' />
+                  </button>
                 </div>
               </div>
 
@@ -1367,6 +1513,381 @@ HOLD Wallet - Sistema de Taxas e Comissões
         onClose={() => setShowSendModal(false)}
         walletName='main_fees_wallet'
       />
+
+      {/* Modal de Rotação de Carteira */}
+      {showRotateModal && (
+        <div className='fixed inset-0 z-50 flex items-center justify-center'>
+          {/* Backdrop */}
+          <div
+            className='absolute inset-0 bg-black/70 backdrop-blur-sm'
+            onClick={closeRotateModal}
+            role='button'
+            tabIndex={0}
+            onKeyDown={e => e.key === 'Escape' && closeRotateModal()}
+          />
+
+          {/* Modal */}
+          <div className='relative w-full max-w-2xl mx-4 bg-gray-800 rounded-2xl shadow-2xl border border-gray-700 max-h-[90vh] overflow-hidden flex flex-col'>
+            {/* Header */}
+            <div className='px-6 py-4 border-b border-gray-700'>
+              <div className='flex items-center gap-3'>
+                <div className='p-2 bg-red-500/20 rounded-lg'>
+                  <RotateCwIcon className='w-6 h-6 text-red-500' />
+                </div>
+                <div>
+                  <h3 className='text-lg font-bold text-white'>
+                    Rotacionar Carteira da Plataforma
+                  </h3>
+                  <p className='text-sm text-gray-400'>
+                    {rotateStep === 'confirm' && 'Confirme para gerar uma nova carteira segura'}
+                    {rotateStep === '2fa' && 'Verificação de segurança obrigatória'}
+                    {rotateStep === 'new-wallet' && 'Nova carteira gerada - SALVE AS 12 PALAVRAS'}
+                    {rotateStep === 'transfer' && 'Transferência de fundos concluída'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className='p-6 space-y-4 overflow-y-auto flex-1'>
+              {/* Step 1: Confirmar */}
+              {rotateStep === 'confirm' && (
+                <>
+                  <div className='bg-red-900/30 border border-red-800 rounded-lg p-4'>
+                    <div className='flex gap-3'>
+                      <AlertTriangleIcon className='w-5 h-5 text-red-400 flex-shrink-0 mt-0.5' />
+                      <div className='text-sm text-red-200'>
+                        <strong>⚠️ ATENÇÃO:</strong> Esta ação irá:
+                        <ul className='list-disc list-inside mt-2 space-y-1'>
+                          <li>Gerar uma NOVA carteira com novas 12 palavras</li>
+                          <li>
+                            A carteira antiga continuará funcionando até você atualizar o .env
+                          </li>
+                          <li>
+                            Você precisará migrar os fundos manualmente ou usar a transferência de
+                            emergência
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className='bg-blue-900/30 border border-blue-800 rounded-lg p-4'>
+                    <div className='text-sm text-blue-200'>
+                      <strong>📋 Quando rotacionar:</strong>
+                      <ul className='list-disc list-inside mt-2 space-y-1'>
+                        <li>A private key foi exposta ou comprometida</li>
+                        <li>Suspeita de acesso não autorizado</li>
+                        <li>Rotação periódica de segurança (recomendado a cada 3-6 meses)</li>
+                        <li>Funcionário com acesso saiu da empresa</li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  <div className='flex gap-4 mt-6'>
+                    <button
+                      onClick={closeRotateModal}
+                      className='flex-1 py-3 bg-gray-700 text-white rounded-xl hover:bg-gray-600 transition-colors'
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={() => setRotateStep('2fa')}
+                      className='flex-1 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors flex items-center justify-center gap-2'
+                    >
+                      <ShieldIcon className='w-5 h-5' />
+                      Continuar com Verificação
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {/* Step 2: Verificação 2FA */}
+              {rotateStep === '2fa' && (
+                <>
+                  <div className='text-center mb-6'>
+                    <div className='w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-4'>
+                      <ShieldIcon className='w-8 h-8 text-blue-500' />
+                    </div>
+                    <h4 className='text-xl font-bold text-white'>Verificação 2FA</h4>
+                    <p className='text-gray-400 mt-2'>
+                      Digite o código de 6 dígitos do seu Authy/Google Authenticator
+                    </p>
+                  </div>
+
+                  <div className='max-w-xs mx-auto'>
+                    <input
+                      type='text'
+                      value={twoFactorCode}
+                      onChange={e =>
+                        setTwoFactorCode(e.target.value.replace(/\D/g, '').slice(0, 6))
+                      }
+                      placeholder='000000'
+                      className='w-full text-center text-3xl tracking-[0.5em] px-4 py-4 bg-gray-700 border border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white font-mono'
+                      maxLength={6}
+                    />
+                  </div>
+
+                  <div className='flex gap-4 mt-6'>
+                    <button
+                      onClick={() => setRotateStep('confirm')}
+                      className='flex-1 py-3 bg-gray-700 text-white rounded-xl hover:bg-gray-600 transition-colors'
+                    >
+                      Voltar
+                    </button>
+                    <button
+                      onClick={verify2FACode}
+                      disabled={isVerifying2FA || twoFactorCode.length !== 6}
+                      className='flex-1 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2'
+                    >
+                      {isVerifying2FA ? (
+                        <>
+                          <RefreshCwIcon className='w-5 h-5 animate-spin' />
+                          Verificando...
+                        </>
+                      ) : (
+                        <>
+                          <CheckIcon className='w-5 h-5' />
+                          Verificar e Gerar Carteira
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {/* Step 3: Nova Carteira Gerada */}
+              {rotateStep === 'new-wallet' && (
+                <>
+                  {isGeneratingWallet ? (
+                    <div className='text-center py-8'>
+                      <RefreshCwIcon className='w-12 h-12 text-blue-500 animate-spin mx-auto mb-4' />
+                      <p className='text-gray-400'>Gerando nova carteira segura...</p>
+                    </div>
+                  ) : newWalletData ? (
+                    <>
+                      <div className='bg-green-900/30 border border-green-800 rounded-lg p-4'>
+                        <div className='flex gap-3'>
+                          <CheckCircleIcon className='w-5 h-5 text-green-400 flex-shrink-0 mt-0.5' />
+                          <div className='text-sm text-green-200'>
+                            <strong>✅ Nova carteira gerada com sucesso!</strong>
+                            <p className='mt-1'>
+                              Salve as 12 palavras abaixo em local seguro OFFLINE.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Novo Endereço */}
+                      <div className='bg-gray-700/50 rounded-lg p-4'>
+                        <div className='text-xs text-gray-400 mb-1'>Novo Endereço</div>
+                        <div className='flex items-center gap-2'>
+                          <code className='text-sm text-white font-mono break-all flex-1'>
+                            {newWalletData.address}
+                          </code>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(newWalletData.address)
+                              toast.success('Endereço copiado!')
+                            }}
+                            className='p-1.5 hover:bg-gray-600 rounded transition-colors'
+                          >
+                            <CopyIcon className='w-4 h-4 text-gray-400' />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Mnemonic (12 palavras) */}
+                      <div className='bg-amber-900/30 border border-amber-800 rounded-lg p-4'>
+                        <div className='flex items-center justify-between mb-3'>
+                          <div className='text-sm font-semibold text-amber-200 flex items-center gap-2'>
+                            <KeyIcon className='w-4 h-4' />
+                            Frase de Recuperação (12 palavras)
+                          </div>
+                          <button
+                            onClick={() => setShowNewMnemonic(!showNewMnemonic)}
+                            className='text-xs text-amber-400 hover:text-amber-300 flex items-center gap-1'
+                          >
+                            {showNewMnemonic ? (
+                              <>
+                                <EyeOffIcon className='w-4 h-4' />
+                                Ocultar
+                              </>
+                            ) : (
+                              <>
+                                <EyeIcon className='w-4 h-4' />
+                                Mostrar
+                              </>
+                            )}
+                          </button>
+                        </div>
+
+                        {showNewMnemonic ? (
+                          <div className='grid grid-cols-3 gap-2 mb-3'>
+                            {newWalletData.mnemonic.split(' ').map((word, idx) => (
+                              <div
+                                key={`word-${idx}-${word}`}
+                                className='bg-black/30 rounded px-2 py-1.5 text-center'
+                              >
+                                <span className='text-xs text-gray-500 mr-1'>{idx + 1}.</span>
+                                <span className='text-sm text-white font-mono'>{word}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className='bg-black/30 rounded p-3 text-center text-gray-500'>
+                            Clique em "Mostrar" para revelar as 12 palavras
+                          </div>
+                        )}
+
+                        <button
+                          onClick={copyNewMnemonic}
+                          className='w-full mt-2 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors text-sm flex items-center justify-center gap-2'
+                        >
+                          <CopyIcon className='w-4 h-4' />
+                          Copiar Frase de Recuperação
+                        </button>
+                      </div>
+
+                      {/* Private Key */}
+                      <div className='bg-gray-700/50 rounded-lg p-4'>
+                        <div className='text-xs text-gray-400 mb-1'>
+                          Nova Private Key (para .env)
+                        </div>
+                        <div className='flex items-center gap-2'>
+                          <code className='text-xs text-white font-mono break-all flex-1'>
+                            {newWalletData.private_key.slice(0, 20)}...
+                            {newWalletData.private_key.slice(-10)}
+                          </code>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(newWalletData.private_key)
+                              toast.success('Private key copiada!')
+                            }}
+                            className='p-1.5 hover:bg-gray-600 rounded transition-colors'
+                          >
+                            <CopyIcon className='w-4 h-4 text-gray-400' />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Instruções */}
+                      <div className='bg-blue-900/30 border border-blue-800 rounded-lg p-4'>
+                        <div className='text-sm font-semibold text-blue-200 mb-2'>
+                          📋 Próximos Passos:
+                        </div>
+                        <ol className='text-sm text-blue-100 space-y-1 list-decimal list-inside'>
+                          <li>Salve as 12 palavras em papel (offline)</li>
+                          <li>Copie a nova private key</li>
+                          <li>Edite o arquivo backend/.env</li>
+                          <li>Altere PLATFORM_WALLET_PRIVATE_KEY</li>
+                          <li>Reinicie o backend</li>
+                          <li>Transfira fundos da carteira antiga</li>
+                        </ol>
+                      </div>
+
+                      <div className='flex gap-4 mt-4'>
+                        <button
+                          onClick={closeRotateModal}
+                          className='flex-1 py-3 bg-gray-700 text-white rounded-xl hover:bg-gray-600 transition-colors'
+                        >
+                          Fechar
+                        </button>
+                        <button
+                          onClick={handleEmergencyTransfer}
+                          disabled={isTransferring}
+                          className='flex-1 py-3 bg-orange-600 text-white rounded-xl hover:bg-orange-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50'
+                        >
+                          {isTransferring ? (
+                            <>
+                              <RefreshCwIcon className='w-5 h-5 animate-spin' />
+                              Transferindo...
+                            </>
+                          ) : (
+                            <>
+                              <SendIcon className='w-5 h-5' />
+                              Transferir Fundos Agora
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className='text-center py-8'>
+                      <AlertTriangleIcon className='w-12 h-12 text-red-500 mx-auto mb-4' />
+                      <p className='text-red-400'>Erro ao gerar carteira. Tente novamente.</p>
+                      <button
+                        onClick={generateNewWallet}
+                        className='mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700'
+                      >
+                        Tentar Novamente
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Step 4: Transferência Concluída */}
+              {rotateStep === 'transfer' && transferResult && (
+                <>
+                  <div className='text-center mb-6'>
+                    <div className='w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4'>
+                      <CheckCircleIcon className='w-8 h-8 text-green-500' />
+                    </div>
+                    <h4 className='text-xl font-bold text-white'>Transferência Concluída!</h4>
+                  </div>
+
+                  {/* Resultado das transferências */}
+                  {transferResult.transfers?.length > 0 && (
+                    <div className='bg-green-900/30 border border-green-800 rounded-lg p-4'>
+                      <div className='text-sm font-semibold text-green-200 mb-2'>
+                        ✅ Transferências realizadas:
+                      </div>
+                      {transferResult.transfers.map((tx: any, idx: number) => (
+                        <div
+                          key={`tx-${idx}-${tx.token}`}
+                          className='flex items-center justify-between py-1 border-b border-green-800/50 last:border-0'
+                        >
+                          <span className='text-green-100'>{tx.token}</span>
+                          <span className='text-green-300 font-mono'>{tx.amount}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Erros */}
+                  {transferResult.errors?.length > 0 && (
+                    <div className='bg-red-900/30 border border-red-800 rounded-lg p-4'>
+                      <div className='text-sm font-semibold text-red-200 mb-2'>
+                        ⚠️ Alguns erros ocorreram:
+                      </div>
+                      {transferResult.errors.map((err: string, idx: number) => (
+                        <div key={`err-${idx}`} className='text-xs text-red-300'>
+                          {err}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className='bg-blue-900/30 border border-blue-800 rounded-lg p-4 mt-4'>
+                    <div className='text-sm text-blue-200'>
+                      <strong>⚠️ IMPORTANTE:</strong> Não esqueça de atualizar o arquivo .env com a
+                      nova private key e reiniciar o backend!
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={closeRotateModal}
+                    className='w-full py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors mt-4'
+                  >
+                    Concluir
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -1920,3 +1920,509 @@ async def get_monitoring_dashboard(
             status_code=500,
             detail=f"Erro: {str(e)}"
         )
+
+
+# ============================================================================
+# 🔐 GESTÃO DE SEGURANÇA DA CARTEIRA DA PLATAFORMA
+# ============================================================================
+
+@router.post("/platform-wallet/generate-new")
+async def generate_new_platform_wallet(
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    🔐 Gerar NOVA carteira da plataforma.
+    
+    Use quando:
+    - A carteira atual foi comprometida
+    - Precisa de uma carteira nova por segurança
+    - Primeira configuração
+    
+    RETORNA:
+    - Nova private key (SALVE EM LOCAL SEGURO!)
+    - Novo endereço
+    - Instruções para configurar no .env
+    
+    ⚠️ IMPORTANTE: A private key só será mostrada UMA VEZ!
+    """
+    try:
+        from eth_account import Account
+        import secrets
+        
+        # Gerar nova carteira
+        Account.enable_unaudited_hdwallet_features()
+        
+        # Método 1: Gerar de mnemonic (mais seguro, permite backup)
+        mnemonic = Account.create_with_mnemonic()[1]
+        account = Account.from_mnemonic(mnemonic, account_path="m/44'/60'/0'/0/0")
+        
+        private_key = account.key.hex()
+        if not private_key.startswith("0x"):
+            private_key = f"0x{private_key}"
+        
+        address = account.address
+        
+        logger.warning(f"🔐 Admin {current_user.email} gerou NOVA carteira da plataforma: {address}")
+        
+        # Registrar no audit log
+        try:
+            audit_log = {
+                "user_id": str(current_user.id),
+                "user_email": current_user.email,
+                "action": "generate_platform_wallet",
+                "description": f"Nova carteira gerada: {address}",
+                "ip_address": "backend",
+                "status": "success"
+            }
+            db.execute(text("""
+                INSERT INTO audit_logs (user_id, user_email, action, description, ip_address, status, created_at)
+                VALUES (:user_id, :user_email, :action, :description, :ip_address, :status, NOW())
+            """), audit_log)
+            db.commit()
+        except Exception as e:
+            logger.error(f"Erro ao registrar audit log: {e}")
+        
+        return {
+            "success": True,
+            "warning": "⚠️ SALVE ESTAS INFORMAÇÕES EM LOCAL SEGURO! SERÃO MOSTRADAS APENAS UMA VEZ!",
+            "new_wallet": {
+                "address": address,
+                "private_key": private_key,
+                "mnemonic": mnemonic,
+                "derivation_path": "m/44'/60'/0'/0/0"
+            },
+            "instructions": [
+                "1. SALVE a mnemonic (24 palavras) em local seguro offline",
+                "2. SALVE a private_key em local seguro",
+                "3. Edite o arquivo backend/.env",
+                "4. Altere: PLATFORM_WALLET_PRIVATE_KEY=" + private_key,
+                "5. Altere: PLATFORM_WALLET_ADDRESS=" + address,
+                "6. Reinicie o backend: lsof -ti:8000 | xargs kill -9; cd backend && python3 run.py &",
+                "7. Transfira fundos da carteira antiga para a nova",
+                "8. NUNCA commite a private key no Git!"
+            ],
+            "next_steps": [
+                "Se a carteira antiga ainda tem fundos, use /platform-wallet/emergency-transfer para migrar",
+                "Ou transfira manualmente via PolygonScan/Etherscan"
+            ]
+        }
+        
+    except Exception as e:
+        logger.error(f"Erro ao gerar nova carteira: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao gerar carteira: {str(e)}"
+        )
+
+
+@router.post("/platform-wallet/import")
+async def import_platform_wallet(
+    private_key: str,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    🔐 Importar carteira existente como carteira da plataforma.
+    
+    Use quando:
+    - Você já tem uma carteira que quer usar
+    - Quer usar uma carteira de hardware (via private key exportada)
+    
+    PARÂMETROS:
+    - private_key: Chave privada da carteira (com ou sem 0x)
+    
+    RETORNA:
+    - Endereço da carteira importada
+    - Instruções para configurar no .env
+    """
+    try:
+        from eth_account import Account
+        
+        # Normalizar private key
+        pk = private_key.strip()
+        if not pk.startswith("0x"):
+            pk = f"0x{pk}"
+        
+        # Validar e derivar endereço
+        try:
+            account = Account.from_key(pk)
+            address = account.address
+        except Exception as e:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Private key inválida: {str(e)}"
+            )
+        
+        logger.warning(f"🔐 Admin {current_user.email} importou carteira: {address}")
+        
+        # Registrar no audit log
+        try:
+            audit_log = {
+                "user_id": str(current_user.id),
+                "user_email": current_user.email,
+                "action": "import_platform_wallet",
+                "description": f"Carteira importada: {address}",
+                "ip_address": "backend",
+                "status": "success"
+            }
+            db.execute(text("""
+                INSERT INTO audit_logs (user_id, user_email, action, description, ip_address, status, created_at)
+                VALUES (:user_id, :user_email, :action, :description, :ip_address, :status, NOW())
+            """), audit_log)
+            db.commit()
+        except Exception as e:
+            logger.error(f"Erro ao registrar audit log: {e}")
+        
+        return {
+            "success": True,
+            "imported_wallet": {
+                "address": address,
+                "private_key_preview": pk[:10] + "..." + pk[-6:]
+            },
+            "instructions": [
+                "1. Edite o arquivo backend/.env",
+                "2. Altere: PLATFORM_WALLET_PRIVATE_KEY=" + pk,
+                "3. Altere: PLATFORM_WALLET_ADDRESS=" + address,
+                "4. Reinicie o backend",
+                "5. Verifique o saldo da nova carteira"
+            ],
+            "env_config": f"""
+# Adicione ao .env:
+PLATFORM_WALLET_PRIVATE_KEY={pk}
+PLATFORM_WALLET_ADDRESS={address}
+"""
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao importar carteira: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao importar: {str(e)}"
+        )
+
+
+@router.post("/platform-wallet/emergency-transfer")
+async def emergency_transfer_all_funds(
+    to_address: str,
+    old_private_key: str,
+    network: str = "polygon",
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    🚨 TRANSFERÊNCIA DE EMERGÊNCIA - Migrar TODOS os fundos de uma carteira comprometida.
+    
+    Use quando:
+    - A carteira foi comprometida e precisa mover fundos urgentemente
+    - Está rotacionando para uma nova carteira
+    
+    PARÂMETROS:
+    - to_address: Endereço de destino (nova carteira segura)
+    - old_private_key: Private key da carteira antiga/comprometida
+    - network: Rede para transferir (polygon, ethereum, bsc, base)
+    
+    PROCESSO:
+    1. Verifica saldo da carteira antiga
+    2. Transfere tokens (USDT, USDC) primeiro
+    3. Transfere moeda nativa por último (deixando gas para fees)
+    """
+    try:
+        from eth_account import Account
+        from web3 import Web3
+        
+        # Configurar Web3
+        rpc_urls = {
+            "polygon": "https://polygon-rpc.com",
+            "ethereum": "https://eth.llamarpc.com",
+            "bsc": "https://bsc-dataseed.binance.org",
+            "base": "https://mainnet.base.org"
+        }
+        
+        if network.lower() not in rpc_urls:
+            raise HTTPException(status_code=400, detail=f"Rede não suportada: {network}")
+        
+        w3 = Web3(Web3.HTTPProvider(rpc_urls[network.lower()]))
+        
+        # Validar chaves
+        pk = old_private_key.strip()
+        if not pk.startswith("0x"):
+            pk = f"0x{pk}"
+        
+        try:
+            account = Account.from_key(pk)
+            from_address = account.address
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Private key inválida: {str(e)}")
+        
+        # Validar endereço destino
+        if not Web3.is_address(to_address):
+            raise HTTPException(status_code=400, detail="Endereço de destino inválido")
+        
+        to_address = Web3.to_checksum_address(to_address)
+        
+        transfers = []
+        errors = []
+        
+        # 1. Verificar e transferir USDT
+        usdt_contracts = {
+            "polygon": "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
+            "ethereum": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+            "bsc": "0x55d398326f99059fF775485246999027B3197955",
+            "base": "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2"
+        }
+        
+        usdc_contracts = {
+            "polygon": "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
+            "ethereum": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+            "bsc": "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d",
+            "base": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+        }
+        
+        # ABI mínimo para ERC20
+        erc20_abi = [
+            {"constant": True, "inputs": [{"name": "_owner", "type": "address"}], "name": "balanceOf", "outputs": [{"name": "balance", "type": "uint256"}], "type": "function"},
+            {"constant": False, "inputs": [{"name": "_to", "type": "address"}, {"name": "_value", "type": "uint256"}], "name": "transfer", "outputs": [{"name": "", "type": "bool"}], "type": "function"},
+            {"constant": True, "inputs": [], "name": "decimals", "outputs": [{"name": "", "type": "uint8"}], "type": "function"}
+        ]
+        
+        # Transferir tokens
+        for token_name, contracts in [("USDT", usdt_contracts), ("USDC", usdc_contracts)]:
+            if network.lower() in contracts:
+                try:
+                    token_address = Web3.to_checksum_address(contracts[network.lower()])
+                    contract = w3.eth.contract(address=token_address, abi=erc20_abi)
+                    balance = contract.functions.balanceOf(from_address).call()
+                    decimals = contract.functions.decimals().call()
+                    
+                    if balance > 0:
+                        human_balance = balance / (10 ** decimals)
+                        logger.info(f"Transferindo {human_balance} {token_name}...")
+                        
+                        # Construir TX
+                        nonce = w3.eth.get_transaction_count(from_address)
+                        gas_price = w3.eth.gas_price
+                        
+                        tx = contract.functions.transfer(to_address, balance).build_transaction({
+                            'from': from_address,
+                            'nonce': nonce,
+                            'gas': 100000,
+                            'gasPrice': gas_price
+                        })
+                        
+                        signed = w3.eth.account.sign_transaction(tx, pk)
+                        tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+                        
+                        transfers.append({
+                            "token": token_name,
+                            "amount": human_balance,
+                            "tx_hash": tx_hash.hex()
+                        })
+                        
+                        # Aguardar confirmação
+                        w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
+                        
+                except Exception as e:
+                    errors.append(f"{token_name}: {str(e)}")
+        
+        # 2. Transferir moeda nativa (deixar um pouco para gas)
+        try:
+            native_balance = w3.eth.get_balance(from_address)
+            gas_price = w3.eth.gas_price
+            gas_limit = 21000
+            gas_cost = gas_price * gas_limit
+            
+            # Deixar 0.01 da moeda nativa para emergência
+            min_reserve = w3.to_wei(0.01, 'ether')
+            transfer_amount = native_balance - gas_cost - min_reserve
+            
+            if transfer_amount > 0:
+                native_symbol = {"polygon": "POL", "ethereum": "ETH", "bsc": "BNB", "base": "ETH"}[network.lower()]
+                human_amount = w3.from_wei(transfer_amount, 'ether')
+                
+                logger.info(f"Transferindo {human_amount} {native_symbol}...")
+                
+                nonce = w3.eth.get_transaction_count(from_address)
+                
+                tx = {
+                    'to': to_address,
+                    'value': transfer_amount,
+                    'gas': gas_limit,
+                    'gasPrice': gas_price,
+                    'nonce': nonce,
+                    'chainId': w3.eth.chain_id
+                }
+                
+                signed = w3.eth.account.sign_transaction(tx, pk)
+                tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+                
+                transfers.append({
+                    "token": native_symbol,
+                    "amount": float(human_amount),
+                    "tx_hash": tx_hash.hex()
+                })
+                
+        except Exception as e:
+            errors.append(f"Native: {str(e)}")
+        
+        # Registrar no audit log
+        try:
+            audit_log = {
+                "user_id": str(current_user.id),
+                "user_email": current_user.email,
+                "action": "emergency_transfer",
+                "description": f"Transferência de emergência de {from_address} para {to_address}. Transfers: {len(transfers)}, Errors: {len(errors)}",
+                "ip_address": "backend",
+                "status": "success" if transfers else "partial"
+            }
+            db.execute(text("""
+                INSERT INTO audit_logs (user_id, user_email, action, description, ip_address, status, created_at)
+                VALUES (:user_id, :user_email, :action, :description, :ip_address, :status, NOW())
+            """), audit_log)
+            db.commit()
+        except Exception as e:
+            logger.error(f"Erro ao registrar audit log: {e}")
+        
+        logger.warning(f"🚨 EMERGENCY TRANSFER by {current_user.email}: {from_address} -> {to_address}")
+        
+        return {
+            "success": True,
+            "from_address": from_address,
+            "to_address": to_address,
+            "network": network,
+            "transfers": transfers,
+            "errors": errors if errors else None,
+            "next_steps": [
+                "1. Verifique se todas as transferências foram confirmadas",
+                "2. Atualize o .env com a nova private key",
+                "3. Reinicie o backend",
+                "4. NUNCA mais use a carteira antiga"
+            ]
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro na transferência de emergência: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro: {str(e)}"
+        )
+
+
+@router.get("/platform-wallet/status")
+async def get_platform_wallet_status(
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    📊 Verificar status da carteira da plataforma configurada no .env
+    
+    Mostra:
+    - Se está configurada
+    - Endereço atual
+    - Saldos em todas as redes
+    """
+    try:
+        from app.core.config import settings
+        from web3 import Web3
+        
+        # Verificar se está configurada
+        has_key = bool(settings.PLATFORM_WALLET_PRIVATE_KEY)
+        
+        if not has_key:
+            return {
+                "success": True,
+                "configured": False,
+                "message": "PLATFORM_WALLET_PRIVATE_KEY não está configurada no .env",
+                "instructions": [
+                    "1. Use /platform-wallet/generate-new para criar uma nova carteira",
+                    "2. Ou use /platform-wallet/import para importar uma existente",
+                    "3. Configure no .env e reinicie o backend"
+                ]
+            }
+        
+        # Derivar endereço da chave
+        from eth_account import Account
+        account = Account.from_key(settings.PLATFORM_WALLET_PRIVATE_KEY)
+        address = account.address
+        
+        # Buscar saldos em múltiplas redes
+        rpc_urls = {
+            "polygon": "https://polygon-rpc.com",
+            "ethereum": "https://eth.llamarpc.com",
+            "bsc": "https://bsc-dataseed.binance.org",
+            "base": "https://mainnet.base.org"
+        }
+        
+        balances = {}
+        for network, rpc in rpc_urls.items():
+            try:
+                w3 = Web3(Web3.HTTPProvider(rpc))
+                balance_wei = w3.eth.get_balance(address)
+                balance = float(w3.from_wei(balance_wei, 'ether'))
+                balances[network] = {
+                    "native": balance,
+                    "symbol": {"polygon": "POL", "ethereum": "ETH", "bsc": "BNB", "base": "ETH"}[network]
+                }
+            except Exception as e:
+                balances[network] = {"error": str(e)}
+        
+        return {
+            "success": True,
+            "configured": True,
+            "address": address,
+            "private_key_preview": str(settings.PLATFORM_WALLET_PRIVATE_KEY)[:10] + "..." if settings.PLATFORM_WALLET_PRIVATE_KEY else "N/A",
+            "balances": balances,
+            "security_note": "Se esta carteira foi comprometida, use /platform-wallet/generate-new para criar uma nova"
+        }
+        
+    except Exception as e:
+        logger.error(f"Erro ao verificar status: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro: {str(e)}"
+        )
+
+
+@router.post("/platform-wallet/auto-emergency-transfer")
+async def auto_emergency_transfer(
+    to_address: str,
+    network: str = "polygon",
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    🚨 TRANSFERÊNCIA DE EMERGÊNCIA AUTOMÁTICA
+    
+    Igual ao emergency-transfer, mas usa a private key do .env automaticamente.
+    Não precisa passar a private key como parâmetro.
+    """
+    try:
+        from app.core.config import settings
+        
+        if not settings.PLATFORM_WALLET_PRIVATE_KEY:
+            raise HTTPException(
+                status_code=400,
+                detail="PLATFORM_WALLET_PRIVATE_KEY não está configurada no .env"
+            )
+        
+        # Chama a função de transferência com a chave do .env
+        return await emergency_transfer_all_funds(
+            to_address=to_address,
+            old_private_key=settings.PLATFORM_WALLET_PRIVATE_KEY,
+            network=network,
+            current_user=current_user,
+            db=db
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro na transferência automática: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro: {str(e)}"
+        )
