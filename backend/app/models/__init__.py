@@ -5,6 +5,7 @@ from .user import User
 from .user_profile import UserProfile, NotificationSettings as UserNotificationSettings
 from .wallet import Wallet
 from .address import Address
+from .address_book import AddressBook, WalletType as AddressBookWalletType
 from .transaction import Transaction
 from .two_factor import TwoFactorAuth
 from .webauthn import WebAuthnCredential
@@ -59,6 +60,10 @@ __all__ = [
     
     # Address
     "Address",
+    
+    # Address Book
+    "AddressBook",
+    "AddressBookWalletType",
     
     # Transaction
     "Transaction",

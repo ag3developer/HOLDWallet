@@ -79,6 +79,8 @@ import {
   AdminTransactionsPage,
   AdminFeesPage,
   AdminSystemWalletPage,
+  AdminSystemWalletsPage,
+  AdminWalletAutomationPage,
   AdminSystemWalletAddressesPage,
   AdminAnalyticsPage,
   AdminSecurityPage,
@@ -379,6 +381,8 @@ function App() {
             <Route path='/admin/transactions' element={<AdminTransactionsPage />} />
             <Route path='/admin/fees' element={<AdminFeesPage />} />
             <Route path='/admin/system-wallet' element={<AdminSystemWalletPage />} />
+            <Route path='/admin/system-wallets' element={<AdminSystemWalletsPage />} />
+            <Route path='/admin/wallet-automation' element={<AdminWalletAutomationPage />} />
             <Route
               path='/admin/system-wallet/addresses'
               element={<AdminSystemWalletAddressesPage />}

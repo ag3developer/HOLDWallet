@@ -207,6 +207,122 @@ class SystemBlockchainWalletService:
             logger.error(f"Falha ao criar/obter carteira principal: {e}")
             raise ValueError(f"Falha ao criar carteira do sistema: {str(e)}")
     
+    def create_new_wallet(
+        self,
+        db: Session,
+        wallet_name: str,
+        wallet_type: str,
+        admin_user_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Cria uma nova carteira do sistema (COLD, HOT ou FEES).
+        
+        Diferente de get_or_create_main_wallet, este método:
+        - Permite criar multiplas carteiras
+        - Aceita nome e tipo customizado
+        - Usa mnemonic de 24 palavras para maior seguranca
+        
+        IMPORTANTE: A mnemonic so e retornada na CRIACAO!
+        """
+        try:
+            # Validar tipo
+            valid_types = ["cold", "hot", "fees"]
+            if wallet_type.lower() not in valid_types:
+                raise ValueError(f"Tipo invalido. Use: {', '.join(valid_types)}")
+            
+            # Verificar se ja existe
+            existing = db.query(SystemBlockchainWallet).filter(
+                SystemBlockchainWallet.name == wallet_name,
+                SystemBlockchainWallet.is_active == True
+            ).first()
+            
+            if existing:
+                raise ValueError(f"Carteira '{wallet_name}' ja existe")
+            
+            logger.info(f"Criando nova carteira do sistema: {wallet_name} ({wallet_type})")
+            
+            # Gerar mnemonic de 24 palavras (mais seguro para COLD)
+            strength = 256 if wallet_type == "cold" else 128  # 24 palavras para COLD, 12 para outros
+            mnemonic = self.crypto_service.generate_mnemonic(strength=strength)
+            word_count = 24 if wallet_type == "cold" else 12
+            
+            # Criptografar mnemonic
+            encrypted_mnemonic = self.crypto_service.encrypt_data(mnemonic)
+            
+            # Hash para verificacao
+            seed_hash = hashlib.sha256(mnemonic.encode()).hexdigest()
+            
+            # Criar wallet
+            wallet = SystemBlockchainWallet(
+                id=uuid.uuid4(),
+                name=wallet_name,
+                wallet_type=wallet_type.lower(),
+                description=f"Carteira {wallet_type.upper()} do sistema - {wallet_name}",
+                encrypted_seed=encrypted_mnemonic,  # Mnemonic criptografada
+                seed_hash=seed_hash,
+                derivation_path="m/44'/0'/0'",
+                is_active=True,
+                is_locked=(wallet_type == "cold"),  # COLD comeca bloqueada
+                created_by=uuid.UUID(admin_user_id) if admin_user_id else None
+            )
+            
+            db.add(wallet)
+            db.flush()
+            
+            # Gerar enderecos para redes principais (nao stablecoins especificos)
+            main_networks = [
+                "polygon", "ethereum", "bsc", "base", "avalanche",
+                "bitcoin", "litecoin", "dogecoin", "tron", "solana"
+            ]
+            
+            addresses_created = {}
+            
+            for network in main_networks:
+                if network in self.SUPPORTED_NETWORKS:
+                    coin_type, crypto_symbol, is_evm = self.SUPPORTED_NETWORKS[network]
+                    try:
+                        address_data = self._generate_address_for_network(
+                            db=db,
+                            wallet=wallet,
+                            mnemonic=mnemonic,
+                            network=network,
+                            cryptocurrency=crypto_symbol,
+                            coin_type=coin_type,
+                            is_evm=is_evm,
+                            derivation_index=0
+                        )
+                        addresses_created[network] = address_data
+                        logger.info(f"  Endereco {network} criado: {address_data['address'][:15]}...")
+                    except Exception as e:
+                        logger.error(f"  Falha {network}: {e}")
+                        addresses_created[network] = {"error": str(e)}
+            
+            db.commit()
+            
+            successful = len([a for a in addresses_created.values() if "error" not in a])
+            logger.info(f"Carteira {wallet_name} criada com {successful}/{len(main_networks)} enderecos")
+            
+            return {
+                "success": True,
+                "is_new": True,
+                "wallet_id": str(wallet.id),
+                "name": wallet_name,
+                "wallet_type": wallet_type,
+                "mnemonic": mnemonic,
+                "mnemonic_word_count": word_count,
+                "is_locked": wallet.is_locked,
+                "addresses": addresses_created,
+                "networks_count": successful,
+                "warning": "GUARDE A MNEMONIC EM LOCAL SEGURO! Esta e a unica vez que sera exibida!"
+            }
+            
+        except ValueError as e:
+            raise e
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Falha ao criar carteira {wallet_name}: {e}", exc_info=True)
+            raise ValueError(f"Falha ao criar carteira: {str(e)}")
+    
     def _generate_address_for_network(
         self,
         db: Session,

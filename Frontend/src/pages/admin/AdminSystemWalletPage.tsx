@@ -28,10 +28,12 @@ import {
   ArrowDownLeftIcon,
   SettingsIcon,
   DatabaseIcon,
+  SendIcon,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { apiClient } from '@/services/api'
 import trayLogo from '@/assets/crypto-icons/tray.png'
+import { SystemWalletSendModal } from '@/components/admin/SystemWalletSendModal'
 
 type Step = 'info' | 'creating' | 'mnemonic-display' | 'mnemonic-confirm' | 'success'
 
@@ -119,6 +121,9 @@ export const AdminSystemWalletPage: React.FC = () => {
   const [showPrivateKey, setShowPrivateKey] = useState(false)
   const [copiedPrivateKey, setCopiedPrivateKey] = useState(false)
   const [isRefreshingBalances, setIsRefreshingBalances] = useState(false)
+
+  // Estado para modal de envio
+  const [showSendModal, setShowSendModal] = useState(false)
 
   // Função para atualizar saldos da blockchain
   const handleRefreshBalances = async () => {
@@ -382,6 +387,20 @@ HOLD Wallet - Sistema de Taxas e Comissões
         {walletStatus?.exists && (
           <div className='flex gap-3'>
             <button
+              onClick={() => setShowSendModal(true)}
+              className='flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-lg transition-colors font-medium'
+            >
+              <SendIcon className='w-4 h-4' />
+              Enviar
+            </button>
+            <button
+              onClick={() => navigate('/admin/system-wallets')}
+              className='flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg transition-colors font-medium'
+            >
+              <WalletIcon className='w-4 h-4' />
+              Gerenciar Carteiras
+            </button>
+            <button
               onClick={() => refetch()}
               className='flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-900 dark:text-white rounded-lg transition-colors'
             >
@@ -390,7 +409,7 @@ HOLD Wallet - Sistema de Taxas e Comissões
             </button>
             <button
               onClick={() => navigate('/admin/system-wallet/addresses')}
-              className='flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors'
+              className='flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-900 dark:text-white rounded-lg transition-colors'
             >
               <GlobeIcon className='w-4 h-4' />
               Ver Endereços
@@ -1341,6 +1360,13 @@ HOLD Wallet - Sistema de Taxas e Comissões
           </div>
         </div>
       )}
+
+      {/* Modal de Envio */}
+      <SystemWalletSendModal
+        isOpen={showSendModal}
+        onClose={() => setShowSendModal(false)}
+        walletName='main_fees_wallet'
+      />
     </div>
   )
 }
