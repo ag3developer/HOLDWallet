@@ -554,6 +554,8 @@ export const AdminSecurityPage: React.FC = () => {
   const enableBiometry = async () => {
     setBiometryLoading(true)
     try {
+      console.log('🔐 [Biometry] Iniciando registro de biometria...')
+
       // 1. Obter opções de registro do BACKEND
       const optionsResponse = await apiClient.post('/auth/webauthn/register/options', {
         authenticator_type: 'platform',

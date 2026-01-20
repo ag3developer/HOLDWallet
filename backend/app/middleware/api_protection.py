@@ -77,11 +77,13 @@ class APIProtectionMiddleware(BaseHTTPMiddleware):
         '/auth/refresh',
         '/auth/logout',
         '/auth/2fa/',
+        '/auth/webauthn/',       # Biometria/WebAuthn
         '/api/auth/login',
         '/api/auth/register',
         '/api/auth/refresh',
         '/api/auth/logout',
         '/api/auth/2fa/',
+        '/api/auth/webauthn/',   # Biometria/WebAuthn
     ]
     
     # IPs de desenvolvimento que ignoram todas as proteções
