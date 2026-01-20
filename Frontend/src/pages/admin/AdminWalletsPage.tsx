@@ -32,6 +32,8 @@ import {
   AlertTriangle,
   ShieldX,
   X,
+  Fingerprint,
+  CheckCircle,
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 
@@ -227,6 +229,9 @@ export const AdminWalletsPage: React.FC = () => {
   const [twoFactorCode, setTwoFactorCode] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
   const [actionReason, setActionReason] = useState('')
+  const [authMethod, setAuthMethod] = useState<'2fa' | 'biometry'>('2fa')
+  const [hasBiometry, setHasBiometry] = useState(false)
+  const [biometryVerified, setBiometryVerified] = useState(false)
 
   const limit = 20
 
@@ -350,8 +355,19 @@ export const AdminWalletsPage: React.FC = () => {
 
   // Bloquear carteira
   const handleBlockWallet = async () => {
-    if (!actionModal.wallet || !twoFactorCode) {
+    // Verificar autenticação: biometria já verificada OU código 2FA
+    if (!actionModal.wallet) {
+      toast.error('Selecione uma carteira')
+      return
+    }
+
+    if (authMethod === '2fa' && !twoFactorCode) {
       toast.error('Código 2FA obrigatório')
+      return
+    }
+
+    if (authMethod === 'biometry' && !biometryVerified) {
+      toast.error('Biometria não verificada')
       return
     }
 
@@ -364,13 +380,21 @@ export const AdminWalletsPage: React.FC = () => {
     setActionLoading(true)
 
     try {
+      const headers: Record<string, string> = {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      }
+
+      // Adicionar header de autenticação apropriado
+      if (authMethod === '2fa') {
+        headers['X-2FA-Code'] = twoFactorCode
+      } else {
+        headers['X-Biometry-Verified'] = 'true'
+      }
+
       const response = await fetch(`${API_URL}/admin/wallets/${actionModal.wallet.id}/block`, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'X-2FA-Code': twoFactorCode,
-        },
+        headers,
         body: JSON.stringify({ reason: actionReason || 'Bloqueio administrativo' }),
       })
 
@@ -393,8 +417,18 @@ export const AdminWalletsPage: React.FC = () => {
 
   // Desbloquear carteira
   const handleUnblockWallet = async () => {
-    if (!actionModal.wallet || !twoFactorCode) {
+    if (!actionModal.wallet) {
+      toast.error('Selecione uma carteira')
+      return
+    }
+
+    if (authMethod === '2fa' && !twoFactorCode) {
       toast.error('Código 2FA obrigatório')
+      return
+    }
+
+    if (authMethod === 'biometry' && !biometryVerified) {
+      toast.error('Biometria não verificada')
       return
     }
 
@@ -407,13 +441,20 @@ export const AdminWalletsPage: React.FC = () => {
     setActionLoading(true)
 
     try {
+      const headers: Record<string, string> = {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      }
+
+      if (authMethod === '2fa') {
+        headers['X-2FA-Code'] = twoFactorCode
+      } else {
+        headers['X-Biometry-Verified'] = 'true'
+      }
+
       const response = await fetch(`${API_URL}/admin/wallets/${actionModal.wallet.id}/unblock`, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'X-2FA-Code': twoFactorCode,
-        },
+        headers,
       })
 
       const data = await response.json()
@@ -435,8 +476,18 @@ export const AdminWalletsPage: React.FC = () => {
 
   // Excluir carteira
   const handleDeleteWallet = async () => {
-    if (!actionModal.wallet || !twoFactorCode) {
+    if (!actionModal.wallet) {
+      toast.error('Selecione uma carteira')
+      return
+    }
+
+    if (authMethod === '2fa' && !twoFactorCode) {
       toast.error('Código 2FA obrigatório')
+      return
+    }
+
+    if (authMethod === 'biometry' && !biometryVerified) {
+      toast.error('Biometria não verificada')
       return
     }
 
@@ -449,14 +500,21 @@ export const AdminWalletsPage: React.FC = () => {
     setActionLoading(true)
 
     try {
+      const headers: Record<string, string> = {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      }
+
+      if (authMethod === '2fa') {
+        headers['X-2FA-Code'] = twoFactorCode
+      } else {
+        headers['X-Biometry-Verified'] = 'true'
+      }
+
       // Usar force=true para permitir exclusão de carteiras com saldo (maliciosas)
       const response = await fetch(`${API_URL}/admin/wallets/${actionModal.wallet.id}?force=true`, {
         method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'X-2FA-Code': twoFactorCode,
-        },
+        headers,
         body: JSON.stringify({
           reason: actionReason || 'Exclusão administrativa',
           blacklist_addresses: true,
@@ -485,8 +543,18 @@ export const AdminWalletsPage: React.FC = () => {
 
   // Adicionar endereço à blacklist
   const handleBlacklistAddress = async () => {
-    if (!actionModal.address || !actionModal.network || !twoFactorCode) {
+    if (!actionModal.address || !actionModal.network) {
+      toast.error('Selecione um endereço')
+      return
+    }
+
+    if (authMethod === '2fa' && !twoFactorCode) {
       toast.error('Código 2FA obrigatório')
+      return
+    }
+
+    if (authMethod === 'biometry' && !biometryVerified) {
+      toast.error('Biometria não verificada')
       return
     }
 
@@ -499,13 +567,20 @@ export const AdminWalletsPage: React.FC = () => {
     setActionLoading(true)
 
     try {
+      const headers: Record<string, string> = {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      }
+
+      if (authMethod === '2fa') {
+        headers['X-2FA-Code'] = twoFactorCode
+      } else {
+        headers['X-Biometry-Verified'] = 'true'
+      }
+
       const response = await fetch(`${API_URL}/admin/wallets/blacklist/address`, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'X-2FA-Code': twoFactorCode,
-        },
+        headers,
         body: JSON.stringify({
           address: actionModal.address,
           network: actionModal.network,
@@ -530,15 +605,167 @@ export const AdminWalletsPage: React.FC = () => {
     }
   }
 
+  // Verificar se o usuário tem biometria disponível
+  const checkBiometryAvailable = async () => {
+    try {
+      const token = getAuthToken()
+      if (!token) return
+
+      const response = await fetch(`${API_URL}/auth/webauthn/status`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setHasBiometry(data.has_credentials || false)
+      }
+    } catch (error) {
+      console.error('Erro ao verificar biometria:', error)
+    }
+  }
+
+  // Verificar biometria disponível ao montar
+  useEffect(() => {
+    checkBiometryAvailable()
+  }, [])
+
+  // Autenticar com biometria
+  const authenticateWithBiometry = async (): Promise<boolean> => {
+    try {
+      const token = getAuthToken()
+      if (!token) {
+        toast.error('Token não encontrado')
+        return false
+      }
+
+      // 1. Obter challenge do servidor
+      const challengeResponse = await fetch(`${API_URL}/auth/webauthn/authenticate/begin`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (!challengeResponse.ok) {
+        throw new Error('Falha ao iniciar autenticação biométrica')
+      }
+
+      const challengeData = await challengeResponse.json()
+      const options = challengeData.options
+
+      // Converter Base64URL para ArrayBuffer
+      const base64URLToArrayBuffer = (base64url: string): ArrayBuffer => {
+        const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/')
+        const padLen = (4 - (base64.length % 4)) % 4
+        const padded = base64 + '='.repeat(padLen)
+        const binary = atob(padded)
+        const bytes = new Uint8Array(binary.length)
+        for (let i = 0; i < binary.length; i++) {
+          bytes[i] = binary.charCodeAt(i)
+        }
+        return bytes.buffer
+      }
+
+      // Preparar opções para WebAuthn
+      const publicKeyOptions: PublicKeyCredentialRequestOptions = {
+        challenge: base64URLToArrayBuffer(options.challenge),
+        timeout: options.timeout || 60000,
+        rpId: options.rpId,
+        userVerification: options.userVerification || 'preferred',
+        allowCredentials: options.allowCredentials?.map((cred: any) => ({
+          type: cred.type,
+          id: base64URLToArrayBuffer(cred.id),
+          transports: cred.transports,
+        })),
+      }
+
+      // 2. Solicitar autenticação biométrica
+      const credential = (await navigator.credentials.get({
+        publicKey: publicKeyOptions,
+      })) as PublicKeyCredential
+
+      if (!credential) {
+        throw new Error('Autenticação cancelada')
+      }
+
+      // Converter ArrayBuffer para Base64URL
+      const arrayBufferToBase64URL = (buffer: ArrayBuffer): string => {
+        const bytes = new Uint8Array(buffer)
+        let binary = ''
+        for (let i = 0; i < bytes.length; i++) {
+          const byte = bytes[i]
+          if (byte !== undefined) {
+            binary += String.fromCharCode(byte)
+          }
+        }
+        const base64 = btoa(binary)
+        return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+      }
+
+      const response = credential.response as AuthenticatorAssertionResponse
+
+      // 3. Enviar para verificação no servidor
+      const verifyResponse = await fetch(`${API_URL}/auth/webauthn/authenticate/complete`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: credential.id,
+          rawId: arrayBufferToBase64URL(credential.rawId),
+          response: {
+            clientDataJSON: arrayBufferToBase64URL(response.clientDataJSON),
+            authenticatorData: arrayBufferToBase64URL(response.authenticatorData),
+            signature: arrayBufferToBase64URL(response.signature),
+            userHandle: response.userHandle ? arrayBufferToBase64URL(response.userHandle) : null,
+          },
+          type: credential.type,
+        }),
+      })
+
+      if (!verifyResponse.ok) {
+        throw new Error('Falha na verificação biométrica')
+      }
+
+      const verifyData = await verifyResponse.json()
+
+      if (verifyData.success || verifyData.verified) {
+        setBiometryVerified(true)
+        toast.success('Biometria verificada!')
+        return true
+      }
+
+      return false
+    } catch (error: any) {
+      console.error('Erro na autenticação biométrica:', error)
+      if (error.name === 'NotAllowedError') {
+        toast.error('Autenticação cancelada ou negada')
+      } else {
+        toast.error(error.message || 'Erro na autenticação biométrica')
+      }
+      return false
+    }
+  }
+
   // Fechar modal
   const closeModal = () => {
     setActionModal({ type: null, wallet: null })
     setTwoFactorCode('')
     setActionReason('')
+    setAuthMethod('2fa')
+    setBiometryVerified(false)
   }
 
   // Executar ação baseada no tipo
-  const executeAction = () => {
+  const executeAction = async () => {
+    // Se usar biometria e ainda não verificou, verificar primeiro
+    if (authMethod === 'biometry' && !biometryVerified) {
+      const verified = await authenticateWithBiometry()
+      if (!verified) return
+    }
+
     switch (actionModal.type) {
       case 'block':
         handleBlockWallet()
@@ -1408,24 +1635,94 @@ export const AdminWalletsPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Código 2FA */}
+              {/* Autenticação - Toggle entre 2FA e Biometria */}
               <div className='mb-4'>
-                <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3'>
                   <Shield className='h-4 w-4 inline mr-1 text-blue-500' />
-                  Código 2FA (obrigatório)
+                  Autenticação (obrigatório)
                 </label>
-                <input
-                  type='text'
-                  inputMode='numeric'
-                  maxLength={6}
-                  value={twoFactorCode}
-                  onChange={e => setTwoFactorCode(e.target.value.replace(/\D/g, ''))}
-                  placeholder='000000'
-                  className='w-full px-4 py-3 rounded-xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white placeholder-gray-400 text-center text-2xl font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500/50'
-                />
-                <p className='text-xs text-gray-500 mt-2'>
-                  Digite o código do seu aplicativo autenticador (Google Authenticator, Authy, etc.)
-                </p>
+
+                {/* Toggle de método de autenticação */}
+                {hasBiometry && (
+                  <div className='flex bg-gray-100 dark:bg-white/5 rounded-xl p-1 mb-4'>
+                    <button
+                      type='button'
+                      onClick={() => setAuthMethod('2fa')}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-medium transition-all ${
+                        authMethod === '2fa'
+                          ? 'bg-white dark:bg-white/10 text-blue-600 dark:text-blue-400 shadow-sm'
+                          : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                      }`}
+                    >
+                      <Shield className='h-4 w-4' />
+                      Código 2FA
+                    </button>
+                    <button
+                      type='button'
+                      onClick={() => setAuthMethod('biometry')}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-medium transition-all ${
+                        authMethod === 'biometry'
+                          ? 'bg-white dark:bg-white/10 text-green-600 dark:text-green-400 shadow-sm'
+                          : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                      }`}
+                    >
+                      <Fingerprint className='h-4 w-4' />
+                      Biometria
+                    </button>
+                  </div>
+                )}
+
+                {/* Input de código 2FA */}
+                {authMethod === '2fa' && (
+                  <>
+                    <input
+                      type='text'
+                      inputMode='numeric'
+                      maxLength={6}
+                      value={twoFactorCode}
+                      onChange={e => setTwoFactorCode(e.target.value.replace(/\D/g, ''))}
+                      placeholder='000000'
+                      className='w-full px-4 py-3 rounded-xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white placeholder-gray-400 text-center text-2xl font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500/50'
+                    />
+                    <p className='text-xs text-gray-500 mt-2'>
+                      Digite o código do seu aplicativo autenticador (Google Authenticator, Authy,
+                      etc.)
+                    </p>
+                  </>
+                )}
+
+                {/* Botão de biometria */}
+                {authMethod === 'biometry' && (
+                  <div className='text-center'>
+                    {biometryVerified ? (
+                      <div className='flex flex-col items-center gap-3 py-4'>
+                        <div className='w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center'>
+                          <CheckCircle className='h-8 w-8 text-green-500' />
+                        </div>
+                        <span className='text-green-600 dark:text-green-400 font-medium'>
+                          Biometria verificada!
+                        </span>
+                      </div>
+                    ) : (
+                      <button
+                        type='button'
+                        onClick={authenticateWithBiometry}
+                        disabled={actionLoading}
+                        className='w-full flex flex-col items-center gap-3 py-6 px-4 rounded-xl bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-2 border-dashed border-green-500/30 hover:border-green-500/50 hover:from-green-500/20 hover:to-emerald-500/20 transition-all'
+                      >
+                        <div className='w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center'>
+                          <Fingerprint className='h-8 w-8 text-green-500' />
+                        </div>
+                        <span className='text-green-600 dark:text-green-400 font-medium'>
+                          Clique para autenticar com biometria
+                        </span>
+                        <span className='text-xs text-gray-500'>
+                          Use seu Touch ID, Face ID ou chave de segurança
+                        </span>
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1439,7 +1736,11 @@ export const AdminWalletsPage: React.FC = () => {
               </button>
               <button
                 onClick={executeAction}
-                disabled={!twoFactorCode || twoFactorCode.length !== 6 || actionLoading}
+                disabled={
+                  actionLoading ||
+                  (authMethod === '2fa' && (!twoFactorCode || twoFactorCode.length !== 6)) ||
+                  (authMethod === 'biometry' && !biometryVerified)
+                }
                 className={`flex-1 px-4 py-2.5 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
                   actionModal.type === 'delete'
                     ? 'bg-red-500 hover:bg-red-600 text-white'

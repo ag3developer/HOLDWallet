@@ -148,6 +148,30 @@ class Mandatory2FAMiddleware(BaseHTTPMiddleware):
                 
                 # Se tem 2FA habilitado, verificar se o código foi enviado
                 twofa_code = request.headers.get("X-2FA-Code")
+                biometry_verified = request.headers.get("X-Biometry-Verified")
+                
+                # Verificar se biometria foi usada como alternativa
+                if biometry_verified == "true":
+                    # Verificar se o usuário realmente tem biometria cadastrada
+                    from app.models.webauthn import WebAuthnCredential
+                    has_biometry = db.query(WebAuthnCredential).filter(
+                        WebAuthnCredential.user_id == user.id,
+                        WebAuthnCredential.is_active == True
+                    ).first()
+                    
+                    if has_biometry:
+                        logger.info(f"✅ Biometry verified for admin {user_email} on {method} {path}")
+                        # Biometria válida! Continuar
+                        return await call_next(request)
+                    else:
+                        logger.warning(f"🚫 Admin {user_email} claimed biometry but has no credentials")
+                        return JSONResponse(
+                            status_code=status.HTTP_401_UNAUTHORIZED,
+                            content={
+                                "detail": "Biometry not registered for this user",
+                                "code": "BIOMETRY_NOT_REGISTERED"
+                            }
+                        )
                 
                 if not twofa_code:
                     logger.warning(f"⚠️ Admin {user_email} tried critical operation without 2FA code")
