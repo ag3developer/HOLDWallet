@@ -13,6 +13,7 @@ ENDPOINTS:
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Header
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import Optional, List, Dict, Any
@@ -2387,10 +2388,15 @@ async def get_platform_wallet_status(
         )
 
 
+class AutoEmergencyTransferRequest(BaseModel):
+    """Request para transferência de emergência automática"""
+    to_address: str
+    network: str = "polygon"
+
+
 @router.post("/platform-wallet/auto-emergency-transfer")
 async def auto_emergency_transfer(
-    to_address: str,
-    network: str = "polygon",
+    request: AutoEmergencyTransferRequest,
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
@@ -2399,6 +2405,10 @@ async def auto_emergency_transfer(
     
     Igual ao emergency-transfer, mas usa a private key do .env automaticamente.
     Não precisa passar a private key como parâmetro.
+    
+    Body:
+    - to_address: Endereço destino
+    - network: Rede (polygon, ethereum, bsc, base)
     """
     try:
         from app.core.config import settings
@@ -2411,9 +2421,9 @@ async def auto_emergency_transfer(
         
         # Chama a função de transferência com a chave do .env
         return await emergency_transfer_all_funds(
-            to_address=to_address,
+            to_address=request.to_address,
             old_private_key=settings.PLATFORM_WALLET_PRIVATE_KEY,
-            network=network,
+            network=request.network,
             current_user=current_user,
             db=db
         )
