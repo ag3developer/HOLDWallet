@@ -17,6 +17,7 @@ from app.services.platform_settings_service import platform_settings_service
 
 # Security middleware
 from app.middleware.security import SecurityMiddleware, RateLimitMiddleware
+from app.middleware.api_protection import APIProtectionMiddleware, AdminRouteProtection
 
 # Routers
 from app.routers import auth, users, wallet, wallets, tx, prices, prices_batch, prices_batch_v2, health, blockchain, transactions, billing, portfolio, exchange, p2p, chat, chat_enterprise, reputation, dashboard, two_factor, tokens, wallet_transactions, instant_trade, trader_profiles, admin_instant_trades, webauthn, public_settings, notifications, webhooks_bb, wolkpay, wolkpay_bill, kyc, user_profile, ai, address_book, swap
@@ -107,6 +108,10 @@ app.add_middleware(
 # Add security middleware (IP blocking and rate limiting)
 app.add_middleware(SecurityMiddleware)
 app.add_middleware(RateLimitMiddleware)
+
+# Add API protection middleware (blocks scripts, bots, and protects /docs)
+app.add_middleware(APIProtectionMiddleware)
+app.add_middleware(AdminRouteProtection)
 
 # NÃO precisa mais de middleware de reescrita - rotas diretas agora!
 
