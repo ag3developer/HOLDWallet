@@ -26,6 +26,12 @@ import {
   DollarSign,
   Coins,
   Lock,
+  Ban,
+  Trash2,
+  ShieldOff,
+  AlertTriangle,
+  ShieldX,
+  X,
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 
@@ -211,6 +217,17 @@ export const AdminWalletsPage: React.FC = () => {
   const [loadingBalances, setLoadingBalances] = useState<Set<string>>(new Set())
   const [syncingBlockchain, setSyncingBlockchain] = useState(false)
 
+  // Estados para ações de segurança
+  const [actionModal, setActionModal] = useState<{
+    type: 'block' | 'unblock' | 'delete' | 'blacklist' | null
+    wallet: AdminWallet | null
+    address?: string
+    network?: string
+  }>({ type: null, wallet: null })
+  const [twoFactorCode, setTwoFactorCode] = useState('')
+  const [actionLoading, setActionLoading] = useState(false)
+  const [actionReason, setActionReason] = useState('')
+
   const limit = 20
 
   // Função para consultar saldos blockchain
@@ -326,6 +343,214 @@ export const AdminWalletsPage: React.FC = () => {
       toast.error('Erro ao sincronizar blockchain')
     } finally {
       setSyncingBlockchain(false)
+    }
+  }
+
+  // ============== FUNÇÕES DE SEGURANÇA ==============
+
+  // Bloquear carteira
+  const handleBlockWallet = async () => {
+    if (!actionModal.wallet || !twoFactorCode) {
+      toast.error('Código 2FA obrigatório')
+      return
+    }
+
+    const token = getAuthToken()
+    if (!token) {
+      toast.error('Token não encontrado')
+      return
+    }
+
+    setActionLoading(true)
+
+    try {
+      const response = await fetch(`${API_URL}/admin/wallets/${actionModal.wallet.id}/block`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'X-2FA-Code': twoFactorCode,
+        },
+        body: JSON.stringify({ reason: actionReason || 'Bloqueio administrativo' }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.detail || 'Falha ao bloquear carteira')
+      }
+
+      toast.success(`Carteira de ${actionModal.wallet.email} bloqueada com sucesso`)
+      closeModal()
+      refetchWallets()
+    } catch (error: any) {
+      console.error('Erro ao bloquear carteira:', error)
+      toast.error(error.message || 'Erro ao bloquear carteira')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  // Desbloquear carteira
+  const handleUnblockWallet = async () => {
+    if (!actionModal.wallet || !twoFactorCode) {
+      toast.error('Código 2FA obrigatório')
+      return
+    }
+
+    const token = getAuthToken()
+    if (!token) {
+      toast.error('Token não encontrado')
+      return
+    }
+
+    setActionLoading(true)
+
+    try {
+      const response = await fetch(`${API_URL}/admin/wallets/${actionModal.wallet.id}/unblock`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'X-2FA-Code': twoFactorCode,
+        },
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.detail || 'Falha ao desbloquear carteira')
+      }
+
+      toast.success(`Carteira de ${actionModal.wallet.email} desbloqueada com sucesso`)
+      closeModal()
+      refetchWallets()
+    } catch (error: any) {
+      console.error('Erro ao desbloquear carteira:', error)
+      toast.error(error.message || 'Erro ao desbloquear carteira')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  // Excluir carteira
+  const handleDeleteWallet = async () => {
+    if (!actionModal.wallet || !twoFactorCode) {
+      toast.error('Código 2FA obrigatório')
+      return
+    }
+
+    const token = getAuthToken()
+    if (!token) {
+      toast.error('Token não encontrado')
+      return
+    }
+
+    setActionLoading(true)
+
+    try {
+      const response = await fetch(`${API_URL}/admin/wallets/${actionModal.wallet.id}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'X-2FA-Code': twoFactorCode,
+        },
+        body: JSON.stringify({
+          reason: actionReason || 'Exclusão administrativa',
+          blacklist_addresses: true,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.detail || 'Falha ao excluir carteira')
+      }
+
+      toast.success(
+        `Carteira de ${actionModal.wallet.email} excluída e endereços adicionados à blacklist`
+      )
+      closeModal()
+      refetchWallets()
+      refetchStats()
+    } catch (error: any) {
+      console.error('Erro ao excluir carteira:', error)
+      toast.error(error.message || 'Erro ao excluir carteira')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  // Adicionar endereço à blacklist
+  const handleBlacklistAddress = async () => {
+    if (!actionModal.address || !actionModal.network || !twoFactorCode) {
+      toast.error('Código 2FA obrigatório')
+      return
+    }
+
+    const token = getAuthToken()
+    if (!token) {
+      toast.error('Token não encontrado')
+      return
+    }
+
+    setActionLoading(true)
+
+    try {
+      const response = await fetch(`${API_URL}/admin/wallets/blacklist/address`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'X-2FA-Code': twoFactorCode,
+        },
+        body: JSON.stringify({
+          address: actionModal.address,
+          network: actionModal.network,
+          reason: actionReason || 'Endereço malicioso',
+          user_id: actionModal.wallet?.user_id,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.detail || 'Falha ao adicionar à blacklist')
+      }
+
+      toast.success(`Endereço adicionado à blacklist`)
+      closeModal()
+    } catch (error: any) {
+      console.error('Erro ao adicionar à blacklist:', error)
+      toast.error(error.message || 'Erro ao adicionar à blacklist')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  // Fechar modal
+  const closeModal = () => {
+    setActionModal({ type: null, wallet: null })
+    setTwoFactorCode('')
+    setActionReason('')
+  }
+
+  // Executar ação baseada no tipo
+  const executeAction = () => {
+    switch (actionModal.type) {
+      case 'block':
+        handleBlockWallet()
+        break
+      case 'unblock':
+        handleUnblockWallet()
+        break
+      case 'delete':
+        handleDeleteWallet()
+        break
+      case 'blacklist':
+        handleBlacklistAddress()
+        break
     }
   }
 
@@ -654,6 +879,42 @@ export const AdminWalletsPage: React.FC = () => {
                     </div>
                   </div>
                   <div className='flex items-center gap-6'>
+                    {/* Botões de Ação de Segurança */}
+                    <div className='flex items-center gap-2'>
+                      {wallet.is_active !== false ? (
+                        <button
+                          onClick={e => {
+                            e.stopPropagation()
+                            setActionModal({ type: 'block', wallet })
+                          }}
+                          className='p-2 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/20 transition-colors'
+                          title='Bloquear carteira'
+                        >
+                          <Ban className='h-4 w-4' />
+                        </button>
+                      ) : (
+                        <button
+                          onClick={e => {
+                            e.stopPropagation()
+                            setActionModal({ type: 'unblock', wallet })
+                          }}
+                          className='p-2 rounded-lg bg-green-500/10 hover:bg-green-500/20 text-green-600 dark:text-green-400 border border-green-500/20 transition-colors'
+                          title='Desbloquear carteira'
+                        >
+                          <ShieldOff className='h-4 w-4' />
+                        </button>
+                      )}
+                      <button
+                        onClick={e => {
+                          e.stopPropagation()
+                          setActionModal({ type: 'delete', wallet })
+                        }}
+                        className='p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/20 transition-colors'
+                        title='Excluir carteira e adicionar à blacklist'
+                      >
+                        <Trash2 className='h-4 w-4' />
+                      </button>
+                    </div>
                     <div className='text-right'>
                       <div className='flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400'>
                         <Globe className='h-3 w-3' />
@@ -926,6 +1187,21 @@ export const AdminWalletsPage: React.FC = () => {
                                         >
                                           <ExternalLink className='h-4 w-4' />
                                         </a>
+                                        <button
+                                          onClick={e => {
+                                            e.stopPropagation()
+                                            setActionModal({
+                                              type: 'blacklist',
+                                              wallet,
+                                              address: addr.address,
+                                              network: network,
+                                            })
+                                          }}
+                                          className='p-1.5 rounded hover:bg-red-500/20 text-gray-400 hover:text-red-500 dark:hover:text-red-400'
+                                          title='Adicionar à blacklist'
+                                        >
+                                          <ShieldX className='h-4 w-4' />
+                                        </button>
                                       </div>
                                     </div>
                                   </div>
@@ -994,6 +1270,201 @@ export const AdminWalletsPage: React.FC = () => {
               Próximo
               <ChevronRight className='h-4 w-4' />
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmação de Ação com 2FA */}
+      {actionModal.type && (
+        <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm'>
+          <div className='bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded-2xl w-full max-w-md mx-4 shadow-2xl'>
+            {/* Header */}
+            <div
+              className={`px-6 py-4 border-b border-gray-200 dark:border-white/10 rounded-t-2xl ${
+                actionModal.type === 'delete'
+                  ? 'bg-red-500/10'
+                  : actionModal.type === 'block'
+                    ? 'bg-amber-500/10'
+                    : actionModal.type === 'blacklist'
+                      ? 'bg-purple-500/10'
+                      : 'bg-green-500/10'
+              }`}
+            >
+              <div className='flex items-center justify-between'>
+                <div className='flex items-center gap-3'>
+                  {actionModal.type === 'delete' && <Trash2 className='h-6 w-6 text-red-500' />}
+                  {actionModal.type === 'block' && <Ban className='h-6 w-6 text-amber-500' />}
+                  {actionModal.type === 'unblock' && (
+                    <ShieldOff className='h-6 w-6 text-green-500' />
+                  )}
+                  {actionModal.type === 'blacklist' && (
+                    <ShieldX className='h-6 w-6 text-purple-500' />
+                  )}
+                  <h3 className='text-lg font-semibold text-gray-900 dark:text-white'>
+                    {actionModal.type === 'delete' && 'Excluir Carteira'}
+                    {actionModal.type === 'block' && 'Bloquear Carteira'}
+                    {actionModal.type === 'unblock' && 'Desbloquear Carteira'}
+                    {actionModal.type === 'blacklist' && 'Adicionar à Blacklist'}
+                  </h3>
+                </div>
+                <button
+                  onClick={closeModal}
+                  className='p-1 rounded-lg hover:bg-gray-200 dark:hover:bg-white/10 text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors'
+                  title='Fechar'
+                  aria-label='Fechar modal'
+                >
+                  <X className='h-5 w-5' />
+                </button>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className='px-6 py-5'>
+              {/* Aviso */}
+              <div
+                className={`flex items-start gap-3 p-4 rounded-xl mb-4 ${
+                  actionModal.type === 'delete'
+                    ? 'bg-red-500/10 border border-red-500/20'
+                    : actionModal.type === 'block'
+                      ? 'bg-amber-500/10 border border-amber-500/20'
+                      : actionModal.type === 'blacklist'
+                        ? 'bg-purple-500/10 border border-purple-500/20'
+                        : 'bg-green-500/10 border border-green-500/20'
+                }`}
+              >
+                <AlertTriangle
+                  className={`h-5 w-5 flex-shrink-0 mt-0.5 ${
+                    actionModal.type === 'delete'
+                      ? 'text-red-500'
+                      : actionModal.type === 'block'
+                        ? 'text-amber-500'
+                        : actionModal.type === 'blacklist'
+                          ? 'text-purple-500'
+                          : 'text-green-500'
+                  }`}
+                />
+                <div>
+                  <p className='text-sm text-gray-700 dark:text-gray-300'>
+                    {actionModal.type === 'delete' && (
+                      <>
+                        Esta ação é <strong>irreversível</strong>. A carteira será excluída e todos
+                        os endereços serão adicionados à blacklist.
+                      </>
+                    )}
+                    {actionModal.type === 'block' && (
+                      <>O usuário não poderá acessar esta carteira ou realizar transações.</>
+                    )}
+                    {actionModal.type === 'unblock' && (
+                      <>A carteira será reativada e o usuário poderá voltar a utilizá-la.</>
+                    )}
+                    {actionModal.type === 'blacklist' && (
+                      <>O endereço será permanentemente bloqueado para novas transações.</>
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              {/* Info da Carteira */}
+              {actionModal.wallet && (
+                <div className='bg-gray-100 dark:bg-white/5 rounded-xl p-4 mb-4'>
+                  <div className='flex items-center gap-3'>
+                    <div className='w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold'>
+                      {actionModal.wallet.username?.[0]?.toUpperCase() || 'U'}
+                    </div>
+                    <div>
+                      <p className='font-medium text-gray-900 dark:text-white'>
+                        {actionModal.wallet.username}
+                      </p>
+                      <p className='text-sm text-gray-500'>{actionModal.wallet.email}</p>
+                    </div>
+                  </div>
+                  {actionModal.address && (
+                    <div className='mt-3 pt-3 border-t border-gray-200 dark:border-white/10'>
+                      <p className='text-xs text-gray-500 mb-1'>Endereço:</p>
+                      <code className='text-xs text-gray-900 dark:text-white font-mono break-all'>
+                        {actionModal.address}
+                      </code>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Motivo (opcional para block/delete) */}
+              {(actionModal.type === 'block' ||
+                actionModal.type === 'delete' ||
+                actionModal.type === 'blacklist') && (
+                <div className='mb-4'>
+                  <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                    Motivo (opcional)
+                  </label>
+                  <input
+                    type='text'
+                    value={actionReason}
+                    onChange={e => setActionReason(e.target.value)}
+                    placeholder='Ex: Atividade suspeita, fraude, etc.'
+                    className='w-full px-4 py-2.5 rounded-xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50'
+                  />
+                </div>
+              )}
+
+              {/* Código 2FA */}
+              <div className='mb-4'>
+                <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                  <Shield className='h-4 w-4 inline mr-1 text-blue-500' />
+                  Código 2FA (obrigatório)
+                </label>
+                <input
+                  type='text'
+                  inputMode='numeric'
+                  maxLength={6}
+                  value={twoFactorCode}
+                  onChange={e => setTwoFactorCode(e.target.value.replace(/\D/g, ''))}
+                  placeholder='000000'
+                  className='w-full px-4 py-3 rounded-xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white placeholder-gray-400 text-center text-2xl font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500/50'
+                />
+                <p className='text-xs text-gray-500 mt-2'>
+                  Digite o código do seu aplicativo autenticador (Google Authenticator, Authy, etc.)
+                </p>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className='px-6 py-4 border-t border-gray-200 dark:border-white/10 flex gap-3'>
+              <button
+                onClick={closeModal}
+                className='flex-1 px-4 py-2.5 rounded-xl bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 font-medium transition-colors'
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={executeAction}
+                disabled={!twoFactorCode || twoFactorCode.length !== 6 || actionLoading}
+                className={`flex-1 px-4 py-2.5 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
+                  actionModal.type === 'delete'
+                    ? 'bg-red-500 hover:bg-red-600 text-white'
+                    : actionModal.type === 'block'
+                      ? 'bg-amber-500 hover:bg-amber-600 text-white'
+                      : actionModal.type === 'blacklist'
+                        ? 'bg-purple-500 hover:bg-purple-600 text-white'
+                        : 'bg-green-500 hover:bg-green-600 text-white'
+                }`}
+              >
+                {actionLoading ? (
+                  <>
+                    <RefreshCw className='h-4 w-4 animate-spin' />
+                    Processando...
+                  </>
+                ) : (
+                  <>
+                    {actionModal.type === 'delete' && <Trash2 className='h-4 w-4' />}
+                    {actionModal.type === 'block' && <Ban className='h-4 w-4' />}
+                    {actionModal.type === 'unblock' && <ShieldOff className='h-4 w-4' />}
+                    {actionModal.type === 'blacklist' && <ShieldX className='h-4 w-4' />}
+                    Confirmar
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

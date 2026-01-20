@@ -40,6 +40,18 @@ class BalanceAdjustRequest(BaseModel):
     operation: str  # 'add', 'subtract' ou 'set'
 
 
+class BlockWalletRequest(BaseModel):
+    reason: str
+    freeze_balance: bool = True  # Congela o saldo também
+
+
+class BlacklistAddressRequest(BaseModel):
+    address: str
+    network: str
+    reason: str
+    block_user: bool = False  # Também bloqueia o usuário dono
+
+
 # ===== ENDPOINTS - WALLETS =====
 
 @router.get("/stats", response_model=dict)
@@ -921,3 +933,356 @@ async def sync_all_blockchain_balances(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
         )
+
+
+# ===== ENDPOINTS - SEGURANÇA E BLOQUEIO =====
+
+@router.post("/{wallet_id}/block", response_model=dict)
+async def block_wallet(
+    wallet_id: str,
+    request: BlockWalletRequest,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin)
+):
+    """
+    🚫 Bloqueia uma carteira suspeita.
+    
+    Ações:
+    - Marca carteira como bloqueada
+    - Opcionalmente congela os saldos
+    - Registra no histórico de auditoria
+    - Bloqueia o usuário dono (opcional)
+    """
+    try:
+        wallet = db.query(Wallet).filter(Wallet.id == wallet_id).first()
+        if not wallet:
+            raise HTTPException(status_code=404, detail="Wallet not found")
+        
+        # Buscar usuário dono
+        user = db.query(User).filter(User.id == wallet.user_id).first()
+        
+        # Marcar carteira como bloqueada (adiciona campo se não existir)
+        if hasattr(wallet, 'is_blocked'):
+            wallet.is_blocked = True
+        if hasattr(wallet, 'blocked_at'):
+            wallet.blocked_at = datetime.now(timezone.utc)
+        if hasattr(wallet, 'blocked_reason'):
+            wallet.blocked_reason = request.reason
+        if hasattr(wallet, 'blocked_by'):
+            wallet.blocked_by = str(current_admin.id)
+        
+        # Congelar saldos se solicitado
+        frozen_balances = []
+        if request.freeze_balance:
+            balances = db.query(WalletBalance).filter(
+                WalletBalance.user_id == wallet.user_id
+            ).all()
+            
+            for balance in balances:
+                if balance.available_balance > 0:
+                    # Mover saldo disponível para bloqueado
+                    old_available = float(balance.available_balance)
+                    balance.locked_balance = float(balance.locked_balance or 0) + old_available
+                    balance.available_balance = 0
+                    
+                    frozen_balances.append({
+                        "cryptocurrency": balance.cryptocurrency,
+                        "frozen_amount": old_available
+                    })
+                    
+                    # Registrar histórico
+                    history = BalanceHistory(
+                        user_id=wallet.user_id,
+                        cryptocurrency=balance.cryptocurrency,
+                        amount=-old_available,
+                        balance_after=0,
+                        operation_type="ADMIN_FREEZE",
+                        reason=f"Carteira bloqueada por admin: {request.reason}",
+                        performed_by=str(current_admin.id)
+                    )
+                    db.add(history)
+        
+        db.commit()
+        
+        logger.warning(f"🚫 Wallet {wallet_id} bloqueada por admin {current_admin.email}: {request.reason}")
+        
+        return {
+            "success": True,
+            "message": f"Wallet blocked successfully",
+            "wallet_id": wallet_id,
+            "user_email": user.email if user else None,
+            "reason": request.reason,
+            "frozen_balances": frozen_balances,
+            "blocked_at": datetime.now(timezone.utc).isoformat(),
+            "blocked_by": current_admin.email
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"❌ Erro bloqueando wallet: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{wallet_id}/unblock", response_model=dict)
+async def unblock_wallet(
+    wallet_id: str,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin)
+):
+    """
+    ✅ Desbloqueia uma carteira.
+    """
+    try:
+        wallet = db.query(Wallet).filter(Wallet.id == wallet_id).first()
+        if not wallet:
+            raise HTTPException(status_code=404, detail="Wallet not found")
+        
+        if hasattr(wallet, 'is_blocked'):
+            wallet.is_blocked = False
+        if hasattr(wallet, 'blocked_at'):
+            wallet.blocked_at = None
+        if hasattr(wallet, 'blocked_reason'):
+            wallet.blocked_reason = None
+        
+        db.commit()
+        
+        logger.info(f"✅ Wallet {wallet_id} desbloqueada por admin {current_admin.email}")
+        
+        return {
+            "success": True,
+            "message": "Wallet unblocked successfully",
+            "wallet_id": wallet_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/{wallet_id}", response_model=dict)
+async def delete_wallet(
+    wallet_id: str,
+    force: bool = Query(False, description="Força exclusão mesmo com saldo"),
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin)
+):
+    """
+    🗑️ Remove uma carteira do sistema.
+    
+    ⚠️ CUIDADO: Esta ação é irreversível!
+    
+    - Por padrão, não permite excluir carteiras com saldo
+    - Use force=true para excluir mesmo com saldo (auditar!)
+    """
+    try:
+        wallet = db.query(Wallet).filter(Wallet.id == wallet_id).first()
+        if not wallet:
+            raise HTTPException(status_code=404, detail="Wallet not found")
+        
+        # Verificar saldos
+        balances = db.query(WalletBalance).filter(
+            WalletBalance.user_id == wallet.user_id
+        ).all()
+        
+        total_balance = sum(float(b.available_balance or 0) + float(b.locked_balance or 0) for b in balances)
+        
+        if total_balance > 0 and not force:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Wallet has balance ({total_balance}). Use force=true to delete anyway."
+            )
+        
+        user = db.query(User).filter(User.id == wallet.user_id).first()
+        user_email = user.email if user else "unknown"
+        
+        # Registrar antes de deletar
+        logger.warning(f"🗑️ DELETANDO wallet {wallet_id} (user: {user_email}) por admin {current_admin.email}")
+        
+        # Deletar saldos associados
+        db.query(WalletBalance).filter(WalletBalance.user_id == wallet.user_id).delete()
+        
+        # Deletar histórico de saldos
+        db.query(BalanceHistory).filter(BalanceHistory.user_id == wallet.user_id).delete()
+        
+        # Deletar a wallet
+        db.delete(wallet)
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": "Wallet deleted successfully",
+            "wallet_id": wallet_id,
+            "user_email": user_email,
+            "deleted_by": current_admin.email,
+            "deleted_at": datetime.now(timezone.utc).isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"❌ Erro deletando wallet: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/blacklist/address", response_model=dict)
+async def blacklist_address(
+    request: BlacklistAddressRequest,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin)
+):
+    """
+    🚫 Adiciona um endereço à lista negra.
+    
+    Endereços na blacklist:
+    - Não podem receber depósitos
+    - Não podem ser usados para saques
+    - Transações são bloqueadas automaticamente
+    """
+    from app.models.blacklist import AddressBlacklist
+    
+    try:
+        # Verificar se já existe
+        existing = db.query(AddressBlacklist).filter(
+            AddressBlacklist.address == request.address.lower(),
+            AddressBlacklist.network == request.network.lower()
+        ).first()
+        
+        if existing:
+            raise HTTPException(
+                status_code=400,
+                detail="Address already blacklisted"
+            )
+        
+        # Buscar quem é o dono deste endereço
+        wallet = db.query(Wallet).filter(
+            func.lower(Wallet.address) == request.address.lower()
+        ).first()
+        
+        owner_user = None
+        if wallet:
+            owner_user = db.query(User).filter(User.id == wallet.user_id).first()
+        
+        # Criar entrada na blacklist
+        blacklist_entry = AddressBlacklist(
+            address=request.address.lower(),
+            network=request.network.lower(),
+            reason=request.reason,
+            added_by=str(current_admin.id),
+            added_at=datetime.now(timezone.utc),
+            user_id=str(wallet.user_id) if wallet else None
+        )
+        db.add(blacklist_entry)
+        
+        # Bloquear usuário se solicitado
+        if request.block_user and owner_user:
+            owner_user.is_active = False
+            logger.warning(f"🚫 Usuário {owner_user.email} bloqueado junto com endereço")
+        
+        db.commit()
+        
+        logger.warning(f"🚫 Endereço {request.address} ({request.network}) adicionado à blacklist por {current_admin.email}: {request.reason}")
+        
+        return {
+            "success": True,
+            "message": "Address blacklisted successfully",
+            "address": request.address,
+            "network": request.network,
+            "reason": request.reason,
+            "owner_email": owner_user.email if owner_user else None,
+            "owner_blocked": request.block_user and owner_user is not None,
+            "added_by": current_admin.email
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"❌ Erro adicionando à blacklist: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/blacklist", response_model=dict)
+async def list_blacklisted_addresses(
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin)
+):
+    """
+    📋 Lista todos os endereços na blacklist.
+    """
+    from app.models.blacklist import AddressBlacklist
+    
+    try:
+        entries = db.query(AddressBlacklist).order_by(
+            desc(AddressBlacklist.added_at)
+        ).all()
+        
+        result = []
+        for entry in entries:
+            user = None
+            if entry.user_id:
+                user = db.query(User).filter(User.id == entry.user_id).first()
+            
+            result.append({
+                "id": str(entry.id),
+                "address": entry.address,
+                "network": entry.network,
+                "reason": entry.reason,
+                "user_email": user.email if user else None,
+                "added_at": entry.added_at.isoformat() if entry.added_at else None,
+                "added_by": entry.added_by
+            })
+        
+        return {
+            "success": True,
+            "total": len(result),
+            "blacklist": result
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Erro listando blacklist: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/blacklist/{address}", response_model=dict)
+async def remove_from_blacklist(
+    address: str,
+    network: str = Query(..., description="Network do endereço"),
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin)
+):
+    """
+    ✅ Remove um endereço da blacklist.
+    """
+    from app.models.blacklist import AddressBlacklist
+    
+    try:
+        entry = db.query(AddressBlacklist).filter(
+            AddressBlacklist.address == address.lower(),
+            AddressBlacklist.network == network.lower()
+        ).first()
+        
+        if not entry:
+            raise HTTPException(status_code=404, detail="Address not found in blacklist")
+        
+        db.delete(entry)
+        db.commit()
+        
+        logger.info(f"✅ Endereço {address} removido da blacklist por {current_admin.email}")
+        
+        return {
+            "success": True,
+            "message": "Address removed from blacklist",
+            "address": address,
+            "network": network
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))

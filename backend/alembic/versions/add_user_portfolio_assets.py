@@ -38,7 +38,7 @@ def upgrade():
 
 
 def downgrade():
-    op.drop_index('ix_user_portfolio_user_symbol', table_name='user_portfolio_assets'
+    op.drop_index('ix_user_portfolio_user_symbol', table_name='user_portfolio_assets')
     op.drop_index('ix_user_portfolio_assets_symbol', table_name='user_portfolio_assets')
     op.drop_index('ix_user_portfolio_assets_user_id', table_name='user_portfolio_assets')
     op.drop_table('user_portfolio_assets')

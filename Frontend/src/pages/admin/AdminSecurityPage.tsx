@@ -40,6 +40,8 @@ import {
   Zap,
   Database,
   Server,
+  QrCode,
+  ShieldOff,
 } from 'lucide-react'
 import { apiClient } from '@/services/api'
 
@@ -275,10 +277,26 @@ const SeverityBadge: React.FC<{ severity: string }> = ({ severity }) => {
 export const AdminSecurityPage: React.FC = () => {
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'sessions' | 'failed-logins' | 'suspicious' | 'blocked-ips'
+    'overview' | 'sessions' | 'failed-logins' | 'suspicious' | 'blocked-ips' | 'my-2fa'
   >('overview')
   const [failedLoginsPage, setFailedLoginsPage] = useState(1)
   const [searchTerm, setSearchTerm] = useState('')
+
+  // Estados para 2FA do Admin
+  const [twoFaSetupData, setTwoFaSetupData] = useState<{
+    secret: string
+    qr_code: string
+    backup_codes: string[]
+  } | null>(null)
+  const [twoFaCode, setTwoFaCode] = useState('')
+  const [twoFaLoading, setTwoFaLoading] = useState(false)
+  const [adminHas2FA, setAdminHas2FA] = useState<boolean | null>(null)
+
+  // Estados para Biometria
+  const [biometryAvailable, setBiometryAvailable] = useState<boolean>(false)
+  const [biometryEnabled, setBiometryEnabled] = useState<boolean>(false)
+  const [biometryLoading, setBiometryLoading] = useState(false)
+  const [biometryType, setBiometryType] = useState<string>('fingerprint') // fingerprint, face, iris
 
   // Queries
   const {
@@ -403,6 +421,210 @@ export const AdminSecurityPage: React.FC = () => {
       return <Smartphone className='h-4 w-4' />
     }
     return <Monitor className='h-4 w-4' />
+  }
+
+  // ========== FUNÇÕES 2FA DO ADMIN ==========
+
+  // Verificar se admin tem 2FA ativo
+  const checkAdmin2FA = async () => {
+    try {
+      const { data } = await apiClient.get('/auth/2fa/status')
+      setAdminHas2FA(data.is_enabled || false)
+    } catch {
+      setAdminHas2FA(false)
+    }
+  }
+
+  // Iniciar setup de 2FA
+  const initiate2FASetup = async () => {
+    setTwoFaLoading(true)
+    try {
+      const { data } = await apiClient.post('/auth/2fa/setup')
+      setTwoFaSetupData({
+        secret: data.secret,
+        qr_code: data.qr_code,
+        backup_codes: data.backup_codes || [],
+      })
+      toast.success('QR Code gerado! Escaneie com seu app autenticador.')
+    } catch (error: any) {
+      toast.error(error?.response?.data?.detail || 'Erro ao iniciar configuração 2FA')
+    } finally {
+      setTwoFaLoading(false)
+    }
+  }
+
+  // Confirmar ativação do 2FA
+  const confirm2FASetup = async () => {
+    if (!twoFaCode || twoFaCode.length !== 6) {
+      toast.error('Digite o código de 6 dígitos')
+      return
+    }
+
+    setTwoFaLoading(true)
+    try {
+      await apiClient.post('/auth/2fa/verify', { code: twoFaCode })
+      toast.success('2FA ativado com sucesso!')
+      setAdminHas2FA(true)
+      setTwoFaSetupData(null)
+      setTwoFaCode('')
+    } catch (error: any) {
+      toast.error(error?.response?.data?.detail || 'Código inválido')
+    } finally {
+      setTwoFaLoading(false)
+    }
+  }
+
+  // Desativar 2FA
+  const disable2FA = async () => {
+    if (!twoFaCode || twoFaCode.length !== 6) {
+      toast.error('Digite o código de 6 dígitos para desativar')
+      return
+    }
+
+    setTwoFaLoading(true)
+    try {
+      await apiClient.post('/auth/2fa/disable', { code: twoFaCode })
+      toast.success('2FA desativado com sucesso')
+      setAdminHas2FA(false)
+      setTwoFaCode('')
+    } catch (error: any) {
+      toast.error(error?.response?.data?.detail || 'Código inválido')
+    } finally {
+      setTwoFaLoading(false)
+    }
+  }
+
+  // Verificar status 2FA ao carregar
+  React.useEffect(() => {
+    checkAdmin2FA()
+    checkBiometryAvailability()
+  }, [])
+
+  // ========== FUNÇÕES BIOMETRIA ==========
+
+  // Verificar se biometria está disponível no dispositivo
+  const checkBiometryAvailability = async () => {
+    try {
+      // Verificar suporte WebAuthn
+      if (globalThis.PublicKeyCredential) {
+        const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
+        setBiometryAvailable(available)
+
+        // Verificar se já está configurada
+        const storedBiometry = localStorage.getItem('holdwallet_biometry_enabled')
+        setBiometryEnabled(storedBiometry === 'true')
+
+        // Detectar tipo de biometria (simplificado)
+        const userAgent = navigator.userAgent.toLowerCase()
+        if (userAgent.includes('iphone') || userAgent.includes('ipad')) {
+          setBiometryType('face') // Face ID no iOS
+        } else {
+          setBiometryType('fingerprint') // Fingerprint em outros
+        }
+      }
+    } catch {
+      setBiometryAvailable(false)
+    }
+  }
+
+  // Ativar biometria
+  const enableBiometry = async () => {
+    setBiometryLoading(true)
+    try {
+      // Criar credencial WebAuthn
+      const challenge = new Uint8Array(32)
+      crypto.getRandomValues(challenge)
+
+      const credential = await navigator.credentials.create({
+        publicKey: {
+          challenge,
+          rp: {
+            name: 'HOLD Wallet Admin',
+            id: globalThis.location.hostname,
+          },
+          user: {
+            id: new Uint8Array(16),
+            name: 'admin@holdwallet.com',
+            displayName: 'Admin',
+          },
+          pubKeyCredParams: [
+            { alg: -7, type: 'public-key' },
+            { alg: -257, type: 'public-key' },
+          ],
+          authenticatorSelection: {
+            authenticatorAttachment: 'platform',
+            userVerification: 'required',
+          },
+          timeout: 60000,
+        },
+      })
+
+      if (credential) {
+        // Salvar que biometria foi configurada
+        localStorage.setItem('holdwallet_biometry_enabled', 'true')
+        localStorage.setItem('holdwallet_biometry_credential', credential.id)
+        setBiometryEnabled(true)
+        toast.success(`${biometryType === 'face' ? 'Face ID' : 'Biometria'} ativada com sucesso!`)
+      }
+    } catch (error: any) {
+      console.error('Erro ao ativar biometria:', error)
+      if (error.name === 'NotAllowedError') {
+        toast.error('Autenticação biométrica cancelada ou negada')
+      } else {
+        toast.error('Erro ao configurar biometria')
+      }
+    } finally {
+      setBiometryLoading(false)
+    }
+  }
+
+  // Desativar biometria
+  const disableBiometry = () => {
+    localStorage.removeItem('holdwallet_biometry_enabled')
+    localStorage.removeItem('holdwallet_biometry_credential')
+    setBiometryEnabled(false)
+    toast.success('Biometria desativada')
+  }
+
+  // Testar biometria
+  const testBiometry = async () => {
+    setBiometryLoading(true)
+    try {
+      const challenge = new Uint8Array(32)
+      crypto.getRandomValues(challenge)
+
+      const credentialId = localStorage.getItem('holdwallet_biometry_credential')
+      if (!credentialId) {
+        toast.error('Biometria não configurada')
+        return
+      }
+
+      await navigator.credentials.get({
+        publicKey: {
+          challenge,
+          rpId: globalThis.location.hostname,
+          allowCredentials: [
+            {
+              id: Uint8Array.from(atob(credentialId), c => c.codePointAt(0) || 0),
+              type: 'public-key',
+              transports: ['internal'],
+            },
+          ],
+          userVerification: 'required',
+          timeout: 60000,
+        },
+      })
+
+      toast.success('Biometria verificada com sucesso!')
+    } catch (error: any) {
+      if (error.name === 'NotAllowedError') {
+        toast.error('Autenticação cancelada ou negada')
+      } else {
+        toast.error('Erro ao verificar biometria')
+      }
+    } finally {
+      setBiometryLoading(false)
+    }
   }
 
   // Calculate 2FA percentage - use the rate from API
@@ -545,6 +767,7 @@ export const AdminSecurityPage: React.FC = () => {
         <div className='flex gap-1 overflow-x-auto pb-px -mb-px'>
           {[
             { id: 'overview', label: 'Visão Geral', icon: Shield },
+            { id: 'my-2fa', label: 'Minha Segurança', icon: Smartphone },
             { id: 'sessions', label: 'Sessões', icon: Activity },
             { id: 'failed-logins', label: 'Logins Falhados', icon: ShieldAlert },
             { id: 'suspicious', label: 'Suspeitas', icon: AlertTriangle },
@@ -1146,6 +1369,400 @@ export const AdminSecurityPage: React.FC = () => {
                 <p className='text-gray-500 dark:text-gray-400 text-sm'>Nenhum IP bloqueado</p>
               </div>
             )}
+          </div>
+        )}
+
+        {/* My 2FA Tab */}
+        {activeTab === 'my-2fa' && (
+          <div className='max-w-2xl mx-auto'>
+            <div className='bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden'>
+              {/* Header */}
+              <div className='p-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-500/10 to-purple-500/10'>
+                <div className='flex items-center gap-3'>
+                  <div className='p-3 bg-blue-500/20 rounded-xl'>
+                    <Smartphone className='h-6 w-6 text-blue-600 dark:text-blue-400' />
+                  </div>
+                  <div>
+                    <h3 className='text-lg font-semibold text-gray-900 dark:text-white'>
+                      Autenticação de Dois Fatores (2FA)
+                    </h3>
+                    <p className='text-sm text-gray-500 dark:text-gray-400'>
+                      Proteja sua conta administrativa com 2FA obrigatório
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Status */}
+              <div className='p-6'>
+                {adminHas2FA === null ? (
+                  <div className='flex items-center justify-center py-8'>
+                    <RefreshCw className='h-6 w-6 animate-spin text-gray-400' />
+                  </div>
+                ) : adminHas2FA ? (
+                  // 2FA Ativo
+                  <div className='space-y-6'>
+                    <div className='flex items-center gap-4 p-4 bg-green-500/10 border border-green-500/20 rounded-xl'>
+                      <div className='p-2 bg-green-500/20 rounded-lg'>
+                        <ShieldCheck className='h-6 w-6 text-green-600 dark:text-green-400' />
+                      </div>
+                      <div>
+                        <p className='font-medium text-green-700 dark:text-green-300'>
+                          2FA está ATIVO
+                        </p>
+                        <p className='text-sm text-green-600/80 dark:text-green-400/80'>
+                          Sua conta está protegida com autenticação de dois fatores
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className='border-t border-gray-200 dark:border-gray-700 pt-6'>
+                      <h4 className='text-sm font-medium text-gray-700 dark:text-gray-300 mb-4'>
+                        Desativar 2FA
+                      </h4>
+                      <div className='p-4 bg-red-500/5 border border-red-500/20 rounded-xl'>
+                        <div className='flex items-start gap-3 mb-4'>
+                          <AlertTriangle className='h-5 w-5 text-red-500 flex-shrink-0 mt-0.5' />
+                          <p className='text-sm text-red-600/80 dark:text-red-400/80'>
+                            Desativar 2FA reduzirá significativamente a segurança da sua conta. Você
+                            não poderá executar ações críticas sem 2FA ativo.
+                          </p>
+                        </div>
+                        <div className='flex flex-col sm:flex-row gap-3'>
+                          <input
+                            type='text'
+                            inputMode='numeric'
+                            maxLength={6}
+                            value={twoFaCode}
+                            onChange={e => setTwoFaCode(e.target.value.replace(/\D/g, ''))}
+                            placeholder='000000'
+                            className='flex-1 px-4 py-2.5 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white text-center text-lg font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-red-500/50'
+                          />
+                          <button
+                            onClick={disable2FA}
+                            disabled={twoFaLoading || twoFaCode.length !== 6}
+                            className='px-6 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2'
+                          >
+                            {twoFaLoading ? (
+                              <RefreshCw className='h-4 w-4 animate-spin' />
+                            ) : (
+                              <ShieldOff className='h-4 w-4' />
+                            )}
+                            Desativar
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : twoFaSetupData ? (
+                  // Setup em andamento - mostrar QR Code
+                  <div className='space-y-6'>
+                    <div className='text-center'>
+                      <div className='inline-flex p-4 bg-white rounded-2xl shadow-lg mb-4'>
+                        <img src={twoFaSetupData.qr_code} alt='QR Code 2FA' className='w-48 h-48' />
+                      </div>
+                      <p className='text-sm text-gray-500 dark:text-gray-400'>
+                        Escaneie este QR Code com seu aplicativo autenticador
+                      </p>
+                      <p className='text-xs text-gray-400 dark:text-gray-500 mt-1'>
+                        Google Authenticator, Authy, Microsoft Authenticator, etc.
+                      </p>
+                    </div>
+
+                    {/* Código Manual */}
+                    <div className='p-4 bg-gray-100 dark:bg-gray-700/30 rounded-xl'>
+                      <p className='text-xs text-gray-500 dark:text-gray-400 mb-2'>
+                        Ou digite manualmente:
+                      </p>
+                      <div className='flex items-center gap-2'>
+                        <code className='flex-1 px-3 py-2 bg-white dark:bg-gray-900 rounded-lg text-sm font-mono text-gray-900 dark:text-white break-all'>
+                          {twoFaSetupData.secret}
+                        </code>
+                        <button
+                          onClick={() => copyToClipboard(twoFaSetupData.secret)}
+                          className='p-2 bg-gray-200 dark:bg-gray-600 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors'
+                          title='Copiar'
+                        >
+                          <Copy className='h-4 w-4 text-gray-600 dark:text-gray-300' />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Backup Codes */}
+                    {twoFaSetupData.backup_codes && twoFaSetupData.backup_codes.length > 0 && (
+                      <div className='p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-xl'>
+                        <div className='flex items-start gap-3 mb-3'>
+                          <Key className='h-5 w-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0' />
+                          <div>
+                            <p className='font-medium text-yellow-700 dark:text-yellow-300'>
+                              Códigos de Backup
+                            </p>
+                            <p className='text-xs text-yellow-600/80 dark:text-yellow-400/80'>
+                              Guarde estes códigos em local seguro. Cada código pode ser usado
+                              apenas uma vez.
+                            </p>
+                          </div>
+                        </div>
+                        <div className='grid grid-cols-2 gap-2'>
+                          {twoFaSetupData.backup_codes.map((code, idx) => (
+                            <code
+                              key={idx}
+                              className='px-3 py-1.5 bg-white dark:bg-gray-900 rounded text-sm font-mono text-gray-700 dark:text-gray-300 text-center'
+                            >
+                              {code}
+                            </code>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Verificar Código */}
+                    <div className='border-t border-gray-200 dark:border-gray-700 pt-6'>
+                      <h4 className='text-sm font-medium text-gray-700 dark:text-gray-300 mb-3'>
+                        Digite o código do seu aplicativo para confirmar:
+                      </h4>
+                      <div className='flex flex-col sm:flex-row gap-3'>
+                        <input
+                          type='text'
+                          inputMode='numeric'
+                          maxLength={6}
+                          value={twoFaCode}
+                          onChange={e => setTwoFaCode(e.target.value.replace(/\D/g, ''))}
+                          placeholder='000000'
+                          className='flex-1 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700/30 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white text-center text-2xl font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500/50'
+                        />
+                        <button
+                          onClick={confirm2FASetup}
+                          disabled={twoFaLoading || twoFaCode.length !== 6}
+                          className='px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2'
+                        >
+                          {twoFaLoading ? (
+                            <RefreshCw className='h-4 w-4 animate-spin' />
+                          ) : (
+                            <CheckCircle className='h-4 w-4' />
+                          )}
+                          Ativar 2FA
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  // 2FA não configurado
+                  <div className='space-y-6'>
+                    <div className='flex items-center gap-4 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-xl'>
+                      <div className='p-2 bg-yellow-500/20 rounded-lg'>
+                        <AlertTriangle className='h-6 w-6 text-yellow-600 dark:text-yellow-400' />
+                      </div>
+                      <div>
+                        <p className='font-medium text-yellow-700 dark:text-yellow-300'>
+                          2FA não está configurado
+                        </p>
+                        <p className='text-sm text-yellow-600/80 dark:text-yellow-400/80'>
+                          Configure a autenticação de dois fatores para proteger sua conta
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className='space-y-4'>
+                      <h4 className='text-sm font-medium text-gray-700 dark:text-gray-300'>
+                        Por que usar 2FA?
+                      </h4>
+                      <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
+                        {[
+                          { icon: Shield, text: 'Proteção extra contra acessos não autorizados' },
+                          { icon: Lock, text: 'Obrigatório para operações críticas' },
+                          { icon: Key, text: 'Códigos de backup para emergências' },
+                          { icon: Smartphone, text: 'Compatível com Google Authenticator' },
+                        ].map((item, idx) => (
+                          <div
+                            key={idx}
+                            className='flex items-center gap-3 p-3 bg-gray-100 dark:bg-gray-700/30 rounded-lg'
+                          >
+                            <item.icon className='h-4 w-4 text-blue-500' />
+                            <span className='text-sm text-gray-600 dark:text-gray-400'>
+                              {item.text}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={initiate2FASetup}
+                      disabled={twoFaLoading}
+                      className='w-full px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2'
+                    >
+                      {twoFaLoading ? (
+                        <RefreshCw className='h-5 w-5 animate-spin' />
+                      ) : (
+                        <QrCode className='h-5 w-5' />
+                      )}
+                      Configurar 2FA Agora
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Biometria Card */}
+            <div className='bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden mt-6'>
+              {/* Header */}
+              <div className='p-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-purple-500/10 to-pink-500/10'>
+                <div className='flex items-center gap-3'>
+                  <div className='p-3 bg-purple-500/20 rounded-xl'>
+                    <Fingerprint className='h-6 w-6 text-purple-600 dark:text-purple-400' />
+                  </div>
+                  <div>
+                    <h3 className='text-lg font-semibold text-gray-900 dark:text-white'>
+                      Autenticação Biométrica
+                    </h3>
+                    <p className='text-sm text-gray-500 dark:text-gray-400'>
+                      Use impressão digital ou Face ID para acesso rápido
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Status */}
+              <div className='p-6'>
+                {!biometryAvailable ? (
+                  // Biometria não disponível
+                  <div className='space-y-4'>
+                    <div className='flex items-center gap-4 p-4 bg-gray-500/10 border border-gray-500/20 rounded-xl'>
+                      <div className='p-2 bg-gray-500/20 rounded-lg'>
+                        <XCircle className='h-6 w-6 text-gray-500 dark:text-gray-400' />
+                      </div>
+                      <div>
+                        <p className='font-medium text-gray-700 dark:text-gray-300'>
+                          Biometria não disponível
+                        </p>
+                        <p className='text-sm text-gray-500 dark:text-gray-400'>
+                          Seu dispositivo não suporta autenticação biométrica ou o recurso não está
+                          ativado no navegador
+                        </p>
+                      </div>
+                    </div>
+                    <div className='p-4 bg-blue-500/5 border border-blue-500/20 rounded-xl'>
+                      <p className='text-sm text-blue-600/80 dark:text-blue-400/80'>
+                        Para usar biometria, certifique-se de que:
+                      </p>
+                      <ul className='mt-2 space-y-1 text-sm text-gray-500 dark:text-gray-400'>
+                        <li className='flex items-center gap-2'>
+                          <CheckCircle className='h-3 w-3 text-blue-500' />
+                          Seu dispositivo possui sensor biométrico
+                        </li>
+                        <li className='flex items-center gap-2'>
+                          <CheckCircle className='h-3 w-3 text-blue-500' />A biometria está
+                          configurada no sistema operacional
+                        </li>
+                        <li className='flex items-center gap-2'>
+                          <CheckCircle className='h-3 w-3 text-blue-500' />
+                          Você está usando um navegador compatível (Chrome, Safari, Edge)
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                ) : biometryEnabled ? (
+                  // Biometria ativa
+                  <div className='space-y-6'>
+                    <div className='flex items-center gap-4 p-4 bg-green-500/10 border border-green-500/20 rounded-xl'>
+                      <div className='p-2 bg-green-500/20 rounded-lg'>
+                        <ShieldCheck className='h-6 w-6 text-green-600 dark:text-green-400' />
+                      </div>
+                      <div>
+                        <p className='font-medium text-green-700 dark:text-green-300'>
+                          {biometryType === 'face' ? 'Face ID' : 'Biometria'} está ATIVA
+                        </p>
+                        <p className='text-sm text-green-600/80 dark:text-green-400/80'>
+                          Você pode usar{' '}
+                          {biometryType === 'face'
+                            ? 'reconhecimento facial'
+                            : 'sua impressão digital'}{' '}
+                          para autenticação rápida
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className='flex flex-col sm:flex-row gap-3'>
+                      <button
+                        onClick={testBiometry}
+                        disabled={biometryLoading}
+                        className='flex-1 px-4 py-2.5 bg-purple-500 hover:bg-purple-600 text-white rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2'
+                      >
+                        {biometryLoading ? (
+                          <RefreshCw className='h-4 w-4 animate-spin' />
+                        ) : (
+                          <Fingerprint className='h-4 w-4' />
+                        )}
+                        Testar Biometria
+                      </button>
+                      <button
+                        onClick={disableBiometry}
+                        className='flex-1 px-4 py-2.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-medium transition-colors flex items-center justify-center gap-2'
+                      >
+                        <ShieldOff className='h-4 w-4' />
+                        Desativar
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  // Biometria disponível mas não configurada
+                  <div className='space-y-6'>
+                    <div className='flex items-center gap-4 p-4 bg-purple-500/10 border border-purple-500/20 rounded-xl'>
+                      <div className='p-2 bg-purple-500/20 rounded-lg'>
+                        <Fingerprint className='h-6 w-6 text-purple-600 dark:text-purple-400' />
+                      </div>
+                      <div>
+                        <p className='font-medium text-purple-700 dark:text-purple-300'>
+                          {biometryType === 'face' ? 'Face ID' : 'Biometria'} disponível
+                        </p>
+                        <p className='text-sm text-purple-600/80 dark:text-purple-400/80'>
+                          Ative para login rápido e seguro usando{' '}
+                          {biometryType === 'face' ? 'reconhecimento facial' : 'impressão digital'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className='space-y-4'>
+                      <h4 className='text-sm font-medium text-gray-700 dark:text-gray-300'>
+                        Vantagens da biometria:
+                      </h4>
+                      <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
+                        {[
+                          { icon: Zap, text: 'Login instantâneo sem digitar senhas' },
+                          { icon: Shield, text: 'Segurança de nível bancário' },
+                          { icon: Fingerprint, text: 'Impossível de ser copiada ou roubada' },
+                          { icon: Smartphone, text: 'Funciona mesmo offline' },
+                        ].map((item, idx) => (
+                          <div
+                            key={idx}
+                            className='flex items-center gap-3 p-3 bg-gray-100 dark:bg-gray-700/30 rounded-lg'
+                          >
+                            <item.icon className='h-4 w-4 text-purple-500' />
+                            <span className='text-sm text-gray-600 dark:text-gray-400'>
+                              {item.text}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={enableBiometry}
+                      disabled={biometryLoading}
+                      className='w-full px-6 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2'
+                    >
+                      {biometryLoading ? (
+                        <RefreshCw className='h-5 w-5 animate-spin' />
+                      ) : (
+                        <Fingerprint className='h-5 w-5' />
+                      )}
+                      {biometryType === 'face' ? 'Ativar Face ID' : 'Ativar Biometria'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </div>
