@@ -182,20 +182,37 @@ export const SystemWalletSendModal: React.FC<SendModalProps> = ({
     },
     onError: (error: any) => {
       console.error('Erro ao enviar:', error)
+      console.error('Response data:', error.response?.data)
+      console.error('Response status:', error.response?.status)
 
       // Extrair mensagem de erro de diferentes formatos possíveis
       let errorMsg = 'Erro ao enviar transacao'
 
-      const detail = error.response?.data?.detail
-      if (detail) {
-        if (typeof detail === 'string') {
-          errorMsg = detail
-        } else if (typeof detail === 'object') {
-          // Backend retorna { error_code, message }
-          errorMsg = detail.message || detail.error_code || JSON.stringify(detail)
+      const responseData = error.response?.data
+      if (responseData) {
+        // Pydantic validation errors (lista de erros)
+        if (Array.isArray(responseData.detail)) {
+          const messages = responseData.detail.map((err: any) => {
+            const field = err.loc?.join('.') || 'campo'
+            return `${field}: ${err.msg}`
+          })
+          errorMsg = messages.join('; ')
         }
-      } else if (error.response?.data?.message) {
-        errorMsg = error.response.data.message
+        // Backend retorna { error_code, message }
+        else if (typeof responseData.detail === 'object') {
+          errorMsg =
+            responseData.detail.message ||
+            responseData.detail.error_code ||
+            JSON.stringify(responseData.detail)
+        }
+        // Backend retorna string direta
+        else if (typeof responseData.detail === 'string') {
+          errorMsg = responseData.detail
+        }
+        // Outras respostas
+        else if (responseData.message) {
+          errorMsg = responseData.message
+        }
       } else if (error.message && typeof error.message === 'string') {
         errorMsg = error.message
       }
