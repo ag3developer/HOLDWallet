@@ -325,11 +325,18 @@ class WalletBalanceService:
         cryptocurrency: str,
         amount: float,
         reason: str = "Deposit",
-        reference_id: Optional[str] = None
+        reference_id: Optional[str] = None,
+        bypass_restriction: bool = False  # Para casos administrativos
     ) -> Dict:
         """Add balance to user (e.g., after blockchain confirmation)"""
         user_id = str(user_id)
         cryptocurrency = cryptocurrency.upper()
+        
+        # VERIFICAR RESTRIÇÃO DE DEPÓSITOS
+        if not bypass_restriction:
+            from app.services.wallet_restriction_service import WalletRestrictionService
+            if not WalletRestrictionService.can_credit_deposit(db, user_id):
+                raise ValueError("Depósitos estão temporariamente suspensos para esta conta. Entre em contato com o suporte.")
         
         # Get or create balance
         balance = db.query(WalletBalance).filter(
@@ -550,7 +557,8 @@ class WalletBalanceService:
         cryptocurrency: str,
         amount: float,
         reason: str = "Refund",
-        reference_id: Optional[str] = None
+        reference_id: Optional[str] = None,
+        bypass_restriction: bool = False  # Para casos administrativos
     ) -> Dict:
         """
         Credit (add) balance directly to user's available balance.
@@ -563,6 +571,12 @@ class WalletBalanceService:
         """
         user_id = str(user_id)
         cryptocurrency = cryptocurrency.upper()
+        
+        # VERIFICAR RESTRIÇÃO DE DEPÓSITOS (credit é como um depósito)
+        if not bypass_restriction:
+            from app.services.wallet_restriction_service import WalletRestrictionService
+            if not WalletRestrictionService.can_credit_deposit(db, user_id):
+                raise ValueError("Depósitos estão temporariamente suspensos para esta conta. Entre em contato com o suporte.")
         
         # Get or create balance
         balance = db.query(WalletBalance).filter(

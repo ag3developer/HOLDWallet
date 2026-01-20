@@ -517,17 +517,31 @@ export const AdminWalletsPage: React.FC = () => {
     }
   }, [actionModal.type, hasBiometry])
 
-  // Autenticar com biometria
-  const authenticateWithBiometry = async (): Promise<boolean> => {
-    try {
-      const token = getAuthToken()
-      if (!token) {
-        toast.error('Token não encontrado')
-        return false
-      }
+  // Estado para loading da biometria
+  const [biometryLoading, setBiometryLoading] = useState(false)
 
-      // 1. Obter challenge do servidor
-      const challengeResponse = await fetch(`${API_URL}/auth/webauthn/authenticate/begin`, {
+  // Autenticar com biometria - VERSÃO MELHORADA
+  const authenticateWithBiometry = async (): Promise<boolean> => {
+    // Verificar se WebAuthn está disponível
+    if (!window.PublicKeyCredential) {
+      toast.error('Seu navegador não suporta autenticação biométrica')
+      return false
+    }
+
+    const token = getAuthToken()
+    if (!token) {
+      toast.error('Token não encontrado')
+      return false
+    }
+
+    setBiometryLoading(true)
+    const loadingToast = toast.loading('Iniciando autenticação biométrica...')
+
+    try {
+      console.log('🔐 Iniciando autenticação WebAuthn...')
+
+      // 1. Obter opções de autenticação do servidor
+      const optionsResponse = await fetch(`${API_URL}/auth/webauthn/authenticate/options`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -535,15 +549,29 @@ export const AdminWalletsPage: React.FC = () => {
         },
       })
 
-      if (!challengeResponse.ok) {
-        throw new Error('Falha ao iniciar autenticação biométrica')
+      if (!optionsResponse.ok) {
+        const errorData = await optionsResponse.json().catch(() => ({}))
+        console.error('Erro ao obter opções:', errorData)
+        throw new Error(errorData.detail || 'Falha ao iniciar autenticação biométrica')
       }
 
-      const challengeData = await challengeResponse.json()
-      const options = challengeData.options
+      const optionsData = await optionsResponse.json()
+      console.log('📦 Opções recebidas:', optionsData)
+
+      // O backend pode retornar em formatos diferentes
+      const options = optionsData.options || optionsData
+
+      if (!options || !options.challenge) {
+        throw new Error('Resposta do servidor inválida - challenge não encontrado')
+      }
 
       // Converter Base64URL para ArrayBuffer
       const base64URLToArrayBuffer = (base64url: string): ArrayBuffer => {
+        // Garantir que é uma string
+        if (typeof base64url !== 'string') {
+          console.error('base64url não é string:', base64url)
+          throw new Error('Formato inválido de credencial')
+        }
         const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/')
         const padLen = (4 - (base64.length % 4)) % 4
         const padded = base64 + '='.repeat(padLen)
@@ -558,82 +586,134 @@ export const AdminWalletsPage: React.FC = () => {
       // Preparar opções para WebAuthn
       const publicKeyOptions: PublicKeyCredentialRequestOptions = {
         challenge: base64URLToArrayBuffer(options.challenge),
-        timeout: options.timeout || 60000,
-        rpId: options.rpId,
-        userVerification: options.userVerification || 'preferred',
-        allowCredentials: options.allowCredentials?.map((cred: any) => ({
-          type: cred.type,
-          id: base64URLToArrayBuffer(cred.id),
-          transports: cred.transports,
-        })),
+        timeout: options.timeout || 120000, // 2 minutos
+        rpId: options.rpId || window.location.hostname,
+        userVerification: (options.userVerification as UserVerificationRequirement) || 'preferred',
       }
+
+      // Adicionar credenciais permitidas se existirem
+      if (
+        options.allowCredentials &&
+        Array.isArray(options.allowCredentials) &&
+        options.allowCredentials.length > 0
+      ) {
+        publicKeyOptions.allowCredentials = options.allowCredentials.map((cred: any) => ({
+          type: 'public-key' as const,
+          id: base64URLToArrayBuffer(cred.id),
+          transports: cred.transports || ['internal', 'hybrid', 'usb', 'ble', 'nfc'],
+        }))
+      }
+
+      console.log('🔑 Opções WebAuthn preparadas:', {
+        rpId: publicKeyOptions.rpId,
+        timeout: publicKeyOptions.timeout,
+        credentialsCount: publicKeyOptions.allowCredentials?.length || 0,
+      })
+
+      toast.dismiss(loadingToast)
+      toast.loading('Aguardando autenticação biométrica...', { id: 'biometry-waiting' })
 
       // 2. Solicitar autenticação biométrica
+      // Isso deve abrir o diálogo do sistema (Touch ID, Face ID, etc.)
+      console.log('🖐️ Chamando navigator.credentials.get()...')
+
       const credential = (await navigator.credentials.get({
         publicKey: publicKeyOptions,
-      })) as PublicKeyCredential
+        mediation: 'optional',
+      })) as PublicKeyCredential | null
+
+      toast.dismiss('biometry-waiting')
 
       if (!credential) {
-        throw new Error('Autenticação cancelada')
+        throw new Error('Autenticação cancelada pelo usuário')
       }
+
+      console.log('✅ Credencial obtida:', credential.id)
 
       // Converter ArrayBuffer para Base64URL
       const arrayBufferToBase64URL = (buffer: ArrayBuffer): string => {
         const bytes = new Uint8Array(buffer)
         let binary = ''
-        for (let i = 0; i < bytes.length; i++) {
-          const byte = bytes[i]
-          if (byte !== undefined) {
-            binary += String.fromCharCode(byte)
-          }
+        for (const byte of bytes) {
+          binary += String.fromCharCode(byte)
         }
         const base64 = btoa(binary)
         return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
       }
 
-      const response = credential.response as AuthenticatorAssertionResponse
+      const assertionResponse = credential.response as AuthenticatorAssertionResponse
 
       // 3. Enviar para verificação no servidor
-      const verifyResponse = await fetch(`${API_URL}/auth/webauthn/authenticate/complete`, {
+      const verifyToast = toast.loading('Verificando autenticação...')
+
+      const verifyResponse = await fetch(`${API_URL}/auth/webauthn/authenticate/verify`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          id: credential.id,
-          rawId: arrayBufferToBase64URL(credential.rawId),
-          response: {
-            clientDataJSON: arrayBufferToBase64URL(response.clientDataJSON),
-            authenticatorData: arrayBufferToBase64URL(response.authenticatorData),
-            signature: arrayBufferToBase64URL(response.signature),
-            userHandle: response.userHandle ? arrayBufferToBase64URL(response.userHandle) : null,
+          credential: {
+            id: credential.id,
+            rawId: arrayBufferToBase64URL(credential.rawId),
+            response: {
+              clientDataJSON: arrayBufferToBase64URL(assertionResponse.clientDataJSON),
+              authenticatorData: arrayBufferToBase64URL(assertionResponse.authenticatorData),
+              signature: arrayBufferToBase64URL(assertionResponse.signature),
+              userHandle: assertionResponse.userHandle
+                ? arrayBufferToBase64URL(assertionResponse.userHandle)
+                : null,
+            },
+            type: credential.type,
+            authenticatorAttachment: (credential as any).authenticatorAttachment || 'platform',
           },
-          type: credential.type,
         }),
       })
 
+      toast.dismiss(verifyToast)
+
       if (!verifyResponse.ok) {
-        throw new Error('Falha na verificação biométrica')
+        const errorData = await verifyResponse.json().catch(() => ({}))
+        console.error('Erro na verificação:', errorData)
+        throw new Error(errorData.detail || 'Falha na verificação biométrica')
       }
 
       const verifyData = await verifyResponse.json()
+      console.log('🎉 Verificação completa:', verifyData)
 
       if (verifyData.success || verifyData.verified) {
         setBiometryVerified(true)
-        toast.success('Biometria verificada!')
+        toast.success('✅ Biometria verificada com sucesso!')
         return true
       }
 
-      return false
+      throw new Error('Verificação biométrica falhou')
     } catch (error: any) {
-      console.error('Erro na autenticação biométrica:', error)
+      toast.dismiss(loadingToast)
+      toast.dismiss('biometry-waiting')
+
+      console.error('❌ Erro na autenticação biométrica:', error)
+
+      // Mensagens de erro mais específicas
       if (error.name === 'NotAllowedError') {
-        toast.error('Autenticação cancelada ou negada')
+        toast.error('Autenticação cancelada ou negada pelo usuário')
+      } else if (error.name === 'SecurityError') {
+        toast.error('Erro de segurança - verifique se está usando HTTPS')
+      } else if (error.name === 'NotSupportedError') {
+        toast.error('Autenticação biométrica não suportada neste dispositivo')
+      } else if (error.name === 'InvalidStateError') {
+        toast.error('Nenhuma credencial biométrica encontrada')
+      } else if (error.name === 'AbortError') {
+        toast.error('Autenticação foi cancelada')
+      } else if (error.message?.includes('challenge')) {
+        toast.error('Erro ao obter desafio do servidor')
       } else {
         toast.error(error.message || 'Erro na autenticação biométrica')
       }
+
       return false
+    } finally {
+      setBiometryLoading(false)
     }
   }
 
@@ -1548,12 +1628,24 @@ export const AdminWalletsPage: React.FC = () => {
                           Biometria verificada!
                         </span>
                       </div>
+                    ) : biometryLoading ? (
+                      <div className='flex flex-col items-center gap-3 py-6'>
+                        <div className='w-16 h-16 rounded-full bg-blue-500/20 flex items-center justify-center animate-pulse'>
+                          <Fingerprint className='h-8 w-8 text-blue-500 animate-bounce' />
+                        </div>
+                        <span className='text-blue-600 dark:text-blue-400 font-medium'>
+                          Aguardando autenticação...
+                        </span>
+                        <span className='text-xs text-gray-500'>
+                          Complete a autenticação no seu dispositivo
+                        </span>
+                      </div>
                     ) : (
                       <button
                         type='button'
                         onClick={authenticateWithBiometry}
-                        disabled={actionLoading}
-                        className='w-full flex flex-col items-center gap-3 py-6 px-4 rounded-xl bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-2 border-dashed border-green-500/30 hover:border-green-500/50 hover:from-green-500/20 hover:to-emerald-500/20 transition-all'
+                        disabled={actionLoading || biometryLoading}
+                        className='w-full flex flex-col items-center gap-3 py-6 px-4 rounded-xl bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-2 border-dashed border-green-500/30 hover:border-green-500/50 hover:from-green-500/20 hover:to-emerald-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed'
                       >
                         <div className='w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center'>
                           <Fingerprint className='h-8 w-8 text-green-500' />
@@ -1562,7 +1654,7 @@ export const AdminWalletsPage: React.FC = () => {
                           Clique para autenticar com biometria
                         </span>
                         <span className='text-xs text-gray-500'>
-                          Use seu Touch ID, Face ID ou chave de segurança
+                          Touch ID, Face ID ou chave de segurança
                         </span>
                       </button>
                     )}

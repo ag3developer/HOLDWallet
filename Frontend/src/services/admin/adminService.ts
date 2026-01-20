@@ -76,6 +76,34 @@ adminApi.interceptors.response.use(
 )
 
 // ============================================
+// 🔐 Autenticação 2FA para Operações Críticas
+// ============================================
+
+/**
+ * Interface para autenticação 2FA/Biometria
+ * Usada em todas as operações críticas (aprovar trades, bloquear wallets, etc)
+ */
+export interface TwoFactorAuth {
+  twoFactorCode?: string // Código do Google Authenticator/Authy
+  biometryVerified?: boolean // Se usou biometria ao invés de código
+}
+
+/**
+ * Cria headers de autenticação 2FA
+ */
+export const create2FAHeaders = (auth: TwoFactorAuth) => {
+  const headers: Record<string, string> = {}
+
+  if (auth.biometryVerified) {
+    headers['X-Biometry-Verified'] = 'true'
+  } else if (auth.twoFactorCode) {
+    headers['X-2FA-Code'] = auth.twoFactorCode
+  }
+
+  return headers
+}
+
+// ============================================
 // Dashboard
 // ============================================
 
@@ -332,6 +360,9 @@ export interface UpdateTradeStatusRequest {
 export interface ConfirmPaymentRequest {
   network?: string
   notes?: string
+  bypass_restriction?: boolean // Admin pode forçar mesmo com wallet bloqueada
+  // Autenticação 2FA - OBRIGATÓRIO para aprovar transações
+  auth: TwoFactorAuth
 }
 
 export interface ConfirmPaymentResponse {
@@ -343,6 +374,7 @@ export interface ConfirmPaymentResponse {
   network: string
   status: string
   error?: string
+  restriction_blocked?: boolean // Se foi bloqueado por restrição de depósito
 }
 
 export interface AccountingEntry {
@@ -363,20 +395,37 @@ export const updateTradeStatus = async (
   return response.data
 }
 
+/**
+ * Confirma pagamento e inicia depósito de crypto
+ * 🔐 REQUER 2FA ou Biometria para executar
+ */
 export const confirmTradePayment = async (
   tradeId: string,
-  data: ConfirmPaymentRequest = {}
+  data: ConfirmPaymentRequest
 ): Promise<ConfirmPaymentResponse> => {
-  const response = await adminApi.post(`/trades/${tradeId}/confirm-payment`, data)
+  const { auth, ...requestData } = data
+  const headers = create2FAHeaders(auth)
+
+  const response = await adminApi.post(`/trades/${tradeId}/confirm-payment`, requestData, {
+    headers,
+  })
   return response.data
 }
 
+/**
+ * Retry de depósito para trade já confirmado
+ * 🔐 REQUER 2FA ou Biometria para executar
+ */
 export const retryTradeDeposit = async (
   tradeId: string,
-  network?: string
+  network?: string,
+  auth?: TwoFactorAuth
 ): Promise<{ success: boolean; message: string; tx_hash?: string; error?: string }> => {
+  const headers = auth ? create2FAHeaders(auth) : {}
+
   const response = await adminApi.post(`/trades/${tradeId}/retry-deposit`, null, {
     params: { network },
+    headers,
   })
   return response.data
 }
@@ -384,8 +433,14 @@ export const retryTradeDeposit = async (
 export interface ManualCompleteRequest {
   tx_hash: string
   notes?: string
+  // Autenticação 2FA - OBRIGATÓRIO
+  auth: TwoFactorAuth
 }
 
+/**
+ * Completa trade manualmente (BTC, LTC, etc)
+ * 🔐 REQUER 2FA ou Biometria para executar
+ */
 export const manualCompleteTrade = async (
   tradeId: string,
   data: ManualCompleteRequest
@@ -396,7 +451,12 @@ export const manualCompleteTrade = async (
   tx_hash: string
   status: string
 }> => {
-  const response = await adminApi.post(`/trades/${tradeId}/manual-complete`, data)
+  const { auth, ...requestData } = data
+  const headers = create2FAHeaders(auth)
+
+  const response = await adminApi.post(`/trades/${tradeId}/manual-complete`, requestData, {
+    headers,
+  })
   return response.data
 }
 

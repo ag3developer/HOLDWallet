@@ -41,30 +41,45 @@ class Mandatory2FAMiddleware(BaseHTTPMiddleware):
     
     # Rotas que OBRIGAM 2FA (apenas operações MANUAIS de admin)
     CRITICAL_ROUTES = [
-        # Admin - Aprovação MANUAL de trades OTC
+        # ====== ADMIN TRADES - TODAS AS APROVAÇÕES MANUAIS ======
+        # Confirmar pagamento e depositar crypto (CRÍTICO!)
+        ("POST", "/api/admin/trades/"),      # Qualquer POST em trades
+        ("POST", "/admin/trades/"),
+        ("PATCH", "/api/admin/trades/"),     # Update status
+        ("PATCH", "/admin/trades/"),
+        
+        # Rotas específicas de confirmação
         ("POST", "/api/admin/instant-trades/confirm-payment"),
         ("POST", "/admin/instant-trades/confirm-payment"),
         
-        # Admin - WolkPay aprovação MANUAL
+        # Completar trade manualmente
+        ("POST", "/api/admin/trades/manual-complete"),
+        ("POST", "/admin/trades/manual-complete"),
+        
+        # ====== ADMIN WOLKPAY ======
         ("POST", "/api/admin/wolkpay/"),     # Qualquer POST em /admin/wolkpay
         ("POST", "/admin/wolkpay/"),
         
-        # Admin - Gerenciamento de usuários
+        # ====== ADMIN USERS ======
         ("POST", "/api/admin/users/"),
         ("PUT", "/api/admin/users/"),
         ("DELETE", "/api/admin/users/"),
         
-        # Admin - Configurações
+        # ====== ADMIN SETTINGS ======
         ("PUT", "/api/admin/settings/"),
         ("POST", "/api/admin/settings/"),
         
-        # Admin - Bloqueio de carteiras (NOVO)
-        ("POST", "/api/admin/wallets/"),     # Block, delete
+        # ====== ADMIN WALLETS - Bloqueio/Exclusão ======
+        ("POST", "/api/admin/wallets/"),     # Block, delete, blacklist
         ("DELETE", "/api/admin/wallets/"),
+        ("PUT", "/api/admin/wallets/"),      # Bloquear/desbloquear
+        ("PATCH", "/api/admin/wallets/"),    # Update restrictions
         ("POST", "/admin/wallets/"),
         ("DELETE", "/admin/wallets/"),
+        ("PUT", "/admin/wallets/"),
+        ("PATCH", "/admin/wallets/"),
         
-        # Operações de crypto de alto valor (verificar valor no body)
+        # ====== ENVIO DE CRYPTO - Alto Valor ======
         ("POST", "/api/wallets/send"),
         ("POST", "/api/instant-trade/create"),
     ]

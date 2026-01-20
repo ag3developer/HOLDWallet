@@ -110,7 +110,8 @@ class MultiChainSendService:
         self,
         db: Session,
         trade: InstantTrade,
-        network: str = None
+        network: str = None,
+        bypass_restriction: bool = False  # Admin pode ignorar restrições
     ) -> MultiChainSendResult:
         """
         Envia criptomoeda para o usuário.
@@ -120,6 +121,7 @@ class MultiChainSendService:
             db: Sessão do banco
             trade: Trade com dados da transação
             network: Rede específica (opcional, detecta automaticamente)
+            bypass_restriction: Se True, ignora verificação de restrict_deposits (uso admin)
             
         Returns:
             MultiChainSendResult com status
@@ -133,7 +135,7 @@ class MultiChainSendService:
             # EVM CRYPTOS (ETH, MATIC, USDT, etc)
             # ============================================
             if self.is_evm_crypto(symbol):
-                return await self._send_evm(db, trade, network)
+                return await self._send_evm(db, trade, network, bypass_restriction)
             
             # ============================================
             # BITCOIN
@@ -206,7 +208,7 @@ class MultiChainSendService:
     # MÉTODOS PRIVADOS POR BLOCKCHAIN
     # ============================================
     
-    async def _send_evm(self, db: Session, trade: InstantTrade, network: str = None) -> MultiChainSendResult:
+    async def _send_evm(self, db: Session, trade: InstantTrade, network: str = None, bypass_restriction: bool = False) -> MultiChainSendResult:
         """Envia crypto EVM (ETH, MATIC, USDT, etc)."""
         from app.services.blockchain_deposit_service import blockchain_deposit_service
         
@@ -219,7 +221,8 @@ class MultiChainSendService:
         result = blockchain_deposit_service.deposit_crypto_to_user(
             db=db,
             trade=trade,
-            network=network
+            network=network,
+            bypass_restriction=bypass_restriction
         )
         
         return MultiChainSendResult(

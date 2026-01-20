@@ -37,6 +37,8 @@ import {
   ArrowRightLeft,
   BookCheck,
   Zap,
+  Shield,
+  Fingerprint,
 } from 'lucide-react'
 import {
   useTrade,
@@ -50,6 +52,7 @@ import {
   useManualCompleteTrade,
 } from '@/hooks/admin/useAdminTrades'
 import { toast } from 'react-hot-toast'
+import { type TwoFactorAuth } from '@/services/admin/adminService'
 
 // ============================================
 // COMPONENTE: Modal de Confirmação Premium
@@ -288,6 +291,17 @@ export const AdminTradeDetailPage: React.FC = () => {
 
   // Estado para completar trade manualmente (BTC)
   const [manualTxHash, setManualTxHash] = useState('')
+
+  // ============================================
+  // 🔐 Estados para Autenticação 2FA/Biometria
+  // ============================================
+  const [show2FAModal, setShow2FAModal] = useState(false)
+  const [twoFactorCode, setTwoFactorCode] = useState('')
+  const [authMethod, setAuthMethod] = useState<'2fa' | 'biometry'>('2fa')
+  const [hasBiometry, setHasBiometry] = useState(false)
+  const [biometryVerified, setBiometryVerified] = useState(false)
+  const [pendingAction, setPendingAction] = useState<'confirm' | 'manual' | 'retry' | null>(null)
+  const [bypassRestriction, setBypassRestriction] = useState(false)
 
   // Query para trade específico
   const { data: trade, isLoading, error, refetch, isFetching } = useTrade(tradeId || '')
@@ -560,82 +574,396 @@ export const AdminTradeDetailPage: React.FC = () => {
     })
   }
 
+  // ============================================
+  // 🔐 Funções de Autenticação 2FA/Biometria
+  // ============================================
+
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+
+  const getAuthToken = () => {
+    try {
+      const stored = localStorage.getItem('hold-wallet-auth')
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        return parsed?.state?.token
+      }
+    } catch {
+      return null
+    }
+    return null
+  }
+
+  // Verificar se tem biometria disponível
+  useEffect(() => {
+    const checkBiometry = async () => {
+      try {
+        // Primeiro verificar se o navegador suporta WebAuthn
+        if (!window.PublicKeyCredential) {
+          console.log('⚠️ WebAuthn não suportado neste navegador')
+          setHasBiometry(false)
+          return
+        }
+
+        // Verificar se autenticação de plataforma está disponível (Touch ID, Face ID)
+        const platformAvailable =
+          await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
+        console.log('🔐 Platform Authenticator disponível:', platformAvailable)
+
+        const token = getAuthToken()
+        if (!token) {
+          console.log('⚠️ Token não encontrado para verificar biometria')
+          return
+        }
+
+        const response = await fetch(`${API_URL}/auth/webauthn/status`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          const hasCredentials = data.has_biometric || data.has_credentials || false
+          console.log('🔐 Credenciais biométricas cadastradas:', hasCredentials, data)
+          setHasBiometry(hasCredentials)
+        } else {
+          console.log('⚠️ Erro ao verificar status de biometria:', response.status)
+        }
+      } catch (error) {
+        console.error('❌ Erro ao verificar biometria:', error)
+      }
+    }
+    checkBiometry()
+  }, [])
+
+  // Estado para loading da biometria
+  const [biometryLoading, setBiometryLoading] = useState(false)
+
+  // Autenticar com biometria - VERSÃO MELHORADA
+  const authenticateWithBiometry = async (): Promise<boolean> => {
+    // Verificar se WebAuthn está disponível
+    if (!window.PublicKeyCredential) {
+      toast.error('Seu navegador não suporta autenticação biométrica')
+      return false
+    }
+
+    const token = getAuthToken()
+    if (!token) {
+      toast.error('Token não encontrado')
+      return false
+    }
+
+    setBiometryLoading(true)
+    const loadingToast = toast.loading('Iniciando autenticação biométrica...')
+
+    try {
+      console.log('🔐 Iniciando autenticação WebAuthn...')
+
+      // 1. Obter opções de autenticação do servidor
+      const optionsResponse = await fetch(`${API_URL}/auth/webauthn/authenticate/options`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (!optionsResponse.ok) {
+        const errorData = await optionsResponse.json().catch(() => ({}))
+        console.error('Erro ao obter opções:', errorData)
+        throw new Error(errorData.detail || 'Falha ao iniciar autenticação biométrica')
+      }
+
+      const optionsData = await optionsResponse.json()
+      console.log('📦 Opções recebidas:', optionsData)
+
+      // O backend pode retornar em formatos diferentes
+      const options = optionsData.options || optionsData
+
+      if (!options || !options.challenge) {
+        throw new Error('Resposta do servidor inválida - challenge não encontrado')
+      }
+
+      // Converter Base64URL para ArrayBuffer
+      const base64URLToArrayBuffer = (base64url: string): ArrayBuffer => {
+        if (typeof base64url !== 'string') {
+          console.error('base64url não é string:', base64url)
+          throw new Error('Formato inválido de credencial')
+        }
+        const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/')
+        const padLen = (4 - (base64.length % 4)) % 4
+        const padded = base64 + '='.repeat(padLen)
+        const binary = atob(padded)
+        const bytes = new Uint8Array(binary.length)
+        for (let i = 0; i < binary.length; i++) {
+          bytes[i] = binary.charCodeAt(i)
+        }
+        return bytes.buffer
+      }
+
+      // Preparar opções para WebAuthn
+      const publicKeyOptions: PublicKeyCredentialRequestOptions = {
+        challenge: base64URLToArrayBuffer(options.challenge),
+        timeout: options.timeout || 120000,
+        rpId: options.rpId || window.location.hostname,
+        userVerification: (options.userVerification as UserVerificationRequirement) || 'preferred',
+      }
+
+      // Adicionar credenciais permitidas se existirem
+      if (
+        options.allowCredentials &&
+        Array.isArray(options.allowCredentials) &&
+        options.allowCredentials.length > 0
+      ) {
+        publicKeyOptions.allowCredentials = options.allowCredentials.map((cred: any) => ({
+          type: 'public-key' as const,
+          id: base64URLToArrayBuffer(cred.id),
+          transports: cred.transports || ['internal', 'hybrid', 'usb', 'ble', 'nfc'],
+        }))
+      }
+
+      console.log('🔑 Opções WebAuthn preparadas:', {
+        rpId: publicKeyOptions.rpId,
+        timeout: publicKeyOptions.timeout,
+        credentialsCount: publicKeyOptions.allowCredentials?.length || 0,
+      })
+
+      toast.dismiss(loadingToast)
+      toast.loading('Aguardando autenticação biométrica...', { id: 'biometry-waiting' })
+
+      // 2. Solicitar autenticação biométrica
+      console.log('🖐️ Chamando navigator.credentials.get()...')
+
+      const credential = (await navigator.credentials.get({
+        publicKey: publicKeyOptions,
+        mediation: 'optional',
+      })) as PublicKeyCredential | null
+
+      toast.dismiss('biometry-waiting')
+
+      if (!credential) {
+        throw new Error('Autenticação cancelada pelo usuário')
+      }
+
+      console.log('✅ Credencial obtida:', credential.id)
+
+      // Converter ArrayBuffer para Base64URL
+      const arrayBufferToBase64URL = (buffer: ArrayBuffer): string => {
+        const bytes = new Uint8Array(buffer)
+        let binary = ''
+        for (const byte of bytes) {
+          binary += String.fromCharCode(byte)
+        }
+        const base64 = btoa(binary)
+        return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+      }
+
+      const assertionResponse = credential.response as AuthenticatorAssertionResponse
+
+      // 3. Enviar para verificação no servidor
+      const verifyToast = toast.loading('Verificando autenticação...')
+
+      const verifyResponse = await fetch(`${API_URL}/auth/webauthn/authenticate/verify`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          credential: {
+            id: credential.id,
+            rawId: arrayBufferToBase64URL(credential.rawId),
+            response: {
+              clientDataJSON: arrayBufferToBase64URL(assertionResponse.clientDataJSON),
+              authenticatorData: arrayBufferToBase64URL(assertionResponse.authenticatorData),
+              signature: arrayBufferToBase64URL(assertionResponse.signature),
+              userHandle: assertionResponse.userHandle
+                ? arrayBufferToBase64URL(assertionResponse.userHandle)
+                : null,
+            },
+            type: credential.type,
+            authenticatorAttachment: (credential as any).authenticatorAttachment || 'platform',
+          },
+        }),
+      })
+
+      toast.dismiss(verifyToast)
+
+      if (!verifyResponse.ok) {
+        const errorData = await verifyResponse.json().catch(() => ({}))
+        console.error('Erro na verificação:', errorData)
+        throw new Error(errorData.detail || 'Falha na verificação biométrica')
+      }
+
+      const verifyData = await verifyResponse.json()
+      console.log('🎉 Verificação completa:', verifyData)
+
+      if (verifyData.success || verifyData.verified) {
+        setBiometryVerified(true)
+        toast.success('✅ Biometria verificada com sucesso!')
+        return true
+      }
+
+      throw new Error('Verificação biométrica falhou')
+    } catch (error: any) {
+      toast.dismiss(loadingToast)
+      toast.dismiss('biometry-waiting')
+
+      console.error('❌ Erro na autenticação biométrica:', error)
+
+      // Mensagens de erro mais específicas
+      if (error.name === 'NotAllowedError') {
+        toast.error('Autenticação cancelada ou negada pelo usuário')
+      } else if (error.name === 'SecurityError') {
+        toast.error('Erro de segurança - verifique se está usando HTTPS')
+      } else if (error.name === 'NotSupportedError') {
+        toast.error('Autenticação biométrica não suportada neste dispositivo')
+      } else if (error.name === 'InvalidStateError') {
+        toast.error('Nenhuma credencial biométrica encontrada')
+      } else if (error.name === 'AbortError') {
+        toast.error('Autenticação foi cancelada')
+      } else if (error.message?.includes('challenge')) {
+        toast.error('Erro ao obter desafio do servidor')
+      } else {
+        toast.error(error.message || 'Erro na autenticação biométrica')
+      }
+
+      return false
+    } finally {
+      setBiometryLoading(false)
+    }
+  }
+
+  // Resetar modal de 2FA
+  const reset2FAModal = () => {
+    setShow2FAModal(false)
+    setTwoFactorCode('')
+    setBiometryVerified(false)
+    setPendingAction(null)
+    setBypassRestriction(false)
+    setAuthMethod(hasBiometry ? 'biometry' : '2fa')
+  }
+
+  // Obter auth object para requisições
+  const get2FAAuth = (): TwoFactorAuth => {
+    if (authMethod === 'biometry' && biometryVerified) {
+      return { biometryVerified: true }
+    }
+    return { twoFactorCode }
+  }
+
+  // Executar ação pendente após 2FA
+  const execute2FAAction = async () => {
+    if (authMethod === 'biometry' && !biometryVerified) {
+      const verified = await authenticateWithBiometry()
+      if (!verified) return
+    }
+
+    if (authMethod === '2fa' && (!twoFactorCode || twoFactorCode.length !== 6)) {
+      toast.error('Digite o código 2FA de 6 dígitos')
+      return
+    }
+
+    const auth = get2FAAuth()
+
+    try {
+      setModalLoading(true)
+
+      switch (pendingAction) {
+        case 'confirm': {
+          const confirmResult = await confirmPaymentMutation.mutateAsync({
+            tradeId: tradeId!,
+            data: {
+              network: selectedNetwork,
+              bypass_restriction: bypassRestriction,
+              auth,
+            },
+          })
+          if (confirmResult.success) {
+            toast.success(
+              `✅ Pagamento confirmado! TX: ${confirmResult.tx_hash || 'Processando...'}`
+            )
+          } else {
+            toast.error(confirmResult.error || 'Erro ao processar depósito')
+          }
+          break
+        }
+
+        case 'manual': {
+          const manualResult = await manualCompleteMutation.mutateAsync({
+            tradeId: tradeId!,
+            data: {
+              tx_hash: manualTxHash.trim(),
+              auth,
+            },
+          })
+          if (manualResult.success) {
+            toast.success(`✅ Trade completado! TX: ${manualResult.tx_hash}`)
+            setManualTxHash('')
+          }
+          break
+        }
+
+        case 'retry': {
+          const retryResult = await retryDepositMutation.mutateAsync({
+            tradeId: tradeId!,
+            network: selectedNetwork,
+          })
+          if (retryResult.success) {
+            toast.success(`✅ Depósito realizado! TX: ${retryResult.tx_hash}`)
+          } else {
+            toast.error(retryResult.error || 'Erro ao processar depósito')
+          }
+          break
+        }
+      }
+
+      reset2FAModal()
+    } catch (err: any) {
+      console.error('Erro na operação:', err)
+      const errorDetail = err.response?.data?.detail || err.message || 'Erro na operação'
+
+      // Verificar se é erro de 2FA
+      if (errorDetail.includes('2FA') || errorDetail.includes('two-factor')) {
+        toast.error('Código 2FA inválido ou expirado')
+      } else {
+        toast.error(errorDetail)
+      }
+    } finally {
+      setModalLoading(false)
+    }
+  }
+
+  // ============================================
+  // Handlers de Ação (Agora abre modal 2FA)
+  // ============================================
+
   const handleConfirmPayment = async () => {
     if (!trade || !tradeId) return
 
-    setModalConfig({
-      isOpen: true,
-      title: 'Confirmar Recebimento de Pagamento',
-      message: `Confirmar recebimento do pagamento do trade ${trade.reference_code}?`,
-      details: [
-        'Isso irá disparar o depósito de crypto para o usuário.',
-        `Valor: ${formatCurrency(trade.fiat_amount)}`,
-        `Crypto: ${trade.crypto_amount} ${trade.symbol}`,
-        `Rede: ${selectedNetwork.toUpperCase()}`,
-      ],
-      variant: 'success',
-      confirmText: 'Confirmar Pagamento',
-      icon: <CircleDollarSign className='w-6 h-6' />,
-      onConfirm: async () => {
-        try {
-          setModalLoading(true)
-          const result = await confirmPaymentMutation.mutateAsync({
-            tradeId,
-            data: { network: selectedNetwork },
-          })
+    // Abre modal de 2FA primeiro
+    setPendingAction('confirm')
+    setAuthMethod(hasBiometry ? 'biometry' : '2fa')
+    setShow2FAModal(true)
+  }
 
-          if (result.success) {
-            toast.success(`Pagamento confirmado! TX: ${result.tx_hash || 'Processando...'}`)
-          } else {
-            toast.error(result.error || 'Erro ao processar depósito')
-          }
-          setModalConfig(prev => ({ ...prev, isOpen: false }))
-        } catch (err: any) {
-          console.error('Erro ao confirmar pagamento:', err)
-          toast.error(err.response?.data?.detail || 'Erro ao confirmar pagamento')
-        } finally {
-          setModalLoading(false)
-        }
-      },
-    })
+  const handleManualComplete = async () => {
+    if (!trade || !tradeId || !manualTxHash.trim()) {
+      toast.error('Digite o hash da transação')
+      return
+    }
+
+    // Abre modal de 2FA primeiro
+    setPendingAction('manual')
+    setAuthMethod(hasBiometry ? 'biometry' : '2fa')
+    setShow2FAModal(true)
   }
 
   const handleRetryDeposit = async () => {
     if (!trade || !tradeId) return
 
-    setModalConfig({
-      isOpen: true,
-      title: 'Tentar Novamente Depósito',
-      message: `Tentar novamente o depósito para ${trade.reference_code}?`,
-      details: [
-        `Crypto: ${trade.crypto_amount} ${trade.symbol}`,
-        `Rede: ${selectedNetwork.toUpperCase()}`,
-      ],
-      variant: 'warning',
-      confirmText: 'Tentar Novamente',
-      icon: <RotateCcw className='w-6 h-6' />,
-      onConfirm: async () => {
-        try {
-          setModalLoading(true)
-          const result = await retryDepositMutation.mutateAsync({
-            tradeId,
-            network: selectedNetwork,
-          })
-
-          if (result.success) {
-            toast.success(`Depósito realizado! TX: ${result.tx_hash}`)
-          } else {
-            toast.error(result.error || 'Erro ao processar depósito')
-          }
-          setModalConfig(prev => ({ ...prev, isOpen: false }))
-        } catch (err: any) {
-          console.error('Erro no retry:', err)
-          toast.error(err.response?.data?.detail || 'Erro ao tentar novamente')
-        } finally {
-          setModalLoading(false)
-        }
-      },
-    })
+    // Abre modal de 2FA primeiro
+    setPendingAction('retry')
+    setAuthMethod(hasBiometry ? 'biometry' : '2fa')
+    setShow2FAModal(true)
   }
 
   const handleSendToAccounting = async () => {
@@ -795,52 +1123,6 @@ export const AdminTradeDetailPage: React.FC = () => {
         } catch (err: any) {
           console.error('Erro ao enviar PIX:', err)
           toast.error(err.response?.data?.detail || 'Erro ao enviar PIX via Banco do Brasil')
-        } finally {
-          setModalLoading(false)
-        }
-      },
-    })
-  }
-
-  // Handler para completar trade MANUALMENTE (BTC e outras non-EVM)
-  const handleManualComplete = async () => {
-    if (!trade || !tradeId || !manualTxHash.trim()) {
-      toast.error('Informe o TX Hash da transação')
-      return
-    }
-
-    setModalConfig({
-      isOpen: true,
-      title: 'Completar Trade Manualmente',
-      message: `Confirmar que você enviou ${trade.crypto_amount} ${trade.symbol} para o usuário?`,
-      details: [
-        `Trade: ${trade.reference_code}`,
-        `Crypto: ${trade.crypto_amount} ${trade.symbol}`,
-        `TX Hash: ${manualTxHash}`,
-        `Endereço destino: ${trade.wallet_address || 'N/A'}`,
-        'Isso marcará o trade como COMPLETED.',
-      ],
-      variant: 'success',
-      confirmText: 'Confirmar Envio',
-      icon: <CheckCircle className='w-6 h-6' />,
-      onConfirm: async () => {
-        try {
-          setModalLoading(true)
-          const result = await manualCompleteMutation.mutateAsync({
-            tradeId,
-            data: { tx_hash: manualTxHash.trim() },
-          })
-
-          if (result.success) {
-            toast.success(`Trade ${trade.reference_code} completado com sucesso!`)
-            setManualTxHash('')
-          } else {
-            toast.error('Erro ao completar trade')
-          }
-          setModalConfig(prev => ({ ...prev, isOpen: false }))
-        } catch (err: any) {
-          console.error('Erro ao completar trade:', err)
-          toast.error(err.response?.data?.detail || 'Erro ao completar trade')
         } finally {
           setModalLoading(false)
         }
@@ -2011,6 +2293,232 @@ export const AdminTradeDetailPage: React.FC = () => {
         inputLabel={modalConfig.inputLabel || ''}
         inputPlaceholder={modalConfig.inputPlaceholder || 'Digite aqui...'}
       />
+
+      {/* ====================================================== */}
+      {/* 🔐 MODAL DE AUTENTICAÇÃO 2FA/BIOMETRIA                 */}
+      {/* ====================================================== */}
+      {show2FAModal && (
+        <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm'>
+          <div className='bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded-2xl w-full max-w-md mx-4 shadow-2xl'>
+            {/* Header */}
+            <div className='px-6 py-4 border-b border-gray-200 dark:border-white/10 rounded-t-2xl bg-blue-500/10'>
+              <div className='flex items-center justify-between'>
+                <div className='flex items-center gap-3'>
+                  <Shield className='h-6 w-6 text-blue-500' />
+                  <h3 className='text-lg font-semibold text-gray-900 dark:text-white'>
+                    Autenticação Obrigatória
+                  </h3>
+                </div>
+                <button
+                  onClick={reset2FAModal}
+                  className='p-1 rounded-lg hover:bg-gray-200 dark:hover:bg-white/10 text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors'
+                  title='Fechar'
+                >
+                  <X className='h-5 w-5' />
+                </button>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className='px-6 py-5'>
+              {/* Aviso de segurança */}
+              <div className='flex items-start gap-3 p-4 rounded-xl mb-4 bg-amber-500/10 border border-amber-500/20'>
+                <AlertTriangle className='h-5 w-5 flex-shrink-0 mt-0.5 text-amber-500' />
+                <div>
+                  <p className='text-sm font-medium text-amber-600 dark:text-amber-400'>
+                    Operação Crítica
+                  </p>
+                  <p className='text-sm text-gray-600 dark:text-gray-400 mt-1'>
+                    {pendingAction === 'confirm' &&
+                      'Você está prestes a confirmar o pagamento e depositar crypto na carteira do usuário.'}
+                    {pendingAction === 'manual' &&
+                      'Você está prestes a marcar o trade como completado manualmente.'}
+                    {pendingAction === 'retry' &&
+                      'Você está prestes a tentar novamente o depósito de crypto.'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Info do Trade */}
+              {trade && (
+                <div className='bg-gray-100 dark:bg-white/5 rounded-xl p-4 mb-4'>
+                  <div className='flex items-center justify-between mb-2'>
+                    <span className='text-sm text-gray-500'>Trade</span>
+                    <span className='font-mono text-sm text-gray-900 dark:text-white'>
+                      {trade.reference_code}
+                    </span>
+                  </div>
+                  <div className='flex items-center justify-between mb-2'>
+                    <span className='text-sm text-gray-500'>Valor</span>
+                    <span className='text-sm text-gray-900 dark:text-white'>
+                      {formatCurrency(trade.fiat_amount)}
+                    </span>
+                  </div>
+                  <div className='flex items-center justify-between'>
+                    <span className='text-sm text-gray-500'>Crypto</span>
+                    <span className='text-sm font-medium text-gray-900 dark:text-white'>
+                      {trade.crypto_amount} {trade.symbol}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Checkbox para bypass de restrição (apenas para confirm) */}
+              {pendingAction === 'confirm' && (
+                <div className='flex items-center gap-3 p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 mb-4'>
+                  <input
+                    type='checkbox'
+                    id='bypassRestriction'
+                    checked={bypassRestriction}
+                    onChange={e => setBypassRestriction(e.target.checked)}
+                    className='w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500'
+                  />
+                  <label
+                    htmlFor='bypassRestriction'
+                    className='text-sm text-gray-700 dark:text-gray-300'
+                  >
+                    <span className='font-medium'>Forçar depósito</span>
+                    <span className='text-gray-500'> (ignorar bloqueios de wallet)</span>
+                  </label>
+                </div>
+              )}
+
+              {/* Toggle de método de autenticação */}
+              <div className='mb-4'>
+                <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3'>
+                  <Shield className='h-4 w-4 inline mr-1 text-blue-500' />
+                  Método de Autenticação
+                </label>
+
+                {hasBiometry && (
+                  <div className='flex bg-gray-100 dark:bg-white/5 rounded-xl p-1 mb-4'>
+                    <button
+                      type='button'
+                      onClick={() => setAuthMethod('2fa')}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-medium transition-all ${
+                        authMethod === '2fa'
+                          ? 'bg-white dark:bg-white/10 text-blue-600 dark:text-blue-400 shadow-sm'
+                          : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                      }`}
+                    >
+                      <Shield className='h-4 w-4' />
+                      Código 2FA
+                    </button>
+                    <button
+                      type='button'
+                      onClick={() => setAuthMethod('biometry')}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-medium transition-all ${
+                        authMethod === 'biometry'
+                          ? 'bg-white dark:bg-white/10 text-green-600 dark:text-green-400 shadow-sm'
+                          : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                      }`}
+                    >
+                      <Fingerprint className='h-4 w-4' />
+                      Biometria
+                    </button>
+                  </div>
+                )}
+
+                {/* Input de código 2FA */}
+                {authMethod === '2fa' && (
+                  <>
+                    <input
+                      type='text'
+                      inputMode='numeric'
+                      maxLength={6}
+                      value={twoFactorCode}
+                      onChange={e => setTwoFactorCode(e.target.value.replace(/\D/g, ''))}
+                      placeholder='000000'
+                      className='w-full px-4 py-3 rounded-xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white placeholder-gray-400 text-center text-2xl font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500/50'
+                    />
+                    <p className='text-xs text-gray-500 mt-2 text-center'>
+                      Digite o código do seu Google Authenticator ou Authy
+                    </p>
+                  </>
+                )}
+
+                {/* Botão de biometria */}
+                {authMethod === 'biometry' && (
+                  <div className='text-center'>
+                    {biometryVerified ? (
+                      <div className='flex flex-col items-center gap-3 py-4'>
+                        <div className='w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center'>
+                          <CheckCircle className='h-8 w-8 text-green-500' />
+                        </div>
+                        <span className='text-green-600 dark:text-green-400 font-medium'>
+                          Biometria verificada!
+                        </span>
+                      </div>
+                    ) : biometryLoading ? (
+                      <div className='flex flex-col items-center gap-3 py-6'>
+                        <div className='w-16 h-16 rounded-full bg-blue-500/20 flex items-center justify-center animate-pulse'>
+                          <Fingerprint className='h-8 w-8 text-blue-500 animate-bounce' />
+                        </div>
+                        <span className='text-blue-600 dark:text-blue-400 font-medium'>
+                          Aguardando autenticação...
+                        </span>
+                        <span className='text-xs text-gray-500'>
+                          Complete a autenticação no seu dispositivo
+                        </span>
+                      </div>
+                    ) : (
+                      <button
+                        type='button'
+                        onClick={authenticateWithBiometry}
+                        disabled={modalLoading || biometryLoading}
+                        className='w-full flex flex-col items-center gap-3 py-6 px-4 rounded-xl bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-2 border-dashed border-green-500/30 hover:border-green-500/50 hover:from-green-500/20 hover:to-emerald-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed'
+                      >
+                        <div className='w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center'>
+                          <Fingerprint className='h-8 w-8 text-green-500' />
+                        </div>
+                        <span className='text-green-600 dark:text-green-400 font-medium'>
+                          Clique para autenticar com biometria
+                        </span>
+                        <span className='text-xs text-gray-500'>
+                          Touch ID, Face ID ou chave de segurança
+                        </span>
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className='px-6 py-4 border-t border-gray-200 dark:border-white/10 flex gap-3'>
+              <button
+                onClick={reset2FAModal}
+                className='flex-1 px-4 py-2.5 rounded-xl bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 font-medium transition-colors'
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={execute2FAAction}
+                disabled={
+                  modalLoading ||
+                  (authMethod === '2fa' && (!twoFactorCode || twoFactorCode.length !== 6)) ||
+                  (authMethod === 'biometry' && !biometryVerified)
+                }
+                className='flex-1 px-4 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2'
+              >
+                {modalLoading ? (
+                  <>
+                    <RefreshCw className='h-4 w-4 animate-spin' />
+                    Processando...
+                  </>
+                ) : (
+                  <>
+                    <Shield className='h-4 w-4' />
+                    {pendingAction === 'confirm' && 'Confirmar Pagamento'}
+                    {pendingAction === 'manual' && 'Completar Trade'}
+                    {pendingAction === 'retry' && 'Tentar Novamente'}
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

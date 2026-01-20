@@ -319,7 +319,8 @@ class BlockchainDepositService:
         self,
         db: Session,
         trade: InstantTrade,
-        network: str = "polygon"
+        network: str = "polygon",
+        bypass_restriction: bool = False  # Admin pode ignorar restrições
     ) -> Dict[str, Any]:
         """
         Deposita criptomoeda na wallet do usuário após confirmação de pagamento
@@ -328,6 +329,7 @@ class BlockchainDepositService:
             db: Sessão do banco
             trade: InstantTrade com pagamento confirmado
             network: Rede blockchain (ethereum, polygon, base)
+            bypass_restriction: Se True, ignora verificação de restrict_deposits (uso admin)
         
         Returns:
             {
@@ -340,6 +342,22 @@ class BlockchainDepositService:
         """
         try:
             logger.info(f"🚀 Iniciando depósito para trade {trade.reference_code}")
+            
+            # 0. VERIFICAR RESTRIÇÃO DE DEPÓSITOS NA CARTEIRA DO USUÁRIO
+            if not bypass_restriction:
+                from app.services.wallet_restriction_service import WalletRestrictionService
+                if not WalletRestrictionService.can_credit_deposit(db, str(trade.user_id)):
+                    logger.warning(f"🚫 Depósito bloqueado para usuário {trade.user_id} - restrict_deposits ativo")
+                    return {
+                        "success": False,
+                        "tx_hash": None,
+                        "wallet_address": None,
+                        "network": network,
+                        "error": "Depósitos estão temporariamente suspensos para esta conta. Entre em contato com o suporte.",
+                        "restriction_blocked": True  # Flag para o admin saber que pode usar bypass
+                    }
+            else:
+                logger.info(f"⚠️ Bypass de restrição ativado pelo admin para trade {trade.reference_code}")
             
             # 1. Valida status do trade
             if trade.status != TradeStatus.PAYMENT_CONFIRMED:

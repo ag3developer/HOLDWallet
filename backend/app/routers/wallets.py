@@ -184,6 +184,73 @@ async def get_user_wallets(
             detail=f"Failed to get wallets: {str(e)}"
         )
 
+
+@router.get("/my-restrictions", response_model=dict)
+async def get_my_restrictions(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Retorna as restrições da carteira do usuário atual.
+    
+    Útil para o frontend mostrar quais operações estão disponíveis
+    ou bloqueadas para o usuário.
+    
+    Returns:
+        dict com:
+        - is_blocked: bool - se a carteira está totalmente bloqueada
+        - blocked_reason: str | None - motivo do bloqueio
+        - restrictions: dict - restrições por tipo de operação
+        - allowed_operations: dict - quais operações estão permitidas
+    """
+    try:
+        from app.services.wallet_restriction_service import wallet_restriction_service
+        
+        restrictions = wallet_restriction_service.get_user_restrictions(
+            db=db,
+            user_id=str(current_user.id)
+        )
+        
+        # Adicionar informações de quais operações estão PERMITIDAS (mais útil pro frontend)
+        allowed_operations = {}
+        if restrictions.get("is_blocked"):
+            # Se bloqueado totalmente, nada permitido
+            allowed_operations = {
+                "instant_trade": False,
+                "deposit": False,
+                "withdrawal": False,
+                "p2p": False,
+                "transfer": False,
+                "swap": False,
+            }
+        else:
+            # Inverter restrições para mostrar o que está permitido
+            restr = restrictions.get("restrictions", {})
+            allowed_operations = {
+                "instant_trade": not restr.get("instant_trade", False),
+                "deposit": not restr.get("deposit", False),
+                "withdrawal": not restr.get("withdrawal", False),
+                "p2p": not restr.get("p2p", False),
+                "transfer": not restr.get("transfer", False),
+                "swap": not restr.get("swap", False),
+            }
+        
+        return {
+            "success": True,
+            "data": {
+                **restrictions,
+                "allowed_operations": allowed_operations
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Erro ao obter restrições: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao verificar restrições: {str(e)}"
+        )
+
+
 @router.post("/{wallet_id}/addresses", response_model=AddressResponse)
 async def generate_new_address(
     wallet_id: str,

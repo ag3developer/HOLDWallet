@@ -432,6 +432,7 @@ class UpdateStatusRequest(BaseModel):
 class ConfirmPaymentRequest(BaseModel):
     network: Optional[str] = "polygon"
     notes: Optional[str] = None
+    bypass_restriction: bool = False  # Admin pode ignorar restrições de depósito se necessário
 
 
 class AccountingEntryResponse(BaseModel):
@@ -598,7 +599,8 @@ async def confirm_payment_and_deposit(
             deposit_result = await multi_chain_service.send_crypto(
                 db=db,
                 trade=trade,
-                network=network
+                network=network,
+                bypass_restriction=request.bypass_restriction  # Admin pode forçar mesmo com restrição
             )
             
             if deposit_result.success:
@@ -633,7 +635,8 @@ async def confirm_payment_and_deposit(
                     "error": error_msg,
                     "status": TradeStatus.PAYMENT_CONFIRMED.value,
                     "manual_required": True,
-                    "hint": "Use o endpoint /manual-complete para completar manualmente"
+                    "restriction_blocked": deposit_result.restriction_blocked if hasattr(deposit_result, 'restriction_blocked') else False,
+                    "hint": "Use o endpoint /manual-complete para completar manualmente ou bypass_restriction=true"
                 }
                 
         except ImportError:
@@ -645,7 +648,8 @@ async def confirm_payment_and_deposit(
         deposit_result = blockchain_deposit_service.deposit_crypto_to_user(
             db=db,
             trade=trade,
-            network=network
+            network=network,
+            bypass_restriction=request.bypass_restriction  # Admin pode ignorar restrições
         )
         
         if deposit_result["success"]:

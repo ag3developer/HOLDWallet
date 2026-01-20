@@ -126,12 +126,13 @@ export function useUpdateTradeStatus() {
 
 /**
  * Hook para confirmar pagamento e iniciar depósito
+ * 🔐 REQUER 2FA ou Biometria
  */
 export function useConfirmTradePayment() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ tradeId, data }: { tradeId: string; data?: ConfirmPaymentRequest }) =>
+    mutationFn: ({ tradeId, data }: { tradeId: string; data: ConfirmPaymentRequest }) =>
       confirmTradePayment(tradeId, data),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: adminTradesKeys.detail(variables.tradeId) })
