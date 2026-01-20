@@ -70,6 +70,28 @@ class APIProtectionMiddleware(BaseHTTPMiddleware):
         '/api/webhooks/',
     ]
     
+    # Rotas de autenticação que precisam funcionar sem bloqueio
+    AUTH_ROUTES = [
+        '/auth/login',
+        '/auth/register',
+        '/auth/refresh',
+        '/auth/logout',
+        '/auth/2fa/',
+        '/api/auth/login',
+        '/api/auth/register',
+        '/api/auth/refresh',
+        '/api/auth/logout',
+        '/api/auth/2fa/',
+    ]
+    
+    # IPs de desenvolvimento que ignoram todas as proteções
+    DEV_BYPASS_IPS = [
+        '127.0.0.1',
+        'localhost',
+        '::1',
+        '0.0.0.0',
+    ]
+    
     # Rotas que só devem funcionar em desenvolvimento
     DEV_ONLY_ROUTES = [
         '/docs',
@@ -99,6 +121,30 @@ class APIProtectionMiddleware(BaseHTTPMiddleware):
         ip_address = self._get_client_ip(request)
         path = request.url.path
         user_agent = request.headers.get('user-agent', '').lower()
+        
+        # 0. BYPASS COMPLETO em desenvolvimento para IPs locais
+        is_dev = settings.ENVIRONMENT in ['development', 'dev', 'local']
+        is_local_ip = ip_address in self.DEV_BYPASS_IPS
+        
+        if is_dev and is_local_ip:
+            # Em desenvolvimento com IP local, ignora TODAS as proteções
+            return await call_next(request)
+        
+        # 0.1 Rotas de autenticação têm proteção reduzida
+        if self._is_auth_route(path):
+            # Ainda verifica rate limit, mas não bloqueia por user-agent em dev
+            if not is_dev and self._check_rate_limit(ip_address):
+                return JSONResponse(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    content={
+                        "detail": "Too many requests. Please slow down.",
+                        "code": "RATE_LIMIT_EXCEEDED",
+                        "retry_after": 60
+                    },
+                    headers={"Retry-After": "60"}
+                )
+            self._record_request(ip_address)
+            return await call_next(request)
         
         # 1. Verificar se IP está bloqueado temporariamente
         if self._is_ip_blocked(ip_address):
@@ -199,6 +245,10 @@ class APIProtectionMiddleware(BaseHTTPMiddleware):
     def _is_public_route(self, path: str) -> bool:
         """Verifica se a rota é pública."""
         return any(path.startswith(route) for route in self.PUBLIC_ROUTES)
+    
+    def _is_auth_route(self, path: str) -> bool:
+        """Verifica se a rota é de autenticação (proteção reduzida)."""
+        return any(path.startswith(route) for route in self.AUTH_ROUTES)
     
     def _is_dev_only_route(self, path: str) -> bool:
         """Verifica se a rota é apenas para desenvolvimento."""

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 import logging
 
 from app.core.db import SessionLocal
+from app.core.config import settings
 from app.services.security_service import SecurityService
 
 logger = logging.getLogger(__name__)
@@ -22,6 +23,24 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         "/openapi.json",
         "/health",
         "/api/health",
+        "/auth/login",
+        "/auth/register",
+        "/auth/refresh",
+        "/auth/logout",
+        "/auth/2fa/",
+        "/api/auth/login",
+        "/api/auth/register",
+        "/api/auth/refresh",
+        "/api/auth/logout",
+        "/api/auth/2fa/",
+    ]
+    
+    # IPs que ignoram verificação de bloqueio (desenvolvimento)
+    LOCAL_IPS = [
+        "127.0.0.1",
+        "localhost",
+        "::1",
+        "0.0.0.0",
     ]
     
     async def dispatch(self, request: Request, call_next):
@@ -31,6 +50,11 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         
         # Skip check for excluded paths
         if any(path.startswith(excluded) for excluded in self.EXCLUDED_PATHS):
+            return await call_next(request)
+        
+        # Skip check for local IPs in development
+        is_dev = getattr(settings, 'ENVIRONMENT', 'production') in ['development', 'dev', 'local']
+        if is_dev and ip_address in self.LOCAL_IPS:
             return await call_next(request)
         
         # Check if IP is blocked

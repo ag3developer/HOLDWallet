@@ -462,7 +462,7 @@ export const AdminSecurityPage: React.FC = () => {
 
     setTwoFaLoading(true)
     try {
-      await apiClient.post('/auth/2fa/verify', { code: twoFaCode })
+      await apiClient.post('/auth/2fa/verify', { token: twoFaCode })
       toast.success('2FA ativado com sucesso!')
       setAdminHas2FA(true)
       setTwoFaSetupData(null)
@@ -483,7 +483,7 @@ export const AdminSecurityPage: React.FC = () => {
 
     setTwoFaLoading(true)
     try {
-      await apiClient.post('/auth/2fa/disable', { code: twoFaCode })
+      await apiClient.post('/auth/2fa/disable', { token: twoFaCode })
       toast.success('2FA desativado com sucesso')
       setAdminHas2FA(false)
       setTwoFaCode('')

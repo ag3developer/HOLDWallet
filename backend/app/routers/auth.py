@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 
 from app.core.db import get_db
+from app.core.config import settings
 from app.core.security import verify_password, create_access_token, get_current_user
 from app.core.exceptions import AuthenticationError, ValidationError
 from app.models.user import User
@@ -13,6 +14,14 @@ from app.services.security_service import SecurityService
 
 router = APIRouter()
 security = HTTPBearer()
+
+# IPs locais que ignoram verificação de bloqueio
+LOCAL_IPS = ["127.0.0.1", "localhost", "::1", "0.0.0.0"]
+
+def is_dev_local_ip(ip_address: str) -> bool:
+    """Verifica se é IP local em ambiente de desenvolvimento"""
+    is_dev = getattr(settings, 'ENVIRONMENT', 'production') in ['development', 'dev', 'local']
+    return is_dev and ip_address in LOCAL_IPS
 
 @router.post("/login", response_model=LoginResponse)
 async def login(
@@ -26,8 +35,8 @@ async def login(
     ip_address = request.client.host if request.client else "unknown"
     user_agent = request.headers.get("user-agent")
     
-    # Check if IP is blocked
-    if SecurityService.is_ip_blocked(db, ip_address):
+    # Check if IP is blocked (skip for local IPs in development)
+    if not is_dev_local_ip(ip_address) and SecurityService.is_ip_blocked(db, ip_address):
         # Record blocked attempt
         SecurityService.record_login_attempt(
             db=db,
