@@ -865,6 +865,36 @@ async def send_from_system_wallet(
         from_address = account.address
         logger.info(f"  From (Platform Wallet): {from_address}")
         
+        # Verificar saldo de gas (token nativo) antes de enviar
+        native_balance = w3.eth.get_balance(account.address)
+        native_balance_ether = w3.from_wei(native_balance, 'ether')
+        logger.info(f"  Saldo nativo para gas: {native_balance_ether}")
+        
+        # Nome do token nativo por rede
+        native_names = {
+            "ethereum": "ETH",
+            "polygon": "MATIC", 
+            "bsc": "BNB",
+            "base": "ETH",
+            "avalanche": "AVAX"
+        }
+        native_name = native_names.get(network, "token nativo")
+        
+        # Estimar gas necessário
+        estimated_gas = 100000 if token != 'native' else 21000  # ERC20 usa mais gas
+        gas_price = w3.eth.gas_price
+        estimated_gas_cost = estimated_gas * gas_price
+        
+        if native_balance < estimated_gas_cost:
+            gas_cost_ether = w3.from_wei(estimated_gas_cost, 'ether')
+            raise HTTPException(
+                status_code=400,
+                detail=f"Saldo de {native_name} insuficiente para pagar gas! "
+                       f"Necessário: ~{float(gas_cost_ether):.6f} {native_name}, "
+                       f"Disponível: {float(native_balance_ether):.6f} {native_name}. "
+                       f"Deposite {native_name} na carteira {from_address}"
+            )
+        
         # ABI mínima para ERC20
         ERC20_ABI = [
             {
