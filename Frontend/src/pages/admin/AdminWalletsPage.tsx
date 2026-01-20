@@ -142,7 +142,7 @@ const NETWORK_LOGOS: Record<string, string> = {
   polygon: 'https://cryptologos.cc/logos/polygon-matic-logo.svg',
   bsc: 'https://cryptologos.cc/logos/bnb-bnb-logo.svg',
   tron: 'https://cryptologos.cc/logos/tron-trx-logo.svg',
-  base: 'https://raw.githubusercontent.com/base-org/brand-kit/main/logo/symbol/Base_Symbol_Blue.svg',
+  base: 'https://icons.llamao.fi/icons/chains/rsz_base.jpg',
   solana: 'https://cryptologos.cc/logos/solana-sol-logo.svg',
   litecoin: 'https://cryptologos.cc/logos/litecoin-ltc-logo.svg',
   dogecoin: 'https://cryptologos.cc/logos/dogecoin-doge-logo.svg',
@@ -617,7 +617,9 @@ export const AdminWalletsPage: React.FC = () => {
 
       if (response.ok) {
         const data = await response.json()
-        setHasBiometry(data.has_credentials || false)
+        // Backend retorna has_biometric, não has_credentials
+        setHasBiometry(data.has_biometric || data.has_credentials || false)
+        console.log('🔐 Biometria disponível:', data.has_biometric || data.has_credentials)
       }
     } catch (error) {
       console.error('Erro ao verificar biometria:', error)
@@ -628,6 +630,13 @@ export const AdminWalletsPage: React.FC = () => {
   useEffect(() => {
     checkBiometryAvailable()
   }, [])
+
+  // Quando o modal abre e tem biometria, definir como método padrão
+  useEffect(() => {
+    if (actionModal.type && hasBiometry) {
+      setAuthMethod('biometry')
+    }
+  }, [actionModal.type, hasBiometry])
 
   // Autenticar com biometria
   const authenticateWithBiometry = async (): Promise<boolean> => {
@@ -754,7 +763,8 @@ export const AdminWalletsPage: React.FC = () => {
     setActionModal({ type: null, wallet: null })
     setTwoFactorCode('')
     setActionReason('')
-    setAuthMethod('2fa')
+    // Se tem biometria, usar como padrão
+    setAuthMethod(hasBiometry ? 'biometry' : '2fa')
     setBiometryVerified(false)
   }
 

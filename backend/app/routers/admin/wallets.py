@@ -980,9 +980,12 @@ async def block_wallet(
             
             for balance in balances:
                 if balance.available_balance > 0:
-                    # Mover saldo disponível para bloqueado
+                    # Guardar valores anteriores
                     old_available = float(balance.available_balance)
-                    balance.locked_balance = float(balance.locked_balance or 0) + old_available
+                    old_locked = float(balance.locked_balance or 0)
+                    
+                    # Mover saldo disponível para bloqueado
+                    balance.locked_balance = old_locked + old_available
                     balance.available_balance = 0
                     
                     frozen_balances.append({
@@ -990,15 +993,18 @@ async def block_wallet(
                         "frozen_amount": old_available
                     })
                     
-                    # Registrar histórico
+                    # Registrar histórico com todos os campos obrigatórios
                     history = BalanceHistory(
                         user_id=wallet.user_id,
                         cryptocurrency=balance.cryptocurrency,
-                        amount=-old_available,
-                        balance_after=0,
                         operation_type="ADMIN_FREEZE",
-                        reason=f"Carteira bloqueada por admin: {request.reason}",
-                        performed_by=str(current_admin.id)
+                        amount=-old_available,
+                        balance_before=old_available,
+                        balance_after=0,
+                        locked_before=old_locked,
+                        locked_after=old_locked + old_available,
+                        reason=f"Carteira bloqueada por admin {current_admin.email}: {request.reason}",
+                        reference_id=f"block_{wallet_id}"
                     )
                     db.add(history)
         

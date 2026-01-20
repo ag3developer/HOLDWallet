@@ -50,11 +50,71 @@ class WebAuthnService:
         
         logger.info(f"WebAuthn configurado: rp_id={self.rp_id}, origin={self.origin}, environment={settings.ENVIRONMENT}")
         
-        # Cache de challenges (em produção usar Redis)
-        self._challenges: Dict[str, bytes] = {}
-        
         # Cache de tokens biométricos como fallback (produção usa banco de dados)
         self._biometric_tokens: Dict[str, Dict[str, Any]] = {}
+    
+    def _store_challenge(self, db: Session, user_id, challenge: bytes, challenge_type: str = "registration") -> None:
+        """
+        Armazena challenge no banco de dados (funciona com múltiplos workers)
+        """
+        from app.models.webauthn import WebAuthnChallenge
+        from datetime import timedelta
+        
+        try:
+            # Remover challenges antigos deste usuário
+            db.query(WebAuthnChallenge).filter(
+                WebAuthnChallenge.user_id == user_id
+            ).delete()
+            
+            # Criar novo challenge com expiração de 5 minutos
+            new_challenge = WebAuthnChallenge(
+                user_id=user_id,
+                challenge=bytes_to_base64url(challenge),
+                challenge_type=challenge_type,
+                expires_at=datetime.now(timezone.utc) + timedelta(minutes=5)
+            )
+            db.add(new_challenge)
+            db.commit()
+            
+            logger.info(f"✅ Challenge armazenado no banco para user {user_id}")
+        except Exception as e:
+            logger.error(f"❌ Erro ao armazenar challenge: {e}")
+            db.rollback()
+            raise
+    
+    def _get_challenge(self, db: Session, user_id, challenge_type: str = "registration") -> Optional[bytes]:
+        """
+        Recupera e remove challenge do banco de dados
+        """
+        from app.models.webauthn import WebAuthnChallenge
+        
+        try:
+            challenge_record = db.query(WebAuthnChallenge).filter(
+                WebAuthnChallenge.user_id == user_id,
+                WebAuthnChallenge.challenge_type == challenge_type
+            ).first()
+            
+            if not challenge_record:
+                logger.warning(f"⚠️ Challenge não encontrado para user {user_id}")
+                return None
+            
+            # Verificar se expirou
+            if challenge_record.is_expired:
+                logger.warning(f"⚠️ Challenge expirado para user {user_id}")
+                db.delete(challenge_record)
+                db.commit()
+                return None
+            
+            # Recuperar e deletar (single-use)
+            challenge_bytes = base64url_to_bytes(str(challenge_record.challenge))
+            db.delete(challenge_record)
+            db.commit()
+            
+            logger.info(f"✅ Challenge recuperado e removido para user {user_id}")
+            return challenge_bytes
+        except Exception as e:
+            logger.error(f"❌ Erro ao recuperar challenge: {e}")
+            return None
     
     def store_biometric_token(self, user_id, token: str, expires_at: datetime) -> None:
         """
@@ -286,7 +346,7 @@ class WebAuthnService:
             # Converter para formato WebAuthn
             exclude_credentials = [
                 PublicKeyCredentialDescriptor(
-                    id=base64url_to_bytes(cred.credential_id)
+                    id=base64url_to_bytes(str(cred.credential_id))
                 )
                 for cred in existing_credentials
             ]
@@ -303,8 +363,8 @@ class WebAuthnService:
                 rp_id=self.rp_id,
                 rp_name=self.rp_name,
                 user_id=str(user.id).encode(),
-                user_name=user.email,
-                user_display_name=user.username or user.email.split('@')[0],
+                user_name=str(user.email),
+                user_display_name=str(user.username) if user.username else str(user.email).split('@')[0],
                 exclude_credentials=exclude_credentials,
                 authenticator_selection=AuthenticatorSelectionCriteria(
                     authenticator_attachment=authenticator_attachment,
@@ -314,8 +374,8 @@ class WebAuthnService:
                 timeout=60000,  # 60 segundos
             )
             
-            # Salvar challenge para verificação posterior
-            self._challenges[str(user.id)] = options.challenge
+            # Salvar challenge no BANCO DE DADOS (funciona com múltiplos workers)
+            self._store_challenge(db, user.id, options.challenge, "registration")
             
             logger.info(f"WebAuthn registration options generated for user {user.id}")
             
@@ -342,8 +402,8 @@ class WebAuthnService:
             device_name: Nome amigável do dispositivo
         """
         try:
-            # Recuperar challenge
-            expected_challenge = self._challenges.get(str(user.id))
+            # Recuperar challenge do BANCO DE DADOS
+            expected_challenge = self._get_challenge(db, user.id, "registration")
             if not expected_challenge:
                 raise ValueError("Challenge não encontrado ou expirado")
             
@@ -370,8 +430,7 @@ class WebAuthnService:
             db.commit()
             db.refresh(credential)
             
-            # Limpar challenge
-            del self._challenges[str(user.id)]
+            # Challenge já foi removido no _get_challenge()
             
             logger.info(f"WebAuthn credential registered for user {user.id}")
             
@@ -403,7 +462,7 @@ class WebAuthnService:
             # Converter para formato WebAuthn
             allow_credentials = [
                 PublicKeyCredentialDescriptor(
-                    id=base64url_to_bytes(cred.credential_id)
+                    id=base64url_to_bytes(str(cred.credential_id))
                 )
                 for cred in credentials
             ]
@@ -416,8 +475,8 @@ class WebAuthnService:
                 timeout=60000,
             )
             
-            # Salvar challenge
-            self._challenges[str(user.id)] = options.challenge
+            # Salvar challenge no BANCO DE DADOS
+            self._store_challenge(db, user.id, options.challenge, "authentication")
             
             logger.info(f"WebAuthn authentication options generated for user {user.id}")
             
@@ -440,8 +499,8 @@ class WebAuthnService:
             True se a autenticação for bem sucedida
         """
         try:
-            # Recuperar challenge
-            expected_challenge = self._challenges.get(str(user.id))
+            # Recuperar challenge do BANCO DE DADOS
+            expected_challenge = self._get_challenge(db, user.id, "authentication")
             if not expected_challenge:
                 raise ValueError("Challenge não encontrado ou expirado")
             
@@ -462,17 +521,16 @@ class WebAuthnService:
                 expected_challenge=expected_challenge,
                 expected_rp_id=self.rp_id,
                 expected_origin=self.origin,
-                credential_public_key=base64url_to_bytes(credential.public_key),
-                credential_current_sign_count=int(credential.sign_count),
+                credential_public_key=base64url_to_bytes(str(credential.public_key)),
+                credential_current_sign_count=int(str(credential.sign_count)),
             )
             
             # Atualizar contador e último uso
-            credential.sign_count = str(verification.new_sign_count)
-            credential.last_used_at = datetime.utcnow()
+            credential.sign_count = str(verification.new_sign_count)  # type: ignore
+            credential.last_used_at = datetime.now(timezone.utc)  # type: ignore
             db.commit()
             
-            # Limpar challenge
-            del self._challenges[str(user.id)]
+            # Challenge já foi removido no _get_challenge()
             
             logger.info(f"WebAuthn authentication successful for user {user.id}")
             
