@@ -510,6 +510,23 @@ export const AdminSecurityPage: React.FC = () => {
 
   // ========== FUNÇÕES BIOMETRIA ==========
 
+  // Helpers para conversão base64url <-> Uint8Array (WebAuthn usa base64url, não base64!)
+  const base64urlToUint8Array = (base64url: string): Uint8Array => {
+    // base64url usa - e _ em vez de + e /
+    const base64 = base64url.replaceAll('-', '+').replaceAll('_', '/')
+    // Adicionar padding se necessário
+    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=')
+    const binary = atob(padded)
+    return Uint8Array.from(binary, char => char.codePointAt(0) ?? 0)
+  }
+
+  const uint8ArrayToBase64url = (array: Uint8Array): string => {
+    const binary = String.fromCodePoint(...array)
+    const base64 = btoa(binary)
+    // Converter para base64url
+    return base64.replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '')
+  }
+
   // Verificar se biometria está disponível no dispositivo
   const checkBiometryAvailability = async () => {
     try {
@@ -563,12 +580,11 @@ export const AdminSecurityPage: React.FC = () => {
       const { options } = optionsResponse.data
       console.log('📝 Registration options:', options)
 
-      // Converter challenge de base64 para Uint8Array
-      const challengeBase64 = options.challenge
-      const challengeArray = Uint8Array.from(atob(challengeBase64), c => c.codePointAt(0) || 0)
+      // Converter challenge de base64url para Uint8Array (WebAuthn usa base64url!)
+      const challengeArray = base64urlToUint8Array(options.challenge)
 
-      // Converter user.id de base64 para Uint8Array
-      const userIdArray = Uint8Array.from(atob(options.user.id), c => c.codePointAt(0) || 0)
+      // Converter user.id de base64url para Uint8Array
+      const userIdArray = base64urlToUint8Array(options.user.id)
 
       // 2. Criar credencial WebAuthn usando as opções do servidor
       const credential = (await navigator.credentials.create({
@@ -588,7 +604,7 @@ export const AdminSecurityPage: React.FC = () => {
           timeout: options.timeout || 60000,
           excludeCredentials: (options.excludeCredentials || []).map((cred: any) => ({
             ...cred,
-            id: Uint8Array.from(atob(cred.id), c => c.codePointAt(0) || 0),
+            id: base64urlToUint8Array(cred.id),
           })),
         },
       })) as PublicKeyCredential
@@ -597,16 +613,17 @@ export const AdminSecurityPage: React.FC = () => {
         // 3. Enviar credencial para o BACKEND verificar e salvar
         const attestationResponse = credential.response as AuthenticatorAttestationResponse
 
+        // Enviar em base64url (padrão WebAuthn)
         const credentialData = {
           id: credential.id,
-          rawId: btoa(String.fromCharCode(...new Uint8Array(credential.rawId))),
+          rawId: uint8ArrayToBase64url(new Uint8Array(credential.rawId)),
           type: credential.type,
           response: {
-            clientDataJSON: btoa(
-              String.fromCharCode(...new Uint8Array(attestationResponse.clientDataJSON))
+            clientDataJSON: uint8ArrayToBase64url(
+              new Uint8Array(attestationResponse.clientDataJSON)
             ),
-            attestationObject: btoa(
-              String.fromCharCode(...new Uint8Array(attestationResponse.attestationObject))
+            attestationObject: uint8ArrayToBase64url(
+              new Uint8Array(attestationResponse.attestationObject)
             ),
           },
         }
@@ -674,12 +691,12 @@ export const AdminSecurityPage: React.FC = () => {
       const { options } = optionsResponse.data
       console.log('🔐 Authentication options:', options)
 
-      // Converter challenge de base64 para Uint8Array
-      const challengeArray = Uint8Array.from(atob(options.challenge), c => c.codePointAt(0) || 0)
+      // Converter challenge de base64url para Uint8Array (WebAuthn usa base64url!)
+      const challengeArray = base64urlToUint8Array(options.challenge)
 
       // Converter allowCredentials
       const allowCredentials = (options.allowCredentials || []).map((cred: any) => ({
-        id: Uint8Array.from(atob(cred.id), c => c.codePointAt(0) || 0),
+        id: base64urlToUint8Array(cred.id),
         type: cred.type,
         transports: cred.transports || ['internal'],
       }))
@@ -699,20 +716,21 @@ export const AdminSecurityPage: React.FC = () => {
         // 3. Enviar para o backend verificar
         const assertionResponse = credential.response as AuthenticatorAssertionResponse
 
+        // Enviar em base64url (padrão WebAuthn)
         const credentialData = {
           id: credential.id,
-          rawId: btoa(String.fromCharCode(...new Uint8Array(credential.rawId))),
+          rawId: uint8ArrayToBase64url(new Uint8Array(credential.rawId)),
           type: credential.type,
           response: {
-            clientDataJSON: btoa(
-              String.fromCharCode(...new Uint8Array(assertionResponse.clientDataJSON))
+            clientDataJSON: uint8ArrayToBase64url(
+              new Uint8Array(assertionResponse.clientDataJSON)
             ),
-            authenticatorData: btoa(
-              String.fromCharCode(...new Uint8Array(assertionResponse.authenticatorData))
+            authenticatorData: uint8ArrayToBase64url(
+              new Uint8Array(assertionResponse.authenticatorData)
             ),
-            signature: btoa(String.fromCharCode(...new Uint8Array(assertionResponse.signature))),
+            signature: uint8ArrayToBase64url(new Uint8Array(assertionResponse.signature)),
             userHandle: assertionResponse.userHandle
-              ? btoa(String.fromCharCode(...new Uint8Array(assertionResponse.userHandle)))
+              ? uint8ArrayToBase64url(new Uint8Array(assertionResponse.userHandle))
               : null,
           },
         }
