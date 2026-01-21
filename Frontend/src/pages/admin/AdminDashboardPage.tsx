@@ -32,6 +32,13 @@ import {
   UserPlus,
   Loader2,
   Settings,
+  CreditCard,
+  FileText,
+  Receipt,
+  Banknote,
+  Lock,
+  Key,
+  UserCheck,
 } from 'lucide-react'
 import { apiClient } from '@/services/api'
 
@@ -58,12 +65,30 @@ interface DashboardStats {
     p2p_active: number
     p2p_completed: number
   }
+  wolkpay?: {
+    total_invoices: number
+    completed: number
+    pending: number
+    volume_brl: number
+    volume_24h: number
+    fees_collected: number
+  }
+  bill_payment?: {
+    total_bills: number
+    paid: number
+    pending: number
+    volume_brl: number
+    volume_24h: number
+    fees_collected: number
+  }
   financial: {
     total_volume_brl: number
     volume_24h: number
     total_fees_collected: number
     fees_24h: number
     avg_trade_value: number
+    platform_total_volume?: number
+    platform_total_fees?: number
   }
   disputes: {
     total: number
@@ -134,7 +159,7 @@ const mockRecentActivity: RecentActivity[] = [
     type: 'trade_completed',
     title: 'Trade OTC completado',
     description: 'OTC-2026-001234 • R$ 5.000,00',
-    time: '2 min atrás',
+    time: new Date(Date.now() - 2 * 60000).toISOString(), // 2 min atrás
     status: 'success',
   },
   {
@@ -142,7 +167,7 @@ const mockRecentActivity: RecentActivity[] = [
     type: 'user_registered',
     title: 'Novo usuário registrado',
     description: 'user@email.com',
-    time: '5 min atrás',
+    time: new Date(Date.now() - 5 * 60000).toISOString(), // 5 min atrás
     status: 'info',
   },
   {
@@ -150,7 +175,7 @@ const mockRecentActivity: RecentActivity[] = [
     type: 'trade_pending',
     title: 'Trade pendente aguardando confirmação',
     description: 'OTC-2026-001235 • Pagamento PIX',
-    time: '10 min atrás',
+    time: new Date(Date.now() - 10 * 60000).toISOString(), // 10 min atrás
     status: 'warning',
   },
   {
@@ -158,7 +183,7 @@ const mockRecentActivity: RecentActivity[] = [
     type: 'kyc_approved',
     title: 'KYC aprovado',
     description: 'cliente@empresa.com.br',
-    time: '15 min atrás',
+    time: new Date(Date.now() - 15 * 60000).toISOString(), // 15 min atrás
     status: 'success',
   },
   {
@@ -166,7 +191,7 @@ const mockRecentActivity: RecentActivity[] = [
     type: 'dispute_opened',
     title: 'Nova disputa aberta',
     description: 'P2P-2026-000456 • Pagamento não confirmado',
-    time: '25 min atrás',
+    time: new Date(Date.now() - 25 * 60000).toISOString(), // 25 min atrás
     status: 'error',
   },
 ]
@@ -604,35 +629,64 @@ export const AdminDashboardPage: React.FC = () => {
                 color: 'text-purple-600',
               },
               {
-                icon: AlertTriangle,
-                label: 'Disputas',
+                icon: Globe,
+                label: 'WolkPay',
+                path: '/admin/wolkpay',
+                color: 'text-cyan-600',
+              },
+              {
+                icon: Receipt,
+                label: 'Boletos',
+                path: '/admin/bill-payments',
+                color: 'text-amber-600',
+              },
+              {
+                icon: Activity,
+                label: 'P2P',
                 path: '/admin/p2p',
-                color: 'text-orange-600',
+                color: 'text-green-600',
               },
               {
                 icon: BarChart3,
                 label: 'Relatórios',
                 path: '/admin/reports',
-                color: 'text-green-600',
+                color: 'text-indigo-600',
+              },
+              {
+                icon: UserCheck,
+                label: 'KYC',
+                path: '/admin/kyc',
+                color: 'text-teal-600',
+              },
+              {
+                icon: PieChart,
+                label: 'Analytics',
+                path: '/admin/analytics',
+                color: 'text-pink-600',
               },
               {
                 icon: Wallet,
                 label: 'Carteira Sistema',
                 path: '/admin/system-wallet',
-                color: 'text-indigo-600',
+                color: 'text-violet-600',
+              },
+              {
+                icon: DollarSign,
+                label: 'Taxas',
+                path: '/admin/fees',
+                color: 'text-emerald-600',
+              },
+              {
+                icon: Lock,
+                label: 'Segurança',
+                path: '/admin/security',
+                color: 'text-red-600',
               },
               {
                 icon: Settings,
                 label: 'Configurações',
                 path: '/admin/settings',
                 color: 'text-gray-600',
-              },
-              { icon: DollarSign, label: 'Taxas', path: '/admin/fees', color: 'text-emerald-600' },
-              {
-                icon: PieChart,
-                label: 'Analytics',
-                path: '/admin/analytics',
-                color: 'text-pink-600',
               },
             ].map((item, index) => (
               <button
@@ -673,6 +727,8 @@ export const AdminDashboardPage: React.FC = () => {
                 trade_pending: Clock,
                 dispute_opened: AlertTriangle,
                 kyc_approved: CheckCircle,
+                wolkpay: Globe,
+                bill_payment: Receipt,
               }
               const colorMap = {
                 success: 'text-green-500 bg-green-100 dark:bg-green-900/30',
@@ -688,18 +744,38 @@ export const AdminDashboardPage: React.FC = () => {
                 if (!time) return '-'
                 try {
                   const date = new Date(time)
+
+                  // Verifica se a data é válida
+                  if (Number.isNaN(date.getTime())) {
+                    return time // Retorna o valor original se não for uma data válida
+                  }
+
                   const now = new Date()
                   const diffMs = now.getTime() - date.getTime()
                   const diffMins = Math.floor(diffMs / 60000)
                   const diffHours = Math.floor(diffMs / 3600000)
                   const diffDays = Math.floor(diffMs / 86400000)
 
-                  if (diffMins < 60) return `${diffMins} min atrás`
-                  if (diffHours < 24) return `${diffHours}h atrás`
-                  if (diffDays < 7) return `${diffDays}d atrás`
-                  return date.toLocaleDateString('pt-BR')
+                  // Formatar data e hora completa
+                  const dateStr = date.toLocaleDateString('pt-BR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: '2-digit',
+                  })
+                  const timeStr = date.toLocaleTimeString('pt-BR', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })
+
+                  // Se for recente, mostra "X min/horas atrás" + horário
+                  if (diffMins < 60) return `${diffMins} min • ${timeStr}`
+                  if (diffHours < 24) return `${diffHours}h • ${timeStr}`
+                  if (diffDays < 7) return `${diffDays}d • ${dateStr}`
+
+                  // Se for mais antigo, mostra data e hora
+                  return `${dateStr} ${timeStr}`
                 } catch {
-                  return time
+                  return time || '-'
                 }
               }
 
@@ -726,6 +802,154 @@ export const AdminDashboardPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Products Overview - WolkPay & Bill Payment */}
+      <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
+        {/* WolkPay */}
+        <div
+          className='bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl p-6 text-white shadow-lg cursor-pointer hover:shadow-xl transition-shadow'
+          onClick={() => navigate('/admin/wolkpay')}
+        >
+          <div className='flex items-center justify-between mb-4'>
+            <div className='flex items-center gap-3'>
+              <div className='p-3 bg-white/20 rounded-lg'>
+                <Globe className='w-6 h-6' />
+              </div>
+              <div>
+                <h3 className='text-lg font-semibold'>WolkPay</h3>
+                <p className='text-sm text-cyan-100'>Faturas e Pagamentos</p>
+              </div>
+            </div>
+            <ArrowUpRight className='w-5 h-5 text-white/60' />
+          </div>
+          <div className='grid grid-cols-3 gap-4 mt-4'>
+            <div>
+              <p className='text-2xl font-bold'>
+                {new Intl.NumberFormat('pt-BR').format(stats.wolkpay?.total_invoices || 0)}
+              </p>
+              <p className='text-xs text-cyan-100'>Faturas</p>
+            </div>
+            <div>
+              <p className='text-2xl font-bold'>
+                {new Intl.NumberFormat('pt-BR', {
+                  style: 'currency',
+                  currency: 'BRL',
+                  notation: 'compact',
+                }).format(stats.wolkpay?.volume_brl || 0)}
+              </p>
+              <p className='text-xs text-cyan-100'>Volume</p>
+            </div>
+            <div>
+              <p className='text-2xl font-bold'>
+                {new Intl.NumberFormat('pt-BR', {
+                  style: 'currency',
+                  currency: 'BRL',
+                  notation: 'compact',
+                }).format(stats.wolkpay?.fees_collected || 0)}
+              </p>
+              <p className='text-xs text-cyan-100'>Taxas</p>
+            </div>
+          </div>
+          <div className='flex items-center gap-4 mt-4 pt-4 border-t border-white/20'>
+            <div className='flex items-center gap-2'>
+              <CheckCircle className='w-4 h-4 text-green-300' />
+              <span className='text-sm'>{stats.wolkpay?.completed || 0} completas</span>
+            </div>
+            <div className='flex items-center gap-2'>
+              <Clock className='w-4 h-4 text-yellow-300' />
+              <span className='text-sm'>{stats.wolkpay?.pending || 0} pendentes</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Bill Payment */}
+        <div
+          className='bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl p-6 text-white shadow-lg cursor-pointer hover:shadow-xl transition-shadow'
+          onClick={() => navigate('/admin/bill-payments')}
+        >
+          <div className='flex items-center justify-between mb-4'>
+            <div className='flex items-center gap-3'>
+              <div className='p-3 bg-white/20 rounded-lg'>
+                <Receipt className='w-6 h-6' />
+              </div>
+              <div>
+                <h3 className='text-lg font-semibold'>Pagamento de Boletos</h3>
+                <p className='text-sm text-amber-100'>Bill Payment Service</p>
+              </div>
+            </div>
+            <ArrowUpRight className='w-5 h-5 text-white/60' />
+          </div>
+          <div className='grid grid-cols-3 gap-4 mt-4'>
+            <div>
+              <p className='text-2xl font-bold'>
+                {new Intl.NumberFormat('pt-BR').format(stats.bill_payment?.total_bills || 0)}
+              </p>
+              <p className='text-xs text-amber-100'>Boletos</p>
+            </div>
+            <div>
+              <p className='text-2xl font-bold'>
+                {new Intl.NumberFormat('pt-BR', {
+                  style: 'currency',
+                  currency: 'BRL',
+                  notation: 'compact',
+                }).format(stats.bill_payment?.volume_brl || 0)}
+              </p>
+              <p className='text-xs text-amber-100'>Volume</p>
+            </div>
+            <div>
+              <p className='text-2xl font-bold'>
+                {new Intl.NumberFormat('pt-BR', {
+                  style: 'currency',
+                  currency: 'BRL',
+                  notation: 'compact',
+                }).format(stats.bill_payment?.fees_collected || 0)}
+              </p>
+              <p className='text-xs text-amber-100'>Taxas</p>
+            </div>
+          </div>
+          <div className='flex items-center gap-4 mt-4 pt-4 border-t border-white/20'>
+            <div className='flex items-center gap-2'>
+              <CheckCircle className='w-4 h-4 text-green-300' />
+              <span className='text-sm'>{stats.bill_payment?.paid || 0} pagos</span>
+            </div>
+            <div className='flex items-center gap-2'>
+              <Clock className='w-4 h-4 text-yellow-300' />
+              <span className='text-sm'>{stats.bill_payment?.pending || 0} pendentes</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Platform Total Volume */}
+      {(stats.financial.platform_total_volume || stats.financial.platform_total_fees) && (
+        <div className='bg-gradient-to-r from-gray-900 to-gray-800 rounded-xl p-6 text-white shadow-lg'>
+          <div className='flex items-center justify-between'>
+            <div className='flex items-center gap-4'>
+              <div className='p-3 bg-white/10 rounded-lg'>
+                <BarChart3 className='w-6 h-6' />
+              </div>
+              <div>
+                <p className='text-sm text-gray-400'>
+                  Volume Total da Plataforma (Todos os Serviços)
+                </p>
+                <p className='text-3xl font-bold'>
+                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                    stats.financial.platform_total_volume || 0
+                  )}
+                </p>
+              </div>
+            </div>
+            <div className='text-right'>
+              <p className='text-sm text-gray-400'>Receita Total em Taxas</p>
+              <p className='text-2xl font-bold text-green-400'>
+                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                  stats.financial.platform_total_fees || 0
+                )}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bottom Stats Row */}
       <div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
