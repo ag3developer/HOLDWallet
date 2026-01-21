@@ -27,6 +27,7 @@ from .reports import router as reports_router
 from .settings import router as settings_router
 from .audit import router as audit_router
 from .dashboard import router as dashboard_router
+from .analytics import router as analytics_router
 from .wallets import router as wallets_router
 from .transactions import router as transactions_router
 from .fees import router as fees_router
@@ -45,6 +46,7 @@ admin_router = APIRouter(prefix="/admin", tags=["Admin"])
 
 # Include all sub-routers
 admin_router.include_router(dashboard_router)
+admin_router.include_router(analytics_router)
 admin_router.include_router(users_router)
 admin_router.include_router(trades_router)
 admin_router.include_router(p2p_router)
@@ -73,6 +75,7 @@ __all__ = [
     "settings_router",
     "audit_router",
     "dashboard_router",
+    "analytics_router",
     "wallets_router",
     "transactions_router",
     "fees_router",

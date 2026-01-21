@@ -58,56 +58,14 @@ interface AnalyticsData {
     daily: { date: string; volume: number; trades: number }[]
     weekly: { week: string; volume: number; trades: number }[]
   }
+  period?: string
+  generated_at?: string
 }
 
-// Mock data para demonstração
-const mockAnalyticsData: AnalyticsData = {
-  overview: {
-    total_users: 1250,
-    active_users_24h: 342,
-    total_volume_brl: 15_432_890.5,
-    total_trades: 8_765,
-    total_fees_collected: 485_234.12,
-    conversion_rate: 68.5,
-  },
-  growth: {
-    users_growth: 12.5,
-    volume_growth: 23.8,
-    trades_growth: 15.2,
-    fees_growth: 18.7,
-  },
-  trading: {
-    otc_trades: 5_234,
-    p2p_trades: 3_531,
-    avg_trade_value: 1_760.45,
-    most_traded_crypto: 'USDT',
-  },
-  timeframes: {
-    daily: [
-      { date: '01/01', volume: 450000, trades: 156 },
-      { date: '02/01', volume: 520000, trades: 178 },
-      { date: '03/01', volume: 480000, trades: 165 },
-      { date: '04/01', volume: 610000, trades: 198 },
-      { date: '05/01', volume: 580000, trades: 189 },
-    ],
-    weekly: [
-      { week: 'Semana 1', volume: 2_500_000, trades: 850 },
-      { week: 'Semana 2', volume: 2_800_000, trades: 920 },
-      { week: 'Semana 3', volume: 3_100_000, trades: 1050 },
-      { week: 'Semana 4', volume: 2_900_000, trades: 980 },
-    ],
-  },
-}
-
-// Fetch analytics data
-const fetchAnalytics = async (): Promise<AnalyticsData> => {
-  try {
-    const { data } = await apiClient.get('/admin/analytics/overview')
-    return data.data
-  } catch {
-    // Retorna mock data se API não estiver disponível
-    return mockAnalyticsData
-  }
+// Fetch analytics data - SEM FALLBACK MOCK
+const fetchAnalytics = async (period: string): Promise<AnalyticsData> => {
+  const { data } = await apiClient.get(`/admin/analytics/overview?period=${period}`)
+  return data.data
 }
 
 // Componente de Card de Estatística
@@ -215,9 +173,9 @@ export const AdminAnalyticsPage: React.FC = () => {
     isLoading,
     error,
     refetch,
-  } = useQuery({
+  } = useQuery<AnalyticsData>({
     queryKey: ['admin-analytics', timeRange],
-    queryFn: fetchAnalytics,
+    queryFn: () => fetchAnalytics(timeRange),
     staleTime: 120000, // 2 minutos
     gcTime: 600000, // 10 minutos
     retry: 2,
