@@ -2167,19 +2167,28 @@ async def emergency_transfer_all_funds(
         transfers = []
         errors = []
         
-        # 1. Verificar e transferir USDT
-        usdt_contracts = {
-            "polygon": "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
-            "ethereum": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
-            "bsc": "0x55d398326f99059fF775485246999027B3197955",
-            "base": "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2"
-        }
-        
-        usdc_contracts = {
-            "polygon": "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
-            "ethereum": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-            "bsc": "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d",
-            "base": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+        # 1. Verificar e transferir tokens ERC-20
+        # Mapas de contratos por rede
+        token_contracts = {
+            "USDT": {
+                "polygon": {"address": "0xc2132D05D31c914a87C6611C10748AEb04B58e8F", "decimals": 6},
+                "ethereum": {"address": "0xdAC17F958D2ee523a2206206994597C13D831ec7", "decimals": 6},
+                "bsc": {"address": "0x55d398326f99059fF775485246999027B3197955", "decimals": 18},
+                "base": {"address": "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2", "decimals": 6}
+            },
+            "USDC": {
+                "polygon": {"address": "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174", "decimals": 6},
+                "ethereum": {"address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", "decimals": 6},
+                "bsc": {"address": "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d", "decimals": 18},
+                "base": {"address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", "decimals": 6}
+            },
+            "TRAY": {
+                "polygon": {"address": "0x6b62514E925099643abA13B322A62ff6298f8E8A", "decimals": 18}
+            },
+            "DAI": {
+                "polygon": {"address": "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063", "decimals": 18},
+                "ethereum": {"address": "0x6B175474E89094C44Da98b954EescdeCB6d3F", "decimals": 18}
+            }
         }
         
         # ABI mínimo para ERC20
@@ -2189,17 +2198,18 @@ async def emergency_transfer_all_funds(
             {"constant": True, "inputs": [], "name": "decimals", "outputs": [{"name": "", "type": "uint8"}], "type": "function"}
         ]
         
-        # Transferir tokens
-        for token_name, contracts in [("USDT", usdt_contracts), ("USDC", usdc_contracts)]:
-            if network.lower() in contracts:
+        # Transferir todos os tokens
+        for token_name, networks in token_contracts.items():
+            if network.lower() in networks:
                 try:
-                    token_address = Web3.to_checksum_address(contracts[network.lower()])
+                    token_info = networks[network.lower()]
+                    token_address = Web3.to_checksum_address(token_info["address"])
+                    token_decimals = token_info["decimals"]
                     contract = w3.eth.contract(address=token_address, abi=erc20_abi)
                     balance = contract.functions.balanceOf(from_address).call()
-                    decimals = contract.functions.decimals().call()
                     
                     if balance > 0:
-                        human_balance = balance / (10 ** decimals)
+                        human_balance = balance / (10 ** token_decimals)
                         logger.info(f"Transferindo {human_balance} {token_name}...")
                         
                         # Construir TX
