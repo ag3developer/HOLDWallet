@@ -2,7 +2,7 @@
  * 🛡️ HOLD Wallet - Admin Reports Page
  * ====================================
  *
- * Página de relatórios e métricas do sistema.
+ * Página de relatórios e métricas do sistema com dados reais.
  */
 
 import React, { useEffect, useState } from 'react'
@@ -17,7 +17,9 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   PieChart,
+  AlertCircle,
 } from 'lucide-react'
+import { apiClient } from '../../services/api'
 
 interface ReportPeriod {
   label: string
@@ -26,10 +28,10 @@ interface ReportPeriod {
 
 interface MetricCard {
   title: string
-  value: string
+  value: number
+  formatted_value: string
   change: number
-  changeLabel: string
-  icon: React.ReactNode
+  change_label: string
   color: string
 }
 
@@ -39,11 +41,33 @@ interface VolumeData {
   sell_volume: number
 }
 
+interface TopTrader {
+  rank: number
+  user_id: string
+  email: string
+  trades_count: number
+  total_volume: number
+  fee_paid: number
+}
+
+interface ReportsData {
+  metrics: MetricCard[]
+  volume_data: VolumeData[]
+  distribution: {
+    total_trades: number
+    otc: { count: number; percent: number }
+    p2p: { count: number; percent: number }
+  }
+  top_traders: TopTrader[]
+  period: string
+  generated_at: string
+}
+
 export const AdminReportsPage: React.FC = () => {
   const [period, setPeriod] = useState('7d')
   const [loading, setLoading] = useState(true)
-  const [metrics, setMetrics] = useState<MetricCard[]>([])
-  const [volumeData, setVolumeData] = useState<VolumeData[]>([])
+  const [error, setError] = useState<string | null>(null)
+  const [data, setData] = useState<ReportsData | null>(null)
 
   const periods: ReportPeriod[] = [
     { label: '7 dias', value: '7d' },
@@ -55,52 +79,18 @@ export const AdminReportsPage: React.FC = () => {
   const fetchReports = async () => {
     try {
       setLoading(true)
-      // Mock data - integrar com API
-      setMetrics([
-        {
-          title: 'Volume Total',
-          value: '$1,234,567',
-          change: 12.5,
-          changeLabel: 'vs período anterior',
-          icon: <DollarSign className='w-6 h-6' />,
-          color: 'blue',
-        },
-        {
-          title: 'Novos Usuários',
-          value: '456',
-          change: 8.3,
-          changeLabel: 'vs período anterior',
-          icon: <Users className='w-6 h-6' />,
-          color: 'green',
-        },
-        {
-          title: 'Trades Realizados',
-          value: '2,345',
-          change: -3.2,
-          changeLabel: 'vs período anterior',
-          icon: <TrendingUp className='w-6 h-6' />,
-          color: 'purple',
-        },
-        {
-          title: 'Taxa Média',
-          value: '0.5%',
-          change: 0,
-          changeLabel: 'sem alteração',
-          icon: <PieChart className='w-6 h-6' />,
-          color: 'orange',
-        },
-      ])
-      setVolumeData([
-        { date: '01/01', buy_volume: 45000, sell_volume: 38000 },
-        { date: '02/01', buy_volume: 52000, sell_volume: 42000 },
-        { date: '03/01', buy_volume: 48000, sell_volume: 45000 },
-        { date: '04/01', buy_volume: 61000, sell_volume: 55000 },
-        { date: '05/01', buy_volume: 55000, sell_volume: 50000 },
-        { date: '06/01', buy_volume: 68000, sell_volume: 62000 },
-        { date: '07/01', buy_volume: 72000, sell_volume: 58000 },
-      ])
-    } catch {
-      console.error('Erro ao buscar relatórios')
+      setError(null)
+
+      const response = await apiClient.get(`/admin/reports/dashboard?period=${period}`)
+
+      if (response.data?.success && response.data?.data) {
+        setData(response.data.data)
+      } else {
+        throw new Error('Dados inválidos recebidos')
+      }
+    } catch (err: any) {
+      console.error('Erro ao buscar relatórios:', err)
+      setError(err.response?.data?.message || 'Erro ao carregar relatórios')
     } finally {
       setLoading(false)
     }
@@ -120,7 +110,19 @@ export const AdminReportsPage: React.FC = () => {
     return colors[color] || colors.blue
   }
 
-  const maxVolume = Math.max(...volumeData.flatMap(d => [d.buy_volume, d.sell_volume]))
+  const getIcon = (color: string) => {
+    const icons: Record<string, React.ReactNode> = {
+      blue: <DollarSign className='w-6 h-6' />,
+      green: <Users className='w-6 h-6' />,
+      purple: <TrendingUp className='w-6 h-6' />,
+      orange: <PieChart className='w-6 h-6' />,
+    }
+    return icons[color] || icons.blue
+  }
+
+  const maxVolume = data?.volume_data
+    ? Math.max(...data.volume_data.flatMap(d => [d.buy_volume, d.sell_volume]), 1)
+    : 1
 
   return (
     <div className='min-h-screen bg-gray-50 dark:bg-gray-900 p-6'>
@@ -178,17 +180,31 @@ export const AdminReportsPage: React.FC = () => {
         <div className='flex items-center justify-center py-20'>
           <RefreshCw className='w-8 h-8 animate-spin text-indigo-500' />
         </div>
-      ) : (
+      ) : error ? (
+        <div className='flex flex-col items-center justify-center py-20'>
+          <AlertCircle className='w-12 h-12 text-red-500 mb-4' />
+          <p className='text-red-500'>{error}</p>
+          <button
+            onClick={fetchReports}
+            className='mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700'
+          >
+            Tentar novamente
+          </button>
+        </div>
+      ) : data ? (
         <>
           {/* Metrics Cards */}
           <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8'>
-            {metrics.map((metric, index) => (
-              <div key={index} className='bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm'>
+            {data.metrics.map(metric => (
+              <div
+                key={metric.title}
+                className='bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm'
+              >
                 <div className='flex items-start justify-between mb-4'>
                   <div
                     className={`w-12 h-12 rounded-xl flex items-center justify-center ${getColorClass(metric.color)}`}
                   >
-                    {metric.icon}
+                    {getIcon(metric.color)}
                   </div>
                   {metric.change !== 0 && (
                     <div
@@ -205,8 +221,10 @@ export const AdminReportsPage: React.FC = () => {
                 </div>
                 <div>
                   <h3 className='text-sm text-gray-500 dark:text-gray-400'>{metric.title}</h3>
-                  <p className='text-2xl font-bold text-gray-900 dark:text-white'>{metric.value}</p>
-                  <p className='text-xs text-gray-400 mt-1'>{metric.changeLabel}</p>
+                  <p className='text-2xl font-bold text-gray-900 dark:text-white'>
+                    {metric.formatted_value}
+                  </p>
+                  <p className='text-xs text-gray-400 mt-1'>{metric.change_label}</p>
                 </div>
               </div>
             ))}
@@ -220,24 +238,27 @@ export const AdminReportsPage: React.FC = () => {
                 Volume de Trading
               </h3>
               <div className='space-y-4'>
-                {volumeData.map((day, index) => (
-                  <div key={index} className='space-y-2'>
+                {data.volume_data.map(day => (
+                  <div key={day.date} className='space-y-2'>
                     <div className='flex items-center justify-between text-sm'>
                       <span className='text-gray-500'>{day.date}</span>
                       <span className='text-gray-900 dark:text-white font-medium'>
-                        ${(day.buy_volume + day.sell_volume).toLocaleString()}
+                        R${' '}
+                        {(day.buy_volume + day.sell_volume).toLocaleString('pt-BR', {
+                          minimumFractionDigits: 2,
+                        })}
                       </span>
                     </div>
                     <div className='flex gap-1 h-6'>
                       <div
                         className='bg-green-500 rounded-l'
                         style={{ width: `${(day.buy_volume / maxVolume) * 100}%` }}
-                        title={`Compra: $${day.buy_volume.toLocaleString()}`}
+                        title={`Compra: R$ ${day.buy_volume.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
                       />
                       <div
                         className='bg-red-500 rounded-r'
                         style={{ width: `${(day.sell_volume / maxVolume) * 100}%` }}
-                        title={`Venda: $${day.sell_volume.toLocaleString()}`}
+                        title={`Venda: R$ ${day.sell_volume.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
                       />
                     </div>
                   </div>
@@ -274,52 +295,45 @@ export const AdminReportsPage: React.FC = () => {
                       fill='none'
                       stroke='#3b82f6'
                       strokeWidth='3'
-                      strokeDasharray='45, 100'
+                      strokeDasharray={`${data.distribution.otc.percent}, 100`}
                     />
                     <path
                       d='M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831'
                       fill='none'
                       stroke='#10b981'
                       strokeWidth='3'
-                      strokeDasharray='30, 100'
-                      strokeDashoffset='-45'
-                    />
-                    <path
-                      d='M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831'
-                      fill='none'
-                      stroke='#8b5cf6'
-                      strokeWidth='3'
-                      strokeDasharray='25, 100'
-                      strokeDashoffset='-75'
+                      strokeDasharray={`${data.distribution.p2p.percent}, 100`}
+                      strokeDashoffset={`-${data.distribution.otc.percent}`}
                     />
                   </svg>
                   <div className='absolute inset-0 flex items-center justify-center flex-col'>
-                    <span className='text-2xl font-bold text-gray-900 dark:text-white'>2,345</span>
+                    <span className='text-2xl font-bold text-gray-900 dark:text-white'>
+                      {data.distribution.total_trades.toLocaleString()}
+                    </span>
                     <span className='text-sm text-gray-500'>trades</span>
                   </div>
                 </div>
               </div>
-              <div className='grid grid-cols-3 gap-4 mt-4'>
+              <div className='grid grid-cols-2 gap-4 mt-4'>
                 <div className='text-center'>
                   <div className='flex items-center justify-center gap-1'>
                     <div className='w-3 h-3 bg-blue-500 rounded' />
                     <span className='text-sm text-gray-500'>OTC</span>
                   </div>
-                  <p className='text-lg font-semibold text-gray-900 dark:text-white'>45%</p>
+                  <p className='text-lg font-semibold text-gray-900 dark:text-white'>
+                    {data.distribution.otc.percent}%
+                  </p>
+                  <p className='text-xs text-gray-400'>{data.distribution.otc.count} trades</p>
                 </div>
                 <div className='text-center'>
                   <div className='flex items-center justify-center gap-1'>
                     <div className='w-3 h-3 bg-green-500 rounded' />
                     <span className='text-sm text-gray-500'>P2P</span>
                   </div>
-                  <p className='text-lg font-semibold text-gray-900 dark:text-white'>30%</p>
-                </div>
-                <div className='text-center'>
-                  <div className='flex items-center justify-center gap-1'>
-                    <div className='w-3 h-3 bg-purple-500 rounded' />
-                    <span className='text-sm text-gray-500'>Swap</span>
-                  </div>
-                  <p className='text-lg font-semibold text-gray-900 dark:text-white'>25%</p>
+                  <p className='text-lg font-semibold text-gray-900 dark:text-white'>
+                    {data.distribution.p2p.percent}%
+                  </p>
+                  <p className='text-xs text-gray-400'>{data.distribution.p2p.count} trades</p>
                 </div>
               </div>
             </div>
@@ -342,37 +356,52 @@ export const AdminReportsPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className='divide-y divide-gray-100 dark:divide-gray-700'>
-                  {[1, 2, 3, 4, 5].map(rank => (
-                    <tr key={rank} className='text-sm'>
-                      <td className='py-3'>
-                        <span
-                          className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-medium ${
-                            rank === 1
-                              ? 'bg-yellow-100 text-yellow-800'
-                              : rank === 2
-                                ? 'bg-gray-100 text-gray-800'
-                                : rank === 3
-                                  ? 'bg-orange-100 text-orange-800'
-                                  : 'bg-gray-50 text-gray-600'
-                          }`}
-                        >
-                          {rank}
-                        </span>
+                  {data.top_traders.length > 0 ? (
+                    data.top_traders.map(trader => (
+                      <tr key={trader.user_id} className='text-sm'>
+                        <td className='py-3'>
+                          <span
+                            className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-medium ${
+                              trader.rank === 1
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : trader.rank === 2
+                                  ? 'bg-gray-100 text-gray-800'
+                                  : trader.rank === 3
+                                    ? 'bg-orange-100 text-orange-800'
+                                    : 'bg-gray-50 text-gray-600'
+                            }`}
+                          >
+                            {trader.rank}
+                          </span>
+                        </td>
+                        <td className='py-3 text-gray-900 dark:text-white'>{trader.email}</td>
+                        <td className='py-3 text-gray-600 dark:text-gray-400'>
+                          {trader.trades_count}
+                        </td>
+                        <td className='py-3 text-gray-900 dark:text-white font-medium'>
+                          R${' '}
+                          {trader.total_volume.toLocaleString('pt-BR', {
+                            minimumFractionDigits: 2,
+                          })}
+                        </td>
+                        <td className='py-3 text-green-600'>
+                          R$ {trader.fee_paid.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={5} className='py-8 text-center text-gray-500'>
+                        Nenhum trader encontrado no período
                       </td>
-                      <td className='py-3 text-gray-900 dark:text-white'>trader_{rank}23</td>
-                      <td className='py-3 text-gray-600 dark:text-gray-400'>{150 - rank * 15}</td>
-                      <td className='py-3 text-gray-900 dark:text-white font-medium'>
-                        ${(50000 - rank * 5000).toLocaleString()}
-                      </td>
-                      <td className='py-3 text-green-600'>${(250 - rank * 25).toLocaleString()}</td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>
           </div>
         </>
-      )}
+      ) : null}
     </div>
   )
 }

@@ -9,7 +9,7 @@ Author: HOLD Wallet Team
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, cast, String
 from typing import Optional
 from datetime import datetime, timezone, timedelta
 import logging
@@ -20,6 +20,7 @@ from app.models.user import User
 from app.models.transaction import Transaction
 from app.models.instant_trade import InstantTrade, TradeStatus
 from app.models.p2p import P2POrder, P2PMatch
+from app.models.accounting import AccountingEntry
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,319 @@ router = APIRouter(
     tags=["Admin - Reports"],
     dependencies=[Depends(get_current_admin)]
 )
+
+
+def get_period_config(period: str):
+    """Retorna configuração do período"""
+    now = datetime.now(timezone.utc)
+    
+    if period == "7d":
+        start_date = now - timedelta(days=7)
+        prev_start = now - timedelta(days=14)
+        prev_end = start_date
+        days = 7
+    elif period == "30d":
+        start_date = now - timedelta(days=30)
+        prev_start = now - timedelta(days=60)
+        prev_end = start_date
+        days = 30
+    elif period == "3m":
+        start_date = now - timedelta(days=90)
+        prev_start = now - timedelta(days=180)
+        prev_end = start_date
+        days = 90
+    elif period == "12m":
+        start_date = now - timedelta(days=365)
+        prev_start = now - timedelta(days=730)
+        prev_end = start_date
+        days = 365
+    else:
+        start_date = None
+        prev_start = None
+        prev_end = None
+        days = 0
+    
+    return start_date, prev_start, prev_end, now, days
+
+
+def calc_change(current: float, previous: float) -> float:
+    """Calcula variação percentual"""
+    if previous == 0:
+        return 100.0 if current > 0 else 0.0
+    return round(((current - previous) / previous) * 100, 1)
+
+
+@router.get("/dashboard")
+async def get_reports_dashboard(
+    period: str = Query("7d", regex="^(7d|30d|3m|12m)$"),
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin)
+):
+    """
+    📊 Dashboard completo de relatórios com dados reais.
+    
+    Retorna métricas, volume de trading, distribuição e top traders.
+    """
+    try:
+        start_date, prev_start, prev_end, now, days = get_period_config(period)
+        
+        # ==================
+        # MÉTRICAS PRINCIPAIS
+        # ==================
+        
+        # Volume total (período atual)
+        volume_query = db.query(func.sum(InstantTrade.brl_amount)).filter(
+            InstantTrade.status == TradeStatus.COMPLETED
+        )
+        if start_date:
+            volume_query = volume_query.filter(InstantTrade.completed_at >= start_date)
+        current_volume = float(volume_query.scalar() or 0)
+        
+        # Volume período anterior
+        prev_volume = 0.0
+        if prev_start and prev_end:
+            prev_volume = float(db.query(func.sum(InstantTrade.brl_amount)).filter(
+                InstantTrade.status == TradeStatus.COMPLETED,
+                InstantTrade.completed_at >= prev_start,
+                InstantTrade.completed_at < prev_end
+            ).scalar() or 0)
+        
+        volume_change = calc_change(current_volume, prev_volume)
+        
+        # Novos usuários (período atual)
+        users_query = db.query(func.count(User.id))
+        if start_date:
+            users_query = users_query.filter(User.created_at >= start_date)
+        current_users = users_query.scalar() or 0
+        
+        # Novos usuários período anterior
+        prev_users = 0
+        if prev_start and prev_end:
+            prev_users = db.query(func.count(User.id)).filter(
+                User.created_at >= prev_start,
+                User.created_at < prev_end
+            ).scalar() or 0
+        
+        users_change = calc_change(current_users, prev_users)
+        
+        # Trades realizados (período atual)
+        trades_query = db.query(func.count(InstantTrade.id)).filter(
+            InstantTrade.status == TradeStatus.COMPLETED
+        )
+        if start_date:
+            trades_query = trades_query.filter(InstantTrade.completed_at >= start_date)
+        current_trades = trades_query.scalar() or 0
+        
+        # Trades período anterior
+        prev_trades = 0
+        if prev_start and prev_end:
+            prev_trades = db.query(func.count(InstantTrade.id)).filter(
+                InstantTrade.status == TradeStatus.COMPLETED,
+                InstantTrade.completed_at >= prev_start,
+                InstantTrade.completed_at < prev_end
+            ).scalar() or 0
+        
+        trades_change = calc_change(current_trades, prev_trades)
+        
+        # Taxas coletadas
+        fees_query = db.query(func.sum(AccountingEntry.amount)).filter(
+            AccountingEntry.status == "processed"
+        )
+        if start_date:
+            fees_query = fees_query.filter(AccountingEntry.created_at >= start_date)
+        current_fees = float(fees_query.scalar() or 0)
+        
+        # Taxa média
+        avg_fee_rate = 0.0
+        if current_volume > 0:
+            avg_fee_rate = round((current_fees / current_volume) * 100, 2)
+        
+        # Taxas período anterior
+        prev_fees = 0.0
+        if prev_start and prev_end:
+            prev_fees = float(db.query(func.sum(AccountingEntry.amount)).filter(
+                AccountingEntry.status == "processed",
+                AccountingEntry.created_at >= prev_start,
+                AccountingEntry.created_at < prev_end
+            ).scalar() or 0)
+        
+        fees_change = calc_change(current_fees, prev_fees)
+        
+        # ==================
+        # VOLUME DIÁRIO
+        # ==================
+        volume_data = []
+        num_days = min(days, 7) if days > 0 else 7  # Máximo 7 dias no gráfico
+        
+        for i in range(num_days - 1, -1, -1):
+            day = now - timedelta(days=i)
+            day_start = day.replace(hour=0, minute=0, second=0, microsecond=0)
+            day_end = day_start + timedelta(days=1)
+            
+            # Volume de compra
+            buy_vol = db.query(func.sum(InstantTrade.brl_amount)).filter(
+                InstantTrade.status == TradeStatus.COMPLETED,
+                InstantTrade.operation_type == "buy",
+                InstantTrade.completed_at >= day_start,
+                InstantTrade.completed_at < day_end
+            ).scalar() or 0
+            
+            # Volume de venda
+            sell_vol = db.query(func.sum(InstantTrade.brl_amount)).filter(
+                InstantTrade.status == TradeStatus.COMPLETED,
+                InstantTrade.operation_type == "sell",
+                InstantTrade.completed_at >= day_start,
+                InstantTrade.completed_at < day_end
+            ).scalar() or 0
+            
+            volume_data.append({
+                "date": day.strftime("%d/%m"),
+                "buy_volume": float(buy_vol),
+                "sell_volume": float(sell_vol)
+            })
+        
+        # ==================
+        # DISTRIBUIÇÃO POR TIPO
+        # ==================
+        
+        # Trades OTC completados
+        otc_count = db.query(func.count(InstantTrade.id)).filter(
+            InstantTrade.status == TradeStatus.COMPLETED
+        )
+        if start_date:
+            otc_count = otc_count.filter(InstantTrade.completed_at >= start_date)
+        otc_trades = otc_count.scalar() or 0
+        
+        # Trades P2P completados
+        p2p_count = db.query(func.count(P2PMatch.id)).filter(
+            P2PMatch.status == "completed"
+        )
+        if start_date:
+            p2p_count = p2p_count.filter(P2PMatch.completed_at >= start_date)
+        p2p_trades = p2p_count.scalar() or 0
+        
+        total_all_trades = otc_trades + p2p_trades
+        
+        # Calcular percentuais
+        otc_percent = round((otc_trades / total_all_trades * 100) if total_all_trades > 0 else 0, 1)
+        p2p_percent = round((p2p_trades / total_all_trades * 100) if total_all_trades > 0 else 0, 1)
+        
+        # ==================
+        # TOP TRADERS
+        # ==================
+        top_traders_query = db.query(
+            User.id,
+            User.email,
+            func.count(InstantTrade.id).label('trades_count'),
+            func.sum(InstantTrade.brl_amount).label('total_volume')
+        ).join(
+            InstantTrade, cast(InstantTrade.user_id, String) == cast(User.id, String)
+        ).filter(
+            InstantTrade.status == TradeStatus.COMPLETED
+        )
+        
+        if start_date:
+            top_traders_query = top_traders_query.filter(InstantTrade.completed_at >= start_date)
+        
+        top_traders_query = top_traders_query.group_by(
+            User.id, User.email
+        ).order_by(
+            func.sum(InstantTrade.brl_amount).desc()
+        ).limit(5)
+        
+        top_traders = []
+        try:
+            results = top_traders_query.all()
+            for rank, t in enumerate(results, 1):
+                # Mascarar email
+                email = t[1] or "unknown"
+                if "@" in email:
+                    parts = email.split("@")
+                    masked = parts[0][:3] + "***@" + parts[1][:3] + "..."
+                else:
+                    masked = email[:5] + "***"
+                
+                # Calcular taxa paga (estimativa 2% do volume)
+                volume = float(t[3] or 0)
+                fee_paid = round(volume * 0.02, 2)
+                
+                top_traders.append({
+                    "rank": rank,
+                    "user_id": str(t[0]),
+                    "email": masked,
+                    "trades_count": t[2] or 0,
+                    "total_volume": round(volume, 2),
+                    "fee_paid": fee_paid
+                })
+        except Exception as e:
+            logger.warning(f"Erro ao buscar top traders: {e}")
+        
+        # ==================
+        # RESPONSE
+        # ==================
+        logger.info(f"✅ Reports dashboard carregado por: {current_admin.email}")
+        
+        return {
+            "success": True,
+            "data": {
+                "metrics": [
+                    {
+                        "title": "Volume Total",
+                        "value": current_volume,
+                        "formatted_value": f"R$ {current_volume:,.2f}",
+                        "change": volume_change,
+                        "change_label": "vs período anterior",
+                        "color": "blue"
+                    },
+                    {
+                        "title": "Novos Usuários",
+                        "value": current_users,
+                        "formatted_value": str(current_users),
+                        "change": users_change,
+                        "change_label": "vs período anterior",
+                        "color": "green"
+                    },
+                    {
+                        "title": "Trades Realizados",
+                        "value": current_trades,
+                        "formatted_value": f"{current_trades:,}",
+                        "change": trades_change,
+                        "change_label": "vs período anterior",
+                        "color": "purple"
+                    },
+                    {
+                        "title": "Taxa Média",
+                        "value": avg_fee_rate,
+                        "formatted_value": f"{avg_fee_rate}%",
+                        "change": 0,
+                        "change_label": "do volume",
+                        "color": "orange"
+                    }
+                ],
+                "volume_data": volume_data,
+                "distribution": {
+                    "total_trades": total_all_trades,
+                    "otc": {
+                        "count": otc_trades,
+                        "percent": otc_percent
+                    },
+                    "p2p": {
+                        "count": p2p_trades,
+                        "percent": p2p_percent
+                    }
+                },
+                "top_traders": top_traders,
+                "period": period,
+                "generated_at": now.isoformat()
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Erro no dashboard de reports: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao carregar reports: {str(e)}"
+        )
 
 
 @router.get("/overview", response_model=dict)
