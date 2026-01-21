@@ -23,6 +23,10 @@ from app.models.transaction import Transaction
 from app.models.instant_trade import InstantTrade, TradeStatus
 from app.models.p2p import P2POrder, P2PMatch, P2PDispute
 from app.models.accounting import AccountingEntry
+from app.models.wolkpay import (
+    WolkPayInvoice, InvoiceStatus,
+    WolkPayBillPayment, BillPaymentStatus
+)
 
 logger = logging.getLogger(__name__)
 
@@ -133,6 +137,63 @@ async def get_analytics_overview(
         
         total_trades = otc_trades + p2p_trades
         total_volume_brl = volume_otc + volume_p2p
+        
+        # =====================
+        # OVERVIEW - WolkPay (Faturas)
+        # =====================
+        wolkpay_query = db.query(WolkPayInvoice).filter(
+            WolkPayInvoice.status == InvoiceStatus.COMPLETED
+        )
+        if start_date:
+            wolkpay_query = wolkpay_query.filter(WolkPayInvoice.created_at >= start_date)
+        
+        wolkpay_count = wolkpay_query.count()
+        
+        # Volume WolkPay
+        wolkpay_volume = db.query(func.sum(WolkPayInvoice.total_amount_brl)).filter(
+            WolkPayInvoice.status == InvoiceStatus.COMPLETED
+        )
+        if start_date:
+            wolkpay_volume = wolkpay_volume.filter(WolkPayInvoice.created_at >= start_date)
+        wolkpay_volume_brl = float(wolkpay_volume.scalar() or 0)
+        
+        # Taxas WolkPay
+        wolkpay_fees = db.query(func.sum(WolkPayInvoice.service_fee_brl + WolkPayInvoice.network_fee_brl)).filter(
+            WolkPayInvoice.status == InvoiceStatus.COMPLETED
+        )
+        if start_date:
+            wolkpay_fees = wolkpay_fees.filter(WolkPayInvoice.created_at >= start_date)
+        wolkpay_fees_brl = float(wolkpay_fees.scalar() or 0)
+        
+        # =====================
+        # OVERVIEW - Bill Payment (Pagamento de Boletos)
+        # =====================
+        billpay_query = db.query(WolkPayBillPayment).filter(
+            WolkPayBillPayment.status == BillPaymentStatus.PAID
+        )
+        if start_date:
+            billpay_query = billpay_query.filter(WolkPayBillPayment.created_at >= start_date)
+        
+        billpay_count = billpay_query.count()
+        
+        # Volume Bill Payment (valor dos boletos pagos)
+        billpay_volume = db.query(func.sum(WolkPayBillPayment.bill_amount_brl)).filter(
+            WolkPayBillPayment.status == BillPaymentStatus.PAID
+        )
+        if start_date:
+            billpay_volume = billpay_volume.filter(WolkPayBillPayment.created_at >= start_date)
+        billpay_volume_brl = float(billpay_volume.scalar() or 0)
+        
+        # Taxas Bill Payment
+        billpay_fees = db.query(func.sum(WolkPayBillPayment.service_fee_brl + WolkPayBillPayment.network_fee_brl)).filter(
+            WolkPayBillPayment.status == BillPaymentStatus.PAID
+        )
+        if start_date:
+            billpay_fees = billpay_fees.filter(WolkPayBillPayment.created_at >= start_date)
+        billpay_fees_brl = float(billpay_fees.scalar() or 0)
+        
+        # Volume total incluindo todos os serviços
+        total_volume_all_services = total_volume_brl + wolkpay_volume_brl + billpay_volume_brl
         
         # =====================
         # OVERVIEW - Taxas coletadas
@@ -313,6 +374,17 @@ async def get_analytics_overview(
                     "avg_trade_value": round(avg_trade_value, 2),
                     "most_traded_crypto": most_traded_crypto
                 },
+                "wolkpay": {
+                    "invoices_completed": wolkpay_count,
+                    "volume_brl": round(wolkpay_volume_brl, 2),
+                    "fees_collected": round(wolkpay_fees_brl, 2)
+                },
+                "bill_payment": {
+                    "bills_paid": billpay_count,
+                    "volume_brl": round(billpay_volume_brl, 2),
+                    "fees_collected": round(billpay_fees_brl, 2)
+                },
+                "total_platform_volume": round(total_volume_all_services, 2),
                 "timeframes": {
                     "daily": daily_data,
                     "weekly": weekly_data

@@ -21,6 +21,10 @@ from app.models.transaction import Transaction
 from app.models.instant_trade import InstantTrade, TradeStatus
 from app.models.p2p import P2POrder, P2PMatch
 from app.models.accounting import AccountingEntry
+from app.models.wolkpay import (
+    WolkPayInvoice, InvoiceStatus,
+    WolkPayBillPayment, BillPaymentStatus
+)
 
 logger = logging.getLogger(__name__)
 
@@ -220,11 +224,62 @@ async def get_reports_dashboard(
             p2p_count = p2p_count.filter(P2PMatch.completed_at >= start_date)
         p2p_trades = p2p_count.scalar() or 0
         
-        total_all_trades = otc_trades + p2p_trades
+        # ==================
+        # WOLKPAY - Faturas
+        # ==================
+        wolkpay_count = db.query(func.count(WolkPayInvoice.id)).filter(
+            WolkPayInvoice.status == InvoiceStatus.COMPLETED
+        )
+        if start_date:
+            wolkpay_count = wolkpay_count.filter(WolkPayInvoice.created_at >= start_date)
+        wolkpay_invoices = wolkpay_count.scalar() or 0
+        
+        wolkpay_vol = db.query(func.sum(WolkPayInvoice.total_amount_brl)).filter(
+            WolkPayInvoice.status == InvoiceStatus.COMPLETED
+        )
+        if start_date:
+            wolkpay_vol = wolkpay_vol.filter(WolkPayInvoice.created_at >= start_date)
+        wolkpay_volume = float(wolkpay_vol.scalar() or 0)
+        
+        wolkpay_fees_q = db.query(func.sum(WolkPayInvoice.service_fee_brl + WolkPayInvoice.network_fee_brl)).filter(
+            WolkPayInvoice.status == InvoiceStatus.COMPLETED
+        )
+        if start_date:
+            wolkpay_fees_q = wolkpay_fees_q.filter(WolkPayInvoice.created_at >= start_date)
+        wolkpay_fees_total = float(wolkpay_fees_q.scalar() or 0)
+        
+        # ==================
+        # BILL PAYMENT - Boletos
+        # ==================
+        billpay_count = db.query(func.count(WolkPayBillPayment.id)).filter(
+            WolkPayBillPayment.status == BillPaymentStatus.PAID
+        )
+        if start_date:
+            billpay_count = billpay_count.filter(WolkPayBillPayment.created_at >= start_date)
+        billpay_bills = billpay_count.scalar() or 0
+        
+        billpay_vol = db.query(func.sum(WolkPayBillPayment.bill_amount_brl)).filter(
+            WolkPayBillPayment.status == BillPaymentStatus.PAID
+        )
+        if start_date:
+            billpay_vol = billpay_vol.filter(WolkPayBillPayment.created_at >= start_date)
+        billpay_volume = float(billpay_vol.scalar() or 0)
+        
+        billpay_fees_q = db.query(func.sum(WolkPayBillPayment.service_fee_brl + WolkPayBillPayment.network_fee_brl)).filter(
+            WolkPayBillPayment.status == BillPaymentStatus.PAID
+        )
+        if start_date:
+            billpay_fees_q = billpay_fees_q.filter(WolkPayBillPayment.created_at >= start_date)
+        billpay_fees_total = float(billpay_fees_q.scalar() or 0)
+        
+        total_all_trades = otc_trades + p2p_trades + wolkpay_invoices + billpay_bills
+        total_all_volume = current_volume + wolkpay_volume + billpay_volume
         
         # Calcular percentuais
         otc_percent = round((otc_trades / total_all_trades * 100) if total_all_trades > 0 else 0, 1)
         p2p_percent = round((p2p_trades / total_all_trades * 100) if total_all_trades > 0 else 0, 1)
+        wolkpay_percent = round((wolkpay_invoices / total_all_trades * 100) if total_all_trades > 0 else 0, 1)
+        billpay_percent = round((billpay_bills / total_all_trades * 100) if total_all_trades > 0 else 0, 1)
         
         # ==================
         # TOP TRADERS
@@ -287,8 +342,8 @@ async def get_reports_dashboard(
                 "metrics": [
                     {
                         "title": "Volume Total",
-                        "value": current_volume,
-                        "formatted_value": f"R$ {current_volume:,.2f}",
+                        "value": total_all_volume,
+                        "formatted_value": f"R$ {total_all_volume:,.2f}",
                         "change": volume_change,
                         "change_label": "vs período anterior",
                         "color": "blue"
@@ -302,19 +357,19 @@ async def get_reports_dashboard(
                         "color": "green"
                     },
                     {
-                        "title": "Trades Realizados",
-                        "value": current_trades,
-                        "formatted_value": f"{current_trades:,}",
+                        "title": "Operações",
+                        "value": total_all_trades,
+                        "formatted_value": f"{total_all_trades:,}",
                         "change": trades_change,
                         "change_label": "vs período anterior",
                         "color": "purple"
                     },
                     {
-                        "title": "Taxa Média",
-                        "value": avg_fee_rate,
-                        "formatted_value": f"{avg_fee_rate}%",
+                        "title": "Taxas Coletadas",
+                        "value": current_fees + wolkpay_fees_total + billpay_fees_total,
+                        "formatted_value": f"R$ {(current_fees + wolkpay_fees_total + billpay_fees_total):,.2f}",
                         "change": 0,
-                        "change_label": "do volume",
+                        "change_label": "total do período",
                         "color": "orange"
                     }
                 ],
@@ -323,11 +378,24 @@ async def get_reports_dashboard(
                     "total_trades": total_all_trades,
                     "otc": {
                         "count": otc_trades,
-                        "percent": otc_percent
+                        "percent": otc_percent,
+                        "volume": round(current_volume, 2)
                     },
                     "p2p": {
                         "count": p2p_trades,
                         "percent": p2p_percent
+                    },
+                    "wolkpay": {
+                        "count": wolkpay_invoices,
+                        "percent": wolkpay_percent,
+                        "volume": round(wolkpay_volume, 2),
+                        "fees": round(wolkpay_fees_total, 2)
+                    },
+                    "bill_payment": {
+                        "count": billpay_bills,
+                        "percent": billpay_percent,
+                        "volume": round(billpay_volume, 2),
+                        "fees": round(billpay_fees_total, 2)
                     }
                 },
                 "top_traders": top_traders,

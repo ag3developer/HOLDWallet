@@ -55,8 +55,10 @@ interface ReportsData {
   volume_data: VolumeData[]
   distribution: {
     total_trades: number
-    otc: { count: number; percent: number }
+    otc: { count: number; percent: number; volume?: number }
     p2p: { count: number; percent: number }
+    wolkpay?: { count: number; percent: number; volume: number; fees: number }
+    bill_payment?: { count: number; percent: number; volume: number; fees: number }
   }
   top_traders: TopTrader[]
   period: string
@@ -279,38 +281,67 @@ export const AdminReportsPage: React.FC = () => {
             {/* Distribution Chart */}
             <div className='bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm'>
               <h3 className='text-lg font-semibold text-gray-900 dark:text-white mb-6'>
-                Distribuição por Tipo
+                Distribuição por Serviço
               </h3>
               <div className='flex items-center justify-center py-8'>
                 <div className='relative w-48 h-48'>
-                  <svg viewBox='0 0 36 36' className='w-full h-full -rotate-90'>
-                    <path
-                      d='M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831'
-                      fill='none'
-                      stroke='#e5e7eb'
-                      strokeWidth='3'
-                    />
-                    <path
-                      d='M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831'
-                      fill='none'
-                      stroke='#3b82f6'
-                      strokeWidth='3'
-                      strokeDasharray={`${data.distribution.otc.percent}, 100`}
-                    />
-                    <path
-                      d='M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831'
-                      fill='none'
-                      stroke='#10b981'
-                      strokeWidth='3'
-                      strokeDasharray={`${data.distribution.p2p.percent}, 100`}
-                      strokeDashoffset={`-${data.distribution.otc.percent}`}
-                    />
-                  </svg>
+                  {(() => {
+                    const otcPercent = data.distribution.otc.percent
+                    const p2pPercent = data.distribution.p2p.percent
+                    const wolkpayPercent = data.distribution.wolkpay?.percent || 0
+                    const billpayPercent = data.distribution.bill_payment?.percent || 0
+
+                    return (
+                      <svg viewBox='0 0 36 36' className='w-full h-full -rotate-90'>
+                        <path
+                          d='M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831'
+                          fill='none'
+                          stroke='#e5e7eb'
+                          strokeWidth='3'
+                        />
+                        {/* OTC - Blue */}
+                        <path
+                          d='M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831'
+                          fill='none'
+                          stroke='#3b82f6'
+                          strokeWidth='3'
+                          strokeDasharray={`${otcPercent}, 100`}
+                        />
+                        {/* P2P - Green */}
+                        <path
+                          d='M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831'
+                          fill='none'
+                          stroke='#10b981'
+                          strokeWidth='3'
+                          strokeDasharray={`${p2pPercent}, 100`}
+                          strokeDashoffset={`-${otcPercent}`}
+                        />
+                        {/* WolkPay - Purple */}
+                        <path
+                          d='M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831'
+                          fill='none'
+                          stroke='#8b5cf6'
+                          strokeWidth='3'
+                          strokeDasharray={`${wolkpayPercent}, 100`}
+                          strokeDashoffset={`-${otcPercent + p2pPercent}`}
+                        />
+                        {/* Bill Payment - Orange */}
+                        <path
+                          d='M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831'
+                          fill='none'
+                          stroke='#f59e0b'
+                          strokeWidth='3'
+                          strokeDasharray={`${billpayPercent}, 100`}
+                          strokeDashoffset={`-${otcPercent + p2pPercent + wolkpayPercent}`}
+                        />
+                      </svg>
+                    )
+                  })()}
                   <div className='absolute inset-0 flex items-center justify-center flex-col'>
                     <span className='text-2xl font-bold text-gray-900 dark:text-white'>
                       {data.distribution.total_trades.toLocaleString()}
                     </span>
-                    <span className='text-sm text-gray-500'>trades</span>
+                    <span className='text-sm text-gray-500'>operações</span>
                   </div>
                 </div>
               </div>
@@ -335,6 +366,34 @@ export const AdminReportsPage: React.FC = () => {
                   </p>
                   <p className='text-xs text-gray-400'>{data.distribution.p2p.count} trades</p>
                 </div>
+                {data.distribution.wolkpay && (
+                  <div className='text-center'>
+                    <div className='flex items-center justify-center gap-1'>
+                      <div className='w-3 h-3 bg-purple-500 rounded' />
+                      <span className='text-sm text-gray-500'>WolkPay</span>
+                    </div>
+                    <p className='text-lg font-semibold text-gray-900 dark:text-white'>
+                      {data.distribution.wolkpay.percent}%
+                    </p>
+                    <p className='text-xs text-gray-400'>
+                      {data.distribution.wolkpay.count} faturas
+                    </p>
+                  </div>
+                )}
+                {data.distribution.bill_payment && (
+                  <div className='text-center'>
+                    <div className='flex items-center justify-center gap-1'>
+                      <div className='w-3 h-3 bg-amber-500 rounded' />
+                      <span className='text-sm text-gray-500'>Boletos</span>
+                    </div>
+                    <p className='text-lg font-semibold text-gray-900 dark:text-white'>
+                      {data.distribution.bill_payment.percent}%
+                    </p>
+                    <p className='text-xs text-gray-400'>
+                      {data.distribution.bill_payment.count} boletos
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>

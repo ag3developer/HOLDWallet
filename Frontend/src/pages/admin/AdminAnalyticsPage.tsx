@@ -24,7 +24,6 @@ import {
   LineChart,
   ArrowUpRight,
   ArrowDownRight,
-  Clock,
   Target,
   Zap,
   Globe,
@@ -54,6 +53,17 @@ interface AnalyticsData {
     avg_trade_value: number
     most_traded_crypto: string
   }
+  wolkpay?: {
+    invoices_completed: number
+    volume_brl: number
+    fees_collected: number
+  }
+  bill_payment?: {
+    bills_paid: number
+    volume_brl: number
+    fees_collected: number
+  }
+  total_platform_volume?: number
   timeframes: {
     daily: { date: string; volume: number; trades: number }[]
     weekly: { week: string; volume: number; trades: number }[]
@@ -329,7 +339,7 @@ export const AdminAnalyticsPage: React.FC = () => {
           <div className='flex items-center justify-between mb-6'>
             <h2 className='text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2'>
               <PieChart className='w-5 h-5 text-blue-600' />
-              Distribuição de Trades
+              Distribuição de Operações
             </h2>
           </div>
           <div className='space-y-4'>
@@ -348,20 +358,14 @@ export const AdminAnalyticsPage: React.FC = () => {
                 <p className='text-xl font-bold text-blue-600'>
                   {new Intl.NumberFormat('pt-BR').format(analytics.trading.otc_trades)}
                 </p>
-                <p className='text-sm text-gray-500'>
-                  {((analytics.trading.otc_trades / analytics.overview.total_trades) * 100).toFixed(
-                    1
-                  )}
-                  %
-                </p>
               </div>
             </div>
 
             {/* P2P */}
-            <div className='flex items-center justify-between p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg'>
+            <div className='flex items-center justify-between p-4 bg-green-50 dark:bg-green-900/20 rounded-lg'>
               <div className='flex items-center gap-3'>
-                <div className='p-2 bg-purple-100 dark:bg-purple-800 rounded-lg'>
-                  <Users className='w-5 h-5 text-purple-600 dark:text-purple-400' />
+                <div className='p-2 bg-green-100 dark:bg-green-800 rounded-lg'>
+                  <Users className='w-5 h-5 text-green-600 dark:text-green-400' />
                 </div>
                 <div>
                   <p className='font-medium text-gray-900 dark:text-white'>Trades P2P</p>
@@ -369,17 +373,61 @@ export const AdminAnalyticsPage: React.FC = () => {
                 </div>
               </div>
               <div className='text-right'>
-                <p className='text-xl font-bold text-purple-600'>
+                <p className='text-xl font-bold text-green-600'>
                   {new Intl.NumberFormat('pt-BR').format(analytics.trading.p2p_trades)}
-                </p>
-                <p className='text-sm text-gray-500'>
-                  {((analytics.trading.p2p_trades / analytics.overview.total_trades) * 100).toFixed(
-                    1
-                  )}
-                  %
                 </p>
               </div>
             </div>
+
+            {/* WolkPay */}
+            {analytics.wolkpay && (
+              <div className='flex items-center justify-between p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg'>
+                <div className='flex items-center gap-3'>
+                  <div className='p-2 bg-purple-100 dark:bg-purple-800 rounded-lg'>
+                    <Globe className='w-5 h-5 text-purple-600 dark:text-purple-400' />
+                  </div>
+                  <div>
+                    <p className='font-medium text-gray-900 dark:text-white'>WolkPay</p>
+                    <p className='text-sm text-gray-500'>Faturas e pagamentos</p>
+                  </div>
+                </div>
+                <div className='text-right'>
+                  <p className='text-xl font-bold text-purple-600'>
+                    {new Intl.NumberFormat('pt-BR').format(analytics.wolkpay.invoices_completed)}
+                  </p>
+                  <p className='text-sm text-gray-500'>
+                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                      analytics.wolkpay.volume_brl
+                    )}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Boletos */}
+            {analytics.bill_payment && (
+              <div className='flex items-center justify-between p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg'>
+                <div className='flex items-center gap-3'>
+                  <div className='p-2 bg-amber-100 dark:bg-amber-800 rounded-lg'>
+                    <Wallet className='w-5 h-5 text-amber-600 dark:text-amber-400' />
+                  </div>
+                  <div>
+                    <p className='font-medium text-gray-900 dark:text-white'>Boletos</p>
+                    <p className='text-sm text-gray-500'>Pagamentos de boleto</p>
+                  </div>
+                </div>
+                <div className='text-right'>
+                  <p className='text-xl font-bold text-amber-600'>
+                    {new Intl.NumberFormat('pt-BR').format(analytics.bill_payment.bills_paid)}
+                  </p>
+                  <p className='text-sm text-gray-500'>
+                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                      analytics.bill_payment.volume_brl
+                    )}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -478,34 +526,74 @@ export const AdminAnalyticsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Performance Overview */}
+      {/* Services Revenue Overview */}
       <div className='bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm'>
         <h2 className='text-lg font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2'>
-          <Globe className='w-5 h-5 text-blue-500' />
-          Visão Geral de Performance
+          <DollarSign className='w-5 h-5 text-green-500' />
+          Receita por Serviço
         </h2>
         <div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
-          <div className='text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg'>
-            <Clock className='w-6 h-6 text-green-600 mx-auto mb-2' />
-            <p className='text-2xl font-bold text-green-600'>99.9%</p>
-            <p className='text-sm text-gray-500'>Uptime</p>
-          </div>
           <div className='text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg'>
-            <Zap className='w-6 h-6 text-blue-600 mx-auto mb-2' />
-            <p className='text-2xl font-bold text-blue-600'>1.2s</p>
-            <p className='text-sm text-gray-500'>Tempo Médio de Trade</p>
+            <TrendingUp className='w-6 h-6 text-blue-600 mx-auto mb-2' />
+            <p className='text-2xl font-bold text-blue-600'>
+              {new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL',
+                notation: 'compact',
+              }).format(analytics.overview.total_fees_collected)}
+            </p>
+            <p className='text-sm text-gray-500'>OTC Taxas</p>
+          </div>
+          <div className='text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg'>
+            <Users className='w-6 h-6 text-green-600 mx-auto mb-2' />
+            <p className='text-2xl font-bold text-green-600'>
+              {new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL',
+                notation: 'compact',
+              }).format(0)}
+            </p>
+            <p className='text-sm text-gray-500'>P2P Taxas</p>
           </div>
           <div className='text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg'>
-            <Activity className='w-6 h-6 text-purple-600 mx-auto mb-2' />
-            <p className='text-2xl font-bold text-purple-600'>98.5%</p>
-            <p className='text-sm text-gray-500'>Taxa de Sucesso</p>
+            <Globe className='w-6 h-6 text-purple-600 mx-auto mb-2' />
+            <p className='text-2xl font-bold text-purple-600'>
+              {new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL',
+                notation: 'compact',
+              }).format(analytics.wolkpay?.fees_collected || 0)}
+            </p>
+            <p className='text-sm text-gray-500'>WolkPay Taxas</p>
           </div>
-          <div className='text-center p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg'>
-            <Users className='w-6 h-6 text-yellow-600 mx-auto mb-2' />
-            <p className='text-2xl font-bold text-yellow-600'>4.8</p>
-            <p className='text-sm text-gray-500'>Satisfação (NPS)</p>
+          <div className='text-center p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg'>
+            <Wallet className='w-6 h-6 text-amber-600 mx-auto mb-2' />
+            <p className='text-2xl font-bold text-amber-600'>
+              {new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL',
+                notation: 'compact',
+              }).format(analytics.bill_payment?.fees_collected || 0)}
+            </p>
+            <p className='text-sm text-gray-500'>Boletos Taxas</p>
           </div>
         </div>
+
+        {/* Volume Total da Plataforma */}
+        {analytics.total_platform_volume && (
+          <div className='mt-6 pt-4 border-t border-gray-100 dark:border-gray-700'>
+            <div className='flex items-center justify-between'>
+              <span className='text-gray-600 dark:text-gray-400'>
+                Volume Total da Plataforma (todos serviços)
+              </span>
+              <span className='text-2xl font-bold text-green-600'>
+                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                  analytics.total_platform_volume
+                )}
+              </span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
