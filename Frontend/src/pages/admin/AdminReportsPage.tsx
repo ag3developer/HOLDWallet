@@ -92,7 +92,15 @@ export const AdminReportsPage: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Erro ao buscar relatórios:', err)
-      setError(err.response?.data?.message || 'Erro ao carregar relatórios')
+
+      // Tratamento específico para erros de autenticação
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        setError('Sessão expirada. Por favor, faça logout e login novamente.')
+      } else {
+        setError(
+          err.response?.data?.message || err.response?.data?.detail || 'Erro ao carregar relatórios'
+        )
+      }
     } finally {
       setLoading(false)
     }

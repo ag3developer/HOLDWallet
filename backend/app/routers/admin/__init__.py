@@ -65,8 +65,8 @@ admin_router.include_router(security_router)
 admin_router.include_router(user_kyc_admin_router)
 admin_router.include_router(kyc_admin_router)
 admin_router.include_router(locked_balances_router)
-admin_router.include_router(wolkpay_admin_router)
-admin_router.include_router(bill_payment_admin_router)
+# NOTA: wolkpay_admin_router e bill_payment_admin_router são incluídos diretamente no main.py
+# para evitar duplicação de prefixos (/admin/admin/...)
 
 __all__ = [
     "admin_router",
