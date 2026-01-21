@@ -637,7 +637,7 @@ export const AdminDashboardPage: React.FC = () => {
               {
                 icon: Receipt,
                 label: 'Boletos',
-                path: '/admin/bill-payments',
+                path: '/admin/bill-payment',
                 color: 'text-amber-600',
               },
               {
@@ -865,7 +865,7 @@ export const AdminDashboardPage: React.FC = () => {
         {/* Bill Payment */}
         <div
           className='bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl p-6 text-white shadow-lg cursor-pointer hover:shadow-xl transition-shadow'
-          onClick={() => navigate('/admin/bill-payments')}
+          onClick={() => navigate('/admin/bill-payment')}
         >
           <div className='flex items-center justify-between mb-4'>
             <div className='flex items-center gap-3'>
