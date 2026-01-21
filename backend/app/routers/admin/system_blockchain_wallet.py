@@ -549,6 +549,8 @@ async def export_private_key(
     """
     try:
         from app.services.crypto_service import CryptoService
+        from app.core.config import settings
+        from eth_account import Account
         
         crypto_service = CryptoService()
         
@@ -588,50 +590,114 @@ async def export_private_key(
                         f"Redes disponíveis: polygon, ethereum, base, bsc, multi"
             )
         
-        # Verificar se encrypted_private_key existe (pode ser None ou string vazia)
-        encrypted_pk_value = address.encrypted_private_key
-        has_encrypted_pk = encrypted_pk_value is not None and str(encrypted_pk_value).strip() not in ['', 'None']
-        
-        if not has_encrypted_pk:
-            # Tentar derivar a private key do mnemonic da carteira
-            logger.info(f"Private key não encontrada para {network}, derivando do mnemonic...")
-            
-            # Descriptografar mnemonic
-            mnemonic_value = wallet.encrypted_mnemonic
-            if mnemonic_value is None or str(mnemonic_value).strip() in ['', 'None']:
-                raise HTTPException(
-                    status_code=500,
-                    detail="Mnemonic da carteira não encontrado. A carteira precisa ser recriada."
-                )
-            
-            mnemonic = crypto_service.decrypt_data(str(mnemonic_value))
-            
-            # Derivar a private key para EVM
-            from eth_account import Account
-            Account.enable_unaudited_hdwallet_features()
-            
-            # Derivar usando BIP44 path para Ethereum/EVM
-            account = Account.from_mnemonic(mnemonic, account_path="m/44'/60'/0'/0/0")
-            private_key = account.key.hex()
-            
-            # Atualizar o registro com a private key criptografada
-            encrypted_pk = crypto_service.encrypt_data(private_key)
-            address.encrypted_private_key = encrypted_pk  # type: ignore
-            db.commit()
-            
-            logger.info(f"Private key derivada e salva para {network}")
-        else:
-            # Descriptografar private key existente
-            encrypted_pk = str(encrypted_pk_value)
-            private_key = crypto_service.decrypt_data(encrypted_pk)
-        
-        # Formatar para mostrar
-        if not private_key.startswith("0x"):
-            private_key = f"0x{private_key}"
-        
         wallet_address = str(address.address)
+        private_key = None
+        source = "unknown"
         
-        logger.warning(f"⚠️ Admin {current_user.email} exportou private key da rede {network}")
+        # PRIORIDADE 1: Verificar se PLATFORM_WALLET_PRIVATE_KEY está configurada no .env
+        # e corresponde ao endereço da main_fees_wallet
+        if settings.PLATFORM_WALLET_PRIVATE_KEY:
+            try:
+                pk = settings.PLATFORM_WALLET_PRIVATE_KEY
+                if not pk.startswith("0x"):
+                    pk = f"0x{pk}"
+                account = Account.from_key(pk)
+                
+                # Verificar se corresponde ao endereço da carteira
+                if account.address.lower() == wallet_address.lower():
+                    private_key = pk
+                    source = "env"
+                    logger.info(f"Private key obtida do .env (corresponde ao endereço)")
+            except Exception as e:
+                logger.warning(f"Erro ao verificar private key do .env: {e}")
+        
+        # PRIORIDADE 2: Tentar descriptografar a private key do banco
+        if not private_key:
+            encrypted_pk_value = address.encrypted_private_key
+            has_encrypted_pk = encrypted_pk_value is not None and str(encrypted_pk_value).strip() not in ['', 'None']
+            
+            if has_encrypted_pk:
+                try:
+                    decrypted_pk = crypto_service.decrypt_data(str(encrypted_pk_value))
+                    account = Account.from_key(decrypted_pk)
+                    
+                    # Verificar se corresponde ao endereço
+                    if account.address.lower() == wallet_address.lower():
+                        private_key = decrypted_pk
+                        if not private_key.startswith("0x"):
+                            private_key = f"0x{private_key}"
+                        source = "database"
+                        logger.info(f"Private key obtida do banco de dados")
+                except Exception as e:
+                    logger.warning(f"Erro ao descriptografar private key do banco: {e}")
+        
+        # PRIORIDADE 3: Derivar do mnemonic (se não encontrou ainda)
+        if not private_key:
+            logger.info(f"Tentando derivar private key do mnemonic...")
+            mnemonic_value = wallet.encrypted_seed
+            
+            if mnemonic_value and str(mnemonic_value).strip() not in ['', 'None']:
+                try:
+                    Account.enable_unaudited_hdwallet_features()
+                    mnemonic = crypto_service.decrypt_data(str(mnemonic_value))
+                    account = Account.from_mnemonic(mnemonic, account_path="m/44'/60'/0'/0/0")
+                    
+                    # Verificar se corresponde ao endereço
+                    if account.address.lower() == wallet_address.lower():
+                        private_key = account.key.hex()
+                        if not private_key.startswith("0x"):
+                            private_key = f"0x{private_key}"
+                        source = "mnemonic"
+                        
+                        # Salvar a private key criptografada para uso futuro
+                        encrypted_pk = crypto_service.encrypt_data(private_key)
+                        address.encrypted_private_key = encrypted_pk  # type: ignore
+                        db.commit()
+                        logger.info(f"Private key derivada do mnemonic e salva")
+                    else:
+                        logger.warning(f"Mnemonic não corresponde ao endereço atual. Derivado: {account.address}, Esperado: {wallet_address}")
+                except Exception as e:
+                    logger.warning(f"Erro ao derivar do mnemonic: {e}")
+        
+        # Se não encontrou a private key de nenhuma fonte
+        if not private_key:
+            # Verificar se há discrepância de endereços
+            env_pk_address = None
+            mnemonic_address = None
+            
+            if settings.PLATFORM_WALLET_PRIVATE_KEY:
+                try:
+                    pk = settings.PLATFORM_WALLET_PRIVATE_KEY
+                    if not pk.startswith("0x"):
+                        pk = f"0x{pk}"
+                    env_pk_address = Account.from_key(pk).address
+                except:
+                    pass
+            
+            if wallet.encrypted_seed:
+                try:
+                    Account.enable_unaudited_hdwallet_features()
+                    mnemonic = crypto_service.decrypt_data(str(wallet.encrypted_seed))
+                    mnemonic_address = Account.from_mnemonic(mnemonic, account_path="m/44'/60'/0'/0/0").address
+                except:
+                    pass
+            
+            error_detail = (
+                f"⚠️ ATENÇÃO: O endereço no banco ({wallet_address}) não corresponde a nenhuma fonte de private key disponível.\n\n"
+                f"📍 Endereço no banco: {wallet_address}\n"
+                f"🔑 Endereço do .env: {env_pk_address or 'Não configurado'}\n"
+                f"📝 Endereço do mnemonic: {mnemonic_address or 'Não disponível'}\n\n"
+                f"🔧 SOLUÇÃO: Você precisa atualizar PLATFORM_WALLET_PRIVATE_KEY no .env com a private key "
+                f"que corresponde ao endereço {wallet_address}.\n\n"
+                f"Se você não tem esta private key, o endereço no banco precisa ser corrigido."
+            )
+            
+            raise HTTPException(
+                status_code=400,
+                detail=error_detail
+            )
+        
+        logger.warning(f"⚠️ Admin {current_user.email} exportou private key da rede {network} (fonte: {source})")
         
         return {
             "success": True,
@@ -639,11 +705,12 @@ async def export_private_key(
             "network": network,
             "address": wallet_address,
             "private_key": private_key,
+            "source": source,
             "instructions": [
                 "1. Copie a private_key acima",
                 "2. Abra o arquivo backend/.env",
                 "3. Adicione: PLATFORM_WALLET_PRIVATE_KEY=" + private_key[:10] + "...",
-                "4. Também adicione: PLATFORM_WALLET_ADDRESS=" + address.address,
+                "4. Também adicione: PLATFORM_WALLET_ADDRESS=" + wallet_address,
                 "5. Salve o arquivo e reinicie o backend",
                 "6. A mesma chave funciona para todas as redes EVM (Polygon, Ethereum, Base, BSC)"
             ]
@@ -652,7 +719,7 @@ async def export_private_key(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Falha ao exportar private key: {e}")
+        logger.error(f"Falha ao exportar private key: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail=f"Falha ao exportar private key: {str(e)}"
