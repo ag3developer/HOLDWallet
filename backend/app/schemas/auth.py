@@ -7,6 +7,7 @@ class LoginRequest(BaseModel):
     """Request schema for user login."""
     email: EmailStr
     password: str
+    two_factor_code: Optional[str] = None  # Código 2FA (obrigatório para admins)
 
 class RegisterRequest(BaseModel):
     """Request schema for user registration."""
