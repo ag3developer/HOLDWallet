@@ -306,7 +306,7 @@ const MetricCard: React.FC<MetricCardProps> = ({
     <div
       onClick={onClick}
       className={`
-        relative overflow-hidden rounded-2xl p-6 
+        relative overflow-hidden rounded-xl sm:rounded-2xl p-4 sm:p-6 
         bg-gradient-to-br ${gradient}
         border border-white/10 backdrop-blur-xl
         transition-all duration-300 
@@ -317,34 +317,38 @@ const MetricCard: React.FC<MetricCardProps> = ({
     >
       {/* Background Pattern */}
       <div className='absolute inset-0 opacity-10'>
-        <div className='absolute -right-8 -top-8 w-32 h-32 rounded-full bg-white/20 blur-2xl' />
-        <div className='absolute -left-8 -bottom-8 w-24 h-24 rounded-full bg-white/10 blur-xl' />
+        <div className='absolute -right-8 -top-8 w-24 sm:w-32 h-24 sm:h-32 rounded-full bg-white/20 blur-2xl' />
+        <div className='absolute -left-8 -bottom-8 w-16 sm:w-24 h-16 sm:h-24 rounded-full bg-white/10 blur-xl' />
       </div>
 
       {/* Content */}
       <div className='relative z-10'>
-        <div className='flex items-start justify-between mb-4'>
-          <div className='p-3 rounded-xl bg-white/20 backdrop-blur-sm'>{icon}</div>
+        <div className='flex items-start justify-between mb-3 sm:mb-4'>
+          <div className='p-2 sm:p-3 rounded-lg sm:rounded-xl bg-white/20 backdrop-blur-sm'>
+            {icon}
+          </div>
           {change !== undefined && (
-            <div className={`flex items-center gap-1 text-sm font-medium ${trendColor}`}>
-              <TrendIcon className='w-4 h-4' />
+            <div className={`flex items-center gap-1 text-xs sm:text-sm font-medium ${trendColor}`}>
+              <TrendIcon className='w-3 h-3 sm:w-4 sm:h-4' />
               <span>{formatPercent(change)}</span>
             </div>
           )}
         </div>
 
-        <div className='space-y-1'>
-          <h3 className='text-sm font-medium text-white/70'>{title}</h3>
-          <p className='text-3xl font-bold text-white tracking-tight'>
+        <div className='space-y-0.5 sm:space-y-1'>
+          <h3 className='text-xs sm:text-sm font-medium text-white/70'>{title}</h3>
+          <p className='text-xl sm:text-2xl lg:text-3xl font-bold text-white tracking-tight'>
             <AnimatedNumber value={value} format={format} />
           </p>
-          {subtitle && <p className='text-xs text-white/50'>{subtitle}</p>}
-          {changeLabel && <p className='text-xs text-white/50'>{changeLabel}</p>}
+          {subtitle && <p className='text-[10px] sm:text-xs text-white/50'>{subtitle}</p>}
+          {changeLabel && (
+            <p className='text-[10px] sm:text-xs text-white/50 hidden sm:block'>{changeLabel}</p>
+          )}
         </div>
 
-        {/* Mini Sparkline */}
+        {/* Mini Sparkline - Hidden on mobile */}
         {sparklineData && sparklineData.length > 0 && (
-          <div className='mt-4 flex items-end gap-1 h-8'>
+          <div className='mt-3 sm:mt-4 hidden sm:flex items-end gap-1 h-6 sm:h-8'>
             {sparklineData.map((val, idx) => {
               const max = Math.max(...sparklineData)
               const height = max > 0 ? (val / max) * 100 : 0
@@ -361,8 +365,8 @@ const MetricCard: React.FC<MetricCardProps> = ({
 
         {/* Hover Arrow */}
         {onClick && (
-          <div className='absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity'>
-            <ArrowRight className='w-5 h-5 text-white/70' />
+          <div className='absolute bottom-3 sm:bottom-4 right-3 sm:right-4 opacity-0 group-hover:opacity-100 transition-opacity'>
+            <ArrowRight className='w-4 h-4 sm:w-5 sm:h-5 text-white/70' />
           </div>
         )}
       </div>
@@ -402,7 +406,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
     <div
       onClick={onClick}
       className={`
-        relative overflow-hidden rounded-2xl p-6
+        relative overflow-hidden rounded-xl sm:rounded-2xl p-4 sm:p-6
         bg-gradient-to-br ${gradient}
         border border-white/10 backdrop-blur-xl
         transition-all duration-300
@@ -412,38 +416,40 @@ const ProductCard: React.FC<ProductCardProps> = ({
       `}
     >
       {/* Header */}
-      <div className='flex items-center justify-between mb-6'>
-        <div className='flex items-center gap-3'>
-          <div className='p-3 rounded-xl bg-white/20 backdrop-blur-sm'>{icon}</div>
+      <div className='flex items-center justify-between mb-4 sm:mb-6'>
+        <div className='flex items-center gap-2 sm:gap-3'>
+          <div className='p-2 sm:p-3 rounded-lg sm:rounded-xl bg-white/20 backdrop-blur-sm'>
+            {icon}
+          </div>
           <div>
-            <h3 className='text-lg font-bold text-white'>{title}</h3>
-            <p className='text-xs text-white/60'>{subtitle}</p>
+            <h3 className='text-base sm:text-lg font-bold text-white'>{title}</h3>
+            <p className='text-[10px] sm:text-xs text-white/60 hidden sm:block'>{subtitle}</p>
           </div>
         </div>
-        <ExternalLink className='w-5 h-5 text-white/40 group-hover:text-white/80 transition-colors' />
+        <ExternalLink className='w-4 h-4 sm:w-5 sm:h-5 text-white/40 group-hover:text-white/80 transition-colors' />
       </div>
 
       {/* Stats Grid */}
-      <div className='grid grid-cols-3 gap-4 mb-4'>
+      <div className='grid grid-cols-3 gap-2 sm:gap-4 mb-3 sm:mb-4'>
         {stats.map((stat, idx) => (
           <div key={idx}>
-            <p className='text-2xl font-bold text-white'>
+            <p className='text-lg sm:text-xl lg:text-2xl font-bold text-white'>
               <AnimatedNumber value={stat.value} format={stat.format || 'number'} />
             </p>
-            <p className='text-xs text-white/60'>{stat.label}</p>
+            <p className='text-[10px] sm:text-xs text-white/60'>{stat.label}</p>
           </div>
         ))}
       </div>
 
       {/* Status Pills */}
-      <div className='flex items-center gap-3'>
+      <div className='flex flex-wrap items-center gap-2 sm:gap-3'>
         {statusItems.map((item, idx) => (
           <div
             key={idx}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full ${item.color}`}
+            className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full ${item.color}`}
           >
-            <span className='w-1.5 h-1.5 rounded-full bg-current' />
-            <span className='text-xs font-medium'>
+            <span className='w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-current' />
+            <span className='text-[10px] sm:text-xs font-medium'>
               {item.value} {item.label}
             </span>
           </div>
@@ -475,25 +481,29 @@ const QuickAction: React.FC<QuickActionProps> = ({
     <button
       onClick={onClick}
       className={`
-        relative flex items-center gap-4 w-full p-4 rounded-xl
+        relative flex items-center gap-2 sm:gap-4 w-full p-3 sm:p-4 rounded-lg sm:rounded-xl
         ${color} hover:bg-opacity-80
         border border-white/5 hover:border-white/10
         transition-all duration-200 group text-left
       `}
     >
-      <div className='p-2.5 rounded-lg bg-white/10 text-white/80 group-hover:text-white transition-colors'>
+      <div className='p-2 sm:p-2.5 rounded-lg bg-white/10 text-white/80 group-hover:text-white transition-colors'>
         {icon}
       </div>
       <div className='flex-1 min-w-0'>
-        <p className='text-sm font-medium text-white truncate'>{label}</p>
-        {description && <p className='text-xs text-gray-400 truncate'>{description}</p>}
+        <p className='text-xs sm:text-sm font-medium text-white truncate'>{label}</p>
+        {description && (
+          <p className='text-[10px] sm:text-xs text-gray-400 truncate hidden sm:block'>
+            {description}
+          </p>
+        )}
       </div>
       {badge !== undefined && (
-        <span className='px-2 py-0.5 text-xs font-bold rounded-full bg-red-500 text-white'>
+        <span className='px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-bold rounded-full bg-red-500 text-white'>
           {badge}
         </span>
       )}
-      <ChevronRight className='w-4 h-4 text-gray-500 group-hover:text-white transition-colors' />
+      <ChevronRight className='w-3 h-3 sm:w-4 sm:h-4 text-gray-500 group-hover:text-white transition-colors hidden sm:block' />
     </button>
   )
 }
@@ -506,38 +516,40 @@ interface ActivityItemProps {
 
 const ActivityItem: React.FC<ActivityItemProps> = ({ activity, onClick }) => {
   const iconMap: Record<string, React.ReactNode> = {
-    trade_completed: <CheckCircle className='w-4 h-4' />,
-    trade: <TrendingUp className='w-4 h-4' />,
-    user_registered: <UserPlus className='w-4 h-4' />,
-    trade_pending: <Clock className='w-4 h-4' />,
-    dispute_opened: <AlertTriangle className='w-4 h-4' />,
-    kyc_approved: <UserCheck className='w-4 h-4' />,
-    wolkpay: <Globe className='w-4 h-4' />,
-    bill_payment: <Receipt className='w-4 h-4' />,
+    trade_completed: <CheckCircle className='w-3 h-3 sm:w-4 sm:h-4' />,
+    trade: <TrendingUp className='w-3 h-3 sm:w-4 sm:h-4' />,
+    user_registered: <UserPlus className='w-3 h-3 sm:w-4 sm:h-4' />,
+    trade_pending: <Clock className='w-3 h-3 sm:w-4 sm:h-4' />,
+    dispute_opened: <AlertTriangle className='w-3 h-3 sm:w-4 sm:h-4' />,
+    kyc_approved: <UserCheck className='w-3 h-3 sm:w-4 sm:h-4' />,
+    wolkpay: <Globe className='w-3 h-3 sm:w-4 sm:h-4' />,
+    bill_payment: <Receipt className='w-3 h-3 sm:w-4 sm:h-4' />,
   }
 
   return (
     <div
       onClick={onClick}
       className={`
-        flex items-center gap-4 p-4 rounded-xl
+        flex items-center gap-2 sm:gap-4 p-3 sm:p-4 rounded-lg sm:rounded-xl
         bg-gray-800/50 hover:bg-gray-800
         border border-white/5 hover:border-white/10
         transition-all duration-200 group
         ${onClick ? 'cursor-pointer' : ''}
       `}
     >
-      <div className={`p-2.5 rounded-lg border ${getStatusColor(activity.status)}`}>
-        {iconMap[activity.type] || <Activity className='w-4 h-4' />}
+      <div className={`p-2 sm:p-2.5 rounded-lg border ${getStatusColor(activity.status)}`}>
+        {iconMap[activity.type] || <Activity className='w-3 h-3 sm:w-4 sm:h-4' />}
       </div>
       <div className='flex-1 min-w-0'>
-        <p className='text-sm font-medium text-white truncate'>{activity.title}</p>
-        <p className='text-xs text-gray-400 truncate'>{activity.description}</p>
+        <p className='text-xs sm:text-sm font-medium text-white truncate'>{activity.title}</p>
+        <p className='text-[10px] sm:text-xs text-gray-400 truncate'>{activity.description}</p>
       </div>
-      <div className='text-right'>
-        <p className='text-xs text-gray-500'>{formatTimeAgo(activity.time)}</p>
+      <div className='text-right shrink-0'>
+        <p className='text-[10px] sm:text-xs text-gray-500'>{formatTimeAgo(activity.time)}</p>
         {activity.amount && (
-          <p className='text-sm font-medium text-emerald-400'>{formatCurrency(activity.amount)}</p>
+          <p className='text-xs sm:text-sm font-medium text-emerald-400'>
+            {formatCurrency(activity.amount)}
+          </p>
         )}
       </div>
     </div>
@@ -758,37 +770,46 @@ const AdminDashboardPageV2: React.FC = () => {
     <div className='min-h-screen bg-gray-900 text-white'>
       {/* Header */}
       <header className='sticky top-0 z-50 bg-gray-900/80 backdrop-blur-xl border-b border-white/5'>
-        <div className='max-w-[1800px] mx-auto px-6 py-4'>
+        <div className='max-w-[1800px] mx-auto px-4 sm:px-6 py-3 sm:py-4'>
           <div className='flex items-center justify-between'>
             <div>
-              <h1 className='text-2xl font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent'>
+              <h1 className='text-lg sm:text-2xl font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent'>
                 Dashboard Admin
               </h1>
-              <p className='text-sm text-gray-500 flex items-center gap-2'>
-                <span className='w-2 h-2 rounded-full bg-emerald-500 animate-pulse' />
-                Atualizado {new Date(dataUpdatedAt).toLocaleTimeString('pt-BR')}
+              <p className='text-xs sm:text-sm text-gray-500 flex items-center gap-2'>
+                <span className='w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-500 animate-pulse' />
+                <span className='hidden sm:inline'>Atualizado</span>{' '}
+                {new Date(dataUpdatedAt).toLocaleTimeString('pt-BR')}
               </p>
             </div>
 
-            <div className='flex items-center gap-4'>
-              {/* Search/Command */}
+            <div className='flex items-center gap-2 sm:gap-4'>
+              {/* Search/Command - Hidden on mobile */}
               <button
                 onClick={() => setShowCommandPalette(true)}
-                className='flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-800 border border-white/10 text-gray-400 hover:text-white transition-colors'
+                className='hidden md:flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-800 border border-white/10 text-gray-400 hover:text-white transition-colors'
               >
                 <Search className='w-4 h-4' />
                 <span className='text-sm'>Buscar...</span>
                 <kbd className='px-2 py-0.5 text-xs bg-gray-700 rounded'>⌘K</kbd>
               </button>
 
-              {/* Period Selector */}
-              <div className='flex items-center gap-1 p-1 rounded-xl bg-gray-800 border border-white/10'>
+              {/* Mobile Search Button */}
+              <button
+                onClick={() => setShowCommandPalette(true)}
+                className='md:hidden p-2 rounded-lg bg-gray-800 border border-white/10 text-gray-400 hover:text-white transition-colors'
+              >
+                <Search className='w-4 h-4' />
+              </button>
+
+              {/* Period Selector - Simplified on mobile */}
+              <div className='hidden sm:flex items-center gap-1 p-1 rounded-xl bg-gray-800 border border-white/10'>
                 {(['today', '7d', '30d', '90d', 'all'] as TimePeriod[]).map(period => (
                   <button
                     key={period}
                     onClick={() => setSelectedPeriod(period)}
                     className={`
-                      px-3 py-1.5 text-sm font-medium rounded-lg transition-all
+                      px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-all
                       ${
                         selectedPeriod === period
                           ? 'bg-blue-600 text-white'
@@ -805,19 +826,33 @@ const AdminDashboardPageV2: React.FC = () => {
                 ))}
               </div>
 
+              {/* Mobile Period Selector */}
+              <select
+                value={selectedPeriod}
+                onChange={e => setSelectedPeriod(e.target.value as TimePeriod)}
+                className='sm:hidden px-2 py-1.5 text-xs rounded-lg bg-gray-800 border border-white/10 text-white'
+              >
+                <option value='today'>Hoje</option>
+                <option value='7d'>7D</option>
+                <option value='30d'>30D</option>
+                <option value='90d'>90D</option>
+                <option value='all'>Total</option>
+              </select>
+
               {/* Refresh */}
               <button
                 onClick={() => refetch()}
-                className='p-2 rounded-xl bg-gray-800 border border-white/10 text-gray-400 hover:text-white transition-colors'
+                className='p-2 rounded-lg sm:rounded-xl bg-gray-800 border border-white/10 text-gray-400 hover:text-white transition-colors'
+                title='Atualizar'
               >
-                <RefreshCw className='w-5 h-5' />
+                <RefreshCw className='w-4 h-4 sm:w-5 sm:h-5' />
               </button>
 
               {/* Notifications */}
-              <button className='relative p-2 rounded-xl bg-gray-800 border border-white/10 text-gray-400 hover:text-white transition-colors'>
-                <Bell className='w-5 h-5' />
+              <button className='relative p-2 rounded-lg sm:rounded-xl bg-gray-800 border border-white/10 text-gray-400 hover:text-white transition-colors'>
+                <Bell className='w-4 h-4 sm:w-5 sm:h-5' />
                 {alerts.length > 0 && (
-                  <span className='absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center text-xs font-bold bg-red-500 rounded-full'>
+                  <span className='absolute -top-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center text-[10px] sm:text-xs font-bold bg-red-500 rounded-full'>
                     {alerts.length}
                   </span>
                 )}
@@ -827,7 +862,7 @@ const AdminDashboardPageV2: React.FC = () => {
         </div>
       </header>
 
-      <main className='max-w-[1800px] mx-auto px-6 py-8 space-y-8'>
+      <main className='max-w-[1800px] mx-auto px-4 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-8'>
         {/* Alerts Section */}
         {alerts.length > 0 && (
           <div className='space-y-3'>
@@ -898,13 +933,13 @@ const AdminDashboardPageV2: React.FC = () => {
 
         {/* Products Section */}
         <div>
-          <div className='flex items-center justify-between mb-4'>
-            <h2 className='text-lg font-semibold text-white flex items-center gap-2'>
-              <Zap className='w-5 h-5 text-yellow-400' />
+          <div className='flex items-center justify-between mb-3 sm:mb-4'>
+            <h2 className='text-base sm:text-lg font-semibold text-white flex items-center gap-2'>
+              <Zap className='w-4 h-4 sm:w-5 sm:h-5 text-yellow-400' />
               Serviços da Plataforma
             </h2>
           </div>
-          <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
+          <div className='grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6'>
             {/* WolkPay */}
             <ProductCard
               title='WolkPay'
@@ -964,14 +999,14 @@ const AdminDashboardPageV2: React.FC = () => {
         </div>
 
         {/* KPIs and Activity Section */}
-        <div className='grid grid-cols-1 lg:grid-cols-3 gap-6'>
+        <div className='grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6'>
           {/* KPIs */}
-          <div className='lg:col-span-1 bg-gray-800/50 rounded-2xl border border-white/5 p-6'>
-            <h3 className='text-lg font-semibold text-white mb-6 flex items-center gap-2'>
-              <Target className='w-5 h-5 text-blue-400' />
+          <div className='lg:col-span-1 bg-gray-800/50 rounded-xl sm:rounded-2xl border border-white/5 p-4 sm:p-6'>
+            <h3 className='text-base sm:text-lg font-semibold text-white mb-4 sm:mb-6 flex items-center gap-2'>
+              <Target className='w-4 h-4 sm:w-5 sm:h-5 text-blue-400' />
               KPIs da Plataforma
             </h3>
-            <div className='grid grid-cols-2 gap-6'>
+            <div className='grid grid-cols-2 gap-4 sm:gap-6'>
               <StatsRing
                 value={metrics?.conversionRate || 0}
                 max={100}
@@ -999,13 +1034,15 @@ const AdminDashboardPageV2: React.FC = () => {
             </div>
 
             {/* System Status */}
-            <div className='mt-6 pt-6 border-t border-white/10'>
-              <h4 className='text-sm font-medium text-gray-400 mb-4'>Status do Sistema</h4>
-              <div className='space-y-3'>
+            <div className='mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-white/10'>
+              <h4 className='text-xs sm:text-sm font-medium text-gray-400 mb-3 sm:mb-4'>
+                Status do Sistema
+              </h4>
+              <div className='space-y-2 sm:space-y-3'>
                 <div className='flex items-center justify-between'>
-                  <span className='text-sm text-gray-300'>API</span>
+                  <span className='text-xs sm:text-sm text-gray-300'>API</span>
                   <span
-                    className={`px-2 py-1 text-xs font-medium rounded-full ${
+                    className={`px-2 py-0.5 sm:py-1 text-[10px] sm:text-xs font-medium rounded-full ${
                       stats.system.api_health === 'healthy'
                         ? 'bg-emerald-500/20 text-emerald-400'
                         : 'bg-red-500/20 text-red-400'
@@ -1015,9 +1052,9 @@ const AdminDashboardPageV2: React.FC = () => {
                   </span>
                 </div>
                 <div className='flex items-center justify-between'>
-                  <span className='text-sm text-gray-300'>Database</span>
+                  <span className='text-xs sm:text-sm text-gray-300'>Database</span>
                   <span
-                    className={`px-2 py-1 text-xs font-medium rounded-full ${
+                    className={`px-2 py-0.5 sm:py-1 text-[10px] sm:text-xs font-medium rounded-full ${
                       stats.system.db_health === 'healthy'
                         ? 'bg-emerald-500/20 text-emerald-400'
                         : 'bg-red-500/20 text-red-400'
@@ -1031,25 +1068,25 @@ const AdminDashboardPageV2: React.FC = () => {
           </div>
 
           {/* Recent Activity */}
-          <div className='lg:col-span-2 bg-gray-800/50 rounded-2xl border border-white/5 p-6'>
-            <div className='flex items-center justify-between mb-6'>
-              <h3 className='text-lg font-semibold text-white flex items-center gap-2'>
-                <Activity className='w-5 h-5 text-emerald-400' />
+          <div className='lg:col-span-2 bg-gray-800/50 rounded-xl sm:rounded-2xl border border-white/5 p-4 sm:p-6'>
+            <div className='flex items-center justify-between mb-4 sm:mb-6'>
+              <h3 className='text-base sm:text-lg font-semibold text-white flex items-center gap-2'>
+                <Activity className='w-4 h-4 sm:w-5 sm:h-5 text-emerald-400' />
                 Atividade Recente
               </h3>
-              <button className='text-sm text-gray-400 hover:text-white transition-colors flex items-center gap-1'>
+              <button className='text-xs sm:text-sm text-gray-400 hover:text-white transition-colors flex items-center gap-1'>
                 Ver tudo
-                <ChevronRight className='w-4 h-4' />
+                <ChevronRight className='w-3 h-3 sm:w-4 sm:h-4' />
               </button>
             </div>
-            <div className='space-y-3'>
+            <div className='space-y-2 sm:space-y-3'>
               {(stats.recent_activity || []).slice(0, 6).map(activity => (
                 <ActivityItem key={activity.id} activity={activity} />
               ))}
               {(!stats.recent_activity || stats.recent_activity.length === 0) && (
-                <div className='text-center py-8 text-gray-500'>
-                  <Activity className='w-8 h-8 mx-auto mb-2 opacity-50' />
-                  <p>Nenhuma atividade recente</p>
+                <div className='text-center py-6 sm:py-8 text-gray-500'>
+                  <Activity className='w-6 h-6 sm:w-8 sm:h-8 mx-auto mb-2 opacity-50' />
+                  <p className='text-xs sm:text-sm'>Nenhuma atividade recente</p>
                 </div>
               )}
             </div>
@@ -1058,95 +1095,95 @@ const AdminDashboardPageV2: React.FC = () => {
 
         {/* Quick Actions */}
         <div>
-          <h2 className='text-lg font-semibold text-white mb-4 flex items-center gap-2'>
-            <Zap className='w-5 h-5 text-amber-400' />
+          <h2 className='text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4 flex items-center gap-2'>
+            <Zap className='w-4 h-4 sm:w-5 sm:h-5 text-amber-400' />
             Acesso Rápido
           </h2>
-          <div className='grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4'>
+          <div className='grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-6 gap-2 sm:gap-4'>
             <QuickAction
-              icon={<Users className='w-5 h-5' />}
+              icon={<Users className='w-4 h-4 sm:w-5 sm:h-5' />}
               label='Usuários'
               description={`${stats.users.total} total`}
               onClick={() => navigate('/admin/users')}
             />
             <QuickAction
-              icon={<TrendingUp className='w-5 h-5' />}
+              icon={<TrendingUp className='w-4 h-4 sm:w-5 sm:h-5' />}
               label='Trades OTC'
               description={`${stats.trades.otc_pending} pendentes`}
               onClick={() => navigate('/admin/trades')}
               badge={stats.trades.otc_pending > 0 ? stats.trades.otc_pending : undefined}
             />
             <QuickAction
-              icon={<Activity className='w-5 h-5' />}
+              icon={<Activity className='w-4 h-4 sm:w-5 sm:h-5' />}
               label='P2P'
               description={`${stats.trades.p2p_active} ativos`}
               onClick={() => navigate('/admin/p2p')}
             />
             <QuickAction
-              icon={<UserCheck className='w-5 h-5' />}
-              label='Verificação KYC'
+              icon={<UserCheck className='w-4 h-4 sm:w-5 sm:h-5' />}
+              label='KYC'
               onClick={() => navigate('/admin/kyc')}
             />
             <QuickAction
-              icon={<AlertTriangle className='w-5 h-5' />}
+              icon={<AlertTriangle className='w-4 h-4 sm:w-5 sm:h-5' />}
               label='Disputas'
               description={`${stats.disputes.open} abertas`}
               onClick={() => navigate('/admin/disputes')}
               badge={stats.disputes.open > 0 ? stats.disputes.open : undefined}
             />
             <QuickAction
-              icon={<BarChart3 className='w-5 h-5' />}
+              icon={<BarChart3 className='w-4 h-4 sm:w-5 sm:h-5' />}
               label='Relatórios'
               onClick={() => navigate('/admin/reports')}
             />
             <QuickAction
-              icon={<Wallet className='w-5 h-5' />}
+              icon={<Wallet className='w-4 h-4 sm:w-5 sm:h-5' />}
               label='Carteiras'
               description={`${stats.wallets.with_balance} c/ saldo`}
               onClick={() => navigate('/admin/wallets')}
             />
             <QuickAction
-              icon={<DollarSign className='w-5 h-5' />}
-              label='Taxas & Receita'
+              icon={<DollarSign className='w-4 h-4 sm:w-5 sm:h-5' />}
+              label='Taxas'
               onClick={() => navigate('/admin/fees')}
             />
             <QuickAction
-              icon={<Shield className='w-5 h-5' />}
+              icon={<Shield className='w-4 h-4 sm:w-5 sm:h-5' />}
               label='Segurança'
               onClick={() => navigate('/admin/security')}
             />
             <QuickAction
-              icon={<Lock className='w-5 h-5' />}
-              label='Saldos Bloqueados'
+              icon={<Lock className='w-4 h-4 sm:w-5 sm:h-5' />}
+              label='Bloqueados'
               onClick={() => navigate('/admin/blocked-balances')}
             />
             <QuickAction
-              icon={<Banknote className='w-5 h-5' />}
-              label='Carteira Sistema'
+              icon={<Banknote className='w-4 h-4 sm:w-5 sm:h-5' />}
+              label='Sistema'
               onClick={() => navigate('/admin/system-wallet')}
             />
             <QuickAction
-              icon={<Settings className='w-5 h-5' />}
-              label='Configurações'
+              icon={<Settings className='w-4 h-4 sm:w-5 sm:h-5' />}
+              label='Config'
               onClick={() => navigate('/admin/settings')}
             />
           </div>
         </div>
 
         {/* Trading Distribution */}
-        <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
+        <div className='grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6'>
           {/* Trade Distribution */}
-          <div className='bg-gray-800/50 rounded-2xl border border-white/5 p-6'>
-            <h3 className='text-lg font-semibold text-white mb-6 flex items-center gap-2'>
-              <PieChart className='w-5 h-5 text-purple-400' />
+          <div className='bg-gray-800/50 rounded-xl sm:rounded-2xl border border-white/5 p-4 sm:p-6'>
+            <h3 className='text-base sm:text-lg font-semibold text-white mb-4 sm:mb-6 flex items-center gap-2'>
+              <PieChart className='w-4 h-4 sm:w-5 sm:h-5 text-purple-400' />
               Distribuição de Trades
             </h3>
-            <div className='space-y-4'>
+            <div className='space-y-3 sm:space-y-4'>
               {/* OTC */}
               <div>
-                <div className='flex items-center justify-between mb-2'>
-                  <span className='text-sm text-gray-300'>OTC</span>
-                  <span className='text-sm font-medium text-white'>
+                <div className='flex items-center justify-between mb-1.5 sm:mb-2'>
+                  <span className='text-xs sm:text-sm text-gray-300'>OTC</span>
+                  <span className='text-xs sm:text-sm font-medium text-white'>
                     {stats.trades.otc_completed} (
                     {(
                       (stats.trades.otc_completed / (metrics?.totalTransactions || 1)) *
@@ -1155,7 +1192,7 @@ const AdminDashboardPageV2: React.FC = () => {
                     %)
                   </span>
                 </div>
-                <div className='h-2 bg-gray-700 rounded-full overflow-hidden'>
+                <div className='h-1.5 sm:h-2 bg-gray-700 rounded-full overflow-hidden'>
                   <div
                     className='h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full transition-all duration-500'
                     style={{
@@ -1167,9 +1204,9 @@ const AdminDashboardPageV2: React.FC = () => {
 
               {/* P2P */}
               <div>
-                <div className='flex items-center justify-between mb-2'>
-                  <span className='text-sm text-gray-300'>P2P</span>
-                  <span className='text-sm font-medium text-white'>
+                <div className='flex items-center justify-between mb-1.5 sm:mb-2'>
+                  <span className='text-xs sm:text-sm text-gray-300'>P2P</span>
+                  <span className='text-xs sm:text-sm font-medium text-white'>
                     {stats.trades.p2p_completed} (
                     {(
                       (stats.trades.p2p_completed / (metrics?.totalTransactions || 1)) *
@@ -1237,16 +1274,16 @@ const AdminDashboardPageV2: React.FC = () => {
           </div>
 
           {/* Revenue Breakdown */}
-          <div className='bg-gray-800/50 rounded-2xl border border-white/5 p-6'>
-            <h3 className='text-lg font-semibold text-white mb-6 flex items-center gap-2'>
-              <DollarSign className='w-5 h-5 text-emerald-400' />
+          <div className='bg-gray-800/50 rounded-2xl border border-white/5 p-4 sm:p-6'>
+            <h3 className='text-base sm:text-lg font-semibold text-white mb-4 sm:mb-6 flex items-center gap-2'>
+              <DollarSign className='w-4 h-4 sm:w-5 sm:h-5 text-emerald-400' />
               Receita por Serviço
             </h3>
-            <div className='space-y-6'>
+            <div className='space-y-4 sm:space-y-6'>
               {/* Total */}
-              <div className='text-center pb-4 border-b border-white/10'>
-                <p className='text-sm text-gray-400'>Receita Total em Taxas</p>
-                <p className='text-3xl font-bold text-white mt-1'>
+              <div className='text-center pb-3 sm:pb-4 border-b border-white/10'>
+                <p className='text-xs sm:text-sm text-gray-400'>Receita Total em Taxas</p>
+                <p className='text-2xl sm:text-3xl font-bold text-white mt-1'>
                   {formatCurrency(
                     stats.financial.platform_total_fees || stats.financial.total_fees_collected
                   )}
@@ -1254,28 +1291,28 @@ const AdminDashboardPageV2: React.FC = () => {
               </div>
 
               {/* Breakdown */}
-              <div className='grid grid-cols-2 gap-4'>
-                <div className='p-4 rounded-xl bg-blue-500/10 border border-blue-500/20'>
+              <div className='grid grid-cols-2 gap-2 sm:gap-4'>
+                <div className='p-3 sm:p-4 rounded-xl bg-blue-500/10 border border-blue-500/20'>
                   <p className='text-xs text-blue-400'>OTC Spread</p>
-                  <p className='text-xl font-bold text-white mt-1'>
+                  <p className='text-base sm:text-xl font-bold text-white mt-1'>
                     {formatCurrency(stats.financial.total_fees_collected * 0.6)}
                   </p>
                 </div>
-                <div className='p-4 rounded-xl bg-green-500/10 border border-green-500/20'>
+                <div className='p-3 sm:p-4 rounded-xl bg-green-500/10 border border-green-500/20'>
                   <p className='text-xs text-green-400'>P2P Fees</p>
-                  <p className='text-xl font-bold text-white mt-1'>
+                  <p className='text-base sm:text-xl font-bold text-white mt-1'>
                     {formatCurrency(stats.financial.total_fees_collected * 0.15)}
                   </p>
                 </div>
-                <div className='p-4 rounded-xl bg-cyan-500/10 border border-cyan-500/20'>
+                <div className='p-3 sm:p-4 rounded-xl bg-cyan-500/10 border border-cyan-500/20'>
                   <p className='text-xs text-cyan-400'>WolkPay</p>
-                  <p className='text-xl font-bold text-white mt-1'>
+                  <p className='text-base sm:text-xl font-bold text-white mt-1'>
                     {formatCurrency(stats.wolkpay?.fees_collected || 0)}
                   </p>
                 </div>
-                <div className='p-4 rounded-xl bg-amber-500/10 border border-amber-500/20'>
+                <div className='p-3 sm:p-4 rounded-xl bg-amber-500/10 border border-amber-500/20'>
                   <p className='text-xs text-amber-400'>Bill Payment</p>
-                  <p className='text-xl font-bold text-white mt-1'>
+                  <p className='text-base sm:text-xl font-bold text-white mt-1'>
                     {formatCurrency(stats.bill_payment?.fees_collected || 0)}
                   </p>
                 </div>
@@ -1287,23 +1324,23 @@ const AdminDashboardPageV2: React.FC = () => {
 
       {/* Command Palette Modal */}
       {showCommandPalette && (
-        <div className='fixed inset-0 z-50 flex items-start justify-center pt-[20vh]'>
+        <div className='fixed inset-0 z-50 flex items-start justify-center pt-[10vh] sm:pt-[20vh] px-4 sm:px-0'>
           <div
             className='absolute inset-0 bg-black/60 backdrop-blur-sm'
             onClick={() => setShowCommandPalette(false)}
           />
-          <div className='relative w-full max-w-xl bg-gray-800 rounded-2xl border border-white/10 shadow-2xl overflow-hidden'>
-            <div className='flex items-center gap-3 px-4 py-3 border-b border-white/10'>
-              <Search className='w-5 h-5 text-gray-400' />
+          <div className='relative w-full max-w-xl bg-gray-800 rounded-xl sm:rounded-2xl border border-white/10 shadow-2xl overflow-hidden'>
+            <div className='flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 border-b border-white/10'>
+              <Search className='w-4 h-4 sm:w-5 sm:h-5 text-gray-400' />
               <input
                 type='text'
                 placeholder='Buscar ação, página ou recurso...'
-                className='flex-1 bg-transparent text-white placeholder-gray-500 outline-none'
+                className='flex-1 bg-transparent text-sm sm:text-base text-white placeholder-gray-500 outline-none'
                 autoFocus
               />
-              <kbd className='px-2 py-1 text-xs bg-gray-700 rounded'>ESC</kbd>
+              <kbd className='px-1.5 sm:px-2 py-0.5 sm:py-1 text-xs bg-gray-700 rounded'>ESC</kbd>
             </div>
-            <div className='p-2 max-h-80 overflow-y-auto'>
+            <div className='p-2 max-h-60 sm:max-h-80 overflow-y-auto'>
               <p className='px-3 py-2 text-xs text-gray-500 uppercase tracking-wider'>
                 Ações Rápidas
               </p>
@@ -1341,10 +1378,10 @@ const AdminDashboardPageV2: React.FC = () => {
                     navigate(item.path)
                     setShowCommandPalette(false)
                   }}
-                  className='flex items-center gap-3 w-full px-3 py-2 rounded-lg hover:bg-gray-700 text-left transition-colors'
+                  className='flex items-center gap-2 sm:gap-3 w-full px-3 py-2 rounded-lg hover:bg-gray-700 text-left transition-colors'
                 >
                   <span className='text-gray-400'>{item.icon}</span>
-                  <span className='text-white'>{item.label}</span>
+                  <span className='text-sm sm:text-base text-white'>{item.label}</span>
                 </button>
               ))}
             </div>
