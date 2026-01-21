@@ -90,6 +90,9 @@ import {
   AdminKYCPage,
 } from '@/pages/admin'
 
+// Import Dashboard Switcher (V2 + Legacy toggle)
+import AdminDashboardSwitcher from '@/pages/admin/AdminDashboardSwitcher'
+
 // Import new admin pages
 import AdminKYCUsersPage from '@/pages/admin/AdminKYCUsersPage'
 import AdminLockedBalancesPage from '@/pages/admin/AdminLockedBalancesPage'
@@ -369,7 +372,7 @@ function App() {
               </AdminRoute>
             }
           >
-            <Route path='/admin' element={<AdminDashboardPage />} />
+            <Route path='/admin' element={<AdminDashboardSwitcher />} />
             <Route path='/admin/users' element={<AdminUsersPage />} />
             <Route path='/admin/users/:userId' element={<AdminUserDetailPage />} />
             <Route path='/admin/users/:userId/edit' element={<AdminUserEditPage />} />
