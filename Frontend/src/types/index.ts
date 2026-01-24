@@ -65,7 +65,6 @@ export interface LoginRequest {
   email: string
   password: string
   rememberMe?: boolean
-  two_factor_code?: string // Código 2FA (obrigatório para admins)
 }
 
 export interface RegisterRequest {
@@ -79,10 +78,8 @@ export interface AuthResponse {
   token_type: string
   expires_in: number
   user: User
-  requires_2fa?: boolean // Admin precisa fornecer código 2FA
-  is_admin?: boolean
-  message?: string
-  user_email?: string
+  requires2FA?: boolean
+  tempToken?: string
 }
 
 // Tipos de carteira

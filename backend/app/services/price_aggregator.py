@@ -288,14 +288,15 @@ class PriceCache:
         return False
 
 
-class DexScreenerSource(PriceSource):
-    """DexScreener API para tokens de DEX (QuickSwap, Uniswap, etc.)"""
+class GeckoTerminalSource(PriceSource):
+    """GeckoTerminal API para tokens de DEX (QuickSwap, Uniswap, etc.)
+    Melhor cobertura que DexScreener para tokens de baixa liquidez."""
     
     # Mapeamento de símbolos para endereços de contrato (tokens não listados em CEX)
     TOKEN_ADDRESSES = {
         'TRAY': {
             'address': '0x6b62514E925099643abA13B322A62ff6298f8E8A',
-            'chain': 'polygon',
+            'chain': 'polygon_pos',  # Formato GeckoTerminal
             'name': 'Trayon'
         },
         # Adicionar outros tokens DEX-only aqui
@@ -306,7 +307,7 @@ class DexScreenerSource(PriceSource):
         symbols: List[str], 
         currency: str = "usd"
     ) -> Dict[str, PriceData]:
-        """Fetch prices from DexScreener for DEX-only tokens"""
+        """Fetch prices from GeckoTerminal (melhor cobertura que DexScreener) para tokens DEX"""
         prices = {}
         
         for symbol in symbols:
@@ -317,51 +318,56 @@ class DexScreenerSource(PriceSource):
                 continue
             
             try:
-                url = f"https://api.dexscreener.com/latest/dex/tokens/{token_info['address']}"
+                # Usar GeckoTerminal API (melhor cobertura para tokens pequenos)
+                url = f"https://api.geckoterminal.com/api/v2/networks/{token_info['chain']}/tokens/{token_info['address']}"
                 
                 async with httpx.AsyncClient(timeout=self.timeout) as client:
                     response = await client.get(url)
                     
                     if response.status_code == 200:
                         data = response.json()
-                        pairs = data.get('pairs', [])
+                        token_data = data.get('data', {}).get('attributes', {})
                         
-                        if pairs:
-                            # Pegar o par com mais liquidez
-                            best_pair = max(pairs, key=lambda p: float(p.get('liquidity', {}).get('usd', 0) or 0))
+                        price_usd = float(token_data.get('price_usd', 0) or 0)
+                        
+                        if price_usd > 0:
+                            # Buscar variação 24h dos pools
+                            volume_24h = float(token_data.get('volume_usd', {}).get('h24', 0) or 0)
+                            fdv = float(token_data.get('fdv_usd', 0) or 0)
                             
-                            price_usd = float(best_pair.get('priceUsd', 0))
-                            change_24h = float(best_pair.get('priceChange', {}).get('h24', 0) or 0)
-                            volume_24h = float(best_pair.get('volume', {}).get('h24', 0) or 0)
-                            liquidity = float(best_pair.get('liquidity', {}).get('usd', 0) or 0)
+                            # Se precisar de BRL, converter de USD
+                            if currency.lower() == 'brl':
+                                brl_rate = 6.0  # Taxa aproximada USD/BRL
+                                final_price = price_usd * brl_rate
+                            else:
+                                final_price = price_usd
                             
-                            if price_usd > 0:
-                                # Se precisar de BRL, converter de USD
-                                if currency.lower() == 'brl':
-                                    # Usar taxa aproximada (ou buscar de outra fonte)
-                                    brl_rate = 6.0  # Taxa aproximada USD/BRL
-                                    final_price = price_usd * brl_rate
-                                else:
-                                    final_price = price_usd
-                                
-                                prices[symbol_upper] = PriceData(
-                                    symbol=symbol_upper,
-                                    price=final_price,
-                                    change_24h=change_24h,
-                                    market_cap=liquidity * 10,  # Estimativa
-                                    volume_24h=volume_24h,
-                                    high_24h=final_price * (1 + abs(change_24h) / 200),
-                                    low_24h=final_price * (1 - abs(change_24h) / 200),
-                                    source=f"dexscreener-{best_pair.get('dexId', 'dex')}",
-                                    timestamp=datetime.now(timezone.utc)
-                                )
-                                
-                                logger.info(f"✅ DexScreener: {symbol_upper} = ${price_usd:.6f} via {best_pair.get('dexId')}")
+                            # Estimar high/low baseado em tokens de baixa liquidez (±5%)
+                            estimated_high = final_price * 1.05
+                            estimated_low = final_price * 0.95
+                            
+                            prices[symbol_upper] = PriceData(
+                                symbol=symbol_upper,
+                                price=final_price,
+                                change_24h=0.0,  # GeckoTerminal não fornece change_24h direto
+                                market_cap=fdv,
+                                volume_24h=volume_24h,
+                                high_24h=round(estimated_high, 6),
+                                low_24h=round(estimated_low, 6),
+                                source=f"geckoterminal-{token_info['chain']}",
+                                timestamp=datetime.now(timezone.utc)
+                            )
+                            
+                            logger.info(f"✅ GeckoTerminal: {symbol_upper} = ${price_usd:.6f} ({token_info['name']})")
+                        else:
+                            logger.warning(f"⚠️ GeckoTerminal: {symbol_upper} price is 0")
+                    else:
+                        logger.warning(f"⚠️ GeckoTerminal: HTTP {response.status_code} for {symbol_upper}")
                     
             except asyncio.CancelledError:
                 raise
             except Exception as e:
-                logger.error(f"DexScreener: Error fetching {symbol_upper} - {str(e)}")
+                logger.error(f"GeckoTerminal: Error fetching {symbol_upper} - {str(e)}")
                 continue
         
         return prices
@@ -373,10 +379,10 @@ class PriceAggregator:
     def __init__(self):
         # Binance é PRIMÁRIO (preços mais precisos, especialmente BRL)
         # CoinGecko é FALLBACK (agregador, preços ~2% acima do mercado)
-        # DexScreener para tokens de DEX (QuickSwap, Uniswap, etc.)
+        # GeckoTerminal para tokens de DEX (QuickSwap, Uniswap, etc.)
         self.binance_source = BinanceSource()
         self.coingecko_source = CoinGeckoSource()
-        self.dexscreener_source = DexScreenerSource()
+        self.geckoterminal_source = GeckoTerminalSource()
         self.cache = PriceCache()
         self.cache_ttl = 60  # 60 segundos - evita rate limiting e timeouts
     
@@ -452,17 +458,17 @@ class PriceAggregator:
                     remaining_symbols -= set(coingecko_prices.keys())
                     logger.info(f"✅ CoinGecko: Got {len(coingecko_prices)} prices (fallback)")
             
-            # 3. Try DexScreener for DEX-only tokens (TRAY, etc.)
+            # 3. Try GeckoTerminal for DEX-only tokens (TRAY, etc.)
             if remaining_symbols:
-                logger.info(f"🟣 DexScreener (DEX): Fetching {remaining_symbols} in {currency.upper()}")
-                dex_prices = await self.dexscreener_source.fetch_prices(
+                logger.info(f"🟣 GeckoTerminal (DEX): Fetching {remaining_symbols} in {currency.upper()}")
+                dex_prices = await self.geckoterminal_source.fetch_prices(
                     list(remaining_symbols),
                     currency
                 )
                 if dex_prices:
                     all_prices.update(dex_prices)
                     remaining_symbols -= set(dex_prices.keys())
-                    logger.info(f"✅ DexScreener: Got {len(dex_prices)} prices (DEX tokens)")
+                    logger.info(f"✅ GeckoTerminal: Got {len(dex_prices)} prices (DEX tokens)")
                     
         except asyncio.CancelledError:
             logger.warning(f"⚠️ Price fetch cancelled for {currency.upper()}")

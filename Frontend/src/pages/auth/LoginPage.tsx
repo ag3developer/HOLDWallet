@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useLogin, useValidate2FA } from '@/hooks/useAuth'
 import { LoadingScreen } from '@/components/ui/LoadingScreen'
-import { Eye, EyeOff, ShieldCheck, Lock, KeyRound, ArrowLeft, Loader2 } from 'lucide-react'
+import { Eye, EyeOff } from 'lucide-react'
 import {
   FiShield,
   FiTrendingUp,
@@ -124,9 +124,8 @@ export const LoginPage = () => {
   const loginMutation = useLogin()
   const validate2FAMutation = useValidate2FA()
 
-  const [step, setStep] = useState<'login' | '2fa' | 'admin-2fa'>('login')
+  const [step, setStep] = useState<'login' | '2fa'>('login')
   const [tempToken, setTempToken] = useState<string>('')
-  const [adminEmail, setAdminEmail] = useState<string>('')
 
   const [formData, setFormData] = useState<LoginForm>({
     email: '',
@@ -174,40 +173,13 @@ export const LoginPage = () => {
     if (!validateForm()) return
 
     try {
-      const credentials: any = {
+      await loginMutation.mutateAsync({
         email: formData.email,
         password: formData.password,
         rememberMe: formData.rememberMe,
-      }
-
-      // Adicionar código 2FA se estiver no step de admin-2fa
-      if (step === 'admin-2fa' && twoFactorData.code) {
-        credentials.two_factor_code = twoFactorData.code
-      }
-
-      const result = await loginMutation.mutateAsync(credentials)
-
-      // 🔐 Verificar se admin precisa de 2FA
-      if (result.requires_2fa && result.is_admin) {
-        setStep('admin-2fa')
-        setAdminEmail(result.user_email || formData.email)
-        setTwoFactorData({ code: '' })
-        return
-      }
+      })
     } catch (error: any) {
       console.error('Login failed:', error)
-      // Verificar se é erro de 2FA inválido
-      if (error?.response?.data?.detail === 'Código 2FA inválido') {
-        setFormErrors({ code: t('validation.2faInvalid', 'Código 2FA inválido') })
-      }
-      // Verificar se admin não tem 2FA configurado
-      if (error?.response?.data?.detail?.code === 'ADMIN_2FA_REQUIRED') {
-        setFormErrors({
-          email:
-            error.response.data.detail.message ||
-            'Administradores devem configurar 2FA. Entre em contato com o suporte.',
-        })
-      }
     }
   }
 
@@ -1082,8 +1054,8 @@ export const LoginPage = () => {
                   </div>
                 </div>
               </div>
-            ) : step === '2fa' ? (
-              // 2FA Form (para usuários com 2FA habilitado)
+            ) : (
+              // 2FA Form
               <div className='bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl p-8'>
                 <div className='text-center mb-8'>
                   <div className='mx-auto w-20 h-20 bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-4 p-3 border-2 border-green-500/30 shadow-2xl shadow-green-500/30 hover:scale-110 transition-all duration-300'>
@@ -1135,115 +1107,6 @@ export const LoginPage = () => {
                     className='w-full py-2 text-gray-400 hover:text-white transition-colors'
                   >
                     {t('auth.backToLogin', 'Back to login')}
-                  </button>
-                </form>
-              </div>
-            ) : null}
-
-            {/* 🔐 Admin 2FA Form - Autenticação obrigatória para administradores */}
-            {step === 'admin-2fa' && (
-              <div className='bg-gradient-to-b from-white/10 to-white/5 backdrop-blur-xl rounded-2xl border border-amber-500/20 shadow-2xl shadow-amber-500/10 p-8 relative overflow-hidden'>
-                {/* Animated background glow */}
-                <div className='absolute inset-0 bg-gradient-to-br from-amber-500/5 via-transparent to-orange-500/5' />
-                <div className='absolute -top-24 -right-24 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl' />
-                <div className='absolute -bottom-24 -left-24 w-48 h-48 bg-orange-500/10 rounded-full blur-3xl' />
-
-                <div className='relative text-center mb-8'>
-                  {/* Premium Icon Container */}
-                  <div className='mx-auto w-24 h-24 relative mb-6'>
-                    {/* Outer ring with gradient */}
-                    <div className='absolute inset-0 bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl opacity-20 animate-pulse' />
-                    <div className='absolute inset-1 bg-gradient-to-br from-slate-900/90 to-slate-800/90 rounded-xl backdrop-blur-sm' />
-                    {/* Inner glow */}
-                    <div className='absolute inset-2 bg-gradient-to-br from-amber-500/20 to-orange-500/20 rounded-lg' />
-                    {/* Icon */}
-                    <div className='absolute inset-0 flex items-center justify-center'>
-                      <ShieldCheck
-                        className='w-12 h-12 text-amber-400 drop-shadow-lg'
-                        strokeWidth={1.5}
-                      />
-                    </div>
-                    {/* Decorative lock icon */}
-                    <div className='absolute -bottom-1 -right-1 w-8 h-8 bg-gradient-to-br from-amber-500 to-orange-500 rounded-lg flex items-center justify-center shadow-lg'>
-                      <Lock className='w-4 h-4 text-white' strokeWidth={2} />
-                    </div>
-                  </div>
-
-                  <h3 className='text-2xl font-bold text-white mb-2 tracking-tight'>
-                    {t('auth.admin2fa', 'Verificação de Administrador')}
-                  </h3>
-                  <p className='text-gray-400 text-sm'>
-                    {t('auth.admin2faSubtitle', 'Digite o código 2FA do seu Authy/Authenticator')}
-                  </p>
-                  <div className='mt-3 inline-flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-full'>
-                    <KeyRound className='w-3.5 h-3.5 text-amber-400' />
-                    <span className='text-amber-400 text-sm font-medium'>{adminEmail}</span>
-                  </div>
-                </div>
-
-                {formErrors.code && (
-                  <div className='relative mb-6 bg-red-500/10 border border-red-500/20 rounded-xl p-4 backdrop-blur-sm'>
-                    <p className='text-sm text-red-400 text-center font-medium'>
-                      {formErrors.code}
-                    </p>
-                  </div>
-                )}
-
-                <form onSubmit={handleSubmit} className='relative space-y-6'>
-                  <div>
-                    <label className='block text-sm font-medium text-gray-300 mb-3'>
-                      {t('auth.2faCode', 'Código 2FA (6 dígitos)')}
-                    </label>
-                    <div className='relative'>
-                      <input
-                        type='text'
-                        inputMode='numeric'
-                        pattern='[0-9]*'
-                        maxLength={6}
-                        value={twoFactorData.code}
-                        onChange={handle2FAChange}
-                        placeholder='000000'
-                        autoFocus
-                        className='w-full px-4 py-4 text-center text-3xl font-mono tracking-[0.5em] bg-white/5 border-2 border-amber-500/30 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all duration-300'
-                      />
-                      {/* Input glow effect on focus */}
-                      <div className='absolute inset-0 -z-10 bg-gradient-to-r from-amber-500/20 to-orange-500/20 rounded-xl blur-xl opacity-0 focus-within:opacity-100 transition-opacity' />
-                    </div>
-                    <p className='text-xs text-gray-500 mt-3 text-center flex items-center justify-center gap-1.5'>
-                      <Lock className='w-3 h-3' />
-                      Abra o Authy ou Google Authenticator
-                    </p>
-                  </div>
-
-                  <button
-                    type='submit'
-                    disabled={isLoading || twoFactorData.code.length !== 6}
-                    className='w-full py-4 px-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-semibold rounded-xl shadow-lg shadow-amber-500/25 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:from-amber-500 disabled:hover:to-orange-500 flex items-center justify-center gap-2 group'
-                  >
-                    {isLoading ? (
-                      <>
-                        <Loader2 className='w-5 h-5 animate-spin' />
-                        <span>{t('auth.validating', 'Verificando...')}</span>
-                      </>
-                    ) : (
-                      <>
-                        <ShieldCheck className='w-5 h-5 group-hover:scale-110 transition-transform' />
-                        <span>{t('auth.verifyAdmin', 'Verificar e Entrar')}</span>
-                      </>
-                    )}
-                  </button>
-
-                  <button
-                    type='button'
-                    onClick={() => {
-                      setStep('login')
-                      setTwoFactorData({ code: '' })
-                      setFormErrors({})
-                    }}
-                    className='w-full py-3 text-gray-400 hover:text-white transition-colors flex items-center justify-center gap-2 group'
-                  >
-                    <ArrowLeft className='w-4 h-4 group-hover:-translate-x-1 transition-transform' />
-                    {t('auth.backToLogin', 'Voltar ao login')}
                   </button>
                 </form>
               </div>

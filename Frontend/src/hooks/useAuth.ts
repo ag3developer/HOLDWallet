@@ -35,19 +35,6 @@ export function useLogin() {
   return useMutation({
     mutationFn: (credentials: LoginRequest) => authService.login(credentials),
     onSuccess: data => {
-      // 🔐 Verificar se admin precisa de 2FA
-      if (data.requires_2fa && data.is_admin) {
-        console.log('🔐 Admin requires 2FA verification')
-        // Retornar para o componente tratar (não navegar ainda)
-        return
-      }
-
-      // Se não tem user, algo deu errado
-      if (!data.user) {
-        console.warn('⚠️ Login response without user data')
-        return
-      }
-
       console.log('🔐 Login success - User data:', data.user)
       console.log('🔐 is_admin:', data.user.is_admin)
 
