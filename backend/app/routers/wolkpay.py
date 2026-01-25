@@ -192,6 +192,7 @@ async def create_invoice(
                 network_fee_percent=invoice.network_fee_percent,
                 network_fee_brl=invoice.network_fee_brl,
                 total_amount_brl=invoice.total_amount_brl,
+                beneficiary_receives_crypto=invoice.beneficiary_receives_crypto,
                 checkout_token=invoice.checkout_token,
                 checkout_url=checkout_url,
                 created_at=invoice.created_at,
@@ -254,6 +255,7 @@ async def get_my_invoices(
                     total_amount_brl=inv.total_amount_brl,
                     fee_payer=inv.fee_payer.value if hasattr(inv.fee_payer, 'value') else str(inv.fee_payer) if inv.fee_payer else "BENEFICIARY",
                     beneficiary_receives_brl=inv.beneficiary_receives_brl,
+                    beneficiary_receives_crypto=inv.beneficiary_receives_crypto,
                     checkout_token=inv.checkout_token,
                     checkout_url=inv.checkout_url,
                     # Dados da transação blockchain
@@ -326,6 +328,7 @@ async def get_invoice(
         network_fee_percent=invoice.network_fee_percent,
         network_fee_brl=invoice.network_fee_brl,
         total_amount_brl=invoice.total_amount_brl,
+        beneficiary_receives_crypto=invoice.beneficiary_receives_crypto,
         checkout_token=invoice.checkout_token,
         checkout_url=invoice.checkout_url,
         created_at=invoice.created_at,

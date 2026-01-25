@@ -367,7 +367,11 @@ export function WolkPayPage() {
               <span className='text-green-100'>{t('wolkpay.youReceive')}</span>
               <span className='font-medium'>
                 {formatCrypto(
-                  createdInvoice.invoice.crypto_amount,
+                  // Usar valor LÍQUIDO se disponível, senão calcular
+                  createdInvoice.invoice.beneficiary_receives_crypto ||
+                    (createdInvoice.invoice.fee_payer === 'PAYER'
+                      ? createdInvoice.invoice.crypto_amount
+                      : createdInvoice.invoice.crypto_amount * 0.9655), // ~3.45% taxa
                   createdInvoice.invoice.crypto_currency
                 )}
               </span>

@@ -87,6 +87,9 @@ export interface WolkPayInvoice {
   network_fee_percent?: number
   network_fee_brl: number
   total_amount_brl: number
+  fee_payer?: string
+  beneficiary_receives_brl?: number
+  beneficiary_receives_crypto?: number
   checkout_token?: string
   checkout_url?: string
   created_at: string

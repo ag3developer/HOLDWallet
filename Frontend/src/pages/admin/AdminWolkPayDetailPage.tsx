@@ -658,11 +658,30 @@ export const AdminWolkPayDetailPage: React.FC = () => {
                 )}
                 <div>
                   <p className='text-2xl font-bold text-white'>
-                    {formatCrypto(invoice.crypto_amount)} {invoice.crypto_currency}
+                    {formatCrypto(
+                      invoice.fee_payer === 'BENEFICIARY'
+                        ? invoice.beneficiary_receives_crypto ||
+                            invoice.crypto_amount *
+                              (1 -
+                                ((invoice.service_fee_percent || 3) +
+                                  (invoice.network_fee_percent || 0.45)) /
+                                  100)
+                        : invoice.crypto_amount
+                    )}{' '}
+                    {invoice.crypto_currency}
+                    {invoice.fee_payer === 'BENEFICIARY' && (
+                      <span className='text-sm text-yellow-400 ml-2'>(líquido)</span>
+                    )}
                   </p>
                   <p className='text-sm text-gray-400'>
                     Rede: {invoice.crypto_network || 'Padrao'}
                   </p>
+                  {/* Mostrar valor bruto se fee_payer é BENEFICIARY */}
+                  {invoice.fee_payer === 'BENEFICIARY' && (
+                    <p className='text-xs text-gray-500 mt-1'>
+                      Valor bruto: {formatCrypto(invoice.crypto_amount)} {invoice.crypto_currency}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -1208,13 +1227,21 @@ export const AdminWolkPayDetailPage: React.FC = () => {
 
             {/* Amount */}
             <div className='p-3 bg-gray-900/50 rounded-lg'>
-              <p className='text-xs text-gray-500 mb-1'>Valor Enviado</p>
+              <p className='text-xs text-gray-500 mb-1'>Valor Enviado (líquido)</p>
               <div className='flex items-center gap-2'>
                 {cryptoLogo && (
                   <img src={cryptoLogo} alt={invoice.crypto_currency} className='w-5 h-5' />
                 )}
                 <span className='text-sm font-bold text-emerald-400'>
-                  {formatCrypto(invoice.crypto_amount)} {invoice.crypto_currency}
+                  {formatCrypto(
+                    invoice.beneficiary_receives_crypto ||
+                      invoice.crypto_amount *
+                        (1 -
+                          ((invoice.service_fee_percent || 3) +
+                            (invoice.network_fee_percent || 0.45)) /
+                            100)
+                  )}{' '}
+                  {invoice.crypto_currency}
                 </span>
               </div>
             </div>
@@ -1297,7 +1324,16 @@ export const AdminWolkPayDetailPage: React.FC = () => {
                 )}
                 <div>
                   <p className='text-xl font-bold text-white'>
-                    {formatCrypto(invoice.crypto_amount)} {invoice.crypto_currency}
+                    {formatCrypto(
+                      invoice.beneficiary_receives_crypto ||
+                        invoice.crypto_amount *
+                          (1 -
+                            ((invoice.service_fee_percent || 3) +
+                              (invoice.network_fee_percent || 0.45)) /
+                              100)
+                    )}{' '}
+                    {invoice.crypto_currency}
+                    <span className='text-sm text-yellow-400 ml-2'>(líquido)</span>
                   </p>
                   <p className='text-xs text-gray-400'>
                     Valor: {formatBRL(invoice.total_amount_brl)}

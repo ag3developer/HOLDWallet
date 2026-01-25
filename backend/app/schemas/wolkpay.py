@@ -98,6 +98,7 @@ class InvoiceResponse(BaseModel):
     # Quem paga as taxas
     fee_payer: str = "BENEFICIARY"
     beneficiary_receives_brl: Optional[Decimal] = None
+    beneficiary_receives_crypto: Optional[Decimal] = None  # Valor LÍQUIDO de crypto que beneficiário recebe
     
     # Checkout
     checkout_token: str

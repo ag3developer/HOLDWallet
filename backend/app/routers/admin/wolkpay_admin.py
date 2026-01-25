@@ -569,6 +569,9 @@ async def get_invoice_details(
             "network_fee_percent": float(invoice.network_fee_percent),
             "network_fee_brl": float(invoice.network_fee_brl),
             "total_amount_brl": float(invoice.total_amount_brl),
+            "fee_payer": invoice.fee_payer.value if hasattr(invoice.fee_payer, 'value') else str(invoice.fee_payer) if invoice.fee_payer else "BENEFICIARY",
+            "beneficiary_receives_brl": float(invoice.beneficiary_receives_brl) if invoice.beneficiary_receives_brl else None,
+            "beneficiary_receives_crypto": float(invoice.beneficiary_receives_crypto) if invoice.beneficiary_receives_crypto else None,
             "checkout_token": invoice.checkout_token,
             "checkout_url": invoice.checkout_url,
             # Dados da transação blockchain (para auditoria e Receita Federal)
