@@ -24,7 +24,7 @@ import toast from 'react-hot-toast'
 import { apiClient } from '@/services/api'
 import { parseApiError } from '@/services/errors'
 import { TradeStatusMonitor } from './TradeStatusMonitor'
-import { useCurrencyStore } from '@/stores/useCurrencyStore'
+// ⚠️ useCurrencyStore removido - valores OTC já vêm em BRL do backend
 import { usePaymentMethods } from '@/hooks/usePaymentMethods'
 
 /**
@@ -181,7 +181,9 @@ export function ConfirmationPanel({
   onSuccess,
   onRefreshQuote,
 }: ConfirmationPanelProps) {
-  const { formatCurrency } = useCurrencyStore()
+  // ⚠️ formatCurrency NÃO é mais usado aqui!
+  // Os valores do quote já vêm em BRL do backend, então formatamos diretamente
+  // usando Intl.NumberFormat na função formatValue abaixo.
 
   // Buscar métodos de pagamento cadastrados do usuário (para SELL)
   const { data: userPaymentMethods, isLoading: loadingPaymentMethods } = usePaymentMethods()
@@ -510,6 +512,11 @@ export function ConfirmationPanel({
     }
   }
 
+  /**
+   * ⚠️ IMPORTANTE: Os valores do quote já vêm em BRL do backend!
+   * NÃO usar formatCurrency aqui pois ele converte USD→BRL e causaria dupla conversão.
+   * O backend instant_trade_service.py já busca preços em BRL (currency="brl").
+   */
   const formatValue = (value: number | undefined): string => {
     if (
       value === null ||
@@ -518,9 +525,15 @@ export function ConfirmationPanel({
       Number.isNaN(value) ||
       !Number.isFinite(value)
     ) {
-      return formatCurrency(0)
+      return 'R$ 0,00'
     }
-    return formatCurrency(value)
+    // Formatar diretamente em BRL (os valores do quote já estão em BRL)
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value)
   }
 
   // isBuy já declarado no início do componente
