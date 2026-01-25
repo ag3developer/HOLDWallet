@@ -207,13 +207,16 @@ class WolkPayService:
             # 8. Calcular expiração (15 minutos)
             expires_at = datetime.now(timezone.utc) + timedelta(minutes=self.INVOICE_VALIDITY_MINUTES)
             
-            # 9. Criar fatura
+            # 9. Determinar rede (usar padrão se não especificada)
+            crypto_network = request.crypto_network or self._get_default_network(request.crypto_currency)
+            
+            # 10. Criar fatura
             invoice = WolkPayInvoice(
                 invoice_number=invoice_number,
                 beneficiary_id=user_id,
                 crypto_currency=request.crypto_currency.upper(),
                 crypto_amount=request.crypto_amount,
-                crypto_network=request.crypto_network,
+                crypto_network=crypto_network,
                 usd_rate=crypto_price_usd,
                 brl_rate=usd_brl_rate,
                 base_amount_brl=base_amount_brl,
