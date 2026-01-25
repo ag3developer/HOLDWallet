@@ -37,83 +37,47 @@ interface TwoFactorForm {
   code: string
 }
 
-// Language Selector Component com Dropdown e Bandeiras
+// Language Selector Component - Horizontal para Rodapé
 const LanguageSelector = () => {
   const { i18n } = useTranslation()
-  const [isOpen, setIsOpen] = useState(false)
 
   const languages = [
-    { code: 'en-US', label: 'English', flag: '🇺🇸' },
-    { code: 'pt-BR', label: 'Português', flag: '🇧🇷' },
-    { code: 'es-ES', label: 'Español', flag: '🇪🇸' },
+    { code: 'en-US', label: 'EN', flag: '🇺🇸' },
+    { code: 'pt-BR', label: 'PT', flag: '🇧🇷' },
+    { code: 'es-ES', label: 'ES', flag: '🇪🇸' },
     { code: 'zh-CN', label: '中文', flag: '🇨🇳' },
-    { code: 'ja-JP', label: '日本語', flag: '🇯🇵' },
-    { code: 'ko-KR', label: '한국어', flag: '🇰🇷' },
+    { code: 'ja-JP', label: '日本', flag: '🇯🇵' },
+    { code: 'ko-KR', label: '한국', flag: '🇰🇷' },
   ]
-
-  const currentLanguage = languages.find(lang => lang.code === i18n.language) || languages[0]
 
   const handleSelectLanguage = (code: string) => {
     i18n.changeLanguage(code)
-    setIsOpen(false)
+    // Salvar no localStorage para persistir
+    localStorage.setItem('i18nextLng', code)
+  }
+
+  // Verificar se o idioma atual corresponde
+  const isCurrentLanguage = (langCode: string) => {
+    const currentLang = i18n.language || 'en-US'
+    return currentLang === langCode || currentLang.startsWith(langCode.split('-')[0] || '')
   }
 
   return (
-    <div className='relative'>
-      {/* Botão que mostra a bandeira atual */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className='flex items-center gap-1.5 px-2.5 py-1.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-full transition-all duration-300 hover:scale-105'
-      >
-        <span className='text-lg'>{currentLanguage?.flag}</span>
-        <svg
-          className={`w-3 h-3 text-white/70 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
-          fill='none'
-          stroke='currentColor'
-          viewBox='0 0 24 24'
+    <div className='flex items-center justify-center gap-2 flex-wrap'>
+      {languages.map(lang => (
+        <button
+          key={lang.code}
+          onClick={() => handleSelectLanguage(lang.code)}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${
+            isCurrentLanguage(lang.code)
+              ? 'bg-purple-500/40 text-white border border-purple-400/50 scale-105'
+              : 'bg-white/5 text-white/60 border border-white/10 hover:bg-white/10 hover:text-white hover:scale-105'
+          }`}
         >
-          <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M19 9l-7 7-7-7' />
-        </svg>
-      </button>
-
-      {/* Dropdown com todos os idiomas */}
-      {isOpen && (
-        <>
-          {/* Overlay para fechar ao clicar fora */}
-          <div className='fixed inset-0 z-[100]' onClick={() => setIsOpen(false)} />
-
-          {/* Lista de idiomas */}
-          <div className='absolute right-0 top-full mt-2 z-[101] bg-slate-800/95 backdrop-blur-xl border border-white/20 rounded-xl shadow-2xl shadow-purple-500/20 overflow-hidden min-w-[160px]'>
-            {languages.map(lang => (
-              <button
-                key={lang.code}
-                onClick={() => handleSelectLanguage(lang.code)}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-all duration-200 ${
-                  i18n.language === lang.code
-                    ? 'bg-purple-500/30 text-white'
-                    : 'text-white/70 hover:bg-white/10 hover:text-white'
-                }`}
-              >
-                <span className='text-xl'>{lang.flag}</span>
-                <span className='text-sm font-medium'>{lang.label}</span>
-                {i18n.language === lang.code && (
-                  <svg
-                    className='w-4 h-4 ml-auto text-purple-400'
-                    fill='currentColor'
-                    viewBox='0 0 20 20'
-                  >
-                    <path
-                      fillRule='evenodd'
-                      d='M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z'
-                      clipRule='evenodd'
-                    />
-                  </svg>
-                )}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
+          <span className='text-sm'>{lang.flag}</span>
+          <span>{lang.label}</span>
+        </button>
+      ))}
     </div>
   )
 }
@@ -796,7 +760,6 @@ export const LoginPage = () => {
           </div>
         </div>
         <div className='flex items-center gap-2 md:gap-3'>
-          <LanguageSelector />
           {/* Botão Login - visível apenas no mobile */}
           <button
             onClick={() => {
@@ -1114,6 +1077,27 @@ export const LoginPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Footer com seletor de idioma */}
+      <footer className='relative z-10 py-6 px-4 border-t border-white/10 bg-black/20 backdrop-blur-sm'>
+        <div className='container mx-auto'>
+          <div className='flex flex-col items-center gap-4'>
+            {/* Seletor de Idioma */}
+            <div className='text-center'>
+              <p className='text-xs text-gray-500 mb-3'>
+                {t('common.selectLanguage', 'Select Language')}
+              </p>
+              <LanguageSelector />
+            </div>
+
+            {/* Copyright */}
+            <p className='text-xs text-gray-600'>
+              © {new Date().getFullYear()} WOLK NOW.{' '}
+              {t('common.allRightsReserved', 'All rights reserved.')}
+            </p>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }
