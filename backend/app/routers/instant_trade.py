@@ -217,6 +217,7 @@ async def get_quote(
         }
 
     except Exception as e:
+        logger.error(f"[Quote Error] operation={request.operation}, symbol={request.symbol}, fiat_amount={request.fiat_amount}, crypto_amount={request.crypto_amount}, error={str(e)}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),

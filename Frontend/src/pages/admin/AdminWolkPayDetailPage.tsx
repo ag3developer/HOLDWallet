@@ -650,70 +650,156 @@ export const AdminWolkPayDetailPage: React.FC = () => {
           </div>
 
           <div className='space-y-4'>
-            {/* Crypto Amount */}
+            {/* Resumo de Valores Crypto */}
             <div className='p-4 bg-gray-900/50 rounded-xl'>
-              <div className='flex items-center gap-3'>
+              <div className='flex items-center gap-3 mb-4'>
                 {cryptoLogo && (
-                  <img src={cryptoLogo} alt={invoice.crypto_currency} className='w-10 h-10' />
+                  <img src={cryptoLogo} alt={invoice.crypto_currency} className='w-12 h-12' />
                 )}
-                <div>
-                  <p className='text-2xl font-bold text-white'>
-                    {formatCrypto(
-                      invoice.fee_payer === 'BENEFICIARY'
-                        ? invoice.beneficiary_receives_crypto ||
+                <div className='flex-1'>
+                  <p className='text-xs text-gray-500 uppercase'>Rede</p>
+                  <p className='text-sm text-white font-medium'>
+                    {invoice.crypto_network?.toUpperCase() || 'Polygon'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Breakdown de valores */}
+              <div className='space-y-3'>
+                {/* Valor Bruto */}
+                <div className='flex justify-between items-center py-2 border-b border-gray-700/50'>
+                  <span className='text-sm text-gray-400'>Valor Bruto (solicitado)</span>
+                  <span className='text-lg font-semibold text-white'>
+                    {formatCrypto(invoice.crypto_amount)} {invoice.crypto_currency}
+                  </span>
+                </div>
+
+                {/* Taxas */}
+                {invoice.fee_payer === 'BENEFICIARY' && (
+                  <div className='flex justify-between items-center py-2 border-b border-gray-700/50'>
+                    <span className='text-sm text-gray-400'>
+                      Taxas (
+                      {(
+                        (invoice.service_fee_percent || 0) + (invoice.network_fee_percent || 0)
+                      ).toFixed(2)}
+                      %)
+                    </span>
+                    <span className='text-lg font-semibold text-red-400'>
+                      -
+                      {formatCrypto(
+                        invoice.crypto_amount -
+                          (invoice.beneficiary_receives_crypto ||
                             invoice.crypto_amount *
                               (1 -
                                 ((invoice.service_fee_percent || 3) +
                                   (invoice.network_fee_percent || 0.45)) /
-                                  100)
-                        : invoice.crypto_amount
-                    )}{' '}
-                    {invoice.crypto_currency}
-                    {invoice.fee_payer === 'BENEFICIARY' && (
-                      <span className='text-sm text-yellow-400 ml-2'>(líquido)</span>
-                    )}
-                  </p>
-                  <p className='text-sm text-gray-400'>
-                    Rede: {invoice.crypto_network || 'Padrao'}
-                  </p>
-                  {/* Mostrar valor bruto se fee_payer é BENEFICIARY */}
-                  {invoice.fee_payer === 'BENEFICIARY' && (
-                    <p className='text-xs text-gray-500 mt-1'>
-                      Valor bruto: {formatCrypto(invoice.crypto_amount)} {invoice.crypto_currency}
-                    </p>
-                  )}
+                                  100))
+                      )}{' '}
+                      {invoice.crypto_currency}
+                    </span>
+                  </div>
+                )}
+
+                {/* Valor Líquido - Destacado */}
+                <div className='p-3 bg-emerald-900/30 rounded-lg border border-emerald-600/50'>
+                  <div className='flex justify-between items-center'>
+                    <div>
+                      <span className='text-sm text-emerald-400 font-medium flex items-center gap-1'>
+                        <Wallet className='w-4 h-4' />
+                        {invoice.fee_payer === 'BENEFICIARY'
+                          ? 'Beneficiário Recebe'
+                          : 'Valor a Enviar'}
+                      </span>
+                      <p className='text-xs text-gray-500 mt-0.5'>
+                        {invoice.fee_payer === 'BENEFICIARY'
+                          ? 'Valor líquido após taxas'
+                          : 'Pagador absorve as taxas'}
+                      </p>
+                    </div>
+                    <span className='text-2xl font-bold text-emerald-400'>
+                      {formatCrypto(
+                        invoice.fee_payer === 'BENEFICIARY'
+                          ? invoice.beneficiary_receives_crypto ||
+                              invoice.crypto_amount *
+                                (1 -
+                                  ((invoice.service_fee_percent || 3) +
+                                    (invoice.network_fee_percent || 0.45)) /
+                                    100)
+                          : invoice.crypto_amount
+                      )}{' '}
+                      {invoice.crypto_currency}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Info: Quem paga as taxas */}
+                <div className='flex items-center gap-2 text-xs'>
+                  <AlertCircle className='w-4 h-4 text-gray-500' />
+                  <span className='text-gray-500'>
+                    Taxas pagas pelo:{' '}
+                    <strong className='text-gray-300'>
+                      {invoice.fee_payer === 'PAYER' ? 'Pagador' : 'Beneficiário'}
+                    </strong>
+                  </span>
                 </div>
               </div>
             </div>
 
-            {/* Values */}
-            <div className='grid grid-cols-2 gap-3'>
-              <div className='p-3 bg-gray-900/50 rounded-lg'>
-                <p className='text-xs text-gray-500'>Valor Base</p>
-                <p className='text-lg font-semibold text-white'>
-                  {formatBRL(invoice.base_amount_brl)}
-                </p>
+            {/* Values in BRL */}
+            <div className='p-4 bg-gray-900/50 rounded-xl'>
+              <p className='text-xs text-gray-500 uppercase mb-3'>Valores em BRL</p>
+              <div className='grid grid-cols-2 gap-3'>
+                <div className='p-3 bg-gray-800/50 rounded-lg'>
+                  <p className='text-xs text-gray-500'>Valor Base</p>
+                  <p className='text-lg font-semibold text-white'>
+                    {formatBRL(invoice.base_amount_brl)}
+                  </p>
+                </div>
+                <div className='p-3 bg-gray-800/50 rounded-lg'>
+                  <p className='text-xs text-gray-500'>
+                    Taxa Servico ({invoice.service_fee_percent}%)
+                  </p>
+                  <p className='text-lg font-semibold text-yellow-400'>
+                    {formatBRL(invoice.service_fee_brl)}
+                  </p>
+                </div>
+                <div className='p-3 bg-gray-800/50 rounded-lg'>
+                  <p className='text-xs text-gray-500'>
+                    Taxa Rede ({invoice.network_fee_percent}%)
+                  </p>
+                  <p className='text-lg font-semibold text-yellow-400'>
+                    {formatBRL(invoice.network_fee_brl)}
+                  </p>
+                </div>
+                <div className='p-3 bg-blue-900/30 rounded-lg border border-blue-700/50'>
+                  <p className='text-xs text-blue-400'>Total Pago via PIX</p>
+                  <p className='text-lg font-bold text-blue-400'>
+                    {formatBRL(invoice.total_amount_brl)}
+                  </p>
+                </div>
               </div>
-              <div className='p-3 bg-gray-900/50 rounded-lg'>
-                <p className='text-xs text-gray-500'>
-                  Taxa Servico ({invoice.service_fee_percent}%)
-                </p>
-                <p className='text-lg font-semibold text-yellow-400'>
-                  {formatBRL(invoice.service_fee_brl)}
-                </p>
-              </div>
-              <div className='p-3 bg-gray-900/50 rounded-lg'>
-                <p className='text-xs text-gray-500'>Taxa Rede ({invoice.network_fee_percent}%)</p>
-                <p className='text-lg font-semibold text-yellow-400'>
-                  {formatBRL(invoice.network_fee_brl)}
-                </p>
-              </div>
-              <div className='p-3 bg-emerald-900/30 rounded-lg border border-emerald-700/50'>
-                <p className='text-xs text-emerald-400'>Total a Pagar</p>
-                <p className='text-lg font-bold text-emerald-400'>
-                  {formatBRL(invoice.total_amount_brl)}
-                </p>
-              </div>
+
+              {/* Valor Líquido BRL - se beneficiário paga taxas */}
+              {invoice.fee_payer === 'BENEFICIARY' && (
+                <div className='mt-3 p-3 bg-emerald-900/30 rounded-lg border border-emerald-600/50'>
+                  <div className='flex justify-between items-center'>
+                    <div>
+                      <p className='text-xs text-emerald-400 flex items-center gap-1'>
+                        <Banknote className='w-3 h-3' /> Beneficiário Recebe (BRL)
+                      </p>
+                      <p className='text-xs text-gray-500'>Valor base menos taxas</p>
+                    </div>
+                    <p className='text-xl font-bold text-emerald-400'>
+                      {formatBRL(
+                        invoice.beneficiary_receives_brl ||
+                          (invoice.base_amount_brl || 0) -
+                            (invoice.service_fee_brl || 0) -
+                            (invoice.network_fee_brl || 0)
+                      )}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Rates */}
@@ -1209,7 +1295,7 @@ export const AdminWolkPayDetailPage: React.FC = () => {
               <div className='flex items-center gap-2'>
                 <Globe className='w-4 h-4 text-gray-400' />
                 <span className='text-sm text-white'>
-                  {invoice.crypto_tx_network?.toUpperCase() || invoice.crypto_network || '-'}
+                  {(invoice.crypto_tx_network || invoice.crypto_network || 'polygon').toUpperCase()}
                 </span>
               </div>
             </div>
