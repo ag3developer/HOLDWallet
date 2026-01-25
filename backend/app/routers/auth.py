@@ -137,7 +137,7 @@ async def login(
         # Verificar código 2FA
         try:
             # Descriptografar secret
-            secret = crypto_service.decrypt_data(two_factor.secret_key)
+            secret = crypto_service.decrypt_data(two_factor.secret)
             totp = pyotp.TOTP(secret)
             
             if not totp.verify(login_data.two_factor_code, valid_window=1):
