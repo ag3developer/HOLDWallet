@@ -1,16 +1,21 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
+import pyotp
 
 from app.core.db import get_db
 from app.core.config import settings
 from app.core.security import verify_password, create_access_token, get_current_user
 from app.core.exceptions import AuthenticationError, ValidationError
 from app.models.user import User
+from app.models.two_factor import TwoFactorAuth
 from app.schemas.auth import LoginRequest, LoginResponse, RegisterRequest, UserResponse, TokenData
 from app.services.user_activity_service import UserActivityService
 from app.services.security_service import SecurityService
+from app.services.two_factor_service import TwoFactorService
+from app.services.crypto_service import crypto_service
 
 router = APIRouter()
 security = HTTPBearer()
@@ -88,6 +93,75 @@ async def login(
             user_id=str(user.id)
         )
         raise AuthenticationError("Account is inactive")
+    
+    # 🔐 VERIFICAÇÃO DE 2FA OBRIGATÓRIO PARA ADMIN
+    if user.is_admin:
+        # Buscar configuração 2FA do admin
+        two_factor = db.query(TwoFactorAuth).filter(
+            TwoFactorAuth.user_id == user.id,
+            TwoFactorAuth.is_enabled == True
+        ).first()
+        
+        if not two_factor:
+            # Admin sem 2FA configurado - BLOQUEAR
+            SecurityService.record_login_attempt(
+                db=db,
+                email=login_data.email,
+                ip_address=ip_address,
+                user_agent=user_agent,
+                success=False,
+                failure_reason="admin_2fa_not_configured",
+                user_id=str(user.id)
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "code": "ADMIN_2FA_REQUIRED",
+                    "message": "Administradores devem configurar 2FA antes de acessar. Entre em contato com o suporte."
+                }
+            )
+        
+        # Admin com 2FA - verificar se código foi fornecido
+        if not login_data.two_factor_code:
+            # Retornar indicação de que 2FA é necessário
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "requires_2fa": True,
+                    "is_admin": True,
+                    "message": "Código 2FA obrigatório para administradores",
+                    "user_email": str(user.email)
+                }
+            )
+        
+        # Verificar código 2FA
+        try:
+            # Descriptografar secret
+            secret = crypto_service.decrypt_data(two_factor.secret_key)
+            totp = pyotp.TOTP(secret)
+            
+            if not totp.verify(login_data.two_factor_code, valid_window=1):
+                SecurityService.record_login_attempt(
+                    db=db,
+                    email=login_data.email,
+                    ip_address=ip_address,
+                    user_agent=user_agent,
+                    success=False,
+                    failure_reason="invalid_2fa_code",
+                    user_id=str(user.id)
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Código 2FA inválido"
+                )
+        except HTTPException:
+            raise
+        except Exception as e:
+            print(f"Erro ao verificar 2FA: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Erro ao verificar código 2FA"
+            )
     
     # Create access token
     access_token = create_access_token(
