@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router-dom'
 import {
   Brain,
   Target,
@@ -21,6 +22,9 @@ import {
   Eye,
   WifiOff,
   Clock,
+  Wallet,
+  Plus,
+  RotateCcw,
 } from 'lucide-react'
 import {
   AIInsightsCard,
@@ -109,6 +113,7 @@ const AIIntelligencePage: React.FC<AIIntelligencePageProps> = ({ onBack }) => {
   const [indicatorsError, setIndicatorsError] = useState<string | null>(null)
   const [dataLoadError, setDataLoadError] = useState<string | null>(null)
   const [isTimeoutError, setIsTimeoutError] = useState(false)
+  const [noWalletError, setNoWalletError] = useState(false)
 
   // Retry tracking
   const retryCountRef = useRef(0)
@@ -137,7 +142,11 @@ const AIIntelligencePage: React.FC<AIIntelligencePageProps> = ({ onBack }) => {
         timeout: 45000, // 45 seconds for AI page
       })
       const wallets = walletsResp.data
-      if (!wallets?.length) return []
+      if (!wallets?.length) {
+        // Sem carteira criada - settar flag para mostrar mensagem apropriada
+        setNoWalletError(true)
+        return []
+      }
 
       const walletId = wallets[0].id
 
@@ -267,6 +276,7 @@ const AIIntelligencePage: React.FC<AIIntelligencePageProps> = ({ onBack }) => {
   const fetchAllData = useCallback(async () => {
     setLoading(true)
     setDataLoadError(null)
+    setNoWalletError(false)
     setAthError(null)
     setCorrelationError(null)
     setSwapError(null)
@@ -381,6 +391,7 @@ const AIIntelligencePage: React.FC<AIIntelligencePageProps> = ({ onBack }) => {
     setRefreshing(true)
     setIsTimeoutError(false)
     setDataLoadError(null)
+    setNoWalletError(false)
     await fetchAllData()
     setRefreshing(false)
   }
@@ -549,7 +560,44 @@ const AIIntelligencePage: React.FC<AIIntelligencePageProps> = ({ onBack }) => {
         )}
 
         {/* Error State - Premium with Timeout-specific UI */}
-        {!loading && dataLoadError && (
+        {!loading && noWalletError && (
+          <div className='flex flex-col items-center justify-center py-16 space-y-6'>
+            <div className='relative'>
+              <div className='absolute inset-0 bg-blue-500/20 rounded-full blur-xl animate-pulse' />
+              <div className='relative p-6 rounded-full border bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 border-blue-200 dark:border-blue-800'>
+                <Wallet className='w-14 h-14 text-blue-500' />
+              </div>
+            </div>
+            <div className='text-center max-w-md space-y-3'>
+              <h3 className='text-xl font-bold text-gray-900 dark:text-white'>
+                Carteira Não Encontrada
+              </h3>
+              <p className='text-sm text-gray-600 dark:text-gray-400'>
+                Para acessar a AI Intelligence, você precisa criar ou restaurar uma carteira
+                primeiro.
+              </p>
+
+              <div className='flex flex-col gap-3 pt-4'>
+                <Link
+                  to='/wallets'
+                  className='flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium rounded-xl transition-all shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30'
+                >
+                  <Plus className='w-5 h-5' />
+                  Criar Nova Carteira
+                </Link>
+                <Link
+                  to='/wallets'
+                  className='flex items-center justify-center gap-2 px-6 py-3 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium border border-gray-300 dark:border-gray-600 rounded-xl transition-all'
+                >
+                  <RotateCcw className='w-5 h-5' />
+                  Restaurar Carteira
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!loading && dataLoadError && !noWalletError && (
           <div className='flex flex-col items-center justify-center py-16 space-y-6'>
             <div className='relative'>
               <div
