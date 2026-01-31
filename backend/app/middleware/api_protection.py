@@ -68,6 +68,9 @@ class APIProtectionMiddleware(BaseHTTPMiddleware):
         '/api/public',
         '/webhooks/',          # Webhooks precisam ser públicos
         '/api/webhooks/',
+        '/prices/',            # Preços são públicos
+        '/api/prices/',
+        '/v1/prices/',
     ]
     
     # Rotas de autenticação que precisam funcionar sem bloqueio
@@ -229,13 +232,27 @@ class APIProtectionMiddleware(BaseHTTPMiddleware):
         return response
     
     def _get_client_ip(self, request: Request) -> str:
-        """Obtém o IP real do cliente."""
+        """Obtém o IP real do cliente (suporta Cloudflare, proxies, etc)."""
+        # Cloudflare - CF-Connecting-IP é o mais confiável
+        cf_connecting_ip = request.headers.get("CF-Connecting-IP")
+        if cf_connecting_ip:
+            return cf_connecting_ip.strip()
+        
+        # True-Client-IP (usado por alguns CDNs)
+        true_client_ip = request.headers.get("True-Client-IP")
+        if true_client_ip:
+            return true_client_ip.strip()
+        
+        # X-Forwarded-For (proxy padrão)
         forwarded_for = request.headers.get("X-Forwarded-For")
         if forwarded_for:
             return forwarded_for.split(",")[0].strip()
+        
+        # X-Real-IP (nginx)
         real_ip = request.headers.get("X-Real-IP")
         if real_ip:
             return real_ip.strip()
+        
         if request.client:
             return request.client.host
         return "unknown"

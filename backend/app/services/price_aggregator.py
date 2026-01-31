@@ -384,7 +384,65 @@ class PriceAggregator:
         self.coingecko_source = CoinGeckoSource()
         self.geckoterminal_source = GeckoTerminalSource()
         self.cache = PriceCache()
-        self.cache_ttl = 60  # 60 segundos - evita rate limiting e timeouts
+        self.cache_ttl = 30  # 30 segundos - preços mais atualizados
+    
+    async def _fetch_main_prices(self, symbols: List[str], currency: str) -> Dict[str, PriceData]:
+        """Busca preços das moedas principais (Binance → CoinGecko fallback)"""
+        prices = {}
+        remaining = set(symbols)
+        
+        # 1. Try Binance first
+        if remaining:
+            logger.info(f"🔵 Binance: Fetching {len(remaining)} symbols in {currency.upper()}")
+            try:
+                binance_prices = await asyncio.wait_for(
+                    self.binance_source.fetch_prices(list(remaining), currency),
+                    timeout=10.0  # 10s timeout
+                )
+                if binance_prices:
+                    prices.update(binance_prices)
+                    remaining -= set(binance_prices.keys())
+                    logger.info(f"✅ Binance: Got {len(binance_prices)} prices")
+            except asyncio.TimeoutError:
+                logger.warning("⚠️ Binance timeout")
+            except Exception as e:
+                logger.error(f"⚠️ Binance error: {e}")
+        
+        # 2. Fallback to CoinGecko
+        if remaining:
+            logger.info(f"🟡 CoinGecko: Fetching {len(remaining)} symbols (fallback)")
+            try:
+                coingecko_prices = await asyncio.wait_for(
+                    self.coingecko_source.fetch_prices(list(remaining), currency),
+                    timeout=10.0  # 10s timeout
+                )
+                if coingecko_prices:
+                    prices.update(coingecko_prices)
+                    logger.info(f"✅ CoinGecko: Got {len(coingecko_prices)} prices")
+            except asyncio.TimeoutError:
+                logger.warning("⚠️ CoinGecko timeout")
+            except Exception as e:
+                logger.error(f"⚠️ CoinGecko error: {e}")
+        
+        return prices
+    
+    async def _fetch_dex_prices(self, symbols: List[str], currency: str) -> Dict[str, PriceData]:
+        """Busca preços de tokens DEX (GeckoTerminal)"""
+        logger.info(f"🟣 GeckoTerminal: Fetching {len(symbols)} DEX tokens")
+        try:
+            dex_prices = await asyncio.wait_for(
+                self.geckoterminal_source.fetch_prices(symbols, currency),
+                timeout=10.0  # 10s timeout
+            )
+            if dex_prices:
+                logger.info(f"✅ GeckoTerminal: Got {len(dex_prices)} prices")
+            return dex_prices
+        except asyncio.TimeoutError:
+            logger.warning("⚠️ GeckoTerminal timeout")
+            return {}
+        except Exception as e:
+            logger.error(f"⚠️ GeckoTerminal error: {e}")
+            return {}
     
     async def get_prices(
         self,
@@ -433,43 +491,32 @@ class PriceAggregator:
         all_prices = {}
         remaining_symbols = set(symbols)
         
+        # Separar tokens DEX (TRAY, etc.) para buscar em paralelo
+        dex_tokens = {'TRAY'}  # Tokens que só existem em DEX
+        dex_symbols = remaining_symbols & dex_tokens
+        main_symbols = remaining_symbols - dex_tokens
+        
         try:
-            # 1. Try Binance first (more accurate prices, especially for BRL)
-            if remaining_symbols:
-                logger.info(f"🔵 Binance (PRIMARY): Fetching {remaining_symbols} in {currency.upper()}")
-                binance_prices = await self.binance_source.fetch_prices(
-                    list(remaining_symbols),
-                    currency
-                )
-                if binance_prices:
-                    all_prices.update(binance_prices)
-                    remaining_symbols -= set(binance_prices.keys())
-                    logger.info(f"✅ Binance: Got {len(binance_prices)} prices")
+            # Buscar em paralelo: main coins e DEX tokens
+            tasks = []
             
-            # 2. Fallback to CoinGecko for remaining symbols
-            if remaining_symbols:
-                logger.info(f"🟡 CoinGecko (FALLBACK): Fetching {remaining_symbols} in {currency.upper()}")
-                coingecko_prices = await self.coingecko_source.fetch_prices(
-                    list(remaining_symbols),
-                    currency
-                )
-                if coingecko_prices:
-                    all_prices.update(coingecko_prices)
-                    remaining_symbols -= set(coingecko_prices.keys())
-                    logger.info(f"✅ CoinGecko: Got {len(coingecko_prices)} prices (fallback)")
+            # Task 1: Binance para main coins
+            if main_symbols:
+                tasks.append(self._fetch_main_prices(list(main_symbols), currency))
             
-            # 3. Try GeckoTerminal for DEX-only tokens (TRAY, etc.)
-            if remaining_symbols:
-                logger.info(f"🟣 GeckoTerminal (DEX): Fetching {remaining_symbols} in {currency.upper()}")
-                dex_prices = await self.geckoterminal_source.fetch_prices(
-                    list(remaining_symbols),
-                    currency
-                )
-                if dex_prices:
-                    all_prices.update(dex_prices)
-                    remaining_symbols -= set(dex_prices.keys())
-                    logger.info(f"✅ GeckoTerminal: Got {len(dex_prices)} prices (DEX tokens)")
-                    
+            # Task 2: GeckoTerminal para DEX tokens (em paralelo)
+            if dex_symbols:
+                tasks.append(self._fetch_dex_prices(list(dex_symbols), currency))
+            
+            if tasks:
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+                
+                for result in results:
+                    if isinstance(result, dict):
+                        all_prices.update(result)
+                    elif isinstance(result, Exception):
+                        logger.error(f"Price fetch error: {result}")
+                        
         except asyncio.CancelledError:
             logger.warning(f"⚠️ Price fetch cancelled for {currency.upper()}")
             raise  # Re-raise para permitir shutdown graceful
