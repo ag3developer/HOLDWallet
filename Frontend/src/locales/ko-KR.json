@@ -629,6 +629,12 @@
         "1d": "1일",
         "1w": "1주",
         "1m": "1개월"
+      },
+      "strength": {
+        "veryStrong": "매우 강함",
+        "strong": "강함",
+        "moderate": "보통",
+        "weak": "약함"
       }
     },
     "errors": {
@@ -734,6 +740,11 @@
       "strongBuy": "강력 매수",
       "strongSell": "강력 매도",
       "movingAverages": "이동평균",
+      "bollingerBands": "볼린저 밴드",
+      "upper": "상단",
+      "middle": "중간",
+      "lower": "하단",
+      "signalLabel": "신호",
       "setupType": {
         "long": "롱",
         "short": "숏",

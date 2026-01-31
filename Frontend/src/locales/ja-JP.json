@@ -624,6 +624,12 @@
         "strongBuy": "強い買い",
         "strongSell": "強い売り"
       },
+      "strength": {
+        "veryStrong": "非常に強い",
+        "strong": "強い",
+        "moderate": "適度",
+        "weak": "弱い"
+      },
       "timeframe": {
         "1h": "1時間",
         "4h": "4時間",
@@ -735,6 +741,11 @@
       "strongBuy": "強い買い",
       "strongSell": "強い売り",
       "movingAverages": "移動平均",
+      "bollingerBands": "ボリンジャーバンド",
+      "upper": "上限",
+      "middle": "中間",
+      "lower": "下限",
+      "signalLabel": "シグナル",
       "setupType": {
         "long": "ロング",
         "short": "ショート",

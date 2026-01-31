@@ -111,6 +111,77 @@ export const TechnicalOverviewCard: React.FC<TechnicalOverviewCardProps> = ({
     return 'text-gray-600 dark:text-gray-400'
   }
 
+  // Translate RSI signal
+  const translateRsiSignal = (signal: string | undefined) => {
+    const normalizedSignal = (signal || 'NEUTRAL').toUpperCase()
+    switch (normalizedSignal) {
+      case 'OVERSOLD':
+        return t('aiIntelligence.indicators.rsi.oversold', 'Oversold')
+      case 'OVERBOUGHT':
+        return t('aiIntelligence.indicators.rsi.overbought', 'Overbought')
+      default:
+        return t('aiIntelligence.indicators.rsi.neutral', 'Neutral')
+    }
+  }
+
+  // Translate MACD trend
+  const translateMacdTrend = (trend: string | undefined) => {
+    const normalizedTrend = (trend || 'NEUTRAL').toUpperCase()
+    switch (normalizedTrend) {
+      case 'BULLISH':
+        return t('aiIntelligence.indicators.macd.bullish', 'Bullish')
+      case 'BEARISH':
+        return t('aiIntelligence.indicators.macd.bearish', 'Bearish')
+      default:
+        return t('aiIntelligence.sentiment.neutral', 'Neutral')
+    }
+  }
+
+  // Translate trend strength
+  const translateTrendStrength = (strength: string | undefined) => {
+    const normalizedStrength = (strength || 'WEAK').toUpperCase()
+    switch (normalizedStrength) {
+      case 'VERY_STRONG':
+        return t('aiIntelligence.indicators.strength.veryStrong', 'Very Strong')
+      case 'STRONG':
+        return t('aiIntelligence.indicators.strength.strong', 'Strong')
+      case 'MODERATE':
+        return t('aiIntelligence.indicators.strength.moderate', 'Moderate')
+      case 'WEAK':
+        return t('aiIntelligence.indicators.strength.weak', 'Weak')
+      default:
+        return strength || 'N/A'
+    }
+  }
+
+  // Translate volume signal
+  const translateVolumeSignal = (signal: string | undefined) => {
+    const normalizedSignal = (signal || 'NORMAL').toUpperCase()
+    switch (normalizedSignal) {
+      case 'HIGH_VOLUME':
+      case 'HIGH':
+        return t('aiIntelligence.indicators.volume.high', 'High')
+      case 'LOW_VOLUME':
+      case 'LOW':
+        return t('aiIntelligence.indicators.volume.low', 'Low')
+      default:
+        return t('aiIntelligence.indicators.volume.average', 'Average')
+    }
+  }
+
+  // Translate moving averages trend
+  const translateMaTrend = (trend: string | undefined) => {
+    const normalizedTrend = (trend || 'NEUTRAL').toUpperCase()
+    switch (normalizedTrend) {
+      case 'BULLISH':
+        return t('aiIntelligence.setup.trend.bullish', 'Bullish')
+      case 'BEARISH':
+        return t('aiIntelligence.setup.trend.bearish', 'Bearish')
+      default:
+        return t('aiIntelligence.setup.trend.neutral', 'Sideways')
+    }
+  }
+
   // Get MACD trend color
   const getMacdColor = (trend: string) => {
     const normalizedTrend = (trend || '').toUpperCase()
@@ -289,7 +360,7 @@ export const TechnicalOverviewCard: React.FC<TechnicalOverviewCardProps> = ({
             {(analysis.indicators?.rsi?.value || 0).toFixed(1)}
           </p>
           <p className='text-xs text-gray-500 mt-1'>
-            {analysis.indicators?.rsi?.signal || 'NEUTRAL'}
+            {translateRsiSignal(analysis.indicators?.rsi?.signal)}
           </p>
         </div>
 
@@ -314,7 +385,7 @@ export const TechnicalOverviewCard: React.FC<TechnicalOverviewCardProps> = ({
               <Minus className='w-3 h-3 text-gray-500' />
             )}
             <span className='text-xs text-gray-500'>
-              {analysis.indicators?.macd?.trend || 'NEUTRAL'}
+              {translateMacdTrend(analysis.indicators?.macd?.trend)}
             </span>
           </div>
         </div>
@@ -332,7 +403,7 @@ export const TechnicalOverviewCard: React.FC<TechnicalOverviewCardProps> = ({
             {(analysis.indicators?.adx?.value || 0).toFixed(1)}
           </p>
           <p className='text-xs text-gray-500 mt-1'>
-            {analysis.indicators?.adx?.trendStrength || 'WEAK'}
+            {translateTrendStrength(analysis.indicators?.adx?.trendStrength)}
           </p>
         </div>
 
@@ -348,7 +419,7 @@ export const TechnicalOverviewCard: React.FC<TechnicalOverviewCardProps> = ({
             {((analysis.indicators?.volume?.ratio || 0) * 100).toFixed(0)}%
           </p>
           <p className='text-xs text-gray-500 mt-1'>
-            {analysis.indicators?.volume?.signal || 'NORMAL'}
+            {translateVolumeSignal(analysis.indicators?.volume?.signal)}
           </p>
         </div>
       </div>
@@ -367,7 +438,7 @@ export const TechnicalOverviewCard: React.FC<TechnicalOverviewCardProps> = ({
                   : 'bg-gray-500/10 text-gray-500'
             }`}
           >
-            {analysis.indicators?.movingAverages?.trend || 'NEUTRAL'}
+            {translateMaTrend(analysis.indicators?.movingAverages?.trend)}
           </span>
         </h4>
         <div className='grid grid-cols-4 gap-2 text-center'>
@@ -424,7 +495,7 @@ export const TechnicalOverviewCard: React.FC<TechnicalOverviewCardProps> = ({
           </div>
           <div className='pt-2 border-t border-gray-200 dark:border-gray-700'>
             <p className='text-xs text-gray-500'>
-              {t('aiIntelligence.setup.signal', 'Signal')}:{' '}
+              {t('aiIntelligence.setup.signalLabel', 'Signal')}:{' '}
               <span className='font-medium text-gray-700 dark:text-gray-300'>
                 {analysis.indicators?.bollingerBands?.signal || 'NEUTRAL'}
               </span>

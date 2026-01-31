@@ -909,7 +909,12 @@
       "momentum": "Momentum",
       "trend": "Tendência",
       "volatility": "Volatilidade",
-      "volume": "Volume",
+      "volume": {
+        "title": "Volume",
+        "high": "Alto",
+        "low": "Baixo",
+        "average": "Médio"
+      },
       "rsi": {
         "title": "RSI (14)",
         "overbought": "Sobrecomprado",
@@ -943,6 +948,12 @@
       "obv": {
         "title": "OBV",
         "trend": "Tendência"
+      },
+      "strength": {
+        "veryStrong": "Muito Forte",
+        "strong": "Forte",
+        "moderate": "Moderado",
+        "weak": "Fraco"
       },
       "loading": "Calculando indicadores..."
     },
@@ -1037,6 +1048,14 @@
       "strongBuy": "COMPRA FORTE",
       "strongSell": "VENDA FORTE",
       "movingAverages": "Médias Móveis",
+      "bollingerBands": "Bandas de Bollinger",
+      "upper": "Superior",
+      "middle": "Média",
+      "lower": "Inferior",
+      "signalLabel": "Sinal",
+      "rsiOversold": "SOBREVENDIDO",
+      "rsiOverbought": "SOBRECOMPRADO",
+      "rsiNeutral": "NEUTRO",
       "setupType": {
         "long": "LONG",
         "short": "SHORT",

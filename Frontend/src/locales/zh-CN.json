@@ -587,7 +587,12 @@
       "momentum": "动量",
       "trend": "趋势",
       "volatility": "波动性",
-      "volume": "成交量",
+      "volume": {
+        "title": "成交量",
+        "high": "高",
+        "low": "低",
+        "average": "平均"
+      },
       "rsi": {
         "title": "RSI (14)",
         "overbought": "超买",
@@ -621,6 +626,12 @@
       "obv": {
         "title": "OBV",
         "trend": "趋势"
+      },
+      "strength": {
+        "veryStrong": "非常强",
+        "strong": "强",
+        "moderate": "中等",
+        "weak": "弱"
       },
       "loading": "计算指标..."
     },
@@ -726,6 +737,11 @@
       "strongBuy": "强力买入",
       "strongSell": "强力卖出",
       "movingAverages": "移动平均线",
+      "bollingerBands": "布林带",
+      "upper": "上轨",
+      "middle": "中轨",
+      "lower": "下轨",
+      "signalLabel": "信号",
       "setupType": {
         "long": "做多",
         "short": "做空",
