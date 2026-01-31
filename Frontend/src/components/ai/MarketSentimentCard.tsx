@@ -18,6 +18,7 @@ import {
   Shield,
 } from 'lucide-react'
 import { MarketSentiment } from '@/services/trayopsService'
+import { CryptoIcon } from '@/components/CryptoIcon'
 
 interface MarketSentimentCardProps {
   sentiment: MarketSentiment | null
@@ -285,6 +286,7 @@ export const MarketSentimentCard: React.FC<MarketSentimentCardProps> = ({
               className='p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl flex items-center justify-between'
             >
               <div className='flex items-center gap-3'>
+                <CryptoIcon symbol={asset.symbol} size={24} />
                 <div className='font-bold text-gray-900 dark:text-white'>{asset.symbol}</div>
                 <div
                   className={`text-xs px-2 py-0.5 rounded-full ${
