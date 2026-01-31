@@ -271,9 +271,19 @@ class PriceCache:
             return self.cache.get(currency.lower())
     
     async def set(self, currency: str, prices: Dict[str, PriceData]):
-        """Set cached prices for currency"""
+        """Set cached prices for currency - MERGE with existing cache"""
         async with self.lock:
-            self.cache[currency.lower()] = prices
+            currency_key = currency.lower()
+            
+            # Mesclar com cache existente em vez de substituir
+            if currency_key not in self.cache:
+                self.cache[currency_key] = {}
+            
+            # Atualizar apenas os símbolos recebidos (merge)
+            for symbol, price_data in prices.items():
+                self.cache[currency_key][symbol] = price_data
+            
+            logger.debug(f"Cache updated for {currency_key}: {len(self.cache[currency_key])} total symbols")
     
     async def is_stale(self, currency: str, max_age_seconds: int = 30) -> bool:
         """Check if cache is stale - default 30s for real-time trading"""

@@ -50,6 +50,8 @@ export function usePrices(symbols: string[], currency: string = 'USD'): UsePrice
 
       // Converter para formato esperado (apenas preços válidos)
       const formattedPrices: Record<string, PriceInfo> = {}
+      const skippedSymbols: string[] = []
+
       for (const [symbol, data] of Object.entries(pricesData)) {
         const dataAsAny = data as any
         const price = dataAsAny.price || 0
@@ -63,8 +65,15 @@ export function usePrices(symbols: string[], currency: string = 'USD'): UsePrice
             low_24h: dataAsAny.low_24h || 0,
           }
         } else {
-          console.warn(`[usePrices] ⚠️ Skipping ${symbol} - invalid price: ${price}`)
+          skippedSymbols.push(`${symbol}(${price})`)
         }
+      }
+
+      if (skippedSymbols.length > 0) {
+        console.warn(
+          `[usePrices] ⚠️ Skipped symbols with invalid price:`,
+          skippedSymbols.join(', ')
+        )
       }
 
       if (Object.keys(formattedPrices).length > 0) {

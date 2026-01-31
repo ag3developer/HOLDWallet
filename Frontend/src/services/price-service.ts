@@ -134,9 +134,14 @@ class PriceService {
       })
 
       const data = response.data
+      console.log(
+        '[PriceService] 📦 Raw API response:',
+        JSON.stringify(data.prices, null, 2).substring(0, 500)
+      )
       if (data.prices && typeof data.prices === 'object') {
         const result = this.parseResponse(data.prices)
         console.log('[PriceService] ✅ Live prices fetched:', Object.keys(result).length, 'symbols')
+        console.log('[PriceService] Symbols received:', Object.keys(result).join(', '))
         return result
       }
 
