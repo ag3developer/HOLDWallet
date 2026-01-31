@@ -796,7 +796,9 @@
       "ath": "ATH",
       "correlation": "Correlation",
       "swap": "Swap",
-      "indicators": "Indicators"
+      "indicators": "Indicators",
+      "sentiment": "Sentiment",
+      "setup": "Setup"
     },
     "portfolio": {
       "analyzing": "Analyzing",
@@ -956,6 +958,100 @@
       },
       "loading": "Calculating indicators..."
     },
+    "sentiment": {
+      "title": "Market Sentiment",
+      "subtitle": "Real-time sentiment analysis",
+      "description": "Fear & Greed Index, social metrics and news",
+      "update": "Update",
+      "poweredBy": "via TrayOps AI",
+      "fearGreed": {
+        "title": "Fear & Greed Index",
+        "extremeFear": "Extreme Fear",
+        "fear": "Fear",
+        "neutral": "Neutral",
+        "greed": "Greed",
+        "extremeGreed": "Extreme Greed"
+      },
+      "marketMetrics": {
+        "title": "Market Metrics",
+        "btcDominance": "BTC Dominance",
+        "altcoinSeason": "Altcoin Season",
+        "marketCapChange": "Market Cap Change",
+        "volume24h": "24h Volume"
+      },
+      "social": {
+        "title": "Social Metrics",
+        "twitter": "Twitter",
+        "reddit": "Reddit",
+        "socialVolume": "Social Volume",
+        "trending": "Trending"
+      },
+      "news": {
+        "title": "News Sentiment",
+        "positive": "Positive",
+        "negative": "Negative",
+        "neutral": "Neutral",
+        "recentHeadlines": "Recent Headlines"
+      },
+      "aiInterpretation": "AI Interpretation",
+      "description_extremeFear": "Market in panic - possible buying opportunity",
+      "description_fear": "Investors are cautious",
+      "description_neutral": "Balanced market",
+      "description_greed": "Market optimism",
+      "description_extremeGreed": "Euphoria - consider taking profits"
+    },
+    "setup": {
+      "title": "Smart Setup",
+      "subtitle": "Entry, Stop Loss and Take Profit",
+      "description": "Trading setups via TrayOps AI",
+      "poweredBy": "via TrayOps AI",
+      "selectAsset": "Asset",
+      "selectTimeframe": "Timeframe",
+      "entry": "Entry",
+      "stopLoss": "Stop Loss",
+      "takeProfit": "Take Profit",
+      "riskReward": "Risk/Reward",
+      "confidence": "Confidence",
+      "invalidation": "Invalidation",
+      "positionSize": "Position Size",
+      "reasoning": "Reasoning",
+      "aiAnalysis": "AI Analysis",
+      "setupType": {
+        "long": "LONG",
+        "short": "SHORT",
+        "neutral": "NEUTRAL"
+      },
+      "technicalAnalysis": {
+        "title": "Technical Analysis",
+        "supportResistance": "Support & Resistance",
+        "currentPrice": "Current Price",
+        "resistance": "Resistance",
+        "support": "Support",
+        "movingAverages": "Moving Averages",
+        "bollingerBands": "Bollinger Bands",
+        "upper": "Upper",
+        "middle": "Middle",
+        "lower": "Lower",
+        "position": "Position",
+        "nearTop": "Near top",
+        "nearBottom": "Near bottom",
+        "inMiddle": "In middle band"
+      },
+      "signal": {
+        "strongBuy": "STRONG BUY",
+        "buy": "BUY",
+        "neutral": "NEUTRAL",
+        "sell": "SELL",
+        "strongSell": "STRONG SELL"
+      },
+      "trend": {
+        "bullish": "Bullish",
+        "bearish": "Bearish",
+        "neutral": "Sideways"
+      },
+      "aiSummary": "AI Summary",
+      "updated": "Updated"
+    },
     "errors": {
       "loadingFailed": "Failed to load data",
       "timeout": "The server is taking too long to respond. This can happen during peak hours.",
@@ -964,7 +1060,10 @@
       "noData": "Data not available",
       "insufficientData": "Add more assets to your portfolio",
       "tryAgain": "Try Again",
-      "retrying": "Retrying..."
+      "retrying": "Retrying...",
+      "sentimentError": "Error fetching market sentiment",
+      "setupError": "Error fetching trading setup",
+      "technicalError": "Error fetching technical analysis"
     }
   }
 }

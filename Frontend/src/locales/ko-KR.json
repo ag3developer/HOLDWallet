@@ -462,7 +462,9 @@
       "ath": "ATH 분석",
       "correlation": "상관관계",
       "swap": "스왑 제안",
-      "indicators": "지표"
+      "indicators": "지표",
+      "sentiment": "심리",
+      "setup": "설정"
     },
     "portfolio": {
       "analyzing": "포트폴리오 분석 중...",
@@ -636,7 +638,104 @@
       "tryAgain": "다시 시도",
       "retrying": "재시도 중...",
       "noData": "데이터가 없습니다",
-      "insufficientData": "분석에 필요한 데이터가 부족합니다"
+      "insufficientData": "분석에 필요한 데이터가 부족합니다",
+      "sentimentError": "시장 심리 정보를 가져오는데 실패했습니다",
+      "setupError": "트레이딩 설정을 가져오는데 실패했습니다",
+      "technicalError": "기술 분석을 가져오는데 실패했습니다"
+    },
+    "sentiment": {
+      "title": "시장 심리",
+      "subtitle": "실시간 심리 분석",
+      "description": "Fear & Greed 지수, 소셜 메트릭, 뉴스",
+      "update": "업데이트",
+      "poweredBy": "TrayOps AI 제공",
+      "fearGreed": {
+        "title": "Fear & Greed 지수",
+        "extremeFear": "극도의 공포",
+        "fear": "공포",
+        "neutral": "중립",
+        "greed": "탐욕",
+        "extremeGreed": "극도의 탐욕"
+      },
+      "marketMetrics": {
+        "title": "시장 메트릭",
+        "btcDominance": "BTC 점유율",
+        "altcoinSeason": "알트코인 시즌",
+        "marketCapChange": "시가총액 변동",
+        "volume24h": "24시간 거래량"
+      },
+      "social": {
+        "title": "소셜 메트릭",
+        "twitter": "트위터",
+        "reddit": "레딧",
+        "socialVolume": "소셜 볼륨",
+        "trending": "트렌딩"
+      },
+      "news": {
+        "title": "뉴스 심리",
+        "positive": "긍정적",
+        "negative": "부정적",
+        "neutral": "중립",
+        "recentHeadlines": "최근 헤드라인"
+      },
+      "aiInterpretation": "AI 해석",
+      "description_extremeFear": "시장 패닉 - 매수 기회 가능성",
+      "description_fear": "투자자들이 신중함",
+      "description_neutral": "균형 잡힌 시장",
+      "description_greed": "시장 낙관론",
+      "description_extremeGreed": "유포리아 - 차익 실현 고려"
+    },
+    "setup": {
+      "title": "스마트 설정",
+      "subtitle": "진입, 손절, 익절",
+      "description": "TrayOps AI를 통한 트레이딩 설정",
+      "poweredBy": "TrayOps AI 제공",
+      "selectAsset": "자산",
+      "selectTimeframe": "시간대",
+      "entry": "진입",
+      "stopLoss": "손절",
+      "takeProfit": "익절",
+      "riskReward": "위험/보상",
+      "confidence": "신뢰도",
+      "invalidation": "무효화",
+      "positionSize": "포지션 크기",
+      "reasoning": "이유",
+      "aiAnalysis": "AI 분석",
+      "setupType": {
+        "long": "롱",
+        "short": "숏",
+        "neutral": "중립"
+      },
+      "technicalAnalysis": {
+        "title": "기술 분석",
+        "supportResistance": "지지 & 저항",
+        "currentPrice": "현재 가격",
+        "resistance": "저항",
+        "support": "지지",
+        "movingAverages": "이동평균",
+        "bollingerBands": "볼린저 밴드",
+        "upper": "상단",
+        "middle": "중간",
+        "lower": "하단",
+        "position": "위치",
+        "nearTop": "상단 근처",
+        "nearBottom": "하단 근처",
+        "inMiddle": "밴드 중간"
+      },
+      "signal": {
+        "strongBuy": "강력 매수",
+        "buy": "매수",
+        "neutral": "중립",
+        "sell": "매도",
+        "strongSell": "강력 매도"
+      },
+      "trend": {
+        "bullish": "상승",
+        "bearish": "하락",
+        "neutral": "횡보"
+      },
+      "aiSummary": "AI 요약",
+      "updated": "업데이트"
     }
   }
 }

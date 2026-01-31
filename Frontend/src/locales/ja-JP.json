@@ -463,7 +463,9 @@
       "ath": "ATH分析",
       "correlation": "相関関係",
       "swap": "スワップ提案",
-      "indicators": "指標"
+      "indicators": "指標",
+      "sentiment": "センチメント",
+      "setup": "セットアップ"
     },
     "portfolio": {
       "analyzing": "ポートフォリオを分析中...",
@@ -637,7 +639,104 @@
       "tryAgain": "再試行",
       "retrying": "再試行中...",
       "noData": "データがありません",
-      "insufficientData": "分析に必要なデータが不足しています"
+      "insufficientData": "分析に必要なデータが不足しています",
+      "sentimentError": "市場センチメントの取得に失敗しました",
+      "setupError": "トレーディングセットアップの取得に失敗しました",
+      "technicalError": "テクニカル分析の取得に失敗しました"
+    },
+    "sentiment": {
+      "title": "市場センチメント",
+      "subtitle": "リアルタイムセンチメント分析",
+      "description": "Fear & Greed指数、ソーシャルメトリクス、ニュース",
+      "update": "更新",
+      "poweredBy": "TrayOps AI提供",
+      "fearGreed": {
+        "title": "Fear & Greed指数",
+        "extremeFear": "極度の恐怖",
+        "fear": "恐怖",
+        "neutral": "中立",
+        "greed": "貪欲",
+        "extremeGreed": "極度の貪欲"
+      },
+      "marketMetrics": {
+        "title": "市場メトリクス",
+        "btcDominance": "BTC支配率",
+        "altcoinSeason": "アルトコインシーズン",
+        "marketCapChange": "時価総額変動",
+        "volume24h": "24時間出来高"
+      },
+      "social": {
+        "title": "ソーシャルメトリクス",
+        "twitter": "Twitter",
+        "reddit": "Reddit",
+        "socialVolume": "ソーシャルボリューム",
+        "trending": "トレンド"
+      },
+      "news": {
+        "title": "ニュースセンチメント",
+        "positive": "ポジティブ",
+        "negative": "ネガティブ",
+        "neutral": "中立",
+        "recentHeadlines": "最新ニュース"
+      },
+      "aiInterpretation": "AI解釈",
+      "description_extremeFear": "市場がパニック状態 - 買いのチャンスの可能性",
+      "description_fear": "投資家は慎重",
+      "description_neutral": "バランスの取れた市場",
+      "description_greed": "市場は楽観的",
+      "description_extremeGreed": "ユーフォリア - 利確を検討"
+    },
+    "setup": {
+      "title": "スマートセットアップ",
+      "subtitle": "エントリー、ストップロス、テイクプロフィット",
+      "description": "TrayOps AIによるトレーディングセットアップ",
+      "poweredBy": "TrayOps AI提供",
+      "selectAsset": "資産",
+      "selectTimeframe": "時間軸",
+      "entry": "エントリー",
+      "stopLoss": "ストップロス",
+      "takeProfit": "テイクプロフィット",
+      "riskReward": "リスク/リワード",
+      "confidence": "信頼度",
+      "invalidation": "無効化",
+      "positionSize": "ポジションサイズ",
+      "reasoning": "理由",
+      "aiAnalysis": "AI分析",
+      "setupType": {
+        "long": "ロング",
+        "short": "ショート",
+        "neutral": "中立"
+      },
+      "technicalAnalysis": {
+        "title": "テクニカル分析",
+        "supportResistance": "サポート＆レジスタンス",
+        "currentPrice": "現在価格",
+        "resistance": "レジスタンス",
+        "support": "サポート",
+        "movingAverages": "移動平均",
+        "bollingerBands": "ボリンジャーバンド",
+        "upper": "上限",
+        "middle": "中間",
+        "lower": "下限",
+        "position": "ポジション",
+        "nearTop": "上限付近",
+        "nearBottom": "下限付近",
+        "inMiddle": "バンド中央"
+      },
+      "signal": {
+        "strongBuy": "強い買い",
+        "buy": "買い",
+        "neutral": "中立",
+        "sell": "売り",
+        "strongSell": "強い売り"
+      },
+      "trend": {
+        "bullish": "上昇",
+        "bearish": "下降",
+        "neutral": "横ばい"
+      },
+      "aiSummary": "AIサマリー",
+      "updated": "更新"
     }
   }
 }

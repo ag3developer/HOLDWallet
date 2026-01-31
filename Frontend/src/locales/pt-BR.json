@@ -786,7 +786,9 @@
       "ath": "ATH",
       "correlation": "Correlação",
       "swap": "Swap",
-      "indicators": "Indicadores"
+      "indicators": "Indicadores",
+      "sentiment": "Sentimento",
+      "setup": "Setup"
     },
     "portfolio": {
       "analyzing": "Analisando",
@@ -944,6 +946,100 @@
       },
       "loading": "Calculando indicadores..."
     },
+    "sentiment": {
+      "title": "Sentimento do Mercado",
+      "subtitle": "Análise de sentimento em tempo real",
+      "description": "Fear & Greed Index, métricas sociais e notícias",
+      "update": "Atualizar",
+      "poweredBy": "via TrayOps AI",
+      "fearGreed": {
+        "title": "Índice Fear & Greed",
+        "extremeFear": "Medo Extremo",
+        "fear": "Medo",
+        "neutral": "Neutro",
+        "greed": "Ganância",
+        "extremeGreed": "Ganância Extrema"
+      },
+      "marketMetrics": {
+        "title": "Métricas de Mercado",
+        "btcDominance": "Dominância BTC",
+        "altcoinSeason": "Altcoin Season",
+        "marketCapChange": "Variação Market Cap",
+        "volume24h": "Volume 24h"
+      },
+      "social": {
+        "title": "Métricas Sociais",
+        "twitter": "Twitter",
+        "reddit": "Reddit",
+        "socialVolume": "Volume Social",
+        "trending": "Trending"
+      },
+      "news": {
+        "title": "Sentimento de Notícias",
+        "positive": "Positivo",
+        "negative": "Negativo",
+        "neutral": "Neutro",
+        "recentHeadlines": "Manchetes Recentes"
+      },
+      "aiInterpretation": "Interpretação AI",
+      "description_extremeFear": "Mercado em pânico - possível oportunidade de compra",
+      "description_fear": "Investidores cautelosos",
+      "description_neutral": "Mercado equilibrado",
+      "description_greed": "Otimismo no mercado",
+      "description_extremeGreed": "Euforia - considere realizar lucros"
+    },
+    "setup": {
+      "title": "Setup Inteligente",
+      "subtitle": "Entry, Stop Loss e Take Profit",
+      "description": "Setups de trading via TrayOps AI",
+      "poweredBy": "via TrayOps AI",
+      "selectAsset": "Ativo",
+      "selectTimeframe": "Timeframe",
+      "entry": "Entry",
+      "stopLoss": "Stop Loss",
+      "takeProfit": "Take Profit",
+      "riskReward": "Risk/Reward",
+      "confidence": "Confiança",
+      "invalidation": "Invalidação",
+      "positionSize": "Tamanho da Posição",
+      "reasoning": "Motivo",
+      "aiAnalysis": "Análise AI",
+      "setupType": {
+        "long": "LONG",
+        "short": "SHORT",
+        "neutral": "NEUTRO"
+      },
+      "technicalAnalysis": {
+        "title": "Análise Técnica",
+        "supportResistance": "Suporte & Resistência",
+        "currentPrice": "Preço Atual",
+        "resistance": "Resistência",
+        "support": "Suporte",
+        "movingAverages": "Médias Móveis",
+        "bollingerBands": "Bandas de Bollinger",
+        "upper": "Superior",
+        "middle": "Média",
+        "lower": "Inferior",
+        "position": "Posição",
+        "nearTop": "Próximo ao topo",
+        "nearBottom": "Próximo ao fundo",
+        "inMiddle": "Meio da banda"
+      },
+      "signal": {
+        "strongBuy": "COMPRA FORTE",
+        "buy": "COMPRA",
+        "neutral": "NEUTRO",
+        "sell": "VENDA",
+        "strongSell": "VENDA FORTE"
+      },
+      "trend": {
+        "bullish": "Alta",
+        "bearish": "Baixa",
+        "neutral": "Lateral"
+      },
+      "aiSummary": "Resumo AI",
+      "updated": "Atualizado"
+    },
     "errors": {
       "loadingFailed": "Erro ao carregar dados",
       "timeout": "O servidor está demorando para responder. Isso pode acontecer em horários de pico.",
@@ -952,7 +1048,10 @@
       "noData": "Dados não disponíveis",
       "insufficientData": "Adicione mais ativos ao portfólio",
       "tryAgain": "Tentar Novamente",
-      "retrying": "Tentando novamente..."
+      "retrying": "Tentando novamente...",
+      "sentimentError": "Erro ao buscar sentimento do mercado",
+      "setupError": "Erro ao buscar setup de trading",
+      "technicalError": "Erro ao buscar análise técnica"
     }
   }
 }

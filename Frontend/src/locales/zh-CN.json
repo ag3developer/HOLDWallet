@@ -462,7 +462,9 @@
       "ath": "ATH",
       "correlation": "相关性",
       "swap": "兑换",
-      "indicators": "指标"
+      "indicators": "指标",
+      "sentiment": "情绪",
+      "setup": "设置"
     },
     "portfolio": {
       "analyzing": "分析中",
@@ -628,7 +630,104 @@
       "networkError": "无法连接服务器。请检查您的网络。",
       "generic": "加载数据错误。请重试。",
       "tryAgain": "重试",
-      "retrying": "重试中..."
+      "retrying": "重试中...",
+      "sentimentError": "获取市场情绪失败",
+      "setupError": "获取交易设置失败",
+      "technicalError": "获取技术分析失败"
+    },
+    "sentiment": {
+      "title": "市场情绪",
+      "subtitle": "实时情绪分析",
+      "description": "恐惧贪婪指数、社交指标和新闻",
+      "update": "更新",
+      "poweredBy": "由TrayOps AI提供",
+      "fearGreed": {
+        "title": "恐惧贪婪指数",
+        "extremeFear": "极度恐惧",
+        "fear": "恐惧",
+        "neutral": "中性",
+        "greed": "贪婪",
+        "extremeGreed": "极度贪婪"
+      },
+      "marketMetrics": {
+        "title": "市场指标",
+        "btcDominance": "BTC主导率",
+        "altcoinSeason": "山寨币季",
+        "marketCapChange": "市值变动",
+        "volume24h": "24小时成交量"
+      },
+      "social": {
+        "title": "社交指标",
+        "twitter": "推特",
+        "reddit": "Reddit",
+        "socialVolume": "社交量",
+        "trending": "热门"
+      },
+      "news": {
+        "title": "新闻情绪",
+        "positive": "积极",
+        "negative": "消极",
+        "neutral": "中性",
+        "recentHeadlines": "最新头条"
+      },
+      "aiInterpretation": "AI解读",
+      "description_extremeFear": "市场恐慌 - 可能的买入机会",
+      "description_fear": "投资者谨慎",
+      "description_neutral": "市场平衡",
+      "description_greed": "市场乐观",
+      "description_extremeGreed": "狂热 - 考虑获利了结"
+    },
+    "setup": {
+      "title": "智能设置",
+      "subtitle": "入场、止损和止盈",
+      "description": "通过TrayOps AI的交易设置",
+      "poweredBy": "由TrayOps AI提供",
+      "selectAsset": "资产",
+      "selectTimeframe": "时间周期",
+      "entry": "入场",
+      "stopLoss": "止损",
+      "takeProfit": "止盈",
+      "riskReward": "风险/回报",
+      "confidence": "置信度",
+      "invalidation": "失效",
+      "positionSize": "仓位大小",
+      "reasoning": "理由",
+      "aiAnalysis": "AI分析",
+      "setupType": {
+        "long": "做多",
+        "short": "做空",
+        "neutral": "中性"
+      },
+      "technicalAnalysis": {
+        "title": "技术分析",
+        "supportResistance": "支撑与阻力",
+        "currentPrice": "当前价格",
+        "resistance": "阻力",
+        "support": "支撑",
+        "movingAverages": "移动平均线",
+        "bollingerBands": "布林带",
+        "upper": "上轨",
+        "middle": "中轨",
+        "lower": "下轨",
+        "position": "位置",
+        "nearTop": "接近顶部",
+        "nearBottom": "接近底部",
+        "inMiddle": "在带中部"
+      },
+      "signal": {
+        "strongBuy": "强力买入",
+        "buy": "买入",
+        "neutral": "中性",
+        "sell": "卖出",
+        "strongSell": "强力卖出"
+      },
+      "trend": {
+        "bullish": "上涨",
+        "bearish": "下跌",
+        "neutral": "横盘"
+      },
+      "aiSummary": "AI摘要",
+      "updated": "已更新"
     }
   }
 }

@@ -25,6 +25,8 @@ import {
   Wallet,
   Plus,
   RotateCcw,
+  Heart,
+  Crosshair,
 } from 'lucide-react'
 import {
   AIInsightsCard,
@@ -32,6 +34,9 @@ import {
   CorrelationMatrix,
   SwapSuggestions,
   TechnicalIndicators,
+  TradingSetupCard,
+  MarketSentimentCard,
+  TechnicalOverviewCard,
 } from '@/components/ai'
 import { CryptoIcon } from '@/components/CryptoIcon'
 import {
@@ -42,10 +47,17 @@ import {
   SwapSuggestionsResult,
   TechnicalIndicators as TechnicalIndicatorsType,
 } from '@/services/aiService'
+import {
+  trayopsService,
+  TradingSetup,
+  MarketSentiment,
+  TechnicalAnalysisOverview,
+  Timeframe,
+} from '@/services/trayopsService'
 import { apiClient } from '@/services/api'
 import { useCurrencyStore } from '@/stores/useCurrencyStore'
 
-type TabType = 'overview' | 'ath' | 'correlation' | 'swap' | 'indicators'
+type TabType = 'overview' | 'ath' | 'correlation' | 'swap' | 'indicators' | 'sentiment' | 'setup'
 
 interface AIIntelligencePageProps {
   onBack?: () => void
@@ -105,6 +117,18 @@ const AIIntelligencePage: React.FC<AIIntelligencePageProps> = ({ onBack }) => {
   const [swapData, setSwapData] = useState<SwapSuggestionsResult | null>(null)
   const [indicatorsData, setIndicatorsData] = useState<TechnicalIndicatorsType | null>(null)
   const [selectedSymbol, setSelectedSymbol] = useState('BTC')
+
+  // TrayOps API states
+  const [tradingSetup, setTradingSetup] = useState<TradingSetup | null>(null)
+  const [marketSentiment, setMarketSentiment] = useState<MarketSentiment | null>(null)
+  const [technicalOverview, setTechnicalOverview] = useState<TechnicalAnalysisOverview | null>(null)
+  const [selectedTimeframe, setSelectedTimeframe] = useState<Timeframe>('4h')
+  const [trayopsLoading, setTrayopsLoading] = useState(false)
+
+  // TrayOps error states
+  const [setupError, setSetupError] = useState<string | null>(null)
+  const [sentimentError, setSentimentError] = useState<string | null>(null)
+  const [technicalError, setTechnicalError] = useState<string | null>(null)
 
   // Error states
   const [athError, setAthError] = useState<string | null>(null)
@@ -429,6 +453,115 @@ const AIIntelligencePage: React.FC<AIIntelligencePageProps> = ({ onBack }) => {
     }
   }
 
+  // ===================
+  // TrayOps API Functions
+  // ===================
+
+  // Fetch Trading Setup from TrayOps
+  const fetchTradingSetup = useCallback(
+    async (symbol: string, timeframe: Timeframe = '4h') => {
+      setTrayopsLoading(true)
+      setSetupError(null)
+      try {
+        const result = await trayopsService.getIntelligentSetup(symbol, timeframe)
+        setTradingSetup(result)
+      } catch (err) {
+        console.error('[TrayOps] Setup error:', err)
+        setSetupError(t('aiIntelligence.errors.setupError', 'Error fetching trading setup'))
+      } finally {
+        setTrayopsLoading(false)
+      }
+    },
+    [t]
+  )
+
+  // Fetch Market Sentiment from TrayOps
+  const fetchMarketSentiment = useCallback(async () => {
+    setSentimentError(null)
+    setTrayopsLoading(true)
+    try {
+      // Get symbols from portfolio or use defaults
+      const symbols =
+        portfolio.length > 0
+          ? portfolio
+              .slice(0, 5)
+              .map(p => p.symbol)
+              .join(',')
+          : 'BTC,ETH,SOL,BNB,XRP'
+      const result = await trayopsService.getSocialSentiment(symbols)
+      setMarketSentiment(result)
+    } catch (err) {
+      console.error('[TrayOps] Sentiment error:', err)
+      setSentimentError(
+        t('aiIntelligence.errors.sentimentError', 'Error fetching market sentiment')
+      )
+    } finally {
+      setTrayopsLoading(false)
+    }
+  }, [portfolio, t])
+
+  // Fetch Technical Analysis Overview from TrayOps
+  const fetchTechnicalOverview = useCallback(
+    async (symbol: string, timeframe: Timeframe = '4h') => {
+      setTechnicalError(null)
+      try {
+        const result = await trayopsService.getTechnicalAnalysisOverview(
+          symbol,
+          timeframe,
+          'binance'
+        )
+        setTechnicalOverview(result)
+      } catch (err) {
+        console.error('[TrayOps] Technical error:', err)
+        setTechnicalError(
+          t('aiIntelligence.errors.technicalError', 'Error fetching technical analysis')
+        )
+      }
+    },
+    [t]
+  )
+
+  // Handle symbol change for TrayOps features
+  const handleTrayopsSymbolChange = async (symbol: string) => {
+    setSelectedSymbol(symbol)
+    // Fetch both setup and technical overview in parallel
+    await Promise.all([
+      fetchTradingSetup(symbol, selectedTimeframe),
+      fetchTechnicalOverview(symbol, selectedTimeframe),
+    ])
+  }
+
+  // Handle timeframe change
+  const handleTimeframeChange = async (timeframe: Timeframe) => {
+    setSelectedTimeframe(timeframe)
+    await Promise.all([
+      fetchTradingSetup(selectedSymbol, timeframe),
+      fetchTechnicalOverview(selectedSymbol, timeframe),
+    ])
+  }
+
+  // Fetch TrayOps data when switching to sentiment/setup tabs
+  useEffect(() => {
+    if (activeTab === 'sentiment' && !marketSentiment) {
+      fetchMarketSentiment()
+    }
+    if (activeTab === 'setup' && !tradingSetup && portfolio.length > 0) {
+      const symbol = portfolio[0]?.symbol || 'BTC'
+      setSelectedSymbol(symbol)
+      fetchTradingSetup(symbol, selectedTimeframe)
+      fetchTechnicalOverview(symbol, selectedTimeframe)
+    }
+  }, [
+    activeTab,
+    marketSentiment,
+    tradingSetup,
+    portfolio,
+    selectedTimeframe,
+    fetchMarketSentiment,
+    fetchTradingSetup,
+    fetchTechnicalOverview,
+  ])
+
   return (
     <div className='min-h-screen bg-gradient-to-br from-gray-50 via-gray-50 to-blue-50/30 dark:from-gray-950 dark:via-gray-950 dark:to-blue-950/20 text-gray-900 dark:text-white transition-colors'>
       {/* Animated Background Elements */}
@@ -524,6 +657,18 @@ const AIIntelligencePage: React.FC<AIIntelligencePageProps> = ({ onBack }) => {
               icon={Activity}
               label={t('aiIntelligence.tabs.indicators')}
               onClick={() => setActiveTab('indicators')}
+            />
+            <TabButton
+              active={activeTab === 'sentiment'}
+              icon={Heart}
+              label={t('aiIntelligence.tabs.sentiment')}
+              onClick={() => setActiveTab('sentiment')}
+            />
+            <TabButton
+              active={activeTab === 'setup'}
+              icon={Crosshair}
+              label={t('aiIntelligence.tabs.setup')}
+              onClick={() => setActiveTab('setup')}
             />
           </div>
         </div>
@@ -922,6 +1067,129 @@ const AIIntelligencePage: React.FC<AIIntelligencePageProps> = ({ onBack }) => {
               error={indicatorsError}
               formatCurrency={formatCurrency}
             />
+          </div>
+        )}
+
+        {/* Sentiment Tab - TrayOps API */}
+        {!loading && !dataLoadError && activeTab === 'sentiment' && (
+          <div className='space-y-6'>
+            <div className='flex items-center justify-between mb-4'>
+              <div className='flex items-center gap-3'>
+                <div className='p-2.5 bg-gradient-to-br from-pink-500/20 to-red-500/20 rounded-xl'>
+                  <Heart className='w-5 h-5 text-pink-500' />
+                </div>
+                <div>
+                  <h2 className='text-lg font-bold text-gray-900 dark:text-white'>
+                    {t('aiIntelligence.sentiment.title')}
+                  </h2>
+                  <p className='text-xs text-gray-500'>
+                    {t('aiIntelligence.sentiment.subtitle')}{' '}
+                    {t('aiIntelligence.sentiment.poweredBy')}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={fetchMarketSentiment}
+                className='flex items-center gap-2 px-3 py-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 rounded-xl transition-all text-sm'
+              >
+                <RefreshCw className={`w-4 h-4 ${trayopsLoading ? 'animate-spin' : ''}`} />
+                {t('aiIntelligence.sentiment.update')}
+              </button>
+            </div>
+
+            <MarketSentimentCard
+              sentiment={marketSentiment}
+              loading={trayopsLoading && !marketSentiment}
+              error={sentimentError}
+            />
+          </div>
+        )}
+
+        {/* Setup Tab - TrayOps API */}
+        {!loading && !dataLoadError && activeTab === 'setup' && (
+          <div className='space-y-6'>
+            <div className='flex items-center justify-between mb-4'>
+              <div className='flex items-center gap-3'>
+                <div className='p-2.5 bg-gradient-to-br from-green-500/20 to-emerald-500/20 rounded-xl'>
+                  <Crosshair className='w-5 h-5 text-green-500' />
+                </div>
+                <div>
+                  <h2 className='text-lg font-bold text-gray-900 dark:text-white'>
+                    {t('aiIntelligence.setup.title')}
+                  </h2>
+                  <p className='text-xs text-gray-500'>
+                    {t('aiIntelligence.setup.subtitle')} {t('aiIntelligence.setup.poweredBy')}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Symbol & Timeframe Selector */}
+            <div className='p-4 bg-white dark:bg-gray-900/80 rounded-2xl border border-gray-200 dark:border-gray-800'>
+              <div className='flex flex-col sm:flex-row gap-4'>
+                {/* Symbol Selector */}
+                <div className='flex-1'>
+                  <span className='text-xs text-gray-500 mb-2 block'>
+                    {t('aiIntelligence.setup.selectAsset')}
+                  </span>
+                  <div className='flex gap-2 flex-wrap'>
+                    {(portfolio.length > 0
+                      ? portfolio
+                      : [{ symbol: 'BTC' }, { symbol: 'ETH' }, { symbol: 'SOL' }]
+                    ).map(asset => (
+                      <button
+                        key={asset.symbol}
+                        onClick={() => handleTrayopsSymbolChange(asset.symbol)}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+                          selectedSymbol === asset.symbol
+                            ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-lg shadow-green-500/25'
+                            : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700'
+                        }`}
+                      >
+                        <CryptoIcon symbol={asset.symbol} size={18} />
+                        {asset.symbol}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Timeframe Selector */}
+                <div>
+                  <span className='text-xs text-gray-500 mb-2 block'>
+                    {t('aiIntelligence.setup.selectTimeframe')}
+                  </span>
+                  <div className='flex gap-2'>
+                    {(['15m', '30m', '1h', '4h', '1d'] as Timeframe[]).map(tf => (
+                      <button
+                        key={tf}
+                        onClick={() => handleTimeframeChange(tf)}
+                        className={`px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200 ${
+                          selectedTimeframe === tf
+                            ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25'
+                            : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700'
+                        }`}
+                      >
+                        {tf}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Setup & Technical Analysis Cards */}
+            <div className='grid gap-6 lg:grid-cols-2'>
+              <TradingSetupCard
+                setup={tradingSetup}
+                loading={trayopsLoading && !tradingSetup}
+                error={setupError}
+              />
+              <TechnicalOverviewCard
+                analysis={technicalOverview}
+                loading={trayopsLoading && !technicalOverview}
+                error={technicalError}
+              />
+            </div>
           </div>
         )}
       </div>
