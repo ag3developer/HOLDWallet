@@ -307,7 +307,14 @@ class GeckoTerminalSource(PriceSource):
         symbols: List[str], 
         currency: str = "usd"
     ) -> Dict[str, PriceData]:
-        """Fetch prices from GeckoTerminal (melhor cobertura que DexScreener) para tokens DEX"""
+        """Fetch prices from GeckoTerminal (melhor cobertura que DexScreener) para tokens DEX
+        
+        Busca dados das pools para obter:
+        - Preço atual (USD)
+        - Variação 24h (%)
+        - Volume 24h
+        - High/Low 24h estimados
+        """
         prices = {}
         
         for symbol in symbols:
@@ -318,49 +325,77 @@ class GeckoTerminalSource(PriceSource):
                 continue
             
             try:
-                # Usar GeckoTerminal API (melhor cobertura para tokens pequenos)
-                url = f"https://api.geckoterminal.com/api/v2/networks/{token_info['chain']}/tokens/{token_info['address']}"
+                # Buscar pools do token para obter price_change_percentage
+                pools_url = f"https://api.geckoterminal.com/api/v2/networks/{token_info['chain']}/tokens/{token_info['address']}/pools?page=1"
                 
                 async with httpx.AsyncClient(timeout=self.timeout) as client:
-                    response = await client.get(url)
+                    response = await client.get(pools_url)
                     
                     if response.status_code == 200:
                         data = response.json()
-                        token_data = data.get('data', {}).get('attributes', {})
+                        pools = data.get('data', [])
                         
-                        price_usd = float(token_data.get('price_usd', 0) or 0)
-                        
-                        if price_usd > 0:
-                            # Buscar variação 24h dos pools
-                            volume_24h = float(token_data.get('volume_usd', {}).get('h24', 0) or 0)
-                            fdv = float(token_data.get('fdv_usd', 0) or 0)
+                        if pools:
+                            # Usar a pool com maior liquidez (primeira da lista geralmente)
+                            # Priorizar pools com USDT/USDC para preço mais estável
+                            best_pool = None
+                            for pool in pools:
+                                pool_name = pool.get('attributes', {}).get('name', '').upper()
+                                if 'USDT' in pool_name or 'USDC' in pool_name:
+                                    best_pool = pool
+                                    break
                             
-                            # Se precisar de BRL, converter de USD
-                            if currency.lower() == 'brl':
-                                brl_rate = 6.0  # Taxa aproximada USD/BRL
-                                final_price = price_usd * brl_rate
+                            if not best_pool:
+                                best_pool = pools[0]  # Fallback para primeira pool
+                            
+                            pool_data = best_pool.get('attributes', {})
+                            
+                            # Obter preço USD do token base
+                            price_usd = float(pool_data.get('base_token_price_usd', 0) or 0)
+                            
+                            # Obter variação de 24h da pool
+                            price_change = pool_data.get('price_change_percentage', {})
+                            change_24h = float(price_change.get('h24', 0) or 0)
+                            
+                            # Obter volume 24h
+                            volume_data = pool_data.get('volume_usd', {})
+                            volume_24h = float(volume_data.get('h24', 0) or 0)
+                            
+                            # FDV
+                            fdv = float(pool_data.get('fdv_usd', 0) or 0)
+                            
+                            if price_usd > 0:
+                                # Se precisar de BRL, converter de USD
+                                if currency.lower() == 'brl':
+                                    brl_rate = 6.0  # Taxa aproximada USD/BRL
+                                    final_price = price_usd * brl_rate
+                                    volume_24h = volume_24h * brl_rate
+                                else:
+                                    final_price = price_usd
+                                
+                                # Calcular high/low baseado na variação real
+                                abs_change = abs(change_24h) / 100
+                                estimated_high = final_price * (1 + abs_change + 0.02)
+                                estimated_low = final_price * (1 - abs_change - 0.02)
+                                
+                                prices[symbol_upper] = PriceData(
+                                    symbol=symbol_upper,
+                                    price=final_price,
+                                    change_24h=change_24h,  # Variação real de 24h!
+                                    market_cap=fdv,
+                                    volume_24h=volume_24h,
+                                    high_24h=round(estimated_high, 6),
+                                    low_24h=round(estimated_low, 6),
+                                    source=f"geckoterminal-{token_info['chain']}",
+                                    timestamp=datetime.now(timezone.utc)
+                                )
+                                
+                                pool_name = pool_data.get('name', 'unknown')
+                                logger.info(f"✅ GeckoTerminal: {symbol_upper} = ${price_usd:.6f} ({change_24h:+.2f}%) via {pool_name}")
                             else:
-                                final_price = price_usd
-                            
-                            # Estimar high/low baseado em tokens de baixa liquidez (±5%)
-                            estimated_high = final_price * 1.05
-                            estimated_low = final_price * 0.95
-                            
-                            prices[symbol_upper] = PriceData(
-                                symbol=symbol_upper,
-                                price=final_price,
-                                change_24h=0.0,  # GeckoTerminal não fornece change_24h direto
-                                market_cap=fdv,
-                                volume_24h=volume_24h,
-                                high_24h=round(estimated_high, 6),
-                                low_24h=round(estimated_low, 6),
-                                source=f"geckoterminal-{token_info['chain']}",
-                                timestamp=datetime.now(timezone.utc)
-                            )
-                            
-                            logger.info(f"✅ GeckoTerminal: {symbol_upper} = ${price_usd:.6f} ({token_info['name']})")
+                                logger.warning(f"⚠️ GeckoTerminal: {symbol_upper} price is 0")
                         else:
-                            logger.warning(f"⚠️ GeckoTerminal: {symbol_upper} price is 0")
+                            logger.warning(f"⚠️ GeckoTerminal: No pools found for {symbol_upper}")
                     else:
                         logger.warning(f"⚠️ GeckoTerminal: HTTP {response.status_code} for {symbol_upper}")
                     
