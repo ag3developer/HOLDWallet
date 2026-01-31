@@ -3,7 +3,6 @@ import { Calculator } from 'lucide-react'
 import { TradingLimitsDisplay } from './TradingLimitsDisplay'
 import { CryptoSelector } from './CryptoSelector'
 import { CurrencyCalculator } from './CurrencyCalculator'
-import { useAuthStore } from '@/stores/useAuthStore'
 import { apiClient } from '@/services/api'
 import { parseApiError } from '@/services/errors'
 
@@ -56,7 +55,6 @@ export function TradingForm({
   currency,
   convertFromBRL,
 }: TradingFormProps) {
-  const { token } = useAuthStore()
   const [amount, setAmount] = useState('')
   const [loading, setLoading] = useState(false)
   const [lastQuoteTime, setLastQuoteTime] = useState<number>(0)
@@ -74,35 +72,51 @@ export function TradingForm({
 
   // Fetch wallet balances on component mount
   useEffect(() => {
-    const fetchBalances = async () => {
+    const fetchBalances = async (retryCount = 0) => {
       try {
-        if (!token) {
-          console.error('[TradingForm] No token found')
+        // Get wallets usando apiClient (que já gerencia o token automaticamente)
+        const walletsResp = await apiClient.get('/wallets/', {
+          timeout: 30000, // 30 segundos timeout
+        })
+
+        const wallets = walletsResp.data
+        if (!wallets?.length) {
+          console.log('[TradingForm] No wallets found - user may need to create one')
+          setAllBalances({})
           return
         }
 
-        // Get wallets usando apiClient
-        const walletsResp = await apiClient.get('/wallets/')
-
-        const wallets = walletsResp.data
-        if (!wallets?.length) throw new Error('No wallets found')
-
         const walletId = wallets[0].id
 
-        // Get balances with tokens (USDT, USDC, etc)
-        const balanceResp = await apiClient.get(`/wallets/${walletId}/balances?include_tokens=true`)
+        // Get balances with tokens (USDT, USDC, etc) - timeout maior para blockchain queries
+        const balanceResp = await apiClient.get(
+          `/wallets/${walletId}/balances?include_tokens=true`,
+          {
+            timeout: 60000, // 60 segundos timeout para blockchain queries
+          }
+        )
 
         const balData = balanceResp.data
+        console.log('[TradingForm] Raw balances from backend:', balData.balances)
         const mapped = mapBalances(balData.balances)
+        console.log('[TradingForm] Mapped balances:', mapped)
         setAllBalances(mapped)
       } catch (error) {
         console.error('[TradingForm] Error fetching balances:', error)
+
+        // Retry até 2 vezes em caso de timeout
+        if (retryCount < 2 && error instanceof Error && error.message.includes('timeout')) {
+          console.log(`[TradingForm] Retrying balance fetch (attempt ${retryCount + 1}/2)...`)
+          setTimeout(() => fetchBalances(retryCount + 1), 2000)
+          return
+        }
+
         setAllBalances({})
       }
     }
 
     fetchBalances()
-  }, [token])
+  }, []) // Executa apenas no mount
 
   // Helper function to map network names to symbols
   const mapBalances = (balances: Record<string, any>): Record<string, number> => {
@@ -135,6 +149,14 @@ export function TradingForm({
     // Detectar tokens stablecoin primeiro
     if (networkLower.includes('usdt')) return 'USDT'
     if (networkLower.includes('usdc')) return 'USDC'
+    if (networkLower.includes('dai')) return 'DAI'
+
+    // Detectar token TRAY (polygon_tray)
+    if (networkLower.includes('tray')) return 'TRAY'
+
+    // Detectar outros tokens ERC-20
+    if (networkLower.includes('shib')) return 'SHIB'
+    if (networkLower.includes('link')) return 'LINK'
 
     // IGNORAR chaves duplicadas que causam soma errada
     // Backend pode retornar "polygon" E "matic" separados - usar apenas "polygon"
