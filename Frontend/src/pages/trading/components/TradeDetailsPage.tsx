@@ -29,6 +29,7 @@ import {
 import { apiClient } from '@/services/api'
 import { generateHoldPixQRCode, generateHoldPixPayload } from '@/utils/pixQrCode'
 import toast from 'react-hot-toast'
+import { CryptoIcon } from '@/components/CryptoIcon'
 
 // Crypto logos from CoinGecko (free CDN)
 const CRYPTO_LOGOS: Record<string, string> = {
@@ -695,22 +696,7 @@ export function TradeDetailsPage({
           <div className='flex items-center gap-3 mb-2'>
             {/* Logo da crypto com indicador de operação */}
             <div className='relative flex-shrink-0'>
-              {CRYPTO_LOGOS[trade.symbol] ? (
-                <img
-                  src={CRYPTO_LOGOS[trade.symbol]}
-                  alt={trade.symbol}
-                  className='w-12 h-12 rounded-full'
-                  onError={e => {
-                    e.currentTarget.style.display = 'none'
-                  }}
-                />
-              ) : (
-                <div className='w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center'>
-                  <span className='text-sm font-bold text-gray-600 dark:text-gray-400'>
-                    {trade.symbol.slice(0, 2)}
-                  </span>
-                </div>
-              )}
+              <CryptoIcon symbol={trade.symbol} size={48} />
               {/* Indicador de operação */}
               <div
                 className={`absolute -bottom-0.5 -right-0.5 p-1 rounded-full ${
