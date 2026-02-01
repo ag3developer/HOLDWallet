@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 import json
 import logging
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -233,7 +234,12 @@ class Mandatory2FAMiddleware(BaseHTTPMiddleware):
             finally:
                 db.close()
         
-        return await call_next(request)
+        try:
+            return await call_next(request)
+        except asyncio.CancelledError:
+            # Conexão foi cancelada (cliente desconectou)
+            logger.debug(f"Request cancelled: {method} {path}")
+            raise  # Re-raise para que o framework lide corretamente
     
     def _requires_2fa(self, method: str, path: str) -> bool:
         """Verifica se a rota requer 2FA."""
@@ -310,4 +316,9 @@ class TransactionValueMiddleware(BaseHTTPMiddleware):
             except Exception as e:
                 logger.debug(f"Could not parse transaction body: {e}")
         
-        return await call_next(request)
+        try:
+            return await call_next(request)
+        except asyncio.CancelledError:
+            # Conexão foi cancelada (cliente desconectou)
+            logger.debug(f"Request cancelled: {method} {path}")
+            raise  # Re-raise para que o framework lide corretamente

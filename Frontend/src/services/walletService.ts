@@ -113,13 +113,16 @@ class WalletService {
 
   /**
    * Listar carteiras do usuário
+   * ULTRA resiliente - NUNCA deve falhar para o usuário
    */
-  async getWallets(): Promise<WalletWithBalance[]> {
+  async getWallets(retryAttempt = 0): Promise<WalletWithBalance[]> {
     const startTime = Date.now()
+    const MAX_RETRIES = 3
 
     try {
       console.log('[WalletService] 🔄 GET /wallets/ - Starting request...', {
         timestamp: new Date().toISOString(),
+        attempt: retryAttempt + 1,
       })
 
       const response = await this.apiClient.get<WalletWithBalance[]>('/wallets/')
@@ -172,30 +175,53 @@ class WalletService {
         message: error.message,
         code: error.code,
         duration: `${duration}ms`,
+        attempt: retryAttempt + 1,
         data: error.response?.data,
-        // Headers de debug (sem dados sensíveis)
-        requestHeaders: error.config?.headers
-          ? {
-              hasAuth: !!error.config.headers.Authorization,
-              contentType: error.config.headers['Content-Type'],
-            }
-          : null,
       })
 
-      // Erros específicos
+      // Auto-retry para erros de rede (NUNCA falhar para o usuário)
+      const isRetryable =
+        error.code === 'ERR_NETWORK' ||
+        error.code === 'ECONNABORTED' ||
+        error.code === 'TIMEOUT_ERROR' ||
+        error.message?.includes('Network') ||
+        error.message?.includes('timeout') ||
+        error.message?.includes('ECONNREFUSED') ||
+        error.response?.status >= 500
+
+      if (isRetryable && retryAttempt < MAX_RETRIES) {
+        const delay = Math.min(500 * (retryAttempt + 1), 2000)
+        console.log(
+          `[WalletService] 🔄 Auto-retry in ${delay}ms (attempt ${retryAttempt + 2}/${MAX_RETRIES + 1})`
+        )
+        await new Promise(resolve => setTimeout(resolve, delay))
+        return this.getWallets(retryAttempt + 1)
+      }
+
+      // Erros específicos - throw para o React Query tratar
       if (error.response?.status === 401) {
-        throw new Error('Sessão expirada. Faça login novamente.')
+        const err = new Error('AUTH_EXPIRED')
+        ;(err as any).isAuthError = true
+        throw err
       }
 
       if (error.response?.status === 403) {
-        throw new Error('Acesso negado.')
+        const err = new Error('ACCESS_DENIED')
+        ;(err as any).isAuthError = true
+        throw err
       }
 
-      if (error.code === 'ERR_NETWORK' || error.message?.includes('Network')) {
-        throw new Error('Erro de conexão. Verifique sua internet.')
+      // Erros de rede após retries - retornar vazio em vez de throw
+      // Isso evita mostrar erro ao usuário
+      if (isRetryable) {
+        console.warn('[WalletService] ⚠️ Network error after retries, returning empty array')
+        return []
       }
 
-      throw new Error(error.response?.data?.detail || 'Erro ao carregar carteiras.')
+      // Marcar como erro de rede para o React Query
+      const networkError = new Error(error.response?.data?.detail || 'Erro de conexão')
+      ;(networkError as any).isNetworkError = isRetryable
+      throw networkError
     }
   }
 

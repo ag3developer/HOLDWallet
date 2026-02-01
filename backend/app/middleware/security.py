@@ -5,6 +5,7 @@ from fastapi import Request, HTTPException, status
 from starlette.middleware.base import BaseHTTPMiddleware
 from sqlalchemy.orm import Session
 import logging
+import asyncio
 
 from app.core.db import SessionLocal
 from app.services.security_service import SecurityService
@@ -79,8 +80,13 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                 db.close()
         
         # Continue with request
-        response = await call_next(request)
-        return response
+        try:
+            response = await call_next(request)
+            return response
+        except asyncio.CancelledError:
+            # Conexão foi cancelada (cliente desconectou)
+            logger.debug(f"Request cancelled: {path}")
+            raise  # Re-raise para que o framework lide corretamente
     
     def _get_client_ip(self, request: Request) -> str:
         """
@@ -153,8 +159,13 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 
                 break
         
-        response = await call_next(request)
-        return response
+        try:
+            response = await call_next(request)
+            return response
+        except asyncio.CancelledError:
+            # Conexão foi cancelada (cliente desconectou)
+            logger.debug(f"Request cancelled: {path}")
+            raise  # Re-raise para que o framework lide corretamente
     
     def _get_client_ip(self, request: Request) -> str:
         forwarded_for = request.headers.get("X-Forwarded-For")

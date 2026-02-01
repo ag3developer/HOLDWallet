@@ -156,7 +156,7 @@ export function useWallets() {
     }
   }, [needsExtraTime, authReady])
 
-  // Query configuration
+  // Query configuration - ULTRA resiliente para NUNCA mostrar erro ao usuário
   const query = useQuery({
     queryKey: walletKeys.list(),
     queryFn: async () => {
@@ -190,69 +190,87 @@ export function useWallets() {
       } catch (error: any) {
         console.error('[useWallets] ❌ Error:', error.message || error)
 
-        // Network errors - check if retryable
+        // Network errors - SEMPRE retornar array vazio, NUNCA mostrar erro
         const isNetworkError =
           error.isNetworkError ||
           error.code === 'ERR_NETWORK' ||
           error.code === 'TIMEOUT_ERROR' ||
           error.message?.includes('Network') ||
-          error.message?.includes('timeout')
+          error.message?.includes('timeout') ||
+          error.message?.includes('ECONNREFUSED') ||
+          error.message?.includes('fetch')
 
         if (isNetworkError) {
-          // For network errors, return empty array instead of throwing
-          // This prevents the UI from showing error state constantly
-          if (retryCount >= 2) {
-            console.warn('[useWallets] ⚠️ Network error after retries, returning empty')
+          // NUNCA mostrar erro de rede ao usuário - retornar array vazio
+          // e deixar o retry automático resolver
+          console.warn('[useWallets] ⚠️ Network error, returning empty (will auto-retry)')
+          // Não fazer throw - retornar array vazio para não mostrar erro na UI
+          if (retryCount >= 3) {
             return []
           }
-          throw error // React Query will retry
+          // Incrementar retry count para tentar novamente
+          setRetryCount(prev => prev + 1)
+          throw error // React Query vai retry automaticamente
         }
 
-        // Auth errors - clear cache and retry
+        // Auth errors - clear cache e NUNCA mostrar erro
         if (error.response?.status === 401) {
           queryClient.removeQueries({ queryKey: walletKeys.all })
+          // Tentar recuperar token e retry
+          setRetryCount(prev => prev + 1)
           throw new Error('AUTH_EXPIRED')
+        }
+
+        // Qualquer outro erro - NUNCA mostrar ao usuário
+        // Retornar array vazio em vez de throw após várias tentativas
+        if (retryCount >= 3) {
+          console.warn('[useWallets] ⚠️ Max retries reached, returning empty array')
+          return []
         }
 
         throw error
       }
     },
-    staleTime: 15 * 1000, // 15 seconds - more aggressive refresh
+    staleTime: 10 * 1000, // 10 seconds - refresh mais frequente
     gcTime: 5 * 60 * 1000, // 5 minutes cache
     retry: (failureCount, error: any) => {
-      // Token pending - retry more aggressively
+      // SEMPRE tentar novamente até 6x - NUNCA desistir fácil
+      // Token pending - retry agressivo
       if (error?.message === 'AUTH_TOKEN_PENDING') {
-        return failureCount < 5 // Reduced from 8
+        return failureCount < 8
       }
-      // Auth expired - don't retry
+      // Auth expired - tentar algumas vezes (token pode se recuperar)
       if (error?.message === 'AUTH_EXPIRED') {
-        return false
+        return failureCount < 3
       }
-      // Network errors - limited retries
+      // Network errors - retry várias vezes
       if (error?.isNetworkError || error?.code === 'ERR_NETWORK') {
-        return failureCount < 2 // Only 2 retries for network errors
+        return failureCount < 5
       }
-      // Other errors - retry 2x
-      return failureCount < 2
+      // Outros erros - retry várias vezes
+      return failureCount < 4
     },
     retryDelay: (attemptIndex, error: any) => {
-      // Token pending - shorter delays
+      // Token pending - delays curtos
       if (error?.message === 'AUTH_TOKEN_PENDING') {
-        return Math.min(150 * (attemptIndex + 1), 800) // Faster retries
+        return Math.min(100 * (attemptIndex + 1), 600)
       }
-      // Network errors - quick retries
+      // Network errors - delays razoáveis
       if (error?.isNetworkError || error?.code === 'ERR_NETWORK') {
-        return Math.min(300 * (attemptIndex + 1), 1000)
+        return Math.min(500 * (attemptIndex + 1), 2000)
       }
-      // Other errors - standard backoff
-      return Math.min(400 * 2 ** attemptIndex, 2000)
+      // Outros erros - backoff padrão
+      return Math.min(300 * 2 ** attemptIndex, 2500)
     },
     // Enable quando auth está ready OU após timeout forçado
     enabled: authReady || retryCount > 0,
     refetchOnWindowFocus: true,
     refetchOnMount: true,
     // Safari: não refetch automático em background
-    refetchOnReconnect: !browserInfo.isSafari,
+    refetchOnReconnect: true, // Sempre reconectar
+    // IMPORTANTE: Não usar placeholderData para evitar flash de dados incorretos
+    // Usar initialData vazio para evitar undefined
+    placeholderData: [],
   })
 
   // Force refetch on retry count change (Safari recovery mechanism)

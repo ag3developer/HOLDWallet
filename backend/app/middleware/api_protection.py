@@ -20,6 +20,7 @@ import re
 import logging
 import hashlib
 import json
+import asyncio
 
 from app.core.db import SessionLocal
 from app.core.config import settings
@@ -228,8 +229,13 @@ class APIProtectionMiddleware(BaseHTTPMiddleware):
         self._record_request(ip_address)
         
         # Continuar com a requisição
-        response = await call_next(request)
-        return response
+        try:
+            response = await call_next(request)
+            return response
+        except asyncio.CancelledError:
+            # Conexão foi cancelada (cliente desconectou)
+            logger.debug(f"Request cancelled: {path}")
+            raise  # Re-raise para que o framework lide corretamente
     
     def _get_client_ip(self, request: Request) -> str:
         """Obtém o IP real do cliente (suporta Cloudflare, proxies, etc)."""
@@ -411,7 +417,12 @@ class AdminRouteProtection(BaseHTTPMiddleware):
                     }
                 )
         
-        return await call_next(request)
+        try:
+            return await call_next(request)
+        except asyncio.CancelledError:
+            # Conexão foi cancelada (cliente desconectou)
+            logger.debug(f"Request cancelled: {path}")
+            raise  # Re-raise para que o framework lide corretamente
     
     def _get_client_ip(self, request: Request) -> str:
         forwarded_for = request.headers.get("X-Forwarded-For")
@@ -500,7 +511,12 @@ class RequestSignatureMiddleware(BaseHTTPMiddleware):
                     }
                 )
         
-        return await call_next(request)
+        try:
+            return await call_next(request)
+        except asyncio.CancelledError:
+            # Conexão foi cancelada (cliente desconectou)
+            logger.debug(f"Request cancelled: {path}")
+            raise  # Re-raise para que o framework lide corretamente
     
     def _verify_signature(self, request: Request, signature: str, timestamp: str) -> bool:
         """Verifica a assinatura HMAC da requisição."""

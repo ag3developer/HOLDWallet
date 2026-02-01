@@ -649,26 +649,35 @@ export const DashboardPage = () => {
                     const isLoadingWallets = walletsLoading || (walletsFetching && !walletsSuccess)
                     const hasNoWallets = walletsSuccess && (!wallets || wallets.length === 0)
 
-                    // Estado de erro - mostrar botão de retry
+                    // NUNCA mostrar erro ao usuário - sempre mostrar loading e retry automático
+                    // O erro é tratado internamente com retries automáticos
                     if (walletsError && !isLoadingWallets) {
+                      // Em vez de mostrar erro, mostrar loading com retry automático
+                      // O useEffect acima já faz retry automático
+                      setTimeout(() => refetchWallets(), 1000) // Auto-retry silencioso
                       return (
-                        <div className='text-center py-10'>
-                          <div className='w-16 h-16 mx-auto bg-red-100 dark:bg-red-900/20 rounded-2xl flex items-center justify-center mb-4'>
-                            <RefreshCw className='w-8 h-8 text-red-500 dark:text-red-400' />
-                          </div>
-                          <p className='text-gray-600 dark:text-gray-400 mb-2'>
-                            {t('dashboard.errorLoadingWallets')}
+                        <div className='space-y-3'>
+                          {[1, 2].map(i => (
+                            <div
+                              key={i}
+                              className='animate-pulse bg-gray-100 dark:bg-gray-700/50 rounded-xl p-4'
+                            >
+                              <div className='flex items-center space-x-3'>
+                                <div className='w-10 h-10 bg-gray-200 dark:bg-gray-600 rounded-xl'></div>
+                                <div className='flex-1'>
+                                  <div className='h-4 bg-gray-200 dark:bg-gray-600 rounded w-24 mb-2'></div>
+                                  <div className='h-3 bg-gray-200 dark:bg-gray-600 rounded w-16'></div>
+                                </div>
+                                <div className='text-right'>
+                                  <div className='h-4 bg-gray-200 dark:bg-gray-600 rounded w-20 mb-2'></div>
+                                  <div className='h-3 bg-gray-200 dark:bg-gray-600 rounded w-14'></div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                          <p className='text-center text-xs text-gray-500 dark:text-gray-400 mt-2'>
+                            {t('dashboard.connecting')}...
                           </p>
-                          <p className='text-xs text-gray-500 dark:text-gray-500 mb-4'>
-                            {t('dashboard.checkConnectionTryAgain')}
-                          </p>
-                          <button
-                            onClick={() => refetchWallets()}
-                            className='bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-5 py-2.5 rounded-xl font-medium text-sm transition-all inline-flex items-center gap-2 shadow-lg'
-                          >
-                            <RefreshCw className='w-4 h-4' />
-                            {t('dashboard.tryAgain')}
-                          </button>
                         </div>
                       )
                     }

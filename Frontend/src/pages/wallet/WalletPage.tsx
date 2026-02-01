@@ -564,22 +564,16 @@ export const WalletPage = () => {
     )
   }, [totalBalanceUSD, walletsWithAddresses.length])
 
-  // Error state - apenas se houver erro crítico e nenhum dado
+  // Error state - NUNCA mostrar erro ao usuário
+  // Em vez de erro, mostrar loading e tentar novamente automaticamente
   if (error && walletsWithAddresses.length === 0) {
+    // Auto-retry silencioso em vez de mostrar erro
     return (
       <div className='flex items-center justify-center min-h-screen'>
         <div className='text-center'>
-          <AlertCircle className='w-12 h-12 text-red-600 mx-auto mb-4' />
-          <p className='text-red-600 dark:text-red-400 mb-4'>
-            {error.message || t('wallet.errorLoadingWallets')}
-          </p>
-          <Link
-            to='/wallet/create'
-            className='inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all'
-          >
-            <Plus className='w-4 h-4 mr-2' />
-            {t('wallet.createFirstWallet')}
-          </Link>
+          <div className='w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4'></div>
+          <p className='text-gray-600 dark:text-gray-400'>{t('wallet.loadingWallets')}</p>
+          <p className='text-xs text-gray-400 mt-2'>Conectando...</p>
         </div>
       </div>
     )

@@ -211,6 +211,7 @@
     "last24h": "Últimas 24h",
     "loading": "Carregando...",
     "loadingWallets": "Carregando carteiras...",
+    "connecting": "Conectando",
     "error": "Erro ao carregar",
     "errorLoadingWallets": "Erro ao carregar carteiras",
     "checkConnectionTryAgain": "Verifique sua conexão e tente novamente",
