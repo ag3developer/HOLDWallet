@@ -6,6 +6,7 @@ Handles mnemonic generation, seed derivation, and address generation.
 import os
 import hashlib
 import hmac
+import base58
 from typing import List, Optional, Tuple, Dict, Any
 from mnemonic import Mnemonic
 from cryptography.fernet import Fernet
@@ -17,6 +18,7 @@ import secrets
 from bip32 import BIP32
 import logging
 from datetime import datetime
+from Crypto.Hash import keccak
 
 from app.core.config import settings
 
@@ -344,8 +346,6 @@ class CryptoService:
             Dictionary with address data
         """
         try:
-            import base58
-            
             if not seed:
                 raise ValueError("Seed is required for Solana address derivation")
             
@@ -425,7 +425,6 @@ class CryptoService:
                 # Ethereum-compatible address generation using proper Keccak-256
                 # BSC, Polygon, Base, USDT (on ETH), and multi-chain use the same format
                 # Base is an Ethereum L2 and uses the same address format
-                from Crypto.Hash import keccak
                 
                 # Remove 0x prefix if present
                 if public_key.startswith('0x'):
@@ -458,9 +457,6 @@ class CryptoService:
             
             elif network.lower() == "tron":
                 # Tron (TRC-20) address generation using KECCAK-256 + Base58Check
-                from Crypto.Hash import keccak
-                import base58
-                import hashlib
                 
                 # Remove 0x prefix if present
                 if public_key.startswith('0x'):
@@ -500,7 +496,6 @@ class CryptoService:
             
             elif network.lower() == "solana":
                 # Solana address generation using base58 encoding
-                import base58
                 
                 # Remove 0x prefix if present
                 if public_key.startswith('0x'):
@@ -535,7 +530,6 @@ class CryptoService:
             elif network.lower() in ["avalanche", "polkadot", "chainlink", "usdc", "shiba"]:
                 # For networks we don't have specific implementations yet, 
                 # default to Ethereum-style addresses as many are EVM compatible
-                from Crypto.Hash import keccak
                 
                 # Remove '0x' if present
                 if public_key.startswith('0x'):
