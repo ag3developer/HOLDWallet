@@ -15,13 +15,16 @@ logger = logging.getLogger(__name__)
 class SecurityMiddleware(BaseHTTPMiddleware):
     """Middleware para verificações de segurança em todas as requisições"""
     
-    # Rotas que não precisam de verificação de IP
+    # Rotas que não precisam de verificação de IP (públicas)
     EXCLUDED_PATHS = [
         "/docs",
         "/redoc", 
         "/openapi.json",
         "/health",
         "/api/health",
+        "/prices/",              # Preços são públicos
+        "/api/prices/",          # Preços são públicos
+        "/v1/prices/",           # Preços são públicos
         "/auth/login",
         "/auth/register",
         "/auth/refresh",
@@ -65,9 +68,12 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                 is_blocked = SecurityService.is_ip_blocked(db, ip_address)
                 if is_blocked:
                     logger.warning(f"🚫 Blocked IP {ip_address} attempted to access {path}")
-                    raise HTTPException(
+                    # Return JSONResponse directly instead of raising HTTPException
+                    # This prevents middleware chain issues with EndOfStream
+                    from starlette.responses import JSONResponse
+                    return JSONResponse(
                         status_code=status.HTTP_403_FORBIDDEN,
-                        detail=f"Access denied. Your IP address ({ip_address}) has been blocked."
+                        content={"detail": f"Access denied. Your IP address ({ip_address}) has been blocked."}
                     )
             finally:
                 db.close()
@@ -134,9 +140,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                         self._request_counts[key] = (1, current_time)
                     elif count >= max_requests:
                         logger.warning(f"Rate limit exceeded for {ip_address} on {path}")
-                        raise HTTPException(
+                        # Return JSONResponse directly instead of raising HTTPException
+                        from starlette.responses import JSONResponse
+                        return JSONResponse(
                             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                            detail="Too many requests. Please try again later."
+                            content={"detail": "Too many requests. Please try again later."}
                         )
                     else:
                         self._request_counts[key] = (count + 1, start_time)

@@ -1580,6 +1580,7 @@ async def send_transaction(
             crypto_service = CryptoService()
             
             private_key = None
+            network_lower = request.network.lower()
             
             # PRIORITY 1: Use encrypted_private_key from address (most reliable)
             if address_obj.encrypted_private_key:
@@ -1587,14 +1588,37 @@ async def send_transaction(
                 try:
                     private_key = crypto_service.decrypt_data(str(address_obj.encrypted_private_key))
                     
-                    # Verify the key matches the address
-                    from eth_account import Account
-                    account = Account.from_key(private_key)
-                    if account.address.lower() == from_address.lower():
-                        logger.info(f"✅ Private key verified - matches address {from_address}")
+                    # Verify the key matches the address - different for each network type
+                    if network_lower == "bitcoin":
+                        # Bitcoin: verify using bitcoinlib
+                        from bitcoinlib.keys import Key
+                        try:
+                            # Private key can be hex or WIF format
+                            if len(private_key) == 64:  # Hex format
+                                key = Key(import_key=private_key, network='bitcoin')
+                            else:  # Assume WIF format
+                                key = Key(import_key=private_key)
+                            derived_address = key.address()
+                            if derived_address == from_address:
+                                logger.info(f"✅ Bitcoin private key verified - matches address {from_address}")
+                            else:
+                                logger.warning(f"⚠️ Bitcoin key mismatch! DB: {from_address}, Key derives: {derived_address}")
+                                private_key = None
+                        except Exception as btc_err:
+                            logger.warning(f"⚠️ Could not verify Bitcoin key: {btc_err}")
+                            # Don't reset private_key, continue with it
+                    elif network_lower in ["ethereum", "polygon", "bsc", "base", "avalanche"]:
+                        # EVM chains: verify using eth_account
+                        from eth_account import Account
+                        account = Account.from_key(private_key)
+                        if account.address.lower() == from_address.lower():
+                            logger.info(f"✅ EVM private key verified - matches address {from_address}")
+                        else:
+                            logger.warning(f"⚠️ EVM key mismatch! Address: {from_address}, Key derives: {account.address}")
+                            private_key = None  # Reset to try derivation
                     else:
-                        logger.warning(f"⚠️ Key mismatch! Address: {from_address}, Key derives: {account.address}")
-                        private_key = None  # Reset to try derivation
+                        # For other networks (tron, solana, etc), trust the stored key
+                        logger.info(f"✅ Using stored private key for {network_lower} (no verification)")
                 except Exception as e:
                     logger.error(f"❌ Error decrypting private key: {e}")
                     private_key = None
@@ -1609,7 +1633,6 @@ async def send_transaction(
                     seed_bytes = Bip39SeedGenerator(mnemonic).Generate()
                     
                     # Determine coin type based on network
-                    network_lower = request.network.lower()
                     if network_lower in ["ethereum", "polygon", "bsc", "base", "avalanche"]:
                         bip44_coin = Bip44Coins.ETHEREUM
                     elif network_lower == "bitcoin":
@@ -1630,12 +1653,46 @@ async def send_transaction(
                     
                     logger.info(f"🔍 Derived address (index {derivation_index}): {derived_address}")
                     
-                    if derived_address.lower() != from_address.lower():
-                        logger.warning(f"⚠️ BIP44 derivation mismatch! DB: {from_address}, Derived: {derived_address}")
+                    # For Bitcoin, the bip_utils address format might differ from what's stored
+                    # The DB might have Legacy (1xxx), P2SH (3xxx), or SegWit (bc1xxx)
+                    # bip_utils by default generates compressed P2PKH addresses
+                    address_matches = False
+                    
+                    if network_lower == "bitcoin":
+                        # Try to verify using bitcoinlib which can handle multiple formats
+                        from bitcoinlib.keys import Key
+                        try:
+                            key = Key(import_key=private_key, network='bitcoin')
+                            # bitcoinlib generates the same format as our crypto_service
+                            btc_address = key.address()
+                            logger.info(f"🔍 bitcoinlib address: {btc_address}")
+                            if btc_address == from_address:
+                                address_matches = True
+                                logger.info(f"✅ Bitcoin address matches via bitcoinlib")
+                        except Exception as btc_err:
+                            logger.warning(f"⚠️ bitcoinlib verification failed: {btc_err}")
+                    
+                    # For non-Bitcoin or if bitcoinlib didn't match, do standard comparison
+                    if not address_matches:
+                        if derived_address.lower() != from_address.lower():
+                            logger.warning(f"⚠️ BIP44 derivation mismatch! DB: {from_address}, Derived: {derived_address}")
+                            # For Bitcoin, we'll still try to use the key if verification passed above
+                            if network_lower != "bitcoin":
+                                raise HTTPException(
+                                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                                    detail="Unable to derive correct private key for this address"
+                                )
+                        else:
+                            address_matches = True
+                    
+                    if not address_matches and network_lower == "bitcoin":
+                        logger.warning(f"⚠️ Bitcoin address mismatch but continuing with derived key")
+                        # Still raise the error for now to be safe
                         raise HTTPException(
                             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                             detail="Unable to derive correct private key for this address"
                         )
+                        
                 except HTTPException:
                     raise
                 except Exception as e:
