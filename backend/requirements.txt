@@ -7,7 +7,7 @@ alembic==1.12.1
 web3==6.10.0
 bitcoinlib==0.7.6
 bip-utils==2.7.1
-httpx==0.25.2
+httpx==0.24.1
 pydantic==2.5.0
 email-validator==2.2.0
 python-multipart==0.0.6
