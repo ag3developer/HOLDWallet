@@ -284,7 +284,7 @@ class WalletService:
                 decrypted_mnemonic = self.crypto_service.decrypt_data(str(wallet.encrypted_seed))
                 seed = self.crypto_service.mnemonic_to_seed(decrypted_mnemonic)
                 master_keys = self.crypto_service.derive_master_keys(seed)
-                wallet_data = {"master_keys": master_keys}
+                wallet_data = {"master_keys": master_keys, "seed": seed}
             
             # Derive address
             change_index = 1 if address_type == "change" else 0
@@ -295,7 +295,8 @@ class WalletService:
                 network=network_name,
                 account=0,
                 change=change_index,
-                address_index=derivation_index
+                address_index=derivation_index,
+                seed=wallet_data.get("seed")  # Para Solana/Ed25519
             )
             
             # Create address in database
@@ -355,8 +356,8 @@ class WalletService:
         Args:
             db: Database session
             wallet: Wallet object (must be multi-chain)
-            network: Network name (bitcoin, ethereum, polygon, bsc)
-            wallet_data: Pre-computed wallet data with master keys
+            network: Network name (bitcoin, ethereum, polygon, bsc, solana)
+            wallet_data: Pre-computed wallet data with master keys and seed
             
         Returns:
             Generated Address object for the specific network
@@ -370,7 +371,8 @@ class WalletService:
                 network=network,
                 account=0,
                 change=0,  # receiving address
-                address_index=0  # first address
+                address_index=0,  # first address
+                seed=wallet_data.get("seed")  # Para Solana/Ed25519
             )
             
             # Create address in database

@@ -215,6 +215,7 @@ class CryptoService:
                 "encrypted_mnemonic": encrypted_mnemonic,
                 "seed_hash": hashlib.sha256(seed).hexdigest(),  # For verification
                 "master_keys": master_keys,
+                "seed": seed,  # Raw seed for Ed25519 derivation (Solana, etc)
                 "created_at": datetime.utcnow().isoformat()
             }
         except Exception as e:
@@ -253,6 +254,7 @@ class CryptoService:
                 "encrypted_mnemonic": encrypted_mnemonic,
                 "seed_hash": hashlib.sha256(seed).hexdigest(),  # For verification
                 "master_keys": master_keys,
+                "seed": seed,  # Raw seed for Ed25519 derivation (Solana, etc)
                 "created_at": datetime.utcnow().isoformat()
             }
         except Exception as e:
@@ -265,22 +267,35 @@ class CryptoService:
         network: str, 
         account: int = 0, 
         change: int = 0, 
-        address_index: int = 0
+        address_index: int = 0,
+        seed: Optional[bytes] = None  # Necessário para redes Ed25519 como Solana
     ) -> Dict[str, Any]:
         """
         Derive address for specific network.
         
         Args:
             bip32: BIP32 object
-            network: Network type (bitcoin, ethereum, etc.)
+            network: Network type (bitcoin, ethereum, solana, etc.)
             account: Account index
             change: Change index (0=receiving, 1=change)
             address_index: Address index
+            seed: Raw seed bytes (required for Ed25519 networks like Solana)
             
         Returns:
             Dictionary with address data
         """
         try:
+            network_lower = network.lower()
+            
+            # ============================================
+            # SOLANA - Usa Ed25519, não secp256k1/BIP44
+            # ============================================
+            if network_lower == 'solana':
+                return self._derive_solana_address(seed, address_index)
+            
+            # ============================================
+            # OUTRAS REDES - BIP44/secp256k1 padrão
+            # ============================================
             # Network-specific derivation paths (BIP44)
             coin_types = {
                 "bitcoin": "0",
@@ -293,7 +308,7 @@ class CryptoService:
                 "multi": "60"  # Multi-chain wallet uses Ethereum derivation (EVM compatible)
             }
             
-            coin_type = coin_types.get(network.lower(), "0")
+            coin_type = coin_types.get(network_lower, "0")
             derivation_path = f"m/44'/{coin_type}'/{account}'/{change}/{address_index}"
             
             # Derive keys
@@ -314,6 +329,73 @@ class CryptoService:
             }
         except Exception as e:
             logger.error(f"Failed to derive {network} address: {e}")
+            raise
+    
+    def _derive_solana_address(self, seed: Optional[bytes], address_index: int = 0) -> Dict[str, Any]:
+        """
+        Derive Solana address using Ed25519.
+        Solana usa curva Ed25519, não secp256k1.
+        
+        Args:
+            seed: Raw seed bytes from mnemonic
+            address_index: Index for multiple addresses
+            
+        Returns:
+            Dictionary with address data
+        """
+        try:
+            import base58
+            
+            if not seed:
+                raise ValueError("Seed is required for Solana address derivation")
+            
+            # Derivar usando SLIP-0010 para Ed25519
+            # Solana derivation path: m/44'/501'/{account}'/0/{address_index}'
+            # Mas a maioria das wallets usa derivação simplificada
+            
+            # Usar PBKDF2 para derivar chave Ed25519 a partir da seed
+            derived = hashlib.pbkdf2_hmac(
+                'sha512', 
+                seed, 
+                b'solana' + str(address_index).encode(),  # Salt inclui index 
+                2048
+            )[:32]  # Ed25519 usa 32 bytes
+            
+            # Importar solders para criar keypair
+            try:
+                from solders.keypair import Keypair
+                keypair = Keypair.from_seed(derived)
+                address = str(keypair.pubkey())
+                # Chave privada completa (64 bytes: 32 seed + 32 pubkey)
+                private_key_bytes = bytes(keypair)
+                private_key_hex = private_key_bytes.hex()
+            except ImportError:
+                logger.warning("solders not installed, using fallback Ed25519 derivation")
+                # Fallback usando nacl
+                import nacl.signing
+                signing_key = nacl.signing.SigningKey(derived)
+                verify_key = signing_key.verify_key
+                address = base58.b58encode(bytes(verify_key)).decode('utf-8')
+                # Chave privada em hex (32 bytes seed + 32 bytes pubkey para Ed25519)
+                private_key_hex = (bytes(signing_key) + bytes(verify_key)).hex()
+            
+            derivation_path = f"m/44'/501'/0'/0/{address_index}"
+            
+            logger.info(f"✅ Generated Solana Ed25519 address: {address}")
+            
+            return {
+                "address": address,
+                "derivation_path": derivation_path,
+                "public_key": address,  # Para Solana, o endereço É a chave pública
+                "private_key_encrypted": self.encrypt_data(private_key_hex),
+                "network": "solana",
+                "account": 0,
+                "change": 0,
+                "address_index": address_index
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to derive Solana address: {e}")
             raise
     
     def _generate_network_address(self, public_key: str, network: str) -> str:

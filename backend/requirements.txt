@@ -53,3 +53,10 @@ scipy>=1.10.0
 #   macOS: brew install ta-lib
 #   Ubuntu: apt-get install ta-lib
 # ta-lib==0.4.28
+
+# Solana blockchain support
+solders==0.21.0
+base58==2.1.1
+
+# XRP/Ripple support
+xrpl-py==2.5.0

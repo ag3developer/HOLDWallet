@@ -28,6 +28,7 @@ import { QRCodeScanner } from '@/components/QRCodeScanner'
 import { transactionService } from '@/services/transactionService'
 import { webAuthnService } from '@/services/webauthn'
 import { sendService } from '@/services/sendService'
+import { walletService } from '@/services/walletService'
 import { apiClient } from '@/services/api'
 
 // Timeline step types
@@ -88,6 +89,16 @@ export const SendPage = () => {
     gasEstimate?: string
     totalRequired?: string
   }>({})
+
+  // Estado para MAX - taxa estimada e loading
+  const [maxFeeEstimate, setMaxFeeEstimate] = useState<{
+    fee: string
+    feeUSD: string
+    maxAmount: string
+    isLoading: boolean
+    error?: string
+  } | null>(null)
+  const [isMaxMode, setIsMaxMode] = useState(false)
 
   // Estado para detalhes da transação enviada (para tela de sucesso)
   const [sentTransaction, setSentTransaction] = useState<{
@@ -514,17 +525,190 @@ export const SendPage = () => {
     const firstNetwork = token.networks?.[0] || token.network
     setSelectedNetwork(firstNetwork)
     setShowTokenDropdown(false)
+    // Resetar MAX mode quando mudar de token
+    setIsMaxMode(false)
+    setMaxFeeEstimate(null)
+    setAmount('')
   }
 
   const handleNetworkSelect = (network: string) => {
     setSelectedNetwork(network)
     setShowNetworkDropdown(false)
+    // Resetar MAX mode quando mudar de rede
+    setIsMaxMode(false)
+    setMaxFeeEstimate(null)
   }
 
   const handleQRScan = (address: string) => {
     setToAddress(address)
     setShowQRScanner(false)
     toast.success('Endereço capturado!')
+  }
+
+  // Função para calcular MAX com desconto de taxa
+  const handleMaxClick = async () => {
+    const tokenData = getSelectedTokenData()
+    if (!tokenData || tokenData.balance <= 0) {
+      toast.error('Saldo insuficiente')
+      return
+    }
+
+    // Buscar carteira selecionada
+    const selectedWalletData = walletsWithAddresses.find(
+      w => w.symbol === selectedToken && w.network === selectedNetwork
+    )
+
+    if (!selectedWalletData?.walletId) {
+      // Se não conseguir estimar, usa saldo total
+      setAmount(tokenData.balance.toString())
+      setIsMaxMode(true)
+      return
+    }
+
+    // Mostrar loading
+    setMaxFeeEstimate({ fee: '0', feeUSD: '0', maxAmount: '0', isLoading: true })
+    setIsMaxMode(true)
+
+    try {
+      // Tokens ERC20 não precisam descontar taxa do próprio saldo (taxa é paga em moeda nativa)
+      const erc20Tokens = ['USDT', 'USDC', 'TRAY', 'DAI', 'SHIB', 'LINK', 'UNI', 'PEPE', 'WBTC']
+      const isToken = erc20Tokens.includes(selectedToken.toUpperCase())
+
+      if (isToken) {
+        // Para tokens, usar saldo total (taxa paga em ETH/MATIC/etc)
+        setAmount(tokenData.balance.toString())
+        setMaxFeeEstimate({
+          fee: '~0.001',
+          feeUSD: '~$0.01',
+          maxAmount: tokenData.balance.toString(),
+          isLoading: false,
+        })
+        return
+      }
+
+      // Taxas padrão por rede (em unidades nativas) - usadas como fallback
+      const defaultFees: Record<string, number> = {
+        solana: 0.00001, // ~5000 lamports + margem
+        bitcoin: 0.0001, // ~10k sats
+        ethereum: 0.002, // ~21k gas * ~100 gwei
+        polygon: 0.01, // MATIC é barato
+        bsc: 0.0005, // BNB
+        tron: 1, // TRX (energia/bandwidth)
+        base: 0.0001, // ETH L2
+        litecoin: 0.001, // LTC
+        dogecoin: 1, // DOGE
+        cardano: 0.2, // ADA
+        avalanche: 0.01, // AVAX
+        polkadot: 0.01, // DOT
+        xrp: 0.00001, // XRP
+      }
+
+      // Para moedas nativas, estimar taxa
+      let feeAmount = defaultFees[selectedNetwork] || 0.001 // Fallback genérico
+
+      try {
+        const feeEstimate = await transactionService.estimateFee({
+          wallet_id: String(selectedWalletData.walletId),
+          to_address: toAddress || '0x0000000000000000000000000000000000000000', // Placeholder se não tiver endereço
+          amount: tokenData.balance.toString(),
+          network: selectedNetwork,
+        })
+
+        // Calcular taxa baseado na velocidade selecionada
+        const feeData = feeEstimate?.fee_estimates
+        if (feeData) {
+          let estimatedFee = 0
+          if (selectedFeeSpeed === 'slow') {
+            estimatedFee = Number.parseFloat(feeData.slow_fee || feeData.standard_fee || '0')
+          } else if (selectedFeeSpeed === 'fast') {
+            estimatedFee = Number.parseFloat(feeData.fast_fee || feeData.standard_fee || '0')
+          } else {
+            estimatedFee = Number.parseFloat(feeData.standard_fee || '0')
+          }
+
+          // Se a estimativa retornou um valor válido, usar
+          if (estimatedFee > 0) {
+            feeAmount = estimatedFee
+          }
+        }
+      } catch (estimateError) {
+        console.warn('Usando taxa padrão para', selectedNetwork, ':', feeAmount)
+      }
+
+      // Adicionar margem de segurança de 20% para evitar erros
+      const feeWithMargin = feeAmount * 1.2
+
+      // Calcular valor máximo
+      const maxAmount = Math.max(0, tokenData.balance - feeWithMargin)
+
+      // Arredondar para baixo com 8 casas decimais (para suportar Solana e outras)
+      const maxAmountRounded = Math.floor(maxAmount * 100000000) / 100000000
+
+      // Verificar se ainda tem saldo suficiente
+      if (maxAmountRounded <= 0) {
+        setMaxFeeEstimate({
+          fee: feeWithMargin.toFixed(8),
+          feeUSD: '?',
+          maxAmount: '0',
+          isLoading: false,
+          error: `Saldo insuficiente. Taxa estimada: ${feeWithMargin.toFixed(6)} ${selectedToken}`,
+        })
+        setAmount('0')
+        return
+      }
+
+      setAmount(maxAmountRounded.toString())
+      setMaxFeeEstimate({
+        fee: feeWithMargin.toFixed(8),
+        feeUSD: `~$${(feeWithMargin * (tokenData.balanceUSD / tokenData.balance || 0)).toFixed(4)}`,
+        maxAmount: maxAmountRounded.toString(),
+        isLoading: false,
+      })
+    } catch (err) {
+      console.error('Erro ao estimar taxa:', err)
+
+      // Em caso de erro total, usar taxa padrão da rede
+      const emergencyFees: Record<string, number> = {
+        solana: 0.00005,
+        bitcoin: 0.0002,
+        ethereum: 0.003,
+        polygon: 0.02,
+        bsc: 0.001,
+        tron: 2,
+        base: 0.0002,
+        litecoin: 0.002,
+        dogecoin: 2,
+        cardano: 0.5,
+        avalanche: 0.02,
+        polkadot: 0.02,
+        xrp: 0.00002,
+      }
+
+      const emergencyFee = emergencyFees[selectedNetwork] || 0.01
+      const maxAmount = Math.max(0, tokenData.balance - emergencyFee)
+      const maxAmountRounded = Math.floor(maxAmount * 100000000) / 100000000
+
+      setAmount(maxAmountRounded > 0 ? maxAmountRounded.toString() : '0')
+      setMaxFeeEstimate({
+        fee: emergencyFee.toFixed(8),
+        feeUSD: '?',
+        maxAmount: maxAmountRounded > 0 ? maxAmountRounded.toString() : '0',
+        isLoading: false,
+        error:
+          maxAmountRounded <= 0
+            ? 'Saldo insuficiente para cobrir taxa de rede'
+            : 'Taxa estimada com base em valores padrão',
+      })
+    }
+  }
+
+  // Reset MAX mode quando valor é alterado manualmente
+  const handleAmountChange = (value: string) => {
+    setAmount(value)
+    if (isMaxMode) {
+      setIsMaxMode(false)
+      setMaxFeeEstimate(null)
+    }
   }
 
   const copyToClipboard = (text: string) => {
@@ -777,15 +961,46 @@ export const SendPage = () => {
         return
       }
 
-      if (!selectedWalletData.address) {
-        setError('Endereço da carteira não disponível para esta rede')
+      const fullWallet = apiWallets?.find(w => String(w.id) === String(selectedWalletData.walletId))
+      if (!fullWallet) {
+        setError('Carteira não encontrada')
         setTimelineStep('error')
         setLoading(false)
         isSubmittingRef.current = false
         return
       }
 
-      const fullWallet = apiWallets?.find(w => String(w.id) === String(selectedWalletData.walletId))
+      // Se o endereço não está no cache local, buscar diretamente do backend
+      let fromAddress = selectedWalletData.address
+      if (!fromAddress) {
+        console.log(
+          `[SendPage] ⚠️ Address not cached for ${selectedNetwork}, fetching from backend...`
+        )
+        try {
+          fromAddress = await walletService.getNetworkAddress(
+            String(fullWallet.id),
+            selectedNetwork
+          )
+          console.log(`[SendPage] ✅ Fetched address: ${fromAddress?.substring(0, 12)}...`)
+        } catch (addrError) {
+          console.error('[SendPage] ❌ Failed to fetch address:', addrError)
+        }
+      }
+
+      if (!fromAddress) {
+        setError(
+          'Endereço da carteira não disponível para esta rede. Tente novamente em alguns segundos.'
+        )
+        setTimelineStep('error')
+        setLoading(false)
+        isSubmittingRef.current = false
+        return
+      }
+
+      // Usar fromAddress daqui em diante (atualizado se foi buscado)
+      console.log(
+        `[SendPage] 📤 Sending from: ${fromAddress.substring(0, 12)}... to: ${toAddress.substring(0, 12)}...`
+      )
       if (!fullWallet) {
         setError('Carteira não encontrada')
         setTimelineStep('error')
@@ -881,7 +1096,7 @@ export const SendPage = () => {
       const feeValue = feeEstimate?.fee_estimates?.standard_fee
       setSentTransaction({
         txHash: result.txHash,
-        fromAddress: selectedWalletData.address || tokenData?.address || '',
+        fromAddress: fromAddress,
         toAddress: toAddress,
         amount: amount,
         token: selectedToken,
@@ -1273,12 +1488,19 @@ export const SendPage = () => {
                   Valor
                 </label>
                 <button
-                  onClick={() => {
-                    const balance = getSelectedTokenData()?.balance || 0
-                    setAmount(balance.toString())
-                  }}
-                  className='text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200 text-blue-700 dark:text-blue-300 rounded font-semibold'
+                  onClick={handleMaxClick}
+                  disabled={maxFeeEstimate?.isLoading}
+                  className={`text-xs px-2 py-0.5 rounded font-semibold flex items-center gap-1 transition-all ${
+                    isMaxMode
+                      ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 ring-1 ring-green-400'
+                      : 'bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200 text-blue-700 dark:text-blue-300'
+                  }`}
                 >
+                  {maxFeeEstimate?.isLoading ? (
+                    <Loader2 className='w-3 h-3 animate-spin' />
+                  ) : isMaxMode ? (
+                    <CheckCircle className='w-3 h-3' />
+                  ) : null}
                   MAX
                 </button>
               </div>
@@ -1286,12 +1508,50 @@ export const SendPage = () => {
                 type='number'
                 placeholder='0.00'
                 value={amount}
-                onChange={e => setAmount(e.target.value)}
+                onChange={e => handleAmountChange(e.target.value)}
                 step='0.01'
                 min='0'
-                className='w-full px-3 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-gray-900 dark:text-white text-sm font-semibold'
+                className={`w-full px-3 py-2 bg-gray-50 dark:bg-gray-700/50 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-gray-900 dark:text-white text-sm font-semibold ${
+                  isMaxMode
+                    ? 'border-green-400 dark:border-green-500'
+                    : 'border-gray-200 dark:border-gray-600'
+                }`}
               />
-              {amount && (
+
+              {/* Info do MAX - Taxa e valor líquido */}
+              {isMaxMode && maxFeeEstimate && !maxFeeEstimate.isLoading && (
+                <div className='mt-1.5 p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg'>
+                  <div className='flex items-center justify-between text-xs'>
+                    <span className='text-green-700 dark:text-green-300'>Saldo total:</span>
+                    <span className='font-medium text-green-800 dark:text-green-200'>
+                      {getSelectedTokenData()?.balance.toFixed(6)} {selectedToken}
+                    </span>
+                  </div>
+                  <div className='flex items-center justify-between text-xs mt-0.5'>
+                    <span className='text-green-700 dark:text-green-300'>Taxa estimada:</span>
+                    <span className='font-medium text-orange-600 dark:text-orange-400'>
+                      -{maxFeeEstimate.fee} {selectedToken} ({maxFeeEstimate.feeUSD})
+                    </span>
+                  </div>
+                  <div className='flex items-center justify-between text-xs mt-1 pt-1 border-t border-green-200 dark:border-green-700'>
+                    <span className='text-green-700 dark:text-green-300 font-semibold'>
+                      Enviar:
+                    </span>
+                    <span className='font-bold text-green-800 dark:text-green-200'>
+                      {maxFeeEstimate.maxAmount} {selectedToken}
+                    </span>
+                  </div>
+                  {maxFeeEstimate.error && (
+                    <p className='text-xs text-orange-600 dark:text-orange-400 mt-1 flex items-center gap-1'>
+                      <AlertCircle className='w-3 h-3' />
+                      {maxFeeEstimate.error}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Valor em USD (quando não está em MAX mode) */}
+              {amount && !isMaxMode && (
                 <p className='text-xs text-gray-500 dark:text-gray-400 mt-1'>
                   ≈ $
                   {(
@@ -1640,6 +1900,8 @@ export const SendPage = () => {
                     setAddressBookSearch('')
                   }}
                   className='p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg'
+                  title='Fechar'
+                  aria-label='Fechar agenda'
                 >
                   <X className='w-5 h-5 text-gray-500' />
                 </button>

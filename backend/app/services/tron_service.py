@@ -216,12 +216,41 @@ class TRONService:
             # Criar hash da transação
             tx_hash = hashlib.sha256(bytes.fromhex(raw_data)).digest()
             
-            # Assinar com ECDSA
+            # Assinar com ECDSA - TRON requer assinatura de 65 bytes (r + s + v)
             sk = SigningKey.from_string(bytes.fromhex(private_key_hex), curve=SECP256k1)
-            signature = sk.sign_digest(tx_hash, sigencode=lambda r, s, o: (r.to_bytes(32, 'big') + s.to_bytes(32, 'big')))
+            
+            # Usar sign_digest_deterministic para ter resultado consistente
+            # e obter r, s separadamente para calcular recovery id (v)
+            from ecdsa.util import sigencode_string
+            signature_rs = sk.sign_digest(tx_hash, sigencode=sigencode_string)
+            r = int.from_bytes(signature_rs[:32], 'big')
+            s = int.from_bytes(signature_rs[32:], 'big')
+            
+            # Calcular recovery id (v) - TRON usa 0 ou 1 (não 27/28 como Ethereum)
+            # Precisamos encontrar qual v (0 ou 1) recupera a public key correta
+            vk = sk.get_verifying_key()
+            public_key_bytes = vk.to_string()
+            
+            # Tentar v=0 e v=1 para encontrar o correto
+            recovery_id = 0
+            for v in [0, 1]:
+                try:
+                    from ecdsa import VerifyingKey
+                    recovered_key = VerifyingKey.from_public_key_recovery_with_digest(
+                        signature_rs, tx_hash, SECP256k1, hashfunc=hashlib.sha256
+                    )
+                    for rk in recovered_key:
+                        if rk.to_string() == public_key_bytes:
+                            recovery_id = v
+                            break
+                except Exception:
+                    pass
+            
+            # Montar assinatura de 65 bytes: r (32) + s (32) + v (1)
+            signature_65 = r.to_bytes(32, 'big') + s.to_bytes(32, 'big') + bytes([recovery_id])
             
             # Adicionar assinatura
-            tx['signature'] = [signature.hex()]
+            tx['signature'] = [signature_65.hex()]
             
             # 3. Broadcast
             response = requests.post(
@@ -333,14 +362,40 @@ class TRONService:
             
             tx = result.get('transaction', {})
             
-            # 2. Assinar transação
+            # 2. Assinar transação - TRON requer assinatura de 65 bytes (r + s + v)
             raw_data = tx.get('raw_data_hex', '')
             tx_hash = hashlib.sha256(bytes.fromhex(raw_data)).digest()
             
             sk = SigningKey.from_string(bytes.fromhex(private_key_hex), curve=SECP256k1)
-            signature = sk.sign_digest(tx_hash, sigencode=lambda r, s, o: (r.to_bytes(32, 'big') + s.to_bytes(32, 'big')))
             
-            tx['signature'] = [signature.hex()]
+            # Usar sign_digest para obter r, s
+            from ecdsa.util import sigencode_string
+            signature_rs = sk.sign_digest(tx_hash, sigencode=sigencode_string)
+            r = int.from_bytes(signature_rs[:32], 'big')
+            s = int.from_bytes(signature_rs[32:], 'big')
+            
+            # Calcular recovery id (v)
+            vk = sk.get_verifying_key()
+            public_key_bytes = vk.to_string()
+            
+            recovery_id = 0
+            for v in [0, 1]:
+                try:
+                    from ecdsa import VerifyingKey
+                    recovered_key = VerifyingKey.from_public_key_recovery_with_digest(
+                        signature_rs, tx_hash, SECP256k1, hashfunc=hashlib.sha256
+                    )
+                    for rk in recovered_key:
+                        if rk.to_string() == public_key_bytes:
+                            recovery_id = v
+                            break
+                except Exception:
+                    pass
+            
+            # Montar assinatura de 65 bytes: r (32) + s (32) + v (1)
+            signature_65 = r.to_bytes(32, 'big') + s.to_bytes(32, 'big') + bytes([recovery_id])
+            
+            tx['signature'] = [signature_65.hex()]
             
             # 3. Broadcast
             response = requests.post(
