@@ -545,7 +545,7 @@ export const SendPage = () => {
     toast.success('Endereço capturado!')
   }
 
-  // Função para calcular MAX com desconto de taxa
+  // Função para calcular MAX com desconto de taxa - PRECISÃO MELHORADA
   const handleMaxClick = async () => {
     const tokenData = getSelectedTokenData()
     if (!tokenData || tokenData.balance <= 0) {
@@ -570,12 +570,12 @@ export const SendPage = () => {
     setIsMaxMode(true)
 
     try {
-      // Tokens ERC20 não precisam descontar taxa do próprio saldo (taxa é paga em moeda nativa)
+      // Tokens ERC20/TRC20 não precisam descontar taxa do próprio saldo (taxa é paga em moeda nativa)
       const erc20Tokens = ['USDT', 'USDC', 'TRAY', 'DAI', 'SHIB', 'LINK', 'UNI', 'PEPE', 'WBTC']
       const isToken = erc20Tokens.includes(selectedToken.toUpperCase())
 
       if (isToken) {
-        // Para tokens, usar saldo total (taxa paga em ETH/MATIC/etc)
+        // Para tokens, usar saldo total (taxa paga em ETH/MATIC/TRX/etc)
         setAmount(tokenData.balance.toString())
         setMaxFeeEstimate({
           fee: '~0.001',
@@ -586,35 +586,63 @@ export const SendPage = () => {
         return
       }
 
-      // Taxas padrão por rede (em unidades nativas) - usadas como fallback
-      const defaultFees: Record<string, number> = {
-        solana: 0.00001, // ~5000 lamports + margem
-        bitcoin: 0.0001, // ~10k sats
-        ethereum: 0.002, // ~21k gas * ~100 gwei
-        polygon: 0.01, // MATIC é barato
-        bsc: 0.0005, // BNB
-        tron: 1, // TRX (energia/bandwidth)
-        base: 0.0001, // ETH L2
-        litecoin: 0.001, // LTC
-        dogecoin: 1, // DOGE
-        cardano: 0.2, // ADA
-        avalanche: 0.01, // AVAX
-        polkadot: 0.01, // DOT
-        xrp: 0.00001, // XRP
+      // ========================================
+      // TAXAS CONSERVADORAS POR REDE
+      // Valores mais altos para garantir sucesso
+      // ========================================
+      const networkFees: Record<string, { base: number; margin: number; decimals: number }> = {
+        // TRON: 1 TRX bandwidth + possível energia se contrato
+        tron: { base: 1.5, margin: 1.5, decimals: 6 },
+
+        // Solana: ~5000 lamports = 0.000005 SOL, margem extra
+        solana: { base: 0.001, margin: 2, decimals: 9 },
+
+        // Bitcoin: depende do tamanho da TX, ~10-50 sats/vbyte
+        bitcoin: { base: 0.0003, margin: 1.5, decimals: 8 },
+
+        // Ethereum: ~21k gas * ~30 gwei = ~0.0006 ETH (pode variar muito)
+        ethereum: { base: 0.003, margin: 2, decimals: 18 },
+
+        // Polygon: muito barato, mas deixar margem
+        polygon: { base: 0.02, margin: 2, decimals: 18 },
+
+        // BSC: barato
+        bsc: { base: 0.001, margin: 1.5, decimals: 18 },
+
+        // Base L2: ETH barato
+        base: { base: 0.0002, margin: 2, decimals: 18 },
+
+        // Litecoin: similar ao BTC
+        litecoin: { base: 0.002, margin: 1.5, decimals: 8 },
+
+        // Dogecoin: precisa de mais DOGE por ser barato
+        dogecoin: { base: 2, margin: 1.5, decimals: 8 },
+
+        // Cardano: ~0.17 ADA mínimo
+        cardano: { base: 0.3, margin: 1.5, decimals: 6 },
+
+        // Avalanche
+        avalanche: { base: 0.02, margin: 1.5, decimals: 18 },
+
+        // Polkadot
+        polkadot: { base: 0.02, margin: 1.5, decimals: 10 },
+
+        // XRP: muito barato
+        xrp: { base: 0.00002, margin: 2, decimals: 6 },
       }
 
-      // Para moedas nativas, estimar taxa
-      let feeAmount = defaultFees[selectedNetwork] || 0.001 // Fallback genérico
+      const networkConfig = networkFees[selectedNetwork] || { base: 0.01, margin: 2, decimals: 8 }
+      let feeAmount = networkConfig.base
 
+      // Tentar obter estimativa do backend
       try {
         const feeEstimate = await transactionService.estimateFee({
           wallet_id: String(selectedWalletData.walletId),
-          to_address: toAddress || '0x0000000000000000000000000000000000000000', // Placeholder se não tiver endereço
+          to_address: toAddress || '0x0000000000000000000000000000000000000000',
           amount: tokenData.balance.toString(),
           network: selectedNetwork,
         })
 
-        // Calcular taxa baseado na velocidade selecionada
         const feeData = feeEstimate?.fee_estimates
         if (feeData) {
           let estimatedFee = 0
@@ -626,28 +654,29 @@ export const SendPage = () => {
             estimatedFee = Number.parseFloat(feeData.standard_fee || '0')
           }
 
-          // Se a estimativa retornou um valor válido, usar
+          // Usar o MAIOR entre a estimativa e o valor base
           if (estimatedFee > 0) {
-            feeAmount = estimatedFee
+            feeAmount = Math.max(estimatedFee, networkConfig.base)
           }
         }
       } catch (estimateError) {
-        console.warn('Usando taxa padrão para', selectedNetwork, ':', feeAmount)
+        console.warn('Usando taxa conservadora para', selectedNetwork, ':', feeAmount)
       }
 
-      // Adicionar margem de segurança de 20% para evitar erros
-      const feeWithMargin = feeAmount * 1.2
+      // Aplicar margem de segurança da rede
+      const feeWithMargin = feeAmount * networkConfig.margin
 
       // Calcular valor máximo
-      const maxAmount = Math.max(0, tokenData.balance - feeWithMargin)
+      const maxAmount = tokenData.balance - feeWithMargin
 
-      // Arredondar para baixo com 8 casas decimais (para suportar Solana e outras)
-      const maxAmountRounded = Math.floor(maxAmount * 100000000) / 100000000
+      // Arredondar para baixo considerando as casas decimais da rede
+      const multiplier = Math.pow(10, Math.min(networkConfig.decimals, 8))
+      const maxAmountRounded = Math.floor(maxAmount * multiplier) / multiplier
 
       // Verificar se ainda tem saldo suficiente
       if (maxAmountRounded <= 0) {
         setMaxFeeEstimate({
-          fee: feeWithMargin.toFixed(8),
+          fee: feeWithMargin.toFixed(6),
           feeUSD: '?',
           maxAmount: '0',
           isLoading: false,
@@ -659,7 +688,7 @@ export const SendPage = () => {
 
       setAmount(maxAmountRounded.toString())
       setMaxFeeEstimate({
-        fee: feeWithMargin.toFixed(8),
+        fee: feeWithMargin.toFixed(6),
         feeUSD: `~$${(feeWithMargin * (tokenData.balanceUSD / tokenData.balance || 0)).toFixed(4)}`,
         maxAmount: maxAmountRounded.toString(),
         isLoading: false,
@@ -1083,7 +1112,7 @@ export const SendPage = () => {
           to_address: toAddress,
           amount: amount,
           network: selectedNetwork,
-          fee_preference: selectedFeeSpeed === 'slow' ? 'standard' : selectedFeeSpeed,
+          fee_preference: selectedFeeSpeed === 'slow' ? 'safe' : selectedFeeSpeed,
           token_symbol: selectedToken,
           ...(memoValue ? { memo: memoValue } : {}),
         },
