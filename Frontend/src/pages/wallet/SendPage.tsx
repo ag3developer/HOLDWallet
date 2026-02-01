@@ -550,8 +550,8 @@ export const SendPage = () => {
       return false
     }
 
-    if (!isValidEthereumAddress(toAddress)) {
-      setError('Endereço inválido. Use um endereço Ethereum/EVM válido (0x...)')
+    if (!isValidAddress(toAddress, selectedNetwork)) {
+      setError(getAddressErrorMessage(selectedNetwork))
       return false
     }
 
@@ -576,19 +576,142 @@ export const SendPage = () => {
     return true
   }
 
-  const isValidEthereumAddress = (address: string): boolean => {
-    // Verifica se é um endereço Ethereum válido (começa com 0x e tem 42 caracteres)
-    if (!/^0x[a-fA-F0-9]{40}$/.test(address.trim())) {
-      return false
+  // Validação de endereço específica para cada blockchain
+  const isValidAddress = (address: string, network: string): boolean => {
+    const trimmedAddress = address.trim()
+    if (!trimmedAddress) return false
+
+    const networkLower = network.toLowerCase()
+
+    // Bitcoin - múltiplos formatos
+    if (networkLower === 'bitcoin') {
+      // Legacy (P2PKH) - começa com 1
+      const p2pkh = /^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$/
+      // Script Hash (P2SH) - começa com 3
+      const p2sh = /^3[a-km-zA-HJ-NP-Z1-9]{25,34}$/
+      // SegWit v0 (Bech32) - começa com bc1q
+      const bech32 = /^bc1[a-z0-9]{39,59}$/
+      // Taproot (Bech32m) - começa com bc1p
+      const taproot = /^bc1p[a-z0-9]{58}$/
+
+      return (
+        p2pkh.test(trimmedAddress) ||
+        p2sh.test(trimmedAddress) ||
+        bech32.test(trimmedAddress) ||
+        taproot.test(trimmedAddress)
+      )
     }
-    return true
+
+    // TRON - começa com T
+    if (networkLower === 'tron') {
+      return /^T[a-zA-Z0-9]{33}$/.test(trimmedAddress)
+    }
+
+    // Solana - base58, 32-44 caracteres
+    if (networkLower === 'solana') {
+      return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(trimmedAddress)
+    }
+
+    // XRP/Ripple - começa com r
+    if (networkLower === 'xrp' || networkLower === 'ripple') {
+      return /^r[0-9a-zA-Z]{24,34}$/.test(trimmedAddress)
+    }
+
+    // Litecoin - similar ao Bitcoin mas com prefixos diferentes
+    if (networkLower === 'litecoin') {
+      // Legacy - começa com L ou M
+      const legacy = /^[LM][a-km-zA-HJ-NP-Z1-9]{26,33}$/
+      // SegWit - começa com ltc1
+      const segwit = /^ltc1[a-z0-9]{39,59}$/
+      return legacy.test(trimmedAddress) || segwit.test(trimmedAddress)
+    }
+
+    // Dogecoin - começa com D
+    if (networkLower === 'dogecoin') {
+      return /^D[5-9A-HJ-NP-U][a-km-zA-HJ-NP-Z1-9]{32}$/.test(trimmedAddress)
+    }
+
+    // Cardano - começa com addr1
+    if (networkLower === 'cardano') {
+      return /^addr1[a-z0-9]{98,}$/.test(trimmedAddress)
+    }
+
+    // Polkadot - começa com 1
+    if (networkLower === 'polkadot') {
+      return /^1[a-zA-Z0-9]{47}$/.test(trimmedAddress)
+    }
+
+    // EVM chains (Ethereum, Polygon, BSC, Base, Avalanche, Arbitrum, Optimism, etc)
+    // Começa com 0x e tem 42 caracteres
+    return /^0x[a-fA-F0-9]{40}$/.test(trimmedAddress)
+  }
+
+  // Mensagem de erro específica para cada rede
+  const getAddressErrorMessage = (network: string): string => {
+    const networkLower = network.toLowerCase()
+
+    if (networkLower === 'bitcoin') {
+      return 'Endereço inválido. Use um endereço Bitcoin válido (1..., 3..., bc1q..., ou bc1p...)'
+    }
+    if (networkLower === 'tron') {
+      return 'Endereço inválido. Use um endereço TRON válido (T...)'
+    }
+    if (networkLower === 'solana') {
+      return 'Endereço inválido. Use um endereço Solana válido'
+    }
+    if (networkLower === 'xrp' || networkLower === 'ripple') {
+      return 'Endereço inválido. Use um endereço XRP válido (r...)'
+    }
+    if (networkLower === 'litecoin') {
+      return 'Endereço inválido. Use um endereço Litecoin válido (L..., M..., ou ltc1...)'
+    }
+    if (networkLower === 'dogecoin') {
+      return 'Endereço inválido. Use um endereço Dogecoin válido (D...)'
+    }
+    if (networkLower === 'cardano') {
+      return 'Endereço inválido. Use um endereço Cardano válido (addr1...)'
+    }
+    if (networkLower === 'polkadot') {
+      return 'Endereço inválido. Use um endereço Polkadot válido'
+    }
+
+    return 'Endereço inválido. Use um endereço Ethereum/EVM válido (0x...)'
+  }
+
+  // Placeholder dinâmico para o campo de endereço
+  const getAddressPlaceholder = (network: string): string => {
+    const networkLower = network.toLowerCase()
+
+    if (networkLower === 'bitcoin') {
+      return 'Cole o endereço (1..., 3..., bc1...)'
+    }
+    if (networkLower === 'tron') {
+      return 'Cole o endereço (T...)'
+    }
+    if (networkLower === 'solana') {
+      return 'Cole o endereço Solana'
+    }
+    if (networkLower === 'xrp' || networkLower === 'ripple') {
+      return 'Cole o endereço (r...)'
+    }
+    if (networkLower === 'litecoin') {
+      return 'Cole o endereço (L..., M..., ltc1...)'
+    }
+    if (networkLower === 'dogecoin') {
+      return 'Cole o endereço (D...)'
+    }
+    if (networkLower === 'cardano') {
+      return 'Cole o endereço (addr1...)'
+    }
+
+    return 'Cole o endereço (0x...)'
   }
 
   const getAddressInputStyle = (): string => {
     if (toAddress.trim() === '') {
       return 'border-gray-300 dark:border-gray-600 focus:ring-blue-500'
     }
-    if (isValidEthereumAddress(toAddress)) {
+    if (isValidAddress(toAddress, selectedNetwork)) {
       return 'border-green-500 dark:border-green-400 focus:ring-green-500'
     }
     return 'border-red-500 dark:border-red-400 focus:ring-red-500'
@@ -1065,14 +1188,14 @@ export const SendPage = () => {
               <div className='flex-1 relative'>
                 <input
                   type='text'
-                  placeholder='Cole o endereço (0x...)'
+                  placeholder={getAddressPlaceholder(selectedNetwork)}
                   value={toAddress}
                   onChange={e => setToAddress(e.target.value)}
                   className={`w-full px-3 py-2 bg-gray-50 dark:bg-gray-700/50 border rounded-lg focus:ring-2 focus:border-transparent outline-none text-gray-900 dark:text-white text-sm pr-10 ${getAddressInputStyle()}`}
                 />
                 {toAddress.trim() !== '' && (
                   <div className='absolute right-3 top-1/2 -translate-y-1/2'>
-                    {isValidEthereumAddress(toAddress) ? (
+                    {isValidAddress(toAddress, selectedNetwork) ? (
                       <CheckCircle className='w-4 h-4 text-green-500' />
                     ) : (
                       <AlertCircle className='w-4 h-4 text-red-500' />
@@ -1098,10 +1221,10 @@ export const SendPage = () => {
                 <QrCode className='w-4 h-4 text-gray-600 dark:text-gray-400' />
               </button>
             </div>
-            {toAddress.trim() !== '' && !isValidEthereumAddress(toAddress) && (
+            {toAddress.trim() !== '' && !isValidAddress(toAddress, selectedNetwork) && (
               <p className='text-xs text-red-600 dark:text-red-400 mt-1 flex items-center gap-1'>
                 <AlertCircle className='w-3 h-3' />
-                Endereço inválido
+                {getAddressErrorMessage(selectedNetwork)}
               </p>
             )}
           </div>
