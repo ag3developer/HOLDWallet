@@ -465,6 +465,8 @@ export const WalletPage = () => {
   const { change24h: btcChange24h } = usePriceChange24h('BTC')
 
   const multiWallet = apiWallets?.find((w: any) => w.network === 'multi')
+  // Lista de redes REAIS que podem gerar endereços (não inclui tokens como TRAY, LINK, SHIB)
+  // Tokens usam o endereço da rede base: TRAY usa polygon, LINK/SHIB usam ethereum
   const networksList = multiWallet
     ? [
         'bitcoin',
@@ -473,15 +475,12 @@ export const WalletPage = () => {
         'bsc',
         'tron',
         'base',
-        'tray',
         'solana',
         'litecoin',
         'dogecoin',
         'cardano',
         'avalanche',
         'polkadot',
-        'chainlink',
-        'shiba',
         'xrp',
       ]
     : []
