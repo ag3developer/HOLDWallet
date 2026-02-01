@@ -176,6 +176,7 @@ export const SendPage = () => {
     () => apiWallets?.find((w: any) => w.network === 'multi'),
     [apiWallets]
   )
+  // Lista de redes REAIS que podem gerar endereços (não inclui tokens como TRAY, LINK, SHIB)
   const networksList = [
     'bitcoin',
     'ethereum',
@@ -189,8 +190,6 @@ export const SendPage = () => {
     'cardano',
     'avalanche',
     'polkadot',
-    'chainlink',
-    'shiba',
     'xrp',
   ]
   const { addresses: networkAddresses } = useWalletAddresses(
@@ -198,7 +197,7 @@ export const SendPage = () => {
     networksList
   )
 
-  // Preferências de rede
+  // Preferências de rede (apenas redes reais, não tokens)
   const [networkPreferences] = useState(() => {
     const saved = localStorage.getItem('wallet_network_preferences')
     const defaultPreferences = {
@@ -214,8 +213,6 @@ export const SendPage = () => {
       cardano: true,
       avalanche: true,
       polkadot: true,
-      chainlink: true,
-      shiba: true,
       xrp: true,
     }
     if (saved) {
@@ -225,13 +222,15 @@ export const SendPage = () => {
     return defaultPreferences
   })
 
-  // Preferências de tokens
+  // Preferências de tokens (tokens que rodam em outras redes)
   const [tokenPreferences] = useState(() => {
     const saved = localStorage.getItem('wallet_token_preferences')
     const defaultTokenPrefs = {
       usdt: true,
       usdc: true,
       tray: true,
+      link: true,
+      shib: true,
     }
     if (saved) {
       const savedPrefs = JSON.parse(saved)
@@ -250,6 +249,7 @@ export const SendPage = () => {
       const balanceQueryResult = balancesQueries[walletIndex]
 
       if (wallet.network === 'multi') {
+        // Redes REAIS que podem gerar endereços
         const supportedNetworks = [
           { network: 'bitcoin', symbol: 'BTC' },
           { network: 'ethereum', symbol: 'ETH' },
@@ -257,32 +257,25 @@ export const SendPage = () => {
           { network: 'bsc', symbol: 'BNB' },
           { network: 'tron', symbol: 'TRX' },
           { network: 'base', symbol: 'BASE' },
-          { network: 'tray', symbol: 'TRAY' },
           { network: 'solana', symbol: 'SOL' },
           { network: 'litecoin', symbol: 'LTC' },
           { network: 'dogecoin', symbol: 'DOGE' },
           { network: 'cardano', symbol: 'ADA' },
           { network: 'avalanche', symbol: 'AVAX' },
           { network: 'polkadot', symbol: 'DOT' },
-          { network: 'chainlink', symbol: 'LINK' },
-          { network: 'shiba', symbol: 'SHIB' },
           { network: 'xrp', symbol: 'XRP' },
         ]
 
-        supportedNetworks.forEach(({ network, symbol }) => {
-          // TRAY é um token na Polygon, buscar de polygon_tray
-          let networkBalance
-          let address
+        // Tokens que rodam em outras redes (não são redes próprias)
+        const tokensOnNetworks = [
+          { symbol: 'TRAY', baseNetwork: 'polygon', balanceKey: 'polygon_tray' },
+          { symbol: 'LINK', baseNetwork: 'ethereum', balanceKey: 'ethereum_link' },
+          { symbol: 'SHIB', baseNetwork: 'ethereum', balanceKey: 'ethereum_shib' },
+        ]
 
-          if (network === 'tray') {
-            networkBalance =
-              balanceQueryResult?.data?.['polygon_tray'] ||
-              balanceQueryResult?.data?.['polygon_TRAY']
-            address = networkAddresses['polygon'] || '' // Usa endereço Polygon
-          } else {
-            networkBalance = balanceQueryResult?.data?.[network]
-            address = networkAddresses[network] || '' // 🔑 Endereço específico por rede
-          }
+        supportedNetworks.forEach(({ network, symbol }) => {
+          const networkBalance = balanceQueryResult?.data?.[network]
+          const address = networkAddresses[network] || ''
 
           const balance = networkBalance?.balance ? Number(networkBalance.balance) : 0
           const balanceUSD = networkBalance?.balance_usd ? Number(networkBalance.balance_usd) : 0
@@ -290,11 +283,34 @@ export const SendPage = () => {
           expandedWallets.push({
             walletId: wallet.id,
             symbol,
-            network: network === 'tray' ? 'polygon' : network, // TRAY mostra polygon como rede
-            address, // 🔑 Agora com endereço específico por rede
+            network,
+            address,
             balance,
             balanceUSD,
           })
+        })
+
+        // Processar tokens que rodam em outras redes (TRAY, LINK, SHIB)
+        tokensOnNetworks.forEach(({ symbol, baseNetwork, balanceKey }) => {
+          const tokenBalance =
+            balanceQueryResult?.data?.[balanceKey] ||
+            balanceQueryResult?.data?.[balanceKey.toUpperCase()]
+          const address = networkAddresses[baseNetwork] || ''
+
+          const balance = tokenBalance?.balance ? Number(tokenBalance.balance) : 0
+          const balanceUSD = tokenBalance?.balance_usd ? Number(tokenBalance.balance_usd) : 0
+
+          if (balance > 0 || symbol === 'TRAY') {
+            // Sempre mostrar TRAY, outros só se tiver saldo
+            expandedWallets.push({
+              walletId: wallet.id,
+              symbol,
+              network: baseNetwork, // Usa a rede base (polygon, ethereum)
+              address,
+              balance,
+              balanceUSD,
+            })
+          }
         })
 
         // 🪙 TAMBÉM PROCESSAR TOKENS (USDT, USDC, etc)
@@ -431,12 +447,33 @@ export const SendPage = () => {
     return Array.from(uniqueTokens.values()).sort((a: any, b: any) => (a.isStablecoin ? -1 : 1))
   }, [walletsWithAddresses, networkPreferences, tokenPreferences])
 
-  // Redes dinâmicas
+  // Redes dinâmicas (apenas redes reais, não tokens)
   const networkList = useMemo(() => {
     const uniqueNetworks = new Map<string, any>()
 
+    // Lista de redes válidas (não inclui tokens como chainlink, shiba)
+    const validNetworks = [
+      'polygon',
+      'tron',
+      'base',
+      'bsc',
+      'ethereum',
+      'bitcoin',
+      'cardano',
+      'solana',
+      'litecoin',
+      'dogecoin',
+      'avalanche',
+      'polkadot',
+      'xrp',
+    ]
+
     walletsWithAddresses.forEach(wallet => {
-      if (networkPreferences[wallet.network as keyof typeof networkPreferences]) {
+      // Só adicionar se for uma rede válida (não token)
+      if (
+        validNetworks.includes(wallet.network) &&
+        networkPreferences[wallet.network as keyof typeof networkPreferences]
+      ) {
         if (!uniqueNetworks.has(wallet.network)) {
           const networkInfo: Record<string, { name: string; symbol: string }> = {
             polygon: { name: 'Polygon', symbol: 'MATIC' },
@@ -451,8 +488,6 @@ export const SendPage = () => {
             dogecoin: { name: 'Dogecoin', symbol: 'DOGE' },
             avalanche: { name: 'Avalanche', symbol: 'AVAX' },
             polkadot: { name: 'Polkadot', symbol: 'DOT' },
-            chainlink: { name: 'Chainlink', symbol: 'LINK' },
-            shiba: { name: 'Shiba Inu', symbol: 'SHIB' },
             xrp: { name: 'XRP', symbol: 'XRP' },
           }
 

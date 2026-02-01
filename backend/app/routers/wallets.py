@@ -398,14 +398,15 @@ async def get_wallet_balances_by_network(
     
     blockchain_service = BlockchainService()
     
-    # Supported networks for multi-wallet
+    # Supported networks for multi-wallet (only REAL blockchains, not tokens)
+    # NOTE: chainlink (LINK) and shiba (SHIB) are tokens on Ethereum, not separate networks
     supported_networks = [
         "bitcoin", "ethereum", "polygon", "bsc", "tron", "base", 
         "solana", "litecoin", "dogecoin", "cardano", "avalanche", 
-        "polkadot", "chainlink", "shiba", "xrp"
+        "polkadot", "xrp"
     ]
     
-    # Network to symbol mapping
+    # Network to symbol mapping (for native coins only)
     network_symbols = {
         "bitcoin": "btc",
         "ethereum": "eth",
@@ -419,8 +420,6 @@ async def get_wallet_balances_by_network(
         "cardano": "ada",
         "avalanche": "avax",
         "polkadot": "dot",
-        "chainlink": "link",
-        "shiba": "shib",
         "xrp": "xrp"
     }
     
@@ -873,6 +872,79 @@ class ValidateSendRequest(BaseModel):
     token_symbol: Optional[str] = Field(None, description="Token symbol (e.g., USDT, USDC)")
     token_address: Optional[str] = Field(None, description="Token contract address")
 
+
+def is_valid_blockchain_address(address: str, network: str) -> bool:
+    """
+    Validate address format for different blockchain networks.
+    Returns True if the address format is valid for the given network.
+    """
+    import re
+    
+    address = address.strip()
+    if not address:
+        return False
+    
+    network_lower = network.lower()
+    
+    # Bitcoin - multiple formats
+    if network_lower == 'bitcoin':
+        # Legacy (P2PKH) - starts with 1
+        p2pkh = re.compile(r'^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$')
+        # Script Hash (P2SH) - starts with 3
+        p2sh = re.compile(r'^3[a-km-zA-HJ-NP-Z1-9]{25,34}$')
+        # SegWit v0 (Bech32) - starts with bc1q
+        bech32 = re.compile(r'^bc1[a-z0-9]{39,59}$')
+        # Taproot (Bech32m) - starts with bc1p
+        taproot = re.compile(r'^bc1p[a-z0-9]{58}$')
+        
+        return bool(
+            p2pkh.match(address) or
+            p2sh.match(address) or
+            bech32.match(address) or
+            taproot.match(address)
+        )
+    
+    # TRON - starts with T
+    if network_lower == 'tron':
+        return bool(re.match(r'^T[a-zA-Z0-9]{33}$', address))
+    
+    # Solana - base58, 32-44 characters
+    if network_lower == 'solana':
+        return bool(re.match(r'^[1-9A-HJ-NP-Za-km-z]{32,44}$', address))
+    
+    # XRP/Ripple - starts with r
+    if network_lower in ['xrp', 'ripple']:
+        return bool(re.match(r'^r[0-9a-zA-Z]{24,34}$', address))
+    
+    # Litecoin - similar to Bitcoin with different prefixes
+    if network_lower == 'litecoin':
+        # Legacy - starts with L or M
+        legacy = re.compile(r'^[LM][a-km-zA-HJ-NP-Z1-9]{26,33}$')
+        # SegWit - starts with ltc1
+        segwit = re.compile(r'^ltc1[a-z0-9]{39,59}$')
+        return bool(legacy.match(address) or segwit.match(address))
+    
+    # Dogecoin - starts with D
+    if network_lower == 'dogecoin':
+        return bool(re.match(r'^D[5-9A-HJ-NP-U][a-km-zA-HJ-NP-Z1-9]{32}$', address))
+    
+    # Cardano - starts with addr1
+    if network_lower == 'cardano':
+        return bool(re.match(r'^addr1[a-z0-9]{98,}$', address))
+    
+    # Polkadot - starts with 1
+    if network_lower == 'polkadot':
+        return bool(re.match(r'^1[a-zA-Z0-9]{47}$', address))
+    
+    # EVM chains (Ethereum, Polygon, BSC, Base, Avalanche, etc)
+    # Starts with 0x and has 42 characters
+    from web3 import Web3
+    try:
+        return Web3.is_address(address)
+    except Exception:
+        return bool(re.match(r'^0x[a-fA-F0-9]{40}$', address))
+
+
 @router.post("/validate-address")
 async def validate_address(
     request: ValidateAddressRequest,
@@ -973,24 +1045,101 @@ async def validate_send_transaction(
         from_address = str(address_obj.address)
         logger.info(f"   From address: {from_address}")
         
-        # 3. Validar endereço de destino
-        try:
-            if not Web3.is_address(request.to_address):
-                return {
-                    "valid": False,
-                    "error": "INVALID_TO_ADDRESS",
-                    "message": "Endereço de destino inválido"
-                }
-        except Exception:
+        # 3. Validar endereço de destino (multi-chain support)
+        if not is_valid_blockchain_address(request.to_address, request.network):
+            logger.warning(f"❌ Invalid address format for {request.network}: {request.to_address}")
             return {
                 "valid": False,
                 "error": "INVALID_TO_ADDRESS",
-                "message": "Endereço de destino inválido"
+                "message": f"Endereço de destino inválido para {request.network}"
             }
         
         # 4. Consultar saldo REAL na blockchain
-        # Usar o blockchain_signer que já está configurado
+        # Para redes não-EVM (Bitcoin, TRON, Solana, etc), usar métodos específicos
         network_lower = request.network.lower()
+        
+        # Redes UTXO (Bitcoin-like) - não usam Web3
+        utxo_networks = ['bitcoin', 'litecoin', 'dogecoin']
+        # Redes com APIs próprias
+        non_evm_networks = utxo_networks + ['tron', 'solana', 'xrp', 'cardano', 'polkadot']
+        
+        if network_lower in non_evm_networks:
+            # Para redes não-EVM, usamos o BlockchainService para validar
+            try:
+                from app.services.blockchain_service import BlockchainService
+                blockchain_service = BlockchainService()
+                
+                # Buscar saldo na blockchain via serviço dedicado
+                balance_data = await blockchain_service.get_address_balance(
+                    from_address,
+                    network_lower,
+                    include_tokens=False
+                )
+                
+                balance = Decimal(balance_data.get('native_balance', '0'))
+                logger.info(f"   {network_lower} balance: {balance}")
+                
+                amount_decimal = Decimal(request.amount)
+                
+                # Estimar fee (varia por rede)
+                if network_lower in utxo_networks:
+                    # Bitcoin/Litecoin/Dogecoin: fees são baseadas em satoshis/byte
+                    # Usar um valor médio conservador
+                    fee_estimate = Decimal("0.0001")  # ~$8-10 USD para BTC
+                elif network_lower == 'tron':
+                    # TRON: bandwidth/energy, geralmente baixo
+                    fee_estimate = Decimal("1.0")  # ~1 TRX
+                elif network_lower == 'solana':
+                    # Solana: muito barato
+                    fee_estimate = Decimal("0.000005")  # ~0.000005 SOL
+                elif network_lower == 'xrp':
+                    # XRP: muito barato
+                    fee_estimate = Decimal("0.000012")  # ~12 drops
+                else:
+                    fee_estimate = Decimal("0.001")  # Fallback conservador
+                
+                total_required = amount_decimal + fee_estimate
+                
+                if balance < total_required:
+                    symbol_map = {
+                        'bitcoin': 'BTC', 'litecoin': 'LTC', 'dogecoin': 'DOGE',
+                        'tron': 'TRX', 'solana': 'SOL', 'xrp': 'XRP',
+                        'cardano': 'ADA', 'polkadot': 'DOT'
+                    }
+                    native_symbol = symbol_map.get(network_lower, network_lower.upper())
+                    logger.warning(f"❌ Insufficient balance: {balance} < {total_required}")
+                    return {
+                        "valid": False,
+                        "error": "INSUFFICIENT_BALANCE",
+                        "message": f"Saldo insuficiente de {native_symbol}",
+                        "balance": str(balance),
+                        "required": str(total_required),
+                        "fee_estimate": str(fee_estimate)
+                    }
+                
+                logger.info(f"✅ Pre-validation PASSED for {network_lower} transfer")
+                return {
+                    "valid": True,
+                    "message": "Transação pode ser realizada",
+                    "from_address": from_address,
+                    "to_address": request.to_address,
+                    "amount": request.amount,
+                    "balance": str(balance),
+                    "gas_estimate": str(fee_estimate),
+                    "total_cost": str(total_required),
+                    "network": request.network,
+                    "requires_auth": True
+                }
+                
+            except Exception as e:
+                logger.error(f"❌ Error validating {network_lower} transaction: {e}")
+                return {
+                    "valid": False,
+                    "error": "VALIDATION_FAILED",
+                    "message": f"Erro ao validar transação: {str(e)}"
+                }
+        
+        # Para redes EVM (Ethereum, Polygon, BSC, Base, etc)
         w3 = blockchain_signer.providers.get(network_lower)
         
         if not w3 or not w3.is_connected():

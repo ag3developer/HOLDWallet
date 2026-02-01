@@ -1,2 +1,346 @@
 INFO:     Will watch for changes in these directories: ['/Users/josecarlosmartins/Documents/HOLDWallet/backend']
-ERROR:    [Errno 48] Address already in use
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [23387] using WatchFiles
+⚠️ Nenhum provedor de validação de boletos configurado. Usando MOCK.
+Prophet not available. Using fallback predictions.
+Pandas not available.
+TA-Lib not available. Using fallback calculations.
+/Users/josecarlosmartins/Documents/HOLDWallet/backend/venv/lib/python3.9/site-packages/pydantic/_internal/_fields.py:149: UserWarning: Field "model_version" has conflict with protected namespace "model_".
+
+You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+  warnings.warn(
+2026-02-01 01:35:53,858 | app | INFO | Logging configured - Level: INFO
+INFO:     Started server process [23449]
+INFO:     Waiting for application startup.
+2026-02-01 01:35:54,701 | app.main | INFO | 🚀 Starting Wolknow Backend API...
+2026-02-01 01:35:58,412 | app.core.db | INFO | Database connection successful
+2026-02-01 01:35:58,413 | app.main | INFO | ✅ Database connection established
+2026-02-01 01:35:58,413 | app.core.db | INFO | 📦 Importing all models...
+2026-02-01 01:35:58,413 | app.core.db | INFO |    ✅ All models imported successfully
+2026-02-01 01:35:59,692 | app.core.db | INFO | ✅ Database already has 76 tables
+2026-02-01 01:35:59,692 | app.main | INFO | ✅ Database tables verified
+2026-02-01 01:36:05,090 | app.main | INFO | ✅ Platform settings initialized
+2026-02-01 01:36:05,342 | app.services.cache_service | INFO | ✅ Redis conectado com sucesso
+2026-02-01 01:36:05,342 | app.main | INFO | 🎉 Wolknow Backend started successfully
+INFO:     Application startup complete.
+INFO:     127.0.0.1:53460 - "OPTIONS /wallets/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53483 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53460 - "OPTIONS /wallets/991be417-9dd8-4879-8ddd-09a3a1d4466e/balances?include_tokens=true HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53483 - "GET /wallets/ HTTP/1.1" 200 OK
+2026-02-01 01:36:09,582 | app.services.price_aggregator | INFO | 🔵 Binance: Fetching 12 symbols in USD
+INFO:     127.0.0.1:53508 - "GET /health HTTP/1.1" 200 OK
+2026-02-01 01:36:13,529 | app.services.price_aggregator | INFO | 🔵 Binance: Fetching 12 symbols in USD
+2026-02-01 01:36:13,571 | app.services.price_aggregator | INFO | 🔵 Binance: Fetching 17 symbols in USD
+2026-02-01 01:36:13,571 | app.services.price_aggregator | INFO | 🟣 GeckoTerminal: Fetching 1 DEX tokens
+2026-02-01 01:36:13,599 | app.services.price_aggregator | INFO | 🔵 Binance: Fetching 1 symbols in USD
+2026-02-01 01:36:13,613 | app.services.price_aggregator | INFO | 🔵 Binance: Fetching 7 symbols in USD
+2026-02-01 01:36:13,613 | app.services.price_aggregator | INFO | 🟣 GeckoTerminal: Fetching 1 DEX tokens
+2026-02-01 01:36:14,008 | app.services.price_aggregator | INFO | Binance: Fetched 1 prices in USD successfully
+2026-02-01 01:36:14,008 | app.services.price_aggregator | INFO | ✅ Binance: Got 1 prices
+2026-02-01 01:36:14,009 | app.services.price_aggregator | INFO | 📦 Cached 1 prices for USD
+2026-02-01 01:36:14,009 | app.services.price_aggregator | WARNING | ⚠️ Failed to fetch prices for: {'BTC'}
+INFO:     127.0.0.1:53523 - "GET /prices/batch?symbols=BTC&fiat=usd HTTP/1.1" 200 OK
+2026-02-01 01:36:14,176 | app.services.price_aggregator | INFO | ✅ GeckoTerminal: TRAY = $0.072021 (+113.18%) via TRAY / USDT
+2026-02-01 01:36:14,176 | app.services.price_aggregator | INFO | ✅ GeckoTerminal: TRAY = $0.072021 (+113.18%) via TRAY / USDT
+2026-02-01 01:36:14,177 | app.services.price_aggregator | INFO | Binance: Fetched 12 prices in USD successfully
+2026-02-01 01:36:14,178 | app.services.price_aggregator | INFO | ✅ GeckoTerminal: Got 1 prices
+2026-02-01 01:36:14,178 | app.services.price_aggregator | INFO | ✅ GeckoTerminal: Got 1 prices
+2026-02-01 01:36:14,178 | app.services.price_aggregator | INFO | ✅ Binance: Got 12 prices
+2026-02-01 01:36:14,178 | app.services.price_aggregator | INFO | 📦 Cached 12 prices for USD
+2026-02-01 01:36:14,179 | app.services.price_aggregator | WARNING | ⚠️ Failed to fetch prices for: {'POLYGON', 'ADA', 'ETH', 'BTC', 'SOL', 'DOT', 'LTC', 'DOGE', 'TRX', 'XRP', 'BNB', 'AVAX'}
+2026-02-01 01:36:14,179 | app.routers.wallets | INFO | [BALANCE DEBUG] Prices fetched (USD) - symbols: ['POLYGON', 'ADA', 'ETH', 'BTC', 'SOL', 'DOT', 'LTC', 'DOGE', 'TRX', 'XRP', 'BNB', 'AVAX']
+2026-02-01 01:36:14,179 | app.routers.wallets | INFO | [BALANCE DEBUG] Missing USD prices: {'xrp', 'trx', 'sol', 'bnb', 'ada', 'polygon', 'avax', 'btc', 'dot', 'ltc', 'eth', 'doge'}
+2026-02-01 01:36:14,900 | app.routers.wallets | INFO | [BALANCE DEBUG] bitcoin: native_balance=0.0011838
+2026-02-01 01:36:14,902 | app.routers.wallets | INFO | [BALANCE DEBUG] bitcoin: symbol=btc, native_balance=0.0011838
+2026-02-01 01:36:14,902 | app.routers.wallets | WARNING | ⚠️ Price not available for btc - returning with price_usd=0
+2026-02-01 01:36:14,902 | app.routers.wallets | INFO | [BALANCE DEBUG] bitcoin: price_usd=0, symbol=btc
+2026-02-01 01:36:14,902 | app.routers.wallets | INFO | [BALANCE DEBUG] bitcoin: balance_usd=0E-7, native_balance=0.0011838, price_usd=0, price_loading=True
+2026-02-01 01:36:14,902 | app.services.blockchain_service | INFO | 🔍 EthereumService.get_balance chamado para 0xd9f66cae72550eba2552c46dd22038c12aa0d935, include_tokens=True
+2026-02-01 01:36:15,172 | app.services.price_aggregator | INFO | Binance: Fetched 5 prices in USD successfully
+2026-02-01 01:36:15,172 | app.services.price_aggregator | INFO | ✅ Binance: Got 5 prices
+2026-02-01 01:36:15,172 | app.services.price_aggregator | INFO | 🟡 CoinGecko: Fetching 2 symbols (fallback)
+2026-02-01 01:36:15,272 | app.services.blockchain_service | INFO | 🔍 Buscando tokens para 0xd9f66cae72550eba2552c46dd22038c12aa0d935 na rede ethereum
+2026-02-01 01:36:15,272 | app.services.blockchain_service | INFO | 📋 USDT Contract: 0xdAC17F958D2ee523a2206206994597C13D831ec7
+2026-02-01 01:36:15,428 | app.services.price_aggregator | INFO | CoinGecko: Fetched 2 prices successfully
+2026-02-01 01:36:15,429 | app.services.price_aggregator | INFO | ✅ CoinGecko: Got 2 prices
+2026-02-01 01:36:15,429 | app.services.price_aggregator | INFO | 📦 Cached 8 prices for USD
+2026-02-01 01:36:15,429 | app.services.price_aggregator | WARNING | ⚠️ Failed to fetch prices for: {'MATIC', 'TRAY', 'ETH', 'BTC', 'BASE', 'TRX', 'BNB', 'SHIB'}
+INFO:     127.0.0.1:53525 - "GET /prices/batch?symbols=BTC,ETH,MATIC,BNB,TRX,BASE,TRAY,SHIB&fiat=usd HTTP/1.1" 200 OK
+2026-02-01 01:36:15,657 | app.services.blockchain_service | INFO | 💰 USDT Balance: 0
+2026-02-01 01:36:15,657 | app.services.blockchain_service | INFO | 📋 USDC Contract: 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
+2026-02-01 01:36:15,957 | app.services.blockchain_service | INFO | 📋 SHIB Contract: 0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE
+2026-02-01 01:36:16,361 | app.routers.wallets | INFO | [BALANCE DEBUG] ethereum: native_balance=0.0779218
+2026-02-01 01:36:16,361 | app.routers.wallets | INFO | [BALANCE DEBUG] ethereum: symbol=eth, native_balance=0.0779218
+2026-02-01 01:36:16,361 | app.routers.wallets | WARNING | ⚠️ Price not available for eth - returning with price_usd=0
+2026-02-01 01:36:16,361 | app.routers.wallets | INFO | [BALANCE DEBUG] ethereum: price_usd=0, symbol=eth
+2026-02-01 01:36:16,362 | app.routers.wallets | INFO | [BALANCE DEBUG] ethereum: balance_usd=0E-7, native_balance=0.0779218, price_usd=0, price_loading=True
+2026-02-01 01:36:16,362 | app.services.blockchain_service | INFO | 🔍 EthereumService.get_balance chamado para 0xd9f66cae72550eba2552c46dd22038c12aa0d935, include_tokens=True
+2026-02-01 01:36:16,998 | app.services.blockchain_service | INFO | 🔍 Buscando tokens para 0xd9f66cae72550eba2552c46dd22038c12aa0d935 na rede polygon
+2026-02-01 01:36:16,998 | app.services.blockchain_service | INFO | 📋 USDT Contract: 0xc2132D05D31c914a87C6611C10748AEb04B58e8F
+2026-02-01 01:36:17,676 | app.services.price_aggregator | INFO | Binance: Fetched 12 prices in USD successfully
+2026-02-01 01:36:17,676 | app.services.price_aggregator | INFO | ✅ Binance: Got 12 prices
+2026-02-01 01:36:17,677 | app.services.price_aggregator | INFO | 📦 Cached 12 prices for USD
+2026-02-01 01:36:17,677 | app.services.price_aggregator | WARNING | ⚠️ Failed to fetch prices for: {'POLYGON', 'ADA', 'ETH', 'BTC', 'SOL', 'DOT', 'LTC', 'DOGE', 'TRX', 'XRP', 'BNB', 'AVAX'}
+2026-02-01 01:36:17,677 | app.routers.wallets | INFO | [BALANCE DEBUG] Prices fetched (USD) - symbols: ['POLYGON', 'ADA', 'ETH', 'BTC', 'SOL', 'DOT', 'LTC', 'DOGE', 'TRX', 'XRP', 'BNB', 'AVAX']
+2026-02-01 01:36:17,677 | app.routers.wallets | INFO | [BALANCE DEBUG] Missing USD prices: {'xrp', 'trx', 'sol', 'bnb', 'ada', 'polygon', 'avax', 'btc', 'dot', 'ltc', 'eth', 'doge'}
+2026-02-01 01:36:17,678 | app.routers.wallets | INFO | [BALANCE DEBUG] bitcoin: native_balance=0.0011838
+2026-02-01 01:36:17,678 | app.routers.wallets | INFO | [BALANCE DEBUG] bitcoin: symbol=btc, native_balance=0.0011838
+2026-02-01 01:36:17,678 | app.routers.wallets | WARNING | ⚠️ Price not available for btc - returning with price_usd=0
+2026-02-01 01:36:17,678 | app.routers.wallets | INFO | [BALANCE DEBUG] bitcoin: price_usd=0, symbol=btc
+2026-02-01 01:36:17,678 | app.routers.wallets | INFO | [BALANCE DEBUG] bitcoin: balance_usd=0E-7, native_balance=0.0011838, price_usd=0, price_loading=True
+2026-02-01 01:36:17,679 | app.routers.wallets | INFO | [BALANCE DEBUG] ethereum: native_balance=0.0779218
+2026-02-01 01:36:17,679 | app.routers.wallets | INFO | [BALANCE DEBUG] ethereum: symbol=eth, native_balance=0.0779218
+2026-02-01 01:36:17,679 | app.routers.wallets | WARNING | ⚠️ Price not available for eth - returning with price_usd=0
+2026-02-01 01:36:17,679 | app.routers.wallets | INFO | [BALANCE DEBUG] ethereum: price_usd=0, symbol=eth
+2026-02-01 01:36:17,679 | app.routers.wallets | INFO | [BALANCE DEBUG] ethereum: balance_usd=0E-7, native_balance=0.0779218, price_usd=0, price_loading=True
+2026-02-01 01:36:17,680 | app.services.blockchain_service | INFO | 🔍 EthereumService.get_balance chamado para 0xd9f66cae72550eba2552c46dd22038c12aa0d935, include_tokens=True
+2026-02-01 01:36:17,725 | app.services.blockchain_service | INFO | 💰 USDT Balance: 0
+2026-02-01 01:36:17,725 | app.services.blockchain_service | INFO | 📋 USDC Contract: 0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174
+2026-02-01 01:36:18,244 | app.services.blockchain_service | INFO | 🔍 Buscando tokens para 0xd9f66cae72550eba2552c46dd22038c12aa0d935 na rede polygon
+2026-02-01 01:36:18,244 | app.services.blockchain_service | INFO | 📋 USDT Contract: 0xc2132D05D31c914a87C6611C10748AEb04B58e8F
+2026-02-01 01:36:18,297 | app.services.blockchain_service | INFO | 📋 SHIB Contract: 0x6f8a06447Ff6FcF75d803135a7de15CE88C1d4ec
+2026-02-01 01:36:18,476 | app.services.price_aggregator | INFO | Binance: Fetched 15 prices in USD successfully
+2026-02-01 01:36:18,476 | app.services.price_aggregator | INFO | ✅ Binance: Got 15 prices
+2026-02-01 01:36:18,477 | app.services.price_aggregator | INFO | 🟡 CoinGecko: Fetching 2 symbols (fallback)
+2026-02-01 01:36:18,770 | app.services.price_aggregator | INFO | CoinGecko: Fetched 2 prices successfully
+2026-02-01 01:36:18,771 | app.services.price_aggregator | INFO | ✅ CoinGecko: Got 2 prices
+2026-02-01 01:36:18,771 | app.services.price_aggregator | INFO | 📦 Cached 18 prices for USD
+2026-02-01 01:36:18,771 | app.services.price_aggregator | WARNING | ⚠️ Failed to fetch prices for: {'MATIC', 'ADA', 'TRAY', 'ETH', 'LINK', 'BTC', 'SOL', 'BASE', 'LTC', 'DOT', 'USDT', 'DOGE', 'TRX', 'XRP', 'BNB', 'SHIB', 'USDC', 'AVAX'}
+INFO:     127.0.0.1:53467 - "GET /prices/batch?symbols=BTC,ETH,MATIC,BNB,TRX,BASE,SOL,LTC,DOGE,ADA,AVAX,DOT,LINK,SHIB,XRP,USDT,USDC,TRAY&fiat=usd HTTP/1.1" 200 OK
+2026-02-01 01:36:18,802 | app.services.blockchain_service | INFO | 💰 USDT Balance: 0
+2026-02-01 01:36:18,803 | app.services.blockchain_service | INFO | 📋 USDC Contract: 0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174
+2026-02-01 01:36:18,870 | app.services.blockchain_service | INFO | 📋 TRAY Contract: 0x6b62514E925099643abA13B322A62ff6298f8E8A
+INFO:     127.0.0.1:53467 - "OPTIONS /address-book/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53467 - "GET /address-book/ HTTP/1.1" 200 OK
+2026-02-01 01:36:22,371 | app.services.blockchain_service | INFO | ✅ TRAY adicionado: 847.03550928828779008
+2026-02-01 01:36:22,371 | app.services.blockchain_service | INFO | 📋 SHIB Contract: 0x6f8a06447Ff6FcF75d803135a7de15CE88C1d4ec
+2026-02-01 01:36:22,389 | app.routers.wallets | INFO | [BALANCE DEBUG] polygon: native_balance=139.343394616286303226
+2026-02-01 01:36:22,389 | app.routers.wallets | INFO | [BALANCE DEBUG] polygon: symbol=polygon, native_balance=139.343394616286303226
+2026-02-01 01:36:22,389 | app.routers.wallets | WARNING | ⚠️ Price not available for polygon - returning with price_usd=0
+2026-02-01 01:36:22,389 | app.routers.wallets | INFO | [BALANCE DEBUG] polygon: price_usd=0, symbol=polygon
+2026-02-01 01:36:22,389 | app.routers.wallets | INFO | [BALANCE DEBUG] polygon: balance_usd=0E-18, native_balance=139.343394616286303226, price_usd=0, price_loading=True
+2026-02-01 01:36:22,389 | app.routers.wallets | INFO | 📊 Saldos de tokens encontrados para 0xd9f66cae72550eba2552c46dd22038c12aa0d935: {'0x6b62514e925099643aba13b322a62ff6298f8e8a': {'symbol': 'TRAY', 'balance': '847.03550928828779008', 'decimals': 18}}
+2026-02-01 01:36:22,390 | app.routers.wallets | INFO | ✅ TRAY balance on polygon: 847.03550928828779008 ($61.00)
+2026-02-01 01:36:22,390 | app.services.blockchain_service | INFO | 🔍 EthereumService.get_balance chamado para 0xd9f66cae72550eba2552c46dd22038c12aa0d935, include_tokens=True
+2026-02-01 01:36:22,853 | app.services.blockchain_service | INFO | 📋 TRAY Contract: 0x6b62514E925099643abA13B322A62ff6298f8E8A
+2026-02-01 01:36:22,982 | app.services.blockchain_service | INFO | 🔍 Buscando tokens para 0xd9f66cae72550eba2552c46dd22038c12aa0d935 na rede bsc
+2026-02-01 01:36:22,982 | app.services.blockchain_service | INFO | 📋 USDT Contract: 0x55d398326f99059fF775485246999027B3197955
+2026-02-01 01:36:23,356 | app.services.blockchain_service | INFO | ✅ TRAY adicionado: 847.03550928828779008
+2026-02-01 01:36:23,357 | app.routers.wallets | INFO | [BALANCE DEBUG] polygon: native_balance=139.343394616286303226
+2026-02-01 01:36:23,358 | app.routers.wallets | INFO | [BALANCE DEBUG] polygon: symbol=polygon, native_balance=139.343394616286303226
+2026-02-01 01:36:23,358 | app.routers.wallets | WARNING | ⚠️ Price not available for polygon - returning with price_usd=0
+2026-02-01 01:36:23,358 | app.routers.wallets | INFO | [BALANCE DEBUG] polygon: price_usd=0, symbol=polygon
+2026-02-01 01:36:23,358 | app.routers.wallets | INFO | [BALANCE DEBUG] polygon: balance_usd=0E-18, native_balance=139.343394616286303226, price_usd=0, price_loading=True
+2026-02-01 01:36:23,359 | app.routers.wallets | INFO | 📊 Saldos de tokens encontrados para 0xd9f66cae72550eba2552c46dd22038c12aa0d935: {'0x6b62514e925099643aba13b322a62ff6298f8e8a': {'symbol': 'TRAY', 'balance': '847.03550928828779008', 'decimals': 18}}
+2026-02-01 01:36:23,359 | app.routers.wallets | INFO | ✅ TRAY balance on polygon: 847.03550928828779008 ($61.00)
+2026-02-01 01:36:23,360 | app.services.blockchain_service | INFO | 🔍 EthereumService.get_balance chamado para 0xd9f66cae72550eba2552c46dd22038c12aa0d935, include_tokens=True
+2026-02-01 01:36:23,573 | app.services.blockchain_service | INFO | 💰 USDT Balance: 0
+2026-02-01 01:36:23,574 | app.services.blockchain_service | INFO | 📋 USDC Contract: 0x8AC76a51cc950d9822D68b83FE1Ad97B32Cd580d
+2026-02-01 01:36:23,912 | app.services.blockchain_service | INFO | 🔍 Buscando tokens para 0xd9f66cae72550eba2552c46dd22038c12aa0d935 na rede bsc
+2026-02-01 01:36:23,912 | app.services.blockchain_service | INFO | 📋 USDT Contract: 0x55d398326f99059fF775485246999027B3197955
+2026-02-01 01:36:24,137 | app.services.blockchain_service | INFO | 📋 SHIB Contract: 0x2859e4544C4bB03966803b044A93563Bd2D0DD4D
+2026-02-01 01:36:24,476 | app.services.blockchain_service | INFO | 💰 USDT Balance: 0
+2026-02-01 01:36:24,476 | app.services.blockchain_service | INFO | 📋 USDC Contract: 0x8AC76a51cc950d9822D68b83FE1Ad97B32Cd580d
+2026-02-01 01:36:24,697 | app.routers.wallets | INFO | [BALANCE DEBUG] bsc: native_balance=0
+2026-02-01 01:36:24,698 | app.services.blockchain_service | INFO | 🔍 EthereumService.get_balance chamado para 0x958152566f88bdbd01e6d21e435b653d7bd2eed7, include_tokens=True
+2026-02-01 01:36:24,957 | app.services.blockchain_service | INFO | 🔍 Buscando tokens para 0x958152566f88bdbd01e6d21e435b653d7bd2eed7 na rede base
+2026-02-01 01:36:24,957 | app.services.blockchain_service | INFO | 📋 USDT Contract: 0xd9aAEc860b8A647Ac0d7fc6e6e8E5AB5D29CEBda
+2026-02-01 01:36:25,033 | app.services.blockchain_service | INFO | 📋 SHIB Contract: 0x2859e4544C4bB03966803b044A93563Bd2D0DD4D
+2026-02-01 01:36:25,237 | app.services.blockchain_service | INFO | 💰 USDT Balance: 0
+2026-02-01 01:36:25,237 | app.services.blockchain_service | INFO | 📋 USDC Contract: 0x833589fC3F5dA236344f6d5f6644b87cfc8CC28c
+2026-02-01 01:36:25,482 | app.routers.wallets | INFO | [BALANCE DEBUG] base: native_balance=0
+2026-02-01 01:36:25,585 | app.routers.wallets | INFO | [BALANCE DEBUG] bsc: native_balance=0
+2026-02-01 01:36:25,585 | app.routers.wallets | INFO | [BALANCE DEBUG] base: native_balance=0
+2026-02-01 01:36:25,632 | app.routers.wallets | INFO | [BALANCE DEBUG] dogecoin: native_balance=0
+2026-02-01 01:36:25,719 | app.routers.wallets | INFO | [BALANCE DEBUG] dogecoin: native_balance=0
+2026-02-01 01:36:25,981 | app.routers.wallets | INFO | [BALANCE DEBUG] litecoin: native_balance=0
+2026-02-01 01:36:25,982 | app.services.blockchain_service | INFO | 🔍 EthereumService.get_balance chamado para 0xf709dbc5a8b74dbe894030bed97758e6ddc104c2, include_tokens=False
+2026-02-01 01:36:26,273 | app.routers.wallets | INFO | [BALANCE DEBUG] avalanche: native_balance=0
+2026-02-01 01:36:26,333 | app.routers.wallets | INFO | [BALANCE DEBUG] litecoin: native_balance=0
+2026-02-01 01:36:26,334 | app.routers.wallets | INFO | [BALANCE DEBUG] avalanche: native_balance=0
+2026-02-01 01:36:27,041 | app.routers.wallets | INFO | [BALANCE DEBUG] polkadot: native_balance=0
+2026-02-01 01:36:27,104 | app.routers.wallets | INFO | [BALANCE DEBUG] polkadot: native_balance=0
+2026-02-01 01:36:27,342 | app.routers.wallets | INFO | [BALANCE DEBUG] cardano: native_balance=0
+2026-02-01 01:36:27,360 | app.routers.wallets | INFO | [BALANCE DEBUG] cardano: native_balance=0
+INFO:     127.0.0.1:53637 - "GET /prices/batch?symbols=BTC,ETH,MATIC,BNB,TRX,BASE,SOL,LTC,DOGE,ADA,AVAX,DOT,LINK,SHIB,XRP,USDT,USDC,TRAY&fiat=usd HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53639 - "GET /prices/batch?symbols=BTC&fiat=usd HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53641 - "GET /prices/batch?symbols=BTC,ETH,MATIC,BNB,TRX,BASE,TRAY,SHIB&fiat=usd HTTP/1.1" 200 OK
+2026-02-01 01:36:28,310 | app.routers.wallets | INFO | [BALANCE DEBUG] xrp: native_balance=0
+2026-02-01 01:36:28,326 | app.routers.wallets | INFO | [BALANCE DEBUG] xrp: native_balance=0
+2026-02-01 01:36:29,381 | app.routers.wallets | INFO | [BALANCE DEBUG] tron: native_balance=0
+2026-02-01 01:36:29,419 | app.routers.wallets | INFO | [BALANCE DEBUG] tron: native_balance=231.065225
+2026-02-01 01:36:29,419 | app.routers.wallets | INFO | [BALANCE DEBUG] tron: symbol=trx, native_balance=231.065225
+2026-02-01 01:36:29,419 | app.routers.wallets | WARNING | ⚠️ Price not available for trx - returning with price_usd=0
+2026-02-01 01:36:29,419 | app.routers.wallets | INFO | [BALANCE DEBUG] tron: price_usd=0, symbol=trx
+2026-02-01 01:36:29,419 | app.routers.wallets | INFO | [BALANCE DEBUG] tron: balance_usd=0.000000, native_balance=231.065225, price_usd=0, price_loading=True
+2026-02-01 01:36:29,928 | app.routers.wallets | INFO | [BALANCE DEBUG] solana: native_balance=1.08984522
+2026-02-01 01:36:29,928 | app.routers.wallets | INFO | [BALANCE DEBUG] solana: symbol=sol, native_balance=1.08984522
+2026-02-01 01:36:29,928 | app.routers.wallets | WARNING | ⚠️ Price not available for sol - returning with price_usd=0
+2026-02-01 01:36:29,929 | app.routers.wallets | INFO | [BALANCE DEBUG] solana: price_usd=0, symbol=sol
+2026-02-01 01:36:29,929 | app.routers.wallets | INFO | [BALANCE DEBUG] solana: balance_usd=0E-8, native_balance=1.08984522, price_usd=0, price_loading=True
+2026-02-01 01:36:29,929 | app.routers.wallets | INFO | [BALANCE DEBUG] FINAL TOTAL USD: 61.00428829269201911730004188
+2026-02-01 01:36:29,929 | app.routers.wallets | INFO | [BALANCE DEBUG] Balances count: 6
+2026-02-01 01:36:29,929 | app.routers.wallets | INFO | [BALANCE DEBUG]   bitcoin: USD=0.00, balance=0.0011838
+2026-02-01 01:36:29,929 | app.routers.wallets | INFO | [BALANCE DEBUG]   ethereum: USD=0.00, balance=0.0779218
+2026-02-01 01:36:29,929 | app.routers.wallets | INFO | [BALANCE DEBUG]   polygon: USD=0.00, balance=139.343394616286303226
+2026-02-01 01:36:29,930 | app.routers.wallets | INFO | [BALANCE DEBUG]   polygon_tray: USD=61.00, balance=847.03550928828779008
+2026-02-01 01:36:29,930 | app.routers.wallets | INFO | [BALANCE DEBUG]   tron: USD=0.00, balance=231.065225
+2026-02-01 01:36:29,930 | app.routers.wallets | INFO | [BALANCE DEBUG]   solana: USD=0.00, balance=1.08984522
+2026-02-01 01:36:29,931 | app.routers.wallets | INFO | [BALANCE DEBUG] solana: native_balance=1.08984522
+2026-02-01 01:36:29,931 | app.routers.wallets | INFO | [BALANCE DEBUG] solana: symbol=sol, native_balance=1.08984522
+2026-02-01 01:36:29,931 | app.routers.wallets | WARNING | ⚠️ Price not available for sol - returning with price_usd=0
+2026-02-01 01:36:29,931 | app.routers.wallets | INFO | [BALANCE DEBUG] solana: price_usd=0, symbol=sol
+2026-02-01 01:36:29,931 | app.routers.wallets | INFO | [BALANCE DEBUG] solana: balance_usd=0E-8, native_balance=1.08984522, price_usd=0, price_loading=True
+2026-02-01 01:36:29,931 | app.routers.wallets | INFO | [BALANCE DEBUG] FINAL TOTAL USD: 61.00428829269201911730004188
+2026-02-01 01:36:29,931 | app.routers.wallets | INFO | [BALANCE DEBUG] Balances count: 5
+2026-02-01 01:36:29,931 | app.routers.wallets | INFO | [BALANCE DEBUG]   bitcoin: USD=0.00, balance=0.0011838
+2026-02-01 01:36:29,932 | app.routers.wallets | INFO | [BALANCE DEBUG]   ethereum: USD=0.00, balance=0.0779218
+2026-02-01 01:36:29,932 | app.routers.wallets | INFO | [BALANCE DEBUG]   polygon: USD=0.00, balance=139.343394616286303226
+2026-02-01 01:36:29,932 | app.routers.wallets | INFO | [BALANCE DEBUG]   polygon_tray: USD=61.00, balance=847.03550928828779008
+2026-02-01 01:36:29,932 | app.routers.wallets | INFO | [BALANCE DEBUG]   solana: USD=0.00, balance=1.08984522
+INFO:     127.0.0.1:53483 - "GET /wallets/991be417-9dd8-4879-8ddd-09a3a1d4466e/balances?include_tokens=true HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53687 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53728 - "GET /prices/batch?symbols=BTC,ETH,MATIC,BNB,TRX,BASE,SOL,LTC,DOGE,ADA,AVAX,DOT,LINK,SHIB,XRP,USDT,USDC,TRAY&fiat=usd HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53730 - "GET /prices/batch?symbols=BTC&fiat=usd HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53732 - "GET /prices/batch?symbols=BTC,ETH,MATIC,BNB,TRX,BASE,TRAY,SHIB&fiat=usd HTTP/1.1" 200 OK
+2026-02-01 01:36:53,702 | app.services.price_aggregator | INFO | 🔵 Binance: Fetching 17 symbols in USD
+2026-02-01 01:36:53,702 | app.services.price_aggregator | INFO | 🟣 GeckoTerminal: Fetching 1 DEX tokens
+2026-02-01 01:36:53,743 | app.services.price_aggregator | INFO | 🔵 Binance: Fetching 1 symbols in USD
+INFO:     127.0.0.1:53796 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53802 - "OPTIONS /auth/2fa/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53804 - "OPTIONS /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53807 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53796 - "GET /health HTTP/1.1" 200 OK
+2026-02-01 01:36:55,608 | app.services.price_aggregator | INFO | ✅ GeckoTerminal: TRAY = $0.072021 (+113.18%) via TRAY / USDT
+2026-02-01 01:36:55,612 | app.services.price_aggregator | INFO | ✅ GeckoTerminal: Got 1 prices
+2026-02-01 01:36:55,612 | app.services.price_aggregator | INFO | Binance: Fetched 1 prices in USD successfully
+2026-02-01 01:36:55,614 | app.services.price_aggregator | INFO | ✅ Binance: Got 1 prices
+2026-02-01 01:36:55,615 | app.services.price_aggregator | INFO | 📦 Cached 1 prices for USD
+2026-02-01 01:36:55,615 | app.services.price_aggregator | WARNING | ⚠️ Failed to fetch prices for: {'BTC'}
+INFO:     127.0.0.1:53802 - "GET /auth/2fa/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53804 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53800 - "GET /prices/batch?symbols=BTC&fiat=usd HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53800 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53800 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53800 - "GET /wallets/ HTTP/1.1" 200 OK
+2026-02-01 01:36:58,262 | app.services.price_aggregator | INFO | 🔵 Binance: Fetching 12 symbols in USD
+INFO:     127.0.0.1:53804 - "OPTIONS /wallets/991be417-9dd8-4879-8ddd-09a3a1d4466e/addresses HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53796 - "OPTIONS /wallets/991be417-9dd8-4879-8ddd-09a3a1d4466e/addresses HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53807 - "OPTIONS /wallets/991be417-9dd8-4879-8ddd-09a3a1d4466e/addresses HTTP/1.1" 200 OK
+2026-02-01 01:36:58,295 | app.services.price_aggregator | INFO | 🔵 Binance: Fetching 7 symbols in USD
+2026-02-01 01:36:58,295 | app.services.price_aggregator | INFO | 🟣 GeckoTerminal: Fetching 1 DEX tokens
+INFO:     127.0.0.1:53804 - "OPTIONS /wallets/991be417-9dd8-4879-8ddd-09a3a1d4466e/addresses HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53796 - "OPTIONS /wallets/991be417-9dd8-4879-8ddd-09a3a1d4466e/addresses HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53807 - "OPTIONS /wallets/991be417-9dd8-4879-8ddd-09a3a1d4466e/addresses HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53804 - "OPTIONS /wallets/991be417-9dd8-4879-8ddd-09a3a1d4466e/addresses HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53796 - "OPTIONS /wallets/991be417-9dd8-4879-8ddd-09a3a1d4466e/addresses HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53807 - "OPTIONS /wallets/991be417-9dd8-4879-8ddd-09a3a1d4466e/addresses HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53804 - "OPTIONS /wallets/991be417-9dd8-4879-8ddd-09a3a1d4466e/addresses HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53796 - "OPTIONS /wallets/991be417-9dd8-4879-8ddd-09a3a1d4466e/addresses HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53807 - "OPTIONS /wallets/991be417-9dd8-4879-8ddd-09a3a1d4466e/addresses HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53804 - "OPTIONS /wallets/991be417-9dd8-4879-8ddd-09a3a1d4466e/addresses HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53796 - "OPTIONS /wallets/991be417-9dd8-4879-8ddd-09a3a1d4466e/addresses HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53807 - "OPTIONS /wallets/991be417-9dd8-4879-8ddd-09a3a1d4466e/addresses HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53804 - "OPTIONS /wallets/991be417-9dd8-4879-8ddd-09a3a1d4466e/addresses HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53796 - "GET /wallets/991be417-9dd8-4879-8ddd-09a3a1d4466e/addresses HTTP/1.1" 200 OK
+2026-02-01 01:36:59,775 | app.services.price_aggregator | INFO | ✅ GeckoTerminal: TRAY = $0.072021 (+113.18%) via TRAY / USDT
+2026-02-01 01:36:59,776 | app.services.price_aggregator | INFO | ✅ GeckoTerminal: Got 1 prices
+INFO:     127.0.0.1:53796 - "GET /wallets/991be417-9dd8-4879-8ddd-09a3a1d4466e/addresses HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53796 - "GET /wallets/991be417-9dd8-4879-8ddd-09a3a1d4466e/addresses HTTP/1.1" 200 OK
+2026-02-01 01:37:04,383 | app.services.price_aggregator | WARNING | Binance: Request cancelled
+2026-02-01 01:37:04,384 | app.services.price_aggregator | WARNING | ⚠️ Binance timeout
+2026-02-01 01:37:04,385 | app.services.price_aggregator | INFO | 🟡 CoinGecko: Fetching 17 symbols (fallback)
+2026-02-01 01:37:04,404 | app.services.price_aggregator | INFO | 🔵 Binance: Fetching 7 symbols in USD
+2026-02-01 01:37:04,405 | app.services.price_aggregator | INFO | 🟣 GeckoTerminal: Fetching 1 DEX tokens
+INFO:     127.0.0.1:53796 - "GET /wallets/991be417-9dd8-4879-8ddd-09a3a1d4466e/addresses HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53858 - "GET /wallets/991be417-9dd8-4879-8ddd-09a3a1d4466e/addresses HTTP/1.1" 200 OK
+2026-02-01 01:37:05,833 | app.services.price_aggregator | INFO | ✅ GeckoTerminal: TRAY = $0.072021 (+113.18%) via TRAY / USDT
+2026-02-01 01:37:05,833 | app.services.price_aggregator | INFO | ✅ GeckoTerminal: Got 1 prices
+2026-02-01 01:37:05,986 | app.services.price_aggregator | INFO | CoinGecko: Fetched 17 prices successfully
+2026-02-01 01:37:05,987 | app.services.price_aggregator | INFO | ✅ CoinGecko: Got 17 prices
+2026-02-01 01:37:05,988 | app.services.price_aggregator | INFO | 📦 Cached 18 prices for USD
+2026-02-01 01:37:05,988 | app.services.price_aggregator | WARNING | ⚠️ Failed to fetch prices for: {'MATIC', 'ADA', 'TRAY', 'ETH', 'LINK', 'BTC', 'SOL', 'BASE', 'LTC', 'DOT', 'USDT', 'DOGE', 'TRX', 'XRP', 'BNB', 'SHIB', 'USDC', 'AVAX'}
+INFO:     127.0.0.1:53798 - "GET /prices/batch?symbols=BTC,ETH,MATIC,BNB,TRX,BASE,SOL,LTC,DOGE,ADA,AVAX,DOT,LINK,SHIB,XRP,USDT,USDC,TRAY&fiat=usd HTTP/1.1" 200 OK
+2026-02-01 01:37:07,251 | app.services.price_aggregator | INFO | Binance: Fetched 5 prices in USD successfully
+2026-02-01 01:37:07,252 | app.services.price_aggregator | INFO | ✅ Binance: Got 5 prices
+2026-02-01 01:37:07,252 | app.services.price_aggregator | INFO | 🟡 CoinGecko: Fetching 2 symbols (fallback)
+INFO:     127.0.0.1:53858 - "GET /wallets/991be417-9dd8-4879-8ddd-09a3a1d4466e/addresses HTTP/1.1" 200 OK
+2026-02-01 01:37:08,766 | app.services.price_aggregator | INFO | CoinGecko: Fetched 2 prices successfully
+2026-02-01 01:37:08,766 | app.services.price_aggregator | WARNING | Binance: Request cancelled
+2026-02-01 01:37:08,767 | app.services.price_aggregator | WARNING | ⚠️ Binance timeout
+2026-02-01 01:37:08,767 | app.services.price_aggregator | INFO | 🟡 CoinGecko: Fetching 12 symbols (fallback)
+2026-02-01 01:37:08,767 | app.services.price_aggregator | INFO | ✅ CoinGecko: Got 2 prices
+2026-02-01 01:37:08,783 | app.services.price_aggregator | INFO | 📦 Cached 8 prices for USD
+2026-02-01 01:37:08,783 | app.services.price_aggregator | WARNING | ⚠️ Failed to fetch prices for: {'MATIC', 'TRAY', 'ETH', 'BTC', 'BASE', 'TRX', 'BNB', 'SHIB'}
+INFO:     127.0.0.1:53858 - "GET /wallets/991be417-9dd8-4879-8ddd-09a3a1d4466e/addresses HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53798 - "OPTIONS /wallets/991be417-9dd8-4879-8ddd-09a3a1d4466e/addresses?address_type=receiving&network=tray HTTP/1.1" 200 OK
+2026-02-01 01:37:10,288 | app.services.crypto_service | ERROR | Failed to generate tray address: Unsupported network: tray
+2026-02-01 01:37:10,288 | app.services.crypto_service | ERROR | Failed to derive tray address: Unsupported network: tray
+2026-02-01 01:37:10,288 | app.services.wallet_service | ERROR | Failed to generate address: Unsupported network: tray
+2026-02-01 01:37:10,528 | app.routers.wallets | ERROR | Failed to generate address: Failed to generate address: Unsupported network: tray
+INFO:     127.0.0.1:53796 - "POST /wallets/991be417-9dd8-4879-8ddd-09a3a1d4466e/addresses?address_type=receiving&network=tray HTTP/1.1" 400 Bad Request
+2026-02-01 01:37:11,853 | app.services.price_aggregator | INFO | 🔵 Binance: Fetching 17 symbols in USD
+2026-02-01 01:37:11,853 | app.services.price_aggregator | INFO | 🟣 GeckoTerminal: Fetching 1 DEX tokens
+2026-02-01 01:37:11,853 | app.services.price_aggregator | INFO | 🔵 Binance: Fetching 1 symbols in USD
+2026-02-01 01:37:11,904 | app.services.price_aggregator | ERROR | CoinGecko: HTTP error 429
+2026-02-01 01:37:11,906 | app.services.price_aggregator | WARNING | ⚠️ Failed to fetch prices for: {'POLYGON', 'ADA', 'ETH', 'BTC', 'SOL', 'DOT', 'LTC', 'DOGE', 'TRX', 'XRP', 'BNB', 'AVAX'}
+2026-02-01 01:37:11,907 | app.routers.wallets | INFO | [BALANCE DEBUG] Prices fetched (USD) - symbols: []
+2026-02-01 01:37:11,907 | app.routers.wallets | INFO | [BALANCE DEBUG] Missing USD prices: {'xrp', 'trx', 'sol', 'bnb', 'polygon', 'avax', 'btc', 'dot', 'ltc', 'doge', 'eth', 'ada'}
+INFO:     127.0.0.1:53858 - "GET /wallets/991be417-9dd8-4879-8ddd-09a3a1d4466e/addresses HTTP/1.1" 200 OK
+2026-02-01 01:37:12,105 | app.services.price_aggregator | INFO | ✅ GeckoTerminal: TRAY = $0.072021 (+113.18%) via TRAY / USDT
+2026-02-01 01:37:12,106 | app.services.price_aggregator | INFO | ✅ GeckoTerminal: Got 1 prices
+2026-02-01 01:37:12,148 | app.services.price_aggregator | INFO | Binance: Fetched 5 prices in USD successfully
+2026-02-01 01:37:12,148 | app.services.price_aggregator | INFO | ✅ Binance: Got 5 prices
+2026-02-01 01:37:12,149 | app.services.price_aggregator | INFO | 🟡 CoinGecko: Fetching 2 symbols (fallback)
+2026-02-01 01:37:13,405 | app.services.price_aggregator | INFO | Binance: Fetched 1 prices in USD successfully
+2026-02-01 01:37:13,406 | app.services.price_aggregator | INFO | ✅ Binance: Got 1 prices
+2026-02-01 01:37:13,407 | app.services.price_aggregator | INFO | 📦 Cached 1 prices for USD
+2026-02-01 01:37:13,407 | app.services.price_aggregator | WARNING | ⚠️ Failed to fetch prices for: {'BTC'}
+INFO:     127.0.0.1:53858 - "GET /wallets/991be417-9dd8-4879-8ddd-09a3a1d4466e/addresses HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53798 - "GET /prices/batch?symbols=BTC&fiat=usd HTTP/1.1" 200 OK
+2026-02-01 01:37:13,489 | app.services.price_aggregator | ERROR | CoinGecko: HTTP error 429
+2026-02-01 01:37:13,489 | app.services.price_aggregator | INFO | 📦 Cached 6 prices for USD
+2026-02-01 01:37:13,490 | app.services.price_aggregator | WARNING | ⚠️ Failed to fetch prices for: {'MATIC', 'TRAY', 'ETH', 'BTC', 'BASE', 'TRX', 'BNB', 'SHIB'}
+INFO:     127.0.0.1:53804 - "GET /prices/batch?symbols=BTC,ETH,MATIC,BNB,TRX,BASE,TRAY,SHIB&fiat=usd HTTP/1.1" 200 OK
+2026-02-01 01:37:14,973 | app.routers.wallets | INFO | [BALANCE DEBUG] bitcoin: native_balance=0.0011838
+2026-02-01 01:37:14,973 | app.routers.wallets | INFO | [BALANCE DEBUG] bitcoin: symbol=btc, native_balance=0.0011838
+2026-02-01 01:37:14,973 | app.routers.wallets | WARNING | ⚠️ Price not available for btc - returning with price_usd=0
+2026-02-01 01:37:14,973 | app.routers.wallets | INFO | [BALANCE DEBUG] bitcoin: price_usd=0, symbol=btc
+2026-02-01 01:37:14,973 | app.routers.wallets | INFO | [BALANCE DEBUG] bitcoin: balance_usd=0E-7, native_balance=0.0011838, price_usd=0, price_loading=True
+2026-02-01 01:37:14,974 | app.services.blockchain_service | INFO | 🔍 EthereumService.get_balance chamado para 0xd9f66cae72550eba2552c46dd22038c12aa0d935, include_tokens=True
+INFO:     127.0.0.1:53858 - "GET /wallets/991be417-9dd8-4879-8ddd-09a3a1d4466e/addresses HTTP/1.1" 200 OK
+2026-02-01 01:37:16,439 | app.services.blockchain_service | INFO | 🔍 Buscando tokens para 0xd9f66cae72550eba2552c46dd22038c12aa0d935 na rede ethereum
+2026-02-01 01:37:16,439 | app.services.blockchain_service | INFO | 📋 USDT Contract: 0xdAC17F958D2ee523a2206206994597C13D831ec7
+INFO:     127.0.0.1:53858 - "GET /wallets/991be417-9dd8-4879-8ddd-09a3a1d4466e/addresses HTTP/1.1" 200 OK
+2026-02-01 01:37:17,960 | app.services.blockchain_service | INFO | 💰 USDT Balance: 0
+2026-02-01 01:37:17,960 | app.services.blockchain_service | INFO | 📋 USDC Contract: 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
+INFO:     127.0.0.1:53858 - "GET /wallets/991be417-9dd8-4879-8ddd-09a3a1d4466e/addresses HTTP/1.1" 200 OK
+2026-02-01 01:37:19,457 | app.services.blockchain_service | INFO | 📋 SHIB Contract: 0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE
+2026-02-01 01:37:21,995 | app.services.price_aggregator | WARNING | Binance: Request cancelled
+2026-02-01 01:37:21,996 | app.services.price_aggregator | WARNING | ⚠️ Binance timeout
+2026-02-01 01:37:21,996 | app.services.price_aggregator | INFO | 🟡 CoinGecko: Fetching 17 symbols (fallback)
+INFO:     127.0.0.1:53858 - "GET /wallets/991be417-9dd8-4879-8ddd-09a3a1d4466e/addresses HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53798 - "GET /wallets/991be417-9dd8-4879-8ddd-09a3a1d4466e/addresses HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53804 - "GET /wallets/991be417-9dd8-4879-8ddd-09a3a1d4466e/addresses HTTP/1.1" 200 OK
+2026-02-01 01:37:25,609 | app.routers.wallets | INFO | [BALANCE DEBUG] ethereum: native_balance=0.0779218
+2026-02-01 01:37:25,609 | app.routers.wallets | INFO | [BALANCE DEBUG] ethereum: symbol=eth, native_balance=0.0779218
+2026-02-01 01:37:25,609 | app.routers.wallets | WARNING | ⚠️ Price not available for eth - returning with price_usd=0
+2026-02-01 01:37:25,609 | app.routers.wallets | INFO | [BALANCE DEBUG] ethereum: price_usd=0, symbol=eth
+2026-02-01 01:37:25,609 | app.routers.wallets | INFO | [BALANCE DEBUG] ethereum: balance_usd=0E-7, native_balance=0.0779218, price_usd=0, price_loading=True
+INFO:     127.0.0.1:53946 - "GET /wallets/991be417-9dd8-4879-8ddd-09a3a1d4466e/addresses HTTP/1.1" 200 OK
+2026-02-01 01:37:25,611 | app.services.blockchain_service | INFO | 🔍 EthereumService.get_balance chamado para 0xd9f66cae72550eba2552c46dd22038c12aa0d935, include_tokens=True
+INFO:     127.0.0.1:53979 - "GET /wallets/991be417-9dd8-4879-8ddd-09a3a1d4466e/addresses HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53946 - "GET /health HTTP/1.1" 200 OK
+2026-02-01 01:37:25,657 | app.services.price_aggregator | ERROR | CoinGecko: HTTP error 429
+2026-02-01 01:37:25,657 | app.services.price_aggregator | INFO | 📦 Cached 1 prices for USD
+2026-02-01 01:37:25,657 | app.services.price_aggregator | WARNING | ⚠️ Failed to fetch prices for: {'MATIC', 'ADA', 'TRAY', 'ETH', 'LINK', 'BTC', 'SOL', 'BASE', 'LTC', 'DOT', 'USDT', 'DOGE', 'TRX', 'XRP', 'BNB', 'SHIB', 'USDC', 'AVAX'}
+2026-02-01 01:37:25,657 | app.routers.prices_batch_v2 | INFO | Adding fixed $1.00 price for stablecoins: {'USDT', 'USDC'}
+INFO:     127.0.0.1:53796 - "GET /prices/batch?symbols=BTC,ETH,MATIC,BNB,TRX,BASE,SOL,LTC,DOGE,ADA,AVAX,DOT,LINK,SHIB,XRP,USDT,USDC,TRAY&fiat=usd HTTP/1.1" 200 OK
+2026-02-01 01:37:25,859 | app.services.price_aggregator | INFO | 🔵 Binance: Fetching 1 symbols in USD
+2026-02-01 01:37:26,105 | app.services.blockchain_service | INFO | 🔍 Buscando tokens para 0xd9f66cae72550eba2552c46dd22038c12aa0d935 na rede polygon
+2026-02-01 01:37:26,105 | app.services.blockchain_service | INFO | 📋 USDT Contract: 0xc2132D05D31c914a87C6611C10748AEb04B58e8F
+2026-02-01 01:37:26,296 | app.services.price_aggregator | INFO | Binance: Fetched 1 prices in USD successfully
+2026-02-01 01:37:26,296 | app.services.price_aggregator | INFO | ✅ Binance: Got 1 prices
+2026-02-01 01:37:26,297 | app.services.price_aggregator | INFO | 📦 Cached 1 prices for USD
+2026-02-01 01:37:26,297 | app.services.price_aggregator | WARNING | ⚠️ Failed to fetch prices for: {'BTC'}
+INFO:     127.0.0.1:53979 - "GET /prices/batch?symbols=BTC&fiat=usd HTTP/1.1" 200 OK
