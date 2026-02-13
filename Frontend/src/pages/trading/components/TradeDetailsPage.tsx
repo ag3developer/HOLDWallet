@@ -446,25 +446,18 @@ export function TradeDetailsPage({
   const getSavedBrlValue = (): number | null => {
     if (!trade) return null
 
-    // 1. Se tem brl_total_amount salvo, usar
+    // 1. Se tem brl_total_amount salvo, usar diretamente
     if (trade.brl_total_amount && trade.brl_total_amount > 0) {
       return trade.brl_total_amount
     }
 
-    // 2. Se tem usd_to_brl_rate salvo, calcular
-    if (trade.usd_to_brl_rate && trade.usd_to_brl_rate > 0 && trade.total_amount) {
-      return trade.total_amount * trade.usd_to_brl_rate
+    // 2. total_amount do backend JÁ É em BRL (preço é buscado em BRL)
+    // Usar diretamente sem multiplicar por taxa
+    if (trade.total_amount && trade.total_amount > 0) {
+      return trade.total_amount
     }
 
-    // 3. Se temos taxa de fallback e é SELL, calcular
-    if (fallbackUsdBrlRate && trade.operation === 'sell' && trade.total_amount) {
-      console.log(
-        `[TradeDetails] Calculating BRL with fallback rate: ${trade.total_amount} * ${fallbackUsdBrlRate}`
-      )
-      return trade.total_amount * fallbackUsdBrlRate
-    }
-
-    // 4. Último recurso: se não tem nada, retornar null
+    // 3. Último recurso: se não tem nada, retornar null
     console.warn(
       '[TradeDetails] brl_total_amount não encontrado na ordem! Verifique o fluxo de criação.'
     )
@@ -737,7 +730,11 @@ export function TradeDetailsPage({
               <p
                 className={`text-sm font-semibold ${isSell ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400'}`}
               >
-                {isSell ? formatSavedBrlValue() : formatUSD(trade.total_amount)}
+                {isSell
+                  ? trade.brl_total_amount
+                    ? formatBRL(trade.brl_total_amount)
+                    : formatBRL(trade.total_amount)
+                  : formatUSD(trade.total_amount)}
               </p>
             </div>
           </div>
@@ -857,7 +854,7 @@ export function TradeDetailsPage({
                       <p className='text-xl font-bold text-green-800 dark:text-green-300'>
                         {trade?.brl_total_amount
                           ? formatBRL(trade.brl_total_amount)
-                          : formatUSD(trade?.total_amount ?? 0)}
+                          : formatBRL(trade?.total_amount ?? 0)}
                       </p>
                     </div>
 
@@ -973,7 +970,7 @@ export function TradeDetailsPage({
                     <span className='text-lg font-bold text-yellow-800 dark:text-yellow-300'>
                       {trade.brl_total_amount
                         ? formatBRL(trade.brl_total_amount)
-                        : `${formatUSD(trade.total_amount)} (USD)`}
+                        : formatBRL(trade.total_amount)}
                     </span>
                   </div>
                   <button
@@ -1157,7 +1154,9 @@ export function TradeDetailsPage({
                         Valor a Receber (BRL):
                       </span>
                       <span className='font-bold text-green-600 dark:text-green-400'>
-                        {formatSavedBrlValue()}
+                        {trade.brl_total_amount
+                          ? formatBRL(trade.brl_total_amount)
+                          : formatBRL(trade.total_amount)}
                       </span>
                     </div>
 

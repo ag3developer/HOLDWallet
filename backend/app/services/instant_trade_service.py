@@ -229,15 +229,19 @@ class InstantTradeService:
             "operation": operation,
             "symbol": symbol_upper,
             "name": crypto_name,
-            "crypto_price": float(price),  # Preço de mercado (sem spread)
-            "otc_price": float(otc_price),  # Preço OTC (com spread aplicado)
-            "fiat_amount": float(fiat_amount),
+            "crypto_price": float(price),  # Preço de mercado em BRL (sem spread)
+            "otc_price": float(otc_price),  # Preço OTC em BRL (com spread aplicado)
+            "fiat_amount": float(fiat_amount),  # Valor de mercado em BRL
             "crypto_amount": float(crypto_amount),
             "spread_percentage": float(self.SPREAD_PERCENTAGE),
             "spread_amount": float(spread_amount),
             "network_fee_percentage": float(self.NETWORK_FEE_PERCENTAGE),
             "network_fee_amount": float(fee),
-            "total_amount": float(total),
+            "total_amount": float(total),  # Total em BRL (já convertido)
+            # Valores BRL explícitos para o frontend (evita dupla conversão)
+            "brl_amount": float(fiat_amount),  # Valor base em BRL
+            "brl_total_amount": float(total),  # Total a pagar/receber em BRL
+            "usd_to_brl_rate": 1.0,  # Taxa = 1 porque tudo já está em BRL
             "expires_in_seconds": self.QUOTE_VALIDITY_SECONDS,
             "expires_at": expires_at.isoformat(),
         }
