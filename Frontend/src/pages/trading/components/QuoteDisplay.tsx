@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Clock, ChevronDown, Zap, ArrowRight, CheckCircle2 } from 'lucide-react'
+import { useCurrencyStore, type Currency } from '@/stores/useCurrencyStore'
+import { currencyManager } from '@/services/currency'
 
 interface Quote {
   quote_id: string
@@ -24,6 +26,13 @@ interface QuoteDisplayProps {
 export function QuoteDisplay({ quote, onConfirmClick }: QuoteDisplayProps) {
   const [timeLeft, setTimeLeft] = useState(quote?.expires_in_seconds ?? 0)
   const [showDetails, setShowDetails] = useState(false)
+  const { currency: userCurrency } = useCurrencyStore()
+
+  const localeConfig: Record<Currency, { locale: string; code: string }> = {
+    USD: { locale: 'en-US', code: 'USD' },
+    BRL: { locale: 'pt-BR', code: 'BRL' },
+    EUR: { locale: 'de-DE', code: 'EUR' },
+  }
 
   useEffect(() => {
     if (!quote) return
@@ -45,9 +54,8 @@ export function QuoteDisplay({ quote, onConfirmClick }: QuoteDisplayProps) {
   if (!quote) return null
 
   // ⚠️ IMPORTANTE: Os valores do backend JÁ ESTÃO EM BRL!
-  // NÃO usar formatCurrency que converte USD→BRL, pois já está em BRL
-  // Apenas formatar o número como moeda brasileira
-  const formatBRL = (value: number | undefined): string => {
+  // Convertemos BRL → moeda do usuário usando CurrencyManager.
+  const formatValue = (value: number | undefined): string => {
     if (
       value === null ||
       value === undefined ||
@@ -55,18 +63,23 @@ export function QuoteDisplay({ quote, onConfirmClick }: QuoteDisplayProps) {
       Number.isNaN(value) ||
       !Number.isFinite(value)
     ) {
-      return 'R$ 0,00'
+      const { locale, code } = localeConfig[userCurrency]
+      return new Intl.NumberFormat(locale, {
+        style: 'currency',
+        currency: code,
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(0)
     }
-    return new Intl.NumberFormat('pt-BR', {
+    const converted = currencyManager.convert(value, 'BRL', userCurrency).convertedValue
+    const { locale, code } = localeConfig[userCurrency]
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
-      currency: 'BRL',
+      currency: code,
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
-    }).format(value)
+    }).format(converted)
   }
-
-  // Alias para compatibilidade
-  const formatValue = formatBRL
 
   const isBuy = quote.operation === 'buy'
   const isExpiring = timeLeft <= 15

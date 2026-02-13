@@ -304,7 +304,7 @@ export function TradingForm({
       setLoading(true)
       try {
         console.log(
-          `[TradingForm] ${isBuy ? 'BUY' : 'SELL'}: ${amountValue} ${isBuy ? 'USD' : selectedSymbol}`
+          `[TradingForm] ${isBuy ? 'BUY' : 'SELL'}: ${amountValue} ${isBuy ? 'BRL' : selectedSymbol}`
         )
 
         const response = await apiClient.post('/instant-trade/quote', {
@@ -313,7 +313,7 @@ export function TradingForm({
           [isBuy ? 'fiat_amount' : 'crypto_amount']: amountValue,
         })
 
-        // Usar quote direto do backend (já em USD)
+        // Usar quote direto do backend (valores já em BRL)
         const quote: Quote = response.data.quote
 
         onQuoteReceived(quote)

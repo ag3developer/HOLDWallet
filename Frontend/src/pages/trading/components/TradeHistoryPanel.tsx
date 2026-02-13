@@ -16,6 +16,8 @@ import toast from 'react-hot-toast'
 import { TradeDetailsPage } from './TradeDetailsPage'
 import { tradeHistoryCache } from '@/services/cache/tradeHistoryCache'
 import { CryptoIcon } from '@/components/CryptoIcon'
+import { useCurrencyStore, type Currency } from '@/stores/useCurrencyStore'
+import { currencyManager } from '@/services/currency'
 
 interface Trade {
   id: string
@@ -101,6 +103,7 @@ export function TradeHistoryPanel({
   currencyLocale,
   isVisible,
 }: TradeHistoryPanelProps) {
+  const { currency: userCurrency } = useCurrencyStore()
   const [trades, setTrades] = useState<Trade[]>([])
   const [loading, setLoading] = useState(false)
   const [selectedTradeId, setSelectedTradeId] = useState<string | null>(null)
@@ -165,21 +168,24 @@ export function TradeHistoryPanel({
     return statusMatch && operationMatch
   })
 
-  // Formata valor - mostra BRL se disponível, senão USD original do backend
-  const formatTradeValue = (trade: Trade) => {
-    // Se já temos o valor em BRL do backend, mostrar em BRL
-    if (trade.brl_total_amount) {
-      return trade.brl_total_amount.toLocaleString('pt-BR', {
-        style: 'currency',
-        currency: 'BRL',
-      })
-    }
+  // Locale config para formatação multi-moeda
+  const localeConfig: Record<Currency, { locale: string; code: string }> = {
+    USD: { locale: 'en-US', code: 'USD' },
+    BRL: { locale: 'pt-BR', code: 'BRL' },
+    EUR: { locale: 'de-DE', code: 'EUR' },
+  }
 
-    // Senão, mostrar valor original em USD (sem conversão fake)
-    return trade.total_amount.toLocaleString('en-US', {
+  // Formata valor OTC na moeda do usuário (valores vêm em BRL do backend)
+  const formatTradeValue = (trade: Trade) => {
+    const brlValue = trade.brl_total_amount || trade.total_amount
+    const converted = currencyManager.convert(brlValue, 'BRL', userCurrency).convertedValue
+    const { locale, code } = localeConfig[userCurrency]
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
-      currency: 'USD',
-    })
+      currency: code,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(converted)
   }
 
   const formatCrypto = (value: number) => {

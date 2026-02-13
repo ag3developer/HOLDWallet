@@ -24,7 +24,8 @@ import toast from 'react-hot-toast'
 import { apiClient } from '@/services/api'
 import { parseApiError } from '@/services/errors'
 import { TradeStatusMonitor } from './TradeStatusMonitor'
-// ⚠️ useCurrencyStore removido - valores OTC já vêm em BRL do backend
+import { useCurrencyStore, type Currency } from '@/stores/useCurrencyStore'
+import { currencyManager } from '@/services/currency'
 import { usePaymentMethods } from '@/hooks/usePaymentMethods'
 
 /**
@@ -181,9 +182,10 @@ export function ConfirmationPanel({
   onSuccess,
   onRefreshQuote,
 }: ConfirmationPanelProps) {
-  // ⚠️ formatCurrency NÃO é mais usado aqui!
-  // Os valores do quote já vêm em BRL do backend, então formatamos diretamente
-  // usando Intl.NumberFormat na função formatValue abaixo.
+  // 🏦 Os valores do quote vêm em BRL do backend.
+  // Usamos CurrencyManager para converter BRL → moeda do usuário quando necessário.
+  // PIX/TED payment sections ALWAYS show BRL (são métodos de pagamento brasileiros).
+  const { currency: userCurrency } = useCurrencyStore()
 
   // Buscar métodos de pagamento cadastrados do usuário (para SELL)
   const { data: userPaymentMethods, isLoading: loadingPaymentMethods } = usePaymentMethods()
@@ -513,10 +515,18 @@ export function ConfirmationPanel({
   }
 
   /**
-   * ⚠️ IMPORTANTE: Os valores do quote já vêm em BRL do backend!
-   * NÃO usar formatCurrency aqui pois ele converte USD→BRL e causaria dupla conversão.
-   * O backend instant_trade_service.py já busca preços em BRL (currency="brl").
+   * 🏦 FORMATAÇÃO MULTI-MOEDA PARA OTC
+   * Os valores do quote vêm em BRL do backend (instant_trade_service.py usa currency="brl").
+   * Convertemos BRL → moeda do usuário usando CurrencyManager.
+   * Se o usuário usa BRL, nenhuma conversão é feita.
+   * Se o usuário usa USD, converte BRL→USD e formata com $.
    */
+  const localeConfig: Record<Currency, { locale: string; code: string }> = {
+    USD: { locale: 'en-US', code: 'USD' },
+    BRL: { locale: 'pt-BR', code: 'BRL' },
+    EUR: { locale: 'de-DE', code: 'EUR' },
+  }
+
   const formatValue = (value: number | undefined): string => {
     if (
       value === null ||
@@ -525,23 +535,39 @@ export function ConfirmationPanel({
       Number.isNaN(value) ||
       !Number.isFinite(value)
     ) {
-      return 'R$ 0,00'
+      const { locale, code } = localeConfig[userCurrency]
+      return new Intl.NumberFormat(locale, {
+        style: 'currency',
+        currency: code,
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(0)
     }
-    // Formatar diretamente em BRL (os valores do quote já estão em BRL)
+    // Converter BRL → moeda do usuário
+    const converted = currencyManager.convert(value, 'BRL', userCurrency).convertedValue
+    const { locale, code } = localeConfig[userCurrency]
+    return new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency: code,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(converted)
+  }
+
+  // isBuy já declarado no início do componente
+
+  /**
+   * Formata valor SEMPRE em BRL — usado para PIX/TED (métodos de pagamento brasileiros)
+   * que devem mostrar o valor em Reais independente da moeda do usuário.
+   */
+  const formatBRL = (value: string | number): string => {
+    const num = typeof value === 'string' ? Number.parseFloat(value) : value
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL',
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
-    }).format(value)
-  }
-
-  // isBuy já declarado no início do componente
-
-  // Função para formatar valor BRL com 2 casas decimais
-  const formatBRL = (value: string | number): string => {
-    const num = typeof value === 'string' ? Number.parseFloat(value) : value
-    return num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    }).format(num)
   }
 
   // Renderização especial para BB-AUTO com QR Code PIX (apenas para BUY)
@@ -1131,7 +1157,7 @@ export function ConfirmationPanel({
               <div className='flex justify-between border-t border-amber-200 dark:border-amber-700 pt-1 mt-1'>
                 <span className='text-gray-600 dark:text-gray-400'>Amount:</span>
                 <span className='font-bold text-amber-700 dark:text-amber-300'>
-                  {formatValue(quote.total_amount ?? quote.fiat_amount ?? 0)}
+                  {formatBRL(quote.total_amount ?? quote.fiat_amount ?? 0)}
                 </span>
               </div>
             </div>
@@ -1231,7 +1257,7 @@ export function ConfirmationPanel({
                   <div className='flex justify-between border-t border-green-200 dark:border-green-700 pt-1 mt-1'>
                     <span className='text-gray-600 dark:text-gray-400'>Valor a receber:</span>
                     <span className='font-bold text-green-700 dark:text-green-300'>
-                      {formatValue(quote.total_amount ?? 0)}
+                      {formatBRL(quote.total_amount ?? 0)}
                     </span>
                   </div>
                 </div>

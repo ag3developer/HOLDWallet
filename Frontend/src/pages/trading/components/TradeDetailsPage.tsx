@@ -30,6 +30,8 @@ import { apiClient } from '@/services/api'
 import { generateHoldPixQRCode, generateHoldPixPayload } from '@/utils/pixQrCode'
 import toast from 'react-hot-toast'
 import { CryptoIcon } from '@/components/CryptoIcon'
+import { useCurrencyStore, type Currency } from '@/stores/useCurrencyStore'
+import { currencyManager } from '@/services/currency'
 
 // Crypto logos from CoinGecko (free CDN)
 const CRYPTO_LOGOS: Record<string, string> = {
@@ -214,6 +216,9 @@ export function TradeDetailsPage({
   currencyLocale = 'pt-BR',
   initialData,
 }: TradeDetailsPageProps) {
+  // 🏦 Moeda do usuário para formatação multi-currency
+  const { currency: userCurrency } = useCurrencyStore()
+
   // Se tiver dados iniciais, usar diretamente (sem loading)
   const [trade, setTrade] = useState<TradeDetails | null>(initialData as TradeDetails | null)
   const [bankDetails, setBankDetails] = useState<BankDetails | null>(null)
@@ -403,74 +408,38 @@ export function TradeDetailsPage({
     }
   }
 
-  // Formata valor em USD (valores do backend)
-  const formatUSD = (value: number) => {
-    return value.toLocaleString('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    })
+  // Locale config para formatação
+  const localeConfig: Record<Currency, { locale: string; code: string }> = {
+    USD: { locale: 'en-US', code: 'USD' },
+    BRL: { locale: 'pt-BR', code: 'BRL' },
+    EUR: { locale: 'de-DE', code: 'EUR' },
   }
 
-  // Formata valor em BRL (para depósito TED/PIX)
+  /**
+   * 🏦 Formata valor OTC na moeda do usuário.
+   * Os valores vêm em BRL do backend → converte BRL→userCurrency.
+   * Usado para valores informativos (preço, spread, taxas, totais no header).
+   */
+  const formatOtcValue = (value: number) => {
+    const converted = currencyManager.convert(value, 'BRL', userCurrency).convertedValue
+    const { locale, code } = localeConfig[userCurrency]
+    return new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency: code,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(converted)
+  }
+
+  /**
+   * Formata valor SEMPRE em BRL — usado para PIX/TED (métodos de pagamento brasileiros).
+   * Esses valores representam transações reais em Reais no sistema bancário brasileiro.
+   */
   const formatBRL = (value: number) => {
     return value.toLocaleString('pt-BR', {
       style: 'currency',
       currency: 'BRL',
     })
-  }
-
-  // State para taxa USD/BRL (fallback)
-  const [fallbackUsdBrlRate, setFallbackUsdBrlRate] = useState<number | null>(null)
-
-  // Buscar taxa USD/BRL se necessário
-  useEffect(() => {
-    const fetchRate = async () => {
-      // Só buscar se não tiver brl_total_amount e for uma SELL
-      if (trade && !trade.brl_total_amount && trade.operation === 'sell') {
-        try {
-          const response = await fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL')
-          const data = await response.json()
-          const rate = Number.parseFloat(data.USDBRL?.bid || '6')
-          setFallbackUsdBrlRate(rate)
-          console.log(`[TradeDetails] Fetched USD/BRL rate: ${rate}`)
-        } catch (error) {
-          console.warn('[TradeDetails] Failed to fetch USD/BRL rate:', error)
-          setFallbackUsdBrlRate(6) // Fallback
-        }
-      }
-    }
-    fetchRate()
-  }, [trade?.id, trade?.brl_total_amount, trade?.operation])
-
-  // Retorna o valor em BRL - usa valor salvo ou calcula com taxa
-  const getSavedBrlValue = (): number | null => {
-    if (!trade) return null
-
-    // 1. Se tem brl_total_amount salvo, usar diretamente
-    if (trade.brl_total_amount && trade.brl_total_amount > 0) {
-      return trade.brl_total_amount
-    }
-
-    // 2. total_amount do backend JÁ É em BRL (preço é buscado em BRL)
-    // Usar diretamente sem multiplicar por taxa
-    if (trade.total_amount && trade.total_amount > 0) {
-      return trade.total_amount
-    }
-
-    // 3. Último recurso: se não tem nada, retornar null
-    console.warn(
-      '[TradeDetails] brl_total_amount não encontrado na ordem! Verifique o fluxo de criação.'
-    )
-    return null
-  }
-
-  // Função auxiliar para formatar o valor BRL salvo ou mostrar erro
-  const formatSavedBrlValue = (): string => {
-    const brlValue = getSavedBrlValue()
-    if (brlValue === null) {
-      return 'Valor não disponível'
-    }
-    return formatBRL(brlValue)
   }
 
   const formatCrypto = (value: number, decimals = 8) => {
@@ -717,24 +686,24 @@ export function TradeDetailsPage({
           <div className='grid grid-cols-2 gap-2 pt-2 border-t border-gray-200 dark:border-gray-700'>
             <div>
               <p className='text-[10px] text-gray-500 dark:text-gray-400'>
-                {isSell ? 'Valor da Crypto (USD)' : 'Valor USD'}
+                {isSell ? `Valor de Mercado (${userCurrency})` : `Valor (${userCurrency})`}
               </p>
               <p className='text-sm font-semibold text-gray-900 dark:text-white'>
-                {formatUSD(trade.fiat_amount)}
+                {formatOtcValue(trade.fiat_amount)}
               </p>
             </div>
             <div>
               <p className='text-[10px] text-gray-500 dark:text-gray-400'>
-                {isSell ? 'Você Recebe (BRL)' : 'Total c/ Taxas'}
+                {isSell ? `Você Recebe (${userCurrency})` : `Total c/ Taxas (${userCurrency})`}
               </p>
               <p
                 className={`text-sm font-semibold ${isSell ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400'}`}
               >
                 {isSell
                   ? trade.brl_total_amount
-                    ? formatBRL(trade.brl_total_amount)
-                    : formatBRL(trade.total_amount)
-                  : formatUSD(trade.total_amount)}
+                    ? formatOtcValue(trade.brl_total_amount)
+                    : formatOtcValue(trade.total_amount)
+                  : formatOtcValue(trade.total_amount)}
               </p>
             </div>
           </div>
@@ -752,9 +721,11 @@ export function TradeDetailsPage({
           <div className='mt-2 bg-gray-50 dark:bg-gray-900 rounded-lg divide-y divide-gray-200 dark:divide-gray-700 text-xs'>
             {trade.crypto_price && (
               <div className='flex justify-between py-2 px-3'>
-                <span className='text-gray-600 dark:text-gray-400'>Preço Unit.</span>
+                <span className='text-gray-600 dark:text-gray-400'>
+                  Preço Unit. ({userCurrency})
+                </span>
                 <span className='font-medium text-gray-900 dark:text-white'>
-                  {formatUSD(trade.crypto_price)}
+                  {formatOtcValue(trade.crypto_price)}
                 </span>
               </div>
             )}
@@ -763,7 +734,7 @@ export function TradeDetailsPage({
                 Spread ({trade.spread_percentage}%)
               </span>
               <span className='font-medium text-gray-900 dark:text-white'>
-                {trade.spread_amount ? formatUSD(trade.spread_amount) : '-'}
+                {trade.spread_amount ? formatOtcValue(trade.spread_amount) : '-'}
               </span>
             </div>
             <div className='flex justify-between py-2 px-3'>
@@ -771,7 +742,7 @@ export function TradeDetailsPage({
                 Taxa Rede ({trade.network_fee_percentage}%)
               </span>
               <span className='font-medium text-gray-900 dark:text-white'>
-                {trade.network_fee_amount ? formatUSD(trade.network_fee_amount) : '-'}
+                {trade.network_fee_amount ? formatOtcValue(trade.network_fee_amount) : '-'}
               </span>
             </div>
           </div>
