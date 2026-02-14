@@ -51,6 +51,9 @@ import { useWallets, useMultipleWalletBalances } from '@/hooks/useWallet'
 import { useWalletAddresses } from '@/hooks/useWalletAddresses'
 import toast from 'react-hot-toast'
 
+// Import TRAY logo
+import trayLogo from '@/assets/crypto-icons/tray.png'
+
 // ============================================================================
 // CRYPTO ICONS
 // ============================================================================
@@ -72,7 +75,7 @@ const CRYPTO_ICONS: Record<string, string> = {
   XRP: 'https://cryptologos.cc/logos/xrp-xrp-logo.png',
   LINK: 'https://cryptologos.cc/logos/chainlink-link-logo.png',
   SHIB: 'https://cryptologos.cc/logos/shiba-inu-shib-logo.png',
-  TRAY: '/images/tokens/tray.png',
+  TRAY: trayLogo,
 }
 
 // ============================================================================
