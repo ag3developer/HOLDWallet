@@ -1,3 +1,8 @@
+"""
+WolkNow Backend API
+Version: 2.5.0 - EarnPool Integration
+Last Updated: 2026-02-14
+"""
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse
