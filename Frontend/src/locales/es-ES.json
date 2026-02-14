@@ -850,10 +850,10 @@
     },
     "howItWorks": {
       "title": "Cómo Funciona",
-      "step1": "Proporciona liquidez en USDT al pool cooperativo",
-      "step2": "Tus recursos participan durante el período mínimo",
+      "step1": "Selecciona cualquier crypto de tu billetera",
+      "step2": "Tu crypto se convierte en USDT virtual en el pool",
       "step3": "Recibe comisiones de las operaciones de la plataforma",
-      "step4": "Retira tus recursos cuando quieras"
+      "step4": "Solicita retiro cuando quieras"
     },
     "poolStats": {
       "totalPoolBalance": "Liquidez Total",
@@ -877,11 +877,23 @@
       "estimatedApy": "Tasa de Comisión Estimada",
       "estimatedYearlyYield": "Comisión Anual Estimada",
       "estimatedWeeklyYield": "Comisión Semanal Estimada",
-      "success": "¡Aporte realizado con éxito!",
+      "success": "¡Solicitud enviada con éxito! Esperando aprobación.",
       "error": "Error al realizar aporte",
       "minAmount": "Mín: {{amount}} {{currency}}",
       "maxAmount": "Máx: {{amount}} {{currency}}",
-      "insufficientBalance": "Saldo insuficiente"
+      "insufficientBalance": "Saldo insuficiente",
+      "selectCrypto": "Seleccionar Moneda",
+      "chooseCrypto": "Elige una moneda de tu billetera",
+      "searchCrypto": "Buscar moneda...",
+      "noCryptoAvailable": "Ninguna moneda disponible",
+      "depositFirst": "Deposita crypto en tu billetera primero",
+      "minAmountUSDT": "Monto mínimo: ${{amount}} USDT",
+      "conversionInfo": "Conversión al Pool",
+      "conversionNote": "Tu crypto será convertida en USDT virtual para participación en el pool",
+      "cryptoAmount": "Cantidad en Crypto",
+      "usdtValue": "Valor en USDT",
+      "pendingApproval": "Aprobación Pendiente",
+      "pendingApprovalNote": "Después de confirmar, tu solicitud será analizada y aprobada en hasta 24h"
     },
     "withdraw": {
       "title": "Retirar Liquidez",

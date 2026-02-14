@@ -8,7 +8,7 @@
  * @version 2.0.0 - Redesign Premium
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   TrendingUp,
@@ -40,10 +40,40 @@ import {
   LineChart,
   ArrowRight,
   ChevronRight,
+  ChevronDown,
+  Search,
+  X,
+  Coins,
 } from 'lucide-react'
 import { apiClient } from '@/services/api'
 import { useAuthStore } from '@/stores/useAuthStore'
+import { useWallets, useMultipleWalletBalances } from '@/hooks/useWallet'
+import { useWalletAddresses } from '@/hooks/useWalletAddresses'
 import toast from 'react-hot-toast'
+
+// ============================================================================
+// CRYPTO ICONS
+// ============================================================================
+
+const CRYPTO_ICONS: Record<string, string> = {
+  BTC: 'https://cryptologos.cc/logos/bitcoin-btc-logo.png',
+  ETH: 'https://cryptologos.cc/logos/ethereum-eth-logo.png',
+  USDT: 'https://cryptologos.cc/logos/tether-usdt-logo.png',
+  USDC: 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png',
+  BNB: 'https://cryptologos.cc/logos/bnb-bnb-logo.png',
+  SOL: 'https://cryptologos.cc/logos/solana-sol-logo.png',
+  MATIC: 'https://cryptologos.cc/logos/polygon-matic-logo.png',
+  TRX: 'https://cryptologos.cc/logos/tron-trx-logo.png',
+  LTC: 'https://cryptologos.cc/logos/litecoin-ltc-logo.png',
+  DOGE: 'https://cryptologos.cc/logos/dogecoin-doge-logo.png',
+  ADA: 'https://cryptologos.cc/logos/cardano-ada-logo.png',
+  AVAX: 'https://cryptologos.cc/logos/avalanche-avax-logo.png',
+  DOT: 'https://cryptologos.cc/logos/polkadot-new-dot-logo.png',
+  XRP: 'https://cryptologos.cc/logos/xrp-xrp-logo.png',
+  LINK: 'https://cryptologos.cc/logos/chainlink-link-logo.png',
+  SHIB: 'https://cryptologos.cc/logos/shiba-inu-shib-logo.png',
+  TRAY: '/images/tokens/tray.png',
+}
 
 // ============================================================================
 // TIPOS
@@ -89,6 +119,15 @@ interface EarnPoolWithdrawal {
   available_at: string
 }
 
+interface WalletCrypto {
+  walletId: string
+  symbol: string
+  network: string
+  address: string
+  balance: number
+  balanceUSD: number
+}
+
 // ============================================================================
 // COMPONENTE PRINCIPAL
 // ============================================================================
@@ -96,6 +135,34 @@ interface EarnPoolWithdrawal {
 export function EarnPoolPage() {
   const { t } = useTranslation()
   const { isAuthenticated } = useAuthStore()
+
+  // ============================================================================
+  // HOOKS PARA CARTEIRAS
+  // ============================================================================
+
+  const { data: apiWallets } = useWallets()
+  const multiWallet = apiWallets?.find((w: any) => w.network === 'multi')
+  const balancesQueries = useMultipleWalletBalances(apiWallets?.map((w: any) => w.id) || [])
+
+  const networksList = [
+    'bitcoin',
+    'ethereum',
+    'polygon',
+    'bsc',
+    'tron',
+    'base',
+    'solana',
+    'litecoin',
+    'dogecoin',
+    'cardano',
+    'avalanche',
+    'polkadot',
+    'xrp',
+  ]
+  const { addresses: networkAddresses } = useWalletAddresses(
+    multiWallet?.id?.toString(),
+    networksList
+  )
 
   // Estados
   const [config, setConfig] = useState<EarnPoolConfig | null>(null)
@@ -113,10 +180,108 @@ export function EarnPoolPage() {
   const [depositPreview, setDepositPreview] = useState<any>(null)
   const [depositLoading, setDepositLoading] = useState(false)
 
+  // Seleção de crypto para depósito
+  const [selectedCrypto, setSelectedCrypto] = useState<WalletCrypto | null>(null)
+  const [showCryptoSelector, setShowCryptoSelector] = useState(false)
+  const [cryptoSearchQuery, setCryptoSearchQuery] = useState('')
+
   // Formulário de saque
   const [withdrawAmount, setWithdrawAmount] = useState('')
   const [withdrawPreview, setWithdrawPreview] = useState<any>(null)
   const [withdrawLoading, setWithdrawLoading] = useState(false)
+
+  // ============================================================================
+  // LISTA DE CRYPTOS DISPONÍVEIS
+  // ============================================================================
+
+  const availableCryptos = useMemo(() => {
+    if (!apiWallets || !balancesQueries) return []
+
+    const cryptoList: WalletCrypto[] = []
+
+    apiWallets.forEach((wallet: any, walletIndex: number) => {
+      const balanceQueryResult = balancesQueries[walletIndex]
+
+      if (wallet.network === 'multi') {
+        // Redes principais
+        const supportedNetworks = [
+          { network: 'bitcoin', symbol: 'BTC' },
+          { network: 'ethereum', symbol: 'ETH' },
+          { network: 'polygon', symbol: 'MATIC' },
+          { network: 'bsc', symbol: 'BNB' },
+          { network: 'tron', symbol: 'TRX' },
+          { network: 'base', symbol: 'BASE' },
+          { network: 'solana', symbol: 'SOL' },
+          { network: 'litecoin', symbol: 'LTC' },
+          { network: 'dogecoin', symbol: 'DOGE' },
+          { network: 'cardano', symbol: 'ADA' },
+          { network: 'avalanche', symbol: 'AVAX' },
+          { network: 'polkadot', symbol: 'DOT' },
+          { network: 'xrp', symbol: 'XRP' },
+        ]
+
+        supportedNetworks.forEach(({ network, symbol }) => {
+          const networkBalance = balanceQueryResult?.data?.[network]
+          const address = networkAddresses[network] || ''
+          const balanceVal = networkBalance?.balance ? Number(networkBalance.balance) : 0
+          const balanceUSD = networkBalance?.balance_usd ? Number(networkBalance.balance_usd) : 0
+
+          if (balanceVal > 0) {
+            cryptoList.push({
+              walletId: wallet.id,
+              symbol,
+              network,
+              address,
+              balance: balanceVal,
+              balanceUSD,
+            })
+          }
+        })
+
+        // Tokens (USDT, USDC, etc.)
+        if (balanceQueryResult?.data) {
+          const balancesData = balanceQueryResult.data as Record<string, any>
+
+          for (const [key, value] of Object.entries(balancesData)) {
+            const keyLower = String(key).toLowerCase()
+            const tokenMatch = keyLower.match(/^([a-z0-9]+)_(usdt|usdc|tray|link|shib)$/)
+
+            if (tokenMatch && tokenMatch.length >= 3 && tokenMatch[1] && tokenMatch[2]) {
+              const networkKey = tokenMatch[1]
+              const tokenSymbol = tokenMatch[2].toUpperCase()
+              const balanceVal = value?.balance ? Number(value.balance) : 0
+              const balanceUSD = value?.balance_usd ? Number(value.balance_usd) : 0
+              const address = networkAddresses[networkKey as keyof typeof networkAddresses] || ''
+
+              if (balanceVal > 0 && networkKey) {
+                cryptoList.push({
+                  walletId: wallet.id,
+                  symbol: tokenSymbol,
+                  network: networkKey,
+                  address,
+                  balance: balanceVal,
+                  balanceUSD,
+                })
+              }
+            }
+          }
+        }
+      }
+    })
+
+    // Ordenar por valor USD (maior primeiro)
+    return cryptoList.sort((a, b) => b.balanceUSD - a.balanceUSD)
+  }, [apiWallets, balancesQueries, networkAddresses])
+
+  // Cryptos filtradas pela busca
+  const filteredCryptos = useMemo(() => {
+    if (!cryptoSearchQuery) return availableCryptos
+    const query = cryptoSearchQuery.toLowerCase()
+    return availableCryptos.filter(
+      crypto =>
+        crypto.symbol.toLowerCase().includes(query) || crypto.network.toLowerCase().includes(query)
+    )
+  }, [availableCryptos, cryptoSearchQuery])
 
   // ============================================================================
   // CARREGAMENTO DE DADOS
@@ -188,17 +353,51 @@ export function EarnPoolPage() {
   // DEPÓSITO
   // ============================================================================
 
+  // Calcular valor em USDT baseado na crypto selecionada
+  const depositValueInUSDT = useMemo(() => {
+    if (!selectedCrypto || !depositAmount) return 0
+    const amount = Number.parseFloat(depositAmount)
+    if (Number.isNaN(amount) || amount <= 0) return 0
+
+    // Calcular preço unitário em USD
+    const pricePerUnit =
+      selectedCrypto.balance > 0 ? selectedCrypto.balanceUSD / selectedCrypto.balance : 0
+
+    return amount * pricePerUnit
+  }, [selectedCrypto, depositAmount])
+
   const handleDepositPreview = async () => {
+    if (!selectedCrypto) {
+      toast.error(t('earnpool.deposit.selectCrypto'))
+      return
+    }
+
     if (!depositAmount || Number.parseFloat(depositAmount) <= 0) {
       toast.error(t('earnpool.deposit.error'))
+      return
+    }
+
+    const amount = Number.parseFloat(depositAmount)
+
+    // Verificar se tem saldo suficiente
+    if (amount > selectedCrypto.balance) {
+      toast.error(t('earnpool.deposit.insufficientBalance'))
+      return
+    }
+
+    // Verificar valor mínimo em USDT
+    if (config && depositValueInUSDT < (config.min_deposit ?? 0)) {
+      toast.error(t('earnpool.deposit.minAmountUSDT', { amount: config.min_deposit }))
       return
     }
 
     setDepositLoading(true)
     try {
       const res = await apiClient.post('/earnpool/deposit/preview', {
-        amount: Number.parseFloat(depositAmount),
-        currency: 'USDT',
+        crypto_symbol: selectedCrypto.symbol,
+        crypto_amount: amount,
+        crypto_network: selectedCrypto.network,
+        usdt_amount: depositValueInUSDT,
       })
       setDepositPreview(res.data)
     } catch (error: any) {
@@ -209,23 +408,34 @@ export function EarnPoolPage() {
   }
 
   const handleDepositConfirm = async () => {
-    if (!depositPreview) return
+    if (!depositPreview || !selectedCrypto) return
 
     setDepositLoading(true)
     try {
       await apiClient.post('/earnpool/deposit', {
-        amount: Number.parseFloat(depositAmount),
-        currency: 'USDT',
+        crypto_symbol: selectedCrypto.symbol,
+        crypto_amount: Number.parseFloat(depositAmount),
+        crypto_network: selectedCrypto.network,
+        wallet_id: selectedCrypto.walletId,
       })
       toast.success(t('earnpool.deposit.success'))
       setDepositAmount('')
       setDepositPreview(null)
+      setSelectedCrypto(null)
       setActiveTab('overview')
       await loadData()
     } catch (error: any) {
       toast.error(error.response?.data?.detail || t('earnpool.errors.depositFailed'))
     } finally {
       setDepositLoading(false)
+    }
+  }
+
+  // Handler para usar saldo máximo
+  const handleUseMaxBalance = () => {
+    if (selectedCrypto) {
+      setDepositAmount(selectedCrypto.balance.toString())
+      setDepositPreview(null)
     }
   }
 
@@ -577,7 +787,7 @@ export function EarnPoolPage() {
               <p className='text-2xl font-bold text-gray-900 dark:text-white'>
                 {formatCurrency(balance.total_deposited)}
               </p>
-              {balance.total_deposited > 0 && (
+              {(balance.total_deposited ?? 0) > 0 && (
                 <div className='mt-3 h-1 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden'>
                   <div
                     className='h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all'
@@ -820,52 +1030,254 @@ export function EarnPoolPage() {
                   </div>
                 </div>
 
-                {/* Amount Input */}
+                {/* Step 1: Select Crypto */}
                 <div className='mb-6'>
                   <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
-                    {t('earnpool.deposit.amount')}
+                    {t('earnpool.deposit.selectCrypto')}
                   </label>
-                  <div className='relative'>
-                    <div className='absolute left-4 top-1/2 -translate-y-1/2'>
-                      <DollarSign className='w-5 h-5 text-gray-400' />
-                    </div>
-                    <input
-                      type='number'
-                      value={depositAmount}
-                      onChange={e => {
-                        setDepositAmount(e.target.value)
-                        setDepositPreview(null)
-                      }}
-                      placeholder='0.00'
-                      className='w-full pl-12 pr-20 py-4 rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-lg font-semibold focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all'
-                    />
-                    <span className='absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold'>
-                      USDT
-                    </span>
-                  </div>
-                  {config && (
-                    <div className='flex justify-between mt-2 text-xs text-gray-500 dark:text-gray-400'>
-                      <span>
-                        {t('earnpool.deposit.minAmount', {
-                          amount: config.min_deposit,
-                          currency: 'USDT',
-                        })}
-                      </span>
-                      <span>
-                        {t('earnpool.deposit.maxAmount', {
-                          amount: config.max_deposit,
-                          currency: 'USDT',
-                        })}
-                      </span>
+
+                  {/* Crypto Selector Button */}
+                  <button
+                    onClick={() => setShowCryptoSelector(true)}
+                    className='w-full p-4 rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-emerald-400 dark:hover:border-emerald-600 transition-all flex items-center justify-between'
+                  >
+                    {selectedCrypto ? (
+                      <div className='flex items-center gap-3'>
+                        <img
+                          src={CRYPTO_ICONS[selectedCrypto.symbol] || '/images/tokens/generic.png'}
+                          alt={selectedCrypto.symbol}
+                          className='w-10 h-10 rounded-full'
+                          onError={e => {
+                            ;(e.target as HTMLImageElement).src = '/images/tokens/generic.png'
+                          }}
+                        />
+                        <div className='text-left'>
+                          <p className='font-bold text-gray-900 dark:text-white'>
+                            {selectedCrypto.symbol}
+                          </p>
+                          <p className='text-xs text-gray-500 dark:text-gray-400'>
+                            {t('common.balance')}: {selectedCrypto.balance.toFixed(8)} (
+                            {formatCurrency(selectedCrypto.balanceUSD)})
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className='flex items-center gap-3'>
+                        <div className='w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center'>
+                          <Coins className='w-5 h-5 text-gray-400' />
+                        </div>
+                        <span className='text-gray-500 dark:text-gray-400'>
+                          {t('earnpool.deposit.chooseCrypto')}
+                        </span>
+                      </div>
+                    )}
+                    <ChevronDown className='w-5 h-5 text-gray-400' />
+                  </button>
+
+                  {/* Crypto Selector Modal */}
+                  {showCryptoSelector && (
+                    <div className='fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center'>
+                      <div className='bg-white dark:bg-gray-800 rounded-t-3xl sm:rounded-3xl w-full max-w-md max-h-[80vh] overflow-hidden'>
+                        {/* Header */}
+                        <div className='p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between'>
+                          <h3 className='font-bold text-gray-900 dark:text-white'>
+                            {t('earnpool.deposit.selectCrypto')}
+                          </h3>
+                          <button
+                            onClick={() => {
+                              setShowCryptoSelector(false)
+                              setCryptoSearchQuery('')
+                            }}
+                            className='w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center'
+                          >
+                            <X className='w-4 h-4 text-gray-500' />
+                          </button>
+                        </div>
+
+                        {/* Search */}
+                        <div className='p-4'>
+                          <div className='relative'>
+                            <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400' />
+                            <input
+                              type='text'
+                              value={cryptoSearchQuery}
+                              onChange={e => setCryptoSearchQuery(e.target.value)}
+                              placeholder={t('earnpool.deposit.searchCrypto')}
+                              className='w-full pl-10 pr-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 border-none text-gray-900 dark:text-white'
+                            />
+                          </div>
+                        </div>
+
+                        {/* Crypto List */}
+                        <div className='overflow-y-auto max-h-[50vh] px-4 pb-4'>
+                          {filteredCryptos.length === 0 ? (
+                            <div className='text-center py-8'>
+                              <Wallet className='w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3' />
+                              <p className='text-gray-500 dark:text-gray-400'>
+                                {t('earnpool.deposit.noCryptoAvailable')}
+                              </p>
+                              <p className='text-xs text-gray-400 dark:text-gray-500 mt-1'>
+                                {t('earnpool.deposit.depositFirst')}
+                              </p>
+                            </div>
+                          ) : (
+                            <div className='space-y-2'>
+                              {filteredCryptos.map((crypto, index) => (
+                                <button
+                                  key={`${crypto.symbol}-${crypto.network}-${index}`}
+                                  onClick={() => {
+                                    setSelectedCrypto(crypto)
+                                    setShowCryptoSelector(false)
+                                    setCryptoSearchQuery('')
+                                    setDepositAmount('')
+                                    setDepositPreview(null)
+                                  }}
+                                  className={`w-full p-3 rounded-xl flex items-center gap-3 transition-all ${
+                                    selectedCrypto?.symbol === crypto.symbol &&
+                                    selectedCrypto?.network === crypto.network
+                                      ? 'bg-emerald-100 dark:bg-emerald-900/30 border-2 border-emerald-500'
+                                      : 'bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 border-2 border-transparent'
+                                  }`}
+                                >
+                                  <img
+                                    src={
+                                      CRYPTO_ICONS[crypto.symbol] || '/images/tokens/generic.png'
+                                    }
+                                    alt={crypto.symbol}
+                                    className='w-10 h-10 rounded-full'
+                                    onError={e => {
+                                      ;(e.target as HTMLImageElement).src =
+                                        '/images/tokens/generic.png'
+                                    }}
+                                  />
+                                  <div className='flex-1 text-left'>
+                                    <div className='flex items-center gap-2'>
+                                      <p className='font-bold text-gray-900 dark:text-white'>
+                                        {crypto.symbol}
+                                      </p>
+                                      <span className='text-[10px] px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 uppercase'>
+                                        {crypto.network}
+                                      </span>
+                                    </div>
+                                    <p className='text-sm text-gray-500 dark:text-gray-400'>
+                                      {crypto.balance.toFixed(8)}
+                                    </p>
+                                  </div>
+                                  <div className='text-right'>
+                                    <p className='font-semibold text-gray-900 dark:text-white'>
+                                      {formatCurrency(crypto.balanceUSD)}
+                                    </p>
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
+
+                {/* Step 2: Amount Input (only if crypto selected) */}
+                {selectedCrypto && (
+                  <div className='mb-6'>
+                    <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                      {t('earnpool.deposit.amount')}
+                    </label>
+                    <div className='relative'>
+                      <div className='absolute left-4 top-1/2 -translate-y-1/2'>
+                        <img
+                          src={CRYPTO_ICONS[selectedCrypto.symbol] || '/images/tokens/generic.png'}
+                          alt={selectedCrypto.symbol}
+                          className='w-6 h-6 rounded-full'
+                          onError={e => {
+                            ;(e.target as HTMLImageElement).src = '/images/tokens/generic.png'
+                          }}
+                        />
+                      </div>
+                      <input
+                        type='number'
+                        value={depositAmount}
+                        onChange={e => {
+                          setDepositAmount(e.target.value)
+                          setDepositPreview(null)
+                        }}
+                        placeholder='0.00000000'
+                        className='w-full pl-14 pr-20 py-4 rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-lg font-semibold focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all'
+                      />
+                      <button
+                        onClick={handleUseMaxBalance}
+                        className='absolute right-4 top-1/2 -translate-y-1/2 text-emerald-600 dark:text-emerald-400 font-bold text-sm hover:underline'
+                      >
+                        MAX
+                      </button>
+                    </div>
+                    <div className='flex justify-between mt-2 text-xs text-gray-500 dark:text-gray-400'>
+                      <span>
+                        {t('common.balance')}: {selectedCrypto.balance.toFixed(8)}{' '}
+                        {selectedCrypto.symbol}
+                      </span>
+                      <span>≈ {formatCurrency(depositValueInUSDT)} USDT</span>
+                    </div>
+
+                    {/* Min USDT Warning */}
+                    {config &&
+                      depositValueInUSDT > 0 &&
+                      depositValueInUSDT < (config.min_deposit ?? 0) && (
+                        <div className='mt-2 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl flex items-start gap-2'>
+                          <AlertCircle className='w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0' />
+                          <p className='text-xs text-amber-700 dark:text-amber-300'>
+                            {t('earnpool.deposit.minAmountUSDT', { amount: config.min_deposit })}
+                          </p>
+                        </div>
+                      )}
+                  </div>
+                )}
+
+                {/* USDT Conversion Info */}
+                {selectedCrypto && depositAmount && depositValueInUSDT > 0 && (
+                  <div className='mb-6 p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl border border-blue-200 dark:border-blue-800'>
+                    <div className='flex items-center gap-2 mb-3'>
+                      <Info className='w-4 h-4 text-blue-600 dark:text-blue-400' />
+                      <span className='text-sm font-medium text-blue-700 dark:text-blue-300'>
+                        {t('earnpool.deposit.conversionInfo')}
+                      </span>
+                    </div>
+                    <div className='flex items-center justify-between'>
+                      <div className='flex items-center gap-2'>
+                        <img
+                          src={CRYPTO_ICONS[selectedCrypto.symbol]}
+                          alt={selectedCrypto.symbol}
+                          className='w-6 h-6 rounded-full'
+                        />
+                        <span className='font-medium text-gray-900 dark:text-white'>
+                          {depositAmount} {selectedCrypto.symbol}
+                        </span>
+                      </div>
+                      <ArrowRight className='w-4 h-4 text-gray-400' />
+                      <div className='flex items-center gap-2'>
+                        <img src={CRYPTO_ICONS.USDT} alt='USDT' className='w-6 h-6 rounded-full' />
+                        <span className='font-bold text-emerald-600 dark:text-emerald-400'>
+                          {formatCurrency(depositValueInUSDT)}
+                        </span>
+                      </div>
+                    </div>
+                    <p className='text-[10px] text-gray-500 dark:text-gray-400 mt-2'>
+                      {t('earnpool.deposit.conversionNote')}
+                    </p>
+                  </div>
+                )}
 
                 {/* Preview Button */}
                 {!depositPreview && (
                   <button
                     onClick={handleDepositPreview}
-                    disabled={depositLoading || !depositAmount}
+                    disabled={
+                      depositLoading ||
+                      !depositAmount ||
+                      !selectedCrypto ||
+                      !!(config && depositValueInUSDT < (config.min_deposit ?? 0))
+                    }
                     className='w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 disabled:from-gray-300 disabled:to-gray-400 dark:disabled:from-gray-700 dark:disabled:to-gray-600 text-white rounded-2xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/30 disabled:shadow-none'
                   >
                     {depositLoading ? (
@@ -880,18 +1292,37 @@ export function EarnPoolPage() {
                 )}
 
                 {/* Preview Result */}
-                {depositPreview && (
+                {depositPreview && selectedCrypto && (
                   <div className='space-y-4'>
                     <div className='bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-2xl p-5 border border-emerald-200 dark:border-emerald-800'>
                       <div className='space-y-3'>
+                        {/* Original Crypto */}
                         <div className='flex justify-between items-center'>
                           <span className='text-gray-600 dark:text-gray-400 text-sm'>
-                            {t('earnpool.deposit.amount')}
+                            {t('earnpool.deposit.cryptoAmount')}
                           </span>
-                          <span className='font-bold text-gray-900 dark:text-white'>
-                            {formatCurrency(depositPreview.amount)} USDT
+                          <div className='flex items-center gap-2'>
+                            <img
+                              src={CRYPTO_ICONS[selectedCrypto.symbol]}
+                              alt={selectedCrypto.symbol}
+                              className='w-5 h-5 rounded-full'
+                            />
+                            <span className='font-bold text-gray-900 dark:text-white'>
+                              {depositAmount} {selectedCrypto.symbol}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* USDT Value */}
+                        <div className='flex justify-between items-center'>
+                          <span className='text-gray-600 dark:text-gray-400 text-sm'>
+                            {t('earnpool.deposit.usdtValue')}
+                          </span>
+                          <span className='font-bold text-emerald-600 dark:text-emerald-400'>
+                            {formatCurrency(depositValueInUSDT)} USDT
                           </span>
                         </div>
+
                         <div className='flex justify-between items-center'>
                           <span className='text-gray-600 dark:text-gray-400 text-sm'>
                             {t('earnpool.deposit.lockPeriod')}
@@ -928,9 +1359,28 @@ export function EarnPoolPage() {
                       </div>
                     </div>
 
+                    {/* Status Info */}
+                    <div className='p-4 bg-amber-50 dark:bg-amber-900/20 rounded-2xl border border-amber-200 dark:border-amber-800'>
+                      <div className='flex items-start gap-3'>
+                        <Clock className='w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5' />
+                        <div>
+                          <p className='font-medium text-amber-800 dark:text-amber-200 text-sm'>
+                            {t('earnpool.deposit.pendingApproval')}
+                          </p>
+                          <p className='text-xs text-amber-600 dark:text-amber-400 mt-1'>
+                            {t('earnpool.deposit.pendingApprovalNote')}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
                     <div className='flex gap-3'>
                       <button
-                        onClick={() => setDepositPreview(null)}
+                        onClick={() => {
+                          setDepositPreview(null)
+                          setSelectedCrypto(null)
+                          setDepositAmount('')
+                        }}
                         className='flex-1 py-4 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-2xl font-bold transition-all hover:bg-gray-200 dark:hover:bg-gray-600'
                       >
                         {t('common.cancel')}
@@ -989,7 +1439,7 @@ export function EarnPoolPage() {
                         setWithdrawPreview(null)
                       }}
                       placeholder='0.00'
-                      max={balance?.available_balance}
+                      max={balance?.available_balance ?? undefined}
                       className='w-full pl-12 pr-20 py-4 rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-lg font-semibold focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all'
                     />
                     <span className='absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold'>
@@ -998,7 +1448,7 @@ export function EarnPoolPage() {
                   </div>
                   {balance && (
                     <button
-                      onClick={() => setWithdrawAmount(balance.available_balance.toString())}
+                      onClick={() => setWithdrawAmount((balance.available_balance ?? 0).toString())}
                       className='mt-2 text-xs text-blue-600 dark:text-blue-400 font-medium hover:underline flex items-center gap-1'
                     >
                       {t('earnpool.availableBalance')}: {formatCurrency(balance.available_balance)}

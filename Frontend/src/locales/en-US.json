@@ -1129,10 +1129,10 @@
     },
     "howItWorks": {
       "title": "How It Works",
-      "step1": "Provide USDT liquidity to the cooperative pool",
-      "step2": "Your resources participate for the minimum period",
+      "step1": "Select any crypto from your wallet",
+      "step2": "Your crypto is converted to virtual USDT in the pool",
       "step3": "Earn commissions from platform operations",
-      "step4": "Withdraw your resources whenever you want"
+      "step4": "Request withdrawal whenever you want"
     },
     "poolStats": {
       "totalPoolBalance": "Total Liquidity",
@@ -1156,11 +1156,23 @@
       "estimatedApy": "Estimated Commission Rate",
       "estimatedYearlyYield": "Estimated Annual Commission",
       "estimatedWeeklyYield": "Estimated Weekly Commission",
-      "success": "Contribution successful!",
+      "success": "Request submitted successfully! Awaiting approval.",
       "error": "Contribution failed",
       "minAmount": "Min: {{amount}} {{currency}}",
       "maxAmount": "Max: {{amount}} {{currency}}",
-      "insufficientBalance": "Insufficient balance"
+      "insufficientBalance": "Insufficient balance",
+      "selectCrypto": "Select Currency",
+      "chooseCrypto": "Choose a currency from your wallet",
+      "searchCrypto": "Search currency...",
+      "noCryptoAvailable": "No currency available",
+      "depositFirst": "Deposit crypto to your wallet first",
+      "minAmountUSDT": "Minimum amount: ${{amount}} USDT",
+      "conversionInfo": "Pool Conversion",
+      "conversionNote": "Your crypto will be converted to virtual USDT for pool participation",
+      "cryptoAmount": "Crypto Amount",
+      "usdtValue": "USDT Value",
+      "pendingApproval": "Pending Approval",
+      "pendingApprovalNote": "After confirming, your request will be reviewed and approved within 24h"
     },
     "withdraw": {
       "title": "Withdraw Liquidity",
