@@ -97,10 +97,12 @@ class DepositRequest(BaseModel):
     """Solicitação de depósito no EarnPool"""
     crypto_symbol: str = Field(..., description="Símbolo da crypto (BTC, ETH, USDT, etc.)")
     crypto_amount: Decimal = Field(..., gt=0, description="Quantidade de crypto a depositar")
+    crypto_network: Optional[str] = Field(None, description="Network da crypto (bitcoin, ethereum, etc.)")
+    usdt_amount: Optional[Decimal] = Field(None, description="Valor em USDT (opcional, calculado pelo backend)")
     
     @validator('crypto_symbol')
     def validate_symbol(cls, v):
-        allowed = ['BTC', 'ETH', 'USDT', 'SOL', 'MATIC', 'BNB', 'AVAX', 'DOT', 'ADA', 'LTC', 'XRP', 'TRX']
+        allowed = ['BTC', 'ETH', 'USDT', 'SOL', 'MATIC', 'BNB', 'AVAX', 'DOT', 'ADA', 'LTC', 'XRP', 'TRX', 'TRAY', 'USDC', 'DOGE', 'LINK', 'SHIB']
         if v.upper() not in allowed:
             raise ValueError(f'Crypto não suportada. Permitidas: {", ".join(allowed)}')
         return v.upper()
@@ -123,7 +125,9 @@ class DepositConfirmRequest(BaseModel):
     """Confirmação do depósito"""
     crypto_symbol: str
     crypto_amount: Decimal
-    accept_terms: bool = Field(..., description="Usuário aceita os termos do EarnPool")
+    accept_terms: bool = Field(default=True, description="Usuário aceita os termos do EarnPool")
+    crypto_network: Optional[str] = Field(None, description="Network da crypto")
+    wallet_id: Optional[str] = Field(None, description="ID da wallet do usuário")
     
     @validator('accept_terms')
     def must_accept_terms(cls, v):
@@ -164,8 +168,9 @@ class DepositResponse(BaseModel):
 
 class WithdrawalRequest(BaseModel):
     """Solicitação de saque do EarnPool"""
-    deposit_id: str = Field(..., description="ID do depósito a sacar")
-    amount_usdt: Optional[Decimal] = Field(default=None, description="Valor parcial (opcional, default=total)")
+    deposit_id: Optional[str] = Field(default=None, description="ID do depósito a sacar (opcional)")
+    amount: Optional[Decimal] = Field(default=None, gt=0, description="Valor a sacar em USDT")
+    amount_usdt: Optional[Decimal] = Field(default=None, description="Valor parcial (alias para amount)")
     destination_type: str = Field(default="wallet", description="Destino: wallet, pix, ted")
     destination_address: Optional[str] = Field(default=None, description="Endereço/chave de destino")
     destination_crypto: Optional[str] = Field(default="USDT", description="Crypto de destino (se wallet)")
@@ -176,6 +181,13 @@ class WithdrawalRequest(BaseModel):
         if v.lower() not in allowed:
             raise ValueError(f'Destino inválido. Permitidos: {", ".join(allowed)}')
         return v.lower()
+    
+    @validator('amount_usdt', always=True)
+    def sync_amount_fields(cls, v, values):
+        # Se amount_usdt não foi fornecido mas amount sim, usar amount
+        if v is None and values.get('amount') is not None:
+            return values.get('amount')
+        return v
 
 
 class WithdrawalPreviewResponse(BaseModel):
@@ -207,16 +219,18 @@ class WithdrawalPreviewResponse(BaseModel):
 
 class WithdrawalConfirmRequest(BaseModel):
     """Confirmação do saque"""
-    deposit_id: str
+    deposit_id: Optional[str] = Field(default=None, description="ID do depósito (opcional)")
+    amount: Optional[Decimal] = Field(default=None, gt=0, description="Valor a sacar em USDT")
     amount_usdt: Optional[Decimal] = None
     destination_type: str = Field(default="wallet")
     destination_address: Optional[str] = None
     destination_crypto: Optional[str] = Field(default="USDT")
-    accept_fees: bool = Field(default=False, description="Aceita as taxas (para saque antecipado)")
+    accept_fees: bool = Field(default=True, description="Aceita as taxas (para saque antecipado)")
     
-    @validator('accept_fees', always=True)
-    def validate_fees(cls, v, values):
-        # Será validado no service se é saque antecipado
+    @validator('amount_usdt', always=True)
+    def sync_amount_fields(cls, v, values):
+        if v is None and values.get('amount') is not None:
+            return values.get('amount')
         return v
 
 

@@ -831,6 +831,7 @@
     "description": "Proporciona liquidez al pool y participa en las comisiones generadas por las operaciones de la plataforma",
     "badge": "Premium",
     "perYear": "por año",
+    "perWeek": "por semana",
     "flexible": "Flexible",
     "feeNote": "Solo se aplica en retiros anticipados",
     "earning": "Ganando",
@@ -945,6 +946,82 @@
       "loadingFailed": "Error al cargar datos del pool",
       "depositFailed": "Error al procesar aporte",
       "withdrawFailed": "Error al procesar retiro"
+    },
+    "terms": {
+      "title": "Términos y Condiciones de EarnPool",
+      "subtitle": "Por favor, lea atentamente antes de participar",
+      "disclaimer": {
+        "title": "Aviso Importante",
+        "text": "EarnPool es un pool de liquidez cooperativo. El rendimiento pasado no garantiza resultados futuros. El rendimiento objetivo del {{targetYield}}% semanal es una meta, no una promesa. Su capital puede estar en riesgo."
+      },
+      "section1": {
+        "title": "1. ¿Qué es EarnPool?",
+        "p1": "EarnPool es un pool de liquidez cooperativo operado por WolkNow. Al depositar fondos, usted se convierte en participante de este pool y comparte sus resultados operativos.",
+        "p2": "El pool genera rendimientos a través de diversas actividades operativas, incluyendo operaciones OTC (Over-The-Counter), creación de mercado y otras operaciones financieras gestionadas por nuestro equipo.",
+        "p3": "Usted no está prestando dinero. Está contribuyendo a un pool compartido donde todos los participantes se benefician (o asumen pérdidas) proporcionalmente a su contribución."
+      },
+      "section2": {
+        "title": "2. Cómo Funciona",
+        "lockPeriod": {
+          "title": "Período de Bloqueo",
+          "text": "Los depósitos se bloquean durante {{lockPeriod}} días. Los retiros anticipados incurren en comisiones."
+        },
+        "targetYield": {
+          "title": "Rendimiento Objetivo",
+          "text": "Meta: {{targetYield}}% semanal. Este es un objetivo, no está garantizado."
+        },
+        "minDeposit": {
+          "title": "Depósito Mínimo",
+          "text": "Depósito mínimo: ${{minDeposit}} USDT equivalente en cualquier criptomoneda soportada."
+        },
+        "distribution": {
+          "title": "Distribución de Rendimientos",
+          "text": "Los rendimientos se calculan y distribuyen semanalmente según el rendimiento del pool."
+        }
+      },
+      "section3": {
+        "title": "3. Divulgación de Riesgos",
+        "intro": "Por favor, comprenda los siguientes riesgos antes de participar:",
+        "risk1": "Sin Rendimientos Garantizados: El rendimiento objetivo es una meta basada en el rendimiento histórico. Los rendimientos reales pueden ser mayores, menores o incluso negativos.",
+        "risk2": "Riesgo de Capital: En condiciones adversas del mercado, el pool puede experimentar pérdidas. Aunque es poco probable, podría perder parte de su capital depositado.",
+        "risk3": "Riesgo de Liquidez: Durante el período de bloqueo, sus fondos no pueden retirarse sin incurrir en comisiones de retiro anticipado.",
+        "risk4": "Riesgo de Mercado: Los mercados de criptomonedas son altamente volátiles. El valor en USDT de su depósito se calcula en el momento del depósito.",
+        "risk5": "Riesgo Operativo: Aunque empleamos las mejores prácticas, las actividades operativas conllevan riesgos inherentes que pueden afectar los rendimientos."
+      },
+      "section4": {
+        "title": "4. Términos de Participación",
+        "intro": "Al participar en EarnPool, usted acepta que:",
+        "term1": "Tiene al menos 18 años y es legalmente capaz de celebrar este acuerdo.",
+        "term2": "Entiende que EarnPool no es una cuenta de ahorros, fondo de inversión o producto financiero con rendimientos garantizados.",
+        "term3": "Está depositando fondos que puede permitirse perder sin afectar su bienestar financiero.",
+        "term4": "Acepta el período de bloqueo y comprende las comisiones asociadas con el retiro anticipado.",
+        "term5": "Reconoce que el rendimiento pasado no garantiza resultados futuros.",
+        "term6": "Ha leído y comprendido todas las secciones de estos términos y condiciones."
+      },
+      "section5": {
+        "title": "5. Retiros",
+        "afterLock": {
+          "title": "Después del Período de Bloqueo:",
+          "item1": "Los retiros se procesan dentro de 7 días hábiles (D+7)",
+          "item2": "Sin comisiones para retiros estándar después del período de bloqueo",
+          "item3": "Los retiros se pagan en USDT a su billetera"
+        },
+        "earlyWithdraw": {
+          "title": "Retiro Anticipado (Antes del Fin del Período de Bloqueo):",
+          "item1": "Comisión administrativa: 2% del monto del retiro",
+          "item2": "Comisión operativa: 1% del monto del retiro",
+          "item3": "Comisión total por retiro anticipado: 3%"
+        }
+      },
+      "section6": {
+        "title": "6. Preguntas y Soporte",
+        "text": "Si tiene alguna pregunta sobre EarnPool o estos términos, por favor contacte a nuestro equipo de soporte a través del chat en la aplicación o por correo electrónico a support@wolknow.com."
+      },
+      "lastUpdated": "Última actualización: Febrero 2026 | Versión 1.0",
+      "scrollToRead": "Por favor, desplácese hacia abajo para leer todos los términos",
+      "checkboxTerms": "He leído y comprendido los Términos y Condiciones de participación en EarnPool.",
+      "checkboxRisks": "Reconozco los riesgos involucrados y entiendo que los rendimientos no están garantizados.",
+      "acceptButton": "Aceptar y Continuar"
     }
   }
 }

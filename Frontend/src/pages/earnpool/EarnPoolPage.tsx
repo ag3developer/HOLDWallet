@@ -48,6 +48,7 @@ import {
 import { apiClient } from '@/services/api'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useWallets, useMultipleWalletBalances } from '@/hooks/useWallet'
+import { EarnPoolTermsModal } from '@/components/earnpool/EarnPoolTermsModal'
 import { useWalletAddresses } from '@/hooks/useWalletAddresses'
 import toast from 'react-hot-toast'
 
@@ -84,42 +85,74 @@ const CRYPTO_ICONS: Record<string, string> = {
 
 interface EarnPoolConfig {
   id: string
-  min_deposit: number | null
-  max_deposit: number | null
+  min_deposit_usdt: number | null
+  max_deposit_usdt: number | null
   lock_period_days: number | null
-  base_apy: number | null
-  early_withdrawal_fee: number | null
+  target_weekly_yield_percentage: number | null
+  early_withdrawal_admin_fee: number | null
+  early_withdrawal_op_fee: number | null
   is_active: boolean
-  total_pool_balance: number | null
+  is_accepting_deposits: boolean
+  // Aliases for backward compatibility
+  min_deposit?: number | null
+  max_deposit?: number | null
+  base_apy?: number | null
+  early_withdrawal_fee?: number | null
+  total_pool_balance?: number | null
 }
 
 interface EarnPoolBalance {
-  total_deposited: number | null
-  total_yield_earned: number | null
-  pending_withdrawals: number | null
-  available_balance: number | null
-  locked_until: string | null
-  deposits_count: number | null
+  total_deposited_usdt: number
+  total_yield_earned: number
+  total_balance: number
+  pending_withdrawals: number
+  available_balance: number
+  active_deposits_count: number
+  deposits: EarnPoolDeposit[]
+  // Aliases for backward compatibility
+  total_deposited?: number | null
+  locked_until?: string | null
+  deposits_count?: number | null
 }
 
 interface EarnPoolDeposit {
   id: string
-  amount: number
-  currency: string
-  status: 'LOCKED' | 'UNLOCKED' | 'WITHDRAWN'
-  deposited_at: string
-  unlocks_at: string
+  user_id?: string
+  original_crypto_symbol: string
+  original_crypto_amount: number
+  original_crypto_price_usd: number
+  usdt_amount: number
   total_yield_earned: number
+  status: 'PENDING' | 'ACTIVE' | 'LOCKED' | 'WITHDRAWAL_PENDING' | 'WITHDRAWN' | 'CANCELLED'
+  deposited_at: string
+  lock_ends_at: string
+  last_yield_at?: string | null
+  tx_hash_in?: string | null
+  // Aliases for backward compatibility
+  amount?: number
+  currency?: string
+  unlocks_at?: string
 }
 
 interface EarnPoolWithdrawal {
   id: string
-  amount: number
-  fee_amount: number
+  user_id?: string
+  deposit_id?: string
+  usdt_amount: number
+  yield_amount: number
+  admin_fee_amount: number
+  operational_fee_amount: number
   net_amount: number
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'COMPLETED'
+  destination_type: string
+  destination_address?: string
+  destination_crypto?: string
+  status: 'PENDING' | 'PROCESSING' | 'APPROVED' | 'COMPLETED' | 'CANCELLED' | 'REJECTED'
+  is_early_withdrawal: boolean
   requested_at: string
   available_at: string
+  // Aliases for backward compatibility
+  amount?: number
+  fee_amount?: number
 }
 
 interface WalletCrypto {
@@ -192,6 +225,13 @@ export function EarnPoolPage() {
   const [withdrawAmount, setWithdrawAmount] = useState('')
   const [withdrawPreview, setWithdrawPreview] = useState<any>(null)
   const [withdrawLoading, setWithdrawLoading] = useState(false)
+
+  // Modal de termos
+  const [showTermsModal, setShowTermsModal] = useState(false)
+  const [hasAcceptedTerms, setHasAcceptedTerms] = useState(() => {
+    // Check localStorage for previously accepted terms
+    return localStorage.getItem('earnpool_terms_accepted') === 'true'
+  })
 
   // ============================================================================
   // LISTA DE CRYPTOS DISPONÍVEIS
@@ -389,8 +429,12 @@ export function EarnPoolPage() {
     }
 
     // Verificar valor mínimo em USDT
-    if (config && depositValueInUSDT < (config.min_deposit ?? 0)) {
-      toast.error(t('earnpool.deposit.minAmountUSDT', { amount: config.min_deposit }))
+    if (config && depositValueInUSDT < (config.min_deposit_usdt ?? config.min_deposit ?? 0)) {
+      toast.error(
+        t('earnpool.deposit.minAmountUSDT', {
+          amount: config.min_deposit_usdt ?? config.min_deposit,
+        })
+      )
       return
     }
 
@@ -410,7 +454,31 @@ export function EarnPoolPage() {
     }
   }
 
-  const handleDepositConfirm = async () => {
+  // Handler chamado quando o usuário clica em "Confirm Deposit"
+  const handleDepositConfirmClick = () => {
+    if (!depositPreview || !selectedCrypto) return
+
+    // Se ainda não aceitou os termos, mostrar o modal
+    if (!hasAcceptedTerms) {
+      setShowTermsModal(true)
+      return
+    }
+
+    // Se já aceitou, prosseguir com o depósito
+    executeDeposit()
+  }
+
+  // Handler chamado quando o usuário aceita os termos no modal
+  const handleTermsAccept = () => {
+    setHasAcceptedTerms(true)
+    localStorage.setItem('earnpool_terms_accepted', 'true')
+    setShowTermsModal(false)
+    // Prosseguir com o depósito
+    executeDeposit()
+  }
+
+  // Executa o depósito de fato
+  const executeDeposit = async () => {
     if (!depositPreview || !selectedCrypto) return
 
     setDepositLoading(true)
@@ -420,6 +488,7 @@ export function EarnPoolPage() {
         crypto_amount: Number.parseFloat(depositAmount),
         crypto_network: selectedCrypto.network,
         wallet_id: selectedCrypto.walletId,
+        accept_terms: true,
       })
       toast.success(t('earnpool.deposit.success'))
       setDepositAmount('')
@@ -432,6 +501,11 @@ export function EarnPoolPage() {
     } finally {
       setDepositLoading(false)
     }
+  }
+
+  // Legacy function - mantida para compatibilidade
+  const handleDepositConfirm = async () => {
+    handleDepositConfirmClick()
   }
 
   // Handler para usar saldo máximo
@@ -709,9 +783,9 @@ export function EarnPoolPage() {
                   <Sparkles className='w-3 h-3 text-cyan-400' />
                 </div>
                 <p className='text-xl md:text-2xl font-bold text-emerald-400'>
-                  {config.base_apy ?? 0}%
+                  {config.target_weekly_yield_percentage ?? config.base_apy ?? 0}%
                   <span className='text-xs text-gray-400 font-normal ml-1'>
-                    {t('earnpool.perYear')}
+                    {t('earnpool.perWeek')}
                   </span>
                 </p>
                 <MiniChart data={[80, 82, 85, 83, 88, 90, 87, 92, 95, 93]} color='bg-cyan-400' />
@@ -777,20 +851,24 @@ export function EarnPoolPage() {
                 <div className='w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/25'>
                   <Wallet className='w-5 h-5 text-white' />
                 </div>
-                {config && config.base_apy && config.base_apy > 0 && (
-                  <div className='flex items-center gap-1 text-emerald-500'>
-                    <TrendingUp className='w-3.5 h-3.5' />
-                    <span className='text-xs font-medium'>+{config.base_apy}%</span>
-                  </div>
-                )}
+                {config &&
+                  (config.target_weekly_yield_percentage ?? config.base_apy) &&
+                  (config.target_weekly_yield_percentage ?? config.base_apy ?? 0) > 0 && (
+                    <div className='flex items-center gap-1 text-emerald-500'>
+                      <TrendingUp className='w-3.5 h-3.5' />
+                      <span className='text-xs font-medium'>
+                        +{config.target_weekly_yield_percentage ?? config.base_apy}%
+                      </span>
+                    </div>
+                  )}
               </div>
               <p className='text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1'>
                 {t('earnpool.totalDeposited')}
               </p>
               <p className='text-2xl font-bold text-gray-900 dark:text-white'>
-                {formatCurrency(balance.total_deposited)}
+                {formatCurrency(balance.total_deposited_usdt)}
               </p>
-              {(balance.total_deposited ?? 0) > 0 && (
+              {(balance.total_deposited_usdt ?? 0) > 0 && (
                 <div className='mt-3 h-1 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden'>
                   <div
                     className='h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all'
@@ -952,7 +1030,7 @@ export function EarnPoolPage() {
                         </span>
                       </div>
                       <p className='text-2xl font-bold text-emerald-700 dark:text-emerald-300'>
-                        {formatCurrency(config.min_deposit)}
+                        {formatCurrency(config.min_deposit_usdt ?? config.min_deposit)}
                       </p>
                     </div>
                     <div className='bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl p-5 border border-blue-100 dark:border-blue-800'>
@@ -1226,11 +1304,13 @@ export function EarnPoolPage() {
                     {/* Min USDT Warning */}
                     {config &&
                       depositValueInUSDT > 0 &&
-                      depositValueInUSDT < (config.min_deposit ?? 0) && (
+                      depositValueInUSDT < (config.min_deposit_usdt ?? config.min_deposit ?? 0) && (
                         <div className='mt-2 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl flex items-start gap-2'>
                           <AlertCircle className='w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0' />
                           <p className='text-xs text-amber-700 dark:text-amber-300'>
-                            {t('earnpool.deposit.minAmountUSDT', { amount: config.min_deposit })}
+                            {t('earnpool.deposit.minAmountUSDT', {
+                              amount: config.min_deposit_usdt ?? config.min_deposit,
+                            })}
                           </p>
                         </div>
                       )}
@@ -1279,7 +1359,10 @@ export function EarnPoolPage() {
                       depositLoading ||
                       !depositAmount ||
                       !selectedCrypto ||
-                      !!(config && depositValueInUSDT < (config.min_deposit ?? 0))
+                      !!(
+                        config &&
+                        depositValueInUSDT < (config.min_deposit_usdt ?? config.min_deposit ?? 0)
+                      )
                     }
                     className='w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 disabled:from-gray-300 disabled:to-gray-400 dark:disabled:from-gray-700 dark:disabled:to-gray-600 text-white rounded-2xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/30 disabled:shadow-none'
                   >
@@ -1604,9 +1687,16 @@ export function EarnPoolPage() {
                               </div>
                               <div>
                                 <p className='font-bold text-gray-900 dark:text-white'>
-                                  {formatCurrency(deposit.amount)} USDT
+                                  {formatCurrency(deposit.usdt_amount ?? deposit.amount)} USDT
                                 </p>
                                 <p className='text-xs text-gray-500 dark:text-gray-400'>
+                                  {deposit.original_crypto_symbol &&
+                                    deposit.original_crypto_amount != null && (
+                                      <span className='mr-2'>
+                                        ({Number(deposit.original_crypto_amount).toFixed(4)}{' '}
+                                        {deposit.original_crypto_symbol})
+                                      </span>
+                                    )}
                                   {formatDateTime(deposit.deposited_at)}
                                 </p>
                               </div>
@@ -1616,7 +1706,7 @@ export function EarnPoolPage() {
                                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${
                                   deposit.status === 'LOCKED'
                                     ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
-                                    : deposit.status === 'UNLOCKED'
+                                    : deposit.status === 'ACTIVE'
                                       ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
                                       : 'bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300'
                                 }`}
@@ -1630,7 +1720,8 @@ export function EarnPoolPage() {
                               </span>
                               {deposit.status === 'LOCKED' && (
                                 <p className='text-[10px] text-gray-500 dark:text-gray-400 mt-1'>
-                                  {t('earnpool.lockedUntil')}: {formatDate(deposit.unlocks_at)}
+                                  {t('earnpool.lockedUntil')}:{' '}
+                                  {formatDate(deposit.lock_ends_at ?? deposit.unlocks_at)}
                                 </p>
                               )}
                             </div>
@@ -1681,9 +1772,13 @@ export function EarnPoolPage() {
                                 <p className='text-xs text-gray-500 dark:text-gray-400'>
                                   {formatDateTime(withdrawal.requested_at)}
                                 </p>
-                                {withdrawal.fee_amount > 0 && (
+                                {(withdrawal.admin_fee_amount ?? withdrawal.fee_amount ?? 0) >
+                                  0 && (
                                   <p className='text-xs text-red-500 dark:text-red-400'>
-                                    {t('common.fee')}: -{formatCurrency(withdrawal.fee_amount)}
+                                    {t('common.fee')}: -
+                                    {formatCurrency(
+                                      withdrawal.admin_fee_amount ?? withdrawal.fee_amount ?? 0
+                                    )}
                                   </p>
                                 )}
                               </div>
@@ -1724,6 +1819,16 @@ export function EarnPoolPage() {
           </div>
         </div>
       </div>
+
+      {/* Terms & Conditions Modal */}
+      <EarnPoolTermsModal
+        isOpen={showTermsModal}
+        onClose={() => setShowTermsModal(false)}
+        onAccept={handleTermsAccept}
+        minDeposit={config?.min_deposit ?? 250}
+        lockPeriod={config?.lock_period_days ?? 30}
+        targetYield={0.75}
+      />
     </div>
   )
 }

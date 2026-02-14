@@ -238,19 +238,32 @@ class EarnPoolService:
     async def preview_withdrawal(
         self,
         user_id: str,
-        deposit_id: str,
+        deposit_id: Optional[str] = None,
         amount_usdt: Optional[Decimal] = None
     ) -> WithdrawalPreviewResponse:
         """
         Preview do saque antes de confirmar
+        Se deposit_id não for fornecido, usa o depósito mais antigo disponível
         """
         config = self.get_or_create_config()
         
-        # Buscar depósito
-        deposit = self.db.query(EarnPoolDeposit).filter(
-            EarnPoolDeposit.id == deposit_id,
-            EarnPoolDeposit.user_id == user_id
-        ).first()
+        # Se deposit_id não fornecido, buscar o depósito mais antigo disponível
+        if not deposit_id:
+            deposit = self.db.query(EarnPoolDeposit).filter(
+                EarnPoolDeposit.user_id == user_id,
+                EarnPoolDeposit.status.in_([DepositStatus.ACTIVE, DepositStatus.LOCKED])
+            ).order_by(EarnPoolDeposit.deposited_at.asc()).first()
+            
+            if not deposit:
+                raise ValueError("Nenhum depósito disponível para saque")
+            
+            deposit_id = str(deposit.id)
+        else:
+            # Buscar depósito específico
+            deposit = self.db.query(EarnPoolDeposit).filter(
+                EarnPoolDeposit.id == deposit_id,
+                EarnPoolDeposit.user_id == user_id
+            ).first()
         
         if not deposit:
             raise ValueError("Depósito não encontrado")
@@ -310,12 +323,12 @@ class EarnPoolService:
     async def create_withdrawal(
         self,
         user_id: str,
-        deposit_id: str,
+        deposit_id: Optional[str] = None,
         amount_usdt: Optional[Decimal] = None,
         destination_type: str = "wallet",
         destination_address: Optional[str] = None,
         destination_crypto: Optional[str] = "USDT",
-        accept_fees: bool = False
+        accept_fees: bool = True
     ) -> EarnPoolWithdrawal:
         """
         Cria solicitação de saque
@@ -333,11 +346,23 @@ class EarnPoolService:
         """
         config = self.get_or_create_config()
         
-        # Buscar depósito
-        deposit = self.db.query(EarnPoolDeposit).filter(
-            EarnPoolDeposit.id == deposit_id,
-            EarnPoolDeposit.user_id == user_id
-        ).first()
+        # Se deposit_id não fornecido, buscar o depósito mais antigo disponível
+        if not deposit_id:
+            deposit = self.db.query(EarnPoolDeposit).filter(
+                EarnPoolDeposit.user_id == user_id,
+                EarnPoolDeposit.status.in_([DepositStatus.ACTIVE, DepositStatus.LOCKED])
+            ).order_by(EarnPoolDeposit.deposited_at.asc()).first()
+            
+            if not deposit:
+                raise ValueError("Nenhum depósito disponível para saque")
+            
+            deposit_id = str(deposit.id)
+        else:
+            # Buscar depósito específico
+            deposit = self.db.query(EarnPoolDeposit).filter(
+                EarnPoolDeposit.id == deposit_id,
+                EarnPoolDeposit.user_id == user_id
+            ).first()
         
         if not deposit:
             raise ValueError("Depósito não encontrado")
