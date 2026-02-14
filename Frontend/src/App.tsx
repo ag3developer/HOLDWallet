@@ -64,6 +64,9 @@ import { BillPaymentPage, BillPaymentHistoryPage } from '@/pages/billpayment'
 // AI Intelligence Page
 import { AIIntelligencePage } from '@/pages/ai'
 
+// EarnPool Page
+import { EarnPoolPage } from '@/pages/earnpool'
+
 // Admin Pages
 import {
   AdminDashboardPage,
@@ -358,6 +361,9 @@ function App() {
             {/* Bill Payment Routes */}
             <Route path='bill-payment' element={<BillPaymentPage />} />
             <Route path='bill-payment/history' element={<BillPaymentHistoryPage />} />
+
+            {/* EarnPool Routes */}
+            <Route path='earnpool' element={<EarnPoolPage />} />
           </Route>
 
           {/* WolkPay Public Checkout (no auth required) */}

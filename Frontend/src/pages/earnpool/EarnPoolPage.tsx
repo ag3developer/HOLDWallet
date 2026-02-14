@@ -1,0 +1,1278 @@
+/**
+ * 📊 EarnPool Page - HOLD Wallet
+ * ===============================
+ *
+ * Página principal do EarnPool - Pool de liquidez para comissões operacionais.
+ * Permite visualizar saldo, fornecer liquidez e retirar USDT.
+ *
+ * @version 2.0.0 - Redesign Premium
+ */
+
+import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
+import {
+  TrendingUp,
+  Wallet,
+  Clock,
+  ArrowDownCircle,
+  ArrowUpCircle,
+  History,
+  Info,
+  AlertCircle,
+  CheckCircle,
+  RefreshCw,
+  DollarSign,
+  Percent,
+  Calendar,
+  Lock,
+  Unlock,
+  Crown,
+  Shield,
+  Zap,
+  Globe,
+  Sparkles,
+  BarChart3,
+  Activity,
+  Award,
+  Target,
+  PiggyBank,
+  Gem,
+  LineChart,
+  ArrowRight,
+  ChevronRight,
+} from 'lucide-react'
+import { apiClient } from '@/services/api'
+import { useAuthStore } from '@/stores/useAuthStore'
+import toast from 'react-hot-toast'
+
+// ============================================================================
+// TIPOS
+// ============================================================================
+
+interface EarnPoolConfig {
+  id: string
+  min_deposit: number | null
+  max_deposit: number | null
+  lock_period_days: number | null
+  base_apy: number | null
+  early_withdrawal_fee: number | null
+  is_active: boolean
+  total_pool_balance: number | null
+}
+
+interface EarnPoolBalance {
+  total_deposited: number | null
+  total_yield_earned: number | null
+  pending_withdrawals: number | null
+  available_balance: number | null
+  locked_until: string | null
+  deposits_count: number | null
+}
+
+interface EarnPoolDeposit {
+  id: string
+  amount: number
+  currency: string
+  status: 'LOCKED' | 'UNLOCKED' | 'WITHDRAWN'
+  deposited_at: string
+  unlocks_at: string
+  total_yield_earned: number
+}
+
+interface EarnPoolWithdrawal {
+  id: string
+  amount: number
+  fee_amount: number
+  net_amount: number
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'COMPLETED'
+  requested_at: string
+  available_at: string
+}
+
+// ============================================================================
+// COMPONENTE PRINCIPAL
+// ============================================================================
+
+export function EarnPoolPage() {
+  const { t } = useTranslation()
+  const { isAuthenticated } = useAuthStore()
+
+  // Estados
+  const [config, setConfig] = useState<EarnPoolConfig | null>(null)
+  const [balance, setBalance] = useState<EarnPoolBalance | null>(null)
+  const [deposits, setDeposits] = useState<EarnPoolDeposit[]>([])
+  const [withdrawals, setWithdrawals] = useState<EarnPoolWithdrawal[]>([])
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [activeTab, setActiveTab] = useState<'overview' | 'deposit' | 'withdraw' | 'history'>(
+    'overview'
+  )
+
+  // Formulário de depósito
+  const [depositAmount, setDepositAmount] = useState('')
+  const [depositPreview, setDepositPreview] = useState<any>(null)
+  const [depositLoading, setDepositLoading] = useState(false)
+
+  // Formulário de saque
+  const [withdrawAmount, setWithdrawAmount] = useState('')
+  const [withdrawPreview, setWithdrawPreview] = useState<any>(null)
+  const [withdrawLoading, setWithdrawLoading] = useState(false)
+
+  // ============================================================================
+  // CARREGAMENTO DE DADOS
+  // ============================================================================
+
+  useEffect(() => {
+    loadData()
+  }, [isAuthenticated])
+
+  const loadData = async () => {
+    setLoading(true)
+    try {
+      // Carregar configuração (público)
+      const configRes = await apiClient.get('/earnpool/config')
+      setConfig(configRes.data)
+
+      // Só carregar dados do usuário se estiver autenticado
+      if (isAuthenticated) {
+        // Carregar saldo do usuário (autenticado)
+        // Usamos Promise.allSettled para não interromper se alguma chamada falhar
+        const [balanceResult, historyResult] = await Promise.allSettled([
+          apiClient.get('/earnpool/balance'),
+          apiClient.get('/earnpool/history'),
+        ])
+
+        // Processar resultado do balance
+        if (balanceResult.status === 'fulfilled') {
+          setBalance(balanceResult.value.data)
+        } else {
+          // 401/403 = usuário não autenticado ou sem permissão - apenas loga
+          const status = (balanceResult.reason as any)?.response?.status
+          if (status === 401 || status === 403) {
+            console.log('[EarnPool] Auth error on balance - showing public view')
+          } else {
+            console.warn('[EarnPool] Error loading balance:', balanceResult.reason)
+          }
+        }
+
+        // Processar resultado do history
+        if (historyResult.status === 'fulfilled') {
+          setDeposits(historyResult.value.data.deposits || [])
+          setWithdrawals(historyResult.value.data.withdrawals || [])
+        } else {
+          // Silenciosamente ignorar erros de autenticação no histórico
+          const status = (historyResult.reason as any)?.response?.status
+          if (status !== 401 && status !== 403) {
+            console.warn('[EarnPool] Error loading history:', historyResult.reason)
+          }
+        }
+      } else {
+        console.log('[EarnPool] User not authenticated - showing public view only')
+      }
+    } catch (error) {
+      console.error('[EarnPool] Error loading data:', error)
+      toast.error(t('earnpool.errors.loadingFailed'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    await loadData()
+    setRefreshing(false)
+    toast.success(t('common.refresh'))
+  }
+
+  // ============================================================================
+  // DEPÓSITO
+  // ============================================================================
+
+  const handleDepositPreview = async () => {
+    if (!depositAmount || Number.parseFloat(depositAmount) <= 0) {
+      toast.error(t('earnpool.deposit.error'))
+      return
+    }
+
+    setDepositLoading(true)
+    try {
+      const res = await apiClient.post('/earnpool/deposit/preview', {
+        amount: Number.parseFloat(depositAmount),
+        currency: 'USDT',
+      })
+      setDepositPreview(res.data)
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || t('earnpool.deposit.error'))
+    } finally {
+      setDepositLoading(false)
+    }
+  }
+
+  const handleDepositConfirm = async () => {
+    if (!depositPreview) return
+
+    setDepositLoading(true)
+    try {
+      await apiClient.post('/earnpool/deposit', {
+        amount: Number.parseFloat(depositAmount),
+        currency: 'USDT',
+      })
+      toast.success(t('earnpool.deposit.success'))
+      setDepositAmount('')
+      setDepositPreview(null)
+      setActiveTab('overview')
+      await loadData()
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || t('earnpool.errors.depositFailed'))
+    } finally {
+      setDepositLoading(false)
+    }
+  }
+
+  // ============================================================================
+  // SAQUE
+  // ============================================================================
+
+  const handleWithdrawPreview = async () => {
+    if (!withdrawAmount || Number.parseFloat(withdrawAmount) <= 0) {
+      toast.error(t('earnpool.withdraw.error'))
+      return
+    }
+
+    setWithdrawLoading(true)
+    try {
+      const res = await apiClient.post('/earnpool/withdraw/preview', {
+        amount: Number.parseFloat(withdrawAmount),
+      })
+      setWithdrawPreview(res.data)
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || t('earnpool.withdraw.error'))
+    } finally {
+      setWithdrawLoading(false)
+    }
+  }
+
+  const handleWithdrawConfirm = async () => {
+    if (!withdrawPreview) return
+
+    setWithdrawLoading(true)
+    try {
+      await apiClient.post('/earnpool/withdraw', {
+        amount: Number.parseFloat(withdrawAmount),
+      })
+      toast.success(t('earnpool.withdraw.success'))
+      setWithdrawAmount('')
+      setWithdrawPreview(null)
+      setActiveTab('overview')
+      await loadData()
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || t('earnpool.errors.withdrawFailed'))
+    } finally {
+      setWithdrawLoading(false)
+    }
+  }
+
+  // ============================================================================
+  // FORMATAÇÃO
+  // ============================================================================
+
+  const formatCurrency = (value: number | null | undefined) => {
+    // Tratar valores nulos, undefined ou NaN
+    if (value === null || value === undefined || Number.isNaN(value)) {
+      return '$0.00'
+    }
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value)
+  }
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    })
+  }
+
+  const formatDateTime = (dateString: string) => {
+    return new Date(dateString).toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  }
+
+  // ============================================================================
+  // LOADING STATE
+  // ============================================================================
+
+  if (loading) {
+    return (
+      <div className='min-h-screen bg-gray-50 dark:bg-gray-900 p-4'>
+        <div className='max-w-4xl mx-auto'>
+          {/* Skeleton Hero */}
+          <div className='relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800 via-emerald-900 to-teal-900 p-6 mb-6'>
+            <div className='animate-pulse space-y-4'>
+              <div className='h-8 bg-white/10 rounded-lg w-48' />
+              <div className='h-4 bg-white/10 rounded w-72' />
+              <div className='grid grid-cols-4 gap-3 mt-6'>
+                {[1, 2, 3, 4].map(i => (
+                  <div key={i} className='h-20 bg-white/10 rounded-xl' />
+                ))}
+              </div>
+            </div>
+          </div>
+          {/* Skeleton Cards */}
+          <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
+            {[1, 2, 3].map(i => (
+              <div
+                key={i}
+                className='h-32 bg-gray-200 dark:bg-gray-800 rounded-2xl animate-pulse'
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ============================================================================
+  // MINI CHART COMPONENT
+  // ============================================================================
+
+  const MiniChart = ({ data, color }: { data: number[]; color: string }) => {
+    const max = Math.max(...data)
+    const min = Math.min(...data)
+    const range = max - min || 1
+
+    return (
+      <div className='flex items-end gap-0.5 h-8'>
+        {data.map((value, i) => {
+          const height = ((value - min) / range) * 100
+          return (
+            <div
+              key={i}
+              className={`w-1.5 rounded-t transition-all duration-300 ${color}`}
+              style={{ height: `${Math.max(height, 10)}%`, opacity: 0.4 + (i / data.length) * 0.6 }}
+            />
+          )
+        })}
+      </div>
+    )
+  }
+
+  // ============================================================================
+  // RENDER
+  // ============================================================================
+
+  return (
+    <div className='min-h-screen bg-gray-50 dark:bg-gray-900 pb-24'>
+      {/* ====== HERO HEADER PREMIUM ====== */}
+      <div className='relative overflow-hidden bg-gradient-to-br from-slate-900 via-emerald-900 to-teal-800'>
+        {/* Background Effects */}
+        <div className='absolute inset-0 opacity-20'>
+          <div className='absolute top-0 left-0 w-64 h-64 bg-emerald-400 rounded-full blur-3xl animate-pulse' />
+          <div className='absolute bottom-0 right-0 w-80 h-80 bg-teal-400 rounded-full blur-3xl' />
+          <div
+            className='absolute top-1/2 left-1/2 w-48 h-48 bg-cyan-400 rounded-full blur-2xl animate-pulse'
+            style={{ animationDelay: '1s' }}
+          />
+        </div>
+
+        {/* Grid Pattern */}
+        <div className='absolute inset-0 opacity-5'>
+          <div
+            className='absolute inset-0'
+            style={{
+              backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
+              backgroundSize: '40px 40px',
+            }}
+          />
+        </div>
+
+        <div className='relative p-4 md:p-6'>
+          {/* Top Bar */}
+          <div className='flex items-center justify-between mb-6'>
+            <div className='flex items-center gap-3'>
+              <div className='w-12 h-12 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/30'>
+                <Gem className='w-6 h-6 text-white' />
+              </div>
+              <div>
+                <p className='text-[10px] text-emerald-400 font-bold uppercase tracking-widest'>
+                  {t('earnpool.badge')}
+                </p>
+                <h1 className='text-xl md:text-2xl font-bold text-white'>{t('earnpool.title')}</h1>
+              </div>
+            </div>
+            <div className='flex gap-2'>
+              <button
+                onClick={() => setActiveTab('history')}
+                className='p-2.5 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-xl transition-all border border-white/10'
+                aria-label={t('earnpool.history.title')}
+              >
+                <History className='w-4 h-4 text-white' />
+              </button>
+              <button
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className='p-2.5 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-xl transition-all border border-white/10'
+                aria-label={t('common.refresh')}
+              >
+                <RefreshCw className={`w-4 h-4 text-white ${refreshing ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
+          </div>
+
+          {/* Trust Badges */}
+          <div className='flex items-center gap-2 mb-6 overflow-x-auto pb-1 scrollbar-hide'>
+            <div className='flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/20 backdrop-blur-sm rounded-lg border border-emerald-500/30 whitespace-nowrap'>
+              <Shield className='w-3.5 h-3.5 text-emerald-400' />
+              <span className='text-[11px] text-emerald-300 font-medium'>
+                {t('earnpool.badges.secure')}
+              </span>
+            </div>
+            <div className='flex items-center gap-1.5 px-3 py-1.5 bg-cyan-500/20 backdrop-blur-sm rounded-lg border border-cyan-500/30 whitespace-nowrap'>
+              <Zap className='w-3.5 h-3.5 text-cyan-400' />
+              <span className='text-[11px] text-cyan-300 font-medium'>
+                {t('earnpool.badges.instant')}
+              </span>
+            </div>
+            <div className='flex items-center gap-1.5 px-3 py-1.5 bg-purple-500/20 backdrop-blur-sm rounded-lg border border-purple-500/30 whitespace-nowrap'>
+              <Award className='w-3.5 h-3.5 text-purple-400' />
+              <span className='text-[11px] text-purple-300 font-medium'>
+                {t('earnpool.badges.verified')}
+              </span>
+            </div>
+            <div className='flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/20 backdrop-blur-sm rounded-lg border border-amber-500/30 whitespace-nowrap'>
+              <Crown className='w-3.5 h-3.5 text-amber-400' />
+              <span className='text-[11px] text-amber-300 font-medium'>
+                {t('earnpool.badges.premium')}
+              </span>
+            </div>
+          </div>
+
+          {/* Pool Status Alert */}
+          {config && !config.is_active && (
+            <div className='bg-yellow-500/20 border border-yellow-500/40 rounded-xl p-3 flex items-center gap-3 mb-4'>
+              <AlertCircle className='w-5 h-5 text-yellow-400 flex-shrink-0' />
+              <p className='text-sm text-yellow-200'>{t('earnpool.errors.poolInactive')}</p>
+            </div>
+          )}
+
+          {/* Live Stats Grid */}
+          {config && (
+            <div className='grid grid-cols-2 md:grid-cols-4 gap-3'>
+              {/* Pool Balance */}
+              <div className='bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10 hover:bg-white/10 transition-all group'>
+                <div className='flex items-center justify-between mb-2'>
+                  <div className='flex items-center gap-2'>
+                    <PiggyBank className='w-4 h-4 text-emerald-400' />
+                    <span className='text-[10px] text-gray-400 uppercase tracking-wide'>
+                      {t('earnpool.poolStats.totalPoolBalance')}
+                    </span>
+                  </div>
+                  <Activity className='w-3 h-3 text-emerald-400 animate-pulse' />
+                </div>
+                <p className='text-xl md:text-2xl font-bold text-white mb-1'>
+                  {formatCurrency(config.total_pool_balance)}
+                </p>
+                <MiniChart data={[40, 55, 45, 60, 50, 70, 65, 80, 75, 90]} color='bg-emerald-400' />
+              </div>
+
+              {/* APY / Commission Rate */}
+              <div className='bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10 hover:bg-white/10 transition-all group'>
+                <div className='flex items-center justify-between mb-2'>
+                  <div className='flex items-center gap-2'>
+                    <Percent className='w-4 h-4 text-cyan-400' />
+                    <span className='text-[10px] text-gray-400 uppercase tracking-wide'>
+                      {t('earnpool.poolStats.baseApy')}
+                    </span>
+                  </div>
+                  <Sparkles className='w-3 h-3 text-cyan-400' />
+                </div>
+                <p className='text-xl md:text-2xl font-bold text-emerald-400'>
+                  {config.base_apy ?? 0}%
+                  <span className='text-xs text-gray-400 font-normal ml-1'>
+                    {t('earnpool.perYear')}
+                  </span>
+                </p>
+                <MiniChart data={[80, 82, 85, 83, 88, 90, 87, 92, 95, 93]} color='bg-cyan-400' />
+              </div>
+
+              {/* Lock Period */}
+              <div className='bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10 hover:bg-white/10 transition-all group'>
+                <div className='flex items-center justify-between mb-2'>
+                  <div className='flex items-center gap-2'>
+                    <Calendar className='w-4 h-4 text-purple-400' />
+                    <span className='text-[10px] text-gray-400 uppercase tracking-wide'>
+                      {t('earnpool.poolStats.lockPeriod')}
+                    </span>
+                  </div>
+                  <Lock className='w-3 h-3 text-purple-400' />
+                </div>
+                <p className='text-xl md:text-2xl font-bold text-white'>
+                  {config.lock_period_days ?? 0}
+                  <span className='text-sm text-gray-400 font-normal ml-1'>
+                    {t('earnpool.poolStats.days')}
+                  </span>
+                </p>
+                <div className='flex items-center gap-2 mt-2'>
+                  <div className='flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden'>
+                    <div
+                      className='h-full bg-gradient-to-r from-purple-400 to-pink-400 rounded-full'
+                      style={{ width: '60%' }}
+                    />
+                  </div>
+                  <span className='text-[10px] text-gray-400'>{t('earnpool.flexible')}</span>
+                </div>
+              </div>
+
+              {/* Early Withdrawal Fee */}
+              <div className='bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10 hover:bg-white/10 transition-all group'>
+                <div className='flex items-center justify-between mb-2'>
+                  <div className='flex items-center gap-2'>
+                    <Target className='w-4 h-4 text-amber-400' />
+                    <span className='text-[10px] text-gray-400 uppercase tracking-wide'>
+                      {t('earnpool.poolStats.earlyWithdrawalFee')}
+                    </span>
+                  </div>
+                  <Info className='w-3 h-3 text-amber-400' />
+                </div>
+                <p className='text-xl md:text-2xl font-bold text-white'>
+                  {config.early_withdrawal_fee ?? 0}%
+                </p>
+                <p className='text-[10px] text-gray-400 mt-2'>{t('earnpool.feeNote')}</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ====== MAIN CONTENT ====== */}
+      <div className='p-4 md:p-6 max-w-4xl mx-auto space-y-6'>
+        {/* ====== USER BALANCE CARDS ====== */}
+        {balance && (
+          <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
+            {/* Total Deposited */}
+            <div className='bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-lg border border-gray-100 dark:border-gray-700 hover:shadow-xl transition-all group'>
+              <div className='flex items-center justify-between mb-3'>
+                <div className='w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/25'>
+                  <Wallet className='w-5 h-5 text-white' />
+                </div>
+                {config && config.base_apy && config.base_apy > 0 && (
+                  <div className='flex items-center gap-1 text-emerald-500'>
+                    <TrendingUp className='w-3.5 h-3.5' />
+                    <span className='text-xs font-medium'>+{config.base_apy}%</span>
+                  </div>
+                )}
+              </div>
+              <p className='text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1'>
+                {t('earnpool.totalDeposited')}
+              </p>
+              <p className='text-2xl font-bold text-gray-900 dark:text-white'>
+                {formatCurrency(balance.total_deposited)}
+              </p>
+              {balance.total_deposited > 0 && (
+                <div className='mt-3 h-1 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden'>
+                  <div
+                    className='h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all'
+                    style={{ width: '75%' }}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Total Yield Earned */}
+            <div className='bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-lg border border-gray-100 dark:border-gray-700 hover:shadow-xl transition-all group'>
+              <div className='flex items-center justify-between mb-3'>
+                <div className='w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/25'>
+                  <BarChart3 className='w-5 h-5 text-white' />
+                </div>
+                <div className='flex items-center gap-1 text-emerald-500'>
+                  <Sparkles className='w-3.5 h-3.5' />
+                  <span className='text-xs font-medium'>{t('earnpool.earning')}</span>
+                </div>
+              </div>
+              <p className='text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1'>
+                {t('earnpool.totalYieldEarned')}
+              </p>
+              <p className='text-2xl font-bold text-emerald-600 dark:text-emerald-400'>
+                {formatCurrency(balance.total_yield_earned)}
+              </p>
+              <MiniChart data={[20, 35, 30, 45, 40, 55, 50, 65, 60, 75]} color='bg-emerald-500' />
+            </div>
+
+            {/* Available Balance */}
+            <div className='bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-lg border border-gray-100 dark:border-gray-700 hover:shadow-xl transition-all group'>
+              <div className='flex items-center justify-between mb-3'>
+                <div className='w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/25'>
+                  <DollarSign className='w-5 h-5 text-white' />
+                </div>
+                <button
+                  onClick={() => setActiveTab('withdraw')}
+                  className='text-xs text-purple-600 dark:text-purple-400 font-medium hover:underline flex items-center gap-1'
+                >
+                  {t('earnpool.actions.withdraw')}
+                  <ChevronRight className='w-3 h-3' />
+                </button>
+              </div>
+              <p className='text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1'>
+                {t('earnpool.availableBalance')}
+              </p>
+              <p className='text-2xl font-bold text-purple-600 dark:text-purple-400'>
+                {formatCurrency(balance.available_balance)}
+              </p>
+              {balance.locked_until && (
+                <div className='mt-2 flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400'>
+                  <Lock className='w-3 h-3' />
+                  <span>
+                    {t('earnpool.lockedUntil')}: {formatDate(balance.locked_until)}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ====== QUICK ACTION BUTTONS ====== */}
+        {isAuthenticated && (
+          <div className='grid grid-cols-2 gap-4'>
+            <button
+              onClick={() => setActiveTab('deposit')}
+              className={`flex items-center justify-center gap-3 p-4 rounded-2xl font-semibold transition-all ${
+                activeTab === 'deposit'
+                  ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/30'
+                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-emerald-300 dark:hover:border-emerald-700'
+              }`}
+            >
+              <ArrowDownCircle className='w-5 h-5' />
+              <span>{t('earnpool.actions.deposit')}</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('withdraw')}
+              className={`flex items-center justify-center gap-3 p-4 rounded-2xl font-semibold transition-all ${
+                activeTab === 'withdraw'
+                  ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg shadow-blue-500/30'
+                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-700'
+              }`}
+            >
+              <ArrowUpCircle className='w-5 h-5' />
+              <span>{t('earnpool.actions.withdraw')}</span>
+            </button>
+          </div>
+        )}
+
+        {/* ====== MAIN PANEL ====== */}
+        <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden'>
+          {/* Tab Navigation */}
+          <div className='flex border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50'>
+            {[
+              {
+                id: 'overview',
+                icon: LineChart,
+                label: t('earnpool.poolOverview'),
+                color: 'emerald',
+              },
+              {
+                id: 'deposit',
+                icon: ArrowDownCircle,
+                label: t('earnpool.actions.deposit'),
+                color: 'green',
+              },
+              {
+                id: 'withdraw',
+                icon: ArrowUpCircle,
+                label: t('earnpool.actions.withdraw'),
+                color: 'blue',
+              },
+              { id: 'history', icon: History, label: t('earnpool.history.title'), color: 'purple' },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as typeof activeTab)}
+                className={`flex-1 flex items-center justify-center gap-2 py-4 px-3 text-sm font-medium transition-all relative ${
+                  activeTab === tab.id
+                    ? `text-${tab.color}-600 dark:text-${tab.color}-400 bg-white dark:bg-gray-800`
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                }`}
+              >
+                <tab.icon className='w-4 h-4' />
+                <span className='hidden sm:inline'>{tab.label}</span>
+                {activeTab === tab.id && (
+                  <div className={`absolute bottom-0 left-0 right-0 h-0.5 bg-${tab.color}-500`} />
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* Tab Content */}
+          <div className='p-6'>
+            {/* ====== OVERVIEW TAB ====== */}
+            {activeTab === 'overview' && (
+              <div className='space-y-6'>
+                {/* Welcome Section */}
+                <div className='text-center py-4'>
+                  <div className='w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-3xl flex items-center justify-center shadow-lg shadow-emerald-500/30'>
+                    <Globe className='w-10 h-10 text-white' />
+                  </div>
+                  <h3 className='text-xl font-bold text-gray-900 dark:text-white mb-2'>
+                    {t('earnpool.title')}
+                  </h3>
+                  <p className='text-gray-600 dark:text-gray-400 max-w-lg mx-auto'>
+                    {t('earnpool.description')}
+                  </p>
+                </div>
+
+                {/* Deposit Limits */}
+                {config && (
+                  <div className='grid grid-cols-2 gap-4'>
+                    <div className='bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-2xl p-5 border border-emerald-100 dark:border-emerald-800'>
+                      <div className='flex items-center gap-2 mb-2'>
+                        <ArrowDownCircle className='w-4 h-4 text-emerald-600 dark:text-emerald-400' />
+                        <span className='text-xs text-emerald-600 dark:text-emerald-400 uppercase tracking-wide font-medium'>
+                          {t('earnpool.poolStats.minDeposit')}
+                        </span>
+                      </div>
+                      <p className='text-2xl font-bold text-emerald-700 dark:text-emerald-300'>
+                        {formatCurrency(config.min_deposit)}
+                      </p>
+                    </div>
+                    <div className='bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl p-5 border border-blue-100 dark:border-blue-800'>
+                      <div className='flex items-center gap-2 mb-2'>
+                        <Target className='w-4 h-4 text-blue-600 dark:text-blue-400' />
+                        <span className='text-xs text-blue-600 dark:text-blue-400 uppercase tracking-wide font-medium'>
+                          {t('earnpool.poolStats.maxDeposit')}
+                        </span>
+                      </div>
+                      <p className='text-2xl font-bold text-blue-700 dark:text-blue-300'>
+                        {formatCurrency(config.max_deposit)}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* How it Works */}
+                <div className='bg-gray-50 dark:bg-gray-700/30 rounded-2xl p-5'>
+                  <h4 className='font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2'>
+                    <Info className='w-4 h-4 text-blue-500' />
+                    {t('earnpool.howItWorks.title')}
+                  </h4>
+                  <div className='space-y-3'>
+                    {[
+                      {
+                        icon: ArrowDownCircle,
+                        text: t('earnpool.howItWorks.step1'),
+                        color: 'emerald',
+                      },
+                      { icon: Clock, text: t('earnpool.howItWorks.step2'), color: 'purple' },
+                      { icon: TrendingUp, text: t('earnpool.howItWorks.step3'), color: 'cyan' },
+                      { icon: ArrowUpCircle, text: t('earnpool.howItWorks.step4'), color: 'blue' },
+                    ].map((step, index) => (
+                      <div key={index} className='flex items-start gap-3'>
+                        <div
+                          className={`w-8 h-8 rounded-lg bg-${step.color}-100 dark:bg-${step.color}-900/30 flex items-center justify-center flex-shrink-0`}
+                        >
+                          <step.icon
+                            className={`w-4 h-4 text-${step.color}-600 dark:text-${step.color}-400`}
+                          />
+                        </div>
+                        <p className='text-sm text-gray-700 dark:text-gray-300 pt-1.5'>
+                          {step.text}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* CTA Button */}
+                {isAuthenticated && (
+                  <button
+                    onClick={() => setActiveTab('deposit')}
+                    className='w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-2xl font-bold text-lg shadow-lg shadow-emerald-500/30 transition-all flex items-center justify-center gap-2'
+                  >
+                    <ArrowDownCircle className='w-5 h-5' />
+                    {t('earnpool.deposit.cta')}
+                    <ArrowRight className='w-5 h-5' />
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* ====== DEPOSIT TAB ====== */}
+            {activeTab === 'deposit' && (
+              <div className='max-w-md mx-auto'>
+                <div className='flex items-center gap-3 mb-6'>
+                  <div className='w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center'>
+                    <ArrowDownCircle className='w-6 h-6 text-white' />
+                  </div>
+                  <div>
+                    <h3 className='text-lg font-bold text-gray-900 dark:text-white'>
+                      {t('earnpool.deposit.title')}
+                    </h3>
+                    <p className='text-sm text-gray-500 dark:text-gray-400'>
+                      {t('earnpool.deposit.subtitle')}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Amount Input */}
+                <div className='mb-6'>
+                  <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                    {t('earnpool.deposit.amount')}
+                  </label>
+                  <div className='relative'>
+                    <div className='absolute left-4 top-1/2 -translate-y-1/2'>
+                      <DollarSign className='w-5 h-5 text-gray-400' />
+                    </div>
+                    <input
+                      type='number'
+                      value={depositAmount}
+                      onChange={e => {
+                        setDepositAmount(e.target.value)
+                        setDepositPreview(null)
+                      }}
+                      placeholder='0.00'
+                      className='w-full pl-12 pr-20 py-4 rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-lg font-semibold focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all'
+                    />
+                    <span className='absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold'>
+                      USDT
+                    </span>
+                  </div>
+                  {config && (
+                    <div className='flex justify-between mt-2 text-xs text-gray-500 dark:text-gray-400'>
+                      <span>
+                        {t('earnpool.deposit.minAmount', {
+                          amount: config.min_deposit,
+                          currency: 'USDT',
+                        })}
+                      </span>
+                      <span>
+                        {t('earnpool.deposit.maxAmount', {
+                          amount: config.max_deposit,
+                          currency: 'USDT',
+                        })}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Preview Button */}
+                {!depositPreview && (
+                  <button
+                    onClick={handleDepositPreview}
+                    disabled={depositLoading || !depositAmount}
+                    className='w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 disabled:from-gray-300 disabled:to-gray-400 dark:disabled:from-gray-700 dark:disabled:to-gray-600 text-white rounded-2xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/30 disabled:shadow-none'
+                  >
+                    {depositLoading ? (
+                      <RefreshCw className='w-5 h-5 animate-spin' />
+                    ) : (
+                      <>
+                        <BarChart3 className='w-5 h-5' />
+                        {t('earnpool.deposit.preview')}
+                      </>
+                    )}
+                  </button>
+                )}
+
+                {/* Preview Result */}
+                {depositPreview && (
+                  <div className='space-y-4'>
+                    <div className='bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-2xl p-5 border border-emerald-200 dark:border-emerald-800'>
+                      <div className='space-y-3'>
+                        <div className='flex justify-between items-center'>
+                          <span className='text-gray-600 dark:text-gray-400 text-sm'>
+                            {t('earnpool.deposit.amount')}
+                          </span>
+                          <span className='font-bold text-gray-900 dark:text-white'>
+                            {formatCurrency(depositPreview.amount)} USDT
+                          </span>
+                        </div>
+                        <div className='flex justify-between items-center'>
+                          <span className='text-gray-600 dark:text-gray-400 text-sm'>
+                            {t('earnpool.deposit.lockPeriod')}
+                          </span>
+                          <span className='font-medium text-gray-900 dark:text-white'>
+                            {depositPreview.lock_period_days} {t('earnpool.poolStats.days')}
+                          </span>
+                        </div>
+                        <div className='flex justify-between items-center'>
+                          <span className='text-gray-600 dark:text-gray-400 text-sm'>
+                            {t('earnpool.deposit.unlocksAt')}
+                          </span>
+                          <span className='font-medium text-gray-900 dark:text-white'>
+                            {formatDate(depositPreview.unlocks_at)}
+                          </span>
+                        </div>
+                        <div className='h-px bg-emerald-200 dark:bg-emerald-700 my-2' />
+                        <div className='flex justify-between items-center'>
+                          <span className='text-gray-600 dark:text-gray-400 text-sm'>
+                            {t('earnpool.deposit.estimatedApy')}
+                          </span>
+                          <span className='font-bold text-emerald-600 dark:text-emerald-400 text-lg'>
+                            {depositPreview.estimated_apy}%
+                          </span>
+                        </div>
+                        <div className='flex justify-between items-center bg-emerald-100 dark:bg-emerald-800/30 rounded-xl p-3'>
+                          <span className='text-emerald-700 dark:text-emerald-300 text-sm font-medium'>
+                            {t('earnpool.deposit.estimatedYearlyYield')}
+                          </span>
+                          <span className='font-bold text-emerald-600 dark:text-emerald-400 text-xl'>
+                            {formatCurrency(depositPreview.estimated_yearly_yield)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className='flex gap-3'>
+                      <button
+                        onClick={() => setDepositPreview(null)}
+                        className='flex-1 py-4 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-2xl font-bold transition-all hover:bg-gray-200 dark:hover:bg-gray-600'
+                      >
+                        {t('common.cancel')}
+                      </button>
+                      <button
+                        onClick={handleDepositConfirm}
+                        disabled={depositLoading}
+                        className='flex-1 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-2xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/30'
+                      >
+                        {depositLoading ? (
+                          <RefreshCw className='w-5 h-5 animate-spin' />
+                        ) : (
+                          <>
+                            <CheckCircle className='w-5 h-5' />
+                            {t('earnpool.deposit.confirm')}
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ====== WITHDRAW TAB ====== */}
+            {activeTab === 'withdraw' && (
+              <div className='max-w-md mx-auto'>
+                <div className='flex items-center gap-3 mb-6'>
+                  <div className='w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center'>
+                    <ArrowUpCircle className='w-6 h-6 text-white' />
+                  </div>
+                  <div>
+                    <h3 className='text-lg font-bold text-gray-900 dark:text-white'>
+                      {t('earnpool.withdraw.title')}
+                    </h3>
+                    <p className='text-sm text-gray-500 dark:text-gray-400'>
+                      {t('earnpool.withdraw.subtitle')}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Amount Input */}
+                <div className='mb-6'>
+                  <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                    {t('earnpool.withdraw.amount')}
+                  </label>
+                  <div className='relative'>
+                    <div className='absolute left-4 top-1/2 -translate-y-1/2'>
+                      <DollarSign className='w-5 h-5 text-gray-400' />
+                    </div>
+                    <input
+                      type='number'
+                      value={withdrawAmount}
+                      onChange={e => {
+                        setWithdrawAmount(e.target.value)
+                        setWithdrawPreview(null)
+                      }}
+                      placeholder='0.00'
+                      max={balance?.available_balance}
+                      className='w-full pl-12 pr-20 py-4 rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-lg font-semibold focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all'
+                    />
+                    <span className='absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold'>
+                      USDT
+                    </span>
+                  </div>
+                  {balance && (
+                    <button
+                      onClick={() => setWithdrawAmount(balance.available_balance.toString())}
+                      className='mt-2 text-xs text-blue-600 dark:text-blue-400 font-medium hover:underline flex items-center gap-1'
+                    >
+                      {t('earnpool.availableBalance')}: {formatCurrency(balance.available_balance)}
+                      <span className='px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 rounded text-[10px]'>
+                        MAX
+                      </span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Preview Button */}
+                {!withdrawPreview && (
+                  <button
+                    onClick={handleWithdrawPreview}
+                    disabled={withdrawLoading || !withdrawAmount}
+                    className='w-full py-4 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 disabled:from-gray-300 disabled:to-gray-400 dark:disabled:from-gray-700 dark:disabled:to-gray-600 text-white rounded-2xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-500/30 disabled:shadow-none'
+                  >
+                    {withdrawLoading ? (
+                      <RefreshCw className='w-5 h-5 animate-spin' />
+                    ) : (
+                      <>
+                        <BarChart3 className='w-5 h-5' />
+                        {t('earnpool.withdraw.preview')}
+                      </>
+                    )}
+                  </button>
+                )}
+
+                {/* Preview Result */}
+                {withdrawPreview && (
+                  <div className='space-y-4'>
+                    {/* Early Withdrawal Warning */}
+                    {withdrawPreview.is_early_withdrawal && (
+                      <div className='bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl p-4 flex items-start gap-3'>
+                        <AlertCircle className='w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5' />
+                        <p className='text-sm text-amber-700 dark:text-amber-400'>
+                          {t('earnpool.withdraw.earlyWithdrawalWarning', {
+                            fee: withdrawPreview.fee_percentage,
+                          })}
+                        </p>
+                      </div>
+                    )}
+
+                    <div className='bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl p-5 border border-blue-200 dark:border-blue-800'>
+                      <div className='space-y-3'>
+                        <div className='flex justify-between items-center'>
+                          <span className='text-gray-600 dark:text-gray-400 text-sm'>
+                            {t('earnpool.withdraw.amount')}
+                          </span>
+                          <span className='font-bold text-gray-900 dark:text-white'>
+                            {formatCurrency(withdrawPreview.amount)}
+                          </span>
+                        </div>
+                        {withdrawPreview.fee_amount > 0 && (
+                          <div className='flex justify-between items-center'>
+                            <span className='text-gray-600 dark:text-gray-400 text-sm'>
+                              {t('earnpool.withdraw.feeAmount')} ({withdrawPreview.fee_percentage}%)
+                            </span>
+                            <span className='font-medium text-red-600 dark:text-red-400'>
+                              -{formatCurrency(withdrawPreview.fee_amount)}
+                            </span>
+                          </div>
+                        )}
+                        <div className='h-px bg-blue-200 dark:bg-blue-700 my-2' />
+                        <div className='flex justify-between items-center bg-blue-100 dark:bg-blue-800/30 rounded-xl p-3'>
+                          <span className='text-blue-700 dark:text-blue-300 text-sm font-medium'>
+                            {t('earnpool.withdraw.netAmount')}
+                          </span>
+                          <span className='font-bold text-blue-600 dark:text-blue-400 text-xl'>
+                            {formatCurrency(withdrawPreview.net_amount)}
+                          </span>
+                        </div>
+                        <div className='flex justify-between items-center'>
+                          <span className='text-gray-600 dark:text-gray-400 text-sm'>
+                            {t('earnpool.withdraw.availableAt')}
+                          </span>
+                          <span className='font-medium text-gray-900 dark:text-white'>
+                            {formatDate(withdrawPreview.available_at)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <p className='text-xs text-gray-500 dark:text-gray-400 text-center'>
+                      {t('earnpool.withdraw.processingTime')}
+                    </p>
+
+                    <div className='flex gap-3'>
+                      <button
+                        onClick={() => setWithdrawPreview(null)}
+                        className='flex-1 py-4 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-2xl font-bold transition-all hover:bg-gray-200 dark:hover:bg-gray-600'
+                      >
+                        {t('common.cancel')}
+                      </button>
+                      <button
+                        onClick={handleWithdrawConfirm}
+                        disabled={withdrawLoading}
+                        className='flex-1 py-4 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white rounded-2xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-500/30'
+                      >
+                        {withdrawLoading ? (
+                          <RefreshCw className='w-5 h-5 animate-spin' />
+                        ) : (
+                          <>
+                            <CheckCircle className='w-5 h-5' />
+                            {t('earnpool.withdraw.confirm')}
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ====== HISTORY TAB ====== */}
+            {activeTab === 'history' && (
+              <div className='space-y-8'>
+                {/* Deposits Section */}
+                <div>
+                  <div className='flex items-center justify-between mb-4'>
+                    <h3 className='font-bold text-gray-900 dark:text-white flex items-center gap-2'>
+                      <div className='w-8 h-8 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center'>
+                        <ArrowDownCircle className='w-4 h-4 text-emerald-600 dark:text-emerald-400' />
+                      </div>
+                      {t('earnpool.history.deposits')}
+                    </h3>
+                    <span className='text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full'>
+                      {deposits.length} {t('earnpool.history.total')}
+                    </span>
+                  </div>
+
+                  {deposits.length === 0 ? (
+                    <div className='text-center py-8 bg-gray-50 dark:bg-gray-700/30 rounded-2xl'>
+                      <PiggyBank className='w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3' />
+                      <p className='text-sm text-gray-500 dark:text-gray-400'>
+                        {t('earnpool.history.noDeposits')}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className='space-y-3'>
+                      {deposits.map(deposit => (
+                        <div
+                          key={deposit.id}
+                          className='bg-white dark:bg-gray-700/50 rounded-2xl p-4 border border-gray-100 dark:border-gray-600 hover:shadow-md transition-all'
+                        >
+                          <div className='flex items-center justify-between'>
+                            <div className='flex items-center gap-3'>
+                              <div className='w-10 h-10 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl flex items-center justify-center'>
+                                <DollarSign className='w-5 h-5 text-emerald-600 dark:text-emerald-400' />
+                              </div>
+                              <div>
+                                <p className='font-bold text-gray-900 dark:text-white'>
+                                  {formatCurrency(deposit.amount)} USDT
+                                </p>
+                                <p className='text-xs text-gray-500 dark:text-gray-400'>
+                                  {formatDateTime(deposit.deposited_at)}
+                                </p>
+                              </div>
+                            </div>
+                            <div className='text-right'>
+                              <span
+                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${
+                                  deposit.status === 'LOCKED'
+                                    ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+                                    : deposit.status === 'UNLOCKED'
+                                      ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
+                                      : 'bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300'
+                                }`}
+                              >
+                                {deposit.status === 'LOCKED' ? (
+                                  <Lock className='w-3 h-3' />
+                                ) : (
+                                  <Unlock className='w-3 h-3' />
+                                )}
+                                {t(`earnpool.status.${deposit.status.toLowerCase()}`)}
+                              </span>
+                              {deposit.status === 'LOCKED' && (
+                                <p className='text-[10px] text-gray-500 dark:text-gray-400 mt-1'>
+                                  {t('earnpool.lockedUntil')}: {formatDate(deposit.unlocks_at)}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Withdrawals Section */}
+                <div>
+                  <div className='flex items-center justify-between mb-4'>
+                    <h3 className='font-bold text-gray-900 dark:text-white flex items-center gap-2'>
+                      <div className='w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center'>
+                        <ArrowUpCircle className='w-4 h-4 text-blue-600 dark:text-blue-400' />
+                      </div>
+                      {t('earnpool.history.withdrawals')}
+                    </h3>
+                    <span className='text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full'>
+                      {withdrawals.length} {t('earnpool.history.total')}
+                    </span>
+                  </div>
+
+                  {withdrawals.length === 0 ? (
+                    <div className='text-center py-8 bg-gray-50 dark:bg-gray-700/30 rounded-2xl'>
+                      <Wallet className='w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3' />
+                      <p className='text-sm text-gray-500 dark:text-gray-400'>
+                        {t('earnpool.history.noWithdrawals')}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className='space-y-3'>
+                      {withdrawals.map(withdrawal => (
+                        <div
+                          key={withdrawal.id}
+                          className='bg-white dark:bg-gray-700/50 rounded-2xl p-4 border border-gray-100 dark:border-gray-600 hover:shadow-md transition-all'
+                        >
+                          <div className='flex items-center justify-between'>
+                            <div className='flex items-center gap-3'>
+                              <div className='w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center'>
+                                <DollarSign className='w-5 h-5 text-blue-600 dark:text-blue-400' />
+                              </div>
+                              <div>
+                                <p className='font-bold text-gray-900 dark:text-white'>
+                                  {formatCurrency(withdrawal.net_amount)} USDT
+                                </p>
+                                <p className='text-xs text-gray-500 dark:text-gray-400'>
+                                  {formatDateTime(withdrawal.requested_at)}
+                                </p>
+                                {withdrawal.fee_amount > 0 && (
+                                  <p className='text-xs text-red-500 dark:text-red-400'>
+                                    {t('common.fee')}: -{formatCurrency(withdrawal.fee_amount)}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <div className='text-right'>
+                              <span
+                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${
+                                  withdrawal.status === 'PENDING'
+                                    ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+                                    : withdrawal.status === 'APPROVED' ||
+                                        withdrawal.status === 'COMPLETED'
+                                      ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
+                                      : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                                }`}
+                              >
+                                {withdrawal.status === 'COMPLETED' ? (
+                                  <CheckCircle className='w-3 h-3' />
+                                ) : (
+                                  <Clock className='w-3 h-3' />
+                                )}
+                                {t(`earnpool.status.${withdrawal.status.toLowerCase()}`)}
+                              </span>
+                              {withdrawal.status === 'PENDING' && (
+                                <p className='text-[10px] text-gray-500 dark:text-gray-400 mt-1'>
+                                  {t('earnpool.withdraw.availableAt')}:{' '}
+                                  {formatDate(withdrawal.available_at)}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default EarnPoolPage

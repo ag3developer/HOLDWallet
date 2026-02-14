@@ -55,6 +55,8 @@
     "marketplace": "Marketplace",
     "instantTrade": "Trade Instantáneo",
     "wolkpay": "WolkPay",
+    "billPayment": "Pagar Facturas",
+    "earnpool": "Pool de Liquidez",
     "services": "Servicios",
     "contact": "Contacto",
     "support": "Soporte",
@@ -821,6 +823,116 @@
       "sentimentError": "Error al obtener sentimiento del mercado",
       "setupError": "Error al obtener setup de trading",
       "technicalError": "Error al obtener análisis técnico"
+    }
+  },
+  "earnpool": {
+    "title": "Pool de Liquidez",
+    "subtitle": "Conviértete en proveedor de liquidez y recibe comisiones operativas",
+    "description": "Proporciona liquidez al pool y participa en las comisiones generadas por las operaciones de la plataforma",
+    "badge": "Premium",
+    "perYear": "por año",
+    "flexible": "Flexible",
+    "feeNote": "Solo se aplica en retiros anticipados",
+    "earning": "Ganando",
+    "poolOverview": "Visión General",
+    "yourBalance": "Tu Participación",
+    "totalDeposited": "Total Aportado",
+    "totalYieldEarned": "Comisiones Recibidas",
+    "pendingWithdrawals": "Retiros Pendientes",
+    "availableBalance": "Saldo Disponible",
+    "lockedUntil": "Bloqueado Hasta",
+    "depositsCount": "Aportes Activos",
+    "badges": {
+      "secure": "100% Seguro",
+      "instant": "Procesamiento Rápido",
+      "verified": "Verificado",
+      "premium": "Premium"
+    },
+    "howItWorks": {
+      "title": "Cómo Funciona",
+      "step1": "Proporciona liquidez en USDT al pool cooperativo",
+      "step2": "Tus recursos participan durante el período mínimo",
+      "step3": "Recibe comisiones de las operaciones de la plataforma",
+      "step4": "Retira tus recursos cuando quieras"
+    },
+    "poolStats": {
+      "totalPoolBalance": "Liquidez Total",
+      "baseApy": "Tasa de Comisión",
+      "lockPeriod": "Período Mínimo",
+      "minDeposit": "Aporte Mínimo",
+      "maxDeposit": "Aporte Máximo",
+      "earlyWithdrawalFee": "Comisión Salida Anticipada",
+      "days": "días"
+    },
+    "deposit": {
+      "title": "Aportar Liquidez",
+      "subtitle": "Añadir recursos al pool cooperativo",
+      "cta": "Comenzar a Aportar Liquidez",
+      "amount": "Monto del Aporte",
+      "currency": "Moneda",
+      "preview": "Calcular Comisión",
+      "confirm": "Confirmar Aporte",
+      "lockPeriod": "Período de Participación",
+      "unlocksAt": "Liberación en",
+      "estimatedApy": "Tasa de Comisión Estimada",
+      "estimatedYearlyYield": "Comisión Anual Estimada",
+      "estimatedWeeklyYield": "Comisión Semanal Estimada",
+      "success": "¡Aporte realizado con éxito!",
+      "error": "Error al realizar aporte",
+      "minAmount": "Mín: {{amount}} {{currency}}",
+      "maxAmount": "Máx: {{amount}} {{currency}}",
+      "insufficientBalance": "Saldo insuficiente"
+    },
+    "withdraw": {
+      "title": "Retirar Liquidez",
+      "subtitle": "Solicitar retiro del pool",
+      "amount": "Monto del Retiro",
+      "preview": "Calcular Retiro",
+      "confirm": "Confirmar Retiro",
+      "feePercentage": "Comisión (%)",
+      "feeAmount": "Monto de la Comisión",
+      "netAmount": "Monto Neto",
+      "isEarlyWithdrawal": "Retiro Anticipado",
+      "earlyWithdrawalWarning": "Estás retirando antes del período mínimo de participación. Se aplicará una comisión del {{fee}}%.",
+      "availableAt": "Disponible en",
+      "processingTime": "Tiempo de Procesamiento: 7 días hábiles",
+      "success": "¡Retiro solicitado con éxito!",
+      "error": "Error al solicitar retiro",
+      "insufficientBalance": "Saldo insuficiente para el retiro",
+      "minAmount": "Monto mínimo para retirar",
+      "maxAmount": "Monto máximo disponible"
+    },
+    "history": {
+      "title": "Historial",
+      "deposits": "Aportes",
+      "withdrawals": "Retiros",
+      "yields": "Comisiones",
+      "total": "total",
+      "noDeposits": "No se encontraron aportes",
+      "noWithdrawals": "No se encontraron retiros",
+      "noYields": "No se encontraron comisiones"
+    },
+    "status": {
+      "locked": "Participando",
+      "unlocked": "Liberado",
+      "withdrawn": "Retirado",
+      "pending": "Pendiente",
+      "approved": "Aprobado",
+      "rejected": "Rechazado",
+      "completed": "Completado",
+      "processed": "Procesado"
+    },
+    "actions": {
+      "deposit": "Aportar Liquidez",
+      "withdraw": "Retirar",
+      "viewHistory": "Ver Historial",
+      "viewDetails": "Ver Detalles"
+    },
+    "errors": {
+      "poolInactive": "El pool está temporalmente inactivo para nuevos aportes",
+      "loadingFailed": "Error al cargar datos del pool",
+      "depositFailed": "Error al procesar aporte",
+      "withdrawFailed": "Error al procesar retiro"
     }
   }
 }

@@ -45,6 +45,7 @@ from . import security
 from . import push_subscription
 from . import kyc
 from . import user_profile
+from . import earnpool
 
 __all__ = [
     # Base
@@ -143,4 +144,7 @@ __all__ = [
     
     # User Profile
     "user_profile",
+    
+    # EarnPool
+    "earnpool",
 ]
