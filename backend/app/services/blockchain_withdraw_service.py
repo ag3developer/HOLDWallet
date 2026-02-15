@@ -1103,24 +1103,23 @@ class BlockchainWithdrawService:
                 if amount_to_send <= 0:
                     amount_to_send = amount_decimal * Decimal("0.98")
                 
-                tx_hash = self._send_native_token(
+                tx_hash = self.send_native_token(
                     w3=w3,
                     from_address=user_address.address,
+                    private_key=private_key,
                     to_address=to_address,
                     amount=amount_to_send,
-                    private_key=private_key,
-                    gas_limit=gas_limit
+                    network=network
                 )
             else:
                 # ERC20 token
-                tx_hash = self._send_erc20_token(
+                tx_hash = self.send_erc20_token(
                     w3=w3,
+                    contract_address=contract_address,
                     from_address=user_address.address,
+                    private_key=private_key,
                     to_address=to_address,
                     amount=amount_decimal,
-                    symbol=symbol_upper,
-                    contract_address=contract_address,
-                    private_key=private_key,
                     network=network
                 )
             
