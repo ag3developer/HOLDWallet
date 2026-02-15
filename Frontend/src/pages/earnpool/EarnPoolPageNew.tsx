@@ -260,7 +260,7 @@ const StatCard = ({ icon: Icon, label, value, subValue, trend, color }: StatCard
         >
           <Icon className='w-5 h-5 text-white' />
         </div>
-        {trend !== undefined && (
+        {trend !== undefined && !Number.isNaN(trend) && (
           <div
             className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
               trend >= 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'
@@ -268,7 +268,7 @@ const StatCard = ({ icon: Icon, label, value, subValue, trend, color }: StatCard
           >
             {trend >= 0 ? <TrendingUp className='w-3 h-3' /> : <TrendingDown className='w-3 h-3' />}
             {trend >= 0 ? '+' : ''}
-            {trend.toFixed(2)}%
+            {(trend ?? 0).toFixed(2)}%
           </div>
         )}
       </div>
@@ -886,7 +886,7 @@ export function EarnPoolPageNew() {
                       <TrendingDown className='w-4 h-4' />
                     )}
                     {performanceChange >= 0 ? '+' : ''}
-                    {performanceChange.toFixed(2)}%
+                    {(performanceChange ?? 0).toFixed(2)}%
                   </div>
                 </div>
                 <p className='text-emerald-400 text-lg font-semibold mt-2'>
@@ -1076,7 +1076,7 @@ export function EarnPoolPageNew() {
                     <div className='text-left'>
                       <p className='font-bold text-white'>{selectedCrypto.symbol}</p>
                       <p className='text-xs text-slate-400'>
-                        {t('common.balance')}: {selectedCrypto.balance.toFixed(8)} (
+                        {t('common.balance')}: {(selectedCrypto.balance ?? 0).toFixed(8)} (
                         {formatCurrency(selectedCrypto.balanceUSD)})
                       </p>
                     </div>
@@ -1124,7 +1124,7 @@ export function EarnPoolPageNew() {
                 </div>
                 <div className='flex justify-between mt-2 text-sm'>
                   <span className='text-slate-400'>
-                    {t('common.balance')}: {selectedCrypto.balance.toFixed(8)}{' '}
+                    {t('common.balance')}: {(selectedCrypto.balance ?? 0).toFixed(8)}{' '}
                     {selectedCrypto.symbol}
                   </span>
                   <span className='text-emerald-400 font-medium'>
@@ -1308,9 +1308,11 @@ export function EarnPoolPageNew() {
                             <p className='text-xs text-slate-400 capitalize'>{crypto.network}</p>
                           </div>
                           <div className='text-right'>
-                            <p className='text-white font-medium'>{crypto.balance.toFixed(6)}</p>
+                            <p className='text-white font-medium'>
+                              {(crypto.balance ?? 0).toFixed(6)}
+                            </p>
                             <p className='text-xs text-slate-400'>
-                              {formatCurrency(crypto.balanceUSD)}
+                              {formatCurrency(crypto.balanceUSD ?? 0)}
                             </p>
                           </div>
                         </button>

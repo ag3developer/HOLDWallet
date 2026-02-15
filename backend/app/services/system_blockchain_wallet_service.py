@@ -938,6 +938,82 @@ class SystemBlockchainWalletService:
             logger.error(f"Falha ao adicionar redes faltantes: {e}")
             raise ValueError(f"Falha ao adicionar redes: {str(e)}")
 
+    def get_address_for_network(
+        self,
+        db: Session,
+        network: str,
+        wallet_name: str = "main_fees_wallet"
+    ) -> Optional[str]:
+        """
+        Retorna o endereço do sistema para uma rede específica.
+        
+        Args:
+            db: Sessão do banco
+            network: Nome da rede (ethereum, polygon, bitcoin, etc.)
+            wallet_name: Nome da carteira do sistema (default: main_fees_wallet)
+        
+        Returns:
+            Endereço do sistema para a rede ou None se não existir
+        """
+        try:
+            # Buscar carteira principal
+            wallet = db.query(SystemBlockchainWallet).filter(
+                SystemBlockchainWallet.name == wallet_name,
+                SystemBlockchainWallet.is_active == True
+            ).first()
+            
+            if not wallet:
+                logger.warning(f"Carteira do sistema '{wallet_name}' não encontrada")
+                return None
+            
+            # Buscar endereço para a rede
+            address = db.query(SystemBlockchainAddress).filter(
+                SystemBlockchainAddress.wallet_id == wallet.id,
+                SystemBlockchainAddress.network == network.lower(),
+                SystemBlockchainAddress.is_active == True
+            ).first()
+            
+            if not address:
+                logger.warning(f"Endereço não encontrado para rede '{network}' na carteira '{wallet_name}'")
+                return None
+            
+            return address.address
+            
+        except Exception as e:
+            logger.error(f"Erro ao buscar endereço do sistema para {network}: {e}")
+            return None
+
+    def get_all_system_addresses(
+        self,
+        db: Session,
+        wallet_name: str = "main_fees_wallet"
+    ) -> Dict[str, str]:
+        """
+        Retorna todos os endereços do sistema organizados por rede.
+        
+        Returns:
+            Dict com network -> address
+        """
+        try:
+            wallet = db.query(SystemBlockchainWallet).filter(
+                SystemBlockchainWallet.name == wallet_name,
+                SystemBlockchainWallet.is_active == True
+            ).first()
+            
+            if not wallet:
+                return {}
+            
+            addresses = db.query(SystemBlockchainAddress).filter(
+                SystemBlockchainAddress.wallet_id == wallet.id,
+                SystemBlockchainAddress.is_active == True
+            ).all()
+            
+            return {addr.network: addr.address for addr in addresses}
+            
+        except Exception as e:
+            logger.error(f"Erro ao buscar endereços do sistema: {e}")
+            return {}
+
 
 # Instância singleton
 system_wallet_service = SystemBlockchainWalletService()

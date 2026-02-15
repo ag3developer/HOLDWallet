@@ -156,6 +156,11 @@ class EarnPoolDeposit(Base):
     tx_hash_in = Column(String(100), nullable=True)      # TX do depósito
     operational_wallet_address = Column(String(100), nullable=True)  # Destino da crypto
     
+    # Transferência para sistema (admin)
+    tx_hash_to_system = Column(String(100), nullable=True)  # TX de transferência para carteira do sistema
+    transferred_to_system_at = Column(DateTime, nullable=True)  # Data da transferência
+    transferred_by_admin = Column(String(50), nullable=True)  # ID do admin que fez a transferência
+    
     # Auditoria
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, onupdate=lambda: datetime.now(timezone.utc))

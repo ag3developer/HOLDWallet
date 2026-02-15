@@ -859,7 +859,7 @@ function OverviewTab({
                     </td>
                     <td className='px-6 py-4 whitespace-nowrap text-center'>
                       <span className='font-mono text-gray-900 dark:text-white'>
-                        {coop.pool_share_percentage.toFixed(2)}%
+                        {(coop.pool_share_percentage ?? 0).toFixed(2)}%
                       </span>
                     </td>
                   </tr>
@@ -1010,7 +1010,7 @@ function TiersTab({
                     />
                   ) : (
                     <span className='px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 rounded-full font-medium'>
-                      {tier.pool_share_percentage.toFixed(2)}%
+                      {(tier.pool_share_percentage ?? 0).toFixed(2)}%
                     </span>
                   )}
                 </td>
@@ -1324,10 +1324,10 @@ function DepositsTab({
                   <td className='px-6 py-4 whitespace-nowrap'>
                     <div>
                       <p className='text-sm font-medium text-gray-900 dark:text-white'>
-                        {deposit.crypto_symbol}
+                        {deposit.crypto_symbol || '-'}
                       </p>
                       <p className='text-xs text-gray-500 dark:text-gray-400 font-mono'>
-                        {deposit.crypto_amount.toFixed(8)}
+                        {(deposit.crypto_amount ?? 0).toFixed(8)}
                       </p>
                     </div>
                   </td>
@@ -1493,7 +1493,8 @@ function WithdrawalsTab({
                         {formatCurrency(withdrawal.amount_usdt)}
                       </p>
                       <p className='text-xs text-gray-500 dark:text-gray-400'>
-                        {withdrawal.amount_crypto.toFixed(8)} {withdrawal.crypto_symbol}
+                        {(withdrawal.amount_crypto ?? 0).toFixed(8)}{' '}
+                        {withdrawal.crypto_symbol || '-'}
                       </p>
                     </div>
                   </td>
