@@ -100,9 +100,9 @@ class ReferralService:
         return referral_code
     
     def get_referral_code_by_code(self, code: str) -> Optional[ReferralCode]:
-        """Busca código de indicação pelo código"""
+        """Busca código de indicação pelo código (case-insensitive)"""
         return self.db.query(ReferralCode).filter(
-            ReferralCode.code == code.upper(),
+            ReferralCode.code == code.lower(),
             ReferralCode.is_active == True
         ).first()
     

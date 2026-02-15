@@ -14,6 +14,7 @@ import logging
 
 from app.core.db import get_db
 from app.core.security import get_current_user
+from app.core.config import settings
 from app.models.user import User
 from app.services.referral_service import get_referral_service
 
@@ -150,7 +151,9 @@ async def get_my_referral_code(
         referral_code = service.get_or_create_referral_code(str(current_user.id))
         
         # Monta link de compartilhamento usando o username
-        share_link = f"https://wolknow.app/register?ref={referral_code.code}"
+        # Usa FRONTEND_URL para funcionar em dev e prod
+        base_url = settings.FRONTEND_URL.rstrip('/')
+        share_link = f"{base_url}/register?ref={referral_code.code}"
         
         from app.services.referral_service import TIER_CONFIG
         
@@ -327,8 +330,9 @@ async def get_referral_dashboard(
         referrals = service.get_referral_list(str(current_user.id))[:5]
         program_info = service.get_program_info()
         
-        # Link de compartilhamento
-        share_link = f"https://wolknow.app/register?ref={stats['referral_code']}"
+        # Link de compartilhamento - usa FRONTEND_URL para funcionar em dev e prod
+        base_url = settings.FRONTEND_URL.rstrip('/')
+        share_link = f"{base_url}/register?ref={stats['referral_code']}"
         
         return {
             "referral_code": stats["referral_code"],

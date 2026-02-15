@@ -47,7 +47,8 @@ export const RegisterPage = () => {
   useEffect(() => {
     const ref = searchParams.get('ref') || searchParams.get('referral')
     if (ref) {
-      setFormData(prev => ({ ...prev, referralCode: ref.toUpperCase() }))
+      // O código de referral agora é o username (em minúsculas)
+      setFormData(prev => ({ ...prev, referralCode: ref.toLowerCase() }))
     }
   }, [searchParams])
 
