@@ -436,7 +436,16 @@ class ApiClient {
 
   private async refreshToken(token: string): Promise<void> {
     try {
-      const response = await axios.post(`${APP_CONFIG.api.baseUrl}/auth/refresh`, { token })
+      const response = await axios.post(
+        `${APP_CONFIG.api.baseUrl}/auth/refresh`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      )
       const newToken = response.data.access_token
 
       // Update stored token

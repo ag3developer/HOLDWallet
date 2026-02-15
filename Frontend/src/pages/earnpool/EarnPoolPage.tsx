@@ -600,8 +600,11 @@ export function EarnPoolPage() {
     }).format(value)
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR', {
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return '-'
+    const date = new Date(dateString)
+    if (Number.isNaN(date.getTime())) return '-'
+    return date.toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
@@ -1438,7 +1441,10 @@ export function EarnPoolPage() {
                               className='w-5 h-5 rounded-full'
                             />
                             <span className='font-bold text-gray-900 dark:text-white'>
-                              {depositAmount} {selectedCrypto.symbol}
+                              {Number(depositAmount)
+                                .toFixed(6)
+                                .replace(/\.?0+$/, '')}{' '}
+                              {selectedCrypto.symbol}
                             </span>
                           </div>
                         </div>
@@ -1466,7 +1472,7 @@ export function EarnPoolPage() {
                             {t('earnpool.deposit.unlocksAt')}
                           </span>
                           <span className='font-medium text-gray-900 dark:text-white'>
-                            {formatDate(depositPreview.unlocks_at)}
+                            {formatDate(depositPreview.lock_ends_at || depositPreview.unlocks_at)}
                           </span>
                         </div>
                         <div className='h-px bg-emerald-200 dark:bg-emerald-700 my-2' />
@@ -1475,7 +1481,11 @@ export function EarnPoolPage() {
                             {t('earnpool.deposit.estimatedApy')}
                           </span>
                           <span className='font-bold text-emerald-600 dark:text-emerald-400 text-lg'>
-                            {depositPreview.estimated_apy}%
+                            {depositPreview.estimated_apy ??
+                              config?.target_weekly_yield_percentage ??
+                              config?.base_apy ??
+                              0}
+                            %
                           </span>
                         </div>
                         <div className='flex justify-between items-center bg-emerald-100 dark:bg-emerald-800/30 rounded-xl p-3'>
@@ -1483,7 +1493,15 @@ export function EarnPoolPage() {
                             {t('earnpool.deposit.estimatedYearlyYield')}
                           </span>
                           <span className='font-bold text-emerald-600 dark:text-emerald-400 text-xl'>
-                            {formatCurrency(depositPreview.estimated_yearly_yield)}
+                            {formatCurrency(
+                              depositPreview.estimated_yearly_yield ??
+                                depositValueInUSDT *
+                                  ((config?.target_weekly_yield_percentage ??
+                                    config?.base_apy ??
+                                    0) /
+                                    100) *
+                                  52
+                            )}
                           </span>
                         </div>
                       </div>

@@ -172,7 +172,8 @@ export default function AdminEarnPoolPage() {
     queryKey: ['earnpool-deposits'],
     queryFn: async () => {
       const { data } = await apiClient.get('/admin/earnpool/deposits')
-      return data
+      // Backend pode retornar array direto OU { deposits: [...] }
+      return Array.isArray(data) ? data : data.deposits || []
     },
   })
 
@@ -180,7 +181,8 @@ export default function AdminEarnPoolPage() {
     queryKey: ['earnpool-withdrawals'],
     queryFn: async () => {
       const { data } = await apiClient.get('/admin/earnpool/withdrawals')
-      return data
+      // Backend pode retornar array direto OU { withdrawals: [...] }
+      return Array.isArray(data) ? data : data.withdrawals || []
     },
   })
 
@@ -188,7 +190,8 @@ export default function AdminEarnPoolPage() {
     queryKey: ['earnpool-cooperators'],
     queryFn: async () => {
       const { data } = await apiClient.get('/admin/earnpool/cooperators')
-      return data
+      // Backend pode retornar array direto OU objeto
+      return Array.isArray(data) ? data : data.cooperators || []
     },
   })
 
@@ -196,7 +199,8 @@ export default function AdminEarnPoolPage() {
     queryKey: ['earnpool-distributions'],
     queryFn: async () => {
       const { data } = await apiClient.get('/admin/earnpool/distributions')
-      return data
+      // Backend pode retornar array direto OU objeto
+      return Array.isArray(data) ? data : data.distributions || []
     },
   })
 
@@ -408,21 +412,21 @@ export default function AdminEarnPoolPage() {
   // ============================================================================
 
   return (
-    <div className='p-6 bg-gray-50 min-h-screen'>
+    <div className='p-6 bg-gray-50 dark:bg-gray-900 min-h-screen transition-colors'>
       {/* Header */}
       <div className='mb-6'>
-        <h1 className='text-2xl font-bold text-gray-900 flex items-center gap-2'>
+        <h1 className='text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2'>
           <PiggyBank className='w-8 h-8 text-amber-500' />
           EarnPool - Painel Administrativo
         </h1>
-        <p className='text-gray-600 mt-1'>
+        <p className='text-gray-600 dark:text-gray-400 mt-1'>
           Gerencie o pool cooperativo, tiers, configurações, depósitos e saques.
         </p>
       </div>
 
       {/* Tabs */}
-      <div className='bg-white rounded-lg shadow mb-6'>
-        <div className='border-b border-gray-200'>
+      <div className='bg-white dark:bg-gray-800 rounded-lg shadow mb-6 border border-gray-200 dark:border-gray-700'>
+        <div className='border-b border-gray-200 dark:border-gray-700'>
           <nav className='flex space-x-0 overflow-x-auto'>
             {tabs.map(tab => (
               <button
@@ -430,8 +434,8 @@ export default function AdminEarnPoolPage() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
                   activeTab === tab.id
-                    ? 'border-amber-500 text-amber-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-amber-500 text-amber-600 dark:text-amber-400'
+                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
                 }`}
               >
                 <tab.icon className='w-4 h-4' />
@@ -525,32 +529,34 @@ export default function AdminEarnPoolPage() {
         <Modal onClose={() => setShowAddRevenue(false)} title='Adicionar Receita ao Pool'>
           <div className='space-y-4'>
             <div>
-              <label className='block text-sm font-medium text-gray-700 mb-1'>Valor (USDT)</label>
+              <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1'>
+                Valor (USDT)
+              </label>
               <input
                 type='number'
                 step='0.01'
                 value={revenueAmount}
                 onChange={e => setRevenueAmount(e.target.value)}
-                className='w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
+                className='w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white'
                 placeholder='0.00'
               />
             </div>
             <div>
-              <label className='block text-sm font-medium text-gray-700 mb-1'>
+              <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1'>
                 Fonte (opcional)
               </label>
               <input
                 type='text'
                 value={revenueSource}
                 onChange={e => setRevenueSource(e.target.value)}
-                className='w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
+                className='w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white'
                 placeholder='Ex: Trading, OTC, Staking...'
               />
             </div>
             <div className='flex justify-end gap-3 pt-4'>
               <button
                 onClick={() => setShowAddRevenue(false)}
-                className='px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors'
+                className='px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors'
               >
                 Cancelar
               </button>
@@ -570,17 +576,17 @@ export default function AdminEarnPoolPage() {
       {showDistributionPreview && distributionPreview && (
         <Modal onClose={() => setShowDistributionPreview(false)} title='Preview da Distribuição'>
           <div className='space-y-4'>
-            <div className='bg-amber-50 p-4 rounded-lg'>
+            <div className='bg-amber-50 dark:bg-amber-900/20 p-4 rounded-lg'>
               <div className='grid grid-cols-2 gap-4'>
                 <div>
-                  <p className='text-sm text-gray-600'>Valor a Distribuir</p>
-                  <p className='text-xl font-bold text-amber-600'>
+                  <p className='text-sm text-gray-600 dark:text-gray-400'>Valor a Distribuir</p>
+                  <p className='text-xl font-bold text-amber-600 dark:text-amber-400'>
                     {formatCurrency(distributionPreview.amount_to_distribute)}
                   </p>
                 </div>
                 <div>
-                  <p className='text-sm text-gray-600'>Cooperadores</p>
-                  <p className='text-xl font-bold text-gray-900'>
+                  <p className='text-sm text-gray-600 dark:text-gray-400'>Cooperadores</p>
+                  <p className='text-xl font-bold text-gray-900 dark:text-white'>
                     {distributionPreview.cooperators_count}
                   </p>
                 </div>
@@ -590,19 +596,25 @@ export default function AdminEarnPoolPage() {
             {distributionPreview.preview && distributionPreview.preview.length > 0 && (
               <div className='max-h-60 overflow-y-auto'>
                 <table className='w-full text-sm'>
-                  <thead className='bg-gray-50 sticky top-0'>
+                  <thead className='bg-gray-50 dark:bg-gray-700 sticky top-0'>
                     <tr>
-                      <th className='px-3 py-2 text-left'>Usuário</th>
-                      <th className='px-3 py-2 text-left'>Tier</th>
-                      <th className='px-3 py-2 text-right'>Rendimento</th>
+                      <th className='px-3 py-2 text-left text-gray-700 dark:text-gray-300'>
+                        Usuário
+                      </th>
+                      <th className='px-3 py-2 text-left text-gray-700 dark:text-gray-300'>Tier</th>
+                      <th className='px-3 py-2 text-right text-gray-700 dark:text-gray-300'>
+                        Rendimento
+                      </th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className='divide-y divide-gray-200 dark:divide-gray-600'>
                     {distributionPreview.preview.map((item: any, idx: number) => (
-                      <tr key={idx} className='border-t'>
-                        <td className='px-3 py-2'>{item.email}</td>
-                        <td className='px-3 py-2'>{item.tier_name}</td>
-                        <td className='px-3 py-2 text-right font-mono text-green-600'>
+                      <tr key={idx}>
+                        <td className='px-3 py-2 text-gray-900 dark:text-gray-100'>{item.email}</td>
+                        <td className='px-3 py-2 text-gray-900 dark:text-gray-100'>
+                          {item.tier_name}
+                        </td>
+                        <td className='px-3 py-2 text-right font-mono text-green-600 dark:text-green-400'>
                           +{formatCurrency(item.yield_amount)}
                         </td>
                       </tr>
@@ -612,10 +624,10 @@ export default function AdminEarnPoolPage() {
               </div>
             )}
 
-            <div className='flex justify-end gap-3 pt-4 border-t'>
+            <div className='flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700'>
               <button
                 onClick={() => setShowDistributionPreview(false)}
-                className='px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors'
+                className='px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors'
               >
                 Cancelar
               </button>
@@ -649,11 +661,15 @@ function Modal({
 }) {
   return (
     <div className='fixed inset-0 bg-black/50 flex items-center justify-center z-50'>
-      <div className='bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto'>
-        <div className='flex items-center justify-between px-6 py-4 border-b'>
-          <h3 className='text-lg font-semibold'>{title}</h3>
-          <button onClick={onClose} className='p-1 hover:bg-gray-100 rounded-full'>
-            <X className='w-5 h-5' />
+      <div className='bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto border border-gray-200 dark:border-gray-700'>
+        <div className='flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700'>
+          <h3 className='text-lg font-semibold text-gray-900 dark:text-white'>{title}</h3>
+          <button
+            onClick={onClose}
+            className='p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full'
+            title='Fechar'
+          >
+            <X className='w-5 h-5 text-gray-500 dark:text-gray-400' />
           </button>
         </div>
         <div className='p-6'>{children}</div>
@@ -676,22 +692,22 @@ function StatCard({
   color?: 'amber' | 'green' | 'blue' | 'purple'
 }) {
   const colors = {
-    amber: 'bg-amber-100 text-amber-600',
-    green: 'bg-green-100 text-green-600',
-    blue: 'bg-blue-100 text-blue-600',
-    purple: 'bg-purple-100 text-purple-600',
+    amber: 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400',
+    green: 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400',
+    blue: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
+    purple: 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400',
   }
 
   return (
-    <div className='bg-white rounded-xl p-6 shadow-sm border border-gray-100'>
+    <div className='bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700'>
       <div className='flex items-center gap-4'>
         <div className={`p-3 rounded-lg ${colors[color]}`}>
           <Icon className='w-6 h-6' />
         </div>
         <div>
-          <p className='text-sm text-gray-600'>{label}</p>
-          <p className='text-xl font-bold text-gray-900'>{value}</p>
-          {subValue && <p className='text-xs text-gray-500'>{subValue}</p>}
+          <p className='text-sm text-gray-600 dark:text-gray-400'>{label}</p>
+          <p className='text-xl font-bold text-gray-900 dark:text-white'>{value}</p>
+          {subValue && <p className='text-xs text-gray-500 dark:text-gray-500'>{subValue}</p>}
         </div>
       </div>
     </div>
@@ -753,8 +769,8 @@ function OverviewTab({
       </div>
 
       {/* Actions */}
-      <div className='bg-white rounded-xl p-6 shadow-sm border border-gray-100'>
-        <h3 className='text-lg font-semibold mb-4'>Ações Rápidas</h3>
+      <div className='bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700'>
+        <h3 className='text-lg font-semibold text-gray-900 dark:text-white mb-4'>Ações Rápidas</h3>
         <div className='flex flex-wrap gap-4'>
           <button
             onClick={onAddRevenue}
@@ -772,67 +788,79 @@ function OverviewTab({
           </button>
         </div>
         {summary?.last_distribution && (
-          <p className='text-sm text-gray-500 mt-4'>
+          <p className='text-sm text-gray-500 dark:text-gray-400 mt-4'>
             Última distribuição: {formatDate(summary.last_distribution)}
           </p>
         )}
       </div>
 
       {/* Cooperators Table */}
-      <div className='bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden'>
-        <div className='px-6 py-4 border-b'>
-          <h3 className='text-lg font-semibold'>Cooperadores Ativos</h3>
+      <div className='bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden'>
+        <div className='px-6 py-4 border-b border-gray-200 dark:border-gray-700'>
+          <h3 className='text-lg font-semibold text-gray-900 dark:text-white'>
+            Cooperadores Ativos
+          </h3>
         </div>
         {loadingCooperators ? (
-          <div className='p-8 text-center text-gray-500'>Carregando...</div>
+          <div className='p-8 text-center text-gray-500 dark:text-gray-400'>Carregando...</div>
         ) : !cooperators?.length ? (
-          <div className='p-8 text-center text-gray-500'>Nenhum cooperador ativo</div>
+          <div className='p-8 text-center text-gray-500 dark:text-gray-400'>
+            Nenhum cooperador ativo
+          </div>
         ) : (
           <div className='overflow-x-auto'>
             <table className='w-full'>
-              <thead className='bg-gray-50'>
+              <thead className='bg-gray-50 dark:bg-gray-700/50'>
                 <tr>
-                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase'>
+                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase'>
                     Usuário
                   </th>
-                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase'>
+                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase'>
                     Tier
                   </th>
-                  <th className='px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase'>
+                  <th className='px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase'>
                     Depositado
                   </th>
-                  <th className='px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase'>
+                  <th className='px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase'>
                     Rendimentos
                   </th>
-                  <th className='px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase'>
+                  <th className='px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase'>
                     % Pool
                   </th>
                 </tr>
               </thead>
-              <tbody className='divide-y divide-gray-200'>
+              <tbody className='divide-y divide-gray-200 dark:divide-gray-700'>
                 {cooperators.map(coop => (
-                  <tr key={coop.user_id} className='hover:bg-gray-50'>
+                  <tr key={coop.user_id} className='hover:bg-gray-50 dark:hover:bg-gray-700/50'>
                     <td className='px-6 py-4 whitespace-nowrap'>
                       <div>
-                        <p className='text-sm font-medium text-gray-900'>{coop.email}</p>
-                        <p className='text-xs text-gray-500'>ID: {coop.user_id}</p>
+                        <p className='text-sm font-medium text-gray-900 dark:text-white'>
+                          {coop.email}
+                        </p>
+                        <p className='text-xs text-gray-500 dark:text-gray-400'>
+                          ID: {coop.user_id}
+                        </p>
                       </div>
                     </td>
                     <td className='px-6 py-4 whitespace-nowrap'>
-                      <span className='px-2 py-1 bg-amber-100 text-amber-800 rounded-full text-xs font-medium'>
+                      <span className='px-2 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-400 rounded-full text-xs font-medium'>
                         {coop.tier_name} (Nível {coop.tier_level})
                       </span>
                     </td>
                     <td className='px-6 py-4 whitespace-nowrap text-right'>
-                      <span className='font-mono'>{formatCurrency(coop.total_deposited_usdt)}</span>
+                      <span className='font-mono text-gray-900 dark:text-white'>
+                        {formatCurrency(coop.total_deposited_usdt)}
+                      </span>
                     </td>
                     <td className='px-6 py-4 whitespace-nowrap text-right'>
-                      <span className='font-mono text-green-600'>
+                      <span className='font-mono text-green-600 dark:text-green-400'>
                         +{formatCurrency(coop.total_yield_earned)}
                       </span>
                     </td>
                     <td className='px-6 py-4 whitespace-nowrap text-center'>
-                      <span className='font-mono'>{coop.pool_share_percentage.toFixed(2)}%</span>
+                      <span className='font-mono text-gray-900 dark:text-white'>
+                        {coop.pool_share_percentage.toFixed(2)}%
+                      </span>
                     </td>
                   </tr>
                 ))}
@@ -871,56 +899,60 @@ function TiersTab({
   formatCurrency: (v: number) => string
 }) {
   if (loadingTiers) {
-    return <div className='p-8 text-center text-gray-500'>Carregando tiers...</div>
+    return (
+      <div className='p-8 text-center text-gray-500 dark:text-gray-400'>Carregando tiers...</div>
+    )
   }
 
   return (
-    <div className='bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden'>
-      <div className='px-6 py-4 border-b'>
-        <h3 className='text-lg font-semibold'>Configuração de Tiers</h3>
-        <p className='text-sm text-gray-500'>
+    <div className='bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden'>
+      <div className='px-6 py-4 border-b border-gray-200 dark:border-gray-700'>
+        <h3 className='text-lg font-semibold text-gray-900 dark:text-white'>
+          Configuração de Tiers
+        </h3>
+        <p className='text-sm text-gray-500 dark:text-gray-400'>
           Defina os percentuais de rendimento semanal para cada nível de tier.
         </p>
       </div>
       <div className='overflow-x-auto'>
         <table className='w-full'>
-          <thead className='bg-gray-50'>
+          <thead className='bg-gray-50 dark:bg-gray-700/50'>
             <tr>
-              <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase'>
+              <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase'>
                 Nível
               </th>
-              <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase'>
+              <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase'>
                 Nome
               </th>
-              <th className='px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase'>
+              <th className='px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase'>
                 Mín. USDT
               </th>
-              <th className='px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase'>
+              <th className='px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase'>
                 Máx. USDT
               </th>
-              <th className='px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase'>
+              <th className='px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase'>
                 % Semanal
               </th>
-              <th className='px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase'>
+              <th className='px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase'>
                 Status
               </th>
-              <th className='px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase'>
+              <th className='px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase'>
                 Ações
               </th>
             </tr>
           </thead>
-          <tbody className='divide-y divide-gray-200'>
+          <tbody className='divide-y divide-gray-200 dark:divide-gray-700'>
             {tiers?.map(tier => (
-              <tr key={tier.id} className='hover:bg-gray-50'>
+              <tr key={tier.id} className='hover:bg-gray-50 dark:hover:bg-gray-700/50'>
                 <td className='px-6 py-4 whitespace-nowrap'>
-                  <span className='w-8 h-8 flex items-center justify-center bg-amber-100 text-amber-800 rounded-full font-bold'>
+                  <span className='w-8 h-8 flex items-center justify-center bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-400 rounded-full font-bold'>
                     {tier.level}
                   </span>
                 </td>
                 <td className='px-6 py-4 whitespace-nowrap'>
                   <div>
-                    <p className='font-medium'>{tier.name}</p>
-                    <p className='text-xs text-gray-500'>{tier.name_pt}</p>
+                    <p className='font-medium text-gray-900 dark:text-white'>{tier.name}</p>
+                    <p className='text-xs text-gray-500 dark:text-gray-400'>{tier.name_pt}</p>
                   </div>
                 </td>
                 <td className='px-6 py-4 whitespace-nowrap text-right'>
@@ -931,10 +963,13 @@ function TiersTab({
                       onChange={e =>
                         setTierEdit({ ...tierEdit, min_usdt: parseFloat(e.target.value) })
                       }
-                      className='w-24 px-2 py-1 border rounded text-right'
+                      className='w-24 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-right bg-white dark:bg-gray-700 text-gray-900 dark:text-white'
+                      title='Valor mínimo em USDT'
                     />
                   ) : (
-                    <span className='font-mono'>{formatCurrency(tier.min_usdt)}</span>
+                    <span className='font-mono text-gray-900 dark:text-white'>
+                      {formatCurrency(tier.min_usdt)}
+                    </span>
                   )}
                 </td>
                 <td className='px-6 py-4 whitespace-nowrap text-right'>
@@ -948,11 +983,12 @@ function TiersTab({
                           max_usdt: e.target.value ? parseFloat(e.target.value) : null,
                         })
                       }
-                      className='w-24 px-2 py-1 border rounded text-right'
+                      className='w-24 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-right bg-white dark:bg-gray-700 text-gray-900 dark:text-white'
                       placeholder='∞'
+                      title='Valor máximo em USDT'
                     />
                   ) : (
-                    <span className='font-mono'>
+                    <span className='font-mono text-gray-900 dark:text-white'>
                       {tier.max_usdt ? formatCurrency(tier.max_usdt) : '∞'}
                     </span>
                   )}
@@ -969,10 +1005,11 @@ function TiersTab({
                           pool_share_percentage: parseFloat(e.target.value),
                         })
                       }
-                      className='w-20 px-2 py-1 border rounded text-center'
+                      className='w-20 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-center bg-white dark:bg-gray-700 text-gray-900 dark:text-white'
+                      title='Percentual semanal'
                     />
                   ) : (
-                    <span className='px-3 py-1 bg-green-100 text-green-800 rounded-full font-medium'>
+                    <span className='px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 rounded-full font-medium'>
                       {tier.pool_share_percentage.toFixed(2)}%
                     </span>
                   )}
@@ -984,17 +1021,18 @@ function TiersTab({
                       onChange={e =>
                         setTierEdit({ ...tierEdit, is_active: e.target.value === 'true' })
                       }
-                      className='px-2 py-1 border rounded'
+                      className='px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white'
+                      title='Status do tier'
                     >
                       <option value='true'>Ativo</option>
                       <option value='false'>Inativo</option>
                     </select>
                   ) : tier.is_active ? (
-                    <span className='px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs'>
+                    <span className='px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 rounded-full text-xs'>
                       Ativo
                     </span>
                   ) : (
-                    <span className='px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs'>
+                    <span className='px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400 rounded-full text-xs'>
                       Inativo
                     </span>
                   )}
@@ -1004,13 +1042,15 @@ function TiersTab({
                     <div className='flex items-center justify-center gap-2'>
                       <button
                         onClick={onSave}
-                        className='p-1 text-green-600 hover:bg-green-50 rounded'
+                        className='p-1 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30 rounded'
+                        title='Salvar'
                       >
                         <Save className='w-4 h-4' />
                       </button>
                       <button
                         onClick={onCancel}
-                        className='p-1 text-red-600 hover:bg-red-50 rounded'
+                        className='p-1 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded'
+                        title='Cancelar'
                       >
                         <X className='w-4 h-4' />
                       </button>
@@ -1018,7 +1058,8 @@ function TiersTab({
                   ) : (
                     <button
                       onClick={() => onEdit(tier)}
-                      className='p-1 text-amber-600 hover:bg-amber-50 rounded'
+                      className='p-1 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded'
+                      title='Editar'
                     >
                       <Edit2 className='w-4 h-4' />
                     </button>
@@ -1057,11 +1098,19 @@ function ConfigTab({
   onCancel: () => void
 }) {
   if (loadingConfig) {
-    return <div className='p-8 text-center text-gray-500'>Carregando configurações...</div>
+    return (
+      <div className='p-8 text-center text-gray-500 dark:text-gray-400'>
+        Carregando configurações...
+      </div>
+    )
   }
 
   if (!config) {
-    return <div className='p-8 text-center text-gray-500'>Configuração não encontrada</div>
+    return (
+      <div className='p-8 text-center text-gray-500 dark:text-gray-400'>
+        Configuração não encontrada
+      </div>
+    )
   }
 
   const configFields = [
@@ -1090,11 +1139,13 @@ function ConfigTab({
   ]
 
   return (
-    <div className='bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden'>
-      <div className='px-6 py-4 border-b flex items-center justify-between'>
+    <div className='bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden'>
+      <div className='px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between'>
         <div>
-          <h3 className='text-lg font-semibold'>Configurações Globais</h3>
-          <p className='text-sm text-gray-500'>
+          <h3 className='text-lg font-semibold text-gray-900 dark:text-white'>
+            Configurações Globais
+          </h3>
+          <p className='text-sm text-gray-500 dark:text-gray-400'>
             Configure os parâmetros do EarnPool que afetam todos os usuários.
           </p>
         </div>
@@ -1112,7 +1163,9 @@ function ConfigTab({
         <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
           {configFields.map(field => (
             <div key={field.key} className='space-y-1'>
-              <label className='block text-sm font-medium text-gray-700'>{field.label}</label>
+              <label className='block text-sm font-medium text-gray-700 dark:text-gray-300'>
+                {field.label}
+              </label>
               {editingConfig ? (
                 <input
                   type={field.type}
@@ -1125,11 +1178,11 @@ function ConfigTab({
                         field.nullable && e.target.value === '' ? null : parseFloat(e.target.value),
                     })
                   }
-                  className='w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
+                  className='w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white'
                   placeholder={field.nullable ? 'Sem limite' : ''}
                 />
               ) : (
-                <p className='text-lg font-mono text-gray-900'>
+                <p className='text-lg font-mono text-gray-900 dark:text-white'>
                   {(config as any)[field.key] !== null ? (config as any)[field.key] : 'Sem limite'}
                   {field.key.includes('fee') || field.key.includes('percentage') ? '%' : ''}
                   {field.key.includes('days') ? ' dias' : ''}
@@ -1141,10 +1194,10 @@ function ConfigTab({
         </div>
 
         {editingConfig && (
-          <div className='flex justify-end gap-3 mt-6 pt-6 border-t'>
+          <div className='flex justify-end gap-3 mt-6 pt-6 border-t border-gray-200 dark:border-gray-700'>
             <button
               onClick={onCancel}
-              className='px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors'
+              className='px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors'
             >
               Cancelar
             </button>
@@ -1185,27 +1238,20 @@ function DepositsTab({
     d => filterStatus === 'all' || d.status === filterStatus
   )
 
-  const statusOptions = [
-    'all',
-    'PENDING',
-    'ACTIVE',
-    'LOCKED',
-    'WITHDRAWAL_PENDING',
-    'WITHDRAWN',
-    'CANCELLED',
-  ]
-
   return (
-    <div className='bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden'>
-      <div className='px-6 py-4 border-b flex items-center justify-between'>
+    <div className='bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden'>
+      <div className='px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between'>
         <div>
-          <h3 className='text-lg font-semibold'>Depósitos</h3>
-          <p className='text-sm text-gray-500'>Todos os depósitos realizados no EarnPool</p>
+          <h3 className='text-lg font-semibold text-gray-900 dark:text-white'>Depósitos</h3>
+          <p className='text-sm text-gray-500 dark:text-gray-400'>
+            Todos os depósitos realizados no EarnPool
+          </p>
         </div>
         <select
           value={filterStatus}
           onChange={e => setFilterStatus(e.target.value)}
-          className='px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500'
+          className='px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-amber-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white'
+          title='Filtrar por status'
         >
           <option value='all'>Todos os Status</option>
           <option value='PENDING'>Pendente</option>
@@ -1218,85 +1264,95 @@ function DepositsTab({
       </div>
 
       {loadingDeposits ? (
-        <div className='p-8 text-center text-gray-500'>Carregando depósitos...</div>
+        <div className='p-8 text-center text-gray-500 dark:text-gray-400'>
+          Carregando depósitos...
+        </div>
       ) : !filteredDeposits?.length ? (
-        <div className='p-8 text-center text-gray-500'>Nenhum depósito encontrado</div>
+        <div className='p-8 text-center text-gray-500 dark:text-gray-400'>
+          Nenhum depósito encontrado
+        </div>
       ) : (
         <div className='overflow-x-auto'>
           <table className='w-full'>
-            <thead className='bg-gray-50'>
+            <thead className='bg-gray-50 dark:bg-gray-700/50'>
               <tr>
-                <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase'>
+                <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase'>
                   ID
                 </th>
-                <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase'>
+                <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase'>
                   Usuário
                 </th>
-                <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase'>
+                <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase'>
                   Crypto
                 </th>
-                <th className='px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase'>
+                <th className='px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase'>
                   Valor USDT
                 </th>
-                <th className='px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase'>
+                <th className='px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase'>
                   Rendimentos
                 </th>
-                <th className='px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase'>
+                <th className='px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase'>
                   Tier
                 </th>
-                <th className='px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase'>
+                <th className='px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase'>
                   Status
                 </th>
-                <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase'>
+                <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase'>
                   Data Depósito
                 </th>
-                <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase'>
+                <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase'>
                   Lock Termina
                 </th>
               </tr>
             </thead>
-            <tbody className='divide-y divide-gray-200'>
+            <tbody className='divide-y divide-gray-200 dark:divide-gray-700'>
               {filteredDeposits.map(deposit => (
-                <tr key={deposit.id} className='hover:bg-gray-50'>
-                  <td className='px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500'>
+                <tr key={deposit.id} className='hover:bg-gray-50 dark:hover:bg-gray-700/50'>
+                  <td className='px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500 dark:text-gray-400'>
                     #{deposit.id}
                   </td>
                   <td className='px-6 py-4 whitespace-nowrap'>
                     <div>
-                      <p className='text-sm font-medium text-gray-900'>
+                      <p className='text-sm font-medium text-gray-900 dark:text-white'>
                         {deposit.user_email || '-'}
                       </p>
-                      <p className='text-xs text-gray-500'>ID: {deposit.user_id}</p>
+                      <p className='text-xs text-gray-500 dark:text-gray-400'>
+                        ID: {deposit.user_id}
+                      </p>
                     </div>
                   </td>
                   <td className='px-6 py-4 whitespace-nowrap'>
                     <div>
-                      <p className='text-sm font-medium'>{deposit.crypto_symbol}</p>
-                      <p className='text-xs text-gray-500 font-mono'>
+                      <p className='text-sm font-medium text-gray-900 dark:text-white'>
+                        {deposit.crypto_symbol}
+                      </p>
+                      <p className='text-xs text-gray-500 dark:text-gray-400 font-mono'>
                         {deposit.crypto_amount.toFixed(8)}
                       </p>
                     </div>
                   </td>
                   <td className='px-6 py-4 whitespace-nowrap text-right'>
-                    <span className='font-mono'>{formatCurrency(deposit.usdt_amount)}</span>
+                    <span className='font-mono text-gray-900 dark:text-white'>
+                      {formatCurrency(deposit.usdt_amount)}
+                    </span>
                   </td>
                   <td className='px-6 py-4 whitespace-nowrap text-right'>
-                    <span className='font-mono text-green-600'>
+                    <span className='font-mono text-green-600 dark:text-green-400'>
                       +{formatCurrency(deposit.total_yield_earned)}
                     </span>
                   </td>
                   <td className='px-6 py-4 whitespace-nowrap text-center'>
-                    <span className='px-2 py-1 bg-amber-100 text-amber-800 rounded-full text-xs font-medium'>
+                    <span className='px-2 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-400 rounded-full text-xs font-medium'>
                       {deposit.tier_name || `Nível ${deposit.tier_level}`}
                     </span>
                   </td>
                   <td className='px-6 py-4 whitespace-nowrap text-center'>
                     {getStatusBadge(deposit.status)}
                   </td>
-                  <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
+                  <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400'>
                     {formatDate(deposit.deposited_at)}
                   </td>
-                  <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
+                  <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400'>
                     {formatDate(deposit.lock_ends_at)}
                   </td>
                 </tr>
@@ -1349,16 +1405,19 @@ function WithdrawalsTab({
   }
 
   return (
-    <div className='bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden'>
-      <div className='px-6 py-4 border-b flex items-center justify-between'>
+    <div className='bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden'>
+      <div className='px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between'>
         <div>
-          <h3 className='text-lg font-semibold'>Saques</h3>
-          <p className='text-sm text-gray-500'>Gerencie solicitações de saque do EarnPool</p>
+          <h3 className='text-lg font-semibold text-gray-900 dark:text-white'>Saques</h3>
+          <p className='text-sm text-gray-500 dark:text-gray-400'>
+            Gerencie solicitações de saque do EarnPool
+          </p>
         </div>
         <select
           value={filterStatus}
           onChange={e => setFilterStatus(e.target.value)}
-          className='px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500'
+          className='px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-amber-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white'
+          title='Filtrar por status'
         >
           <option value='all'>Todos os Status</option>
           <option value='PENDING'>Pendente</option>
@@ -1370,70 +1429,76 @@ function WithdrawalsTab({
       </div>
 
       {loadingWithdrawals ? (
-        <div className='p-8 text-center text-gray-500'>Carregando saques...</div>
+        <div className='p-8 text-center text-gray-500 dark:text-gray-400'>Carregando saques...</div>
       ) : !filteredWithdrawals?.length ? (
-        <div className='p-8 text-center text-gray-500'>Nenhum saque encontrado</div>
+        <div className='p-8 text-center text-gray-500 dark:text-gray-400'>
+          Nenhum saque encontrado
+        </div>
       ) : (
         <div className='overflow-x-auto'>
           <table className='w-full'>
-            <thead className='bg-gray-50'>
+            <thead className='bg-gray-50 dark:bg-gray-700/50'>
               <tr>
-                <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase'>
+                <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase'>
                   ID
                 </th>
-                <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase'>
+                <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase'>
                   Usuário
                 </th>
-                <th className='px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase'>
+                <th className='px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase'>
                   Valor
                 </th>
-                <th className='px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase'>
+                <th className='px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase'>
                   Taxas
                 </th>
-                <th className='px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase'>
+                <th className='px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase'>
                   Líquido
                 </th>
-                <th className='px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase'>
+                <th className='px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase'>
                   Destino
                 </th>
-                <th className='px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase'>
+                <th className='px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase'>
                   Antecipado?
                 </th>
-                <th className='px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase'>
+                <th className='px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase'>
                   Status
                 </th>
-                <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase'>
+                <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase'>
                   Solicitado
                 </th>
-                <th className='px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase'>
+                <th className='px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase'>
                   Ações
                 </th>
               </tr>
             </thead>
-            <tbody className='divide-y divide-gray-200'>
+            <tbody className='divide-y divide-gray-200 dark:divide-gray-700'>
               {filteredWithdrawals.map(withdrawal => (
-                <tr key={withdrawal.id} className='hover:bg-gray-50'>
-                  <td className='px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500'>
+                <tr key={withdrawal.id} className='hover:bg-gray-50 dark:hover:bg-gray-700/50'>
+                  <td className='px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500 dark:text-gray-400'>
                     #{withdrawal.id}
                   </td>
                   <td className='px-6 py-4 whitespace-nowrap'>
                     <div>
-                      <p className='text-sm font-medium text-gray-900'>
+                      <p className='text-sm font-medium text-gray-900 dark:text-white'>
                         {withdrawal.user_email || '-'}
                       </p>
-                      <p className='text-xs text-gray-500'>Depósito #{withdrawal.deposit_id}</p>
+                      <p className='text-xs text-gray-500 dark:text-gray-400'>
+                        Depósito #{withdrawal.deposit_id}
+                      </p>
                     </div>
                   </td>
                   <td className='px-6 py-4 whitespace-nowrap text-right'>
                     <div>
-                      <p className='font-mono'>{formatCurrency(withdrawal.amount_usdt)}</p>
-                      <p className='text-xs text-gray-500'>
+                      <p className='font-mono text-gray-900 dark:text-white'>
+                        {formatCurrency(withdrawal.amount_usdt)}
+                      </p>
+                      <p className='text-xs text-gray-500 dark:text-gray-400'>
                         {withdrawal.amount_crypto.toFixed(8)} {withdrawal.crypto_symbol}
                       </p>
                     </div>
                   </td>
                   <td className='px-6 py-4 whitespace-nowrap text-right'>
-                    <div className='text-red-600'>
+                    <div className='text-red-600 dark:text-red-400'>
                       <p className='font-mono text-sm'>
                         -{formatCurrency(withdrawal.admin_fee + withdrawal.operational_fee)}
                       </p>
@@ -1446,29 +1511,29 @@ function WithdrawalsTab({
                     </div>
                   </td>
                   <td className='px-6 py-4 whitespace-nowrap text-right'>
-                    <span className='font-mono text-green-600 font-medium'>
+                    <span className='font-mono text-green-600 dark:text-green-400 font-medium'>
                       {formatCurrency(withdrawal.net_amount)}
                     </span>
                   </td>
                   <td className='px-6 py-4 whitespace-nowrap text-center'>
-                    <span className='px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs uppercase'>
+                    <span className='px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400 rounded-full text-xs uppercase'>
                       {withdrawal.destination_type}
                     </span>
                   </td>
                   <td className='px-6 py-4 whitespace-nowrap text-center'>
                     {withdrawal.is_early_withdrawal ? (
-                      <span className='px-2 py-1 bg-orange-100 text-orange-800 rounded-full text-xs'>
+                      <span className='px-2 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-400 rounded-full text-xs'>
                         <AlertTriangle className='w-3 h-3 inline mr-1' />
                         Sim
                       </span>
                     ) : (
-                      <span className='text-gray-400'>Não</span>
+                      <span className='text-gray-400 dark:text-gray-500'>Não</span>
                     )}
                   </td>
                   <td className='px-6 py-4 whitespace-nowrap text-center'>
                     {getStatusBadge(withdrawal.status)}
                   </td>
-                  <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
+                  <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400'>
                     {formatDate(withdrawal.requested_at)}
                   </td>
                   <td className='px-6 py-4 whitespace-nowrap text-center'>
@@ -1476,21 +1541,23 @@ function WithdrawalsTab({
                       <div className='flex items-center justify-center gap-2'>
                         <button
                           onClick={() => onApprove(withdrawal.id)}
-                          className='p-1 text-green-600 hover:bg-green-50 rounded'
+                          className='p-1 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30 rounded'
                           title='Aprovar'
                         >
                           <CheckCircle className='w-5 h-5' />
                         </button>
                         <button
                           onClick={() => setRejectingId(withdrawal.id)}
-                          className='p-1 text-red-600 hover:bg-red-50 rounded'
+                          className='p-1 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded'
                           title='Rejeitar'
                         >
                           <XCircle className='w-5 h-5' />
                         </button>
                       </div>
                     )}
-                    {withdrawal.status !== 'PENDING' && <span className='text-gray-400'>-</span>}
+                    {withdrawal.status !== 'PENDING' && (
+                      <span className='text-gray-400 dark:text-gray-500'>-</span>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -1509,13 +1576,13 @@ function WithdrawalsTab({
           title='Rejeitar Saque'
         >
           <div className='space-y-4'>
-            <p className='text-sm text-gray-600'>
+            <p className='text-sm text-gray-600 dark:text-gray-400'>
               Informe o motivo da rejeição do saque #{rejectingId}:
             </p>
             <textarea
               value={rejectReason}
               onChange={e => setRejectReason(e.target.value)}
-              className='w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent'
+              className='w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white'
               rows={3}
               placeholder='Motivo da rejeição...'
             />
@@ -1525,7 +1592,7 @@ function WithdrawalsTab({
                   setRejectingId(null)
                   setRejectReason('')
                 }}
-                className='px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg'
+                className='px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg'
               >
                 Cancelar
               </button>
@@ -1559,60 +1626,70 @@ function DistributionsTab({
   formatDate: (d: string | null) => string
 }) {
   if (loadingDistributions) {
-    return <div className='p-8 text-center text-gray-500'>Carregando distribuições...</div>
+    return (
+      <div className='p-8 text-center text-gray-500 dark:text-gray-400'>
+        Carregando distribuições...
+      </div>
+    )
   }
 
   return (
-    <div className='bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden'>
-      <div className='px-6 py-4 border-b'>
-        <h3 className='text-lg font-semibold'>Histórico de Distribuições</h3>
-        <p className='text-sm text-gray-500'>Todas as distribuições de rendimentos realizadas</p>
+    <div className='bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden'>
+      <div className='px-6 py-4 border-b border-gray-200 dark:border-gray-700'>
+        <h3 className='text-lg font-semibold text-gray-900 dark:text-white'>
+          Histórico de Distribuições
+        </h3>
+        <p className='text-sm text-gray-500 dark:text-gray-400'>
+          Todas as distribuições de rendimentos realizadas
+        </p>
       </div>
 
       {!distributions?.length ? (
-        <div className='p-8 text-center text-gray-500'>Nenhuma distribuição realizada ainda</div>
+        <div className='p-8 text-center text-gray-500 dark:text-gray-400'>
+          Nenhuma distribuição realizada ainda
+        </div>
       ) : (
         <div className='overflow-x-auto'>
           <table className='w-full'>
-            <thead className='bg-gray-50'>
+            <thead className='bg-gray-50 dark:bg-gray-700/50'>
               <tr>
-                <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase'>
+                <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase'>
                   ID
                 </th>
-                <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase'>
+                <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase'>
                   Data
                 </th>
-                <th className='px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase'>
+                <th className='px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase'>
                   Valor Total
                 </th>
-                <th className='px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase'>
+                <th className='px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase'>
                   Cooperadores
                 </th>
-                <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase'>
+                <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase'>
                   Período
                 </th>
               </tr>
             </thead>
-            <tbody className='divide-y divide-gray-200'>
+            <tbody className='divide-y divide-gray-200 dark:divide-gray-700'>
               {distributions.map(dist => (
-                <tr key={dist.id} className='hover:bg-gray-50'>
-                  <td className='px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500'>
+                <tr key={dist.id} className='hover:bg-gray-50 dark:hover:bg-gray-700/50'>
+                  <td className='px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500 dark:text-gray-400'>
                     #{dist.id}
                   </td>
-                  <td className='px-6 py-4 whitespace-nowrap text-sm'>
+                  <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white'>
                     {formatDate(dist.distributed_at)}
                   </td>
                   <td className='px-6 py-4 whitespace-nowrap text-right'>
-                    <span className='font-mono text-green-600 font-medium'>
+                    <span className='font-mono text-green-600 dark:text-green-400 font-medium'>
                       {formatCurrency(dist.total_amount)}
                     </span>
                   </td>
                   <td className='px-6 py-4 whitespace-nowrap text-center'>
-                    <span className='px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium'>
+                    <span className='px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400 rounded-full text-sm font-medium'>
                       {dist.cooperators_count}
                     </span>
                   </td>
-                  <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
+                  <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400'>
                     {formatDate(dist.period_start)} - {formatDate(dist.period_end)}
                   </td>
                 </tr>

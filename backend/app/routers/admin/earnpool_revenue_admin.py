@@ -92,17 +92,17 @@ async def get_earnpool_summary(
     
     # Last distribution date
     last_dist = db.query(EarnPoolRevenuePool).filter(
-        EarnPoolRevenuePool.status == "distributed"
+        EarnPoolRevenuePool.status == "DISTRIBUTED"
     ).order_by(EarnPoolRevenuePool.distributed_at.desc()).first()
     
     # Total cooperators (active deposits)
     total_cooperators = db.query(func.count(func.distinct(EarnPoolDeposit.user_id))).filter(
-        EarnPoolDeposit.status == "active"
+        EarnPoolDeposit.status == "ACTIVE"
     ).scalar() or 0
     
     # Total deposited USDT
     total_deposited = db.query(func.sum(EarnPoolDeposit.usdt_amount)).filter(
-        EarnPoolDeposit.status == "active"
+        EarnPoolDeposit.status == "ACTIVE"
     ).scalar() or Decimal(0)
     
     return {
@@ -225,12 +225,12 @@ async def get_all_tiers(
             "id": tier.id,
             "level": tier.tier_level,
             "name": tier.name,
-            "name_pt": tier.name_pt or tier.name,
+            "name_pt": tier.name,  # Usar name como fallback (name_key é para i18n)
             "min_usdt": float(tier.min_deposit_usdt),
             "max_usdt": float(tier.max_deposit_usdt) if tier.max_deposit_usdt else None,
             "pool_share_percentage": float(tier.pool_share_percentage),
-            "benefits_en": tier.benefits_en or "",
-            "benefits_pt": tier.benefits_pt or "",
+            "benefits_en": "",
+            "benefits_pt": "",
             "is_active": tier.is_active
         }
         for tier in tiers
@@ -398,7 +398,7 @@ async def approve_withdrawal(
         raise HTTPException(status_code=404, detail="Saque não encontrado")
     
     status_value = withdrawal.status.value if hasattr(withdrawal.status, 'value') else str(withdrawal.status)
-    if status_value != "pending":
+    if status_value != "PENDING":
         raise HTTPException(status_code=400, detail=f"Saque não está pendente (status atual: {status_value})")
     
     from app.models.earnpool import WithdrawalStatus, DepositStatus
@@ -442,7 +442,7 @@ async def reject_withdrawal(
         raise HTTPException(status_code=404, detail="Saque não encontrado")
     
     status_value = withdrawal.status.value if hasattr(withdrawal.status, 'value') else str(withdrawal.status)
-    if status_value != "pending":
+    if status_value != "PENDING":
         raise HTTPException(status_code=400, detail=f"Saque não está pendente (status atual: {status_value})")
     
     withdrawal.status = WithdrawalStatus.REJECTED
@@ -481,7 +481,7 @@ async def get_cooperators(
     
     # Get all active deposits
     deposits = db.query(EarnPoolDeposit).filter(
-        EarnPoolDeposit.status == "active"
+        EarnPoolDeposit.status == "ACTIVE"
     ).all()
     
     # Aggregate by user
@@ -593,11 +593,11 @@ async def get_distributions_history(
     Histórico de distribuições realizadas.
     """
     total = db.query(func.count(EarnPoolRevenuePool.id)).filter(
-        EarnPoolRevenuePool.status == "distributed"
+        EarnPoolRevenuePool.status == "DISTRIBUTED"
     ).scalar() or 0
     
     periods = db.query(EarnPoolRevenuePool).filter(
-        EarnPoolRevenuePool.status == "distributed"
+        EarnPoolRevenuePool.status == "DISTRIBUTED"
     ).order_by(
         EarnPoolRevenuePool.distributed_at.desc()
     ).offset((page - 1) * limit).limit(limit).all()
