@@ -69,7 +69,7 @@ class EarnPoolService:
         if not config:
             config = EarnPoolConfig(
                 id=str(uuid.uuid4()),
-                min_deposit_usdt=Decimal("250.00"),
+                min_deposit_usdt=Decimal("50.00"),
                 lock_period_days=30,
                 withdrawal_delay_days=7,
                 early_withdrawal_admin_fee=Decimal("2.00"),
@@ -95,7 +95,7 @@ class EarnPoolService:
         # Cria nova config
         new_config = EarnPoolConfig(
             id=str(uuid.uuid4()),
-            min_deposit_usdt=updates.get('min_deposit_usdt', old_config.min_deposit_usdt if old_config else Decimal("250.00")),
+            min_deposit_usdt=updates.get('min_deposit_usdt', old_config.min_deposit_usdt if old_config else Decimal("50.00")),
             max_deposit_usdt=updates.get('max_deposit_usdt', old_config.max_deposit_usdt if old_config else None),
             lock_period_days=updates.get('lock_period_days', old_config.lock_period_days if old_config else 30),
             withdrawal_delay_days=updates.get('withdrawal_delay_days', old_config.withdrawal_delay_days if old_config else 7),

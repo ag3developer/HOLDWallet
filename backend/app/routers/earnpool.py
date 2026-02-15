@@ -4,11 +4,20 @@
 
 Endpoints para usuários do EarnPool.
 
+Fluxo de Depósito:
+1. preview_deposit - Mostra valor em USDT e requisitos
+2. create_deposit - Verifica saldo, deduz da carteira do usuário, registra depósito
+
+Fluxo de Saque:
+1. preview_withdrawal - Mostra taxas e valores
+2. create_withdrawal - Solicita saque (D+7)
+
 Author: WolkNow Team
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from typing import Optional
 from decimal import Decimal
 import logging
@@ -18,6 +27,7 @@ from app.core.security import get_current_user
 from app.models.user import User
 from app.services.earnpool_service import get_earnpool_service, EarnPoolService
 from app.services.price_aggregator import price_aggregator
+from app.services.wallet_balance_service import WalletBalanceService
 from app.schemas.earnpool import (
     DepositRequest, DepositPreviewResponse, DepositConfirmRequest, DepositResponse,
     WithdrawalRequest, WithdrawalPreviewResponse, WithdrawalConfirmRequest, WithdrawalResponse,
@@ -26,6 +36,76 @@ from app.schemas.earnpool import (
 
 router = APIRouter(prefix="/earnpool", tags=["EarnPool"])
 logger = logging.getLogger(__name__)
+
+# Mapeamento de crypto symbol para o formato usado em WalletBalance
+CRYPTO_BALANCE_MAP = {
+    # Major cryptos
+    "BTC": "BTC",
+    "ETH": "ETH", 
+    "SOL": "SOL",
+    "MATIC": "POLYGON_MATIC",
+    "BNB": "BSC_BNB",
+    "AVAX": "AVALANCHE_AVAX",
+    "DOT": "DOT",
+    "ADA": "ADA",
+    "XRP": "XRP",
+    "LTC": "LTC",
+    "DOGE": "DOGE",
+    "TRX": "TRX",
+    "LINK": "LINK",
+    "SHIB": "SHIB",
+    
+    # Stablecoins - USDT
+    "USDT": "POLYGON_USDT",  # Default: Polygon
+    "ETH_USDT": "ETHEREUM_USDT",
+    "POLYGON_USDT": "POLYGON_USDT",
+    "BSC_USDT": "BSC_USDT",
+    "TRON_USDT": "TRON_USDT",
+    "AVALANCHE_USDT": "AVALANCHE_USDT",
+    
+    # Stablecoins - USDC
+    "USDC": "POLYGON_USDC",  # Default: Polygon
+    "ETH_USDC": "ETHEREUM_USDC",
+    "POLYGON_USDC": "POLYGON_USDC",
+    "BSC_USDC": "BSC_USDC",
+    
+    # TRAY Token (Polygon)
+    "TRAY": "POLYGON_TRAY",
+}
+
+# Mapeamento de crypto para network (para buscar endereço do sistema)
+CRYPTO_NETWORK_MAP = {
+    "BTC": "bitcoin",
+    "ETH": "ethereum",
+    "SOL": "solana",
+    "MATIC": "polygon",
+    "POLYGON_MATIC": "polygon",
+    "BNB": "bsc",
+    "AVAX": "avalanche",
+    "DOT": "polkadot",
+    "ADA": "cardano",
+    "XRP": "xrp",
+    "LTC": "litecoin",
+    "DOGE": "dogecoin",
+    "TRX": "tron",
+    "LINK": "ethereum",  # ERC-20
+    "SHIB": "ethereum",  # ERC-20
+    
+    # USDT
+    "USDT": "polygon_usdt",
+    "POLYGON_USDT": "polygon_usdt",
+    "ETH_USDT": "ethereum_usdt",
+    "BSC_USDT": "bsc_usdt",
+    "TRON_USDT": "tron_usdt",
+    
+    # USDC
+    "USDC": "polygon_usdc",
+    "POLYGON_USDC": "polygon_usdc",
+    
+    # TRAY
+    "TRAY": "polygon_tray",
+    "POLYGON_TRAY": "polygon_tray",
+}
 
 
 # ============================================================================
@@ -127,35 +207,144 @@ async def create_deposit(
     Create a new EarnPool deposit.
     
     Process:
-    1. Validates minimum amount ($250 USDT)
-    2. Converts crypto to USDT (virtual balance)
-    3. Creates deposit with LOCKED status
-    4. Lock period: 30 days
+    1. Validates minimum amount
+    2. Verifies user has sufficient balance
+    3. Deducts balance from user's wallet (internal transfer)
+    4. Creates deposit record with LOCKED status
+    5. Lock period: 30 days
     
-    **Note**: User must have sufficient crypto balance in their wallet.
+    The crypto is transferred internally from user's wallet balance 
+    to the system pool (accounting transfer, not on-chain).
     """
     service = get_earnpool_service(db)
     
     # Buscar preço real da crypto via price_aggregator
     crypto_price = await get_crypto_price_usd(request.crypto_symbol)
     
+    # Normalizar símbolo da crypto
+    symbol_upper = request.crypto_symbol.upper()
+    balance_key = CRYPTO_BALANCE_MAP.get(symbol_upper, symbol_upper)
+    
     try:
-        # TODO: Verificar saldo do usuário na wallet
-        # TODO: Transferir crypto para carteira operacional
-        
-        deposit = await service.create_deposit(
-            user_id=str(current_user.id),
-            crypto_symbol=request.crypto_symbol,
-            crypto_amount=request.crypto_amount,
-            crypto_price_usd=crypto_price,
-            tx_hash=None  # TODO: TX hash da transferência
+        # ============================================================
+        # 1. VERIFICAR SALDO DO USUÁRIO
+        # ============================================================
+        user_balance = WalletBalanceService.get_balance(
+            db, 
+            str(current_user.id), 
+            balance_key
         )
         
-        logger.info(f"💰 EarnPool deposit created: User {current_user.id} - ${deposit.usdt_amount}")
+        if not user_balance:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Você não possui saldo de {symbol_upper}. Deposite primeiro."
+            )
+        
+        available_balance = Decimal(str(user_balance.get('available_balance', 0)))
+        required_amount = Decimal(str(request.crypto_amount))
+        
+        logger.info(f"💰 EarnPool deposit check: User {current_user.id} - {symbol_upper}")
+        logger.info(f"   Available: {available_balance}, Required: {required_amount}")
+        
+        if available_balance < required_amount:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Saldo insuficiente. Disponível: {available_balance} {symbol_upper}, Necessário: {required_amount} {symbol_upper}"
+            )
+        
+        # ============================================================
+        # 2. DEDUZIR SALDO DO USUÁRIO (TRANSFERÊNCIA INTERNA)
+        # ============================================================
+        # Congela o saldo do usuário (move de available para locked)
+        try:
+            WalletBalanceService.freeze_balance(
+                db,
+                str(current_user.id),
+                balance_key,
+                float(required_amount),
+                reason="EarnPool Deposit - Liquidity Pool Contribution",
+                reference_id=None  # Será atualizado com deposit_id depois
+            )
+            logger.info(f"✅ Balance frozen for EarnPool: {required_amount} {symbol_upper}")
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        
+        # ============================================================
+        # 3. CRIAR REGISTRO DO DEPÓSITO
+        # ============================================================
+        try:
+            deposit = await service.create_deposit(
+                user_id=str(current_user.id),
+                crypto_symbol=request.crypto_symbol,
+                crypto_amount=request.crypto_amount,
+                crypto_price_usd=crypto_price,
+                tx_hash=f"internal_earnpool_{current_user.id}_{balance_key}"
+            )
+            
+            # Atualizar histórico com o deposit_id
+            WalletBalanceService._record_history(
+                db,
+                str(current_user.id),
+                balance_key,
+                "earnpool_deposit",
+                float(required_amount),
+                float(available_balance),
+                float(available_balance - required_amount),
+                0,
+                float(required_amount),
+                str(deposit.id),
+                f"EarnPool Deposit - Pool Contribution ID: {deposit.id}"
+            )
+            
+            # Agora remove do locked (transferência para o sistema)
+            # O saldo "sai" da carteira do usuário e vai para o pool
+            # Usando SQL direto para evitar problemas com type hints
+            from sqlalchemy import text
+            db.execute(
+                text("""
+                    UPDATE wallet_balances 
+                    SET locked_balance = locked_balance - :amount,
+                        total_balance = total_balance - :amount,
+                        updated_at = NOW(),
+                        last_updated_reason = :reason
+                    WHERE user_id = :user_id 
+                    AND LOWER(cryptocurrency) = LOWER(:crypto)
+                """),
+                {
+                    "amount": float(required_amount),
+                    "user_id": str(current_user.id),
+                    "crypto": balance_key,
+                    "reason": f"EarnPool Deposit ID: {deposit.id}"
+                }
+            )
+            db.commit()
+            logger.info(f"✅ Balance transferred to EarnPool: {required_amount} {symbol_upper}")
+            
+        except ValueError as e:
+            # Se falhar, desfaz o freeze
+            try:
+                WalletBalanceService.unfreeze_balance(
+                    db,
+                    str(current_user.id),
+                    balance_key,
+                    float(required_amount),
+                    reason="EarnPool Deposit Failed - Rollback"
+                )
+            except Exception:
+                pass
+            raise HTTPException(status_code=400, detail=str(e))
+        
+        logger.info(f"💰 EarnPool deposit created: User {current_user.id} - ${deposit.usdt_amount} USDT ({required_amount} {symbol_upper})")
         return deposit
         
+    except HTTPException:
+        raise
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"❌ EarnPool deposit error: {e}")
+        raise HTTPException(status_code=500, detail=f"Erro ao processar depósito: {str(e)}")
 
 
 # ============================================================================

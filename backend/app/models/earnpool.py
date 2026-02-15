@@ -167,7 +167,7 @@ class EarnPoolDeposit(Base):
     __table_args__ = (
         Index('ix_earnpool_deposits_user_status', 'user_id', 'status'),
         Index('ix_earnpool_deposits_status', 'status'),
-        CheckConstraint('usdt_amount >= 250', name='ck_earnpool_min_deposit'),
+        CheckConstraint('usdt_amount >= 50', name='ck_earnpool_min_deposit'),
     )
 
 
