@@ -26,10 +26,11 @@ from app.middleware.api_protection import APIProtectionMiddleware, AdminRoutePro
 from app.middleware.mandatory_2fa import Mandatory2FAMiddleware, TransactionValueMiddleware
 
 # Routers
-from app.routers import auth, users, wallet, wallets, tx, prices, prices_batch, prices_batch_v2, health, blockchain, transactions, billing, portfolio, exchange, p2p, chat, chat_enterprise, reputation, dashboard, two_factor, tokens, wallet_transactions, instant_trade, trader_profiles, admin_instant_trades, webauthn, public_settings, notifications, webhooks_bb, wolkpay, wolkpay_bill, kyc, user_profile, ai, address_book, swap, earnpool
+from app.routers import auth, users, wallet, wallets, tx, prices, prices_batch, prices_batch_v2, health, blockchain, transactions, billing, portfolio, exchange, p2p, chat, chat_enterprise, reputation, dashboard, two_factor, tokens, wallet_transactions, instant_trade, trader_profiles, admin_instant_trades, webauthn, public_settings, notifications, webhooks_bb, wolkpay, wolkpay_bill, kyc, user_profile, ai, address_book, swap, earnpool, referral
 from app.routers.admin import admin_router, wolkpay_admin_router, bill_payment_admin_router, kyc_admin
 from app.routers.admin import earnpool_admin
 from app.routers.admin import earnpool_revenue_admin
+from app.routers.admin import referral_admin
 from app.api.v1.endpoints import seed_verification
 
 # Setup logging
@@ -222,6 +223,8 @@ app.include_router(swap.router, prefix="", tags=["swap"])  # Swap/DEX - Troca de
 app.include_router(earnpool.router, prefix="", tags=["earnpool"])  # EarnPool - Pool de liquidez/rendimentos
 app.include_router(earnpool_admin.router, prefix="", tags=["earnpool-admin"])  # EarnPool Admin
 app.include_router(earnpool_revenue_admin.router, prefix="", tags=["earnpool-revenue"])  # EarnPool Revenue Sharing
+app.include_router(referral.router, prefix="", tags=["referral"])  # 🎁 WOLK FRIENDS - Programa de Indicação
+app.include_router(referral_admin.router, prefix="", tags=["referral-admin"])  # 🎁 WOLK FRIENDS Admin
 # KYC Admin já incluído via admin_router
 
 # Root endpoint

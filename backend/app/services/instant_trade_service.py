@@ -693,6 +693,7 @@ class InstantTradeService:
         self.db.commit()
 
         # 💰 REGISTRAR TAXAS NA CARTEIRA DO SISTEMA
+        total_fees = 0.0
         try:
             from app.services.system_blockchain_wallet_service import system_wallet_service
             from sqlalchemy import text
@@ -744,6 +745,30 @@ class InstantTradeService:
                 logger.info(f"✅ OTC Fees recorded: spread={spread_amount}, network={network_fee}, total={total_fees}")
         except Exception as fee_error:
             logger.error(f"❌ Error recording OTC fees: {fee_error}")
+
+        # 🎁 PROCESSAR COMISSÃO DE INDICAÇÃO (WOLK FRIENDS)
+        try:
+            from app.services.referral_service import ReferralService
+            from decimal import Decimal
+            
+            referral_service = ReferralService(self.db)
+            
+            # Calcula o valor da transação em USD
+            transaction_amount = Decimal(str(trade.usd_amount or 0))
+            fee_amount = Decimal(str(total_fees))
+            
+            if transaction_amount > 0 and fee_amount > 0:
+                earning = referral_service.process_referral_commission(
+                    referred_user_id=str(trade.user_id),
+                    transaction_type="instant_trade",
+                    transaction_id=str(trade.id),
+                    transaction_amount=transaction_amount,
+                    fee_amount=fee_amount
+                )
+                if earning:
+                    logger.info(f"🎁 Referral commission processed: ${earning.commission_amount}")
+        except Exception as referral_error:
+            logger.error(f"❌ Error processing referral commission: {referral_error}")
 
         # Create history record for completion
         history = InstantTradeHistory(

@@ -72,6 +72,7 @@ export interface RegisterRequest {
   email: string
   username: string
   password: string
+  referral_code?: string // Código de indicação (WOLK FRIENDS)
 }
 
 export interface AuthResponse {

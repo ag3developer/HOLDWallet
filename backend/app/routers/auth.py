@@ -235,6 +235,7 @@ async def register(
 ):
     """
     Register a new user.
+    Supports optional referral code (WOLK FRIENDS program).
     """
     # Check if user already exists
     existing_user = db.query(User).filter(
@@ -261,6 +262,23 @@ async def register(
     db.add(user)
     db.commit()
     db.refresh(user)
+    
+    # Process referral code if provided (WOLK FRIENDS)
+    if register_data.referral_code:
+        try:
+            from app.services.referral_service import ReferralService
+            referral_service = ReferralService(db)
+            referral = referral_service.register_referral(
+                referred_user_id=str(user.id),
+                referral_code=register_data.referral_code
+            )
+            if referral:
+                logger.info(f"✅ Usuário {user.email} registrado com código de indicação: {register_data.referral_code}")
+            else:
+                logger.warning(f"⚠️ Código de indicação inválido ou já usado: {register_data.referral_code}")
+        except Exception as e:
+            # Não falha o registro se houver erro no referral
+            logger.error(f"❌ Erro ao processar indicação: {e}")
     
     return UserResponse(
         id=user.id,

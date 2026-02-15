@@ -14,6 +14,16 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     username: str
     password: str
+    referral_code: Optional[str] = None  # Código de indicação (WOLK FRIENDS)
+    
+    @validator('referral_code')
+    def validate_referral_code(cls, v):
+        if v:
+            # Remove espaços e converte para maiúsculo
+            v = v.strip().upper()
+            if len(v) < 5 or len(v) > 20:
+                raise ValueError('Invalid referral code format')
+        return v
     
     @validator('username')
     def validate_username(cls, v):

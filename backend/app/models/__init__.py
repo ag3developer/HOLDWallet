@@ -1,5 +1,12 @@
 # Models module initialization
 from .base import Base, BaseModel
+
+# Import referral FIRST (before User) to register models for relationships
+from .referral import (
+    ReferralCode, Referral, ReferralEarning, ReferralConfig,
+    ReferralTier, ReferralStatus
+)
+
 from .push_subscription import PushSubscription, NotificationPreference
 from .user import User
 from .user_profile import UserProfile, NotificationSettings as UserNotificationSettings
@@ -46,6 +53,7 @@ from . import push_subscription
 from . import kyc
 from . import user_profile
 from . import earnpool
+from . import referral
 
 __all__ = [
     # Base
@@ -147,4 +155,13 @@ __all__ = [
     
     # EarnPool
     "earnpool",
+    
+    # Referral (WOLK FRIENDS)
+    "referral",
+    "ReferralCode",
+    "Referral",
+    "ReferralEarning",
+    "ReferralConfig",
+    "ReferralTier",
+    "ReferralStatus",
 ]

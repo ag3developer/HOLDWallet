@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useRegister } from '@/hooks/useAuth'
 import {
@@ -12,6 +12,7 @@ import {
   CheckCircle,
   XCircle,
   AlertTriangle,
+  Gift,
 } from 'lucide-react'
 
 interface RegisterForm {
@@ -19,6 +20,7 @@ interface RegisterForm {
   username: string
   password: string
   confirmPassword: string
+  referralCode: string
   acceptTerms: boolean
   acceptPrivacy: boolean
   acceptMarketing: boolean
@@ -27,6 +29,7 @@ interface RegisterForm {
 export const RegisterPage = () => {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const registerMutation = useRegister()
 
   const [formData, setFormData] = useState<RegisterForm>({
@@ -34,10 +37,19 @@ export const RegisterPage = () => {
     username: '',
     password: '',
     confirmPassword: '',
+    referralCode: '',
     acceptTerms: false,
     acceptPrivacy: false,
     acceptMarketing: false,
   })
+
+  // Preencher código de indicação da URL se presente
+  useEffect(() => {
+    const ref = searchParams.get('ref') || searchParams.get('referral')
+    if (ref) {
+      setFormData(prev => ({ ...prev, referralCode: ref.toUpperCase() }))
+    }
+  }, [searchParams])
 
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [showPassword, setShowPassword] = useState(false)
@@ -152,11 +164,17 @@ export const RegisterPage = () => {
     if (!validateForm()) return
 
     try {
-      await registerMutation.mutateAsync({
+      const registerData: any = {
         email: formData.email,
         username: formData.username,
         password: formData.password,
-      })
+      }
+
+      if (formData.referralCode) {
+        registerData.referral_code = formData.referralCode
+      }
+
+      await registerMutation.mutateAsync(registerData)
 
       // Successful registration, redirect to dashboard
       navigate('/dashboard')
@@ -406,6 +424,35 @@ export const RegisterPage = () => {
               {formErrors.confirmPassword && (
                 <p className='mt-1 text-sm text-red-600 dark:text-red-400'>
                   {formErrors.confirmPassword}
+                </p>
+              )}
+            </div>
+
+            {/* Referral Code Field (Optional) */}
+            <div>
+              <label
+                htmlFor='referralCode'
+                className='block text-sm font-medium text-gray-700 dark:text-gray-300'
+              >
+                <div className='flex items-center gap-2'>
+                  <Gift className='h-4 w-4 text-purple-500' />
+                  Código de Indicação
+                  <span className='text-gray-400 text-xs font-normal'>(opcional)</span>
+                </div>
+              </label>
+              <input
+                id='referralCode'
+                name='referralCode'
+                type='text'
+                className='mt-1 block w-full px-3 py-2 border rounded-lg shadow-sm placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 border-gray-300 dark:border-gray-600 uppercase'
+                placeholder='WOLK-XXXXXX'
+                value={formData.referralCode}
+                onChange={handleChange}
+              />
+              {formData.referralCode && (
+                <p className='mt-1 text-xs text-purple-500 flex items-center gap-1'>
+                  <CheckCircle className='w-3 h-3' />
+                  Você será indicado por alguém!
                 </p>
               )}
             </div>

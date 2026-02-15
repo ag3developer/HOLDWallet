@@ -67,6 +67,9 @@ import { AIIntelligencePage } from '@/pages/ai'
 // EarnPool Page
 import { EarnPoolPageNew as EarnPoolPage } from '@/pages/earnpool/EarnPoolPageNew'
 
+// Referral Page (WOLK FRIENDS)
+import ReferralPage from '@/pages/referral/ReferralPage'
+
 // Admin Pages
 import {
   AdminDashboardPage,
@@ -92,6 +95,7 @@ import {
   AdminBillPaymentPage,
   AdminKYCPage,
   AdminEarnPoolPage,
+  AdminReferralPage,
 } from '@/pages/admin'
 
 // Import Dashboard Switcher (V2 + Legacy toggle)
@@ -365,6 +369,9 @@ function App() {
 
             {/* EarnPool Routes */}
             <Route path='earnpool' element={<EarnPoolPage />} />
+
+            {/* Referral (WOLK FRIENDS) Routes */}
+            <Route path='referral' element={<ReferralPage />} />
           </Route>
 
           {/* WolkPay Public Checkout (no auth required) */}
@@ -408,6 +415,7 @@ function App() {
             <Route path='/admin/kyc/users' element={<AdminKYCUsersPage />} />
             <Route path='/admin/locked-balances' element={<AdminLockedBalancesPage />} />
             <Route path='/admin/earnpool' element={<AdminEarnPoolPage />} />
+            <Route path='/admin/referral' element={<AdminReferralPage />} />
           </Route>
 
           {/* 404 Page */}

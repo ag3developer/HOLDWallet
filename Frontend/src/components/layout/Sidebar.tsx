@@ -31,6 +31,7 @@ import {
   Receipt,
   CircleDollarSign,
   TrendingUp,
+  Users,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/useAuthStore'
 
@@ -63,6 +64,7 @@ const navigation: NavItem[] = [
   { name: 'services', href: '/services', icon: Grid3X3, group: 'services' },
   { name: 'billPayment', href: '/bill-payment', icon: Receipt, group: 'services', badge: 'Novo' },
   { name: 'earnpool', href: '/earnpool', icon: TrendingUp, group: 'services', badge: 'Novo' },
+  { name: 'referral', href: '/referral', icon: Users, group: 'services', badge: '💰' },
   { name: 'contact', href: '/contact', icon: Phone, group: 'services' },
   { name: 'support', href: '/support', icon: HeadphonesIcon, group: 'services' },
   // { name: 'portfolio', href: '/portfolio', icon: BarChart3, group: 'services' }, // Desabilitado - dados mock

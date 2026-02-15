@@ -34,6 +34,7 @@ import {
   Receipt,
   Lock,
   PiggyBank,
+  Gift,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useThemeStore } from '@/stores/useThemeStore'
@@ -55,6 +56,7 @@ const adminNavigation = [
   { name: 'Transações', href: '/admin/transactions', icon: Activity, group: 'management' },
   { name: 'Taxas & Receita', href: '/admin/fees', icon: Banknote, group: 'management' },
   { name: 'EarnPool', href: '/admin/earnpool', icon: PiggyBank, group: 'management' },
+  { name: 'WOLK FRIENDS', href: '/admin/referral', icon: Gift, group: 'management' },
   { name: 'Carteira Sistema', href: '/admin/system-wallet', icon: Landmark, group: 'management' },
 
   // Relatórios

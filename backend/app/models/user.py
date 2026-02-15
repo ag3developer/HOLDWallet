@@ -58,6 +58,12 @@ class User(Base):
     # Address Book relationship
     address_book_entries = relationship("AddressBook", back_populates="user", cascade="all, delete-orphan")
     
+    # Referral Program relationships
+    referral_code = relationship("ReferralCode", back_populates="user", uselist=False)
+    referrals_made = relationship("Referral", back_populates="referrer", foreign_keys="[Referral.referrer_id]")
+    referred_by = relationship("Referral", back_populates="referred", foreign_keys="[Referral.referred_id]", uselist=False)
+    referral_earnings = relationship("ReferralEarning", back_populates="referrer")
+    
     def __repr__(self):
         return f"<User(id={self.id}, username='{self.username}', email='{self.email}')>"
     
