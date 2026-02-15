@@ -83,12 +83,15 @@ const CRYPTO_ICONS: Record<string, string> = {
 // TIPOS
 // ============================================================================
 
+type YieldPeriodType = 'WEEKLY' | 'MONTHLY' | 'YEARLY'
+
 interface EarnPoolConfig {
   id: string
   min_deposit_usdt: number | null
   max_deposit_usdt: number | null
   lock_period_days: number | null
   target_weekly_yield_percentage: number | null
+  yield_period_type: YieldPeriodType
   early_withdrawal_admin_fee: number | null
   early_withdrawal_op_fee: number | null
   is_active: boolean
@@ -521,19 +524,36 @@ export function EarnPoolPage() {
   // ============================================================================
 
   const handleWithdrawPreview = async () => {
-    if (!withdrawAmount || Number.parseFloat(withdrawAmount) <= 0) {
+    const amount = Number.parseFloat(withdrawAmount)
+
+    if (!withdrawAmount || amount <= 0) {
       toast.error(t('earnpool.withdraw.error'))
+      return
+    }
+
+    // Validate against available balance
+    if (balance && amount > (balance.available_balance ?? 0)) {
+      toast.error(
+        t('earnpool.withdraw.exceedsBalance', {
+          requested: formatCurrency(amount),
+          available: formatCurrency(balance.available_balance),
+        })
+      )
       return
     }
 
     setWithdrawLoading(true)
     try {
       const res = await apiClient.post('/earnpool/withdraw/preview', {
-        amount: Number.parseFloat(withdrawAmount),
+        amount: amount,
       })
       setWithdrawPreview(res.data)
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || t('earnpool.withdraw.error'))
+      const errorMsg =
+        error.response?.data?.message ||
+        error.response?.data?.detail ||
+        t('earnpool.withdraw.error')
+      toast.error(errorMsg)
     } finally {
       setWithdrawLoading(false)
     }
@@ -553,7 +573,11 @@ export function EarnPoolPage() {
       setActiveTab('overview')
       await loadData()
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || t('earnpool.errors.withdrawFailed'))
+      const errorMsg =
+        error.response?.data?.message ||
+        error.response?.data?.detail ||
+        t('earnpool.errors.withdrawFailed')
+      toast.error(errorMsg)
     } finally {
       setWithdrawLoading(false)
     }
@@ -592,6 +616,22 @@ export function EarnPoolPage() {
       hour: '2-digit',
       minute: '2-digit',
     })
+  }
+
+  // ============================================================================
+  // HELPER: Get period label based on yield_period_type
+  // ============================================================================
+
+  const getPeriodLabel = (periodType?: YieldPeriodType): string => {
+    switch (periodType) {
+      case 'MONTHLY':
+        return t('earnpool.perMonth')
+      case 'YEARLY':
+        return t('earnpool.perYear')
+      case 'WEEKLY':
+      default:
+        return t('earnpool.perWeek')
+    }
   }
 
   // ============================================================================
@@ -785,7 +825,7 @@ export function EarnPoolPage() {
                 <p className='text-xl md:text-2xl font-bold text-emerald-400'>
                   {config.target_weekly_yield_percentage ?? config.base_apy ?? 0}%
                   <span className='text-xs text-gray-400 font-normal ml-1'>
-                    {t('earnpool.perWeek')}
+                    {getPeriodLabel(config.yield_period_type)}
                   </span>
                 </p>
                 <MiniChart data={[80, 82, 85, 83, 88, 90, 87, 92, 95, 93]} color='bg-cyan-400' />
@@ -1021,8 +1061,8 @@ export function EarnPoolPage() {
 
                 {/* Deposit Limits */}
                 {config && (
-                  <div className='grid grid-cols-2 gap-4'>
-                    <div className='bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-2xl p-5 border border-emerald-100 dark:border-emerald-800'>
+                  <div className='flex justify-center gap-4'>
+                    <div className='bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-2xl p-5 border border-emerald-100 dark:border-emerald-800 min-w-[200px]'>
                       <div className='flex items-center gap-2 mb-2'>
                         <ArrowDownCircle className='w-4 h-4 text-emerald-600 dark:text-emerald-400' />
                         <span className='text-xs text-emerald-600 dark:text-emerald-400 uppercase tracking-wide font-medium'>
@@ -1033,17 +1073,21 @@ export function EarnPoolPage() {
                         {formatCurrency(config.min_deposit_usdt ?? config.min_deposit)}
                       </p>
                     </div>
-                    <div className='bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl p-5 border border-blue-100 dark:border-blue-800'>
-                      <div className='flex items-center gap-2 mb-2'>
-                        <Target className='w-4 h-4 text-blue-600 dark:text-blue-400' />
-                        <span className='text-xs text-blue-600 dark:text-blue-400 uppercase tracking-wide font-medium'>
-                          {t('earnpool.poolStats.maxDeposit')}
-                        </span>
-                      </div>
-                      <p className='text-2xl font-bold text-blue-700 dark:text-blue-300'>
-                        {formatCurrency(config.max_deposit)}
-                      </p>
-                    </div>
+                    {/* Only show max deposit if there's a limit */}
+                    {(config.max_deposit_usdt ?? config.max_deposit) != null &&
+                      (config.max_deposit_usdt ?? config.max_deposit ?? 0) > 0 && (
+                        <div className='bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl p-5 border border-blue-100 dark:border-blue-800'>
+                          <div className='flex items-center gap-2 mb-2'>
+                            <Target className='w-4 h-4 text-blue-600 dark:text-blue-400' />
+                            <span className='text-xs text-blue-600 dark:text-blue-400 uppercase tracking-wide font-medium'>
+                              {t('earnpool.poolStats.maxDeposit')}
+                            </span>
+                          </div>
+                          <p className='text-2xl font-bold text-blue-700 dark:text-blue-300'>
+                            {formatCurrency(config.max_deposit_usdt ?? config.max_deposit)}
+                          </p>
+                        </div>
+                      )}
                   </div>
                 )}
 
@@ -1508,6 +1552,36 @@ export function EarnPoolPage() {
                   </div>
                 </div>
 
+                {/* Available Balance Card */}
+                {balance && (
+                  <div className='mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl border border-blue-100 dark:border-blue-800'>
+                    <div className='flex items-center justify-between'>
+                      <div className='flex items-center gap-3'>
+                        <div className='w-10 h-10 bg-blue-100 dark:bg-blue-900/50 rounded-xl flex items-center justify-center'>
+                          <Wallet className='w-5 h-5 text-blue-600 dark:text-blue-400' />
+                        </div>
+                        <div>
+                          <p className='text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide'>
+                            {t('earnpool.availableForWithdraw')}
+                          </p>
+                          <p className='text-2xl font-bold text-blue-600 dark:text-blue-400'>
+                            {formatCurrency(balance.available_balance)}{' '}
+                            <span className='text-sm font-normal'>USDT</span>
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() =>
+                          setWithdrawAmount((balance.available_balance ?? 0).toString())
+                        }
+                        className='px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors'
+                      >
+                        MAX
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Amount Input */}
                 <div className='mb-6'>
                   <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
@@ -1543,13 +1617,33 @@ export function EarnPoolPage() {
                       </span>
                     </button>
                   )}
+
+                  {/* Exceeds balance warning */}
+                  {withdrawAmount &&
+                    balance &&
+                    Number.parseFloat(withdrawAmount) > (balance.available_balance ?? 0) && (
+                      <div className='mt-2 p-3 bg-red-50 dark:bg-red-900/20 rounded-xl flex items-start gap-2'>
+                        <AlertCircle className='w-4 h-4 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0' />
+                        <p className='text-xs text-red-700 dark:text-red-300'>
+                          {t('earnpool.withdraw.exceedsBalance', {
+                            requested: formatCurrency(Number.parseFloat(withdrawAmount)),
+                            available: formatCurrency(balance.available_balance),
+                          })}
+                        </p>
+                      </div>
+                    )}
                 </div>
 
                 {/* Preview Button */}
                 {!withdrawPreview && (
                   <button
                     onClick={handleWithdrawPreview}
-                    disabled={withdrawLoading || !withdrawAmount}
+                    disabled={
+                      withdrawLoading ||
+                      !withdrawAmount ||
+                      (balance &&
+                        Number.parseFloat(withdrawAmount) > (balance.available_balance ?? 0))
+                    }
                     className='w-full py-4 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 disabled:from-gray-300 disabled:to-gray-400 dark:disabled:from-gray-700 dark:disabled:to-gray-600 text-white rounded-2xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-500/30 disabled:shadow-none'
                   >
                     {withdrawLoading ? (

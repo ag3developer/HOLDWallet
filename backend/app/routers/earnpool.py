@@ -17,6 +17,7 @@ from app.core.db import get_db
 from app.core.security import get_current_user
 from app.models.user import User
 from app.services.earnpool_service import get_earnpool_service, EarnPoolService
+from app.services.price_aggregator import price_aggregator
 from app.schemas.earnpool import (
     DepositRequest, DepositPreviewResponse, DepositConfirmRequest, DepositResponse,
     WithdrawalRequest, WithdrawalPreviewResponse, WithdrawalConfirmRequest, WithdrawalResponse,
@@ -55,6 +56,37 @@ async def get_earnpool_config(
 # DEPOSIT
 # ============================================================================
 
+async def get_crypto_price_usd(symbol: str) -> Decimal:
+    """
+    Busca o preço real da crypto em USD usando price_aggregator.
+    """
+    symbol_upper = symbol.upper()
+    
+    try:
+        # Buscar preço em USD do price_aggregator
+        prices = await price_aggregator.get_prices([symbol_upper], currency='usd')
+        
+        if symbol_upper in prices:
+            price_data = prices[symbol_upper]
+            price = Decimal(str(price_data.price))
+            logger.info(f"✅ Got real-time price for {symbol_upper}: ${price} USD")
+            return price
+        else:
+            logger.warning(f"⚠️ Price not found for {symbol_upper} in price_aggregator")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Não foi possível obter cotação para {symbol_upper}. Tente novamente."
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Error getting price for {symbol_upper}: {e}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Erro ao buscar cotação de {symbol_upper}: {str(e)}"
+        )
+
+
 @router.post("/deposit/preview", response_model=DepositPreviewResponse)
 async def preview_deposit(
     request: DepositRequest,
@@ -71,24 +103,8 @@ async def preview_deposit(
     """
     service = get_earnpool_service(db)
     
-    # TODO: Buscar preço real da crypto
-    # Por enquanto, usar preço de exemplo
-    crypto_prices = {
-        'BTC': Decimal("95000"),
-        'ETH': Decimal("3500"),
-        'USDT': Decimal("1"),
-        'SOL': Decimal("180"),
-        'MATIC': Decimal("0.45"),
-        'BNB': Decimal("650"),
-        'AVAX': Decimal("35"),
-        'DOT': Decimal("7"),
-        'ADA': Decimal("0.45"),
-        'LTC': Decimal("85"),
-        'XRP': Decimal("0.55"),
-        'TRX': Decimal("0.25"),
-    }
-    
-    crypto_price = crypto_prices.get(request.crypto_symbol.upper(), Decimal("1"))
+    # Buscar preço real da crypto via price_aggregator
+    crypto_price = await get_crypto_price_usd(request.crypto_symbol)
     
     try:
         preview = await service.preview_deposit(
@@ -100,7 +116,6 @@ async def preview_deposit(
         return preview
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-
 
 @router.post("/deposit", response_model=DepositResponse)
 async def create_deposit(
@@ -121,23 +136,8 @@ async def create_deposit(
     """
     service = get_earnpool_service(db)
     
-    # TODO: Buscar preço real da crypto
-    crypto_prices = {
-        'BTC': Decimal("95000"),
-        'ETH': Decimal("3500"),
-        'USDT': Decimal("1"),
-        'SOL': Decimal("180"),
-        'MATIC': Decimal("0.45"),
-        'BNB': Decimal("650"),
-        'AVAX': Decimal("35"),
-        'DOT': Decimal("7"),
-        'ADA': Decimal("0.45"),
-        'LTC': Decimal("85"),
-        'XRP': Decimal("0.55"),
-        'TRX': Decimal("0.25"),
-    }
-    
-    crypto_price = crypto_prices.get(request.crypto_symbol.upper(), Decimal("1"))
+    # Buscar preço real da crypto via price_aggregator
+    crypto_price = await get_crypto_price_usd(request.crypto_symbol)
     
     try:
         # TODO: Verificar saldo do usuário na wallet

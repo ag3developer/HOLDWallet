@@ -1098,6 +1098,7 @@
     "description": "Forneça liquidez ao pool e participe das comissões geradas pelas operações da plataforma",
     "badge": "Premium",
     "perYear": "ao ano",
+    "perMonth": "ao mês",
     "perWeek": "por semana",
     "flexible": "Flexível",
     "feeNote": "Aplicada apenas em retiradas antecipadas",
@@ -1108,6 +1109,7 @@
     "totalYieldEarned": "Comissões Recebidas",
     "pendingWithdrawals": "Saques Pendentes",
     "availableBalance": "Saldo Disponível",
+    "availableForWithdraw": "Disponível para Saque",
     "lockedUntil": "Bloqueado Até",
     "depositsCount": "Aportes Ativos",
     "badges": {
@@ -1180,7 +1182,8 @@
       "error": "Erro ao solicitar retirada",
       "insufficientBalance": "Saldo insuficiente para retirada",
       "minAmount": "Valor mínimo para retirada",
-      "maxAmount": "Valor máximo disponível"
+      "maxAmount": "Valor máximo disponível",
+      "exceedsBalance": "Valor solicitado ({{requested}}) maior que disponível ({{available}})"
     },
     "history": {
       "title": "Histórico",
@@ -1200,7 +1203,16 @@
       "approved": "Aprovado",
       "rejected": "Rejeitado",
       "completed": "Concluído",
-      "processed": "Processado"
+      "processed": "Processado",
+      "active": "Ativo",
+      "cancelled": "Cancelado",
+      "withdrawal_pending": "Saque Pendente",
+      "PENDING": "Pendente",
+      "ACTIVE": "Ativo",
+      "LOCKED": "Bloqueado",
+      "WITHDRAWAL_PENDING": "Saque Pendente",
+      "WITHDRAWN": "Sacado",
+      "CANCELLED": "Cancelado"
     },
     "actions": {
       "deposit": "Fornecer Liquidez",

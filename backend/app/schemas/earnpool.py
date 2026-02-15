@@ -43,6 +43,12 @@ class YieldStatusEnum(str, Enum):
     CANCELLED = "CANCELLED"
 
 
+class YieldPeriodTypeEnum(str, Enum):
+    WEEKLY = "WEEKLY"
+    MONTHLY = "MONTHLY"
+    YEARLY = "YEARLY"
+
+
 # ============================================================================
 # CONFIG SCHEMAS
 # ============================================================================
@@ -54,7 +60,8 @@ class EarnPoolConfigBase(BaseModel):
     withdrawal_delay_days: int = Field(default=7, description="Delay para saque (D+X)")
     early_withdrawal_admin_fee: Decimal = Field(default=Decimal("2.00"), description="Taxa admin para saque antecipado (%)")
     early_withdrawal_op_fee: Decimal = Field(default=Decimal("1.00"), description="Taxa operacional para saque antecipado (%)")
-    target_weekly_yield_percentage: Decimal = Field(default=Decimal("0.75"), description="Meta de rendimento semanal (%)")
+    target_weekly_yield_percentage: Decimal = Field(default=Decimal("0.75"), description="Meta de rendimento (%)")
+    yield_period_type: YieldPeriodTypeEnum = Field(default=YieldPeriodTypeEnum.WEEKLY, description="Tipo de período: WEEKLY, MONTHLY, YEARLY")
     max_pool_size_usdt: Optional[Decimal] = Field(default=None, description="Tamanho máximo do pool")
     is_accepting_deposits: bool = Field(default=True, description="Aceitando novos depósitos?")
 
@@ -84,6 +91,7 @@ class EarnPoolConfigUpdate(BaseModel):
     early_withdrawal_admin_fee: Optional[Decimal] = None
     early_withdrawal_op_fee: Optional[Decimal] = None
     target_weekly_yield_percentage: Optional[Decimal] = None
+    yield_period_type: Optional[YieldPeriodTypeEnum] = None
     max_pool_size_usdt: Optional[Decimal] = None
     is_accepting_deposits: Optional[bool] = None
     notes: Optional[str] = None

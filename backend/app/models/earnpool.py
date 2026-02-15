@@ -61,6 +61,13 @@ class YieldStatus(str, enum.Enum):
     CANCELLED = "CANCELLED"          # Cancelado
 
 
+class YieldPeriodType(str, enum.Enum):
+    """Tipo de período para exibição da taxa de rendimento"""
+    WEEKLY = "WEEKLY"      # Por semana
+    MONTHLY = "MONTHLY"    # Por mês
+    YEARLY = "YEARLY"      # Por ano (APY)
+
+
 # ============================================================================
 # MODELS
 # ============================================================================
@@ -90,6 +97,7 @@ class EarnPoolConfig(Base):
     
     # Pool
     target_weekly_yield_percentage = Column(Numeric(5, 4), nullable=False, default=0.7500)  # 0.75% meta semanal (~3% mês)
+    yield_period_type = Column(String(20), nullable=False, default="WEEKLY")  # WEEKLY, MONTHLY, YEARLY
     max_pool_size_usdt = Column(Numeric(18, 2), nullable=True)                # Limite do pool (opcional)
     
     # Status
