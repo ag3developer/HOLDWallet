@@ -81,6 +81,7 @@ class BlockchainWithdrawService:
             "contracts": {
                 "USDT": "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
                 "USDC": "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
+                "TRAY": "0x6b62514E925099643abA13B322A62ff6298f8E8A",  # Trayon Token
                 "MATIC": None,  # Native token
                 "POL": None,    # POL é alias de MATIC (native token)
             }
