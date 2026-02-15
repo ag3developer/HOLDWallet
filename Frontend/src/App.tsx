@@ -65,7 +65,7 @@ import { BillPaymentPage, BillPaymentHistoryPage } from '@/pages/billpayment'
 import { AIIntelligencePage } from '@/pages/ai'
 
 // EarnPool Page
-import { EarnPoolPageNew as EarnPoolPage } from '@/pages/earnpool/EarnPoolPageNew'
+import { EarnPoolPage } from '@/pages/earnpool/EarnPoolPage'
 
 // Referral Page (WOLK FRIENDS)
 import ReferralPage from '@/pages/referral/ReferralPage'
