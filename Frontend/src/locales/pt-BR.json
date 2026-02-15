@@ -48,6 +48,8 @@
     "inactive": "Inativo",
     "online": "Online",
     "offline": "Offline",
+    "days": "dias",
+    "week": "semana",
     "connected": "Conectado",
     "disconnected": "Desconectado"
   },
@@ -1163,7 +1165,12 @@
       "cryptoAmount": "Quantidade em Crypto",
       "usdtValue": "Valor em USDT",
       "pendingApproval": "Aprovação Pendente",
-      "pendingApprovalNote": "Após confirmar, sua solicitação será analisada pela equipe e aprovada em até 24h"
+      "pendingApprovalNote": "Após confirmar, sua solicitação será analisada pela equipe e aprovada em até 24h",
+      "summary": "Resumo do Depósito",
+      "valueInUSDT": "Valor em USDT",
+      "estimatedYield": "Yield Estimado",
+      "step1Label": "Selecione a Crypto",
+      "step2Label": "Informe o Valor"
     },
     "withdraw": {
       "title": "Retirar Liquidez",
@@ -1177,13 +1184,20 @@
       "isEarlyWithdrawal": "Retirada Antecipada",
       "earlyWithdrawalWarning": "Você está retirando antes do período mínimo de participação. Uma taxa de {{fee}}% será aplicada.",
       "availableAt": "Disponível em",
+      "availableBalance": "Saldo Disponível",
       "processingTime": "Prazo de Processamento: 7 dias úteis",
       "success": "Retirada solicitada com sucesso!",
       "error": "Erro ao solicitar retirada",
       "insufficientBalance": "Saldo insuficiente para retirada",
       "minAmount": "Valor mínimo para retirada",
       "maxAmount": "Valor máximo disponível",
-      "exceedsBalance": "Valor solicitado ({{requested}}) maior que disponível ({{available}})"
+      "exceedsBalance": "Valor solicitado ({{requested}}) maior que disponível ({{available}})",
+      "summary": "Resumo do Saque",
+      "requestedAmount": "Valor Solicitado",
+      "earnings": "Rendimentos",
+      "earlyFee": "Taxa de Saque Antecipado",
+      "earlyTitle": "Saque Antecipado",
+      "earlyWarning": "Uma taxa será aplicada por sacar antes do período de lock."
     },
     "history": {
       "title": "Histórico",

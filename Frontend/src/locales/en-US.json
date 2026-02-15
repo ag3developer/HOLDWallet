@@ -47,7 +47,9 @@
     "online": "Online",
     "offline": "Offline",
     "connected": "Connected",
-    "disconnected": "Disconnected"
+    "disconnected": "Disconnected",
+    "days": "days",
+    "week": "week"
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -1175,7 +1177,12 @@
       "cryptoAmount": "Crypto Amount",
       "usdtValue": "USDT Value",
       "pendingApproval": "Pending Approval",
-      "pendingApprovalNote": "After confirming, your request will be reviewed and approved within 24h"
+      "pendingApprovalNote": "After confirming, your request will be reviewed and approved within 24h",
+      "summary": "Deposit Summary",
+      "valueInUSDT": "Value in USDT",
+      "estimatedYield": "Estimated Yield",
+      "step1Label": "Select Crypto",
+      "step2Label": "Enter Amount"
     },
     "withdraw": {
       "title": "Withdraw Liquidity",
@@ -1195,7 +1202,14 @@
       "insufficientBalance": "Insufficient balance for withdrawal",
       "minAmount": "Minimum withdrawal amount",
       "maxAmount": "Maximum available amount",
-      "exceedsBalance": "Requested amount ({{requested}}) exceeds available balance ({{available}})"
+      "exceedsBalance": "Requested amount ({{requested}}) exceeds available balance ({{available}})",
+      "availableBalance": "Available Balance",
+      "summary": "Withdrawal Summary",
+      "requestedAmount": "Requested Amount",
+      "earnings": "Earnings",
+      "earlyFee": "Early Withdrawal Fee",
+      "earlyTitle": "Early Withdrawal",
+      "earlyWarning": "A fee will be applied for withdrawing before the lock period."
     },
     "history": {
       "title": "History",

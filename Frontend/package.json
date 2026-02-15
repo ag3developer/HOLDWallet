@@ -62,7 +62,7 @@
     "react-window": "^1.8.8",
     "react-window-infinite-loader": "^1.0.9",
     "react-zxing": "^2.1.0",
-    "recharts": "^3.5.1",
+    "recharts": "^3.7.0",
     "socket.io-client": "^4.7.4",
     "tailwind-merge": "^2.0.0",
     "typescript": "^5.0.2",

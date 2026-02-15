@@ -65,7 +65,7 @@ import { BillPaymentPage, BillPaymentHistoryPage } from '@/pages/billpayment'
 import { AIIntelligencePage } from '@/pages/ai'
 
 // EarnPool Page
-import { EarnPoolPage } from '@/pages/earnpool'
+import { EarnPoolPageNew as EarnPoolPage } from '@/pages/earnpool/EarnPoolPageNew'
 
 // Admin Pages
 import {
