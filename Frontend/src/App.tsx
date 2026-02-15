@@ -91,6 +91,7 @@ import {
   AdminWolkPayDetailPage,
   AdminBillPaymentPage,
   AdminKYCPage,
+  AdminEarnPoolPage,
 } from '@/pages/admin'
 
 // Import Dashboard Switcher (V2 + Legacy toggle)
@@ -406,6 +407,7 @@ function App() {
             <Route path='/admin/kyc' element={<AdminKYCPage />} />
             <Route path='/admin/kyc/users' element={<AdminKYCUsersPage />} />
             <Route path='/admin/locked-balances' element={<AdminLockedBalancesPage />} />
+            <Route path='/admin/earnpool' element={<AdminEarnPoolPage />} />
           </Route>
 
           {/* 404 Page */}
