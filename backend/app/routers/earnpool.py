@@ -518,3 +518,75 @@ async def get_withdrawal_details(
         raise HTTPException(status_code=404, detail="Withdrawal not found")
     
     return withdrawal
+
+
+# ============================================================================
+# TIER INFO (USER)
+# ============================================================================
+
+@router.get("/tier")
+async def get_my_tier(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Retorna informações do tier atual do usuário.
+    
+    Inclui:
+    - Tier atual (level, nome, benefícios)
+    - Total depositado
+    - % de compartilhamento do pool
+    - Próximo tier e quanto falta para alcançar
+    """
+    from app.services.earnpool_revenue_service import get_earnpool_revenue_service
+    
+    service = get_earnpool_revenue_service(db)
+    tier_info = service.get_user_tier(str(current_user.id))
+    
+    if not tier_info:
+        # Retornar info vazia se não tem depósitos
+        return {
+            "has_deposits": False,
+            "tier": None,
+            "message": "Você ainda não participou do pool de liquidez. Faça seu primeiro aporte para entrar!"
+        }
+    
+    return {
+        "has_deposits": True,
+        "tier": tier_info
+    }
+
+
+@router.get("/tiers")
+async def get_available_tiers(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Lista todos os tiers disponíveis do pool de liquidez.
+    
+    Permite ao usuário ver os benefícios de cada nível
+    e planejar seus aportes.
+    """
+    from app.services.earnpool_revenue_service import get_earnpool_revenue_service
+    
+    service = get_earnpool_revenue_service(db)
+    tiers = service.get_all_tiers()
+    
+    return {
+        "tiers": [
+            {
+                "tier_level": tier.tier_level,
+                "name": tier.name,
+                "name_key": tier.name_key,
+                "min_deposit_usdt": float(tier.min_deposit_usdt),
+                "max_deposit_usdt": float(tier.max_deposit_usdt) if tier.max_deposit_usdt else None,
+                "pool_share_percentage": float(tier.pool_share_percentage),
+                "withdrawal_priority_days": tier.withdrawal_priority_days,
+                "early_withdrawal_discount": float(tier.early_withdrawal_discount or 0),
+                "badge_color": tier.badge_color,
+                "badge_icon": tier.badge_icon
+            }
+            for tier in tiers
+        ]
+    }

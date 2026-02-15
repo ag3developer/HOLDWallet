@@ -321,3 +321,196 @@ class EarnPoolYieldDistribution(Base):
         Index('ix_earnpool_yield_dist_user', 'user_id'),
         Index('ix_earnpool_yield_dist_yield', 'yield_id'),
     )
+
+
+# ============================================================================
+# POOL TIERS - Sistema de Níveis para Revenue Sharing
+# ============================================================================
+
+class EarnPoolTier(Base):
+    """
+    Configuração dos Tiers do Pool de Liquidez
+    
+    Define os níveis de participação e as porcentagens de 
+    compartilhamento da receita (taxa de rede) acumulada.
+    
+    A receita vem de:
+    - WolkPay (pagamentos)
+    - Trade Instantâneo
+    - Boletos
+    - Outros serviços
+    
+    Regras:
+    - Cada tier tem um range de valor mínimo/máximo
+    - Cada tier recebe uma % do pool de taxas acumulado
+    - A distribuição é proporcional ao valor depositado pelo cooperado
+    - NUNCA pode exceder o pool acumulado (revenue_pool)
+    """
+    __tablename__ = "earnpool_tiers"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    
+    # Identificação do Tier
+    tier_level = Column(Integer, nullable=False, unique=True)  # 1-10
+    name = Column(String(50), nullable=False)                  # "Starter", "Bronze", etc.
+    name_key = Column(String(50), nullable=False)              # i18n key: "tier.starter"
+    
+    # Range de valores (em USDT)
+    min_deposit_usdt = Column(Numeric(18, 2), nullable=False)  # Mínimo para entrar no tier
+    max_deposit_usdt = Column(Numeric(18, 2), nullable=True)   # Máximo (NULL = sem limite)
+    
+    # Porcentagem do Pool de Taxas que este tier recebe
+    # Ex: 0.50 = 0.50% do pool de taxas acumulado
+    pool_share_percentage = Column(Numeric(5, 4), nullable=False)
+    
+    # Benefícios adicionais
+    withdrawal_priority_days = Column(Integer, default=7)       # Dias para saque (D+X)
+    early_withdrawal_discount = Column(Numeric(5, 2), default=0) # Desconto na taxa de saque antecipado
+    
+    # Visual/Badge
+    badge_color = Column(String(20), nullable=True)             # Cor do badge: "#FFD700"
+    badge_icon = Column(String(50), nullable=True)              # Ícone: "star", "crown", "whale"
+    
+    # Status
+    is_active = Column(Boolean, default=True)
+    
+    # Auditoria
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, onupdate=lambda: datetime.now(timezone.utc))
+    created_by = Column(UUID(as_uuid=True), nullable=True)
+
+    __table_args__ = (
+        Index('ix_earnpool_tiers_level', 'tier_level'),
+        CheckConstraint('tier_level >= 1 AND tier_level <= 10', name='ck_tier_level_range'),
+        CheckConstraint('pool_share_percentage >= 0 AND pool_share_percentage <= 100', name='ck_pool_share_range'),
+    )
+
+
+class EarnPoolRevenuePool(Base):
+    """
+    Pool de Receita Acumulada (Taxa de Rede)
+    
+    Registra a receita acumulada de todas as operações da plataforma
+    que será compartilhada com os cooperados do EarnPool.
+    
+    Fontes de receita:
+    - WolkPay: taxas de pagamentos
+    - Trade Instantâneo: spread + taxas
+    - Boletos: taxas de processamento
+    - Outros: qualquer taxa de rede
+    """
+    __tablename__ = "earnpool_revenue_pool"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    
+    # Período
+    period_start = Column(DateTime, nullable=False)             # Início do período
+    period_end = Column(DateTime, nullable=False)               # Fim do período
+    
+    # Receitas por fonte (em USDT)
+    revenue_wolkpay = Column(Numeric(18, 2), default=0)         # Taxas WolkPay
+    revenue_instant_trade = Column(Numeric(18, 2), default=0)   # Taxas Trade Instantâneo
+    revenue_bills = Column(Numeric(18, 2), default=0)           # Taxas Boletos
+    revenue_other = Column(Numeric(18, 2), default=0)           # Outras taxas
+    
+    # Total
+    total_revenue = Column(Numeric(18, 2), nullable=False, default=0)
+    
+    # Distribuição
+    total_distributed = Column(Numeric(18, 2), default=0)       # Total já distribuído
+    remaining_balance = Column(Numeric(18, 2), default=0)       # Saldo restante
+    
+    # Status
+    status = Column(String(20), default="ACCUMULATING")         # ACCUMULATING, DISTRIBUTING, DISTRIBUTED
+    distributed_at = Column(DateTime, nullable=True)
+    
+    # Auditoria
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, onupdate=lambda: datetime.now(timezone.utc))
+    notes = Column(Text, nullable=True)
+
+    __table_args__ = (
+        Index('ix_earnpool_revenue_period', 'period_start', 'period_end'),
+        Index('ix_earnpool_revenue_status', 'status'),
+    )
+
+
+class EarnPoolTierDistribution(Base):
+    """
+    Distribuição de receita por Tier
+    
+    Registra quanto cada tier recebeu do pool de receita
+    e como foi distribuído entre os cooperados daquele tier.
+    """
+    __tablename__ = "earnpool_tier_distributions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    
+    # Relacionamentos
+    revenue_pool_id = Column(UUID(as_uuid=True), ForeignKey("earnpool_revenue_pool.id"), nullable=False)
+    tier_id = Column(Integer, ForeignKey("earnpool_tiers.id"), nullable=False)
+    
+    # Valores do Tier neste período
+    tier_total_deposits = Column(Numeric(18, 2), nullable=False)  # Total depositado no tier
+    tier_cooperators_count = Column(Integer, nullable=False)       # Qtd de cooperados no tier
+    
+    # Distribuição
+    pool_share_percentage = Column(Numeric(5, 4), nullable=False)  # % do pool para este tier
+    amount_to_distribute = Column(Numeric(18, 2), nullable=False)  # Valor a distribuir
+    amount_distributed = Column(Numeric(18, 2), default=0)         # Valor já distribuído
+    
+    # Status
+    status = Column(String(20), default="PENDING")                 # PENDING, DISTRIBUTED
+    distributed_at = Column(DateTime, nullable=True)
+    
+    # Auditoria
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    # Relacionamentos
+    revenue_pool = relationship("EarnPoolRevenuePool", backref="tier_distributions")
+    tier = relationship("EarnPoolTier", backref="distributions")
+
+    __table_args__ = (
+        Index('ix_earnpool_tier_dist_revenue', 'revenue_pool_id'),
+        Index('ix_earnpool_tier_dist_tier', 'tier_id'),
+    )
+
+
+class EarnPoolCooperatorDistribution(Base):
+    """
+    Distribuição individual para cada cooperado
+    
+    Registra quanto cada cooperado recebeu baseado em:
+    - Seu tier atual
+    - Seu valor depositado
+    - Proporção em relação aos outros do mesmo tier
+    """
+    __tablename__ = "earnpool_cooperator_distributions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    
+    # Relacionamentos
+    tier_distribution_id = Column(UUID(as_uuid=True), ForeignKey("earnpool_tier_distributions.id"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    deposit_id = Column(UUID(as_uuid=True), ForeignKey("earnpool_deposits.id"), nullable=False)
+    
+    # Valores do cooperado
+    user_tier_level = Column(Integer, nullable=False)              # Tier do usuário no momento
+    user_deposit_amount = Column(Numeric(18, 2), nullable=False)   # Valor depositado
+    user_share_percentage = Column(Numeric(10, 8), nullable=False) # % dentro do tier
+    
+    # Rendimento recebido
+    yield_amount = Column(Numeric(18, 8), nullable=False)          # Valor recebido
+    
+    # Auditoria
+    distributed_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    # Relacionamentos
+    tier_distribution = relationship("EarnPoolTierDistribution", backref="cooperator_distributions")
+    user = relationship("User", backref="earnpool_cooperator_distributions")
+    deposit = relationship("EarnPoolDeposit", backref="cooperator_distributions")
+
+    __table_args__ = (
+        Index('ix_earnpool_coop_dist_user', 'user_id'),
+        Index('ix_earnpool_coop_dist_tier', 'tier_distribution_id'),
+    )
