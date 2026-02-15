@@ -18,6 +18,12 @@ import {
   AlertTriangle,
   ArrowDownCircle,
   ArrowUpCircle,
+  Send,
+  Shield,
+  Loader2,
+  ExternalLink,
+  Wallet,
+  Check,
 } from 'lucide-react'
 import { apiClient } from '../../services/api'
 
@@ -51,11 +57,11 @@ interface EarnPoolConfig {
 }
 
 interface EarnPoolDeposit {
-  id: number
+  id: number | string
   user_id: number
   user_email?: string
   crypto_symbol: string
-  crypto_amount: number
+  crypto_amount: number | string
   usdt_amount: number
   exchange_rate: number
   status: string
@@ -64,6 +70,27 @@ interface EarnPoolDeposit {
   total_yield_earned: number
   tier_level: number
   tier_name: string
+  // Campos de transferência para sistema
+  tx_hash_to_system?: string | null
+  transferred_to_system_at?: string | null
+  transferred_by_admin?: string | null
+  original_crypto_symbol?: string
+  original_crypto_amount?: number | string
+  original_crypto_network?: string
+}
+
+interface TransferPreview {
+  deposit_id: string
+  user_email: string
+  crypto_symbol: string
+  crypto_amount: number
+  usdt_value: number
+  network: string
+  to_address: string
+  // Additional fields from API preview
+  amount?: number
+  estimated_fee_usd?: number
+  destination_address?: string
 }
 
 interface EarnPoolWithdrawal {
@@ -138,6 +165,12 @@ export default function AdminEarnPoolPage() {
   // Distribution Preview Modal
   const [showDistributionPreview, setShowDistributionPreview] = useState(false)
   const [distributionPreview, setDistributionPreview] = useState<any>(null)
+
+  // Transfer to System Modal (com 2FA)
+  const [showTransferModal, setShowTransferModal] = useState(false)
+  const [transferDeposit, setTransferDeposit] = useState<EarnPoolDeposit | null>(null)
+  const [transferPreview, setTransferPreview] = useState<TransferPreview | null>(null)
+  const [twoFactorCode, setTwoFactorCode] = useState('')
 
   // ============================================================================
   // QUERIES
@@ -309,6 +342,52 @@ export default function AdminEarnPoolPage() {
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.detail || 'Erro ao carregar preview')
+    },
+  })
+
+  // Transfer to System Wallet Mutation (com 2FA)
+  const transferToSystemMutation = useMutation({
+    mutationFn: async ({
+      depositId,
+      code2FA,
+      confirm,
+    }: {
+      depositId: number | string
+      code2FA: string
+      confirm: boolean
+    }) => {
+      const { data } = await apiClient.post(
+        `/admin/earnpool/deposits/${depositId}/transfer-to-system`,
+        { deposit_id: String(depositId), confirm },
+        {
+          headers: {
+            'X-2FA-Code': code2FA,
+          },
+        }
+      )
+      return data
+    },
+    onSuccess: (data, variables) => {
+      if (variables.confirm) {
+        toast.success(
+          `Transferência realizada com sucesso! TX Hash: ${data.tx_hash?.slice(0, 16)}...`
+        )
+        setShowTransferModal(false)
+        setTransferDeposit(null)
+        setTransferPreview(null)
+        setTwoFactorCode('')
+        queryClient.invalidateQueries({ queryKey: ['earnpool-deposits'] })
+      } else {
+        // Preview mode - show preview data
+        setTransferPreview(data)
+      }
+    },
+    onError: (error: any) => {
+      const errorMsg = error.response?.data?.detail || 'Erro ao transferir para sistema'
+      toast.error(errorMsg)
+      if (errorMsg.includes('2FA') || errorMsg.includes('código')) {
+        setTwoFactorCode('')
+      }
     },
   })
 
@@ -500,6 +579,14 @@ export default function AdminEarnPoolPage() {
           formatCurrency={formatCurrency}
           formatDate={formatDate}
           getStatusBadge={getStatusBadge}
+          onTransferToSystem={deposit => {
+            setTransferDeposit(deposit)
+            setTransferPreview(null)
+            setTwoFactorCode('')
+            setShowTransferModal(true)
+            // Load preview
+            transferToSystemMutation.mutate({ depositId: deposit.id, code2FA: '', confirm: false })
+          }}
         />
       )}
 
@@ -637,6 +724,190 @@ export default function AdminEarnPoolPage() {
                 className='px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50'
               >
                 {distributeMutation.isPending ? 'Distribuindo...' : 'Confirmar Distribuição'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Transfer to System Modal with 2FA */}
+      {showTransferModal && transferDeposit && (
+        <Modal
+          onClose={() => {
+            setShowTransferModal(false)
+            setTransferDeposit(null)
+            setTransferPreview(null)
+            setTwoFactorCode('')
+          }}
+          title='🔐 Transferir para Carteira do Sistema'
+        >
+          <div className='space-y-6'>
+            {/* Warning Banner */}
+            <div className='bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg p-4'>
+              <div className='flex items-start gap-3'>
+                <AlertTriangle className='w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5' />
+                <div>
+                  <h4 className='font-medium text-amber-800 dark:text-amber-300'>
+                    Transferência On-Chain
+                  </h4>
+                  <p className='text-sm text-amber-700 dark:text-amber-400 mt-1'>
+                    Esta ação irá transferir a criptomoeda da carteira do usuário para a carteira do
+                    sistema. Esta transação é irreversível e será registrada na blockchain.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Deposit Info */}
+            <div className='bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 space-y-3'>
+              <h4 className='font-medium text-gray-900 dark:text-white flex items-center gap-2'>
+                <Wallet className='w-4 h-4' />
+                Informações do Depósito
+              </h4>
+              <div className='grid grid-cols-2 gap-3 text-sm'>
+                <div>
+                  <p className='text-gray-500 dark:text-gray-400'>Depósito ID</p>
+                  <p className='font-mono text-gray-900 dark:text-white'>#{transferDeposit.id}</p>
+                </div>
+                <div>
+                  <p className='text-gray-500 dark:text-gray-400'>Usuário</p>
+                  <p className='text-gray-900 dark:text-white'>
+                    {transferDeposit.user_email || `ID: ${transferDeposit.user_id}`}
+                  </p>
+                </div>
+                <div>
+                  <p className='text-gray-500 dark:text-gray-400'>Crypto</p>
+                  <p className='font-medium text-gray-900 dark:text-white'>
+                    {transferDeposit.original_crypto_symbol || transferDeposit.crypto_symbol}
+                    {transferDeposit.original_crypto_network && (
+                      <span className='text-xs text-gray-500 ml-1'>
+                        ({transferDeposit.original_crypto_network})
+                      </span>
+                    )}
+                  </p>
+                </div>
+                <div>
+                  <p className='text-gray-500 dark:text-gray-400'>Valor</p>
+                  <p className='font-mono font-medium text-gray-900 dark:text-white'>
+                    {Number(
+                      transferDeposit.original_crypto_amount || transferDeposit.crypto_amount || 0
+                    ).toFixed(8)}
+                  </p>
+                </div>
+                <div className='col-span-2'>
+                  <p className='text-gray-500 dark:text-gray-400'>Valor USDT</p>
+                  <p className='font-mono text-lg font-semibold text-green-600 dark:text-green-400'>
+                    {formatCurrency(transferDeposit.usdt_amount)}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Transfer Preview */}
+            {transferPreview && (
+              <div className='bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4'>
+                <h4 className='font-medium text-blue-800 dark:text-blue-300 mb-3'>
+                  Preview da Transferência
+                </h4>
+                <div className='space-y-2 text-sm'>
+                  {transferPreview.crypto_symbol && (
+                    <div className='flex justify-between'>
+                      <span className='text-blue-700 dark:text-blue-400'>Cripto:</span>
+                      <span className='font-mono text-blue-900 dark:text-blue-200'>
+                        {transferPreview.crypto_symbol} ({transferPreview.network})
+                      </span>
+                    </div>
+                  )}
+                  {transferPreview.amount && (
+                    <div className='flex justify-between'>
+                      <span className='text-blue-700 dark:text-blue-400'>Quantidade:</span>
+                      <span className='font-mono text-blue-900 dark:text-blue-200'>
+                        {Number(transferPreview.amount).toFixed(8)}
+                      </span>
+                    </div>
+                  )}
+                  {transferPreview.estimated_fee_usd && (
+                    <div className='flex justify-between'>
+                      <span className='text-blue-700 dark:text-blue-400'>Taxa estimada:</span>
+                      <span className='font-mono text-blue-900 dark:text-blue-200'>
+                        ~${Number(transferPreview.estimated_fee_usd).toFixed(2)} USD
+                      </span>
+                    </div>
+                  )}
+                  {transferPreview.destination_address && (
+                    <div className='flex flex-col gap-1'>
+                      <span className='text-blue-700 dark:text-blue-400'>Destino (Sistema):</span>
+                      <span className='font-mono text-xs text-blue-900 dark:text-blue-200 break-all'>
+                        {transferPreview.destination_address}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* 2FA Section */}
+            <div className='space-y-3'>
+              <div className='flex items-center gap-2'>
+                <Shield className='w-5 h-5 text-purple-600 dark:text-purple-400' />
+                <h4 className='font-medium text-gray-900 dark:text-white'>
+                  Autenticação 2FA Obrigatória
+                </h4>
+              </div>
+              <p className='text-sm text-gray-600 dark:text-gray-400'>
+                Digite o código de 6 dígitos do seu aplicativo autenticador (Google Authenticator,
+                Authy, etc.)
+              </p>
+              <input
+                type='text'
+                inputMode='numeric'
+                maxLength={6}
+                value={twoFactorCode}
+                onChange={e => setTwoFactorCode(e.target.value.replace(/\D/g, ''))}
+                placeholder='000000'
+                className='w-full px-4 py-3 text-center text-2xl font-mono tracking-[0.5em] border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white'
+              />
+            </div>
+
+            {/* Action Buttons */}
+            <div className='flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700'>
+              <button
+                onClick={() => {
+                  setShowTransferModal(false)
+                  setTransferDeposit(null)
+                  setTransferPreview(null)
+                  setTwoFactorCode('')
+                }}
+                className='px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors'
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  if (twoFactorCode.length !== 6) {
+                    toast.error('Digite o código 2FA de 6 dígitos')
+                    return
+                  }
+                  transferToSystemMutation.mutate({
+                    depositId: transferDeposit.id,
+                    code2FA: twoFactorCode,
+                    confirm: true,
+                  })
+                }}
+                disabled={twoFactorCode.length !== 6 || transferToSystemMutation.isPending}
+                className='px-6 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-lg transition-all shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2'
+              >
+                {transferToSystemMutation.isPending ? (
+                  <>
+                    <Loader2 className='w-4 h-4 animate-spin' />
+                    Processando...
+                  </>
+                ) : (
+                  <>
+                    <Send className='w-4 h-4' />
+                    Confirmar Transferência
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -1225,12 +1496,14 @@ function DepositsTab({
   formatCurrency,
   formatDate,
   getStatusBadge,
+  onTransferToSystem,
 }: {
   deposits?: EarnPoolDeposit[]
   loadingDeposits: boolean
   formatCurrency: (v: number) => string
   formatDate: (d: string | null) => string
   getStatusBadge: (status: string) => React.ReactNode
+  onTransferToSystem: (deposit: EarnPoolDeposit) => void
 }) {
   const [filterStatus, setFilterStatus] = useState<string>('all')
 
@@ -1303,6 +1576,12 @@ function DepositsTab({
                 <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase'>
                   Lock Termina
                 </th>
+                <th className='px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase'>
+                  Transferência
+                </th>
+                <th className='px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase'>
+                  Ações
+                </th>
               </tr>
             </thead>
             <tbody className='divide-y divide-gray-200 dark:divide-gray-700'>
@@ -1327,7 +1606,7 @@ function DepositsTab({
                         {deposit.crypto_symbol || '-'}
                       </p>
                       <p className='text-xs text-gray-500 dark:text-gray-400 font-mono'>
-                        {(deposit.crypto_amount ?? 0).toFixed(8)}
+                        {Number(deposit.crypto_amount ?? 0).toFixed(8)}
                       </p>
                     </div>
                   </td>
@@ -1354,6 +1633,44 @@ function DepositsTab({
                   </td>
                   <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400'>
                     {formatDate(deposit.lock_ends_at)}
+                  </td>
+                  {/* Transfer Status Column */}
+                  <td className='px-6 py-4 whitespace-nowrap text-center'>
+                    {deposit.tx_hash_to_system ? (
+                      <div className='flex flex-col items-center gap-1'>
+                        <span className='px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 rounded-full text-xs font-medium flex items-center gap-1'>
+                          <Check className='w-3 h-3' />
+                          Transferido
+                        </span>
+                        <a
+                          href={`https://blockchair.com/search?q=${deposit.tx_hash_to_system}`}
+                          target='_blank'
+                          rel='noopener noreferrer'
+                          className='text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1'
+                        >
+                          {deposit.tx_hash_to_system.slice(0, 10)}...
+                          <ExternalLink className='w-3 h-3' />
+                        </a>
+                      </div>
+                    ) : (
+                      <span className='px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400 rounded-full text-xs font-medium'>
+                        Pendente
+                      </span>
+                    )}
+                  </td>
+                  {/* Actions Column */}
+                  <td className='px-6 py-4 whitespace-nowrap text-center'>
+                    {!deposit.tx_hash_to_system &&
+                      ['ACTIVE', 'LOCKED'].includes(deposit.status) && (
+                        <button
+                          onClick={() => onTransferToSystem(deposit)}
+                          className='inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-lg text-xs font-medium shadow-sm transition-all hover:shadow'
+                          title='Transferir cripto para carteira do sistema (on-chain)'
+                        >
+                          <Send className='w-3.5 h-3.5' />
+                          Transferir
+                        </button>
+                      )}
                   </td>
                 </tr>
               ))}

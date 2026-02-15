@@ -740,7 +740,7 @@ async def get_diagnostic_info(
 # ============================================================================
 
 class TransferToSystemRequest(BaseModel):
-    deposit_id: str
+    deposit_id: Optional[str] = None  # Opcional - já vem na URL
     confirm: bool = False  # Precisa confirmar explicitamente
 
 
