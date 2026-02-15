@@ -696,29 +696,42 @@ export function EarnPoolPage() {
 
   if (loading) {
     return (
-      <div className='min-h-screen bg-gray-50 dark:bg-gray-900 p-4'>
-        <div className='max-w-4xl mx-auto'>
-          {/* Skeleton Hero */}
-          <div className='relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800 via-emerald-900 to-teal-900 p-6 mb-6'>
-            <div className='animate-pulse space-y-4'>
-              <div className='h-8 bg-white/10 rounded-lg w-48' />
-              <div className='h-4 bg-white/10 rounded w-72' />
-              <div className='grid grid-cols-4 gap-3 mt-6'>
-                {[1, 2, 3, 4].map(i => (
-                  <div key={i} className='h-20 bg-white/10 rounded-xl' />
-                ))}
-              </div>
+      <div className='space-y-6'>
+        {/* Skeleton Header */}
+        <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4'>
+          <div className='animate-pulse'>
+            <div className='h-8 bg-gray-200 dark:bg-gray-700 rounded-lg w-48 mb-2' />
+            <div className='h-4 bg-gray-200 dark:bg-gray-700 rounded w-72' />
+          </div>
+          <div className='flex gap-2'>
+            <div className='h-12 w-24 bg-gray-200 dark:bg-gray-700 rounded-xl animate-pulse' />
+            <div className='h-12 w-24 bg-gray-200 dark:bg-gray-700 rounded-xl animate-pulse' />
+          </div>
+        </div>
+        {/* Skeleton Balance Card */}
+        <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 p-6'>
+          <div className='animate-pulse flex items-center gap-4'>
+            <div className='w-14 h-14 bg-gray-200 dark:bg-gray-700 rounded-2xl' />
+            <div>
+              <div className='h-4 bg-gray-200 dark:bg-gray-700 rounded w-32 mb-2' />
+              <div className='h-8 bg-gray-200 dark:bg-gray-700 rounded w-48' />
             </div>
           </div>
-          {/* Skeleton Cards */}
-          <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
-            {[1, 2, 3].map(i => (
-              <div
-                key={i}
-                className='h-32 bg-gray-200 dark:bg-gray-800 rounded-2xl animate-pulse'
-              />
-            ))}
-          </div>
+          <div className='h-32 bg-gray-100 dark:bg-gray-700/50 rounded-xl mt-6 animate-pulse' />
+        </div>
+        {/* Skeleton Stats Cards */}
+        <div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
+          {[1, 2, 3, 4].map(i => (
+            <div
+              key={i}
+              className='h-28 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 animate-pulse'
+            />
+          ))}
+        </div>
+        {/* Skeleton Main Panel */}
+        <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 p-6'>
+          <div className='h-12 bg-gray-200 dark:bg-gray-700 rounded-xl mb-4 animate-pulse' />
+          <div className='h-64 bg-gray-100 dark:bg-gray-700/50 rounded-xl animate-pulse' />
         </div>
       </div>
     )
@@ -753,11 +766,13 @@ export function EarnPoolPage() {
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className='bg-gray-900/95 backdrop-blur-xl border border-emerald-500/30 rounded-xl p-3 shadow-xl'>
-          <p className='text-gray-400 text-xs mb-1'>{label}</p>
-          <p className='text-white font-bold text-lg'>{formatCurrency(payload[0].value)}</p>
+        <div className='bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border border-gray-200 dark:border-emerald-500/30 rounded-xl p-3 shadow-xl'>
+          <p className='text-gray-500 dark:text-gray-400 text-xs mb-1'>{label}</p>
+          <p className='text-gray-900 dark:text-white font-bold text-lg'>
+            {formatCurrency(payload[0].value)}
+          </p>
           {payload[0].payload.yield > 0 && (
-            <p className='text-emerald-400 text-xs mt-1'>
+            <p className='text-emerald-600 dark:text-emerald-400 text-xs mt-1'>
               +{formatCurrency(payload[0].payload.yield)} yield
             </p>
           )}
@@ -772,1174 +787,1124 @@ export function EarnPoolPage() {
   // ============================================================================
 
   return (
-    <div className='min-h-screen bg-gray-50 dark:bg-gray-900 pb-24'>
-      {/* ====== HERO PREMIUM COM GRÁFICO ====== */}
-      <div className='relative overflow-hidden bg-gradient-to-br from-gray-900 via-emerald-950 to-teal-950'>
-        {/* Animated Background */}
-        <div className='absolute inset-0'>
-          <div className='absolute top-0 left-1/4 w-96 h-96 bg-emerald-500/20 rounded-full blur-3xl animate-pulse' />
-          <div
-            className='absolute bottom-0 right-1/4 w-80 h-80 bg-teal-500/20 rounded-full blur-3xl animate-pulse'
-            style={{ animationDelay: '1s' }}
-          />
-          <div
-            className='absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-cyan-500/10 rounded-full blur-2xl animate-pulse'
-            style={{ animationDelay: '2s' }}
-          />
+    <div className='space-y-6'>
+      {/* Clean Header - Same style as InstantTradePage */}
+      <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4'>
+        <div>
+          <div className='flex items-center gap-3 mb-1'>
+            <h1 className='text-2xl md:text-3xl font-bold text-gray-900 dark:text-white'>
+              {t('earnpool.title')}
+            </h1>
+            <div className='flex items-center gap-1.5 px-2.5 py-1 bg-emerald-100 dark:bg-emerald-900/30 rounded-full'>
+              <span className='w-2 h-2 bg-emerald-500 rounded-full animate-pulse' />
+              <span className='text-xs font-medium text-emerald-700 dark:text-emerald-400'>
+                {t('earnpool.live', 'Ativo')}
+              </span>
+            </div>
+          </div>
+          <p className='text-gray-500 dark:text-gray-400 text-sm'>{t('earnpool.description')}</p>
         </div>
 
-        <div className='relative max-w-4xl mx-auto p-4 md:p-6'>
-          {/* Top Bar */}
-          <div className='flex items-center justify-between mb-6'>
-            <div className='flex items-center gap-3'>
-              <div className='relative'>
-                <div className='w-12 h-12 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/30'>
-                  <Gem className='w-6 h-6 text-white' />
-                </div>
-                <div className='absolute -top-1 -right-1 w-4 h-4 bg-emerald-400 rounded-full animate-ping' />
-                <div className='absolute -top-1 -right-1 w-4 h-4 bg-emerald-400 rounded-full' />
-              </div>
-              <div>
-                <div className='flex items-center gap-2'>
-                  <h1 className='text-xl md:text-2xl font-bold text-white'>
-                    {t('earnpool.title')}
-                  </h1>
-                  <span className='px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-[10px] font-bold rounded-full uppercase'>
-                    Live
-                  </span>
-                </div>
-                <p className='text-gray-400 text-xs'>{t('earnpool.description')}</p>
-              </div>
-            </div>
-            <div className='flex gap-2'>
-              <button
-                onClick={() => setActiveTab('history')}
-                className='p-2.5 bg-white/5 hover:bg-white/10 rounded-xl transition-all border border-white/10'
-                aria-label={t('earnpool.history.title')}
-              >
-                <History className='w-4 h-4 text-white' />
-              </button>
-              <button
-                onClick={handleRefresh}
-                disabled={refreshing}
-                className='p-2.5 bg-white/5 hover:bg-white/10 rounded-xl transition-all border border-white/10'
-                aria-label={t('common.refresh')}
-              >
-                <RefreshCw className={`w-4 h-4 text-white ${refreshing ? 'animate-spin' : ''}`} />
-              </button>
+        {/* Stats Pills */}
+        <div className='flex gap-2'>
+          <div className='flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm'>
+            <Activity className='w-4 h-4 text-emerald-500' />
+            <div>
+              <p className='text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wide'>
+                APY
+              </p>
+              <p className='text-sm font-bold text-gray-900 dark:text-white'>
+                {config?.target_weekly_yield_percentage ?? config?.base_apy ?? 0}%
+              </p>
             </div>
           </div>
-
-          {/* Pool Status Alert */}
-          {config && !config.is_active && (
-            <div className='bg-yellow-500/20 border border-yellow-500/40 rounded-xl p-3 flex items-center gap-2 mb-4'>
-              <AlertCircle className='w-4 h-4 text-yellow-400 flex-shrink-0' />
-              <p className='text-sm text-yellow-200'>{t('earnpool.errors.poolInactive')}</p>
-            </div>
-          )}
-
-          {/* ====== PERFORMANCE CARD COM GRÁFICO ====== */}
-          <div className='bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 p-5 mb-4'>
-            {/* Header do Card */}
-            <div className='flex items-center justify-between mb-4'>
-              <div>
-                <p className='text-gray-400 text-xs uppercase tracking-wider mb-1'>Saldo Total</p>
-                <div className='flex items-baseline gap-3'>
-                  <h2 className='text-3xl md:text-4xl font-bold text-white'>
-                    {formatCurrency(balance?.total_deposited_usdt ?? 0)}
-                  </h2>
-                  <div
-                    className={`flex items-center gap-1 px-2 py-1 rounded-lg ${performanceChange >= 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}
-                  >
-                    {performanceChange >= 0 ? (
-                      <TrendingUp className='w-3.5 h-3.5' />
-                    ) : (
-                      <TrendingDown className='w-3.5 h-3.5' />
-                    )}
-                    <span className='text-sm font-bold'>
-                      {performanceChange >= 0 ? '+' : ''}
-                      {performanceChange.toFixed(2)}%
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <div className='text-right'>
-                <p className='text-gray-400 text-xs uppercase tracking-wider mb-1'>Rendimento</p>
-                <p className='text-2xl font-bold text-emerald-400'>
-                  +{formatCurrency(balance?.total_yield_earned ?? 0)}
-                </p>
-              </div>
-            </div>
-
-            {/* Gráfico de Performance */}
-            <div className='h-40 md:h-48 -mx-2'>
-              <ResponsiveContainer width='100%' height='100%'>
-                <AreaChart data={performanceData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-                  <defs>
-                    <linearGradient id='performanceGradient' x1='0' y1='0' x2='0' y2='1'>
-                      <stop offset='0%' stopColor='#10b981' stopOpacity={0.4} />
-                      <stop offset='50%' stopColor='#10b981' stopOpacity={0.1} />
-                      <stop offset='100%' stopColor='#10b981' stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id='lineGradient' x1='0' y1='0' x2='1' y2='0'>
-                      <stop offset='0%' stopColor='#10b981' />
-                      <stop offset='50%' stopColor='#14b8a6' />
-                      <stop offset='100%' stopColor='#06b6d4' />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray='3 3' stroke='rgba(255,255,255,0.05)' />
-                  <XAxis
-                    dataKey='date'
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: '#9ca3af', fontSize: 10 }}
-                    interval='preserveStartEnd'
-                  />
-                  <YAxis hide domain={['dataMin - 10', 'dataMax + 10']} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Area
-                    type='monotone'
-                    dataKey='value'
-                    stroke='url(#lineGradient)'
-                    strokeWidth={3}
-                    fill='url(#performanceGradient)'
-                    animationDuration={1500}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-
-            {/* Stats Row */}
-            <div className='grid grid-cols-4 gap-2 mt-4 pt-4 border-t border-white/10'>
-              <div className='text-center'>
-                <p className='text-[10px] text-gray-500 uppercase mb-1'>APY</p>
-                <p className='text-lg font-bold text-emerald-400'>
-                  {config?.target_weekly_yield_percentage ?? config?.base_apy ?? 0}%
-                </p>
-                <p className='text-[10px] text-gray-500'>
-                  {getPeriodLabel(config?.yield_period_type)}
-                </p>
-              </div>
-              <div className='text-center'>
-                <p className='text-[10px] text-gray-500 uppercase mb-1'>Pool Total</p>
-                <p className='text-lg font-bold text-white'>
-                  {formatCurrency(config?.total_pool_balance ?? 0)}
-                </p>
-              </div>
-              <div className='text-center'>
-                <p className='text-[10px] text-gray-500 uppercase mb-1'>Lock</p>
-                <p className='text-lg font-bold text-white'>{config?.lock_period_days ?? 0}d</p>
-              </div>
-              <div className='text-center'>
-                <p className='text-[10px] text-gray-500 uppercase mb-1'>Taxa Saída</p>
-                <p className='text-lg font-bold text-white'>{config?.early_withdrawal_fee ?? 0}%</p>
-              </div>
+          <div className='flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm'>
+            <Shield className='w-4 h-4 text-blue-500' />
+            <div>
+              <p className='text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wide'>
+                Pool
+              </p>
+              <p className='text-sm font-bold text-gray-900 dark:text-white'>
+                {formatCurrency(config?.total_pool_balance ?? 0)}
+              </p>
             </div>
           </div>
-
-          {/* Quick Stats Pills */}
-          <div className='flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide'>
-            <div className='flex items-center gap-1.5 px-3 py-2 bg-emerald-500/20 rounded-full whitespace-nowrap'>
-              <Activity className='w-3.5 h-3.5 text-emerald-400 animate-pulse' />
-              <span className='text-xs text-emerald-300 font-medium'>Pool Ativo</span>
-            </div>
-            <div className='flex items-center gap-1.5 px-3 py-2 bg-cyan-500/20 rounded-full whitespace-nowrap'>
-              <Shield className='w-3.5 h-3.5 text-cyan-400' />
-              <span className='text-xs text-cyan-300 font-medium'>100% Seguro</span>
-            </div>
-            <div className='flex items-center gap-1.5 px-3 py-2 bg-purple-500/20 rounded-full whitespace-nowrap'>
-              <Zap className='w-3.5 h-3.5 text-purple-400' />
-              <span className='text-xs text-purple-300 font-medium'>Rendimento Diário</span>
-            </div>
-            <div className='flex items-center gap-1.5 px-3 py-2 bg-amber-500/20 rounded-full whitespace-nowrap'>
-              <Crown className='w-3.5 h-3.5 text-amber-400' />
-              <span className='text-xs text-amber-300 font-medium'>Premium</span>
-            </div>
-          </div>
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className='p-2.5 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm transition-all'
+            aria-label={t('common.refresh')}
+          >
+            <RefreshCw
+              className={`w-4 h-4 text-gray-500 dark:text-gray-400 ${refreshing ? 'animate-spin' : ''}`}
+            />
+          </button>
         </div>
       </div>
 
-      {/* ====== MAIN CONTENT ====== */}
-      <div className='p-4 md:p-6 max-w-4xl mx-auto space-y-4'>
-        {/* ====== USER BALANCE CARDS ====== */}
-        {balance && (
-          <div className='grid grid-cols-3 gap-3'>
-            {/* Total Fornecido */}
-            <div className='bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-lg border border-gray-100 dark:border-gray-700 hover:shadow-xl transition-all group'>
-              <div className='w-10 h-10 mb-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/25'>
-                <Wallet className='w-5 h-5 text-white' />
-              </div>
-              <p className='text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1'>
-                {t('earnpool.totalDeposited')}
+      {/* Pool Status Alert */}
+      {config && !config.is_active && (
+        <div className='bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4 flex items-center gap-3'>
+          <AlertCircle className='w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0' />
+          <p className='text-sm text-yellow-700 dark:text-yellow-300'>
+            {t('earnpool.errors.poolInactive')}
+          </p>
+        </div>
+      )}
+
+      {/* Main Balance Card */}
+      <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 p-6'>
+        <div className='flex flex-col md:flex-row md:items-center md:justify-between gap-4'>
+          {/* Balance Info */}
+          <div className='flex items-center gap-4'>
+            <div className='p-3 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl shadow-lg'>
+              <Gem className='w-8 h-8 text-white' />
+            </div>
+            <div>
+              <p className='text-sm text-gray-500 dark:text-gray-400'>
+                {t('earnpool.yourParticipation', 'Sua Participação')}
               </p>
-              <p className='text-xl font-bold text-gray-900 dark:text-white'>
-                {formatCurrency(balance.total_deposited_usdt)}
-              </p>
-              {config && (config.target_weekly_yield_percentage ?? config.base_apy ?? 0) > 0 && (
-                <div className='flex items-center gap-1 text-emerald-500 mt-2'>
-                  <TrendingUp className='w-3 h-3' />
-                  <span className='text-xs font-medium'>
-                    +{config.target_weekly_yield_percentage ?? config.base_apy}%/sem
+              <div className='flex items-baseline gap-3'>
+                <h2 className='text-3xl font-bold text-gray-900 dark:text-white'>
+                  {formatCurrency(balance?.total_deposited_usdt ?? 0)}
+                </h2>
+                <div
+                  className={`flex items-center gap-1 px-2 py-0.5 rounded-lg ${performanceChange >= 0 ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' : 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'}`}
+                >
+                  {performanceChange >= 0 ? (
+                    <TrendingUp className='w-3 h-3' />
+                  ) : (
+                    <TrendingDown className='w-3 h-3' />
+                  )}
+                  <span className='text-xs font-bold'>
+                    {performanceChange >= 0 ? '+' : ''}
+                    {performanceChange.toFixed(2)}%
                   </span>
                 </div>
-              )}
-            </div>
-
-            {/* Comissões Recebidas */}
-            <div className='bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-lg border border-gray-100 dark:border-gray-700 hover:shadow-xl transition-all group'>
-              <div className='w-10 h-10 mb-3 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/25'>
-                <BarChart3 className='w-5 h-5 text-white' />
               </div>
-              <p className='text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1'>
-                {t('earnpool.totalYieldEarned')}
+              <p className='text-sm text-emerald-600 dark:text-emerald-400 font-medium mt-1'>
+                +{formatCurrency(balance?.total_yield_earned ?? 0)}{' '}
+                {t('earnpool.commissionsReceived', 'comissões recebidas')}
               </p>
-              <p className='text-xl font-bold text-emerald-600 dark:text-emerald-400'>
-                {formatCurrency(balance.total_yield_earned)}
-              </p>
-              <div className='flex items-center gap-1 text-emerald-500 mt-2'>
-                <Sparkles className='w-3 h-3' />
-                <span className='text-xs font-medium'>{t('earnpool.earning')}</span>
-              </div>
-            </div>
-
-            {/* Saldo Disponível */}
-            <div className='bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-lg border border-gray-100 dark:border-gray-700 hover:shadow-xl transition-all group'>
-              <div className='w-10 h-10 mb-3 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/25'>
-                <DollarSign className='w-5 h-5 text-white' />
-              </div>
-              <p className='text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1'>
-                {t('earnpool.availableBalance')}
-              </p>
-              <p className='text-xl font-bold text-purple-600 dark:text-purple-400'>
-                {formatCurrency(balance.available_balance)}
-              </p>
-              {balance.locked_until && (
-                <div className='flex items-center gap-1 text-amber-500 mt-2'>
-                  <Lock className='w-3 h-3' />
-                  <span className='text-xs'>{formatDate(balance.locked_until)}</span>
-                </div>
-              )}
             </div>
           </div>
-        )}
 
-        {/* ====== ACTION BUTTONS ====== */}
-        {isAuthenticated && (
-          <div className='grid grid-cols-2 gap-3'>
-            <button
-              onClick={() => setActiveTab('deposit')}
-              className='flex items-center justify-center gap-2 py-4 rounded-xl font-semibold bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/30 hover:shadow-xl hover:scale-[1.02] transition-all'
-            >
-              <ArrowDownCircle className='w-5 h-5' />
-              <span>{t('earnpool.actions.deposit')}</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('withdraw')}
-              className='flex items-center justify-center gap-2 py-4 rounded-xl font-semibold bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-blue-400 hover:shadow-lg transition-all'
-            >
-              <ArrowUpCircle className='w-5 h-5' />
-              <span>{t('earnpool.actions.withdraw')}</span>
-            </button>
-          </div>
-        )}
-
-        {/* ====== MAIN PANEL ====== */}
-        <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden'>
-          {/* Tab Navigation */}
-          <div className='flex border-b border-gray-200 dark:border-gray-700'>
-            {[
-              { id: 'overview', icon: LineChart, label: t('earnpool.poolOverview') },
-              { id: 'deposit', icon: ArrowDownCircle, label: t('earnpool.actions.deposit') },
-              { id: 'withdraw', icon: ArrowUpCircle, label: t('earnpool.actions.withdraw') },
-              { id: 'history', icon: History, label: t('earnpool.history.title') },
-            ].map(tab => (
+          {/* Action Buttons */}
+          {isAuthenticated && (
+            <div className='flex gap-3'>
               <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as typeof activeTab)}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-all border-b-2 ${
-                  activeTab === tab.id
-                    ? 'text-emerald-600 dark:text-emerald-400 border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
-                    : 'text-gray-500 dark:text-gray-400 border-transparent hover:text-gray-700 dark:hover:text-gray-300'
-                }`}
+                onClick={() => setActiveTab('deposit')}
+                className='flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-xl font-semibold shadow-lg shadow-emerald-500/25 hover:shadow-xl transition-all'
               >
-                <tab.icon className='w-4 h-4' />
-                <span className='hidden sm:inline'>{tab.label}</span>
+                <ArrowDownCircle className='w-5 h-5' />
+                <span>{t('earnpool.actions.depositLiquidity', 'Fornecer Liquidez')}</span>
               </button>
-            ))}
+              <button
+                onClick={() => setActiveTab('withdraw')}
+                className='flex items-center gap-2 px-5 py-3 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-600 rounded-xl font-semibold hover:bg-gray-50 dark:hover:bg-gray-600 transition-all'
+              >
+                <ArrowUpCircle className='w-5 h-5' />
+                <span>{t('earnpool.actions.withdraw', 'Retirar')}</span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Performance Chart */}
+        <div className='h-32 mt-6 -mx-2'>
+          <ResponsiveContainer width='100%' height='100%'>
+            <AreaChart data={performanceData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+              <defs>
+                <linearGradient id='performanceGradient' x1='0' y1='0' x2='0' y2='1'>
+                  <stop offset='0%' stopColor='#10b981' stopOpacity={0.3} />
+                  <stop offset='100%' stopColor='#10b981' stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray='3 3' stroke='rgba(156,163,175,0.2)' />
+              <XAxis
+                dataKey='date'
+                axisLine={false}
+                tickLine={false}
+                tick={{ fill: '#9ca3af', fontSize: 10 }}
+                interval='preserveStartEnd'
+              />
+              <YAxis hide domain={['dataMin - 10', 'dataMax + 10']} />
+              <Tooltip content={<CustomTooltip />} />
+              <Area
+                type='monotone'
+                dataKey='value'
+                stroke='#10b981'
+                strokeWidth={2}
+                fill='url(#performanceGradient)'
+                animationDuration={1500}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Stats Cards Row */}
+      <div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
+        <div className='bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700 shadow-sm'>
+          <div className='flex items-center gap-3 mb-2'>
+            <div className='p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg'>
+              <BarChart3 className='w-4 h-4 text-orange-600 dark:text-orange-400' />
+            </div>
+            <span className='text-xs text-gray-500 dark:text-gray-400 uppercase'>
+              {t('earnpool.poolStats.commissionRate', 'Taxa de Comissão')}
+            </span>
           </div>
+          <p className='text-xl font-bold text-gray-900 dark:text-white'>
+            {config?.target_weekly_yield_percentage ?? config?.base_apy ?? 0}%
+          </p>
+          <p className='text-xs text-gray-500 dark:text-gray-400'>
+            {getPeriodLabel(config?.yield_period_type)}
+          </p>
+        </div>
 
-          {/* Tab Content */}
-          <div className='p-5'>
-            {/* ====== OVERVIEW TAB ====== */}
-            {activeTab === 'overview' && (
-              <div className='space-y-5'>
-                {/* Descrição */}
-                <div className='text-center'>
-                  <p className='text-gray-600 dark:text-gray-400 text-sm'>
-                    {t('earnpool.description')}
-                  </p>
-                </div>
+        <div className='bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700 shadow-sm'>
+          <div className='flex items-center gap-3 mb-2'>
+            <div className='p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg'>
+              <Clock className='w-4 h-4 text-purple-600 dark:text-purple-400' />
+            </div>
+            <span className='text-xs text-gray-500 dark:text-gray-400 uppercase'>
+              {t('earnpool.poolStats.minPeriod', 'Período Mínimo')}
+            </span>
+          </div>
+          <p className='text-xl font-bold text-gray-900 dark:text-white'>
+            {config?.lock_period_days ?? 0} {t('earnpool.poolStats.days', 'dias')}
+          </p>
+          <p className='text-xs text-gray-500 dark:text-gray-400'>
+            {t('earnpool.flexible', 'Flexível')}
+          </p>
+        </div>
 
-                {/* Deposit Limits */}
-                {config && (
-                  <div className='flex justify-center gap-3'>
-                    <div className='bg-emerald-50 dark:bg-emerald-900/20 rounded-xl px-4 py-3 text-center'>
-                      <p className='text-[10px] text-emerald-600 dark:text-emerald-400 uppercase mb-1'>
-                        {t('earnpool.poolStats.minDeposit')}
-                      </p>
-                      <p className='text-lg font-bold text-emerald-700 dark:text-emerald-300'>
-                        {formatCurrency(config.min_deposit_usdt ?? config.min_deposit)}
-                      </p>
-                    </div>
-                    {(config.max_deposit_usdt ?? config.max_deposit ?? 0) > 0 && (
-                      <div className='bg-blue-50 dark:bg-blue-900/20 rounded-xl px-4 py-3 text-center'>
-                        <p className='text-[10px] text-blue-600 dark:text-blue-400 uppercase mb-1'>
-                          {t('earnpool.poolStats.maxDeposit')}
-                        </p>
-                        <p className='text-lg font-bold text-blue-700 dark:text-blue-300'>
-                          {formatCurrency(config.max_deposit_usdt ?? config.max_deposit)}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
+        <div className='bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700 shadow-sm'>
+          <div className='flex items-center gap-3 mb-2'>
+            <div className='p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg'>
+              <LineChart className='w-4 h-4 text-blue-600 dark:text-blue-400' />
+            </div>
+            <span className='text-xs text-gray-500 dark:text-gray-400 uppercase'>
+              {t('earnpool.poolStats.totalLiquidity', 'Liquidez Total')}
+            </span>
+          </div>
+          <p className='text-xl font-bold text-gray-900 dark:text-white'>
+            {formatCurrency(config?.total_pool_balance ?? 0)}
+          </p>
+          <p className='text-xs text-gray-500 dark:text-gray-400'>
+            100% {t('earnpool.secure', 'Seguro')}
+          </p>
+        </div>
 
-                {/* How it Works */}
-                <div className='bg-gray-50 dark:bg-gray-700/30 rounded-xl p-4'>
-                  <h4 className='font-medium text-gray-900 dark:text-white mb-3 text-sm flex items-center gap-2'>
-                    <Info className='w-4 h-4 text-blue-500' />
-                    {t('earnpool.howItWorks.title')}
-                  </h4>
-                  <div className='grid grid-cols-2 gap-2 text-xs'>
-                    <div className='flex items-center gap-2 p-2 bg-white dark:bg-gray-800 rounded-lg'>
-                      <ArrowDownCircle className='w-4 h-4 text-emerald-500 flex-shrink-0' />
-                      <span className='text-gray-600 dark:text-gray-300'>
-                        {t('earnpool.howItWorks.step1')}
-                      </span>
-                    </div>
-                    <div className='flex items-center gap-2 p-2 bg-white dark:bg-gray-800 rounded-lg'>
-                      <Clock className='w-4 h-4 text-purple-500 flex-shrink-0' />
-                      <span className='text-gray-600 dark:text-gray-300'>
-                        {t('earnpool.howItWorks.step2')}
-                      </span>
-                    </div>
-                    <div className='flex items-center gap-2 p-2 bg-white dark:bg-gray-800 rounded-lg'>
-                      <TrendingUp className='w-4 h-4 text-cyan-500 flex-shrink-0' />
-                      <span className='text-gray-600 dark:text-gray-300'>
-                        {t('earnpool.howItWorks.step3')}
-                      </span>
-                    </div>
-                    <div className='flex items-center gap-2 p-2 bg-white dark:bg-gray-800 rounded-lg'>
-                      <ArrowUpCircle className='w-4 h-4 text-blue-500 flex-shrink-0' />
-                      <span className='text-gray-600 dark:text-gray-300'>
-                        {t('earnpool.howItWorks.step4')}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+        <div className='bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700 shadow-sm'>
+          <div className='flex items-center gap-3 mb-2'>
+            <div className='p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg'>
+              <Wallet className='w-4 h-4 text-emerald-600 dark:text-emerald-400' />
+            </div>
+            <span className='text-xs text-gray-500 dark:text-gray-400 uppercase'>
+              {t('earnpool.availableBalance', 'Saldo Disponível')}
+            </span>
+          </div>
+          <p className='text-xl font-bold text-gray-900 dark:text-white'>
+            {formatCurrency(balance?.available_balance ?? 0)}
+          </p>
+          <p className='text-xs text-emerald-600 dark:text-emerald-400'>
+            {t('earnpool.availableForWithdraw', 'Disponível para Saque')}
+          </p>
+        </div>
+      </div>
 
-                {/* CTA Button */}
-                {isAuthenticated && (
-                  <button
-                    onClick={() => setActiveTab('deposit')}
-                    className='w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-xl font-semibold shadow-lg transition-all flex items-center justify-center gap-2'
-                  >
-                    <ArrowDownCircle className='w-5 h-5' />
-                    {t('earnpool.deposit.cta')}
-                  </button>
-                )}
+      {/* Main Panel with Tabs */}
+      <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden'>
+        {/* Tab Navigation */}
+        <div className='flex border-b border-gray-200 dark:border-gray-700'>
+          {[
+            { id: 'overview', icon: LineChart, label: t('earnpool.poolOverview') },
+            { id: 'deposit', icon: ArrowDownCircle, label: t('earnpool.actions.deposit') },
+            { id: 'withdraw', icon: ArrowUpCircle, label: t('earnpool.actions.withdraw') },
+            { id: 'history', icon: History, label: t('earnpool.history.title') },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as typeof activeTab)}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-all border-b-2 ${
+                activeTab === tab.id
+                  ? 'text-emerald-600 dark:text-emerald-400 border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
+                  : 'text-gray-500 dark:text-gray-400 border-transparent hover:text-gray-700 dark:hover:text-gray-300'
+              }`}
+            >
+              <tab.icon className='w-4 h-4' />
+              <span className='hidden sm:inline'>{tab.label}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Tab Content */}
+        <div className='p-5'>
+          {/* ====== OVERVIEW TAB ====== */}
+          {activeTab === 'overview' && (
+            <div className='space-y-4'>
+              {/* Descrição */}
+              <div className='text-center'>
+                <p className='text-gray-600 dark:text-gray-400 text-sm'>
+                  {t('earnpool.description')}
+                </p>
               </div>
-            )}
 
-            {/* ====== DEPOSIT TAB ====== */}
-            {activeTab === 'deposit' && (
-              <div className='max-w-md mx-auto'>
-                <div className='flex items-center gap-3 mb-6'>
-                  <div className='w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center'>
-                    <ArrowDownCircle className='w-6 h-6 text-white' />
-                  </div>
-                  <div>
-                    <h3 className='text-lg font-bold text-gray-900 dark:text-white'>
-                      {t('earnpool.deposit.title')}
-                    </h3>
-                    <p className='text-sm text-gray-500 dark:text-gray-400'>
-                      {t('earnpool.deposit.subtitle')}
+              {/* Deposit Limits */}
+              {config && (
+                <div className='flex justify-center gap-2 md:gap-3'>
+                  <div className='bg-emerald-50 dark:bg-emerald-900/20 rounded-lg md:rounded-xl px-3 py-2 md:px-4 md:py-3 text-center'>
+                    <p className='text-[10px] text-emerald-600 dark:text-emerald-400 uppercase mb-0.5'>
+                      {t('earnpool.poolStats.minDeposit')}
+                    </p>
+                    <p className='text-base md:text-lg font-bold text-emerald-700 dark:text-emerald-300'>
+                      {formatCurrency(config.min_deposit_usdt ?? config.min_deposit)}
                     </p>
                   </div>
-                </div>
-
-                {/* Step 1: Select Crypto */}
-                <div className='mb-6'>
-                  <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
-                    {t('earnpool.deposit.selectCrypto')}
-                  </label>
-
-                  {/* Crypto Selector Button */}
-                  <button
-                    onClick={() => setShowCryptoSelector(true)}
-                    className='w-full p-4 rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-emerald-400 dark:hover:border-emerald-600 transition-all flex items-center justify-between'
-                  >
-                    {selectedCrypto ? (
-                      <div className='flex items-center gap-3'>
-                        <img
-                          src={CRYPTO_ICONS[selectedCrypto.symbol] || '/images/tokens/generic.png'}
-                          alt={selectedCrypto.symbol}
-                          className='w-10 h-10 rounded-full'
-                          onError={e => {
-                            ;(e.target as HTMLImageElement).src = '/images/tokens/generic.png'
-                          }}
-                        />
-                        <div className='text-left'>
-                          <p className='font-bold text-gray-900 dark:text-white'>
-                            {selectedCrypto.symbol}
-                          </p>
-                          <p className='text-xs text-gray-500 dark:text-gray-400'>
-                            {t('common.balance')}: {selectedCrypto.balance.toFixed(8)} (
-                            {formatCurrency(selectedCrypto.balanceUSD)})
-                          </p>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className='flex items-center gap-3'>
-                        <div className='w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center'>
-                          <Coins className='w-5 h-5 text-gray-400' />
-                        </div>
-                        <span className='text-gray-500 dark:text-gray-400'>
-                          {t('earnpool.deposit.chooseCrypto')}
-                        </span>
-                      </div>
-                    )}
-                    <ChevronDown className='w-5 h-5 text-gray-400' />
-                  </button>
-
-                  {/* Crypto Selector Modal */}
-                  {showCryptoSelector && (
-                    <div className='fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center'>
-                      <div className='bg-white dark:bg-gray-800 rounded-t-3xl sm:rounded-3xl w-full max-w-md max-h-[80vh] overflow-hidden'>
-                        {/* Header */}
-                        <div className='p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between'>
-                          <h3 className='font-bold text-gray-900 dark:text-white'>
-                            {t('earnpool.deposit.selectCrypto')}
-                          </h3>
-                          <button
-                            onClick={() => {
-                              setShowCryptoSelector(false)
-                              setCryptoSearchQuery('')
-                            }}
-                            className='w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center'
-                            aria-label='Close'
-                          >
-                            <X className='w-4 h-4 text-gray-500' />
-                          </button>
-                        </div>
-
-                        {/* Search */}
-                        <div className='p-4'>
-                          <div className='relative'>
-                            <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400' />
-                            <input
-                              type='text'
-                              value={cryptoSearchQuery}
-                              onChange={e => setCryptoSearchQuery(e.target.value)}
-                              placeholder={t('earnpool.deposit.searchCrypto')}
-                              className='w-full pl-10 pr-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 border-none text-gray-900 dark:text-white'
-                            />
-                          </div>
-                        </div>
-
-                        {/* Crypto List */}
-                        <div className='overflow-y-auto max-h-[50vh] px-4 pb-4'>
-                          {filteredCryptos.length === 0 ? (
-                            <div className='text-center py-8'>
-                              <Wallet className='w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3' />
-                              <p className='text-gray-500 dark:text-gray-400'>
-                                {t('earnpool.deposit.noCryptoAvailable')}
-                              </p>
-                              <p className='text-xs text-gray-400 dark:text-gray-500 mt-1'>
-                                {t('earnpool.deposit.depositFirst')}
-                              </p>
-                            </div>
-                          ) : (
-                            <div className='space-y-2'>
-                              {filteredCryptos.map((crypto, index) => (
-                                <button
-                                  key={`${crypto.symbol}-${crypto.network}-${index}`}
-                                  onClick={() => {
-                                    setSelectedCrypto(crypto)
-                                    setShowCryptoSelector(false)
-                                    setCryptoSearchQuery('')
-                                    setDepositAmount('')
-                                    setDepositPreview(null)
-                                  }}
-                                  className={`w-full p-3 rounded-xl flex items-center gap-3 transition-all ${
-                                    selectedCrypto?.symbol === crypto.symbol &&
-                                    selectedCrypto?.network === crypto.network
-                                      ? 'bg-emerald-100 dark:bg-emerald-900/30 border-2 border-emerald-500'
-                                      : 'bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 border-2 border-transparent'
-                                  }`}
-                                >
-                                  <img
-                                    src={
-                                      CRYPTO_ICONS[crypto.symbol] || '/images/tokens/generic.png'
-                                    }
-                                    alt={crypto.symbol}
-                                    className='w-10 h-10 rounded-full'
-                                    onError={e => {
-                                      ;(e.target as HTMLImageElement).src =
-                                        '/images/tokens/generic.png'
-                                    }}
-                                  />
-                                  <div className='flex-1 text-left'>
-                                    <div className='flex items-center gap-2'>
-                                      <p className='font-bold text-gray-900 dark:text-white'>
-                                        {crypto.symbol}
-                                      </p>
-                                      <span className='text-[10px] px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 uppercase'>
-                                        {crypto.network}
-                                      </span>
-                                    </div>
-                                    <p className='text-sm text-gray-500 dark:text-gray-400'>
-                                      {crypto.balance.toFixed(8)}
-                                    </p>
-                                  </div>
-                                  <div className='text-right'>
-                                    <p className='font-semibold text-gray-900 dark:text-white'>
-                                      {formatCurrency(crypto.balanceUSD)}
-                                    </p>
-                                  </div>
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                  {(config.max_deposit_usdt ?? config.max_deposit ?? 0) > 0 && (
+                    <div className='bg-blue-50 dark:bg-blue-900/20 rounded-lg md:rounded-xl px-3 py-2 md:px-4 md:py-3 text-center'>
+                      <p className='text-[10px] text-blue-600 dark:text-blue-400 uppercase mb-0.5'>
+                        {t('earnpool.poolStats.maxDeposit')}
+                      </p>
+                      <p className='text-base md:text-lg font-bold text-blue-700 dark:text-blue-300'>
+                        {formatCurrency(config.max_deposit_usdt ?? config.max_deposit)}
+                      </p>
                     </div>
                   )}
                 </div>
+              )}
 
-                {/* Step 2: Amount Input (only if crypto selected) */}
-                {selectedCrypto && (
-                  <div className='mb-6'>
-                    <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
-                      {t('earnpool.deposit.amount')}
-                    </label>
-                    <div className='relative'>
-                      <div className='absolute left-4 top-1/2 -translate-y-1/2'>
-                        <img
-                          src={CRYPTO_ICONS[selectedCrypto.symbol] || '/images/tokens/generic.png'}
-                          alt={selectedCrypto.symbol}
-                          className='w-6 h-6 rounded-full'
-                          onError={e => {
-                            ;(e.target as HTMLImageElement).src = '/images/tokens/generic.png'
-                          }}
-                        />
-                      </div>
-                      <input
-                        type='number'
-                        value={depositAmount}
-                        onChange={e => {
-                          setDepositAmount(e.target.value)
-                          setDepositPreview(null)
+              {/* How it Works */}
+              <div className='bg-gray-50 dark:bg-gray-700/30 rounded-lg md:rounded-xl p-3 md:p-4'>
+                <h4 className='font-medium text-gray-900 dark:text-white mb-2 text-xs md:text-sm flex items-center gap-2'>
+                  <Info className='w-3.5 h-3.5 md:w-4 md:h-4 text-blue-500' />
+                  {t('earnpool.howItWorks.title')}
+                </h4>
+                <div className='grid grid-cols-2 gap-1.5 md:gap-2 text-[10px] md:text-xs'>
+                  <div className='flex items-center gap-1.5 p-1.5 md:p-2 bg-white dark:bg-gray-800 rounded-lg'>
+                    <ArrowDownCircle className='w-3 h-3 md:w-4 md:h-4 text-emerald-500 flex-shrink-0' />
+                    <span className='text-gray-600 dark:text-gray-300'>
+                      {t('earnpool.howItWorks.step1')}
+                    </span>
+                  </div>
+                  <div className='flex items-center gap-1.5 p-1.5 md:p-2 bg-white dark:bg-gray-800 rounded-lg'>
+                    <Clock className='w-3 h-3 md:w-4 md:h-4 text-purple-500 flex-shrink-0' />
+                    <span className='text-gray-600 dark:text-gray-300'>
+                      {t('earnpool.howItWorks.step2')}
+                    </span>
+                  </div>
+                  <div className='flex items-center gap-1.5 p-1.5 md:p-2 bg-white dark:bg-gray-800 rounded-lg'>
+                    <TrendingUp className='w-3 h-3 md:w-4 md:h-4 text-cyan-500 flex-shrink-0' />
+                    <span className='text-gray-600 dark:text-gray-300'>
+                      {t('earnpool.howItWorks.step3')}
+                    </span>
+                  </div>
+                  <div className='flex items-center gap-1.5 p-1.5 md:p-2 bg-white dark:bg-gray-800 rounded-lg'>
+                    <ArrowUpCircle className='w-3 h-3 md:w-4 md:h-4 text-blue-500 flex-shrink-0' />
+                    <span className='text-gray-600 dark:text-gray-300'>
+                      {t('earnpool.howItWorks.step4')}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* CTA Button */}
+              {isAuthenticated && (
+                <button
+                  onClick={() => setActiveTab('deposit')}
+                  className='w-full py-2.5 md:py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-lg md:rounded-xl font-semibold shadow-lg transition-all flex items-center justify-center gap-2 text-sm md:text-base'
+                >
+                  <ArrowDownCircle className='w-4 h-4 md:w-5 md:h-5' />
+                  {t('earnpool.deposit.cta')}
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* ====== DEPOSIT TAB ====== */}
+          {activeTab === 'deposit' && (
+            <div className='max-w-md mx-auto'>
+              <div className='flex items-center gap-2 md:gap-3 mb-4 md:mb-6'>
+                <div className='w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl md:rounded-2xl flex items-center justify-center'>
+                  <ArrowDownCircle className='w-6 h-6 text-white' />
+                </div>
+                <div>
+                  <h3 className='text-lg font-bold text-gray-900 dark:text-white'>
+                    {t('earnpool.deposit.title')}
+                  </h3>
+                  <p className='text-sm text-gray-500 dark:text-gray-400'>
+                    {t('earnpool.deposit.subtitle')}
+                  </p>
+                </div>
+              </div>
+
+              {/* Step 1: Select Crypto */}
+              <div className='mb-6'>
+                <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                  {t('earnpool.deposit.selectCrypto')}
+                </label>
+
+                {/* Crypto Selector Button */}
+                <button
+                  onClick={() => setShowCryptoSelector(true)}
+                  className='w-full p-4 rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-emerald-400 dark:hover:border-emerald-600 transition-all flex items-center justify-between'
+                >
+                  {selectedCrypto ? (
+                    <div className='flex items-center gap-3'>
+                      <img
+                        src={CRYPTO_ICONS[selectedCrypto.symbol] || '/images/tokens/generic.png'}
+                        alt={selectedCrypto.symbol}
+                        className='w-10 h-10 rounded-full'
+                        onError={e => {
+                          ;(e.target as HTMLImageElement).src = '/images/tokens/generic.png'
                         }}
-                        placeholder='0.00000000'
-                        className='w-full pl-14 pr-20 py-4 rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-lg font-semibold focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all'
                       />
-                      <button
-                        onClick={handleUseMaxBalance}
-                        className='absolute right-4 top-1/2 -translate-y-1/2 text-emerald-600 dark:text-emerald-400 font-bold text-sm hover:underline'
-                      >
-                        MAX
-                      </button>
+                      <div className='text-left'>
+                        <p className='font-bold text-gray-900 dark:text-white'>
+                          {selectedCrypto.symbol}
+                        </p>
+                        <p className='text-xs text-gray-500 dark:text-gray-400'>
+                          {t('common.balance')}: {selectedCrypto.balance.toFixed(8)} (
+                          {formatCurrency(selectedCrypto.balanceUSD)})
+                        </p>
+                      </div>
                     </div>
-                    <div className='flex justify-between mt-2 text-xs text-gray-500 dark:text-gray-400'>
-                      <span>
-                        {t('common.balance')}: {selectedCrypto.balance.toFixed(8)}{' '}
-                        {selectedCrypto.symbol}
+                  ) : (
+                    <div className='flex items-center gap-3'>
+                      <div className='w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center'>
+                        <Coins className='w-5 h-5 text-gray-400' />
+                      </div>
+                      <span className='text-gray-500 dark:text-gray-400'>
+                        {t('earnpool.deposit.chooseCrypto')}
                       </span>
-                      <span>≈ {formatCurrency(depositValueInUSDT)} USDT</span>
                     </div>
+                  )}
+                  <ChevronDown className='w-5 h-5 text-gray-400' />
+                </button>
 
-                    {/* Min USDT Warning */}
-                    {config &&
-                      depositValueInUSDT > 0 &&
-                      depositValueInUSDT < (config.min_deposit_usdt ?? config.min_deposit ?? 0) && (
-                        <div className='mt-2 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl flex items-start gap-2'>
-                          <AlertCircle className='w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0' />
-                          <p className='text-xs text-amber-700 dark:text-amber-300'>
-                            {t('earnpool.deposit.minAmountUSDT', {
-                              amount: config.min_deposit_usdt ?? config.min_deposit,
-                            })}
-                          </p>
+                {/* Crypto Selector Modal */}
+                {showCryptoSelector && (
+                  <div className='fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center'>
+                    <div className='bg-white dark:bg-gray-800 rounded-t-3xl sm:rounded-3xl w-full max-w-md max-h-[80vh] overflow-hidden'>
+                      {/* Header */}
+                      <div className='p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between'>
+                        <h3 className='font-bold text-gray-900 dark:text-white'>
+                          {t('earnpool.deposit.selectCrypto')}
+                        </h3>
+                        <button
+                          onClick={() => {
+                            setShowCryptoSelector(false)
+                            setCryptoSearchQuery('')
+                          }}
+                          className='w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center'
+                          aria-label='Close'
+                        >
+                          <X className='w-4 h-4 text-gray-500' />
+                        </button>
+                      </div>
+
+                      {/* Search */}
+                      <div className='p-4'>
+                        <div className='relative'>
+                          <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400' />
+                          <input
+                            type='text'
+                            value={cryptoSearchQuery}
+                            onChange={e => setCryptoSearchQuery(e.target.value)}
+                            placeholder={t('earnpool.deposit.searchCrypto')}
+                            className='w-full pl-10 pr-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 border-none text-gray-900 dark:text-white'
+                          />
                         </div>
-                      )}
-                  </div>
-                )}
-
-                {/* USDT Conversion Info */}
-                {selectedCrypto && depositAmount && depositValueInUSDT > 0 && (
-                  <div className='mb-6 p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl border border-blue-200 dark:border-blue-800'>
-                    <div className='flex items-center gap-2 mb-3'>
-                      <Info className='w-4 h-4 text-blue-600 dark:text-blue-400' />
-                      <span className='text-sm font-medium text-blue-700 dark:text-blue-300'>
-                        {t('earnpool.deposit.conversionInfo')}
-                      </span>
-                    </div>
-                    <div className='flex items-center justify-between'>
-                      <div className='flex items-center gap-2'>
-                        <img
-                          src={CRYPTO_ICONS[selectedCrypto.symbol]}
-                          alt={selectedCrypto.symbol}
-                          className='w-6 h-6 rounded-full'
-                        />
-                        <span className='font-medium text-gray-900 dark:text-white'>
-                          {depositAmount} {selectedCrypto.symbol}
-                        </span>
                       </div>
-                      <ArrowRight className='w-4 h-4 text-gray-400' />
-                      <div className='flex items-center gap-2'>
-                        <img src={CRYPTO_ICONS.USDT} alt='USDT' className='w-6 h-6 rounded-full' />
-                        <span className='font-bold text-emerald-600 dark:text-emerald-400'>
-                          {formatCurrency(depositValueInUSDT)}
-                        </span>
-                      </div>
-                    </div>
-                    <p className='text-[10px] text-gray-500 dark:text-gray-400 mt-2'>
-                      {t('earnpool.deposit.conversionNote')}
-                    </p>
-                  </div>
-                )}
 
-                {/* Preview Button */}
-                {!depositPreview && (
-                  <button
-                    onClick={handleDepositPreview}
-                    disabled={
-                      depositLoading ||
-                      !depositAmount ||
-                      !selectedCrypto ||
-                      !!(
-                        config &&
-                        depositValueInUSDT < (config.min_deposit_usdt ?? config.min_deposit ?? 0)
-                      )
-                    }
-                    className='w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 disabled:from-gray-300 disabled:to-gray-400 dark:disabled:from-gray-700 dark:disabled:to-gray-600 text-white rounded-2xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/30 disabled:shadow-none'
-                  >
-                    {depositLoading ? (
-                      <RefreshCw className='w-5 h-5 animate-spin' />
-                    ) : (
-                      <>
-                        <BarChart3 className='w-5 h-5' />
-                        {t('earnpool.deposit.preview')}
-                      </>
-                    )}
-                  </button>
-                )}
-
-                {/* Preview Result */}
-                {depositPreview && selectedCrypto && (
-                  <div className='space-y-4'>
-                    <div className='bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-2xl p-5 border border-emerald-200 dark:border-emerald-800'>
-                      <div className='space-y-3'>
-                        {/* Original Crypto */}
-                        <div className='flex justify-between items-center'>
-                          <span className='text-gray-600 dark:text-gray-400 text-sm'>
-                            {t('earnpool.deposit.cryptoAmount')}
-                          </span>
-                          <div className='flex items-center gap-2'>
-                            <img
-                              src={CRYPTO_ICONS[selectedCrypto.symbol]}
-                              alt={selectedCrypto.symbol}
-                              className='w-5 h-5 rounded-full'
-                            />
-                            <span className='font-bold text-gray-900 dark:text-white'>
-                              {Number(depositAmount)
-                                .toFixed(6)
-                                .replace(/\.?0+$/, '')}{' '}
-                              {selectedCrypto.symbol}
-                            </span>
+                      {/* Crypto List */}
+                      <div className='overflow-y-auto max-h-[50vh] px-4 pb-4'>
+                        {filteredCryptos.length === 0 ? (
+                          <div className='text-center py-8'>
+                            <Wallet className='w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3' />
+                            <p className='text-gray-500 dark:text-gray-400'>
+                              {t('earnpool.deposit.noCryptoAvailable')}
+                            </p>
+                            <p className='text-xs text-gray-400 dark:text-gray-500 mt-1'>
+                              {t('earnpool.deposit.depositFirst')}
+                            </p>
                           </div>
-                        </div>
-
-                        {/* USDT Value */}
-                        <div className='flex justify-between items-center'>
-                          <span className='text-gray-600 dark:text-gray-400 text-sm'>
-                            {t('earnpool.deposit.usdtValue')}
-                          </span>
-                          <span className='font-bold text-emerald-600 dark:text-emerald-400'>
-                            {formatCurrency(depositValueInUSDT)} USDT
-                          </span>
-                        </div>
-
-                        <div className='flex justify-between items-center'>
-                          <span className='text-gray-600 dark:text-gray-400 text-sm'>
-                            {t('earnpool.deposit.lockPeriod')}
-                          </span>
-                          <span className='font-medium text-gray-900 dark:text-white'>
-                            {depositPreview.lock_period_days} {t('earnpool.poolStats.days')}
-                          </span>
-                        </div>
-                        <div className='flex justify-between items-center'>
-                          <span className='text-gray-600 dark:text-gray-400 text-sm'>
-                            {t('earnpool.deposit.unlocksAt')}
-                          </span>
-                          <span className='font-medium text-gray-900 dark:text-white'>
-                            {formatDate(depositPreview.lock_ends_at || depositPreview.unlocks_at)}
-                          </span>
-                        </div>
-                        <div className='h-px bg-emerald-200 dark:bg-emerald-700 my-2' />
-                        <div className='flex justify-between items-center'>
-                          <span className='text-gray-600 dark:text-gray-400 text-sm'>
-                            {t('earnpool.deposit.estimatedApy')}
-                          </span>
-                          <span className='font-bold text-emerald-600 dark:text-emerald-400 text-lg'>
-                            {depositPreview.estimated_apy ??
-                              config?.target_weekly_yield_percentage ??
-                              config?.base_apy ??
-                              0}
-                            %
-                          </span>
-                        </div>
-                        <div className='flex justify-between items-center bg-emerald-100 dark:bg-emerald-800/30 rounded-xl p-3'>
-                          <span className='text-emerald-700 dark:text-emerald-300 text-sm font-medium'>
-                            {t('earnpool.deposit.estimatedYearlyYield')}
-                          </span>
-                          <span className='font-bold text-emerald-600 dark:text-emerald-400 text-xl'>
-                            {formatCurrency(
-                              depositPreview.estimated_yearly_yield ??
-                                depositValueInUSDT *
-                                  ((config?.target_weekly_yield_percentage ??
-                                    config?.base_apy ??
-                                    0) /
-                                    100) *
-                                  52
-                            )}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Status Info */}
-                    <div className='p-4 bg-amber-50 dark:bg-amber-900/20 rounded-2xl border border-amber-200 dark:border-amber-800'>
-                      <div className='flex items-start gap-3'>
-                        <Clock className='w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5' />
-                        <div>
-                          <p className='font-medium text-amber-800 dark:text-amber-200 text-sm'>
-                            {t('earnpool.deposit.pendingApproval')}
-                          </p>
-                          <p className='text-xs text-amber-600 dark:text-amber-400 mt-1'>
-                            {t('earnpool.deposit.pendingApprovalNote')}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className='flex gap-3'>
-                      <button
-                        onClick={() => {
-                          setDepositPreview(null)
-                          setSelectedCrypto(null)
-                          setDepositAmount('')
-                        }}
-                        className='flex-1 py-4 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-2xl font-bold transition-all hover:bg-gray-200 dark:hover:bg-gray-600'
-                      >
-                        {t('common.cancel')}
-                      </button>
-                      <button
-                        onClick={handleDepositConfirm}
-                        disabled={depositLoading}
-                        className='flex-1 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-2xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/30'
-                      >
-                        {depositLoading ? (
-                          <RefreshCw className='w-5 h-5 animate-spin' />
                         ) : (
-                          <>
-                            <CheckCircle className='w-5 h-5' />
-                            {t('earnpool.deposit.confirm')}
-                          </>
+                          <div className='space-y-2'>
+                            {filteredCryptos.map((crypto, index) => (
+                              <button
+                                key={`${crypto.symbol}-${crypto.network}-${index}`}
+                                onClick={() => {
+                                  setSelectedCrypto(crypto)
+                                  setShowCryptoSelector(false)
+                                  setCryptoSearchQuery('')
+                                  setDepositAmount('')
+                                  setDepositPreview(null)
+                                }}
+                                className={`w-full p-3 rounded-xl flex items-center gap-3 transition-all ${
+                                  selectedCrypto?.symbol === crypto.symbol &&
+                                  selectedCrypto?.network === crypto.network
+                                    ? 'bg-emerald-100 dark:bg-emerald-900/30 border-2 border-emerald-500'
+                                    : 'bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 border-2 border-transparent'
+                                }`}
+                              >
+                                <img
+                                  src={CRYPTO_ICONS[crypto.symbol] || '/images/tokens/generic.png'}
+                                  alt={crypto.symbol}
+                                  className='w-10 h-10 rounded-full'
+                                  onError={e => {
+                                    ;(e.target as HTMLImageElement).src =
+                                      '/images/tokens/generic.png'
+                                  }}
+                                />
+                                <div className='flex-1 text-left'>
+                                  <div className='flex items-center gap-2'>
+                                    <p className='font-bold text-gray-900 dark:text-white'>
+                                      {crypto.symbol}
+                                    </p>
+                                    <span className='text-[10px] px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 uppercase'>
+                                      {crypto.network}
+                                    </span>
+                                  </div>
+                                  <p className='text-sm text-gray-500 dark:text-gray-400'>
+                                    {crypto.balance.toFixed(8)}
+                                  </p>
+                                </div>
+                                <div className='text-right'>
+                                  <p className='font-semibold text-gray-900 dark:text-white'>
+                                    {formatCurrency(crypto.balanceUSD)}
+                                  </p>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
                         )}
-                      </button>
+                      </div>
                     </div>
                   </div>
                 )}
               </div>
-            )}
 
-            {/* ====== WITHDRAW TAB ====== */}
-            {activeTab === 'withdraw' && (
-              <div className='max-w-md mx-auto'>
-                <div className='flex items-center gap-3 mb-6'>
-                  <div className='w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center'>
-                    <ArrowUpCircle className='w-6 h-6 text-white' />
-                  </div>
-                  <div>
-                    <h3 className='text-lg font-bold text-gray-900 dark:text-white'>
-                      {t('earnpool.withdraw.title')}
-                    </h3>
-                    <p className='text-sm text-gray-500 dark:text-gray-400'>
-                      {t('earnpool.withdraw.subtitle')}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Available Balance Card */}
-                {balance && (
-                  <div className='mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl border border-blue-100 dark:border-blue-800'>
-                    <div className='flex items-center justify-between'>
-                      <div className='flex items-center gap-3'>
-                        <div className='w-10 h-10 bg-blue-100 dark:bg-blue-900/50 rounded-xl flex items-center justify-center'>
-                          <Wallet className='w-5 h-5 text-blue-600 dark:text-blue-400' />
-                        </div>
-                        <div>
-                          <p className='text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide'>
-                            {t('earnpool.availableForWithdraw')}
-                          </p>
-                          <p className='text-2xl font-bold text-blue-600 dark:text-blue-400'>
-                            {formatCurrency(balance.available_balance)}{' '}
-                            <span className='text-sm font-normal'>USDT</span>
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() =>
-                          setWithdrawAmount((balance.available_balance ?? 0).toString())
-                        }
-                        className='px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors'
-                      >
-                        MAX
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Amount Input */}
+              {/* Step 2: Amount Input (only if crypto selected) */}
+              {selectedCrypto && (
                 <div className='mb-6'>
                   <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
-                    {t('earnpool.withdraw.amount')}
+                    {t('earnpool.deposit.amount')}
                   </label>
                   <div className='relative'>
                     <div className='absolute left-4 top-1/2 -translate-y-1/2'>
-                      <DollarSign className='w-5 h-5 text-gray-400' />
+                      <img
+                        src={CRYPTO_ICONS[selectedCrypto.symbol] || '/images/tokens/generic.png'}
+                        alt={selectedCrypto.symbol}
+                        className='w-6 h-6 rounded-full'
+                        onError={e => {
+                          ;(e.target as HTMLImageElement).src = '/images/tokens/generic.png'
+                        }}
+                      />
                     </div>
                     <input
                       type='number'
-                      value={withdrawAmount}
+                      value={depositAmount}
                       onChange={e => {
-                        setWithdrawAmount(e.target.value)
-                        setWithdrawPreview(null)
+                        setDepositAmount(e.target.value)
+                        setDepositPreview(null)
                       }}
-                      placeholder='0.00'
-                      max={balance?.available_balance ?? undefined}
-                      className='w-full pl-12 pr-20 py-4 rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-lg font-semibold focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all'
+                      placeholder='0.00000000'
+                      className='w-full pl-14 pr-20 py-4 rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-lg font-semibold focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all'
                     />
-                    <span className='absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold'>
-                      USDT
-                    </span>
-                  </div>
-                  {balance && (
                     <button
-                      onClick={() => setWithdrawAmount((balance.available_balance ?? 0).toString())}
-                      className='mt-2 text-xs text-blue-600 dark:text-blue-400 font-medium hover:underline flex items-center gap-1'
+                      onClick={handleUseMaxBalance}
+                      className='absolute right-4 top-1/2 -translate-y-1/2 text-emerald-600 dark:text-emerald-400 font-bold text-sm hover:underline'
                     >
-                      {t('earnpool.availableBalance')}: {formatCurrency(balance.available_balance)}
-                      <span className='px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 rounded text-[10px]'>
-                        MAX
-                      </span>
+                      MAX
                     </button>
-                  )}
+                  </div>
+                  <div className='flex justify-between mt-2 text-xs text-gray-500 dark:text-gray-400'>
+                    <span>
+                      {t('common.balance')}: {selectedCrypto.balance.toFixed(8)}{' '}
+                      {selectedCrypto.symbol}
+                    </span>
+                    <span>≈ {formatCurrency(depositValueInUSDT)} USDT</span>
+                  </div>
 
-                  {/* Exceeds balance warning */}
-                  {withdrawAmount &&
-                    balance &&
-                    Number.parseFloat(withdrawAmount) > (balance.available_balance ?? 0) && (
-                      <div className='mt-2 p-3 bg-red-50 dark:bg-red-900/20 rounded-xl flex items-start gap-2'>
-                        <AlertCircle className='w-4 h-4 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0' />
-                        <p className='text-xs text-red-700 dark:text-red-300'>
-                          {t('earnpool.withdraw.exceedsBalance', {
-                            requested: formatCurrency(Number.parseFloat(withdrawAmount)),
-                            available: formatCurrency(balance.available_balance),
+                  {/* Min USDT Warning */}
+                  {config &&
+                    depositValueInUSDT > 0 &&
+                    depositValueInUSDT < (config.min_deposit_usdt ?? config.min_deposit ?? 0) && (
+                      <div className='mt-2 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl flex items-start gap-2'>
+                        <AlertCircle className='w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0' />
+                        <p className='text-xs text-amber-700 dark:text-amber-300'>
+                          {t('earnpool.deposit.minAmountUSDT', {
+                            amount: config.min_deposit_usdt ?? config.min_deposit,
                           })}
                         </p>
                       </div>
                     )}
                 </div>
+              )}
 
-                {/* Preview Button */}
-                {!withdrawPreview && (
+              {/* USDT Conversion Info */}
+              {selectedCrypto && depositAmount && depositValueInUSDT > 0 && (
+                <div className='mb-6 p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl border border-blue-200 dark:border-blue-800'>
+                  <div className='flex items-center gap-2 mb-3'>
+                    <Info className='w-4 h-4 text-blue-600 dark:text-blue-400' />
+                    <span className='text-sm font-medium text-blue-700 dark:text-blue-300'>
+                      {t('earnpool.deposit.conversionInfo')}
+                    </span>
+                  </div>
+                  <div className='flex items-center justify-between'>
+                    <div className='flex items-center gap-2'>
+                      <img
+                        src={CRYPTO_ICONS[selectedCrypto.symbol]}
+                        alt={selectedCrypto.symbol}
+                        className='w-6 h-6 rounded-full'
+                      />
+                      <span className='font-medium text-gray-900 dark:text-white'>
+                        {depositAmount} {selectedCrypto.symbol}
+                      </span>
+                    </div>
+                    <ArrowRight className='w-4 h-4 text-gray-400' />
+                    <div className='flex items-center gap-2'>
+                      <img src={CRYPTO_ICONS.USDT} alt='USDT' className='w-6 h-6 rounded-full' />
+                      <span className='font-bold text-emerald-600 dark:text-emerald-400'>
+                        {formatCurrency(depositValueInUSDT)}
+                      </span>
+                    </div>
+                  </div>
+                  <p className='text-[10px] text-gray-500 dark:text-gray-400 mt-2'>
+                    {t('earnpool.deposit.conversionNote')}
+                  </p>
+                </div>
+              )}
+
+              {/* Preview Button */}
+              {!depositPreview && (
+                <button
+                  onClick={handleDepositPreview}
+                  disabled={
+                    depositLoading ||
+                    !depositAmount ||
+                    !selectedCrypto ||
+                    !!(
+                      config &&
+                      depositValueInUSDT < (config.min_deposit_usdt ?? config.min_deposit ?? 0)
+                    )
+                  }
+                  className='w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 disabled:from-gray-300 disabled:to-gray-400 dark:disabled:from-gray-700 dark:disabled:to-gray-600 text-white rounded-2xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/30 disabled:shadow-none'
+                >
+                  {depositLoading ? (
+                    <RefreshCw className='w-5 h-5 animate-spin' />
+                  ) : (
+                    <>
+                      <BarChart3 className='w-5 h-5' />
+                      {t('earnpool.deposit.preview')}
+                    </>
+                  )}
+                </button>
+              )}
+
+              {/* Preview Result */}
+              {depositPreview && selectedCrypto && (
+                <div className='space-y-4'>
+                  <div className='bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-2xl p-5 border border-emerald-200 dark:border-emerald-800'>
+                    <div className='space-y-3'>
+                      {/* Original Crypto */}
+                      <div className='flex justify-between items-center'>
+                        <span className='text-gray-600 dark:text-gray-400 text-sm'>
+                          {t('earnpool.deposit.cryptoAmount')}
+                        </span>
+                        <div className='flex items-center gap-2'>
+                          <img
+                            src={CRYPTO_ICONS[selectedCrypto.symbol]}
+                            alt={selectedCrypto.symbol}
+                            className='w-5 h-5 rounded-full'
+                          />
+                          <span className='font-bold text-gray-900 dark:text-white'>
+                            {Number(depositAmount)
+                              .toFixed(6)
+                              .replace(/\.?0+$/, '')}{' '}
+                            {selectedCrypto.symbol}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* USDT Value */}
+                      <div className='flex justify-between items-center'>
+                        <span className='text-gray-600 dark:text-gray-400 text-sm'>
+                          {t('earnpool.deposit.usdtValue')}
+                        </span>
+                        <span className='font-bold text-emerald-600 dark:text-emerald-400'>
+                          {formatCurrency(depositValueInUSDT)} USDT
+                        </span>
+                      </div>
+
+                      <div className='flex justify-between items-center'>
+                        <span className='text-gray-600 dark:text-gray-400 text-sm'>
+                          {t('earnpool.deposit.lockPeriod')}
+                        </span>
+                        <span className='font-medium text-gray-900 dark:text-white'>
+                          {depositPreview.lock_period_days} {t('earnpool.poolStats.days')}
+                        </span>
+                      </div>
+                      <div className='flex justify-between items-center'>
+                        <span className='text-gray-600 dark:text-gray-400 text-sm'>
+                          {t('earnpool.deposit.unlocksAt')}
+                        </span>
+                        <span className='font-medium text-gray-900 dark:text-white'>
+                          {formatDate(depositPreview.lock_ends_at || depositPreview.unlocks_at)}
+                        </span>
+                      </div>
+                      <div className='h-px bg-emerald-200 dark:bg-emerald-700 my-2' />
+                      <div className='flex justify-between items-center'>
+                        <span className='text-gray-600 dark:text-gray-400 text-sm'>
+                          {t('earnpool.deposit.estimatedApy')}
+                        </span>
+                        <span className='font-bold text-emerald-600 dark:text-emerald-400 text-lg'>
+                          {depositPreview.estimated_apy ??
+                            config?.target_weekly_yield_percentage ??
+                            config?.base_apy ??
+                            0}
+                          %
+                        </span>
+                      </div>
+                      <div className='flex justify-between items-center bg-emerald-100 dark:bg-emerald-800/30 rounded-xl p-3'>
+                        <span className='text-emerald-700 dark:text-emerald-300 text-sm font-medium'>
+                          {t('earnpool.deposit.estimatedYearlyYield')}
+                        </span>
+                        <span className='font-bold text-emerald-600 dark:text-emerald-400 text-xl'>
+                          {formatCurrency(
+                            depositPreview.estimated_yearly_yield ??
+                              depositValueInUSDT *
+                                ((config?.target_weekly_yield_percentage ?? config?.base_apy ?? 0) /
+                                  100) *
+                                52
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Status Info */}
+                  <div className='p-4 bg-amber-50 dark:bg-amber-900/20 rounded-2xl border border-amber-200 dark:border-amber-800'>
+                    <div className='flex items-start gap-3'>
+                      <Clock className='w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5' />
+                      <div>
+                        <p className='font-medium text-amber-800 dark:text-amber-200 text-sm'>
+                          {t('earnpool.deposit.pendingApproval')}
+                        </p>
+                        <p className='text-xs text-amber-600 dark:text-amber-400 mt-1'>
+                          {t('earnpool.deposit.pendingApprovalNote')}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className='flex gap-3'>
+                    <button
+                      onClick={() => {
+                        setDepositPreview(null)
+                        setSelectedCrypto(null)
+                        setDepositAmount('')
+                      }}
+                      className='flex-1 py-4 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-2xl font-bold transition-all hover:bg-gray-200 dark:hover:bg-gray-600'
+                    >
+                      {t('common.cancel')}
+                    </button>
+                    <button
+                      onClick={handleDepositConfirm}
+                      disabled={depositLoading}
+                      className='flex-1 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-2xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/30'
+                    >
+                      {depositLoading ? (
+                        <RefreshCw className='w-5 h-5 animate-spin' />
+                      ) : (
+                        <>
+                          <CheckCircle className='w-5 h-5' />
+                          {t('earnpool.deposit.confirm')}
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ====== WITHDRAW TAB ====== */}
+          {activeTab === 'withdraw' && (
+            <div className='max-w-md mx-auto'>
+              <div className='flex items-center gap-3 mb-6'>
+                <div className='w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center'>
+                  <ArrowUpCircle className='w-6 h-6 text-white' />
+                </div>
+                <div>
+                  <h3 className='text-lg font-bold text-gray-900 dark:text-white'>
+                    {t('earnpool.withdraw.title')}
+                  </h3>
+                  <p className='text-sm text-gray-500 dark:text-gray-400'>
+                    {t('earnpool.withdraw.subtitle')}
+                  </p>
+                </div>
+              </div>
+
+              {/* Available Balance Card */}
+              {balance && (
+                <div className='mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl border border-blue-100 dark:border-blue-800'>
+                  <div className='flex items-center justify-between'>
+                    <div className='flex items-center gap-3'>
+                      <div className='w-10 h-10 bg-blue-100 dark:bg-blue-900/50 rounded-xl flex items-center justify-center'>
+                        <Wallet className='w-5 h-5 text-blue-600 dark:text-blue-400' />
+                      </div>
+                      <div>
+                        <p className='text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide'>
+                          {t('earnpool.availableForWithdraw')}
+                        </p>
+                        <p className='text-2xl font-bold text-blue-600 dark:text-blue-400'>
+                          {formatCurrency(balance.available_balance)}{' '}
+                          <span className='text-sm font-normal'>USDT</span>
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setWithdrawAmount((balance.available_balance ?? 0).toString())}
+                      className='px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors'
+                    >
+                      MAX
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Amount Input */}
+              <div className='mb-6'>
+                <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                  {t('earnpool.withdraw.amount')}
+                </label>
+                <div className='relative'>
+                  <div className='absolute left-4 top-1/2 -translate-y-1/2'>
+                    <DollarSign className='w-5 h-5 text-gray-400' />
+                  </div>
+                  <input
+                    type='number'
+                    value={withdrawAmount}
+                    onChange={e => {
+                      setWithdrawAmount(e.target.value)
+                      setWithdrawPreview(null)
+                    }}
+                    placeholder='0.00'
+                    max={balance?.available_balance ?? undefined}
+                    className='w-full pl-12 pr-20 py-4 rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-lg font-semibold focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all'
+                  />
+                  <span className='absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold'>
+                    USDT
+                  </span>
+                </div>
+                {balance && (
                   <button
-                    onClick={handleWithdrawPreview}
-                    disabled={
-                      withdrawLoading ||
-                      !withdrawAmount ||
-                      (balance &&
-                        Number.parseFloat(withdrawAmount) > (balance.available_balance ?? 0))
-                    }
-                    className='w-full py-4 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 disabled:from-gray-300 disabled:to-gray-400 dark:disabled:from-gray-700 dark:disabled:to-gray-600 text-white rounded-2xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-500/30 disabled:shadow-none'
+                    onClick={() => setWithdrawAmount((balance.available_balance ?? 0).toString())}
+                    className='mt-2 text-xs text-blue-600 dark:text-blue-400 font-medium hover:underline flex items-center gap-1'
                   >
-                    {withdrawLoading ? (
-                      <RefreshCw className='w-5 h-5 animate-spin' />
-                    ) : (
-                      <>
-                        <BarChart3 className='w-5 h-5' />
-                        {t('earnpool.withdraw.preview')}
-                      </>
-                    )}
+                    {t('earnpool.availableBalance')}: {formatCurrency(balance.available_balance)}
+                    <span className='px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 rounded text-[10px]'>
+                      MAX
+                    </span>
                   </button>
                 )}
 
-                {/* Preview Result */}
-                {withdrawPreview && (
-                  <div className='space-y-4'>
-                    {/* Early Withdrawal Warning */}
-                    {withdrawPreview.is_early_withdrawal && (
-                      <div className='bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl p-4 flex items-start gap-3'>
-                        <AlertCircle className='w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5' />
-                        <p className='text-sm text-amber-700 dark:text-amber-400'>
-                          {t('earnpool.withdraw.earlyWithdrawalWarning', {
-                            fee: withdrawPreview.fee_percentage,
-                          })}
-                        </p>
-                      </div>
-                    )}
+                {/* Exceeds balance warning */}
+                {withdrawAmount &&
+                  balance &&
+                  Number.parseFloat(withdrawAmount) > (balance.available_balance ?? 0) && (
+                    <div className='mt-2 p-3 bg-red-50 dark:bg-red-900/20 rounded-xl flex items-start gap-2'>
+                      <AlertCircle className='w-4 h-4 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0' />
+                      <p className='text-xs text-red-700 dark:text-red-300'>
+                        {t('earnpool.withdraw.exceedsBalance', {
+                          requested: formatCurrency(Number.parseFloat(withdrawAmount)),
+                          available: formatCurrency(balance.available_balance),
+                        })}
+                      </p>
+                    </div>
+                  )}
+              </div>
 
-                    <div className='bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl p-5 border border-blue-200 dark:border-blue-800'>
-                      <div className='space-y-3'>
+              {/* Preview Button */}
+              {!withdrawPreview && (
+                <button
+                  onClick={handleWithdrawPreview}
+                  disabled={
+                    withdrawLoading ||
+                    !withdrawAmount ||
+                    !!(
+                      balance &&
+                      Number.parseFloat(withdrawAmount) > (balance.available_balance ?? 0)
+                    )
+                  }
+                  className='w-full py-4 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 disabled:from-gray-300 disabled:to-gray-400 dark:disabled:from-gray-700 dark:disabled:to-gray-600 text-white rounded-2xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-500/30 disabled:shadow-none'
+                >
+                  {withdrawLoading ? (
+                    <RefreshCw className='w-5 h-5 animate-spin' />
+                  ) : (
+                    <>
+                      <BarChart3 className='w-5 h-5' />
+                      {t('earnpool.withdraw.preview')}
+                    </>
+                  )}
+                </button>
+              )}
+
+              {/* Preview Result */}
+              {withdrawPreview && (
+                <div className='space-y-4'>
+                  {/* Early Withdrawal Warning */}
+                  {withdrawPreview.is_early_withdrawal && (
+                    <div className='bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl p-4 flex items-start gap-3'>
+                      <AlertCircle className='w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5' />
+                      <p className='text-sm text-amber-700 dark:text-amber-400'>
+                        {t('earnpool.withdraw.earlyWithdrawalWarning', {
+                          fee: withdrawPreview.fee_percentage,
+                        })}
+                      </p>
+                    </div>
+                  )}
+
+                  <div className='bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl p-5 border border-blue-200 dark:border-blue-800'>
+                    <div className='space-y-3'>
+                      <div className='flex justify-between items-center'>
+                        <span className='text-gray-600 dark:text-gray-400 text-sm'>
+                          {t('earnpool.withdraw.amount')}
+                        </span>
+                        <span className='font-bold text-gray-900 dark:text-white'>
+                          {formatCurrency(withdrawPreview.amount)}
+                        </span>
+                      </div>
+                      {withdrawPreview.fee_amount > 0 && (
                         <div className='flex justify-between items-center'>
                           <span className='text-gray-600 dark:text-gray-400 text-sm'>
-                            {t('earnpool.withdraw.amount')}
+                            {t('earnpool.withdraw.feeAmount')} ({withdrawPreview.fee_percentage}%)
                           </span>
-                          <span className='font-bold text-gray-900 dark:text-white'>
-                            {formatCurrency(withdrawPreview.amount)}
-                          </span>
-                        </div>
-                        {withdrawPreview.fee_amount > 0 && (
-                          <div className='flex justify-between items-center'>
-                            <span className='text-gray-600 dark:text-gray-400 text-sm'>
-                              {t('earnpool.withdraw.feeAmount')} ({withdrawPreview.fee_percentage}%)
-                            </span>
-                            <span className='font-medium text-red-600 dark:text-red-400'>
-                              -{formatCurrency(withdrawPreview.fee_amount)}
-                            </span>
-                          </div>
-                        )}
-                        <div className='h-px bg-blue-200 dark:bg-blue-700 my-2' />
-                        <div className='flex justify-between items-center bg-blue-100 dark:bg-blue-800/30 rounded-xl p-3'>
-                          <span className='text-blue-700 dark:text-blue-300 text-sm font-medium'>
-                            {t('earnpool.withdraw.netAmount')}
-                          </span>
-                          <span className='font-bold text-blue-600 dark:text-blue-400 text-xl'>
-                            {formatCurrency(withdrawPreview.net_amount)}
+                          <span className='font-medium text-red-600 dark:text-red-400'>
+                            -{formatCurrency(withdrawPreview.fee_amount)}
                           </span>
                         </div>
-                        <div className='flex justify-between items-center'>
-                          <span className='text-gray-600 dark:text-gray-400 text-sm'>
-                            {t('earnpool.withdraw.availableAt')}
-                          </span>
-                          <span className='font-medium text-gray-900 dark:text-white'>
-                            {formatDate(withdrawPreview.available_at)}
-                          </span>
-                        </div>
+                      )}
+                      <div className='h-px bg-blue-200 dark:bg-blue-700 my-2' />
+                      <div className='flex justify-between items-center bg-blue-100 dark:bg-blue-800/30 rounded-xl p-3'>
+                        <span className='text-blue-700 dark:text-blue-300 text-sm font-medium'>
+                          {t('earnpool.withdraw.netAmount')}
+                        </span>
+                        <span className='font-bold text-blue-600 dark:text-blue-400 text-xl'>
+                          {formatCurrency(withdrawPreview.net_amount)}
+                        </span>
+                      </div>
+                      <div className='flex justify-between items-center'>
+                        <span className='text-gray-600 dark:text-gray-400 text-sm'>
+                          {t('earnpool.withdraw.availableAt')}
+                        </span>
+                        <span className='font-medium text-gray-900 dark:text-white'>
+                          {formatDate(withdrawPreview.available_at)}
+                        </span>
                       </div>
                     </div>
+                  </div>
 
-                    <p className='text-xs text-gray-500 dark:text-gray-400 text-center'>
-                      {t('earnpool.withdraw.processingTime')}
+                  <p className='text-xs text-gray-500 dark:text-gray-400 text-center'>
+                    {t('earnpool.withdraw.processingTime')}
+                  </p>
+
+                  <div className='flex gap-3'>
+                    <button
+                      onClick={() => setWithdrawPreview(null)}
+                      className='flex-1 py-4 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-2xl font-bold transition-all hover:bg-gray-200 dark:hover:bg-gray-600'
+                    >
+                      {t('common.cancel')}
+                    </button>
+                    <button
+                      onClick={handleWithdrawConfirm}
+                      disabled={withdrawLoading}
+                      className='flex-1 py-4 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white rounded-2xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-500/30'
+                    >
+                      {withdrawLoading ? (
+                        <RefreshCw className='w-5 h-5 animate-spin' />
+                      ) : (
+                        <>
+                          <CheckCircle className='w-5 h-5' />
+                          {t('earnpool.withdraw.confirm')}
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ====== HISTORY TAB ====== */}
+          {activeTab === 'history' && (
+            <div className='space-y-8'>
+              {/* Deposits Section */}
+              <div>
+                <div className='flex items-center justify-between mb-4'>
+                  <h3 className='font-bold text-gray-900 dark:text-white flex items-center gap-2'>
+                    <div className='w-8 h-8 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center'>
+                      <ArrowDownCircle className='w-4 h-4 text-emerald-600 dark:text-emerald-400' />
+                    </div>
+                    {t('earnpool.history.deposits')}
+                  </h3>
+                  <span className='text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full'>
+                    {deposits.length} {t('earnpool.history.total')}
+                  </span>
+                </div>
+
+                {deposits.length === 0 ? (
+                  <div className='text-center py-8 bg-gray-50 dark:bg-gray-700/30 rounded-2xl'>
+                    <PiggyBank className='w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3' />
+                    <p className='text-sm text-gray-500 dark:text-gray-400'>
+                      {t('earnpool.history.noDeposits')}
                     </p>
-
-                    <div className='flex gap-3'>
-                      <button
-                        onClick={() => setWithdrawPreview(null)}
-                        className='flex-1 py-4 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-2xl font-bold transition-all hover:bg-gray-200 dark:hover:bg-gray-600'
+                  </div>
+                ) : (
+                  <div className='space-y-3'>
+                    {deposits.map(deposit => (
+                      <div
+                        key={deposit.id}
+                        className='bg-white dark:bg-gray-700/50 rounded-2xl p-4 border border-gray-100 dark:border-gray-600 hover:shadow-md transition-all'
                       >
-                        {t('common.cancel')}
-                      </button>
-                      <button
-                        onClick={handleWithdrawConfirm}
-                        disabled={withdrawLoading}
-                        className='flex-1 py-4 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white rounded-2xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-500/30'
-                      >
-                        {withdrawLoading ? (
-                          <RefreshCw className='w-5 h-5 animate-spin' />
-                        ) : (
-                          <>
-                            <CheckCircle className='w-5 h-5' />
-                            {t('earnpool.withdraw.confirm')}
-                          </>
-                        )}
-                      </button>
-                    </div>
+                        <div className='flex items-center justify-between'>
+                          <div className='flex items-center gap-3'>
+                            <div className='w-10 h-10 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl flex items-center justify-center'>
+                              <DollarSign className='w-5 h-5 text-emerald-600 dark:text-emerald-400' />
+                            </div>
+                            <div>
+                              <p className='font-bold text-gray-900 dark:text-white'>
+                                {formatCurrency(deposit.usdt_amount ?? deposit.amount)} USDT
+                              </p>
+                              <p className='text-xs text-gray-500 dark:text-gray-400'>
+                                {deposit.original_crypto_symbol &&
+                                  deposit.original_crypto_amount != null && (
+                                    <span className='mr-2'>
+                                      ({Number(deposit.original_crypto_amount).toFixed(4)}{' '}
+                                      {deposit.original_crypto_symbol})
+                                    </span>
+                                  )}
+                                {formatDateTime(deposit.deposited_at)}
+                              </p>
+                            </div>
+                          </div>
+                          <div className='text-right'>
+                            <span
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${
+                                deposit.status === 'LOCKED'
+                                  ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+                                  : deposit.status === 'ACTIVE'
+                                    ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
+                                    : 'bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300'
+                              }`}
+                            >
+                              {deposit.status === 'LOCKED' ? (
+                                <Lock className='w-3 h-3' />
+                              ) : (
+                                <Unlock className='w-3 h-3' />
+                              )}
+                              {t(`earnpool.status.${deposit.status.toLowerCase()}`)}
+                            </span>
+                            {deposit.status === 'LOCKED' && (
+                              <p className='text-[10px] text-gray-500 dark:text-gray-400 mt-1'>
+                                {t('earnpool.lockedUntil')}:{' '}
+                                {formatDate(deposit.lock_ends_at ?? deposit.unlocks_at)}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
-            )}
 
-            {/* ====== HISTORY TAB ====== */}
-            {activeTab === 'history' && (
-              <div className='space-y-8'>
-                {/* Deposits Section */}
-                <div>
-                  <div className='flex items-center justify-between mb-4'>
-                    <h3 className='font-bold text-gray-900 dark:text-white flex items-center gap-2'>
-                      <div className='w-8 h-8 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center'>
-                        <ArrowDownCircle className='w-4 h-4 text-emerald-600 dark:text-emerald-400' />
-                      </div>
-                      {t('earnpool.history.deposits')}
-                    </h3>
-                    <span className='text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full'>
-                      {deposits.length} {t('earnpool.history.total')}
-                    </span>
-                  </div>
-
-                  {deposits.length === 0 ? (
-                    <div className='text-center py-8 bg-gray-50 dark:bg-gray-700/30 rounded-2xl'>
-                      <PiggyBank className='w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3' />
-                      <p className='text-sm text-gray-500 dark:text-gray-400'>
-                        {t('earnpool.history.noDeposits')}
-                      </p>
+              {/* Withdrawals Section */}
+              <div>
+                <div className='flex items-center justify-between mb-4'>
+                  <h3 className='font-bold text-gray-900 dark:text-white flex items-center gap-2'>
+                    <div className='w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center'>
+                      <ArrowUpCircle className='w-4 h-4 text-blue-600 dark:text-blue-400' />
                     </div>
-                  ) : (
-                    <div className='space-y-3'>
-                      {deposits.map(deposit => (
-                        <div
-                          key={deposit.id}
-                          className='bg-white dark:bg-gray-700/50 rounded-2xl p-4 border border-gray-100 dark:border-gray-600 hover:shadow-md transition-all'
-                        >
-                          <div className='flex items-center justify-between'>
-                            <div className='flex items-center gap-3'>
-                              <div className='w-10 h-10 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl flex items-center justify-center'>
-                                <DollarSign className='w-5 h-5 text-emerald-600 dark:text-emerald-400' />
-                              </div>
-                              <div>
-                                <p className='font-bold text-gray-900 dark:text-white'>
-                                  {formatCurrency(deposit.usdt_amount ?? deposit.amount)} USDT
-                                </p>
-                                <p className='text-xs text-gray-500 dark:text-gray-400'>
-                                  {deposit.original_crypto_symbol &&
-                                    deposit.original_crypto_amount != null && (
-                                      <span className='mr-2'>
-                                        ({Number(deposit.original_crypto_amount).toFixed(4)}{' '}
-                                        {deposit.original_crypto_symbol})
-                                      </span>
-                                    )}
-                                  {formatDateTime(deposit.deposited_at)}
-                                </p>
-                              </div>
+                    {t('earnpool.history.withdrawals')}
+                  </h3>
+                  <span className='text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full'>
+                    {withdrawals.length} {t('earnpool.history.total')}
+                  </span>
+                </div>
+
+                {withdrawals.length === 0 ? (
+                  <div className='text-center py-8 bg-gray-50 dark:bg-gray-700/30 rounded-2xl'>
+                    <Wallet className='w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3' />
+                    <p className='text-sm text-gray-500 dark:text-gray-400'>
+                      {t('earnpool.history.noWithdrawals')}
+                    </p>
+                  </div>
+                ) : (
+                  <div className='space-y-3'>
+                    {withdrawals.map(withdrawal => (
+                      <div
+                        key={withdrawal.id}
+                        className='bg-white dark:bg-gray-700/50 rounded-2xl p-4 border border-gray-100 dark:border-gray-600 hover:shadow-md transition-all'
+                      >
+                        <div className='flex items-center justify-between'>
+                          <div className='flex items-center gap-3'>
+                            <div className='w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center'>
+                              <DollarSign className='w-5 h-5 text-blue-600 dark:text-blue-400' />
                             </div>
-                            <div className='text-right'>
-                              <span
-                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${
-                                  deposit.status === 'LOCKED'
-                                    ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
-                                    : deposit.status === 'ACTIVE'
-                                      ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
-                                      : 'bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300'
-                                }`}
-                              >
-                                {deposit.status === 'LOCKED' ? (
-                                  <Lock className='w-3 h-3' />
-                                ) : (
-                                  <Unlock className='w-3 h-3' />
-                                )}
-                                {t(`earnpool.status.${deposit.status.toLowerCase()}`)}
-                              </span>
-                              {deposit.status === 'LOCKED' && (
-                                <p className='text-[10px] text-gray-500 dark:text-gray-400 mt-1'>
-                                  {t('earnpool.lockedUntil')}:{' '}
-                                  {formatDate(deposit.lock_ends_at ?? deposit.unlocks_at)}
+                            <div>
+                              <p className='font-bold text-gray-900 dark:text-white'>
+                                {formatCurrency(withdrawal.net_amount)} USDT
+                              </p>
+                              <p className='text-xs text-gray-500 dark:text-gray-400'>
+                                {formatDateTime(withdrawal.requested_at)}
+                              </p>
+                              {(withdrawal.admin_fee_amount ?? withdrawal.fee_amount ?? 0) > 0 && (
+                                <p className='text-xs text-red-500 dark:text-red-400'>
+                                  {t('common.fee')}: -
+                                  {formatCurrency(
+                                    withdrawal.admin_fee_amount ?? withdrawal.fee_amount ?? 0
+                                  )}
                                 </p>
                               )}
                             </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Withdrawals Section */}
-                <div>
-                  <div className='flex items-center justify-between mb-4'>
-                    <h3 className='font-bold text-gray-900 dark:text-white flex items-center gap-2'>
-                      <div className='w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center'>
-                        <ArrowUpCircle className='w-4 h-4 text-blue-600 dark:text-blue-400' />
-                      </div>
-                      {t('earnpool.history.withdrawals')}
-                    </h3>
-                    <span className='text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full'>
-                      {withdrawals.length} {t('earnpool.history.total')}
-                    </span>
-                  </div>
-
-                  {withdrawals.length === 0 ? (
-                    <div className='text-center py-8 bg-gray-50 dark:bg-gray-700/30 rounded-2xl'>
-                      <Wallet className='w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3' />
-                      <p className='text-sm text-gray-500 dark:text-gray-400'>
-                        {t('earnpool.history.noWithdrawals')}
-                      </p>
-                    </div>
-                  ) : (
-                    <div className='space-y-3'>
-                      {withdrawals.map(withdrawal => (
-                        <div
-                          key={withdrawal.id}
-                          className='bg-white dark:bg-gray-700/50 rounded-2xl p-4 border border-gray-100 dark:border-gray-600 hover:shadow-md transition-all'
-                        >
-                          <div className='flex items-center justify-between'>
-                            <div className='flex items-center gap-3'>
-                              <div className='w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center'>
-                                <DollarSign className='w-5 h-5 text-blue-600 dark:text-blue-400' />
-                              </div>
-                              <div>
-                                <p className='font-bold text-gray-900 dark:text-white'>
-                                  {formatCurrency(withdrawal.net_amount)} USDT
-                                </p>
-                                <p className='text-xs text-gray-500 dark:text-gray-400'>
-                                  {formatDateTime(withdrawal.requested_at)}
-                                </p>
-                                {(withdrawal.admin_fee_amount ?? withdrawal.fee_amount ?? 0) >
-                                  0 && (
-                                  <p className='text-xs text-red-500 dark:text-red-400'>
-                                    {t('common.fee')}: -
-                                    {formatCurrency(
-                                      withdrawal.admin_fee_amount ?? withdrawal.fee_amount ?? 0
-                                    )}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                            <div className='text-right'>
-                              <span
-                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${
-                                  withdrawal.status === 'PENDING'
-                                    ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
-                                    : withdrawal.status === 'APPROVED' ||
-                                        withdrawal.status === 'COMPLETED'
-                                      ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
-                                      : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                                }`}
-                              >
-                                {withdrawal.status === 'COMPLETED' ? (
-                                  <CheckCircle className='w-3 h-3' />
-                                ) : (
-                                  <Clock className='w-3 h-3' />
-                                )}
-                                {t(`earnpool.status.${withdrawal.status.toLowerCase()}`)}
-                              </span>
-                              {withdrawal.status === 'PENDING' && (
-                                <p className='text-[10px] text-gray-500 dark:text-gray-400 mt-1'>
-                                  {t('earnpool.withdraw.availableAt')}:{' '}
-                                  {formatDate(withdrawal.available_at)}
-                                </p>
+                          <div className='text-right'>
+                            <span
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${
+                                withdrawal.status === 'PENDING'
+                                  ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+                                  : withdrawal.status === 'APPROVED' ||
+                                      withdrawal.status === 'COMPLETED'
+                                    ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
+                                    : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                              }`}
+                            >
+                              {withdrawal.status === 'COMPLETED' ? (
+                                <CheckCircle className='w-3 h-3' />
+                              ) : (
+                                <Clock className='w-3 h-3' />
                               )}
-                            </div>
+                              {t(`earnpool.status.${withdrawal.status.toLowerCase()}`)}
+                            </span>
+                            {withdrawal.status === 'PENDING' && (
+                              <p className='text-[10px] text-gray-500 dark:text-gray-400 mt-1'>
+                                {t('earnpool.withdraw.availableAt')}:{' '}
+                                {formatDate(withdrawal.available_at)}
+                              </p>
+                            )}
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
 
