@@ -228,15 +228,19 @@ async def login(
         user=UserResponse.model_validate(user)
     )
 
-@router.post("/register", response_model=UserResponse)
+@router.post("/register", response_model=LoginResponse)
 async def register(
     register_data: RegisterRequest,
     db: Session = Depends(get_db)
 ):
     """
-    Register a new user.
+    Register a new user and automatically log them in.
     Supports optional referral code (WOLK FRIENDS program).
+    Returns access token for immediate login.
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    
     # Check if user already exists
     existing_user = db.query(User).filter(
         (User.email == register_data.email) | 
@@ -263,6 +267,8 @@ async def register(
     db.commit()
     db.refresh(user)
     
+    logger.info(f"✅ Novo usuário registrado: {user.email}")
+    
     # Process referral code if provided (WOLK FRIENDS)
     if register_data.referral_code:
         try:
@@ -280,12 +286,18 @@ async def register(
             # Não falha o registro se houver erro no referral
             logger.error(f"❌ Erro ao processar indicação: {e}")
     
-    return UserResponse(
-        id=user.id,
-        email=user.email,
-        username=user.username,
-        created_at=user.created_at,
-        last_login=user.last_login
+    # Create access token for auto-login after registration
+    access_token = create_access_token(
+        data={"sub": user.email, "user_id": str(user.id)},
+        expires_delta=timedelta(hours=24)
+    )
+    
+    # Return LoginResponse with token (same as login endpoint)
+    return LoginResponse(
+        access_token=access_token,
+        token_type="bearer",
+        expires_in=86400,  # 24 hours
+        user=UserResponse.model_validate(user)
     )
 
 @router.post("/refresh")
