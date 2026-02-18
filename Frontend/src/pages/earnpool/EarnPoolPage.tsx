@@ -183,8 +183,8 @@ const ChartTooltip = ({ active, payload, label }: any) => {
     const displayYield = Number.isNaN(yieldValue) ? 0 : yieldValue
 
     return (
-      <div className='bg-slate-900/95 backdrop-blur-xl border border-emerald-500/30 rounded-2xl p-4 shadow-2xl'>
-        <p className='text-slate-400 text-xs font-medium mb-1'>{label}</p>
+      <div className='bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl border border-emerald-500/30 rounded-2xl p-4 shadow-2xl'>
+        <p className='text-gray-500 dark:text-gray-400 text-xs font-medium mb-1'>{label}</p>
         <p className='text-white font-bold text-xl'>
           ${displayValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
         </p>
@@ -273,7 +273,7 @@ const StatCard = ({ icon: Icon, label, value, subValue, trend, color }: StatCard
         )}
       </div>
       <div className='mt-4'>
-        <p className='text-slate-400 text-xs font-medium uppercase tracking-wider'>{label}</p>
+        <p className='text-gray-500 dark:text-gray-400 text-xs font-medium uppercase tracking-wider'>{label}</p>
         <p className='text-white text-2xl font-bold mt-1'>{value}</p>
         {subValue && <p className={`${classes.text} text-sm font-medium mt-1`}>{subValue}</p>}
       </div>
@@ -299,7 +299,7 @@ const FeatureCard = ({ icon: Icon, title, description, color }: FeatureCardProps
     </div>
     <div>
       <h4 className='text-white font-semibold text-sm'>{title}</h4>
-      <p className='text-slate-400 text-xs mt-1'>{description}</p>
+      <p className='text-gray-500 dark:text-gray-400 text-xs mt-1'>{description}</p>
     </div>
   </div>
 )
@@ -797,18 +797,21 @@ export function EarnPoolPage() {
 
   if (loading) {
     return (
-      <div className='min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950'>
+      <div className='min-h-screen'>
         <div className='max-w-6xl mx-auto p-4 md:p-6'>
           {/* Skeleton Hero */}
-          <div className='rounded-3xl bg-slate-800/50 p-8 mb-6 animate-pulse'>
-            <div className='h-10 bg-slate-700/50 rounded-xl w-64 mb-4' />
-            <div className='h-6 bg-slate-700/50 rounded-lg w-96 mb-8' />
-            <div className='h-48 bg-slate-700/30 rounded-2xl' />
+          <div className='rounded-3xl bg-gray-100 dark:bg-gray-800/50 p-8 mb-6 animate-pulse'>
+            <div className='h-10 bg-gray-200 dark:bg-gray-700/50 rounded-xl w-64 mb-4' />
+            <div className='h-6 bg-gray-200 dark:bg-gray-700/50 rounded-lg w-96 mb-8' />
+            <div className='h-48 bg-gray-200 dark:bg-gray-700/30 rounded-2xl' />
           </div>
           {/* Skeleton Cards */}
           <div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
             {[1, 2, 3, 4].map(i => (
-              <div key={i} className='h-36 bg-slate-800/50 rounded-2xl animate-pulse' />
+              <div
+                key={i}
+                className='h-36 bg-gray-100 dark:bg-gray-800/50 rounded-2xl animate-pulse'
+              />
             ))}
           </div>
         </div>
@@ -821,14 +824,14 @@ export function EarnPoolPage() {
   // ============================================================================
 
   return (
-    <div className='min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 pb-24'>
+    <div className='min-h-screen pb-24'>
       {/* ========== HERO SECTION ========== */}
       <div className='relative overflow-hidden'>
         {/* Gradient Orbs */}
         <div className='absolute inset-0 overflow-hidden pointer-events-none'>
-          <div className='absolute -top-40 -left-40 w-80 h-80 bg-emerald-500/20 rounded-full blur-[100px]' />
-          <div className='absolute -top-20 right-0 w-96 h-96 bg-cyan-500/15 rounded-full blur-[120px]' />
-          <div className='absolute bottom-0 left-1/3 w-64 h-64 bg-purple-500/10 rounded-full blur-[80px]' />
+          <div className='absolute -top-40 -left-40 w-80 h-80 bg-emerald-500/10 dark:bg-emerald-500/20 rounded-full blur-[100px]' />
+          <div className='absolute -top-20 right-0 w-96 h-96 bg-cyan-500/10 dark:bg-cyan-500/15 rounded-full blur-[120px]' />
+          <div className='absolute bottom-0 left-1/3 w-64 h-64 bg-purple-500/5 dark:bg-purple-500/10 rounded-full blur-[80px]' />
         </div>
 
         <div className='relative max-w-6xl mx-auto p-4 md:p-6 pt-6 md:pt-10'>
@@ -839,13 +842,15 @@ export function EarnPoolPage() {
                 <div className='w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400 via-teal-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-emerald-500/30'>
                   <Gem className='w-7 h-7 text-white' />
                 </div>
-                <div className='absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-400 border-2 border-slate-950 flex items-center justify-center'>
-                  <Activity className='w-3 h-3 text-slate-950' />
+                <div className='absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-400 border-2 border-white dark:border-gray-900 flex items-center justify-center'>
+                  <Activity className='w-3 h-3 text-gray-900' />
                 </div>
               </div>
               <div>
-                <h1 className='text-2xl md:text-3xl font-bold text-white'>{t('earnpool.title')}</h1>
-                <p className='text-slate-400 text-sm'>{t('earnpool.subtitle')}</p>
+                <h1 className='text-2xl md:text-3xl font-bold text-gray-900 dark:text-white'>
+                  {t('earnpool.title')}
+                </h1>
+                <p className='text-gray-500 dark:text-gray-400 text-sm'>{t('earnpool.subtitle')}</p>
               </div>
             </div>
 
@@ -853,24 +858,26 @@ export function EarnPoolPage() {
               <button
                 onClick={handleRefresh}
                 disabled={refreshing}
-                className='p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all'
+                className='p-3 rounded-xl bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 border border-gray-200 dark:border-white/10 transition-all'
                 aria-label={t('common.refresh')}
               >
-                <RefreshCw className={`w-5 h-5 text-white ${refreshing ? 'animate-spin' : ''}`} />
+                <RefreshCw
+                  className={`w-5 h-5 text-gray-700 dark:text-white ${refreshing ? 'animate-spin' : ''}`}
+                />
               </button>
             </div>
           </div>
 
           {/* Main Balance Card */}
-          <div className='rounded-3xl bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-xl border border-white/10 p-6 md:p-8 mb-6'>
+          <div className='rounded-3xl bg-white dark:bg-gray-800/80 backdrop-blur-xl border border-gray-200 dark:border-white/10 p-6 md:p-8 mb-6 shadow-sm'>
             <div className='flex flex-col md:flex-row md:items-center md:justify-between gap-6'>
               {/* Left: Balance Info */}
               <div>
-                <p className='text-slate-400 text-sm font-medium mb-2'>
+                <p className='text-gray-500 dark:text-gray-400 text-sm font-medium mb-2'>
                   {t('earnpool.yourBalance')}
                 </p>
                 <div className='flex items-baseline gap-4'>
-                  <h2 className='text-4xl md:text-5xl font-bold text-white'>
+                  <h2 className='text-4xl md:text-5xl font-bold text-gray-900 dark:text-white'>
                     {formatCurrency(balance?.total_deposited_usdt ?? 0)}
                   </h2>
                   <div
@@ -906,7 +913,7 @@ export function EarnPoolPage() {
                 </button>
                 <button
                   onClick={() => setActiveView('withdraw')}
-                  className='flex items-center gap-2 px-6 py-3 rounded-xl bg-white/10 text-white font-semibold border border-white/20 hover:bg-white/20 transition-all'
+                  className='flex items-center gap-2 px-6 py-3 rounded-xl bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-white font-semibold border border-gray-200 dark:border-white/20 hover:bg-gray-200 dark:hover:bg-white/20 transition-all'
                 >
                   <ArrowUpCircle className='w-5 h-5' />
                   {t('earnpool.actions.withdraw')}
@@ -982,8 +989,8 @@ export function EarnPoolPage() {
           </div>
 
           {/* Features */}
-          <div className='rounded-3xl bg-gradient-to-br from-slate-800/50 to-slate-900/50 backdrop-blur-xl border border-white/10 p-6 md:p-8'>
-            <h3 className='text-xl font-bold text-white mb-6 flex items-center gap-2'>
+          <div className='rounded-3xl bg-white dark:bg-gray-800/50 backdrop-blur-xl border border-gray-200 dark:border-white/10 p-6 md:p-8 shadow-sm'>
+            <h3 className='text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2'>
               <Star className='w-5 h-5 text-amber-400' />
               {t('earnpool.howItWorks.title')}
             </h3>
@@ -1015,11 +1022,13 @@ export function EarnPoolPage() {
             </div>
 
             {/* Disclaimer */}
-            <div className='mt-6 p-4 rounded-2xl bg-slate-700/30 border border-slate-600/50'>
+            <div className='mt-6 p-4 rounded-2xl bg-gray-100 dark:bg-gray-700/30 border border-gray-200 dark:border-gray-600/50'>
               <div className='flex items-start gap-3'>
-                <Info className='w-5 h-5 text-slate-400 mt-0.5 flex-shrink-0' />
-                <p className='text-slate-400 text-xs leading-relaxed'>
-                  <strong className='text-slate-300'>{t('earnpool.title')}:</strong>{' '}
+                <Info className='w-5 h-5 text-gray-500 dark:text-gray-400 mt-0.5 flex-shrink-0' />
+                <p className='text-gray-500 dark:text-gray-400 text-xs leading-relaxed'>
+                  <strong className='text-gray-700 dark:text-gray-300'>
+                    {t('earnpool.title')}:
+                  </strong>{' '}
                   {t('earnpool.description')}
                 </p>
               </div>
@@ -1030,7 +1039,7 @@ export function EarnPoolPage() {
 
       {/* ========== DEPOSIT VIEW ========== */}
       {activeView === 'deposit' && (
-        <div className='fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-xl overflow-y-auto'>
+        <div className='fixed inset-0 z-50 bg-white dark:bg-gray-900/95 backdrop-blur-xl overflow-y-auto'>
           <div className='max-w-lg mx-auto p-4 md:p-6 pt-6'>
             {/* Header */}
             <div className='flex items-center justify-between mb-8'>
@@ -1039,8 +1048,12 @@ export function EarnPoolPage() {
                   <ArrowDownCircle className='w-6 h-6 text-white' />
                 </div>
                 <div>
-                  <h2 className='text-xl font-bold text-white'>{t('earnpool.deposit.title')}</h2>
-                  <p className='text-slate-400 text-sm'>{t('earnpool.deposit.subtitle')}</p>
+                  <h2 className='text-xl font-bold text-gray-900 dark:text-white'>
+                    {t('earnpool.deposit.title')}
+                  </h2>
+                  <p className='text-gray-500 dark:text-gray-400 text-sm'>
+                    {t('earnpool.deposit.subtitle')}
+                  </p>
                 </div>
               </div>
               <button
@@ -1050,21 +1063,21 @@ export function EarnPoolPage() {
                   setSelectedCrypto(null)
                   setDepositAmount('')
                 }}
-                className='p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all'
+                className='p-3 rounded-xl bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 transition-all'
                 aria-label={t('common.close')}
               >
-                <X className='w-5 h-5 text-white' />
+                <X className='w-5 h-5 text-gray-700 dark:text-white' />
               </button>
             </div>
 
             {/* Step 1: Select Crypto */}
             <div className='mb-6'>
-              <label className='block text-sm font-medium text-slate-300 mb-3'>
+              <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3'>
                 1. {t('earnpool.deposit.selectCrypto')}
               </label>
               <button
                 onClick={() => setShowCryptoSelector(true)}
-                className='w-full p-4 rounded-2xl bg-slate-800/80 border border-slate-700 hover:border-emerald-500/50 transition-all flex items-center justify-between'
+                className='w-full p-4 rounded-2xl bg-gray-100 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 hover:border-emerald-500/50 transition-all flex items-center justify-between'
               >
                 {selectedCrypto ? (
                   <div className='flex items-center gap-3'>
@@ -1074,8 +1087,10 @@ export function EarnPoolPage() {
                       className='w-10 h-10 rounded-full'
                     />
                     <div className='text-left'>
-                      <p className='font-bold text-white'>{selectedCrypto.symbol}</p>
-                      <p className='text-xs text-slate-400'>
+                      <p className='font-bold text-gray-900 dark:text-white'>
+                        {selectedCrypto.symbol}
+                      </p>
+                      <p className='text-xs text-gray-500 dark:text-gray-400'>
                         {t('common.balance')}: {(selectedCrypto.balance ?? 0).toFixed(8)} (
                         {formatCurrency(selectedCrypto.balanceUSD)})
                       </p>
@@ -1083,20 +1098,22 @@ export function EarnPoolPage() {
                   </div>
                 ) : (
                   <div className='flex items-center gap-3'>
-                    <div className='w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center'>
-                      <Coins className='w-5 h-5 text-slate-400' />
+                    <div className='w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center'>
+                      <Coins className='w-5 h-5 text-gray-500 dark:text-gray-400' />
                     </div>
-                    <span className='text-slate-400'>{t('earnpool.deposit.chooseCrypto')}</span>
+                    <span className='text-gray-500 dark:text-gray-400'>
+                      {t('earnpool.deposit.chooseCrypto')}
+                    </span>
                   </div>
                 )}
-                <ChevronDown className='w-5 h-5 text-slate-400' />
+                <ChevronDown className='w-5 h-5 text-gray-500 dark:text-gray-400' />
               </button>
             </div>
 
             {/* Step 2: Amount */}
             {selectedCrypto && (
               <div className='mb-6'>
-                <label className='block text-sm font-medium text-slate-300 mb-3'>
+                <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3'>
                   2. {t('earnpool.deposit.amount')}
                 </label>
                 <div className='relative'>
@@ -1108,7 +1125,7 @@ export function EarnPoolPage() {
                       setDepositPreview(null)
                     }}
                     placeholder='0.00000000'
-                    className='w-full p-4 pl-14 pr-20 rounded-2xl bg-slate-800/80 border border-slate-700 text-white text-lg font-semibold focus:border-emerald-500 focus:outline-none transition-all'
+                    className='w-full p-4 pl-14 pr-20 rounded-2xl bg-gray-100 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white text-lg font-semibold focus:border-emerald-500 focus:outline-none transition-all'
                   />
                   <img
                     src={CRYPTO_ICONS[selectedCrypto.symbol]}
@@ -1123,7 +1140,7 @@ export function EarnPoolPage() {
                   </button>
                 </div>
                 <div className='flex justify-between mt-2 text-sm'>
-                  <span className='text-slate-400'>
+                  <span className='text-gray-500 dark:text-gray-400'>
                     {t('common.balance')}: {(selectedCrypto.balance ?? 0).toFixed(8)}{' '}
                     {selectedCrypto.symbol}
                   </span>
@@ -1154,7 +1171,7 @@ export function EarnPoolPage() {
                       {depositAmount} {selectedCrypto.symbol}
                     </span>
                   </div>
-                  <ArrowRight className='w-4 h-4 text-slate-400' />
+                  <ArrowRight className='w-4 h-4 text-gray-500 dark:text-gray-400' />
                   <div className='flex items-center gap-2'>
                     <img src={CRYPTO_ICONS.USDT} alt='USDT' className='w-6 h-6 rounded-full' />
                     <span className='text-emerald-400 font-bold'>
@@ -1192,25 +1209,25 @@ export function EarnPoolPage() {
                   </h4>
                   <div className='space-y-3'>
                     <div className='flex justify-between'>
-                      <span className='text-slate-400'>Crypto</span>
+                      <span className='text-gray-500 dark:text-gray-400'>Crypto</span>
                       <span className='text-white font-medium'>
                         {depositAmount} {selectedCrypto.symbol}
                       </span>
                     </div>
                     <div className='flex justify-between'>
-                      <span className='text-slate-400'>{t('earnpool.deposit.valueInUSDT')}</span>
+                      <span className='text-gray-500 dark:text-gray-400'>{t('earnpool.deposit.valueInUSDT')}</span>
                       <span className='text-emerald-400 font-bold'>
                         {formatCurrency(depositPreview.usdt_amount ?? depositValueInUSDT)}
                       </span>
                     </div>
                     <div className='flex justify-between'>
-                      <span className='text-slate-400'>{t('earnpool.deposit.lockPeriod')}</span>
+                      <span className='text-gray-500 dark:text-gray-400'>{t('earnpool.deposit.lockPeriod')}</span>
                       <span className='text-white font-medium'>
                         {config?.lock_period_days ?? 30} {t('common.days')}
                       </span>
                     </div>
                     <div className='flex justify-between'>
-                      <span className='text-slate-400'>{t('earnpool.deposit.estimatedYield')}</span>
+                      <span className='text-gray-500 dark:text-gray-400'>{t('earnpool.deposit.estimatedYield')}</span>
                       <span className='text-emerald-400 font-medium'>
                         {getYieldRate()}% / {t('common.week')}
                       </span>
@@ -1221,7 +1238,7 @@ export function EarnPoolPage() {
                 <div className='flex gap-3'>
                   <button
                     onClick={() => setDepositPreview(null)}
-                    className='flex-1 p-4 rounded-2xl bg-slate-700 text-white font-bold hover:bg-slate-600 transition-all'
+                    className='flex-1 p-4 rounded-2xl bg-gray-200 dark:bg-gray-700 text-white font-bold hover:bg-gray-300 dark:bg-gray-600 transition-all'
                   >
                     {t('common.back')}
                   </button>
@@ -1247,15 +1264,15 @@ export function EarnPoolPage() {
           {/* Crypto Selector Modal */}
           {showCryptoSelector && (
             <div className='fixed inset-0 z-60 bg-black/80 flex items-end md:items-center justify-center'>
-              <div className='bg-slate-900 rounded-t-3xl md:rounded-3xl w-full max-w-md max-h-[80vh] overflow-hidden'>
-                <div className='p-4 border-b border-slate-800 flex items-center justify-between'>
+              <div className='bg-white dark:bg-gray-800 rounded-t-3xl md:rounded-3xl w-full max-w-md max-h-[80vh] overflow-hidden'>
+                <div className='p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between'>
                   <h3 className='font-bold text-white'>{t('earnpool.deposit.selectCrypto')}</h3>
                   <button
                     onClick={() => {
                       setShowCryptoSelector(false)
                       setCryptoSearchQuery('')
                     }}
-                    className='p-2 rounded-full bg-slate-800 hover:bg-slate-700'
+                    className='p-2 rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:bg-gray-700'
                     aria-label={t('common.close')}
                   >
                     <X className='w-4 h-4 text-white' />
@@ -1263,21 +1280,21 @@ export function EarnPoolPage() {
                 </div>
                 <div className='p-4'>
                   <div className='relative'>
-                    <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400' />
+                    <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 dark:text-gray-400' />
                     <input
                       type='text'
                       value={cryptoSearchQuery}
                       onChange={e => setCryptoSearchQuery(e.target.value)}
                       placeholder={t('earnpool.deposit.searchCrypto')}
-                      className='w-full pl-10 pr-4 py-3 rounded-xl bg-slate-800 border-none text-white'
+                      className='w-full pl-10 pr-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 border-none text-white'
                     />
                   </div>
                 </div>
                 <div className='overflow-y-auto max-h-[50vh] px-4 pb-4'>
                   {filteredCryptos.length === 0 ? (
                     <div className='text-center py-8'>
-                      <Wallet className='w-12 h-12 mx-auto text-slate-600 mb-3' />
-                      <p className='text-slate-400'>{t('earnpool.deposit.noCryptoAvailable')}</p>
+                      <Wallet className='w-12 h-12 mx-auto text-gray-400 dark:text-gray-600 mb-3' />
+                      <p className='text-gray-500 dark:text-gray-400'>{t('earnpool.deposit.noCryptoAvailable')}</p>
                     </div>
                   ) : (
                     <div className='space-y-2'>
@@ -1295,7 +1312,7 @@ export function EarnPoolPage() {
                             selectedCrypto?.symbol === crypto.symbol &&
                             selectedCrypto?.network === crypto.network
                               ? 'bg-emerald-500/20 border-2 border-emerald-500'
-                              : 'bg-slate-800 hover:bg-slate-700 border-2 border-transparent'
+                              : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:bg-gray-700 border-2 border-transparent'
                           }`}
                         >
                           <img
@@ -1305,13 +1322,13 @@ export function EarnPoolPage() {
                           />
                           <div className='flex-1 text-left'>
                             <p className='font-bold text-white'>{crypto.symbol}</p>
-                            <p className='text-xs text-slate-400 capitalize'>{crypto.network}</p>
+                            <p className='text-xs text-gray-500 dark:text-gray-400 capitalize'>{crypto.network}</p>
                           </div>
                           <div className='text-right'>
                             <p className='text-white font-medium'>
                               {(crypto.balance ?? 0).toFixed(6)}
                             </p>
-                            <p className='text-xs text-slate-400'>
+                            <p className='text-xs text-gray-500 dark:text-gray-400'>
                               {formatCurrency(crypto.balanceUSD ?? 0)}
                             </p>
                           </div>
@@ -1328,7 +1345,7 @@ export function EarnPoolPage() {
 
       {/* ========== WITHDRAW VIEW ========== */}
       {activeView === 'withdraw' && (
-        <div className='fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-xl overflow-y-auto'>
+        <div className='fixed inset-0 z-50 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl overflow-y-auto'>
           <div className='max-w-lg mx-auto p-4 md:p-6 pt-6'>
             {/* Header */}
             <div className='flex items-center justify-between mb-8'>
@@ -1338,7 +1355,7 @@ export function EarnPoolPage() {
                 </div>
                 <div>
                   <h2 className='text-xl font-bold text-white'>{t('earnpool.actions.withdraw')}</h2>
-                  <p className='text-slate-400 text-sm'>{t('earnpool.withdraw.subtitle')}</p>
+                  <p className='text-gray-500 dark:text-gray-400 text-sm'>{t('earnpool.withdraw.subtitle')}</p>
                 </div>
               </div>
               <button
@@ -1357,7 +1374,7 @@ export function EarnPoolPage() {
             {/* Available Balance */}
             <div className='mb-6 p-4 rounded-2xl bg-blue-500/10 border border-blue-500/30'>
               <div className='flex items-center justify-between'>
-                <span className='text-slate-400'>{t('earnpool.withdraw.availableBalance')}</span>
+                <span className='text-gray-500 dark:text-gray-400'>{t('earnpool.withdraw.availableBalance')}</span>
                 <span className='text-2xl font-bold text-white'>
                   {formatCurrency(balance?.available_balance ?? 0)}
                 </span>
@@ -1366,11 +1383,11 @@ export function EarnPoolPage() {
 
             {/* Amount Input */}
             <div className='mb-6'>
-              <label className='block text-sm font-medium text-slate-300 mb-3'>
+              <label className='block text-sm font-medium text-gray-600 dark:text-gray-300 mb-3'>
                 {t('earnpool.withdraw.amount')}
               </label>
               <div className='relative'>
-                <DollarSign className='absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400' />
+                <DollarSign className='absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 dark:text-gray-400' />
                 <input
                   type='number'
                   value={withdrawAmount}
@@ -1380,7 +1397,7 @@ export function EarnPoolPage() {
                   }}
                   placeholder='0.00'
                   max={balance?.available_balance ?? undefined}
-                  className='w-full p-4 pl-12 pr-20 rounded-2xl bg-slate-800/80 border border-slate-700 text-white text-lg font-semibold focus:border-blue-500 focus:outline-none transition-all'
+                  className='w-full p-4 pl-12 pr-20 rounded-2xl bg-gray-100 dark:bg-gray-800/80 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white text-lg font-semibold focus:border-blue-500 focus:outline-none transition-all'
                 />
                 <button
                   onClick={() => setWithdrawAmount((balance?.available_balance ?? 0).toString())}
@@ -1422,7 +1439,7 @@ export function EarnPoolPage() {
                   </h4>
                   <div className='space-y-3'>
                     <div className='flex justify-between'>
-                      <span className='text-slate-400'>
+                      <span className='text-gray-500 dark:text-gray-400'>
                         {t('earnpool.withdraw.requestedAmount')}
                       </span>
                       <span className='text-white font-medium'>
@@ -1430,14 +1447,14 @@ export function EarnPoolPage() {
                       </span>
                     </div>
                     <div className='flex justify-between'>
-                      <span className='text-slate-400'>{t('earnpool.withdraw.earnings')}</span>
+                      <span className='text-gray-500 dark:text-gray-400'>{t('earnpool.withdraw.earnings')}</span>
                       <span className='text-emerald-400 font-medium'>
                         +{formatCurrency(withdrawPreview.yield_amount)}
                       </span>
                     </div>
                     {withdrawPreview.is_early_withdrawal && (
                       <div className='flex justify-between'>
-                        <span className='text-slate-400'>{t('earnpool.withdraw.earlyFee')}</span>
+                        <span className='text-gray-500 dark:text-gray-400'>{t('earnpool.withdraw.earlyFee')}</span>
                         <span className='text-red-400 font-medium'>
                           -
                           {formatCurrency(
@@ -1447,7 +1464,7 @@ export function EarnPoolPage() {
                         </span>
                       </div>
                     )}
-                    <div className='h-px bg-slate-700 my-2' />
+                    <div className='h-px bg-gray-200 dark:bg-gray-700 my-2' />
                     <div className='flex justify-between'>
                       <span className='text-white font-bold'>
                         {t('earnpool.withdraw.netAmount')}
@@ -1478,7 +1495,7 @@ export function EarnPoolPage() {
                 <div className='flex gap-3'>
                   <button
                     onClick={() => setWithdrawPreview(null)}
-                    className='flex-1 p-4 rounded-2xl bg-slate-700 text-white font-bold hover:bg-slate-600 transition-all'
+                    className='flex-1 p-4 rounded-2xl bg-gray-200 dark:bg-gray-700 text-white font-bold hover:bg-gray-300 dark:bg-gray-600 transition-all'
                   >
                     {t('common.back')}
                   </button>
