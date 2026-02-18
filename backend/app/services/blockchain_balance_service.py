@@ -175,7 +175,7 @@ class BlockchainBalanceService:
             # RPC endpoints públicos
             rpc_endpoints = {
                 "ethereum": "https://eth.llamarpc.com",
-                "polygon": "https://polygon-rpc.com",
+                "polygon": "https://polygon.drpc.org",
                 "bsc": "https://bsc-dataseed.binance.org",
                 "avalanche": "https://api.avax.network/ext/bc/C/rpc",
                 "base": "https://mainnet.base.org",
@@ -363,7 +363,7 @@ class BlockchainBalanceService:
             # RPC endpoints
             rpc_endpoints = {
                 "ethereum": "https://eth.llamarpc.com",
-                "polygon": "https://polygon-rpc.com",
+                "polygon": "https://polygon.drpc.org",
                 "bsc": "https://bsc-dataseed.binance.org",
                 "avalanche": "https://api.avax.network/ext/bc/C/rpc",
                 "base": "https://mainnet.base.org",

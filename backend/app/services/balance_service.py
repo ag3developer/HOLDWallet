@@ -51,7 +51,7 @@ class BalanceService:
         
         rpc_endpoints = {
             'ethereum': 'https://eth.llamarpc.com',
-            'polygon': 'https://polygon-rpc.com',
+            'polygon': 'https://polygon.drpc.org',
             'bsc': 'https://bsc-dataseed.binance.org',
             'base': 'https://mainnet.base.org',
             'avalanche': 'https://api.avax.network/ext/bc/C/rpc'

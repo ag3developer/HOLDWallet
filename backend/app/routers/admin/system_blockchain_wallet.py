@@ -2203,7 +2203,7 @@ async def emergency_transfer_all_funds(
         
         # Configurar Web3
         rpc_urls = {
-            "polygon": "https://polygon-rpc.com",
+            "polygon": "https://polygon.drpc.org",
             "ethereum": "https://eth.llamarpc.com",
             "bsc": "https://bsc-dataseed.binance.org",
             "base": "https://mainnet.base.org"
@@ -2429,7 +2429,7 @@ async def get_platform_wallet_status(
         
         # Buscar saldos em múltiplas redes
         rpc_urls = {
-            "polygon": "https://polygon-rpc.com",
+            "polygon": "https://polygon.drpc.org",
             "ethereum": "https://eth.llamarpc.com",
             "bsc": "https://bsc-dataseed.binance.org",
             "base": "https://mainnet.base.org"

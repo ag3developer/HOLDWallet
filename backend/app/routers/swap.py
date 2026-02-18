@@ -37,7 +37,7 @@ CHAIN_ID_TO_NETWORK = {
 
 # Mapeamento de network para RPC URL
 NETWORK_TO_RPC = {
-    "polygon": "https://polygon-rpc.com",
+    "polygon": "https://polygon.drpc.org",
     "bsc": "https://bsc-dataseed.binance.org",
     "arbitrum": "https://arb1.arbitrum.io/rpc",
     "base": "https://mainnet.base.org",

@@ -31,7 +31,7 @@ class SystemWalletSendService:
     # RPCs por rede
     RPC_URLS = {
         "ethereum": "https://eth-mainnet.g.alchemy.com/v2/demo",
-        "polygon": "https://polygon-rpc.com",
+        "polygon": "https://polygon.drpc.org",
         "bsc": "https://bsc-dataseed.binance.org",
         "base": "https://mainnet.base.org",
         "avalanche": "https://api.avax.network/ext/bc/C/rpc",
