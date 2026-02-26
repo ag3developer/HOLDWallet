@@ -56,6 +56,7 @@ EVM_CRYPTOS = {
     'AVAX': {'network': 'avalanche', 'native': True},  # C-Chain é EVM
     'USDT': {'network': 'polygon', 'native': False, 'contract': '0xc2132D05D31c914a87C6611C10748AEb04B58e8F'},
     'USDC': {'network': 'polygon', 'native': False, 'contract': '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174'},
+    'TRAY': {'network': 'polygon', 'native': False, 'contract': '0x6b62514E925099643abA13B322A62ff6298f8E8A'},
     'LINK': {'network': 'ethereum', 'native': False, 'contract': '0x514910771AF9Ca656af840dff83E8264EcF986CA'},
     'SHIB': {'network': 'ethereum', 'native': False, 'contract': '0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE'},
     'BASE': {'network': 'base', 'native': True},

@@ -67,6 +67,7 @@ async def get_supported_assets():
             {"symbol": "AVAX", "name": "Avalanche"},
             {"symbol": "MATIC", "name": "Polygon"},
             {"symbol": "DOT", "name": "Polkadot"},
+            {"symbol": "TRAY", "name": "Trayon"},
         ],
     }
 

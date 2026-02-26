@@ -273,30 +273,30 @@ async def process_crypto_deposit_background(trade_id: str, db_url: str):
                 return
             
             # Importa serviço de blockchain
-            from app.services.blockchain_deposit_service import blockchain_deposit_service
+            from app.services.multi_chain_service import multi_chain_service
             
-            # Determina rede (polygon como default para USDT)
+            # Determina rede (polygon como default para USDT/TRAY)
             network = trade.network or "polygon"
             
             logger.info(f"📤 Enviando {trade.crypto_amount} {trade.symbol} para {trade.wallet_address} via {network}")
             
-            # Envia crypto
-            result = blockchain_deposit_service.deposit_crypto_to_user(
+            # Envia crypto usando multi-chain service (suporta todos os tokens)
+            result = await multi_chain_service.send_crypto(
                 db=db,
                 trade=trade,
                 network=network
             )
 
-            if result.get("success"):
+            if result.success:
                 # Atualiza trade como completado
-                trade.status = TradeStatus.COMPLETED
+                trade.status = TradeStatus.COMPLETED.value
                 trade.completed_at = datetime.utcnow()
-                trade.tx_hash = result.get("tx_hash")
-                trade.network = result.get("network", network)
+                trade.tx_hash = result.tx_hash
+                trade.network = result.network or network
                 
                 # Atualiza wallet_address se retornado
-                if result.get("wallet_address"):
-                    trade.wallet_address = result.get("wallet_address")
+                if hasattr(result, 'wallet_address') and result.wallet_address:
+                    trade.wallet_address = result.wallet_address
 
                 # Histórico de conclusão
                 history = InstantTradeHistory(
@@ -304,18 +304,18 @@ async def process_crypto_deposit_background(trade_id: str, db_url: str):
                     old_status=TradeStatus.PAYMENT_CONFIRMED,
                     new_status=TradeStatus.COMPLETED,
                     reason="Crypto depositada automaticamente após pagamento PIX",
-                    history_details=f"TX: {result.get('tx_hash')}, Network: {network}"
+                    history_details=f"TX: {result.tx_hash}, Network: {result.network}"
                 )
                 db.add(history)
                 db.commit()
 
-                logger.info(f"✅ Depósito automático concluído! Trade: {trade.reference_code}, TX: {result.get('tx_hash')}")
+                logger.info(f"✅ Depósito automático concluído! Trade: {trade.reference_code}, TX: {result.tx_hash}")
             else:
-                error_msg = result.get('error', 'Erro desconhecido')
+                error_msg = result.error or 'Erro desconhecido'
                 logger.error(f"❌ Depósito falhou para {trade.reference_code}: {error_msg}")
                 
                 # Marca como falha mas não reverte pagamento
-                trade.status = TradeStatus.FAILED
+                trade.status = TradeStatus.FAILED.value
                 trade.error_message = f"Depósito automático falhou: {error_msg}"
                 
                 history = InstantTradeHistory(
