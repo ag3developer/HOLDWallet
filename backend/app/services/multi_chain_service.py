@@ -49,14 +49,17 @@ class MultiChainSendResult:
 # ============================================
 
 # Criptos que usam EVM (Ethereum Virtual Machine)
+# IMPORTANTE: cada token tem sua rede específica configurada
+# Exemplo: TRAY é APENAS em Polygon (não existe em outras redes)
+#          USDT existe em múltiplas redes, mas a padrão é Polygon
 EVM_CRYPTOS = {
     'ETH': {'network': 'ethereum', 'native': True},
     'MATIC': {'network': 'polygon', 'native': True},
     'BNB': {'network': 'bsc', 'native': True},
     'AVAX': {'network': 'avalanche', 'native': True},  # C-Chain é EVM
-    'USDT': {'network': 'polygon', 'native': False, 'contract': '0xc2132D05D31c914a87C6611C10748AEb04B58e8F'},
-    'USDC': {'network': 'polygon', 'native': False, 'contract': '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174'},
-    'TRAY': {'network': 'polygon', 'native': False, 'contract': '0x6b62514E925099643abA13B322A62ff6298f8E8A'},
+    'USDT': {'network': 'polygon', 'native': False, 'contract': '0xc2132D05D31c914a87C6611C10748AEb04B58e8F'},  # Rede padrão: Polygon
+    'USDC': {'network': 'polygon', 'native': False, 'contract': '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174'},  # Rede padrão: Polygon
+    'TRAY': {'network': 'polygon', 'native': False, 'contract': '0x6b62514E925099643abA13B322A62ff6298f8E8A'},  # TRAY APENAS em Polygon (token de DEX)
     'LINK': {'network': 'ethereum', 'native': False, 'contract': '0x514910771AF9Ca656af840dff83E8264EcF986CA'},
     'SHIB': {'network': 'ethereum', 'native': False, 'contract': '0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE'},
     'BASE': {'network': 'base', 'native': True},

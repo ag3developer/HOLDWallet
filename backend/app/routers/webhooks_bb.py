@@ -6,7 +6,24 @@ Router para receber notificações de pagamentos PIX do Banco do Brasil.
 
 Endpoints:
 - POST /webhooks/bb/pix - Recebe notificação de pagamento
-- GET /webhooks/bb/pix - Health check (BB faz GET para validar URL)
+- GET /webhooks/bb/pix - Health check (BB faz GET p            # Importa serviço de blockchain
+            from app.services.multi_chain_service import multi_chain_service
+            
+            # Determina rede correta para o símbolo
+            # Importante: cada token tem sua rede específica configurada
+            symbol = str(trade.symbol).upper()
+            
+            # Se trade não tem rede, usar a rede padrão do símbolo
+            if trade.network:
+                network = trade.network
+            else:
+                # Buscar rede padrão para este símbolo
+                network = multi_chain_service.get_network_for_symbol(symbol)
+                if not network or network == 'unknown':
+                    # Fallback para polygon se símbolo não encontrado
+                    network = "polygon"
+            
+            logger.info(f"📤 Enviando {trade.crypto_amount} {symbol} para {trade.wallet_address} via {network}")idar URL)
 - GET /webhooks/bb/status - Status do webhook
 
 Author: GitHub Copilot para WOLK NOW
