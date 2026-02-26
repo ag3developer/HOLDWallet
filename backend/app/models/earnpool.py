@@ -415,7 +415,7 @@ class EarnPoolRevenuePool(Base):
     # Receitas por fonte (em USDT)
     revenue_wolkpay = Column(Numeric(18, 2), default=0)         # Taxas WolkPay
     revenue_instant_trade = Column(Numeric(18, 2), default=0)   # Taxas Trade Instantâneo
-    revenue_bills = Column(Numeric(18, 2), default=0)           # Taxas Boletos
+    revenue_bills = Column(Numeric(18, 2), default=0)           # Taxas de Boletos
     revenue_other = Column(Numeric(18, 2), default=0)           # Outras taxas
     
     # Total
@@ -518,4 +518,122 @@ class EarnPoolCooperatorDistribution(Base):
     __table_args__ = (
         Index('ix_earnpool_coop_dist_user', 'user_id'),
         Index('ix_earnpool_coop_dist_tier', 'tier_distribution_id'),
+    )
+
+
+# ============================================================================
+# VIRTUAL CREDITS & PERFORMANCE FEES
+# ============================================================================
+
+class EarnPoolVirtualCredit(Base):
+    """
+    Crédito Virtual Administrativo
+    
+    Quando um investidor não foi processado automaticamente no sistema
+    (ex: 2.779 USDT do seu caso), o admin pode creditar manualmente.
+    
+    Funciona como um depósito virtual:
+    - Usuário recebe crédito de USDT no pool
+    - Participa dos rendimentos semanais
+    - Pode solicitar saque como normal
+    
+    Diferenças vs depósito normal:
+    - Sem blockchain (é virtual)
+    - Criado manualmente pelo admin
+    - Pode ter motivo/notas explicando a origem
+    """
+    __tablename__ = "earnpool_virtual_credits"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    
+    # Relacionamentos
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
+    
+    # Crédito
+    usdt_amount = Column(Numeric(18, 2), nullable=False)           # Valor creditado
+    reason = Column(String(100), nullable=False)                   # Ex: "INVESTOR_CORRECTION", "MISSING_DEPOSIT"
+    reason_details = Column(Text, nullable=True)                   # Detalhes da razão
+    
+    # Rendimentos acumulados
+    total_yield_earned = Column(Numeric(18, 8), nullable=False, default=0)
+    
+    # Datas
+    credited_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    last_yield_at = Column(DateTime, nullable=True)
+    
+    # Status
+    is_active = Column(Boolean, default=True)                      # Se está gerando rendimentos
+    
+    # Auditoria
+    credited_by_admin_id = Column(UUID(as_uuid=True), nullable=False)      # Admin que creditou
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, onupdate=lambda: datetime.now(timezone.utc))
+    notes = Column(Text, nullable=True)
+
+    # Relacionamentos
+    user = relationship("User", backref="earnpool_virtual_credits")
+
+    __table_args__ = (
+        Index('ix_earnpool_vc_user', 'user_id'),
+        Index('ix_earnpool_vc_active', 'is_active'),
+        CheckConstraint('usdt_amount > 0', name='ck_vc_amount_positive'),
+    )
+
+
+class EarnPoolPerformanceFee(Base):
+    """
+    Taxa de Performance do Investidor
+    
+    Admin pode pagar uma taxa de performance baseada em % do montante
+    do investidor em custódia, referente a operações passadas.
+    
+    Exemplo:
+    - Investidor depositou: 2.779 USDT
+    - Taxa de performance: 0.35%
+    - Valor pago: 2.779 * 0.35% = 9.73 USDT
+    
+    Funciona como:
+    - Admin define o percentual
+    - Sistema calcula o valor
+    - Cria um "virtual credit" para o investidor
+    - Rastreia tudo para auditoria
+    """
+    __tablename__ = "earnpool_performance_fees"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    
+    # Relacionamentos
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
+    virtual_credit_id = Column(UUID(as_uuid=True), ForeignKey("earnpool_virtual_credits.id"), nullable=True)
+    
+    # Cálculo
+    base_amount_usdt = Column(Numeric(18, 2), nullable=False)      # Montante em custódia
+    performance_percentage = Column(Numeric(5, 2), nullable=False) # Percentual (ex: 0.35)
+    fee_amount_usdt = Column(Numeric(18, 8), nullable=False)       # Valor calculado
+    
+    # Período (operações passadas)
+    period_description = Column(String(100), nullable=False)       # Ex: "2024-2025" ou "Operações Passadas"
+    period_start = Column(DateTime, nullable=True)
+    period_end = Column(DateTime, nullable=True)
+    
+    # Status
+    status = Column(String(20), default="CALCULATED")              # CALCULATED, CREDITED, PAID_OUT
+    
+    # Pagamento
+    credited_at = Column(DateTime, nullable=True)                  # Quando foi creditado
+    
+    # Auditoria
+    created_by_admin_id = Column(UUID(as_uuid=True), nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, onupdate=lambda: datetime.now(timezone.utc))
+    notes = Column(Text, nullable=True)
+
+    # Relacionamentos
+    user = relationship("User", backref="earnpool_performance_fees")
+    virtual_credit = relationship("EarnPoolVirtualCredit", backref="performance_fees")
+
+    __table_args__ = (
+        Index('ix_earnpool_pf_user', 'user_id'),
+        Index('ix_earnpool_pf_status', 'status'),
+        CheckConstraint('fee_amount_usdt > 0', name='ck_pf_amount_positive'),
     )

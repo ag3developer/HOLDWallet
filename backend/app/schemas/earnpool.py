@@ -372,3 +372,58 @@ class ProcessYieldsResponse(BaseModel):
     effective_yield_percentage: Decimal
     distributions_count: int
     status: YieldStatusEnum
+
+
+# ============================================================================
+# VIRTUAL CREDITS & PERFORMANCE FEES SCHEMAS
+# ============================================================================
+
+class VirtualCreditCreateRequest(BaseModel):
+    """Criar crédito virtual administrativo"""
+    user_id: str = Field(..., description="ID do usuário")
+    usdt_amount: Decimal = Field(..., gt=0, description="Valor em USDT a creditar")
+    reason: str = Field(..., description="Motivo: INVESTOR_CORRECTION, MISSING_DEPOSIT, OTHER")
+    reason_details: Optional[str] = Field(None, description="Detalhes da razão")
+    notes: Optional[str] = Field(None, description="Notas internas")
+
+
+class VirtualCreditResponse(BaseModel):
+    """Resposta de crédito virtual"""
+    id: str
+    user_id: str
+    usdt_amount: Decimal
+    reason: str
+    reason_details: Optional[str]
+    total_yield_earned: Decimal
+    credited_at: datetime
+    is_active: bool
+    credited_by_admin_id: str
+    notes: Optional[str]
+    
+    @field_validator('id', 'user_id', 'credited_by_admin_id', mode='before')
+    @classmethod
+    def convert_uuid_to_str(cls, v: Any) -> str:
+        if isinstance(v, UUID):
+            return str(v)
+        return v
+    
+    class Config:
+        from_attributes = True
+
+
+class PerformanceFeeCalculateRequest(BaseModel):
+    """Calcular e creditar taxa de performance"""
+    user_id: str = Field(..., description="ID do usuário")
+    base_amount_usdt: Decimal = Field(..., gt=0, description="Montante em custódia (USDT)")
+    performance_percentage: Decimal = Field(..., gt=0, le=100, description="Percentual de taxa (ex: 0.35)")
+    period_description: str = Field(..., description="Período (ex: '2024-2025' ou 'Operações Passadas')")
+    notes: Optional[str] = Field(None, description="Notas internas")
+
+
+class PerformanceFeeResponse(BaseModel):
+    """Resposta de taxa de performance"""
+    id: str
+    user_id: str
+    base_amount_usdt: Decimal
+    performance_percentage: Decimal
+    fee_amount_usdt: Decimal

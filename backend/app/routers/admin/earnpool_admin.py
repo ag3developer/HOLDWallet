@@ -27,7 +27,9 @@ from app.schemas.earnpool import (
     EarnPoolConfigResponse, EarnPoolConfigUpdate,
     DepositResponse, WithdrawalResponse,
     AdminPoolOverviewResponse, AdminDepositListResponse,
-    AdminWithdrawalApproveRequest, ProcessYieldsRequest, ProcessYieldsResponse
+    AdminWithdrawalApproveRequest, ProcessYieldsRequest, ProcessYieldsResponse,
+    VirtualCreditCreateRequest, VirtualCreditResponse,
+    PerformanceFeeCalculateRequest, PerformanceFeeResponse
 )
 
 router = APIRouter(prefix="/admin/earnpool", tags=["Admin - EarnPool"])
@@ -428,3 +430,116 @@ async def get_statistics(
             for uid, t in top_depositors
         ]
     }
+
+
+# ============================================================================
+# VIRTUAL CREDITS & PERFORMANCE FEES (NEW)
+# ============================================================================
+
+@router.post("/investor/virtual-credit")
+async def create_investor_virtual_credit(
+    request: VirtualCreditCreateRequest,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin)
+):
+    """
+    Criar crédito virtual para um investidor que não foi processado automaticamente.
+    
+    Exemplo de uso:
+    - Investidor depositou 2.779 USDT mas o sistema não processou automaticamente
+    - Admin cria um crédito virtual para registrar o valor no pool
+    - Investidor passa a gerar rendimentos normalmente
+    
+    Request:
+    {
+        "user_id": "uuid-do-usuario",
+        "usdt_amount": 2779.00,
+        "reason": "INVESTOR_CORRECTION",
+        "reason_details": "Investidor que entrou por fora do sistema automático",
+        "notes": "Referência de contato: João Silva"
+    }
+    """
+    service = get_earnpool_service(db)
+    
+    try:
+        virtual_credit, message = service.create_virtual_credit(
+            user_id=request.user_id,
+            usdt_amount=request.usdt_amount,
+            reason=request.reason,
+            admin_id=str(admin.id),
+            reason_details=request.reason_details,
+            notes=request.notes
+        )
+        
+        logger.info(f"💰 Investor virtual credit created: ${request.usdt_amount} for user {request.user_id}")
+        
+        return {
+            "success": True,
+            "message": message,
+            "virtual_credit": VirtualCreditResponse.from_orm(virtual_credit)
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error creating virtual credit: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/investor/performance-fee")
+async def create_investor_performance_fee(
+    request: PerformanceFeeCalculateRequest,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin)
+):
+    """
+    Calcular e creditar taxa de performance para um investidor.
+    
+    Paga performance sobre operações passadas baseado em % do montante em custódia.
+    Cria automaticamente um virtual credit com o valor calculado.
+    
+    Exemplo de uso:
+    - Investidor em custódia: 2.779 USDT
+    - Taxa de performance: 0.35%
+    - Valor pago: 2.779 * 0.35% = 9.73 USDT
+    - Sistema cria virtual credit de 9.73 USDT para o investidor
+    
+    Request:
+    {
+        "user_id": "uuid-do-usuario",
+        "base_amount_usdt": 2779.00,
+        "performance_percentage": 0.35,
+        "period_description": "Operações Passadas 2024",
+        "notes": "Primeira distribuição de performance"
+    }
+    """
+    service = get_earnpool_service(db)
+    
+    try:
+        performance_fee, virtual_credit, total_credited = service.create_performance_fee(
+            user_id=request.user_id,
+            base_amount_usdt=request.base_amount_usdt,
+            performance_percentage=request.performance_percentage,
+            period_description=request.period_description,
+            admin_id=str(admin.id),
+            notes=request.notes,
+            auto_credit=True  # Criar virtual credit automaticamente
+        )
+        
+        logger.info(
+            f"💰 Performance fee calculated: ${performance_fee.fee_amount_usdt} "
+            f"({request.performance_percentage}% of ${request.base_amount_usdt}) "
+            f"for user {request.user_id}"
+        )
+        
+        return {
+            "success": True,
+            "message": f"Taxa de performance de ${performance_fee.fee_amount_usdt} USDT calculada e creditada",
+            "performance_fee": PerformanceFeeResponse.from_orm(performance_fee),
+            "virtual_credit": VirtualCreditResponse.from_orm(virtual_credit) if virtual_credit else None,
+            "total_credited_usdt": float(total_credited)
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error creating performance fee: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
