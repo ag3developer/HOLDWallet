@@ -597,3 +597,109 @@ async def force_enable_2fa(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error forcing 2FA requirement: {str(e)}"
         )
+
+
+# ============== API Protection / IP Block Management ==============
+
+class MiddlewareBlockedIP(BaseModel):
+    ip_address: str
+    blocked_until: str
+    reason: str
+    violations: int
+
+
+class MiddlewareBlocksResponse(BaseModel):
+    blocked_ips: List[MiddlewareBlockedIP]
+    total: int
+
+
+@router.get("/middleware/blocked-ips", response_model=MiddlewareBlocksResponse)
+async def get_middleware_blocked_ips(
+    current_admin: User = Depends(get_current_admin)
+):
+    """Get list of IPs blocked by the API protection middleware"""
+    try:
+        from app.middleware.api_protection import APIProtectionMiddleware
+        
+        blocked = APIProtectionMiddleware.get_blocked_ips()
+        
+        blocked_list = [
+            MiddlewareBlockedIP(
+                ip_address=ip,
+                blocked_until=details["blocked_until"],
+                reason=details["reason"],
+                violations=details["violations"]
+            )
+            for ip, details in blocked.items()
+        ]
+        
+        return MiddlewareBlocksResponse(
+            blocked_ips=blocked_list,
+            total=len(blocked_list)
+        )
+        
+    except Exception as e:
+        logger.error(f"Error getting middleware blocks: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error getting blocked IPs: {str(e)}"
+        )
+
+
+@router.delete("/middleware/blocked-ips/{ip_address}")
+async def unblock_middleware_ip(
+    ip_address: str,
+    current_admin: User = Depends(get_current_admin)
+):
+    """Unblock an IP from the API protection middleware"""
+    try:
+        from app.middleware.api_protection import APIProtectionMiddleware
+        
+        # Decode IP (may have dots encoded)
+        ip_to_unblock = ip_address.replace("%2E", ".").replace("%3A", ":")
+        
+        unblocked = APIProtectionMiddleware.unblock_ip(ip_to_unblock)
+        
+        if unblocked:
+            logger.info(f"Admin {current_admin.email} unblocked IP {ip_to_unblock} from middleware")
+            return ActionResponse(
+                success=True,
+                message=f"IP {ip_to_unblock} unblocked successfully"
+            )
+        else:
+            return ActionResponse(
+                success=False,
+                message=f"IP {ip_to_unblock} was not blocked"
+            )
+        
+    except Exception as e:
+        logger.error(f"Error unblocking IP: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error unblocking IP: {str(e)}"
+        )
+
+
+@router.delete("/middleware/blocked-ips")
+async def clear_all_middleware_blocks(
+    current_admin: User = Depends(get_current_admin)
+):
+    """Clear ALL IP blocks from the middleware (use with caution)"""
+    try:
+        from app.middleware.api_protection import APIProtectionMiddleware
+        
+        APIProtectionMiddleware.clear_all_blocks()
+        
+        logger.warning(f"Admin {current_admin.email} cleared ALL middleware IP blocks")
+        
+        return ActionResponse(
+            success=True,
+            message="All middleware IP blocks cleared"
+        )
+        
+    except Exception as e:
+        logger.error(f"Error clearing blocks: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error clearing blocks: {str(e)}"
+        )

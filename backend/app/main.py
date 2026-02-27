@@ -22,7 +22,7 @@ from app.services.platform_settings_service import platform_settings_service
 
 # Security middleware
 from app.middleware.security import SecurityMiddleware, RateLimitMiddleware
-from app.middleware.api_protection import APIProtectionMiddleware, AdminRouteProtection
+from app.middleware.api_protection import APIProtectionMiddleware, AdminRouteProtection, WalletProtectionMiddleware
 from app.middleware.mandatory_2fa import Mandatory2FAMiddleware, TransactionValueMiddleware
 
 # Routers
@@ -121,6 +121,9 @@ app.add_middleware(RateLimitMiddleware)
 # Add API protection middleware (blocks scripts, bots, and protects /docs)
 app.add_middleware(APIProtectionMiddleware)
 app.add_middleware(AdminRouteProtection)
+
+# Add wallet protection middleware (detects suspicious IPs and forces logout)
+app.add_middleware(WalletProtectionMiddleware)
 
 # Add mandatory 2FA for admin operations and high-value transactions
 app.add_middleware(Mandatory2FAMiddleware)

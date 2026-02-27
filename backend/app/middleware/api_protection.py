@@ -28,12 +28,55 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 
+# ============================================================================
+# UTILITY FUNCTIONS (compartilhadas entre middlewares)
+# ============================================================================
+
+def get_client_ip(request: Request) -> str:
+    """
+    Obtém o IP real do cliente (suporta Cloudflare, proxies, nginx, etc).
+    Função compartilhada entre todos os middlewares.
+    """
+    # Cloudflare - CF-Connecting-IP é o mais confiável
+    cf_connecting_ip = request.headers.get("CF-Connecting-IP")
+    if cf_connecting_ip:
+        return cf_connecting_ip.strip()
+    
+    # True-Client-IP (usado por alguns CDNs)
+    true_client_ip = request.headers.get("True-Client-IP")
+    if true_client_ip:
+        return true_client_ip.strip()
+    
+    # X-Forwarded-For (proxy padrão)
+    forwarded_for = request.headers.get("X-Forwarded-For")
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+    
+    # X-Real-IP (nginx)
+    real_ip = request.headers.get("X-Real-IP")
+    if real_ip:
+        return real_ip.strip()
+    
+    if request.client:
+        return request.client.host
+    return "unknown"
+
+
+# ============================================================================
+# MIDDLEWARES
+# ============================================================================
+
 class APIProtectionMiddleware(BaseHTTPMiddleware):
     """
-    Middleware avançado de proteção da API contra scripts e automação maliciosa.
+    Middleware de proteção da API - FOCO EM ROTAS ADMIN.
+    
+    Para usuários normais: Apenas rate limit básico
+    Para admin: Proteção completa (User-Agent, automação, bloqueio)
+    
+    A proteção de wallet é feita pelo WalletProtectionMiddleware.
     """
     
-    # User-Agents suspeitos (bibliotecas de automação)
+    # User-Agents suspeitos (bibliotecas de automação) - APENAS PARA ADMIN
     BLOCKED_USER_AGENTS = [
         r'python-requests',
         r'python-urllib',
@@ -76,18 +119,28 @@ class APIProtectionMiddleware(BaseHTTPMiddleware):
     
     # Rotas de autenticação que precisam funcionar sem bloqueio
     AUTH_ROUTES = [
-        '/auth/login',
-        '/auth/register',
-        '/auth/refresh',
-        '/auth/logout',
-        '/auth/2fa/',
-        '/auth/webauthn/',       # Biometria/WebAuthn
-        '/api/auth/login',
-        '/api/auth/register',
-        '/api/auth/refresh',
-        '/api/auth/logout',
-        '/api/auth/2fa/',
-        '/api/auth/webauthn/',   # Biometria/WebAuthn
+        '/auth/',
+        '/api/auth/',
+        '/v1/auth/',
+    ]
+    
+    # Rotas que precisam de auth mas não devem ser bloqueadas agressivamente
+    PROTECTED_APP_ROUTES = [
+        '/wallets/',
+        '/v1/wallets/',
+        '/api/wallets/',
+        '/earnpool/',
+        '/v1/earnpool/',
+        '/api/earnpool/',
+        '/transactions/',
+        '/v1/transactions/',
+        '/api/transactions/',
+        '/user/',
+        '/v1/user/',
+        '/api/user/',
+        '/prices/',
+        '/v1/prices/',
+        '/api/prices/',
     ]
     
     # IPs de desenvolvimento que ignoram todas as proteções
@@ -108,6 +161,7 @@ class APIProtectionMiddleware(BaseHTTPMiddleware):
     # Cache de requisições por IP (para detecção de automação)
     _request_history: Dict[str, List[float]] = defaultdict(list)
     _blocked_ips: Dict[str, datetime] = {}
+    _blocked_reasons: Dict[str, str] = {}  # Motivo do bloqueio por IP
     _suspicious_ips: Dict[str, int] = defaultdict(int)
     
     # Configurações
@@ -148,14 +202,32 @@ class APIProtectionMiddleware(BaseHTTPMiddleware):
             self._record_request(ip_address)
             return await call_next(request)
         
+        # 0.2 Rotas protegidas do app (wallets, earnpool, etc) - proteção reduzida
+        if self._is_protected_app_route(path):
+            # Apenas verifica rate limit básico, não bloqueia por User-Agent
+            if self._check_rate_limit(ip_address):
+                return JSONResponse(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    content={
+                        "detail": "Too many requests. Please slow down.",
+                        "code": "RATE_LIMIT_EXCEEDED",
+                        "retry_after": 60
+                    },
+                    headers={"Retry-After": "60"}
+                )
+            self._record_request(ip_address)
+            return await call_next(request)
+        
         # 1. Verificar se IP está bloqueado temporariamente
         if self._is_ip_blocked(ip_address):
-            logger.warning(f"🚫 Blocked IP {ip_address} attempted access to {path}")
+            block_reason = self._get_block_reason(ip_address)
+            logger.warning(f"🚫 Blocked IP {ip_address} attempted access to {path} - Reason: {block_reason}")
             return JSONResponse(
                 status_code=status.HTTP_403_FORBIDDEN,
                 content={
-                    "detail": "Access temporarily blocked due to suspicious activity",
-                    "code": "IP_BLOCKED"
+                    "detail": f"Access temporarily blocked: {block_reason}",
+                    "code": "IP_BLOCKED",
+                    "blocked_until": self._blocked_ips.get(ip_address, datetime.now(timezone.utc)).isoformat() if ip_address in self._blocked_ips else None
                 }
             )
         
@@ -238,30 +310,8 @@ class APIProtectionMiddleware(BaseHTTPMiddleware):
             raise  # Re-raise para que o framework lide corretamente
     
     def _get_client_ip(self, request: Request) -> str:
-        """Obtém o IP real do cliente (suporta Cloudflare, proxies, etc)."""
-        # Cloudflare - CF-Connecting-IP é o mais confiável
-        cf_connecting_ip = request.headers.get("CF-Connecting-IP")
-        if cf_connecting_ip:
-            return cf_connecting_ip.strip()
-        
-        # True-Client-IP (usado por alguns CDNs)
-        true_client_ip = request.headers.get("True-Client-IP")
-        if true_client_ip:
-            return true_client_ip.strip()
-        
-        # X-Forwarded-For (proxy padrão)
-        forwarded_for = request.headers.get("X-Forwarded-For")
-        if forwarded_for:
-            return forwarded_for.split(",")[0].strip()
-        
-        # X-Real-IP (nginx)
-        real_ip = request.headers.get("X-Real-IP")
-        if real_ip:
-            return real_ip.strip()
-        
-        if request.client:
-            return request.client.host
-        return "unknown"
+        """Wrapper para função compartilhada."""
+        return get_client_ip(request)
     
     def _is_public_route(self, path: str) -> bool:
         """Verifica se a rota é pública."""
@@ -270,6 +320,10 @@ class APIProtectionMiddleware(BaseHTTPMiddleware):
     def _is_auth_route(self, path: str) -> bool:
         """Verifica se a rota é de autenticação (proteção reduzida)."""
         return any(path.startswith(route) for route in self.AUTH_ROUTES)
+    
+    def _is_protected_app_route(self, path: str) -> bool:
+        """Verifica se a rota é do app (wallets, earnpool, etc) - proteção reduzida."""
+        return any(path.startswith(route) for route in self.PROTECTED_APP_ROUTES)
     
     def _is_dev_only_route(self, path: str) -> bool:
         """Verifica se a rota é apenas para desenvolvimento."""
@@ -314,7 +368,13 @@ class APIProtectionMiddleware(BaseHTTPMiddleware):
             else:
                 # Desbloquear após tempo expirar
                 del self._blocked_ips[ip_address]
+                if ip_address in self._blocked_reasons:
+                    del self._blocked_reasons[ip_address]
         return False
+    
+    def _get_block_reason(self, ip_address: str) -> str:
+        """Retorna o motivo do bloqueio de um IP."""
+        return self._blocked_reasons.get(ip_address, "Multiple suspicious activities detected")
     
     def _record_request(self, ip_address: str):
         """Registra uma requisição para o IP."""
@@ -360,7 +420,17 @@ class APIProtectionMiddleware(BaseHTTPMiddleware):
         if self._suspicious_ips[ip_address] >= self.SUSPICIOUS_THRESHOLD:
             block_until = datetime.now(timezone.utc) + timedelta(minutes=self.BLOCK_DURATION_MINUTES)
             self._blocked_ips[ip_address] = block_until
-            logger.error(f"🚫 IP {ip_address} BLOCKED until {block_until}")
+            
+            # Salvar o motivo do bloqueio
+            reason_map = {
+                "suspicious_user_agent": "Automated tool detected",
+                "missing_user_agent": "Invalid request headers",
+                "rate_limit_exceeded": "Too many requests",
+                "automation_detected": "Automation pattern detected",
+            }
+            self._blocked_reasons[ip_address] = reason_map.get(activity_type, activity_type)
+            
+            logger.error(f"🚫 IP {ip_address} BLOCKED until {block_until} - Reason: {self._blocked_reasons[ip_address]}")
             
             # Registrar no banco de dados (opcional)
             self._log_block_to_database(ip_address, activity_type, details)
@@ -380,6 +450,50 @@ class APIProtectionMiddleware(BaseHTTPMiddleware):
                 db.close()
         except Exception as e:
             logger.error(f"Failed to log block to database: {e}")
+    
+    @classmethod
+    def unblock_ip(cls, ip_address: str) -> bool:
+        """Desbloqueia um IP manualmente (para uso admin)."""
+        unblocked = False
+        
+        if ip_address in cls._blocked_ips:
+            del cls._blocked_ips[ip_address]
+            unblocked = True
+            
+        if ip_address in cls._blocked_reasons:
+            del cls._blocked_reasons[ip_address]
+            
+        if ip_address in cls._suspicious_ips:
+            del cls._suspicious_ips[ip_address]
+            
+        if ip_address in cls._request_history:
+            del cls._request_history[ip_address]
+        
+        if unblocked:
+            logger.info(f"✅ IP {ip_address} unblocked manually")
+        
+        return unblocked
+    
+    @classmethod
+    def get_blocked_ips(cls) -> Dict[str, dict]:
+        """Retorna lista de IPs bloqueados com detalhes."""
+        result = {}
+        for ip, blocked_until in cls._blocked_ips.items():
+            result[ip] = {
+                "blocked_until": blocked_until.isoformat(),
+                "reason": cls._blocked_reasons.get(ip, "Unknown"),
+                "violations": cls._suspicious_ips.get(ip, 0)
+            }
+        return result
+    
+    @classmethod
+    def clear_all_blocks(cls):
+        """Limpa todos os bloqueios (usar com cuidado)."""
+        cls._blocked_ips.clear()
+        cls._blocked_reasons.clear()
+        cls._suspicious_ips.clear()
+        cls._request_history.clear()
+        logger.warning("⚠️ All IP blocks cleared manually")
 
 
 class AdminRouteProtection(BaseHTTPMiddleware):
@@ -425,15 +539,8 @@ class AdminRouteProtection(BaseHTTPMiddleware):
             raise  # Re-raise para que o framework lide corretamente
     
     def _get_client_ip(self, request: Request) -> str:
-        forwarded_for = request.headers.get("X-Forwarded-For")
-        if forwarded_for:
-            return forwarded_for.split(",")[0].strip()
-        real_ip = request.headers.get("X-Real-IP")
-        if real_ip:
-            return real_ip.strip()
-        if request.client:
-            return request.client.host
-        return "unknown"
+        """Wrapper para função compartilhada."""
+        return get_client_ip(request)
     
     def _is_brazilian_ip(self, ip_address: str) -> bool:
         """Verifica se o IP é brasileiro."""
@@ -539,3 +646,264 @@ class RequestSignatureMiddleware(BaseHTTPMiddleware):
             return hmac.compare_digest(signature, expected_signature)
         except Exception:
             return False
+
+
+class WalletProtectionMiddleware(BaseHTTPMiddleware):
+    """
+    Middleware de proteção de wallet - Detecta IPs suspeitos e força logout.
+    
+    Funcionalidades:
+    1. Verifica se o IP atual é diferente dos IPs conhecidos do usuário
+    2. Gera alerta de segurança para IPs novos
+    3. Força logout se detectar mudança drástica de localização
+    """
+    
+    # Rotas de wallet que precisam de proteção
+    WALLET_ROUTES = [
+        '/wallets/',
+        '/v1/wallets/',
+        '/api/wallets/',
+    ]
+    
+    # Rotas sensíveis que exigem verificação extra (envio de saldo)
+    SENSITIVE_WALLET_ROUTES = [
+        '/wallets/send',
+        '/wallets/withdraw',
+        '/wallets/transfer',
+        '/v1/wallets/send',
+        '/v1/wallets/withdraw',
+        '/v1/wallets/transfer',
+    ]
+    
+    # Cache de IPs conhecidos por usuário (em produção usar Redis)
+    _user_known_ips: Dict[str, Set[str]] = defaultdict(set)
+    _user_last_ip: Dict[str, str] = {}
+    _user_ip_countries: Dict[str, Set[str]] = defaultdict(set)
+    
+    async def dispatch(self, request: Request, call_next):
+        path = request.url.path
+        
+        # Só verificar rotas de wallet
+        if not any(path.startswith(route) for route in self.WALLET_ROUTES):
+            return await call_next(request)
+        
+        # Obter IP e token do usuário
+        ip_address = self._get_client_ip(request)
+        auth_header = request.headers.get("Authorization", "")
+        
+        # Se não tem auth, deixa passar (vai falhar no endpoint)
+        if not auth_header.startswith("Bearer "):
+            return await call_next(request)
+        
+        token = auth_header.replace("Bearer ", "")
+        
+        # Extrair user_id do token (sem validar - só para cache)
+        user_id = self._extract_user_id_from_token(token)
+        if not user_id:
+            return await call_next(request)
+        
+        # Verificar se é rota sensível (envio de saldo)
+        is_sensitive = any(path.startswith(route) for route in self.SENSITIVE_WALLET_ROUTES)
+        
+        # Verificar se IP é suspeito para este usuário
+        ip_status = self._check_ip_status(user_id, ip_address)
+        
+        if ip_status == "new_ip":
+            # IP novo - registrar e gerar alerta
+            self._register_new_ip(user_id, ip_address)
+            self._create_security_alert(user_id, ip_address, "new_ip", path)
+            logger.info(f"🆕 New IP {ip_address} for user {user_id[:8]}... - Alert created")
+            
+        elif ip_status == "suspicious_location":
+            # Mudança drástica de localização - FORÇAR LOGOUT
+            if is_sensitive:
+                self._force_logout(user_id, ip_address, "suspicious_location_change")
+                logger.warning(f"🚨 FORCED LOGOUT for user {user_id[:8]}... - Suspicious location change to {ip_address}")
+                return JSONResponse(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    content={
+                        "detail": "Session terminated for security. Please login again.",
+                        "code": "SUSPICIOUS_LOCATION",
+                        "logout_reason": "suspicious_location_change"
+                    }
+                )
+            else:
+                # Para rotas não sensíveis, apenas alertar
+                self._create_security_alert(user_id, ip_address, "suspicious_location", path)
+        
+        # Atualizar último IP
+        self._user_last_ip[user_id] = ip_address
+        
+        return await call_next(request)
+    
+    def _get_client_ip(self, request: Request) -> str:
+        """Wrapper para função compartilhada."""
+        return get_client_ip(request)
+    
+    def _extract_user_id_from_token(self, token: str) -> Optional[str]:
+        """Extrai user_id do JWT sem validar (apenas para cache)."""
+        try:
+            import base64
+            parts = token.split(".")
+            if len(parts) != 3:
+                return None
+            
+            # Decodificar payload (parte 2)
+            payload_b64 = parts[1]
+            # Adicionar padding se necessário
+            padding = 4 - len(payload_b64) % 4
+            if padding != 4:
+                payload_b64 += "=" * padding
+            
+            payload_json = base64.urlsafe_b64decode(payload_b64)
+            payload = json.loads(payload_json)
+            
+            return payload.get("sub") or payload.get("user_id")
+        except Exception:
+            return None
+    
+    def _check_ip_status(self, user_id: str, ip_address: str) -> str:
+        """Verifica o status do IP para o usuário."""
+        known_ips = self._user_known_ips.get(user_id, set())
+        
+        # IP já conhecido - OK
+        if ip_address in known_ips:
+            return "known"
+        
+        # Primeiro acesso do usuário - registrar como conhecido
+        if not known_ips:
+            return "first_access"
+        
+        # IP novo - verificar se é mudança drástica
+        last_ip = self._user_last_ip.get(user_id)
+        if last_ip:
+            # Verificar se mudou de país/região (baseado no prefixo do IP)
+            if self._is_drastic_location_change(last_ip, ip_address):
+                return "suspicious_location"
+        
+        return "new_ip"
+    
+    def _is_drastic_location_change(self, old_ip: str, new_ip: str) -> bool:
+        """Verifica se houve mudança drástica de localização."""
+        # Extrair prefixo do IP (primeiros 2 octetos para IPv4)
+        try:
+            old_prefix = ".".join(old_ip.split(".")[:2])
+            new_prefix = ".".join(new_ip.split(".")[:2])
+            
+            # Se os prefixos são muito diferentes, pode ser mudança de país
+            # Exemplos de prefixos brasileiros: 177., 179., 186., 187., 189., 200., 201.
+            brazil_prefixes = ["177", "179", "181", "186", "187", "189", "190", "191", "200", "201"]
+            
+            old_is_brazil = old_prefix.split(".")[0] in brazil_prefixes
+            new_is_brazil = new_prefix.split(".")[0] in brazil_prefixes
+            
+            # Se mudou de Brasil para fora ou vice-versa = suspeito
+            if old_is_brazil != new_is_brazil:
+                return True
+            
+            return False
+        except Exception:
+            return False
+    
+    def _register_new_ip(self, user_id: str, ip_address: str):
+        """Registra um novo IP para o usuário."""
+        self._user_known_ips[user_id].add(ip_address)
+        
+        # Limitar número de IPs conhecidos (máximo 20)
+        if len(self._user_known_ips[user_id]) > 20:
+            # Remover o mais antigo (converter para lista, remover primeiro, converter de volta)
+            ips_list = list(self._user_known_ips[user_id])
+            ips_list.pop(0)
+            self._user_known_ips[user_id] = set(ips_list)
+    
+    def _create_security_alert(self, user_id: str, ip_address: str, alert_type: str, path: str):
+        """Cria um alerta de segurança no banco de dados."""
+        try:
+            db = SessionLocal()
+            try:
+                from app.models.security import SecurityAlert
+                from uuid import UUID
+                
+                alert = SecurityAlert(
+                    user_id=UUID(user_id),
+                    alert_type=alert_type,
+                    severity="medium" if alert_type == "new_ip" else "high",
+                    message=f"Access from {'new' if alert_type == 'new_ip' else 'suspicious'} IP: {ip_address}",
+                    ip_address=ip_address,
+                    extra_data={"path": path, "timestamp": datetime.now(timezone.utc).isoformat()},
+                    is_resolved=False
+                )
+                db.add(alert)
+                db.commit()
+                
+                logger.info(f"🔔 Security alert created for user {user_id[:8]}...: {alert_type}")
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"Failed to create security alert: {e}")
+    
+    def _force_logout(self, user_id: str, ip_address: str, reason: str):
+        """Força logout do usuário invalidando todas as sessões."""
+        try:
+            db = SessionLocal()
+            try:
+                from app.models.security import UserSession
+                from uuid import UUID
+                
+                # Invalidar todas as sessões do usuário
+                db.query(UserSession).filter(
+                    UserSession.user_id == UUID(user_id),
+                    UserSession.is_active == True
+                ).update({
+                    "is_active": False,
+                    "logged_out_at": datetime.now(timezone.utc),
+                    "logout_reason": reason
+                })
+                db.commit()
+                
+                # Criar alerta crítico
+                from app.models.security import SecurityAlert
+                alert = SecurityAlert(
+                    user_id=UUID(user_id),
+                    alert_type="forced_logout",
+                    severity="critical",
+                    message=f"All sessions terminated due to suspicious activity from IP: {ip_address}",
+                    ip_address=ip_address,
+                    extra_data={"reason": reason, "timestamp": datetime.now(timezone.utc).isoformat()},
+                    is_resolved=False
+                )
+                db.add(alert)
+                db.commit()
+                
+                logger.warning(f"🚨 FORCED LOGOUT executed for user {user_id[:8]}... - Reason: {reason}")
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"Failed to force logout: {e}")
+    
+    @classmethod
+    def load_user_ips_from_db(cls, user_id: str):
+        """Carrega IPs conhecidos do usuário do banco de dados."""
+        try:
+            db = SessionLocal()
+            try:
+                from app.models.security import UserSession
+                from uuid import UUID
+                
+                sessions = db.query(UserSession).filter(
+                    UserSession.user_id == UUID(user_id)
+                ).all()
+                
+                for session in sessions:
+                    if session.ip_address:
+                        cls._user_known_ips[user_id].add(session.ip_address)
+                
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"Failed to load user IPs: {e}")
+    
+    @classmethod
+    def get_user_known_ips(cls, user_id: str) -> Set[str]:
+        """Retorna IPs conhecidos do usuário."""
+        return cls._user_known_ips.get(user_id, set())
