@@ -196,4 +196,245 @@ class EarnPoolService:
         if usdt_amount < config.min_deposit_usdt:
             raise ValueError(f"Depósito mínimo é ${config.min_deposit_usdt} USDT")
         
-        if config.max_deposit_usd
+        max_deposit = getattr(config, 'max_deposit_usdt', None)
+        if max_deposit is not None and usdt_amount > max_deposit:
+            raise ValueError(f"Depósito máximo é ${max_deposit} USDT")
+
+    # =========================================================================
+    # INVESTOR CREDITS - Virtual Credits & Performance Fees
+    # =========================================================================
+    
+    def create_virtual_credit(
+        self,
+        user_id: str,
+        usdt_amount: Decimal,
+        reason: str,
+        reason_details: Optional[str] = None,
+        notes: Optional[str] = None,
+        admin_id: Optional[str] = None,
+        lock_period_days: int = 365
+    ) -> Tuple:
+        """
+        Cria um crédito virtual para um investidor.
+        Usado para creditar investidores que depositaram fora do sistema.
+        
+        Args:
+            user_id: UUID do investidor
+            usdt_amount: Valor em USDT a creditar
+            reason: Motivo (INVESTOR_CORRECTION, MISSING_DEPOSIT, PERFORMANCE_FEE, OTHER)
+            reason_details: Detalhes adicionais do motivo
+            notes: Notas internas (nome, contato, etc)
+            admin_id: UUID do admin que está criando
+            lock_period_days: Período de bloqueio em dias (180-365)
+            
+        Returns:
+            Tuple (credit_object, message)
+        """
+        from app.models.earnpool import EarnPoolVirtualCredit
+        from datetime import timedelta
+        
+        # Validar que o usuário existe
+        user = self.db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise ValueError(f"Usuário não encontrado: {user_id}")
+        
+        # Calcular data de desbloqueio
+        credited_at = datetime.now(timezone.utc)
+        lock_ends_at = credited_at + timedelta(days=lock_period_days)
+        
+        # Criar crédito virtual
+        credit = EarnPoolVirtualCredit(
+            id=str(uuid.uuid4()),
+            user_id=user_id,
+            usdt_amount=usdt_amount,
+            reason=reason,
+            reason_details=reason_details,
+            notes=notes,
+            credited_by_admin_id=admin_id,
+            is_active=True,
+            total_yield_earned=Decimal("0.00"),
+            credited_at=credited_at,
+            lock_period_days=lock_period_days,
+            lock_ends_at=lock_ends_at,
+            status="LOCKED",
+            yield_withdrawn=Decimal("0.00"),
+            principal_withdrawn=Decimal("0.00")
+        )
+        
+        self.db.add(credit)
+        self.db.commit()
+        self.db.refresh(credit)
+        
+        logger.info(f"✅ Virtual credit created: {credit.id} - {usdt_amount} USDT for user {user_id}")
+        
+        message = f"Crédito virtual de ${usdt_amount} USDT criado com sucesso para o investidor"
+        return (credit, message)
+    
+    def create_performance_fee(
+        self,
+        user_id: str,
+        base_amount_usdt: Decimal,
+        performance_percentage: Decimal,
+        period_description: Optional[str] = None,
+        notes: Optional[str] = None,
+        admin_id: Optional[str] = None,
+        auto_credit: bool = True
+    ) -> dict:
+        """
+        Calcula e cria uma taxa de performance para um investidor.
+        Opcionalmente cria um crédito virtual automaticamente.
+        
+        Args:
+            user_id: UUID do investidor
+            base_amount_usdt: Valor base em USDT
+            performance_percentage: Percentual de performance (ex: 0.35 para 0.35%)
+            period_description: Descrição do período (ex: "Operações Passadas 2024")
+            notes: Notas internas
+            admin_id: UUID do admin
+            auto_credit: Se True, cria crédito virtual automaticamente
+            
+        Returns:
+            Dict com dados da taxa de performance
+        """
+        from app.models.earnpool import EarnPoolPerformanceFee, EarnPoolVirtualCredit
+        
+        # Validar que o usuário existe
+        user = self.db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise ValueError(f"Usuário não encontrado: {user_id}")
+        
+        # Calcular taxa de performance
+        fee_amount = base_amount_usdt * (performance_percentage / Decimal("100"))
+        
+        # Criar registro de performance fee
+        fee = EarnPoolPerformanceFee(
+            id=str(uuid.uuid4()),
+            user_id=user_id,
+            base_amount_usdt=base_amount_usdt,
+            performance_percentage=performance_percentage,
+            fee_amount_usdt=fee_amount,
+            period_description=period_description,
+            notes=notes,
+            status="CREDITED" if auto_credit else "CALCULATED",
+            created_by_admin_id=admin_id,
+            created_at=datetime.now(timezone.utc)
+        )
+        
+        virtual_credit = None
+        
+        # Se auto_credit, criar crédito virtual para a taxa
+        if auto_credit and fee_amount > 0:
+            virtual_credit = EarnPoolVirtualCredit(
+                id=str(uuid.uuid4()),
+                user_id=user_id,
+                usdt_amount=fee_amount,
+                reason="PERFORMANCE_FEE",
+                reason_details=f"Performance fee {performance_percentage}% sobre {base_amount_usdt} USDT",
+                notes=notes,
+                credited_by_admin_id=admin_id,
+                is_active=True,
+                total_yield_earned=Decimal("0.00"),
+                created_at=datetime.now(timezone.utc)
+            )
+            self.db.add(virtual_credit)
+            fee.virtual_credit_id = virtual_credit.id
+        
+        self.db.add(fee)
+        self.db.commit()
+        self.db.refresh(fee)
+        
+        logger.info(f"✅ Performance fee created: {fee.id} - {fee_amount} USDT ({performance_percentage}%) for user {user_id}")
+        
+        result = {
+            "id": fee.id,
+            "user_id": fee.user_id,
+            "base_amount_usdt": float(fee.base_amount_usdt),
+            "performance_percentage": float(fee.performance_percentage),
+            "fee_amount_usdt": float(fee.fee_amount_usdt),
+            "period_description": fee.period_description,
+            "status": fee.status,
+            "created_at": fee.created_at.isoformat() if fee.created_at else None
+        }
+        
+        if virtual_credit:
+            result["virtual_credit_id"] = virtual_credit.id
+            result["virtual_credit_amount"] = float(virtual_credit.usdt_amount)
+        
+        return result
+    
+    def get_investor_credits(self, user_id: str) -> dict:
+        """
+        Retorna todos os créditos de um investidor.
+        
+        Args:
+            user_id: UUID do investidor
+            
+        Returns:
+            Dict com créditos virtuais, taxas de performance e totais
+        """
+        from app.models.earnpool import EarnPoolVirtualCredit, EarnPoolPerformanceFee
+        
+        # Buscar créditos virtuais
+        virtual_credits = self.db.query(EarnPoolVirtualCredit).filter(
+            EarnPoolVirtualCredit.user_id == user_id,
+            EarnPoolVirtualCredit.is_active == True
+        ).all()
+        
+        # Buscar taxas de performance
+        performance_fees = self.db.query(EarnPoolPerformanceFee).filter(
+            EarnPoolPerformanceFee.user_id == user_id
+        ).all()
+        
+        # Calcular totais
+        total_virtual_credits = sum(Decimal(str(c.usdt_amount)) for c in virtual_credits)
+        total_performance_fees = sum(Decimal(str(f.fee_amount_usdt)) for f in performance_fees)
+        total_yield_earned = sum(Decimal(str(c.total_yield_earned or 0)) for c in virtual_credits)
+        
+        return {
+            "user_id": user_id,
+            "virtual_credits": [
+                {
+                    "id": c.id,
+                    "usdt_amount": float(c.usdt_amount),
+                    "reason": c.reason,
+                    "reason_details": c.reason_details,
+                    "total_yield_earned": float(c.total_yield_earned or 0),
+                    "is_active": c.is_active,
+                    "created_at": c.created_at.isoformat() if c.created_at else None
+                }
+                for c in virtual_credits
+            ],
+            "performance_fees": [
+                {
+                    "id": f.id,
+                    "base_amount_usdt": float(f.base_amount_usdt),
+                    "performance_percentage": float(f.performance_percentage),
+                    "fee_amount_usdt": float(f.fee_amount_usdt),
+                    "period_description": f.period_description,
+                    "status": f.status,
+                    "created_at": f.created_at.isoformat() if f.created_at else None
+                }
+                for f in performance_fees
+            ],
+            "total_virtual_credits_usdt": float(total_virtual_credits),
+            "total_performance_fees_usdt": float(total_performance_fees),
+            "total_yield_earned_usdt": float(total_yield_earned),
+            "total_investor_balance_usdt": float(total_virtual_credits + total_performance_fees)
+        }
+
+
+# ============================================================================
+# DEPENDENCY INJECTION
+# ============================================================================
+
+def get_earnpool_service(db: Session) -> EarnPoolService:
+    """
+    Factory function para injeção de dependência do EarnPoolService.
+    
+    Args:
+        db: Sessão do banco de dados
+        
+    Returns:
+        Instância configurada do EarnPoolService
+    """
+    return EarnPoolService(db)

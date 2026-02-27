@@ -20,6 +20,7 @@ from app.core.security import get_current_user
 from app.models.user import User
 from app.models.earnpool import (
     EarnPoolConfig, EarnPoolDeposit, EarnPoolWithdrawal, EarnPoolYield,
+    EarnPoolVirtualCredit, EarnPoolPerformanceFee,
     DepositStatus, WithdrawalStatus, YieldStatus
 )
 from app.services.earnpool_service import get_earnpool_service, EarnPoolService
@@ -28,7 +29,7 @@ from app.schemas.earnpool import (
     DepositResponse, WithdrawalResponse,
     AdminPoolOverviewResponse, AdminDepositListResponse,
     AdminWithdrawalApproveRequest, ProcessYieldsRequest, ProcessYieldsResponse,
-    VirtualCreditCreateRequest, VirtualCreditResponse,
+    VirtualCreditCreateRequest, VirtualCreditResponse, VirtualCreditAdjustRequest,
     PerformanceFeeCalculateRequest, PerformanceFeeResponse
 )
 
@@ -44,6 +45,56 @@ def require_admin(current_user: User = Depends(get_current_user)) -> User:
             detail="Admin access required"
         )
     return current_user
+
+
+# ============================================================================
+# SEARCH USERS (para encontrar UUID)
+# ============================================================================
+
+@router.get("/search-users")
+async def search_users(
+    query: str = Query(None, description="Buscar por email ou username"),
+    limit: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin)
+):
+    """
+    Buscar usuários para encontrar UUID.
+    
+    Útil para admin creditar investidores manualmente.
+    Busca por email ou username (parcial).
+    
+    Returns lista de usuários com id, email, username.
+    """
+    from sqlalchemy import or_
+    
+    users_query = db.query(User)
+    
+    if query and query.strip():
+        search = f"%{query.strip()}%"
+        users_query = users_query.filter(
+            or_(
+                User.email.ilike(search),
+                User.username.ilike(search)
+            )
+        )
+    
+    users = users_query.order_by(User.created_at.desc()).limit(limit).all()
+    
+    return {
+        "success": True,
+        "count": len(users),
+        "users": [
+            {
+                "id": str(u.id),
+                "email": u.email,
+                "username": u.username,
+                "is_active": u.is_active,
+                "created_at": u.created_at.isoformat() if u.created_at else None
+            }
+            for u in users
+        ]
+    }
 
 
 # ============================================================================
@@ -436,6 +487,108 @@ async def get_statistics(
 # VIRTUAL CREDITS & PERFORMANCE FEES (NEW)
 # ============================================================================
 
+@router.get("/investor/{user_id}/credits")
+async def get_investor_credits(
+    user_id: str,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin)
+):
+    """
+    Buscar todos os créditos virtuais e taxas de performance de um investidor.
+    """
+    from app.models.earnpool import EarnPoolVirtualCredit, EarnPoolPerformanceFee
+    
+    # Verificar se usuário existe
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    
+    # Buscar créditos virtuais
+    virtual_credits = db.query(EarnPoolVirtualCredit).filter(
+        EarnPoolVirtualCredit.user_id == user_id
+    ).order_by(EarnPoolVirtualCredit.credited_at.desc()).all()
+    
+    # Buscar taxas de performance
+    performance_fees = db.query(EarnPoolPerformanceFee).filter(
+        EarnPoolPerformanceFee.user_id == user_id
+    ).order_by(EarnPoolPerformanceFee.created_at.desc()).all()
+    
+    # Calcular totais
+    total_virtual_credits = sum(float(vc.usdt_amount) for vc in virtual_credits)
+    total_yield_earned = sum(float(vc.total_yield_earned or 0) for vc in virtual_credits)
+    total_yield_available = sum(float(vc.total_yield_earned or 0) - float(vc.yield_withdrawn or 0) for vc in virtual_credits)
+    total_performance_fees = sum(float(pf.fee_amount_usdt) for pf in performance_fees)
+    
+    # Calcular valores bloqueados vs disponíveis
+    # Usar datetime.now() naive para comparar com lock_ends_at do banco (que pode ser naive)
+    now = datetime.now()
+    
+    def is_locked(vc) -> bool:
+        """Verifica se o crédito está bloqueado, tratando timezones"""
+        if not vc.lock_ends_at:
+            return False
+        lock_ends = vc.lock_ends_at
+        # Se lock_ends_at for aware, converte para naive (UTC)
+        if hasattr(lock_ends, 'tzinfo') and lock_ends.tzinfo is not None:
+            lock_ends = lock_ends.replace(tzinfo=None)
+        return now < lock_ends
+    
+    total_locked = sum(float(vc.usdt_amount) for vc in virtual_credits if is_locked(vc))
+    total_unlocked = sum(float(vc.usdt_amount) for vc in virtual_credits if not is_locked(vc))
+    
+    return {
+        "success": True,
+        "user": {
+            "id": str(user.id),
+            "email": user.email,
+            "username": user.username
+        },
+        "summary": {
+            "total_virtual_credits_usdt": total_virtual_credits,
+            "total_yield_earned_usdt": total_yield_earned,
+            "total_yield_available_usdt": total_yield_available,  # Yield disponível para saque
+            "total_performance_fees_usdt": total_performance_fees,
+            "total_locked_usdt": total_locked,      # Principal bloqueado
+            "total_unlocked_usdt": total_unlocked,  # Principal desbloqueado
+            "grand_total_usdt": total_virtual_credits + total_performance_fees
+        },
+        "virtual_credits": [
+            {
+                "id": str(vc.id),
+                "usdt_amount": float(vc.usdt_amount),
+                "reason": vc.reason,
+                "reason_details": vc.reason_details,
+                "total_yield_earned": float(vc.total_yield_earned or 0),
+                "yield_withdrawn": float(vc.yield_withdrawn or 0),
+                "yield_available": float(vc.total_yield_earned or 0) - float(vc.yield_withdrawn or 0),
+                "principal_withdrawn": float(vc.principal_withdrawn or 0),
+                "credited_at": vc.credited_at.isoformat() if vc.credited_at else None,
+                "is_active": vc.is_active,
+                "status": vc.status or "LOCKED",
+                "lock_period_days": vc.lock_period_days or 180,
+                "lock_ends_at": vc.lock_ends_at.isoformat() if vc.lock_ends_at else None,
+                "is_locked": vc.lock_ends_at and now < vc.lock_ends_at,
+                "days_until_unlock": max(0, (vc.lock_ends_at - now).days) if vc.lock_ends_at and now < vc.lock_ends_at else 0,
+                "notes": vc.notes
+            }
+            for vc in virtual_credits
+        ],
+        "performance_fees": [
+            {
+                "id": str(pf.id),
+                "base_amount_usdt": float(pf.base_amount_usdt),
+                "performance_percentage": float(pf.performance_percentage),
+                "fee_amount_usdt": float(pf.fee_amount_usdt),
+                "period_description": pf.period_description,
+                "status": pf.status,
+                "created_at": pf.created_at.isoformat() if pf.created_at else None,
+                "notes": pf.notes
+            }
+            for pf in performance_fees
+        ]
+    }
+
+
 @router.post("/investor/virtual-credit")
 async def create_investor_virtual_credit(
     request: VirtualCreditCreateRequest,
@@ -468,7 +621,8 @@ async def create_investor_virtual_credit(
             reason=request.reason,
             admin_id=str(admin.id),
             reason_details=request.reason_details,
-            notes=request.notes
+            notes=request.notes,
+            lock_period_days=request.lock_period_days
         )
         
         logger.info(f"💰 Investor virtual credit created: ${request.usdt_amount} for user {request.user_id}")
@@ -542,4 +696,206 @@ async def create_investor_performance_fee(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Error creating performance fee: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==================== ADJUST VIRTUAL CREDIT ====================
+@router.post("/investor/adjust-credit")
+async def adjust_virtual_credit(
+    request: VirtualCreditAdjustRequest,
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Ajustar crédito virtual existente (Admin only)
+    - Alterar valor USDT
+    - Alterar período de bloqueio
+    - Alterar status
+    """
+    try:
+        from datetime import datetime, timedelta
+        
+        # Buscar crédito existente
+        credit = db.query(EarnPoolVirtualCredit).filter(
+            EarnPoolVirtualCredit.id == request.credit_id
+        ).first()
+        
+        if not credit:
+            raise HTTPException(status_code=404, detail="Crédito virtual não encontrado")
+        
+        changes = []
+        
+        # Atualizar valor USDT se fornecido
+        if request.new_usdt_amount is not None:
+            old_amount = credit.usdt_amount
+            credit.usdt_amount = request.new_usdt_amount
+            changes.append(f"USDT: {old_amount} → {request.new_usdt_amount}")
+        
+        # Atualizar período de bloqueio se fornecido
+        if request.new_lock_period_days is not None:
+            old_period = credit.lock_period_days
+            credit.lock_period_days = request.new_lock_period_days
+            # Recalcular data de desbloqueio baseado na data de criação
+            credit.lock_ends_at = credit.credited_at + timedelta(days=request.new_lock_period_days)
+            changes.append(f"Lock period: {old_period} → {request.new_lock_period_days} days")
+        
+        # Atualizar data de desbloqueio diretamente se fornecida
+        if request.new_lock_ends_at is not None:
+            old_date = credit.lock_ends_at
+            credit.lock_ends_at = request.new_lock_ends_at
+            changes.append(f"Lock ends at: {old_date} → {request.new_lock_ends_at}")
+        
+        # Atualizar status se fornecido
+        if request.new_status is not None:
+            if request.new_status not in ["LOCKED", "UNLOCKED", "WITHDRAWN"]:
+                raise HTTPException(status_code=400, detail="Status inválido. Use: LOCKED, UNLOCKED, WITHDRAWN")
+            old_status = credit.status
+            credit.status = request.new_status
+            changes.append(f"Status: {old_status} → {request.new_status}")
+        
+        # Atualizar notas se fornecidas
+        if request.notes:
+            credit.notes = f"{credit.notes or ''}\n[{datetime.now().isoformat()}] {request.notes}".strip()
+        
+        db.commit()
+        db.refresh(credit)
+        
+        logger.info(
+            f"✏️ Admin {admin.username} adjusted credit {credit.id} for user {credit.user_id}: "
+            f"{', '.join(changes)}"
+        )
+        
+        return {
+            "success": True,
+            "message": f"Crédito ajustado com sucesso. Alterações: {', '.join(changes)}",
+            "credit": {
+                "id": str(credit.id),
+                "user_id": str(credit.user_id),
+                "usdt_amount": float(credit.usdt_amount),
+                "lock_period_days": credit.lock_period_days,
+                "lock_ends_at": credit.lock_ends_at.isoformat() if credit.lock_ends_at else None,
+                "status": credit.status,
+                "notes": credit.notes
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error adjusting virtual credit: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==================== WITHDRAW YIELD ====================
+@router.post("/investor/withdraw-yield")
+async def withdraw_yield_from_credit(
+    credit_id: str,
+    amount: Optional[float] = None,
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Processar retirada de yield de um crédito virtual
+    - Yield pode ser retirado a qualquer momento
+    - Principal só pode ser retirado após período de bloqueio
+    """
+    try:
+        from datetime import datetime
+        from decimal import Decimal
+        
+        # Buscar crédito
+        credit = db.query(EarnPoolVirtualCredit).filter(
+            EarnPoolVirtualCredit.id == credit_id
+        ).first()
+        
+        if not credit:
+            raise HTTPException(status_code=404, detail="Crédito virtual não encontrado")
+        
+        # Calcular yield disponível
+        total_yield = float(credit.total_yield_earned or 0)
+        yield_already_withdrawn = float(credit.yield_withdrawn or 0)
+        yield_available = total_yield - yield_already_withdrawn
+        
+        if yield_available <= 0:
+            raise HTTPException(status_code=400, detail="Nenhum yield disponível para retirada")
+        
+        # Se não especificou amount, retirar todo yield disponível
+        withdrawal_amount = amount if amount is not None else yield_available
+        
+        if withdrawal_amount > yield_available:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Valor solicitado ({withdrawal_amount}) maior que yield disponível ({yield_available})"
+            )
+        
+        # Atualizar yield retirado
+        credit.yield_withdrawn = Decimal(str(yield_already_withdrawn + withdrawal_amount))
+        credit.notes = f"{credit.notes or ''}\n[{datetime.now().isoformat()}] Yield withdrawal: ${withdrawal_amount:.2f} by admin {admin.username}".strip()
+        
+        db.commit()
+        db.refresh(credit)
+        
+        logger.info(
+            f"💸 Yield withdrawal processed: ${withdrawal_amount:.2f} from credit {credit.id} "
+            f"for user {credit.user_id} by admin {admin.username}"
+        )
+        
+        return {
+            "success": True,
+            "message": f"Retirada de yield processada: ${withdrawal_amount:.2f} USDT",
+            "withdrawal": {
+                "credit_id": str(credit.id),
+                "user_id": str(credit.user_id),
+                "withdrawal_amount": withdrawal_amount,
+                "yield_remaining": yield_available - withdrawal_amount,
+                "total_yield_earned": total_yield,
+                "total_yield_withdrawn": float(credit.yield_withdrawn)
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error processing yield withdrawal: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==================== DELETE VIRTUAL CREDIT ====================
+@router.delete("/investor/virtual-credit/{credit_id}")
+async def delete_virtual_credit(
+    credit_id: str,
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Deletar crédito virtual (Admin only)
+    """
+    try:
+        credit = db.query(EarnPoolVirtualCredit).filter(
+            EarnPoolVirtualCredit.id == credit_id
+        ).first()
+        
+        if not credit:
+            raise HTTPException(status_code=404, detail="Crédito virtual não encontrado")
+        
+        user_id = str(credit.user_id)
+        amount = float(credit.usdt_amount)
+        
+        db.delete(credit)
+        db.commit()
+        
+        logger.info(
+            f"🗑️ Admin {admin.username} deleted virtual credit {credit_id} "
+            f"(${amount} USDT) for user {user_id}"
+        )
+        
+        return {
+            "success": True,
+            "message": f"Crédito virtual de ${amount} USDT deletado com sucesso"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting virtual credit: {e}")
+        db.rollback()
         raise HTTPException(status_code=500, detail=str(e))

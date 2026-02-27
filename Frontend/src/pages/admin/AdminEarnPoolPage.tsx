@@ -24,6 +24,12 @@ import {
   ExternalLink,
   Wallet,
   Check,
+  Search,
+  Lock,
+  Unlock,
+  Coins,
+  BarChart3,
+  ShieldCheck,
 } from 'lucide-react'
 import { apiClient } from '../../services/api'
 
@@ -148,7 +154,13 @@ interface RevenueSummary {
 export default function AdminEarnPoolPage() {
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'tiers' | 'config' | 'deposits' | 'withdrawals' | 'distributions'
+    | 'overview'
+    | 'tiers'
+    | 'config'
+    | 'deposits'
+    | 'withdrawals'
+    | 'distributions'
+    | 'investor-credits'
   >('overview')
 
   // Edit states
@@ -171,6 +183,20 @@ export default function AdminEarnPoolPage() {
   const [transferDeposit, setTransferDeposit] = useState<EarnPoolDeposit | null>(null)
   const [transferPreview, setTransferPreview] = useState<TransferPreview | null>(null)
   const [twoFactorCode, setTwoFactorCode] = useState('')
+
+  // Investor Credits Modal
+  const [showInvestorCreditsModal, setShowInvestorCreditsModal] = useState(false)
+  const [investorCreditsForm, setInvestorCreditsForm] = useState({
+    user_id: '',
+    operation_type: 'virtual_credit', // 'virtual_credit' | 'performance_fee' | 'both'
+    usdt_amount: '',
+    lock_period_days: '365',
+    performance_percentage: '',
+    fee_amount_direct: '', // Valor direto do fee (quando operation_type = 'performance_fee')
+    reason: 'INVESTOR_CORRECTION',
+    period_description: 'Operações Passadas',
+    notes: '',
+  })
 
   // ============================================================================
   // QUERIES
@@ -484,6 +510,7 @@ export default function AdminEarnPoolPage() {
     { id: 'deposits', label: 'Depósitos', icon: ArrowDownCircle },
     { id: 'withdrawals', label: 'Saques', icon: ArrowUpCircle },
     { id: 'distributions', label: 'Distribuições', icon: DollarSign },
+    { id: 'investor-credits', label: 'Créditos de Investidores', icon: Users },
   ] as const
 
   // ============================================================================
@@ -608,6 +635,16 @@ export default function AdminEarnPoolPage() {
           loadingDistributions={loadingDistributions}
           formatCurrency={formatCurrency}
           formatDate={formatDate}
+        />
+      )}
+
+      {activeTab === 'investor-credits' && (
+        <InvestorCreditsTab
+          showModal={showInvestorCreditsModal}
+          setShowModal={setShowInvestorCreditsModal}
+          form={investorCreditsForm}
+          setForm={setInvestorCreditsForm}
+          formatCurrency={formatCurrency}
         />
       )}
 
@@ -739,7 +776,8 @@ export default function AdminEarnPoolPage() {
             setTransferPreview(null)
             setTwoFactorCode('')
           }}
-          title='🔐 Transferir para Carteira do Sistema'
+          title='Transferir para Carteira do Sistema'
+          icon={<ShieldCheck className='w-5 h-5 text-amber-600' />}
         >
           <div className='space-y-6'>
             {/* Warning Banner */}
@@ -925,16 +963,21 @@ function Modal({
   children,
   onClose,
   title,
+  icon,
 }: {
   children: React.ReactNode
   onClose: () => void
   title: string
+  icon?: React.ReactNode
 }) {
   return (
     <div className='fixed inset-0 bg-black/50 flex items-center justify-center z-50'>
       <div className='bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto border border-gray-200 dark:border-gray-700'>
         <div className='flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700'>
-          <h3 className='text-lg font-semibold text-gray-900 dark:text-white'>{title}</h3>
+          <div className='flex items-center gap-2'>
+            {icon}
+            <h3 className='text-lg font-semibold text-gray-900 dark:text-white'>{title}</h3>
+          </div>
           <button
             onClick={onClose}
             className='p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full'
@@ -1462,25 +1505,25 @@ function ConfigTab({
               )}
             </div>
           ))}
-        </div>
 
-        {editingConfig && (
-          <div className='flex justify-end gap-3 mt-6 pt-6 border-t border-gray-200 dark:border-gray-700'>
-            <button
-              onClick={onCancel}
-              className='px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors'
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={onSave}
-              className='flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors'
-            >
-              <Save className='w-4 h-4' />
-              Salvar Alterações
-            </button>
-          </div>
-        )}
+          {editingConfig && (
+            <div className='flex justify-end gap-3 mt-6 pt-6 border-t border-gray-200 dark:border-gray-700'>
+              <button
+                onClick={onCancel}
+                className='px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors'
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={onSave}
+                className='flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors'
+              >
+                <Save className='w-4 h-4' />
+                Salvar Alterações
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -2016,6 +2059,516 @@ function DistributionsTab({
           </table>
         </div>
       )}
+    </div>
+  )
+}
+
+// ============================================================================
+// INVESTOR CREDITS TAB
+// ============================================================================
+
+function InvestorCreditsTab({
+  showModal,
+  setShowModal,
+  form,
+  setForm,
+  formatCurrency,
+}: {
+  showModal: boolean
+  setShowModal: (show: boolean) => void
+  form: any
+  setForm: (form: any) => void
+  formatCurrency: (v: number) => string
+}) {
+  const [loadingCredits, setLoadingCredits] = useState(false)
+  const [investorCredits, setInvestorCredits] = useState<any>(null)
+
+  // User search state
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [searchLoading, setSearchLoading] = useState(false)
+  const [showSearchResults, setShowSearchResults] = useState(false)
+
+  // Performance fee state - SIMPLIFIED
+  const [selectedCredit, setSelectedCredit] = useState<any>(null)
+  const [performancePercent, setPerformancePercent] = useState('')
+  const [feeLoading, setFeeLoading] = useState(false)
+
+  // New credit state (para novos investidores)
+  const [newCreditAmount, setNewCreditAmount] = useState('')
+  const [newCreditLockDays, setNewCreditLockDays] = useState('365')
+  const [newCreditNotes, setNewCreditNotes] = useState('')
+  const [newCreditLoading, setNewCreditLoading] = useState(false)
+
+  const queryClient = useQueryClient()
+
+  // Calcular fee automaticamente
+  const calculatedFee =
+    selectedCredit && performancePercent
+      ? (Number.parseFloat(selectedCredit.usdt_amount) * Number.parseFloat(performancePercent)) /
+        100
+      : 0
+
+  // Search users function
+  const handleSearchUsers = async () => {
+    if (!searchQuery.trim()) {
+      toast.error('Digite um email, nome ou telefone para buscar')
+      return
+    }
+
+    setSearchLoading(true)
+    try {
+      const { data } = await apiClient.get(
+        `/admin/earnpool/search-users?query=${encodeURIComponent(searchQuery)}&limit=10`
+      )
+      setSearchResults(data.users || [])
+      setShowSearchResults(true)
+      if (data.users.length === 0) {
+        toast.error('Nenhum usuário encontrado')
+      }
+    } catch (error) {
+      console.error('Error searching users:', error)
+      toast.error('Erro ao buscar usuários')
+      setSearchResults([])
+    } finally {
+      setSearchLoading(false)
+    }
+  }
+
+  // Select user and load credits
+  const handleSelectUser = async (user: any) => {
+    setSearchQuery(user.email)
+    setShowSearchResults(false)
+    setSelectedCredit(null)
+    setPerformancePercent('')
+
+    // Auto-load credits
+    setLoadingCredits(true)
+    try {
+      const { data } = await apiClient.get(`/admin/earnpool/investor/${user.id}/credits`)
+      setInvestorCredits(data)
+      setForm({ ...form, user_id: user.id })
+      toast.success(`Créditos de ${user.email} carregados!`)
+    } catch (error) {
+      console.error('Error fetching investor credits:', error)
+      toast.error('Erro ao buscar créditos do investidor')
+      setInvestorCredits(null)
+    } finally {
+      setLoadingCredits(false)
+    }
+  }
+
+  // Depositar fee de performance sobre crédito selecionado
+  const handleDepositPerformanceFee = async () => {
+    if (!selectedCredit) {
+      toast.error('Selecione um crédito')
+      return
+    }
+    if (!performancePercent || Number.parseFloat(performancePercent) <= 0) {
+      toast.error('Informe a % de performance')
+      return
+    }
+
+    setFeeLoading(true)
+    try {
+      await apiClient.post('/admin/earnpool/investor/virtual-credit', {
+        user_id: form.user_id,
+        usdt_amount: calculatedFee,
+        lock_period_days: selectedCredit.lock_period_days || 365,
+        reason: 'PERFORMANCE_FEE',
+        reason_details: `Taxa ${performancePercent}% sobre ${formatCurrency(selectedCredit.usdt_amount)}`,
+        notes: form.notes || `Fee de performance sobre crédito ${selectedCredit.id.slice(0, 8)}`,
+      })
+
+      toast.success(`Fee de ${formatCurrency(calculatedFee)} creditado com sucesso!`)
+
+      // Reload credits
+      const { data } = await apiClient.get(`/admin/earnpool/investor/${form.user_id}/credits`)
+      setInvestorCredits(data)
+      setSelectedCredit(null)
+      setPerformancePercent('')
+      queryClient.invalidateQueries({ queryKey: ['earnpool-deposits'] })
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || 'Erro ao depositar fee')
+    } finally {
+      setFeeLoading(false)
+    }
+  }
+
+  // Criar novo crédito virtual (para novos investidores ou adicionar principal)
+  const handleCreateNewCredit = async () => {
+    if (!form.user_id) {
+      toast.error('Selecione um usuário primeiro')
+      return
+    }
+    if (!newCreditAmount || Number.parseFloat(newCreditAmount) <= 0) {
+      toast.error('Informe o valor do crédito')
+      return
+    }
+
+    setNewCreditLoading(true)
+    try {
+      await apiClient.post('/admin/earnpool/investor/virtual-credit', {
+        user_id: form.user_id,
+        usdt_amount: Number.parseFloat(newCreditAmount),
+        lock_period_days: Number.parseInt(newCreditLockDays),
+        reason: 'INVESTOR_CORRECTION',
+        reason_details: 'Crédito Virtual Manual',
+        notes: newCreditNotes,
+      })
+
+      toast.success(
+        `Crédito de ${formatCurrency(Number.parseFloat(newCreditAmount))} criado com sucesso!`
+      )
+
+      // Reload credits
+      const { data } = await apiClient.get(`/admin/earnpool/investor/${form.user_id}/credits`)
+      setInvestorCredits(data)
+      setNewCreditAmount('')
+      setNewCreditNotes('')
+      queryClient.invalidateQueries({ queryKey: ['earnpool-deposits'] })
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || 'Erro ao criar crédito')
+    } finally {
+      setNewCreditLoading(false)
+    }
+  }
+
+  return (
+    <div className='space-y-6'>
+      {/* Search Card */}
+      <div className='bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6'>
+        <div className='flex items-center gap-3 mb-4'>
+          <Search className='w-6 h-6 text-blue-500' />
+          <h3 className='text-lg font-semibold text-gray-900 dark:text-white'>
+            1. Buscar Investidor
+          </h3>
+        </div>
+
+        <div className='flex gap-2'>
+          <input
+            type='text'
+            placeholder='Digite email, nome ou telefone...'
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleSearchUsers()}
+            className='flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white'
+          />
+          <button
+            onClick={handleSearchUsers}
+            disabled={searchLoading || !searchQuery.trim()}
+            className='px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2'
+          >
+            {searchLoading ? (
+              <Loader2 className='w-5 h-5 animate-spin' />
+            ) : (
+              <Search className='w-5 h-5' />
+            )}
+            Buscar
+          </button>
+        </div>
+
+        {/* Search Results */}
+        {showSearchResults && searchResults.length > 0 && (
+          <div className='mt-3 border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden'>
+            {searchResults.map(user => (
+              <button
+                key={user.id}
+                onClick={() => handleSelectUser(user)}
+                className='w-full px-4 py-3 text-left hover:bg-blue-50 dark:hover:bg-blue-900/20 border-b border-gray-100 dark:border-gray-700 last:border-0 transition-colors'
+              >
+                <div className='font-medium text-gray-900 dark:text-white'>{user.email}</div>
+                <div className='text-sm text-gray-500'>@{user.username || 'sem-username'}</div>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {loadingCredits && (
+          <div className='mt-4 flex items-center justify-center gap-2 text-blue-600'>
+            <Loader2 className='w-5 h-5 animate-spin' />
+            Carregando créditos...
+          </div>
+        )}
+      </div>
+
+      {/* Credits Card - Only show if investor loaded */}
+      {investorCredits && (
+        <div className='bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6'>
+          <div className='flex items-center gap-3 mb-4'>
+            <Wallet className='w-6 h-6 text-green-500' />
+            <h3 className='text-lg font-semibold text-gray-900 dark:text-white'>
+              2. Créditos do Investidor
+            </h3>
+            <span className='ml-auto text-sm text-gray-500'>
+              Total:{' '}
+              <strong className='text-green-600'>
+                {formatCurrency(investorCredits.summary?.grand_total_usdt || 0)}
+              </strong>
+            </span>
+          </div>
+
+          {/* Credits List - Selectable */}
+          {investorCredits.virtual_credits?.length > 0 ? (
+            <div className='space-y-3'>
+              {investorCredits.virtual_credits.map((credit: any) => (
+                <button
+                  key={credit.id}
+                  onClick={() => {
+                    setSelectedCredit(credit)
+                    setPerformancePercent('')
+                  }}
+                  className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
+                    selectedCredit?.id === credit.id
+                      ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
+                      : 'border-gray-200 dark:border-gray-600 hover:border-green-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  <div className='flex justify-between items-center'>
+                    <div>
+                      <span className='font-mono font-bold text-xl text-gray-900 dark:text-white'>
+                        {formatCurrency(credit.usdt_amount)}
+                      </span>
+                      <span
+                        className={`ml-3 text-xs px-2 py-1 rounded-full inline-flex items-center gap-1 ${
+                          credit.status === 'LOCKED'
+                            ? 'bg-red-100 text-red-700'
+                            : 'bg-green-100 text-green-700'
+                        }`}
+                      >
+                        {credit.status === 'LOCKED' ? (
+                          <>
+                            <Lock className='w-3 h-3' />
+                            Bloqueado
+                          </>
+                        ) : (
+                          <>
+                            <Unlock className='w-3 h-3' />
+                            Desbloqueado
+                          </>
+                        )}
+                      </span>
+                    </div>
+                    {selectedCredit?.id === credit.id && (
+                      <CheckCircle className='w-6 h-6 text-green-500' />
+                    )}
+                  </div>
+                  <div className='mt-2 text-sm text-gray-500'>
+                    Lock: {credit.lock_period_days || 365} dias • Criado:{' '}
+                    {credit.credited_at
+                      ? new Date(credit.credited_at).toLocaleDateString('pt-BR')
+                      : 'N/A'}
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className='text-center py-8 text-gray-500'>
+              Nenhum crédito encontrado para este investidor
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* New Credit Card - Show when user is selected (para novos investidores ou adicionar mais) */}
+      {investorCredits && (
+        <div className='bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-xl shadow-sm border border-amber-200 dark:border-amber-700 p-6'>
+          <div className='flex items-center gap-3 mb-4'>
+            <Coins className='w-6 h-6 text-amber-600' />
+            <h3 className='text-lg font-semibold text-gray-900 dark:text-white'>
+              Adicionar Novo Crédito Virtual
+            </h3>
+          </div>
+
+          <p className='text-sm text-gray-600 dark:text-gray-400 mb-4'>
+            Use para depositar um novo crédito (principal) para o investidor
+          </p>
+
+          <div className='grid grid-cols-1 md:grid-cols-3 gap-4 mb-4'>
+            <div>
+              <label
+                htmlFor='new_credit_amount'
+                className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'
+              >
+                Valor em USDT
+              </label>
+              <input
+                id='new_credit_amount'
+                type='number'
+                step='0.01'
+                placeholder='2799.96'
+                value={newCreditAmount}
+                onChange={e => setNewCreditAmount(e.target.value)}
+                className='w-full px-4 py-3 font-mono border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white'
+              />
+            </div>
+            <div>
+              <label
+                htmlFor='new_credit_lock'
+                className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'
+              >
+                Período de Lock
+              </label>
+              <select
+                id='new_credit_lock'
+                value={newCreditLockDays}
+                onChange={e => setNewCreditLockDays(e.target.value)}
+                className='w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white'
+              >
+                <option value='180'>6 meses (180 dias)</option>
+                <option value='270'>9 meses (270 dias)</option>
+                <option value='365'>1 ano (365 dias)</option>
+                <option value='730'>2 anos (730 dias)</option>
+              </select>
+            </div>
+            <div>
+              <label
+                htmlFor='new_credit_notes'
+                className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'
+              >
+                Notas (opcional)
+              </label>
+              <input
+                id='new_credit_notes'
+                type='text'
+                placeholder='Investidor João Silva'
+                value={newCreditNotes}
+                onChange={e => setNewCreditNotes(e.target.value)}
+                className='w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white'
+              />
+            </div>
+          </div>
+
+          <button
+            onClick={handleCreateNewCredit}
+            disabled={
+              newCreditLoading || !newCreditAmount || Number.parseFloat(newCreditAmount) <= 0
+            }
+            className='w-full px-4 py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-lg transition-all shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium'
+          >
+            {newCreditLoading ? (
+              <>
+                <Loader2 className='w-5 h-5 animate-spin' />
+                Criando...
+              </>
+            ) : (
+              <>
+                <Check className='w-5 h-5' />
+                Criar Crédito de{' '}
+                {newCreditAmount ? formatCurrency(Number.parseFloat(newCreditAmount)) : '$0.00'}
+              </>
+            )}
+          </button>
+        </div>
+      )}
+
+      {/* Performance Fee Card - Only show if credit selected */}
+      {selectedCredit && (
+        <div className='bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl shadow-sm border border-green-200 dark:border-green-700 p-6'>
+          <div className='flex items-center gap-3 mb-4'>
+            <TrendingUp className='w-6 h-6 text-green-600' />
+            <h3 className='text-lg font-semibold text-gray-900 dark:text-white'>
+              3. Depositar Taxa de Performance
+            </h3>
+          </div>
+
+          <div className='bg-white dark:bg-gray-800 rounded-lg p-4 mb-4'>
+            <p className='text-sm text-gray-600 dark:text-gray-400 mb-1'>Crédito selecionado:</p>
+            <p className='font-mono font-bold text-2xl text-gray-900 dark:text-white'>
+              {formatCurrency(selectedCredit.usdt_amount)}
+            </p>
+          </div>
+
+          <div className='grid grid-cols-2 gap-4 mb-4'>
+            <div>
+              <label
+                htmlFor='performance_percent_input'
+                className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2'
+              >
+                <BarChart3 className='w-4 h-4' />
+                Taxa de Performance (%)
+              </label>
+              <input
+                id='performance_percent_input'
+                type='number'
+                step='0.01'
+                placeholder='0.35'
+                value={performancePercent}
+                onChange={e => setPerformancePercent(e.target.value)}
+                className='w-full px-4 py-3 text-lg font-mono border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white'
+              />
+            </div>
+            <div>
+              <span className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2'>
+                <DollarSign className='w-4 h-4' />
+                Fee a Depositar
+              </span>
+              <div className='w-full px-4 py-3 text-lg font-mono font-bold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-lg border border-green-300 dark:border-green-600'>
+                {calculatedFee > 0 ? formatCurrency(calculatedFee) : '$ 0.00'}
+              </div>
+            </div>
+          </div>
+
+          {calculatedFee > 0 && (
+            <div className='bg-green-100 dark:bg-green-900/30 rounded-lg p-3 mb-4 text-sm text-green-800 dark:text-green-300'>
+              <strong>{performancePercent}%</strong> de{' '}
+              <strong>{formatCurrency(selectedCredit.usdt_amount)}</strong> ={' '}
+              <strong>{formatCurrency(calculatedFee)}</strong>
+            </div>
+          )}
+
+          <div className='flex gap-3'>
+            <button
+              onClick={() => {
+                setSelectedCredit(null)
+                setPerformancePercent('')
+              }}
+              className='flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors'
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleDepositPerformanceFee}
+              disabled={feeLoading || calculatedFee <= 0}
+              className='flex-1 px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-lg transition-all shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium'
+            >
+              {feeLoading ? (
+                <>
+                  <Loader2 className='w-5 h-5 animate-spin' />
+                  Depositando...
+                </>
+              ) : (
+                <>
+                  <Check className='w-5 h-5' />
+                  Depositar {calculatedFee > 0 ? formatCurrency(calculatedFee) : 'Fee'}
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Instructions */}
+      <div className='bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl p-6'>
+        <h4 className='font-semibold text-amber-900 dark:text-amber-300 mb-3 flex items-center gap-2'>
+          <AlertTriangle className='w-5 h-5' />
+          Como Funciona
+        </h4>
+        <ul className='space-y-2 text-sm text-amber-800 dark:text-amber-400'>
+          <li>
+            <strong>1.</strong> Busque o investidor por email, nome ou telefone
+          </li>
+          <li>
+            <strong>2.</strong> Selecione o crédito sobre o qual quer aplicar a performance
+          </li>
+          <li>
+            <strong>3.</strong> Digite a % de performance (ex: 0.35%)
+          </li>
+          <li>
+            <strong>4.</strong> Confira o valor calculado e clique em "Depositar"
+          </li>
+        </ul>
+      </div>
     </div>
   )
 }

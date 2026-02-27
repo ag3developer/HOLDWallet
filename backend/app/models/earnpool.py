@@ -535,7 +535,13 @@ class EarnPoolVirtualCredit(Base):
     Funciona como um depósito virtual:
     - Usuário recebe crédito de USDT no pool
     - Participa dos rendimentos semanais
-    - Pode solicitar saque como normal
+    - Pode solicitar saque após período de bloqueio
+    
+    Sistema de Bloqueio:
+    - lock_period_days: Período de bloqueio (180-365 dias)
+    - lock_ends_at: Data que o bloqueio termina
+    - Antes do bloqueio: só pode sacar o yield (performance fee)
+    - Após bloqueio: pode sacar tudo
     
     Diferenças vs depósito normal:
     - Sem blockchain (é virtual)
@@ -550,12 +556,20 @@ class EarnPoolVirtualCredit(Base):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
     
     # Crédito
-    usdt_amount = Column(Numeric(18, 2), nullable=False)           # Valor creditado
+    usdt_amount = Column(Numeric(18, 2), nullable=False)           # Valor creditado (principal)
     reason = Column(String(100), nullable=False)                   # Ex: "INVESTOR_CORRECTION", "MISSING_DEPOSIT"
     reason_details = Column(Text, nullable=True)                   # Detalhes da razão
     
     # Rendimentos acumulados
     total_yield_earned = Column(Numeric(18, 8), nullable=False, default=0)
+    
+    # 🔒 SISTEMA DE BLOQUEIO
+    lock_period_days = Column(Integer, nullable=False, default=180)  # Período de bloqueio (6-12 meses)
+    lock_ends_at = Column(DateTime, nullable=True)                   # Data que o bloqueio termina
+    
+    # Controle de saques
+    yield_withdrawn = Column(Numeric(18, 8), nullable=False, default=0)  # Quanto de yield já foi sacado
+    principal_withdrawn = Column(Numeric(18, 2), nullable=False, default=0)  # Quanto do principal foi sacado
     
     # Datas
     credited_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
@@ -563,6 +577,7 @@ class EarnPoolVirtualCredit(Base):
     
     # Status
     is_active = Column(Boolean, default=True)                      # Se está gerando rendimentos
+    status = Column(String(20), default="LOCKED")                  # LOCKED, UNLOCKED, WITHDRAWN
     
     # Auditoria
     credited_by_admin_id = Column(UUID(as_uuid=True), nullable=False)      # Admin que creditou
@@ -572,11 +587,40 @@ class EarnPoolVirtualCredit(Base):
 
     # Relacionamentos
     user = relationship("User", backref="earnpool_virtual_credits")
+    
+    @property
+    def is_locked(self) -> bool:
+        """Verifica se o crédito ainda está bloqueado"""
+        if not self.lock_ends_at:
+            return True
+        return datetime.now(timezone.utc) < self.lock_ends_at
+    
+    @property
+    def available_yield(self) -> Decimal:
+        """Yield disponível para saque (pode sacar mesmo durante bloqueio)"""
+        return Decimal(str(self.total_yield_earned or 0)) - Decimal(str(self.yield_withdrawn or 0))
+    
+    @property
+    def available_principal(self) -> Decimal:
+        """Principal disponível para saque (só após desbloqueio)"""
+        if self.is_locked:
+            return Decimal("0")
+        return Decimal(str(self.usdt_amount)) - Decimal(str(self.principal_withdrawn or 0))
+    
+    @property
+    def days_until_unlock(self) -> int:
+        """Dias até o desbloqueio"""
+        if not self.lock_ends_at or not self.is_locked:
+            return 0
+        delta = self.lock_ends_at - datetime.now(timezone.utc)
+        return max(0, delta.days)
 
     __table_args__ = (
         Index('ix_earnpool_vc_user', 'user_id'),
         Index('ix_earnpool_vc_active', 'is_active'),
+        Index('ix_earnpool_vc_status', 'status'),
         CheckConstraint('usdt_amount > 0', name='ck_vc_amount_positive'),
+        CheckConstraint('lock_period_days >= 180 AND lock_period_days <= 365', name='ck_vc_lock_period_valid'),
     )
 
 

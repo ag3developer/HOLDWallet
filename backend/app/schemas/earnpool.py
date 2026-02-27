@@ -385,6 +385,7 @@ class VirtualCreditCreateRequest(BaseModel):
     reason: str = Field(..., description="Motivo: INVESTOR_CORRECTION, MISSING_DEPOSIT, OTHER")
     reason_details: Optional[str] = Field(None, description="Detalhes da razão")
     notes: Optional[str] = Field(None, description="Notas internas")
+    lock_period_days: int = Field(180, ge=180, le=365, description="Período de bloqueio em dias (180-365)")
 
 
 class VirtualCreditResponse(BaseModel):
@@ -399,6 +400,12 @@ class VirtualCreditResponse(BaseModel):
     is_active: bool
     credited_by_admin_id: str
     notes: Optional[str]
+    # Campos de bloqueio
+    lock_period_days: int = 180
+    lock_ends_at: Optional[datetime] = None
+    status: str = "LOCKED"
+    yield_withdrawn: Decimal = Decimal("0")
+    principal_withdrawn: Decimal = Decimal("0")
     
     @field_validator('id', 'user_id', 'credited_by_admin_id', mode='before')
     @classmethod
@@ -409,6 +416,23 @@ class VirtualCreditResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+
+class VirtualCreditAdjustRequest(BaseModel):
+    """Ajustar crédito virtual (admin)"""
+    credit_id: str = Field(..., description="ID do crédito virtual")
+    new_usdt_amount: Optional[Decimal] = Field(None, description="Novo valor em USDT")
+    new_lock_period_days: Optional[int] = Field(None, ge=0, le=730, description="Novo período de bloqueio em dias")
+    new_lock_ends_at: Optional[datetime] = Field(None, description="Nova data de desbloqueio")
+    new_status: Optional[str] = Field(None, description="Novo status: LOCKED, UNLOCKED, WITHDRAWN")
+    notes: Optional[str] = Field(None, description="Notas internas")
+
+
+class VirtualCreditWithdrawRequest(BaseModel):
+    """Solicitar saque de crédito virtual"""
+    credit_id: str = Field(..., description="ID do crédito virtual")
+    withdraw_type: str = Field(..., description="Tipo: YIELD_ONLY, PRINCIPAL_ONLY, FULL")
+    amount: Optional[Decimal] = Field(None, gt=0, description="Valor específico (opcional)")
 
 
 class PerformanceFeeCalculateRequest(BaseModel):
