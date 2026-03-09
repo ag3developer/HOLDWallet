@@ -513,7 +513,6 @@ class BTCService:
             
             logger.info(f"✅ Transação criada com bitcoinlib: {len(raw_hex)} chars, {len(tx.inputs)} inputs, {len(tx.outputs)} outputs")
             return raw_hex
-            return raw_hex
                 
         except Exception as e:
             logger.error(f"❌ Erro ao criar transação BTC: {e}")
@@ -567,10 +566,26 @@ class BTCService:
                 
                 if response.status_code == 200:
                     # Blockchain.info não retorna hash diretamente
-                    # Calcular do raw tx
+                    # Calcular do raw tx (para transações legacy)
                     tx_hash = self._calculate_txid(raw_tx_hex)
-                    logger.info(f"📡 Broadcast via Blockchain.info: {tx_hash}")
-                    return tx_hash
+                    logger.info(f"📡 Broadcast via Blockchain.info (hash calculado): {tx_hash}")
+                    
+                    # IMPORTANTE: Verificar se o hash calculado existe na blockchain
+                    # Se não existir após alguns segundos, pode estar errado
+                    await asyncio.sleep(2)  # Aguardar propagação
+                    
+                    # Verificar se a transação existe
+                    verify_url = f"{self.blockstream_api}/tx/{tx_hash}"
+                    verify_response = requests.get(verify_url, timeout=10)
+                    
+                    if verify_response.status_code == 200:
+                        logger.info(f"✅ Hash verificado na blockchain: {tx_hash}")
+                        return tx_hash
+                    else:
+                        # Hash calculado está errado - transação pode ter sido modificada
+                        # Tentar buscar pelo endereço de destino (será feito no caller)
+                        logger.warning(f"⚠️ Hash {tx_hash[:16]}... não encontrado, pode estar incorreto")
+                        return tx_hash  # Retorna mesmo assim, caller pode verificar depois
                     
             except Exception as e:
                 logger.warning(f"⚠️ Blockchain.info broadcast failed: {e}")
