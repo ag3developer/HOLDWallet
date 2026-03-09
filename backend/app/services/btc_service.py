@@ -442,8 +442,9 @@ class BTCService:
             
             logger.info(f"🔑 Chave carregada, endereço: {key.address()}")
             
-            # Criar transação
-            tx = Transaction(network=network)
+            # Criar transação LEGACY (P2PKH) - endereços que começam com 1
+            # IMPORTANTE: witness_type='legacy' garante serialização correta para broadcast
+            tx = Transaction(network=network, witness_type='legacy')
             
             # Calcular total disponível
             total_input = sum(u.value for u in utxos)
@@ -492,10 +493,26 @@ class BTCService:
             if not tx.verify():
                 logger.warning("⚠️ Assinatura não pôde ser verificada, mas tentando broadcast")
             
-            # Obter hex
+            # Obter hex - garantir serialização legacy
             raw_hex = tx.raw_hex()
             
+            # Validar estrutura do raw hex
+            raw_bytes = bytes.fromhex(raw_hex)
+            if raw_bytes[4] == 0 and raw_bytes[5] == 1:
+                logger.warning("⚠️ Transação serializada como SegWit, forçando legacy...")
+                raw_hex = tx.raw_hex(witness_type='legacy')
+                raw_bytes = bytes.fromhex(raw_hex)
+            
+            # Log de debug da estrutura
+            input_count = raw_bytes[4]
+            logger.info(f"📊 Raw TX: version={int.from_bytes(raw_bytes[0:4], 'little')}, inputs={input_count}")
+            
+            if input_count == 0:
+                logger.error("❌ Transação serializada com 0 inputs! Estrutura inválida.")
+                return None
+            
             logger.info(f"✅ Transação criada com bitcoinlib: {len(raw_hex)} chars, {len(tx.inputs)} inputs, {len(tx.outputs)} outputs")
+            return raw_hex
             return raw_hex
                 
         except Exception as e:
