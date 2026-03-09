@@ -33,7 +33,7 @@ import {
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { apiClient } from '@/services/api'
-import trayLogo from '@/assets/crypto-icons/tray.png'
+import { getCryptoLogo, trayLogo } from '@/utils/cryptoLogos'
 import { SystemWalletSendModal } from '@/components/admin/SystemWalletSendModal'
 
 type Step = 'info' | 'creating' | 'mnemonic-display' | 'mnemonic-confirm' | 'success'
@@ -588,21 +588,13 @@ HOLD Wallet - Sistema de Taxas e Comissões
               </div>
               <div className='flex items-center gap-4 mt-3'>
                 <div className='flex items-center gap-2 bg-black/10 dark:bg-black/20 px-2 py-1 rounded-lg'>
-                  <img
-                    src='https://cryptologos.cc/logos/tether-usdt-logo.png'
-                    alt='USDT'
-                    className='w-4 h-4'
-                  />
+                  <img src={getCryptoLogo('USDT')} alt='USDT' className='w-4 h-4' />
                   <span className='text-xs text-gray-700 dark:text-gray-300 font-medium'>
                     ${(walletStatus.cached_balances?.USDT || 0).toFixed(2)}
                   </span>
                 </div>
                 <div className='flex items-center gap-2 bg-black/10 dark:bg-black/20 px-2 py-1 rounded-lg'>
-                  <img
-                    src='https://cryptologos.cc/logos/usd-coin-usdc-logo.png'
-                    alt='USDC'
-                    className='w-4 h-4'
-                  />
+                  <img src={getCryptoLogo('USDC')} alt='USDC' className='w-4 h-4' />
                   <span className='text-xs text-gray-700 dark:text-gray-300 font-medium'>
                     ${(walletStatus.cached_balances?.USDC || 0).toFixed(2)}
                   </span>
@@ -642,11 +634,7 @@ HOLD Wallet - Sistema de Taxas e Comissões
               <div className='space-y-2'>
                 <div className='flex items-center justify-between bg-black/10 dark:bg-black/20 px-2 py-1.5 rounded-lg'>
                   <div className='flex items-center gap-2'>
-                    <img
-                      src='https://cryptologos.cc/logos/ethereum-eth-logo.png'
-                      alt='ETH'
-                      className='w-4 h-4'
-                    />
+                    <img src={getCryptoLogo('ETH')} alt='ETH' className='w-4 h-4' />
                     <span className='text-xs text-gray-500 dark:text-gray-400'>ETH</span>
                   </div>
                   <span className='text-xs text-gray-900 dark:text-white font-medium'>
@@ -659,11 +647,7 @@ HOLD Wallet - Sistema de Taxas e Comissões
                 </div>
                 <div className='flex items-center justify-between bg-black/10 dark:bg-black/20 px-2 py-1.5 rounded-lg'>
                   <div className='flex items-center gap-2'>
-                    <img
-                      src='https://cryptologos.cc/logos/polygon-matic-logo.png'
-                      alt='MATIC'
-                      className='w-4 h-4'
-                    />
+                    <img src={getCryptoLogo('MATIC')} alt='MATIC' className='w-4 h-4' />
                     <span className='text-xs text-gray-500 dark:text-gray-400'>MATIC</span>
                   </div>
                   <span className='text-xs text-gray-900 dark:text-white font-medium'>
@@ -676,11 +660,7 @@ HOLD Wallet - Sistema de Taxas e Comissões
                 </div>
                 <div className='flex items-center justify-between bg-black/10 dark:bg-black/20 px-2 py-1.5 rounded-lg'>
                   <div className='flex items-center gap-2'>
-                    <img
-                      src='https://cryptologos.cc/logos/bnb-bnb-logo.png'
-                      alt='BNB'
-                      className='w-4 h-4'
-                    />
+                    <img src={getCryptoLogo('BNB')} alt='BNB' className='w-4 h-4' />
                     <span className='text-xs text-gray-500 dark:text-gray-400'>BNB</span>
                   </div>
                   <span className='text-xs text-gray-900 dark:text-white font-medium'>
@@ -812,34 +792,7 @@ HOLD Wallet - Sistema de Taxas e Comissões
                           return b[1] - a[1]
                         })
                         .map(([symbol, balance]) => {
-                          const logoMap: Record<string, string> = {
-                            USDT: 'https://cryptologos.cc/logos/tether-usdt-logo.png',
-                            USDC: 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png',
-                            DAI: 'https://cryptologos.cc/logos/multi-collateral-dai-dai-logo.png',
-                            ETH: 'https://cryptologos.cc/logos/ethereum-eth-logo.png',
-                            ETHEREUM: 'https://cryptologos.cc/logos/ethereum-eth-logo.png',
-                            MATIC: 'https://cryptologos.cc/logos/polygon-matic-logo.png',
-                            POLYGON: 'https://cryptologos.cc/logos/polygon-matic-logo.png',
-                            BNB: 'https://cryptologos.cc/logos/bnb-bnb-logo.png',
-                            BSC: 'https://cryptologos.cc/logos/bnb-bnb-logo.png',
-                            BTC: 'https://cryptologos.cc/logos/bitcoin-btc-logo.png',
-                            BITCOIN: 'https://cryptologos.cc/logos/bitcoin-btc-logo.png',
-                            SOL: 'https://cryptologos.cc/logos/solana-sol-logo.png',
-                            SOLANA: 'https://cryptologos.cc/logos/solana-sol-logo.png',
-                            AVAX: 'https://cryptologos.cc/logos/avalanche-avax-logo.png',
-                            AVALANCHE: 'https://cryptologos.cc/logos/avalanche-avax-logo.png',
-                            TRX: 'https://cryptologos.cc/logos/tron-trx-logo.png',
-                            TRON: 'https://cryptologos.cc/logos/tron-trx-logo.png',
-                            LTC: 'https://cryptologos.cc/logos/litecoin-ltc-logo.png',
-                            LITECOIN: 'https://cryptologos.cc/logos/litecoin-ltc-logo.png',
-                            DOGE: 'https://cryptologos.cc/logos/dogecoin-doge-logo.png',
-                            DOGECOIN: 'https://cryptologos.cc/logos/dogecoin-doge-logo.png',
-                            XRP: 'https://cryptologos.cc/logos/xrp-xrp-logo.png',
-                            BASE: 'https://cryptologos.cc/logos/ethereum-eth-logo.png',
-                            ARBITRUM: 'https://cryptologos.cc/logos/arbitrum-arb-logo.png',
-                            TRAY: trayLogo,
-                          }
-                          const logo = logoMap[symbol.toUpperCase()]
+                          const logo = getCryptoLogo(symbol)
                           return (
                             <div
                               key={symbol}

@@ -63,7 +63,8 @@ const localIconMap: Record<string, string> = {
 
 // Mapa de URLs alternativas para ícones que não estão no CDN principal
 const alternativeIconUrls: Record<string, string> = {
-  shib: 'https://cryptologos.cc/logos/shiba-inu-shib-logo.svg',
+  // Usando CDN GitHub que é mais confiável
+  shib: 'https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/svg/color/shib.svg',
 }
 
 export const CryptoIcon = ({ symbol, size = 24, className = '', ...props }: CryptoIconProps) => {

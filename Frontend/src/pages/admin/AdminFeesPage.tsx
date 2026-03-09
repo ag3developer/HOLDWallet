@@ -14,6 +14,7 @@ import {
   Calculator,
   ExternalLink,
 } from 'lucide-react'
+import { getCryptoLogo } from '@/utils/cryptoLogos'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
@@ -354,22 +355,14 @@ export default function AdminFeesPage() {
                   .filter(([_, balance]) => (balance as number) > 0)
                   .sort((a, b) => (b[1] as number) - (a[1] as number))
                   .map(([crypto, balance]) => {
-                    const logoMap: Record<string, string> = {
-                      USDT: 'https://cryptologos.cc/logos/tether-usdt-logo.png',
-                      USDC: 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png',
-                      POLYGON: 'https://cryptologos.cc/logos/polygon-matic-logo.png',
-                      ETHEREUM: 'https://cryptologos.cc/logos/ethereum-eth-logo.png',
-                      BSC: 'https://cryptologos.cc/logos/bnb-bnb-logo.png',
-                      BITCOIN: 'https://cryptologos.cc/logos/bitcoin-btc-logo.png',
-                      SOLANA: 'https://cryptologos.cc/logos/solana-sol-logo.png',
-                    }
+                    const logo = getCryptoLogo(crypto)
                     return (
                       <div
                         key={crypto}
                         className='flex items-center gap-1.5 p-1.5 bg-gray-100 dark:bg-gray-900/50 rounded border border-gray-200 dark:border-gray-700/50'
                       >
-                        {logoMap[crypto] ? (
-                          <img src={logoMap[crypto]} alt={crypto} className='w-4 h-4' />
+                        {logo ? (
+                          <img src={logo} alt={crypto} className='w-4 h-4' />
                         ) : (
                           <div className='w-4 h-4 bg-gray-400 dark:bg-gray-600 rounded-full flex items-center justify-center text-[8px] font-bold text-white'>
                             {crypto.slice(0, 2)}

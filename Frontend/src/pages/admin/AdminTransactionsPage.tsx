@@ -35,28 +35,7 @@ import {
   User,
   RefreshCcw,
 } from 'lucide-react'
-
-// Mapeamento de logos das criptomoedas
-const CRYPTO_LOGOS: Record<string, string> = {
-  BTC: 'https://cryptologos.cc/logos/bitcoin-btc-logo.png',
-  ETH: 'https://cryptologos.cc/logos/ethereum-eth-logo.png',
-  USDT: 'https://cryptologos.cc/logos/tether-usdt-logo.png',
-  USDC: 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png',
-  MATIC: 'https://cryptologos.cc/logos/polygon-matic-logo.png',
-  POL: 'https://cryptologos.cc/logos/polygon-matic-logo.png',
-  BNB: 'https://cryptologos.cc/logos/bnb-bnb-logo.png',
-  SOL: 'https://cryptologos.cc/logos/solana-sol-logo.png',
-  XRP: 'https://cryptologos.cc/logos/xrp-xrp-logo.png',
-  ADA: 'https://cryptologos.cc/logos/cardano-ada-logo.png',
-  DOGE: 'https://cryptologos.cc/logos/dogecoin-doge-logo.png',
-  DOT: 'https://cryptologos.cc/logos/polkadot-new-dot-logo.png',
-  AVAX: 'https://cryptologos.cc/logos/avalanche-avax-logo.png',
-  LTC: 'https://cryptologos.cc/logos/litecoin-ltc-logo.png',
-  LINK: 'https://cryptologos.cc/logos/chainlink-link-logo.png',
-  UNI: 'https://cryptologos.cc/logos/uniswap-uni-logo.png',
-  ATOM: 'https://cryptologos.cc/logos/cosmos-atom-logo.png',
-  XLM: 'https://cryptologos.cc/logos/stellar-xlm-logo.png',
-}
+import { CRYPTO_LOGOS } from '@/utils/cryptoLogos'
 
 // Cores das redes
 const NETWORK_COLORS: Record<string, { bg: string; text: string }> = {

@@ -35,6 +35,7 @@ import {
   CheckCircle,
 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
+import { getCryptoLogo } from '@/utils/cryptoLogos'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
@@ -134,24 +135,28 @@ const NETWORK_SYMBOLS: Record<string, string> = {
   multi: 'MULTI',
 }
 
-// URLs dos logos das criptomoedas
-const NETWORK_LOGOS: Record<string, string> = {
-  bitcoin: 'https://cryptologos.cc/logos/bitcoin-btc-logo.svg',
-  ethereum: 'https://cryptologos.cc/logos/ethereum-eth-logo.svg',
-  polygon: 'https://cryptologos.cc/logos/polygon-matic-logo.svg',
-  bsc: 'https://cryptologos.cc/logos/bnb-bnb-logo.svg',
-  tron: 'https://cryptologos.cc/logos/tron-trx-logo.svg',
-  base: 'https://icons.llamao.fi/icons/chains/rsz_base.jpg',
-  solana: 'https://cryptologos.cc/logos/solana-sol-logo.svg',
-  litecoin: 'https://cryptologos.cc/logos/litecoin-ltc-logo.svg',
-  dogecoin: 'https://cryptologos.cc/logos/dogecoin-doge-logo.svg',
-  cardano: 'https://cryptologos.cc/logos/cardano-ada-logo.svg',
-  avalanche: 'https://cryptologos.cc/logos/avalanche-avax-logo.svg',
-  polkadot: 'https://cryptologos.cc/logos/polkadot-new-dot-logo.svg',
-  chainlink: 'https://cryptologos.cc/logos/chainlink-link-logo.svg',
-  shiba: 'https://cryptologos.cc/logos/shiba-inu-shib-logo.svg',
-  xrp: 'https://cryptologos.cc/logos/xrp-xrp-logo.svg',
-  multi: '',
+// URLs dos logos das criptomoedas - usando função centralizada
+const getNetworkLogo = (network: string): string | undefined => {
+  // Mapeia nomes de redes para símbolos
+  const networkToSymbol: Record<string, string> = {
+    bitcoin: 'BTC',
+    ethereum: 'ETH',
+    polygon: 'MATIC',
+    bsc: 'BNB',
+    tron: 'TRX',
+    base: 'BASE',
+    solana: 'SOL',
+    litecoin: 'LTC',
+    dogecoin: 'DOGE',
+    cardano: 'ADA',
+    avalanche: 'AVAX',
+    polkadot: 'DOT',
+    chainlink: 'LINK',
+    shiba: 'SHIB',
+    xrp: 'XRP',
+  }
+  const symbol = networkToSymbol[network.toLowerCase()] || network.toUpperCase()
+  return getCryptoLogo(symbol)
 }
 
 // Componente de Logo da Rede
@@ -159,7 +164,7 @@ const NetworkLogo: React.FC<{ network: string; size?: 'sm' | 'md' | 'lg' }> = ({
   network,
   size = 'md',
 }) => {
-  const logoUrl = NETWORK_LOGOS[network]
+  const logoUrl = getNetworkLogo(network)
   const sizeClasses = {
     sm: 'w-4 h-4',
     md: 'w-6 h-6',

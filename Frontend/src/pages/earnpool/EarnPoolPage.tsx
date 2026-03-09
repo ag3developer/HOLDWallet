@@ -58,32 +58,8 @@ import { EarnPoolTermsModal } from '@/components/earnpool/EarnPoolTermsModal'
 import { useWalletAddresses } from '@/hooks/useWalletAddresses'
 import toast from 'react-hot-toast'
 
-// Import TRAY logo
-import trayLogo from '@/assets/crypto-icons/tray.png'
-
-// ============================================================================
-// CRYPTO ICONS
-// ============================================================================
-
-const CRYPTO_ICONS: Record<string, string> = {
-  BTC: 'https://cryptologos.cc/logos/bitcoin-btc-logo.png',
-  ETH: 'https://cryptologos.cc/logos/ethereum-eth-logo.png',
-  USDT: 'https://cryptologos.cc/logos/tether-usdt-logo.png',
-  USDC: 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png',
-  BNB: 'https://cryptologos.cc/logos/bnb-bnb-logo.png',
-  SOL: 'https://cryptologos.cc/logos/solana-sol-logo.png',
-  MATIC: 'https://cryptologos.cc/logos/polygon-matic-logo.png',
-  TRX: 'https://cryptologos.cc/logos/tron-trx-logo.png',
-  LTC: 'https://cryptologos.cc/logos/litecoin-ltc-logo.png',
-  DOGE: 'https://cryptologos.cc/logos/dogecoin-doge-logo.png',
-  ADA: 'https://cryptologos.cc/logos/cardano-ada-logo.png',
-  AVAX: 'https://cryptologos.cc/logos/avalanche-avax-logo.png',
-  DOT: 'https://cryptologos.cc/logos/polkadot-new-dot-logo.png',
-  XRP: 'https://cryptologos.cc/logos/xrp-xrp-logo.png',
-  LINK: 'https://cryptologos.cc/logos/chainlink-link-logo.png',
-  SHIB: 'https://cryptologos.cc/logos/shiba-inu-shib-logo.png',
-  TRAY: trayLogo,
-}
+// Import crypto logos utility
+import { CRYPTO_LOGOS as CRYPTO_ICONS } from '@/utils/cryptoLogos'
 
 // ============================================================================
 // TIPOS
@@ -273,7 +249,9 @@ const StatCard = ({ icon: Icon, label, value, subValue, trend, color }: StatCard
         )}
       </div>
       <div className='mt-4'>
-        <p className='text-gray-500 dark:text-gray-400 text-xs font-medium uppercase tracking-wider'>{label}</p>
+        <p className='text-gray-500 dark:text-gray-400 text-xs font-medium uppercase tracking-wider'>
+          {label}
+        </p>
         <p className='text-white text-2xl font-bold mt-1'>{value}</p>
         {subValue && <p className={`${classes.text} text-sm font-medium mt-1`}>{subValue}</p>}
       </div>
@@ -1215,19 +1193,25 @@ export function EarnPoolPage() {
                       </span>
                     </div>
                     <div className='flex justify-between'>
-                      <span className='text-gray-500 dark:text-gray-400'>{t('earnpool.deposit.valueInUSDT')}</span>
+                      <span className='text-gray-500 dark:text-gray-400'>
+                        {t('earnpool.deposit.valueInUSDT')}
+                      </span>
                       <span className='text-emerald-400 font-bold'>
                         {formatCurrency(depositPreview.usdt_amount ?? depositValueInUSDT)}
                       </span>
                     </div>
                     <div className='flex justify-between'>
-                      <span className='text-gray-500 dark:text-gray-400'>{t('earnpool.deposit.lockPeriod')}</span>
+                      <span className='text-gray-500 dark:text-gray-400'>
+                        {t('earnpool.deposit.lockPeriod')}
+                      </span>
                       <span className='text-white font-medium'>
                         {config?.lock_period_days ?? 30} {t('common.days')}
                       </span>
                     </div>
                     <div className='flex justify-between'>
-                      <span className='text-gray-500 dark:text-gray-400'>{t('earnpool.deposit.estimatedYield')}</span>
+                      <span className='text-gray-500 dark:text-gray-400'>
+                        {t('earnpool.deposit.estimatedYield')}
+                      </span>
                       <span className='text-emerald-400 font-medium'>
                         {getYieldRate()}% / {t('common.week')}
                       </span>
@@ -1294,7 +1278,9 @@ export function EarnPoolPage() {
                   {filteredCryptos.length === 0 ? (
                     <div className='text-center py-8'>
                       <Wallet className='w-12 h-12 mx-auto text-gray-400 dark:text-gray-600 mb-3' />
-                      <p className='text-gray-500 dark:text-gray-400'>{t('earnpool.deposit.noCryptoAvailable')}</p>
+                      <p className='text-gray-500 dark:text-gray-400'>
+                        {t('earnpool.deposit.noCryptoAvailable')}
+                      </p>
                     </div>
                   ) : (
                     <div className='space-y-2'>
@@ -1322,7 +1308,9 @@ export function EarnPoolPage() {
                           />
                           <div className='flex-1 text-left'>
                             <p className='font-bold text-white'>{crypto.symbol}</p>
-                            <p className='text-xs text-gray-500 dark:text-gray-400 capitalize'>{crypto.network}</p>
+                            <p className='text-xs text-gray-500 dark:text-gray-400 capitalize'>
+                              {crypto.network}
+                            </p>
                           </div>
                           <div className='text-right'>
                             <p className='text-white font-medium'>
@@ -1355,7 +1343,9 @@ export function EarnPoolPage() {
                 </div>
                 <div>
                   <h2 className='text-xl font-bold text-white'>{t('earnpool.actions.withdraw')}</h2>
-                  <p className='text-gray-500 dark:text-gray-400 text-sm'>{t('earnpool.withdraw.subtitle')}</p>
+                  <p className='text-gray-500 dark:text-gray-400 text-sm'>
+                    {t('earnpool.withdraw.subtitle')}
+                  </p>
                 </div>
               </div>
               <button
@@ -1374,7 +1364,9 @@ export function EarnPoolPage() {
             {/* Available Balance */}
             <div className='mb-6 p-4 rounded-2xl bg-blue-500/10 border border-blue-500/30'>
               <div className='flex items-center justify-between'>
-                <span className='text-gray-500 dark:text-gray-400'>{t('earnpool.withdraw.availableBalance')}</span>
+                <span className='text-gray-500 dark:text-gray-400'>
+                  {t('earnpool.withdraw.availableBalance')}
+                </span>
                 <span className='text-2xl font-bold text-white'>
                   {formatCurrency(balance?.available_balance ?? 0)}
                 </span>
@@ -1447,14 +1439,18 @@ export function EarnPoolPage() {
                       </span>
                     </div>
                     <div className='flex justify-between'>
-                      <span className='text-gray-500 dark:text-gray-400'>{t('earnpool.withdraw.earnings')}</span>
+                      <span className='text-gray-500 dark:text-gray-400'>
+                        {t('earnpool.withdraw.earnings')}
+                      </span>
                       <span className='text-emerald-400 font-medium'>
                         +{formatCurrency(withdrawPreview.yield_amount)}
                       </span>
                     </div>
                     {withdrawPreview.is_early_withdrawal && (
                       <div className='flex justify-between'>
-                        <span className='text-gray-500 dark:text-gray-400'>{t('earnpool.withdraw.earlyFee')}</span>
+                        <span className='text-gray-500 dark:text-gray-400'>
+                          {t('earnpool.withdraw.earlyFee')}
+                        </span>
                         <span className='text-red-400 font-medium'>
                           -
                           {formatCurrency(
