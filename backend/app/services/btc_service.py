@@ -286,9 +286,6 @@ class BTCService:
             BTCTransactionResult com resultado da transação
         """
         try:
-            from bitcoinlib.transactions import Transaction
-            from bitcoinlib.keys import Key
-            
             logger.info(f"🔶 Iniciando envio BTC: {amount_btc} BTC para {to_address[:10]}...")
             
             # Converter para satoshis
@@ -312,10 +309,13 @@ class BTCService:
             total_available = sum(u.value for u in utxos)
             logger.info(f"📦 Total disponível: {total_available} satoshis ({total_available / SATOSHI} BTC)")
             
-            # Estimar tamanho da transação (aproximado)
-            # P2WPKH: ~68 vBytes por input + ~31 vBytes por output + ~10 overhead
-            estimated_vsize = len(utxos) * 68 + 2 * 31 + 10
-            estimated_fee = estimated_vsize * fee_rate
+            # Estimar tamanho da transação (P2PKH: ~148 bytes por input, ~34 por output)
+            estimated_size = len(utxos) * 148 + 2 * 34 + 10
+            estimated_fee = estimated_size * fee_rate
+            
+            # Garantir fee mínimo
+            if estimated_fee < 250:
+                estimated_fee = 250
             
             logger.info(f"📊 Fee estimado: {estimated_fee} satoshis")
             
@@ -327,36 +327,23 @@ class BTCService:
                     error=f"Saldo insuficiente. Faltam {deficit:.8f} BTC (incluindo taxa de {estimated_fee} satoshis)"
                 )
             
-            # Criar transação usando bitcoinlib
-            key = Key(private_key_wif, network='testnet' if self.testnet else 'bitcoin')
+            # Usar bitcoinlib Wallet para criar transação
+            raw_tx = self._create_and_sign_transaction(
+                from_address=from_address,
+                to_address=to_address,
+                amount_satoshis=amount_satoshis,
+                private_key_wif=private_key_wif,
+                utxos=utxos,
+                fee_satoshis=estimated_fee
+            )
             
-            # Construir transação
-            tx = Transaction(network='testnet' if self.testnet else 'bitcoin')
-            
-            # Adicionar inputs (UTXOs)
-            for utxo in utxos:
-                tx.add_input(
-                    prev_txid=utxo.txid,
-                    output_n=utxo.vout,
-                    keys=key,
-                    value=utxo.value
+            if not raw_tx:
+                return BTCTransactionResult(
+                    success=False,
+                    error="Falha ao criar transação Bitcoin"
                 )
             
-            # Adicionar output para destinatário
-            tx.add_output(amount_satoshis, to_address)
-            
-            # Adicionar output de troco (se houver)
-            change = total_available - amount_satoshis - estimated_fee
-            if change > 546:  # Dust limit
-                tx.add_output(change, from_address)
-            
-            # Assinar transação
-            tx.sign()
-            
-            # Serializar
-            raw_tx = tx.raw_hex()
-            
-            logger.info(f"📝 Transação criada: {len(raw_tx)} bytes")
+            logger.info(f"📝 Transação criada: {len(raw_tx)} caracteres hex")
             
             # Broadcast via API gratuita
             tx_hash = await self._broadcast_transaction(raw_tx)
@@ -383,6 +370,141 @@ class BTCService:
                 success=False,
                 error=f"Erro ao enviar Bitcoin: {str(e)}"
             )
+    
+    def _create_and_sign_transaction(
+        self,
+        from_address: str,
+        to_address: str,
+        amount_satoshis: int,
+        private_key_wif: str,
+        utxos: List[UTXO],
+        fee_satoshis: int
+    ) -> Optional[str]:
+        """
+        Cria e assina uma transação Bitcoin usando bit library ou manual.
+        
+        Returns:
+            Raw transaction hex ou None se falha
+        """
+        try:
+            # Tentar usar 'bit' library (mais simples e confiável)
+            try:
+                from bit import PrivateKey
+                from bit.network import NetworkAPI
+                from bit.transaction import Unspent
+                
+                key = PrivateKey(private_key_wif)
+                
+                # Verificar se o endereço corresponde
+                if key.address != from_address:
+                    logger.warning(f"⚠️ Endereço da chave ({key.address}) diferente do from_address ({from_address})")
+                
+                # Calcular troco
+                total_input = sum(u.value for u in utxos)
+                change_amount = total_input - amount_satoshis - fee_satoshis
+                
+                # Preparar outputs
+                outputs = [(to_address, amount_satoshis, 'satoshi')]
+                if change_amount > 546:  # Dust limit
+                    outputs.append((from_address, change_amount, 'satoshi'))
+                
+                # Criar objetos Unspent no formato correto do bit
+                # Unspent(amount, confirmations, script, txid, txindex)
+                bit_unspents = []
+                for utxo in utxos:
+                    # Script P2PKH padrão para endereços legacy (começam com 1)
+                    # 76a914{pubkey_hash}88ac
+                    unspent = Unspent(
+                        amount=utxo.value,
+                        confirmations=utxo.confirmations if hasattr(utxo, 'confirmations') else 6,
+                        script='',  # bit vai calcular automaticamente
+                        txid=utxo.txid,
+                        txindex=utxo.vout
+                    )
+                    bit_unspents.append(unspent)
+                
+                # Usar o método create_transaction com unspents customizados
+                tx_hex = key.create_transaction(
+                    outputs, 
+                    fee=fee_satoshis, 
+                    absolute_fee=True, 
+                    unspents=bit_unspents
+                )
+                
+                logger.info(f"✅ Transação criada com 'bit' library: {len(tx_hex)} chars")
+                return tx_hex
+                
+            except ImportError as ie:
+                logger.warning(f"⚠️ 'bit' library não disponível: {ie}, usando bitcoinlib")
+            except Exception as e:
+                logger.warning(f"⚠️ Erro com 'bit': {e}, tentando bitcoinlib")
+            
+            # Fallback: usar bitcoinlib com Wallet
+            from bitcoinlib.wallets import Wallet
+            from bitcoinlib.keys import Key
+            import tempfile
+            import os
+            
+            # Criar key
+            key = Key(private_key_wif, network='testnet' if self.testnet else 'bitcoin')
+            
+            # Criar wallet temporária em memória
+            wallet_name = f"temp_btc_send_{os.getpid()}"
+            
+            try:
+                # Deletar wallet se existir
+                try:
+                    w = Wallet(wallet_name)
+                    w.delete()
+                except:
+                    pass
+                
+                # Criar nova wallet com a chave
+                w = Wallet.create(
+                    wallet_name,
+                    keys=private_key_wif,
+                    network='testnet' if self.testnet else 'bitcoin',
+                    witness_type='legacy'  # P2PKH para endereços que começam com 1
+                )
+                
+                # Adicionar UTXOs manualmente
+                for utxo in utxos:
+                    w.utxos_update(utxos=[{
+                        'txid': utxo.txid,
+                        'output_n': utxo.vout,
+                        'value': utxo.value,
+                        'address': from_address
+                    }])
+                
+                # Criar transação
+                tx = w.send_to(
+                    to_address,
+                    amount_satoshis,
+                    fee=fee_satoshis,
+                    offline=True  # Não broadcast automaticamente
+                )
+                
+                raw_hex = tx.raw_hex()
+                
+                # Limpar wallet temporária
+                w.delete()
+                
+                logger.info(f"✅ Transação criada com bitcoinlib Wallet")
+                return raw_hex
+                
+            except Exception as e:
+                logger.error(f"❌ Erro criando transação com bitcoinlib Wallet: {e}")
+                # Tentar limpar
+                try:
+                    w = Wallet(wallet_name)
+                    w.delete()
+                except:
+                    pass
+                raise
+                
+        except Exception as e:
+            logger.error(f"❌ Erro ao criar transação BTC: {e}")
+            return None
     
     async def _broadcast_transaction(self, raw_tx_hex: str) -> Optional[str]:
         """
