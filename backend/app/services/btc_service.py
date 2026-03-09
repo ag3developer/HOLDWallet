@@ -453,13 +453,20 @@ class BTCService:
             
             # Adicionar inputs (UTXOs) COM o script_pubkey
             for utxo in utxos:
-                # O segredo está aqui: passar o script e a chave corretamente
+                # Converter script_pubkey de hex para bytes se necessário
+                locking_script = None
+                if utxo.script_pubkey:
+                    try:
+                        locking_script = bytes.fromhex(utxo.script_pubkey)
+                    except ValueError:
+                        locking_script = utxo.script_pubkey.encode() if isinstance(utxo.script_pubkey, str) else utxo.script_pubkey
+                
                 tx.add_input(
                     prev_txid=utxo.txid,
                     output_n=utxo.vout,
                     value=utxo.value,
-                    keys=[key],  # Lista de chaves para assinar
-                    script=utxo.script_pubkey if utxo.script_pubkey else None,
+                    keys=[key],
+                    locking_script=locking_script,  # Parâmetro correto do bitcoinlib
                     witness_type='legacy'  # P2PKH para endereços que começam com 1
                 )
                 logger.info(f"  ➕ Input: {utxo.txid[:16]}...:{utxo.vout} = {utxo.value} sats")
