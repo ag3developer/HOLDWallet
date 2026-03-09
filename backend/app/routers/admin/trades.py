@@ -785,8 +785,10 @@ async def retry_trade_deposit(
     current_admin: User = Depends(get_current_admin)
 ):
     """
-    Retry manual de depósito para trades que falharam
+    Retry manual de depósito para trades que falharam.
+    Suporta todas as redes: EVM (polygon, ethereum, base) e não-EVM (bitcoin, litecoin, etc).
     """
+    from app.services.multi_chain_service import multi_chain_service
     from app.services.blockchain_deposit_service import blockchain_deposit_service
     
     try:
@@ -813,26 +815,36 @@ async def retry_trade_deposit(
             trade.error_message = None
             db.commit()
         
-        # Tenta depósito novamente
-        deposit_result = blockchain_deposit_service.deposit_crypto_to_user(
+        # Detectar se é rede não-EVM (Bitcoin, Litecoin, etc)
+        symbol = str(trade.symbol).upper()
+        network_lower = (network or "polygon").lower()
+        
+        # Usar multi_chain_service para TODAS as cryptos (suporta BTC, LTC, DOGE, SOL, etc)
+        logger.info(f"🔄 Retry deposit via multi_chain_service: {symbol} na rede {network_lower}")
+        
+        result = await multi_chain_service.send_crypto(
             db=db,
             trade=trade,
-            network=network or "polygon"
+            network=network_lower,
+            bypass_restriction=True  # Admin pode ignorar restrições
         )
         
-        if deposit_result["success"]:
-            logger.info(f"✅ Retry de depósito OK para {trade.reference_code}! TX: {deposit_result['tx_hash']}")
+        if result.success:
+            logger.info(f"✅ Retry de depósito OK para {trade.reference_code}! TX: {result.tx_hash}")
             return {
                 "success": True,
-                "message": "Depósito concluído com sucesso",
-                "tx_hash": deposit_result["tx_hash"]
+                "message": f"Depósito de {symbol} concluído com sucesso",
+                "tx_hash": result.tx_hash,
+                "network": result.network,
+                "explorer_url": result.explorer_url
             }
         else:
-            logger.error(f"❌ Retry de depósito falhou: {deposit_result['error']}")
+            logger.error(f"❌ Retry de depósito falhou: {result.error}")
             return {
                 "success": False,
                 "message": "Depósito falhou novamente",
-                "error": deposit_result["error"]
+                "error": result.error,
+                "network": result.network
             }
             
     except HTTPException:

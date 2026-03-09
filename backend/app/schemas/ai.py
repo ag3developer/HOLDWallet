@@ -87,6 +87,8 @@ class PredictionDataPoint(BaseModel):
 
 class PredictionResponse(BaseModel):
     """Response model for price prediction"""
+    model_config = {"protected_namespaces": ()}  # Allow 'model_' prefix
+    
     symbol: str
     current_price: float
     predictions: List[PredictionDataPoint]
