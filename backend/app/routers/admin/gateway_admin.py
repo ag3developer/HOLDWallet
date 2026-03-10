@@ -358,6 +358,12 @@ async def get_merchant_detail(
                 "state": merchant.state,
                 "status": merchant.status.value,
                 "fee_percentage": float(merchant.custom_fee_percent or 0),
+                "custom_fee_percent": float(merchant.custom_fee_percent or 0),
+                "daily_limit_brl": float(merchant.daily_limit_brl or 0),
+                "monthly_limit_brl": float(merchant.monthly_limit_brl or 0),
+                "min_payment_brl": float(merchant.min_payment_brl or 10),
+                "max_payment_brl": float(merchant.max_payment_brl or 50000),
+                "auto_settlement": getattr(merchant, 'auto_settlement', True),
                 "settlement_currency": merchant.settlement_currency.value if merchant.settlement_currency else None,
                 "settlement_wallet_address": merchant.settlement_wallet_address,
                 "settlement_wallet_network": merchant.settlement_wallet_network,
@@ -702,6 +708,208 @@ async def update_merchant_fee(
     except Exception as e:
         db.rollback()
         logger.error(f"Erro ao atualizar taxa do merchant: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+@router.put("/merchants/{merchant_id}/settings")
+async def update_merchant_settings(
+    merchant_id: UUID,
+    settings: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Atualiza configurações completas do merchant.
+    
+    Campos permitidos:
+    - custom_fee_percent: Taxa personalizada (0-100)
+    - daily_limit_brl: Limite diário em BRL
+    - monthly_limit_brl: Limite mensal em BRL
+    - settlement_currency: Moeda de settlement (BRL, USDT, BTC, ETH)
+    - settlement_wallet_address: Endereço da carteira para settlement
+    - bank_pix_key: Chave PIX para recebimento
+    - bank_pix_key_type: Tipo da chave PIX (CPF, CNPJ, EMAIL, PHONE, EVP)
+    - webhook_url: URL para callbacks
+    - logo_url: URL do logo
+    - primary_color: Cor primária (HEX)
+    - auto_settlement: Settlement automático
+    - min_payment_brl: Valor mínimo de pagamento
+    - max_payment_brl: Valor máximo de pagamento
+    
+    Apenas admins podem acessar.
+    """
+    require_admin(current_user)
+    
+    try:
+        merchant = db.query(GatewayMerchant).filter(
+            GatewayMerchant.id == merchant_id
+        ).first()
+        
+        if not merchant:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Merchant não encontrado"
+            )
+        
+        old_data = {}
+        new_data = {}
+        
+        # Lista de campos permitidos e seus validadores
+        allowed_fields = {
+            'custom_fee_percent': lambda x: 0 <= x <= 100,
+            'daily_limit_brl': lambda x: x >= 0,
+            'monthly_limit_brl': lambda x: x >= 0,
+            'settlement_currency': lambda x: x in ['BRL', 'USDT', 'BTC', 'ETH', None],
+            'settlement_wallet_address': lambda x: True,
+            'bank_pix_key': lambda x: True,
+            'bank_pix_key_type': lambda x: x in ['CPF', 'CNPJ', 'EMAIL', 'PHONE', 'EVP', None],
+            'webhook_url': lambda x: True,
+            'logo_url': lambda x: True,
+            'primary_color': lambda x: True,
+            'auto_settlement': lambda x: isinstance(x, bool),
+            'min_payment_brl': lambda x: x >= 0,
+            'max_payment_brl': lambda x: x >= 0,
+        }
+        
+        for field, validator in allowed_fields.items():
+            if field in settings:
+                value = settings[field]
+                
+                # Validar o valor
+                if value is not None and not validator(value):
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Valor inválido para {field}"
+                    )
+                
+                # Salvar dados antigos
+                old_value = getattr(merchant, field, None)
+                if old_value is not None and hasattr(old_value, 'value'):
+                    old_data[field] = old_value.value
+                elif isinstance(old_value, Decimal):
+                    old_data[field] = float(old_value)
+                else:
+                    old_data[field] = old_value
+                
+                # Converter para Decimal se necessário
+                if field in ['custom_fee_percent', 'daily_limit_brl', 'monthly_limit_brl', 'min_payment_brl', 'max_payment_brl']:
+                    if value is not None:
+                        value = Decimal(str(value))
+                
+                # Atualizar o campo
+                setattr(merchant, field, value)
+                new_data[field] = settings[field]
+        
+        # Log de auditoria
+        audit_service = AuditService(db)
+        await audit_service.log(
+            merchant_id=merchant.id,
+            actor_id=str(current_user.id),
+            action="merchant.settings_updated",
+            old_data=old_data,
+            new_data=new_data
+        )
+        
+        db.commit()
+        db.refresh(merchant)
+        
+        logger.info(f"Configurações do merchant {merchant_id} atualizadas por admin {current_user.id}")
+        
+        # Retornar merchant atualizado
+        return {
+            "success": True,
+            "message": "Configurações atualizadas com sucesso",
+            "merchant": {
+                "id": str(merchant.id),
+                "company_name": merchant.company_name,
+                "status": merchant.status.value,
+                "custom_fee_percent": float(merchant.custom_fee_percent) if merchant.custom_fee_percent else 0,
+                "daily_limit_brl": float(merchant.daily_limit_brl) if merchant.daily_limit_brl else 0,
+                "monthly_limit_brl": float(merchant.monthly_limit_brl) if merchant.monthly_limit_brl else 0,
+                "settlement_currency": merchant.settlement_currency.value if merchant.settlement_currency else None,
+                "settlement_wallet_address": merchant.settlement_wallet_address,
+                "bank_pix_key": merchant.bank_pix_key,
+                "bank_pix_key_type": merchant.bank_pix_key_type,
+                "webhook_url": merchant.webhook_url,
+                "logo_url": merchant.logo_url,
+                "primary_color": merchant.primary_color,
+                "auto_settlement": getattr(merchant, 'auto_settlement', True),
+                "min_payment_brl": float(merchant.min_payment_brl) if getattr(merchant, 'min_payment_brl', None) else 0,
+                "max_payment_brl": float(merchant.max_payment_brl) if getattr(merchant, 'max_payment_brl', None) else 0,
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Erro ao atualizar configurações do merchant: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+@router.get("/merchants/{merchant_id}/summary")
+async def get_merchant_summary(
+    merchant_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Retorna resumo financeiro de um merchant.
+    
+    Apenas admins podem acessar.
+    """
+    require_admin(current_user)
+    
+    try:
+        merchant = db.query(GatewayMerchant).filter(
+            GatewayMerchant.id == merchant_id
+        ).first()
+        
+        if not merchant:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Merchant não encontrado"
+            )
+        
+        # Estatísticas de pagamentos
+        stats = db.query(
+            func.count(GatewayPayment.id).label('total_payments'),
+            func.sum(GatewayPayment.amount_requested).label('total_volume'),
+            func.sum(GatewayPayment.fee_amount).label('total_fees'),
+            func.max(GatewayPayment.created_at).label('last_payment_date')
+        ).filter(
+            GatewayPayment.merchant_id == merchant.id,
+            GatewayPayment.status == GatewayPaymentStatus.COMPLETED
+        ).first()
+        
+        # Settlement pendente
+        pending_settlement = db.query(
+            func.sum(GatewayPayment.settlement_amount)
+        ).filter(
+            GatewayPayment.merchant_id == merchant.id,
+            GatewayPayment.status == GatewayPaymentStatus.COMPLETED,
+            GatewayPayment.settled_at == None
+        ).scalar() or 0
+        
+        return {
+            "merchant_id": str(merchant.id),
+            "total_volume_brl": float(stats.total_volume or 0),
+            "total_payments": stats.total_payments or 0,
+            "total_fees_brl": float(stats.total_fees or 0),
+            "pending_settlement_brl": float(pending_settlement),
+            "last_payment_date": stats.last_payment_date.isoformat() if stats.last_payment_date else None
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao obter resumo do merchant: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)

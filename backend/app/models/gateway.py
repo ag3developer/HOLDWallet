@@ -175,6 +175,9 @@ class GatewayMerchant(Base):
     min_payment_brl = Column(Numeric(18, 2), default=10)  # Pagamento mínimo
     max_payment_brl = Column(Numeric(18, 2), default=50000)  # Pagamento máximo
     
+    # Settlement automático
+    auto_settlement = Column(Boolean, default=True, nullable=False)
+    
     # Wallet para recebimento (se settlement_currency != BRL)
     settlement_wallet_address = Column(String(100), nullable=True)
     settlement_wallet_network = Column(String(50), nullable=True)

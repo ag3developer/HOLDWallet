@@ -221,4 +221,86 @@ export const getPayments = async (params: {
   return response.data
 }
 
+/**
+ * Interface para configurações do merchant
+ */
+export interface MerchantSettings {
+  custom_fee_percent?: number
+  daily_limit_brl?: number
+  monthly_limit_brl?: number
+  settlement_currency?: string
+  settlement_wallet_address?: string
+  bank_pix_key?: string
+  bank_pix_key_type?: string
+  webhook_url?: string
+  logo_url?: string
+  primary_color?: string
+  auto_settlement?: boolean
+  min_payment_brl?: number
+  max_payment_brl?: number
+}
+
+/**
+ * Obter detalhes completos de um merchant
+ */
+export const getMerchantDetails = async (merchantId: string): Promise<GatewayMerchant> => {
+  const response = await gatewayAdminApi.get(`/merchants/${merchantId}`)
+  return response.data
+}
+
+/**
+ * Atualizar configurações do merchant
+ */
+export const updateMerchantSettings = async (
+  merchantId: string,
+  settings: MerchantSettings
+): Promise<GatewayMerchant> => {
+  const response = await gatewayAdminApi.put(`/merchants/${merchantId}/settings`, settings)
+  return response.data
+}
+
+/**
+ * Regenerar API Key do merchant
+ */
+export const regenerateApiKey = async (merchantId: string): Promise<{ api_key: string }> => {
+  const response = await gatewayAdminApi.post(`/merchants/${merchantId}/regenerate-key`)
+  return response.data
+}
+
+/**
+ * Obter histórico de transações do merchant
+ */
+export const getMerchantTransactions = async (
+  merchantId: string,
+  params: {
+    page?: number
+    per_page?: number
+  }
+): Promise<PaymentsListResponse> => {
+  const searchParams = new URLSearchParams()
+  if (params.page) searchParams.append('page', params.page.toString())
+  if (params.per_page) searchParams.append('per_page', params.per_page.toString())
+
+  const response = await gatewayAdminApi.get(
+    `/merchants/${merchantId}/payments?${searchParams.toString()}`
+  )
+  return response.data
+}
+
+/**
+ * Obter resumo financeiro do merchant
+ */
+export const getMerchantSummary = async (
+  merchantId: string
+): Promise<{
+  total_volume_brl: number
+  total_payments: number
+  total_fees_brl: number
+  pending_settlement_brl: number
+  last_payment_date?: string
+}> => {
+  const response = await gatewayAdminApi.get(`/merchants/${merchantId}/summary`)
+  return response.data
+}
+
 export default gatewayAdminApi
