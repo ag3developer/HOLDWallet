@@ -32,6 +32,7 @@ import {
   GatewaySettingsPage,
   GatewayRegisterPage,
 } from '@/pages/gateway'
+import GatewayDocsPage from '@/pages/gateway/GatewayDocsPage'
 
 // Hook para verificar se usuário é merchant
 const useMerchantCheck = () => {
@@ -159,6 +160,9 @@ export function GatewayApp() {
         <Routes>
           {/* Landing Page (public) */}
           <Route path='/' element={<GatewayLandingPage />} />
+
+          {/* Documentation (public) */}
+          <Route path='/docs' element={<GatewayDocsPage />} />
 
           {/* Auth Routes */}
           <Route
