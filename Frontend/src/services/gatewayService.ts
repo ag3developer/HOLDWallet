@@ -210,7 +210,7 @@ export interface CreateApiKeyRequest {
 
 export interface CreateApiKeyResponse {
   api_key: ApiKey
-  secret_key: string // Mostrado apenas uma vez
+  api_key_full: string // Mostrado apenas uma vez (campo retornado como "api_key" pelo backend)
 }
 
 // ============================================
@@ -487,7 +487,21 @@ export const getApiKeys = async (): Promise<ApiKey[]> => {
  */
 export const createApiKey = async (data: CreateApiKeyRequest): Promise<CreateApiKeyResponse> => {
   const response = await apiClient.post('/gateway/api-keys', data)
-  return response.data
+  // O backend retorna um objeto flat com todos os campos + api_key (a chave completa)
+  const apiKeyData = response.data
+  return {
+    api_key: {
+      id: apiKeyData.id,
+      name: apiKeyData.name,
+      key_prefix: apiKeyData.key_prefix,
+      environment: apiKeyData.is_test ? 'test' : 'live',
+      permissions: apiKeyData.permissions || [],
+      is_active: apiKeyData.is_active,
+      last_used_at: apiKeyData.last_used_at,
+      created_at: apiKeyData.created_at,
+    },
+    api_key_full: apiKeyData.api_key, // A chave completa
+  }
 }
 
 /**

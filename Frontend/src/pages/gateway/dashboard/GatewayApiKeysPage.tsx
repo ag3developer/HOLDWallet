@@ -479,10 +479,10 @@ export default function GatewayApiKeysPage() {
               <div className='bg-slate-100 dark:bg-slate-900 rounded-xl p-4 mb-6'>
                 <div className='flex items-center justify-between gap-3'>
                   <code className='flex-1 text-sm font-mono text-slate-900 dark:text-white break-all text-left'>
-                    {newKey.secret_key}
+                    {newKey.api_key_full}
                   </code>
                   <button
-                    onClick={() => copyToClipboard(newKey.secret_key, 'new-key')}
+                    onClick={() => copyToClipboard(newKey.api_key_full, 'new-key')}
                     title='Copiar chave'
                     className='p-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors flex-shrink-0'
                   >

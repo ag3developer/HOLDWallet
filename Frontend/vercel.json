@@ -2,10 +2,19 @@
   "buildCommand": "npm run build",
   "outputDirectory": "build",
   "rewrites": [
-    {
-      "source": "/:path*",
-      "destination": "/index.html"
-    }
+    { "source": "/docs", "destination": "/index.html" },
+    { "source": "/docs/(.*)", "destination": "/index.html" },
+    { "source": "/login", "destination": "/index.html" },
+    { "source": "/register", "destination": "/index.html" },
+    { "source": "/dashboard", "destination": "/index.html" },
+    { "source": "/dashboard/(.*)", "destination": "/index.html" },
+    { "source": "/checkout/(.*)", "destination": "/index.html" },
+    { "source": "/api-keys", "destination": "/index.html" },
+    { "source": "/webhooks", "destination": "/index.html" },
+    { "source": "/payments", "destination": "/index.html" },
+    { "source": "/payments/(.*)", "destination": "/index.html" },
+    { "source": "/settings", "destination": "/index.html" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
     {
