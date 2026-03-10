@@ -245,9 +245,8 @@ async def list_merchants(
                 "total_transactions": payment_count or 0,  # Alias para frontend
                 "total_volume": float(volume or 0),
                 "api_keys_count": api_keys_count,
-                "created_at": merchant.created_at.isoformat(),
-                "approved_at": merchant.approved_at.isoformat() if merchant.approved_at else None,
-                "approved_by": str(merchant.approved_by) if merchant.approved_by else None
+                "created_at": merchant.created_at.isoformat() if merchant.created_at else None,
+                "activated_at": merchant.activated_at.isoformat() if merchant.activated_at else None
             })
         
         return {
