@@ -24,61 +24,19 @@ import {
   Play,
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
-import { apiClient } from '@/services/api'
+import {
+  getGatewayStats,
+  getMerchants,
+  approveMerchant,
+  suspendMerchant,
+  blockMerchant,
+  reactivateMerchant,
+  type GatewayMerchant,
+  type GatewayStats,
+} from '@/services/admin/adminGateway'
 
-// Types
-interface Merchant {
-  id: string
-  company_name: string
-  cnpj: string
-  owner_name: string
-  email: string
-  status: 'PENDING' | 'ACTIVE' | 'SUSPENDED' | 'BLOCKED'
-  merchant_code: string
-  fee_percentage: number
-  daily_limit: number
-  monthly_limit: number
-  created_at: string
-  total_transactions: number
-  total_volume: number
-  api_keys_count: number
-}
-
-interface GatewayStats {
-  merchants: {
-    total: number
-    pending: number
-    active: number
-    suspended: number
-    blocked: number
-  }
-  payments: {
-    total: number
-    total_volume: number
-    today: {
-      count: number
-      total: number
-    }
-    this_month: {
-      count: number
-      total: number
-    }
-  }
-  api_keys: {
-    active: number
-  }
-}
-
-interface GatewayPayment {
-  id: string
-  merchant_name: string
-  customer_email: string
-  amount: number
-  currency: string
-  status: string
-  created_at: string
-  payment_method: string
-}
+// Alias para compatibilidade com código existente
+type Merchant = GatewayMerchant
 
 // Status configuration
 const STATUS_CONFIG: Record<string, { label: string; bgClass: string; icon: React.ReactNode }> = {
@@ -184,8 +142,8 @@ export const AdminGatewayPage: React.FC = () => {
   // Fetch stats
   const fetchStats = async () => {
     try {
-      const response = await apiClient.get('/admin/gateway/stats')
-      setStats(response.data)
+      const data = await getGatewayStats()
+      setStats(data)
     } catch (err: any) {
       console.error('Erro ao carregar estatísticas:', err)
     }
@@ -200,21 +158,14 @@ export const AdminGatewayPage: React.FC = () => {
         setLoading(true)
       }
 
-      const params = new URLSearchParams()
-      params.append('page', page.toString())
-      params.append('per_page', perPage.toString())
-
-      if (statusFilter !== 'all') {
-        params.append('status', statusFilter)
-      }
-
-      if (debouncedSearch) {
-        params.append('search', debouncedSearch)
-      }
-
-      const response = await apiClient.get(`/admin/gateway/merchants?${params.toString()}`)
-      setMerchants(response.data.merchants || [])
-      setTotalMerchants(response.data.total || 0)
+      const response = await getMerchants({
+        page,
+        per_page: perPage,
+        status: statusFilter,
+        search: debouncedSearch,
+      })
+      setMerchants(response.merchants || [])
+      setTotalMerchants(response.total || 0)
     } catch (err: any) {
       console.error('Erro ao carregar merchants:', err)
       toast.error(err.response?.data?.detail || 'Erro ao carregar merchants')
@@ -237,7 +188,7 @@ export const AdminGatewayPage: React.FC = () => {
   const handleApproveMerchant = async (merchantId: string) => {
     try {
       setActionLoading(merchantId)
-      await apiClient.put(`/admin/gateway/merchants/${merchantId}/approve`)
+      await approveMerchant(merchantId)
       toast.success('Merchant aprovado com sucesso!')
       fetchData(true)
     } catch (err: any) {
@@ -256,9 +207,7 @@ export const AdminGatewayPage: React.FC = () => {
 
     try {
       setActionLoading(showReasonModal.merchantId)
-      await apiClient.put(
-        `/admin/gateway/merchants/${showReasonModal.merchantId}/suspend?reason=${encodeURIComponent(actionReason)}`
-      )
+      await suspendMerchant(showReasonModal.merchantId, actionReason)
       toast.success('Merchant suspenso com sucesso!')
       fetchData(true)
     } catch (err: any) {
@@ -278,9 +227,7 @@ export const AdminGatewayPage: React.FC = () => {
 
     try {
       setActionLoading(showReasonModal.merchantId)
-      await apiClient.put(
-        `/admin/gateway/merchants/${showReasonModal.merchantId}/block?reason=${encodeURIComponent(actionReason)}`
-      )
+      await blockMerchant(showReasonModal.merchantId, actionReason)
       toast.success('Merchant bloqueado com sucesso!')
       fetchData(true)
     } catch (err: any) {
@@ -295,7 +242,7 @@ export const AdminGatewayPage: React.FC = () => {
   const handleReactivateMerchant = async (merchantId: string) => {
     try {
       setActionLoading(merchantId)
-      await apiClient.put(`/admin/gateway/merchants/${merchantId}/approve`)
+      await reactivateMerchant(merchantId)
       toast.success('Merchant reativado com sucesso!')
       fetchData(true)
     } catch (err: any) {

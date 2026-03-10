@@ -7,3 +7,9 @@
 
 export * from './adminService'
 export { default as adminApi } from './adminService'
+
+export * from './adminWolkpay'
+export { default as adminWolkpayApi } from './adminWolkpay'
+
+export * from './adminGateway'
+export { default as adminGatewayApi } from './adminGateway'

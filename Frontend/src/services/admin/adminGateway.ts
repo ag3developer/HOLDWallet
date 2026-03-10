@@ -1,0 +1,224 @@
+/**
+ * WolkPay Gateway Admin API Service
+ * ==================================
+ *
+ * Serviço para comunicação com API administrativa do Gateway de Pagamentos.
+ * Similar ao adminWolkpay.ts para manter consistência.
+ */
+
+import axios from 'axios'
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+
+// Criar instância do axios com configurações padrão
+const gatewayAdminApi = axios.create({
+  baseURL: `${API_URL}/admin/gateway`,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+})
+
+// Interceptor para adicionar token de autenticação
+gatewayAdminApi.interceptors.request.use(config => {
+  const authStorage = localStorage.getItem('hold-wallet-auth')
+  if (authStorage) {
+    try {
+      const parsed = JSON.parse(authStorage)
+      const token = parsed?.state?.token
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`
+      }
+    } catch (e) {
+      console.error('Erro ao parsear auth storage:', e)
+    }
+  }
+  return config
+})
+
+// Interceptor para tratamento de erros
+gatewayAdminApi.interceptors.response.use(
+  response => response,
+  error => {
+    if (error.response?.status === 401) {
+      let timeSinceLogin = Infinity
+      try {
+        const loginTimestamp = sessionStorage.getItem('auth_token_timestamp')
+        if (loginTimestamp) {
+          timeSinceLogin = Date.now() - Number.parseInt(loginTimestamp, 10)
+        }
+      } catch {
+        // sessionStorage not available
+      }
+
+      if (timeSinceLogin < 15000) {
+        console.warn('[GatewayAdminAPI] Skipping logout - user just logged in')
+        return Promise.reject(error)
+      }
+
+      console.error('Token invalido ou expirado')
+      localStorage.removeItem('hold-wallet-auth')
+      globalThis.location.href = '/login'
+    }
+    if (error.response?.status === 403) {
+      console.error('Acesso negado: Usuario nao e admin')
+    }
+    return Promise.reject(error)
+  }
+)
+
+// ============================================
+// Types
+// ============================================
+
+export interface GatewayMerchant {
+  id: string
+  company_name: string
+  cnpj: string
+  owner_name: string
+  email: string
+  status: 'PENDING' | 'ACTIVE' | 'SUSPENDED' | 'BLOCKED'
+  merchant_code: string
+  fee_percentage: number
+  daily_limit: number
+  monthly_limit: number
+  created_at: string
+  total_transactions: number
+  total_volume: number
+  api_keys_count: number
+}
+
+export interface GatewayStats {
+  merchants: {
+    total: number
+    pending: number
+    active: number
+    suspended: number
+    blocked: number
+  }
+  payments: {
+    total: number
+    total_volume: number
+    today: {
+      count: number
+      total: number
+    }
+    this_month: {
+      count: number
+      total: number
+    }
+  }
+  api_keys: {
+    active: number
+  }
+}
+
+export interface GatewayPayment {
+  id: string
+  merchant_name: string
+  customer_email: string
+  amount: number
+  currency: string
+  status: string
+  created_at: string
+  payment_method: string
+}
+
+export interface MerchantsListResponse {
+  merchants: GatewayMerchant[]
+  total: number
+  page: number
+  per_page: number
+}
+
+export interface PaymentsListResponse {
+  payments: GatewayPayment[]
+  total: number
+  page: number
+  per_page: number
+}
+
+// ============================================
+// API Functions
+// ============================================
+
+/**
+ * Buscar estatísticas do gateway
+ */
+export const getGatewayStats = async (): Promise<GatewayStats> => {
+  const response = await gatewayAdminApi.get('/stats')
+  return response.data
+}
+
+/**
+ * Listar merchants com filtros
+ */
+export const getMerchants = async (params: {
+  page?: number
+  per_page?: number
+  status?: string
+  search?: string
+}): Promise<MerchantsListResponse> => {
+  const searchParams = new URLSearchParams()
+
+  if (params.page) searchParams.append('page', params.page.toString())
+  if (params.per_page) searchParams.append('per_page', params.per_page.toString())
+  if (params.status && params.status !== 'all') searchParams.append('status', params.status)
+  if (params.search) searchParams.append('search', params.search)
+
+  const response = await gatewayAdminApi.get(`/merchants?${searchParams.toString()}`)
+  return response.data
+}
+
+/**
+ * Aprovar merchant
+ */
+export const approveMerchant = async (merchantId: string): Promise<void> => {
+  await gatewayAdminApi.put(`/merchants/${merchantId}/approve`)
+}
+
+/**
+ * Suspender merchant
+ */
+export const suspendMerchant = async (merchantId: string, reason: string): Promise<void> => {
+  await gatewayAdminApi.put(`/merchants/${merchantId}/suspend?reason=${encodeURIComponent(reason)}`)
+}
+
+/**
+ * Bloquear merchant
+ */
+export const blockMerchant = async (merchantId: string, reason: string): Promise<void> => {
+  await gatewayAdminApi.put(`/merchants/${merchantId}/block?reason=${encodeURIComponent(reason)}`)
+}
+
+/**
+ * Reativar merchant
+ */
+export const reactivateMerchant = async (merchantId: string): Promise<void> => {
+  await gatewayAdminApi.put(`/merchants/${merchantId}/reactivate`)
+}
+
+/**
+ * Listar pagamentos com filtros
+ */
+export const getPayments = async (params: {
+  page?: number
+  per_page?: number
+  status?: string
+  merchant_id?: string
+  date_from?: string
+  date_to?: string
+}): Promise<PaymentsListResponse> => {
+  const searchParams = new URLSearchParams()
+
+  if (params.page) searchParams.append('page', params.page.toString())
+  if (params.per_page) searchParams.append('per_page', params.per_page.toString())
+  if (params.status && params.status !== 'all') searchParams.append('status', params.status)
+  if (params.merchant_id) searchParams.append('merchant_id', params.merchant_id)
+  if (params.date_from) searchParams.append('date_from', params.date_from)
+  if (params.date_to) searchParams.append('date_to', params.date_to)
+
+  const response = await gatewayAdminApi.get(`/payments?${searchParams.toString()}`)
+  return response.data
+}
+
+export default gatewayAdminApi

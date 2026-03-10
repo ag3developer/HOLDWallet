@@ -166,7 +166,7 @@ async def get_gateway_stats(
 
 @router.get("/merchants")
 async def list_merchants(
-    status: Optional[MerchantStatus] = None,
+    status_filter: Optional[MerchantStatus] = Query(None, alias="status"),
     search: Optional[str] = None,
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
@@ -184,8 +184,8 @@ async def list_merchants(
         query = db.query(GatewayMerchant)
         
         # Filtro por status
-        if status:
-            query = query.filter(GatewayMerchant.status == status)
+        if status_filter:
+            query = query.filter(GatewayMerchant.status == status_filter)
         
         # Busca por nome/CNPJ/email
         if search:
@@ -271,7 +271,7 @@ async def list_pending_merchants(
     Apenas admins podem acessar.
     """
     return await list_merchants(
-        status=MerchantStatus.PENDING,
+        status_filter=MerchantStatus.PENDING,
         search=None,
         page=page,
         per_page=per_page,
@@ -713,7 +713,7 @@ async def update_merchant_fee(
 @router.get("/payments")
 async def list_all_payments(
     merchant_id: Optional[UUID] = None,
-    status: Optional[GatewayPaymentStatus] = None,
+    status_filter: Optional[GatewayPaymentStatus] = Query(None, alias="status"),
     method: Optional[GatewayPaymentMethod] = None,
     search: Optional[str] = None,
     date_from: Optional[datetime] = None,
@@ -737,8 +737,8 @@ async def list_all_payments(
         if merchant_id:
             query = query.filter(GatewayPayment.merchant_id == merchant_id)
         
-        if status:
-            query = query.filter(GatewayPayment.status == status)
+        if status_filter:
+            query = query.filter(GatewayPayment.status == status_filter)
         
         if method:
             query = query.filter(GatewayPayment.payment_method == method)
