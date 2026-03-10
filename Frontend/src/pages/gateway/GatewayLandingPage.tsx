@@ -1,10 +1,12 @@
 /**
  * WolkPay Gateway - Landing Page
  * Design moderno inspirado em gateways de pagamento premium
+ * Multi-idioma com i18next
  */
 
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   Zap,
   Shield,
@@ -33,6 +35,7 @@ import {
   Gem,
   Box,
   Coffee,
+  Languages,
 } from 'lucide-react'
 import { getCrossAppUrl } from '@/utils/domainDetection'
 
@@ -55,150 +58,69 @@ const LinkedInIcon = ({ className }: { className?: string }) => (
   </svg>
 )
 
-// Palavras que alternam no hero
-const heroWords = ['PIX', 'Cripto', 'Global', 'Seguro', 'Rápido']
+// Features icons mapping
+const featureIcons = {
+  integration: Zap,
+  pix: CreditCard,
+  crypto: Wallet,
+  security: Shield,
+  global: Globe,
+  dashboard: BarChart3,
+}
 
-const features = [
-  {
-    icon: Zap,
-    title: 'Integração em Minutos',
-    description:
-      'API REST simples com SDKs para todas as linguagens populares. Documentação completa.',
+// Feature colors
+const featureStyles = {
+  integration: {
     color: 'from-amber-400 to-orange-500',
     iconBg: 'bg-gradient-to-br from-amber-400/20 to-orange-500/20',
   },
-  {
-    icon: CreditCard,
-    title: 'PIX Instantâneo',
-    description: 'Receba pagamentos PIX 24/7 com confirmação em segundos via webhook.',
+  pix: {
     color: 'from-emerald-400 to-teal-500',
     iconBg: 'bg-gradient-to-br from-emerald-400/20 to-teal-500/20',
   },
-  {
-    icon: Wallet,
-    title: 'Cripto sem Volatilidade',
-    description: 'Aceite Bitcoin, Ethereum e receba em stablecoins USDT/USDC automaticamente.',
+  crypto: {
     color: 'from-purple-400 to-pink-500',
     iconBg: 'bg-gradient-to-br from-purple-400/20 to-pink-500/20',
   },
-  {
-    icon: Shield,
-    title: 'Segurança Enterprise',
-    description: 'Criptografia de ponta, 2FA obrigatório e conformidade com regulações.',
+  security: {
     color: 'from-blue-400 to-cyan-500',
     iconBg: 'bg-gradient-to-br from-blue-400/20 to-cyan-500/20',
   },
-  {
-    icon: Globe,
-    title: 'Alcance Global',
-    description: 'Receba de qualquer lugar do mundo com conversão automática para BRL.',
+  global: {
     color: 'from-indigo-400 to-violet-500',
     iconBg: 'bg-gradient-to-br from-indigo-400/20 to-violet-500/20',
   },
-  {
-    icon: BarChart3,
-    title: 'Dashboard Completo',
-    description: 'Relatórios em tempo real, analytics avançados e exportação de dados.',
+  dashboard: {
     color: 'from-rose-400 to-pink-500',
     iconBg: 'bg-gradient-to-br from-rose-400/20 to-pink-500/20',
   },
-]
+}
 
-const benefits = [
-  { text: 'Taxa competitiva a partir de 0.99%', icon: TrendingUp },
-  { text: 'Liquidação em até 1 dia útil', icon: Clock },
-  { text: 'Sem mensalidade ou taxa de setup', icon: Sparkles },
-  { text: 'Suporte técnico 24/7', icon: Headphones },
-  { text: 'Webhooks em tempo real', icon: Zap },
-  { text: 'API RESTful documentada', icon: Code },
-]
+// Benefits icons mapping
+const benefitIcons = {
+  rate: TrendingUp,
+  settlement: Clock,
+  noFees: Sparkles,
+  support: Headphones,
+  webhooks: Zap,
+  api: Code,
+}
 
-const pricingPlans = [
-  {
-    name: 'Starter',
-    description: 'Para pequenos negócios',
-    price: '0',
-    period: '/mês',
-    features: [
-      'Até R$ 50.000/mês',
-      'Taxa: 1.99% PIX / 2.99% Cripto',
-      'Dashboard básico',
-      'Suporte por email',
-      '1 API Key',
-    ],
-    cta: 'Começar Grátis',
-    popular: false,
-    gradient: 'from-slate-600 to-slate-700',
-  },
-  {
-    name: 'Business',
-    description: 'Para empresas em crescimento',
-    price: '299',
-    period: '/mês',
-    features: [
-      'Até R$ 500.000/mês',
-      'Taxa: 1.49% PIX / 2.49% Cripto',
-      'Dashboard completo',
-      'Suporte prioritário',
-      'API Keys ilimitadas',
-      'Webhooks customizados',
-    ],
-    cta: 'Começar Agora',
-    popular: true,
-    gradient: 'from-indigo-600 to-purple-600',
-  },
-  {
-    name: 'Enterprise',
-    description: 'Para grandes operações',
-    price: 'Custom',
-    period: '',
-    features: [
-      'Volume ilimitado',
-      'Taxas negociadas',
-      'Gerente dedicado',
-      'SLA garantido',
-      'White-label disponível',
-      'Integração customizada',
-    ],
-    cta: 'Falar com Vendas',
-    popular: false,
-    gradient: 'from-slate-600 to-slate-700',
-  },
-]
+// Stats icons
+const statIcons = {
+  processed: TrendingUp,
+  uptime: Cpu,
+  pixConfirmation: Zap,
+  merchants: Building2,
+}
 
-const stats = [
-  { value: 'R$ 2B+', label: 'Processado', icon: TrendingUp },
-  { value: '99.99%', label: 'Uptime', icon: Cpu },
-  { value: '< 3s', label: 'Confirmação PIX', icon: Zap },
-  { value: '1.500+', label: 'Merchants', icon: Building2 },
-]
-
-const testimonials = [
-  {
-    name: 'Ricardo Santos',
-    role: 'CTO, TechStore',
-    avatar: 'RS',
-    content:
-      'Integramos o WolkPay em menos de 2 horas. A documentação é excelente e o suporte respondeu todas as dúvidas rapidamente.',
-    rating: 5,
-  },
-  {
-    name: 'Maria Oliveira',
-    role: 'CEO, E-commerce Plus',
-    avatar: 'MO',
-    content:
-      'Nosso faturamento aumentou 35% após aceitar cripto. Os clientes adoram a praticidade do PIX instantâneo.',
-    rating: 5,
-  },
-  {
-    name: 'Carlos Mendes',
-    role: 'Founder, SaaS Brasil',
-    avatar: 'CM',
-    content:
-      'A melhor taxa do mercado e liquidação super rápida. Recomendo para qualquer empresa que quer escalar.',
-    rating: 5,
-  },
-]
+// Stats values (não traduzíveis)
+const statsValues = {
+  processed: 'R$ 2B+',
+  uptime: '99.99%',
+  pixConfirmation: '< 3s',
+  merchants: '1.500+',
+}
 
 const integrations = [
   { name: 'Python', icon: FileCode, color: 'text-yellow-400' },
@@ -209,10 +131,22 @@ const integrations = [
   { name: 'Java', icon: Coffee, color: 'text-orange-400' },
 ]
 
+// Language selector options
+const languages = [
+  { code: 'pt-BR', name: 'Português', flag: '🇧🇷' },
+  { code: 'en-US', name: 'English', flag: '🇺🇸' },
+  { code: 'es-ES', name: 'Español', flag: '🇪🇸' },
+]
+
 export default function GatewayLandingPage() {
+  const { t, i18n } = useTranslation()
   const [currentWordIndex, setCurrentWordIndex] = useState(0)
   const [isAnimating, setIsAnimating] = useState(false)
   const [newsletterEmail, setNewsletterEmail] = useState('')
+  const [showLangMenu, setShowLangMenu] = useState(false)
+
+  // Palavras que alternam no hero (traduzidas)
+  const heroWords = t('gateway.hero.words', { returnObjects: true }) as string[]
 
   // Animação do texto rotativo no hero
   useEffect(() => {
@@ -224,7 +158,14 @@ export default function GatewayLandingPage() {
       }, 300)
     }, 3000)
     return () => clearInterval(interval)
-  }, [])
+  }, [heroWords.length])
+
+  const changeLanguage = (langCode: string) => {
+    i18n.changeLanguage(langCode)
+    setShowLangMenu(false)
+  }
+
+  const currentLang = languages.find(l => l.code === i18n.language) || languages[0]
 
   return (
     <div className='min-h-screen bg-slate-950 overflow-x-hidden'>
@@ -258,10 +199,10 @@ export default function GatewayLandingPage() {
             {/* Nav Links */}
             <div className='hidden md:flex items-center gap-1'>
               {[
-                { label: 'Recursos', href: '#features' },
-                { label: 'Preços', href: '#pricing' },
-                { label: 'Docs', href: '/docs' },
-                { label: 'API', href: '#api' },
+                { label: t('gateway.nav.features'), href: '#features' },
+                { label: t('gateway.nav.pricing'), href: '#pricing' },
+                { label: t('gateway.nav.docs'), href: '/docs' },
+                { label: t('gateway.nav.api'), href: '#api' },
               ].map(item => (
                 <a
                   key={item.label}
@@ -275,11 +216,40 @@ export default function GatewayLandingPage() {
 
             {/* CTA Buttons */}
             <div className='flex items-center gap-3'>
+              {/* Language Selector */}
+              <div className='relative'>
+                <button
+                  onClick={() => setShowLangMenu(!showLangMenu)}
+                  className='flex items-center gap-2 px-3 py-2 text-sm text-slate-400 hover:text-white transition-colors rounded-lg hover:bg-white/5'
+                  title={t('common.language')}
+                >
+                  <Languages className='w-4 h-4' />
+                  <span className='hidden sm:inline'>{currentLang?.flag || '🌐'}</span>
+                </button>
+                {showLangMenu && (
+                  <div className='absolute right-0 mt-2 w-40 bg-slate-900 border border-white/10 rounded-xl shadow-xl overflow-hidden z-50'>
+                    {languages.map(lang => (
+                      <button
+                        key={lang.code}
+                        onClick={() => changeLanguage(lang.code)}
+                        className={`w-full px-4 py-2.5 text-left text-sm flex items-center gap-3 hover:bg-white/5 transition-colors ${
+                          i18n.language === lang.code
+                            ? 'text-indigo-400 bg-white/5'
+                            : 'text-slate-300'
+                        }`}
+                      >
+                        <span>{lang.flag}</span>
+                        <span>{lang.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <Link
                 to='/login'
                 className='hidden sm:flex px-4 py-2.5 text-sm text-slate-300 hover:text-white transition-colors'
               >
-                Entrar
+                {t('gateway.nav.login')}
               </Link>
               <Link
                 to='/register'
@@ -288,7 +258,7 @@ export default function GatewayLandingPage() {
                 <div className='absolute inset-0 bg-gradient-to-r from-indigo-600 to-purple-600 transition-transform group-hover:scale-105' />
                 <div className='absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity' />
                 <span className='relative flex items-center gap-2'>
-                  Criar Conta
+                  {t('gateway.nav.createAccount')}
                   <ArrowRight className='w-4 h-4 group-hover:translate-x-0.5 transition-transform' />
                 </span>
               </Link>
@@ -304,15 +274,13 @@ export default function GatewayLandingPage() {
             {/* Badge */}
             <div className='inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 rounded-full mb-8 backdrop-blur-sm'>
               <Sparkles className='w-4 h-4 text-indigo-400' />
-              <span className='text-sm text-indigo-300 font-medium'>
-                Novo: PIX Copia e Cola + QR Code Dinâmico
-              </span>
+              <span className='text-sm text-indigo-300 font-medium'>{t('gateway.hero.badge')}</span>
               <ChevronRight className='w-4 h-4 text-indigo-400' />
             </div>
 
             {/* Main Title with Animated Word */}
             <h1 className='text-5xl sm:text-6xl lg:text-7xl font-bold text-white mb-8 leading-[1.1] tracking-tight'>
-              Gateway de Pagamentos
+              {t('gateway.hero.title')}
               <br />
               <span className='relative inline-block'>
                 <span className='bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent'>
@@ -330,11 +298,27 @@ export default function GatewayLandingPage() {
 
             {/* Subtitle */}
             <p className='text-xl sm:text-2xl text-slate-400 mb-12 max-w-3xl mx-auto leading-relaxed'>
-              Aceite pagamentos <span className='text-white font-medium'>PIX</span> e{' '}
-              <span className='text-white font-medium'>criptomoedas</span> com a API mais simples do
-              mercado.
+              {t('gateway.hero.subtitle', {
+                pix: '<span class="text-white font-medium">PIX</span>',
+                crypto:
+                  '<span class="text-white font-medium">' +
+                  t('gateway.hero.words.1', 'Cripto') +
+                  '</span>',
+              })
+                .split('<span')
+                .map((part, i) =>
+                  i === 0 ? (
+                    part
+                  ) : (
+                    <span
+                      key={i}
+                      className='text-white font-medium'
+                      dangerouslySetInnerHTML={{ __html: '<span' + part }}
+                    />
+                  )
+                )}
               <br className='hidden sm:block' />
-              Integre em minutos, receba em segundos.
+              {t('gateway.hero.subtitleLine2')}
             </p>
 
             {/* CTA Buttons */}
@@ -346,7 +330,7 @@ export default function GatewayLandingPage() {
                 <div className='absolute inset-0 bg-gradient-to-r from-indigo-600 to-purple-600' />
                 <div className='absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity' />
                 <span className='relative flex items-center justify-center gap-2'>
-                  Começar Gratuitamente
+                  {t('gateway.hero.cta')}
                   <ArrowRight className='w-5 h-5 group-hover:translate-x-1 transition-transform' />
                 </span>
               </Link>
@@ -355,23 +339,23 @@ export default function GatewayLandingPage() {
                 className='group w-full sm:w-auto px-8 py-4 bg-white/5 backdrop-blur-sm border border-white/10 text-white rounded-2xl font-semibold hover:bg-white/10 hover:border-white/20 transition-all flex items-center justify-center gap-2'
               >
                 <Play className='w-5 h-5 text-indigo-400' />
-                Ver Demo
+                {t('gateway.hero.demo')}
               </Link>
             </div>
 
             {/* Stats */}
             <div className='grid grid-cols-2 sm:grid-cols-4 gap-6 max-w-4xl mx-auto'>
-              {stats.map(stat => {
-                const Icon = stat.icon
+              {(['processed', 'uptime', 'pixConfirmation', 'merchants'] as const).map(statKey => {
+                const Icon = statIcons[statKey]
                 return (
                   <div
-                    key={stat.label}
+                    key={statKey}
                     className='group relative p-6 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/5 hover:border-indigo-500/30 transition-all'
                   >
                     <div className='absolute inset-0 bg-gradient-to-br from-indigo-600/5 to-purple-600/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity' />
                     <Icon className='w-5 h-5 text-indigo-400 mx-auto mb-2' />
-                    <div className='text-3xl font-bold text-white mb-1'>{stat.value}</div>
-                    <div className='text-sm text-slate-500'>{stat.label}</div>
+                    <div className='text-3xl font-bold text-white mb-1'>{statsValues[statKey]}</div>
+                    <div className='text-sm text-slate-500'>{t(`gateway.stats.${statKey}`)}</div>
                   </div>
                 )
               })}
@@ -436,13 +420,8 @@ export default function GatewayLandingPage() {
             {/* SDK Badges */}
             <div className='space-y-8'>
               <div>
-                <h2 className='text-3xl font-bold text-white mb-4'>
-                  SDKs para todas as linguagens
-                </h2>
-                <p className='text-lg text-slate-400'>
-                  Integre o WolkPay em minutos com nossos SDKs oficiais. Documentação completa e
-                  exemplos prontos para usar.
-                </p>
+                <h2 className='text-3xl font-bold text-white mb-4'>{t('gateway.sdk.title')}</h2>
+                <p className='text-lg text-slate-400'>{t('gateway.sdk.subtitle')}</p>
               </div>
               <div className='grid grid-cols-3 gap-4'>
                 {integrations.map(lang => {
@@ -462,7 +441,7 @@ export default function GatewayLandingPage() {
                 to='/docs'
                 className='inline-flex items-center gap-2 text-indigo-400 hover:text-indigo-300 font-medium transition-colors'
               >
-                Ver documentação completa
+                {t('gateway.sdk.viewDocs')}
                 <ArrowRight className='w-4 h-4' />
               </Link>
             </div>
@@ -475,37 +454,42 @@ export default function GatewayLandingPage() {
         <div className='max-w-7xl mx-auto'>
           <div className='text-center mb-20'>
             <span className='text-indigo-400 font-medium text-sm tracking-widest uppercase mb-4 block'>
-              Recursos
+              {t('gateway.features.sectionTitle')}
             </span>
             <h2 className='text-4xl sm:text-5xl font-bold text-white mb-6'>
-              Tudo que você precisa
+              {t('gateway.features.title')}
             </h2>
             <p className='text-xl text-slate-400 max-w-2xl mx-auto'>
-              Uma plataforma completa para aceitar PIX e criptomoedas no seu negócio
+              {t('gateway.features.subtitle')}
             </p>
           </div>
 
           <div className='grid md:grid-cols-2 lg:grid-cols-3 gap-6'>
-            {features.map((feature, index) => {
-              const Icon = feature.icon
-              return (
-                <div
-                  key={feature.title}
-                  className='group relative p-8 rounded-3xl bg-white/[0.02] border border-white/5 hover:border-white/10 transition-all duration-500 hover:transform hover:-translate-y-1'
-                >
-                  <div className='absolute inset-0 rounded-3xl bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity' />
+            {(['integration', 'pix', 'crypto', 'security', 'global', 'dashboard'] as const).map(
+              featureKey => {
+                const Icon = featureIcons[featureKey]
+                const style = featureStyles[featureKey]
+                return (
                   <div
-                    className={`relative w-14 h-14 ${feature.iconBg} rounded-2xl flex items-center justify-center mb-6`}
+                    key={featureKey}
+                    className='group relative p-8 rounded-3xl bg-white/[0.02] border border-white/5 hover:border-white/10 transition-all duration-500 hover:transform hover:-translate-y-1'
                   >
-                    <Icon className='w-7 h-7 text-white' />
+                    <div className='absolute inset-0 rounded-3xl bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity' />
+                    <div
+                      className={`relative w-14 h-14 ${style.iconBg} rounded-2xl flex items-center justify-center mb-6`}
+                    >
+                      <Icon className='w-7 h-7 text-white' />
+                    </div>
+                    <h3 className='relative text-xl font-semibold text-white mb-3'>
+                      {t(`gateway.features.${featureKey}.title`)}
+                    </h3>
+                    <p className='relative text-slate-400 leading-relaxed'>
+                      {t(`gateway.features.${featureKey}.description`)}
+                    </p>
                   </div>
-                  <h3 className='relative text-xl font-semibold text-white mb-3'>
-                    {feature.title}
-                  </h3>
-                  <p className='relative text-slate-400 leading-relaxed'>{feature.description}</p>
-                </div>
-              )
-            })}
+                )
+              }
+            )}
           </div>
         </div>
       </section>
@@ -519,33 +503,34 @@ export default function GatewayLandingPage() {
           <div className='grid lg:grid-cols-2 gap-16 items-center'>
             <div>
               <span className='text-indigo-400 font-medium text-sm tracking-widest uppercase mb-4 block'>
-                Por que WolkPay?
+                {t('gateway.benefits.sectionTitle')}
               </span>
               <h2 className='text-4xl sm:text-5xl font-bold text-white mb-8 leading-tight'>
-                Focados em{' '}
+                {t('gateway.benefits.title')}{' '}
                 <span className='bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent'>
-                  simplicidade
+                  {t('gateway.benefits.titleHighlight')}
                 </span>
               </h2>
-              <p className='text-xl text-slate-300 mb-10'>
-                Para que você possa focar no que importa: seu negócio. Nós cuidamos da complexidade
-                dos pagamentos.
-              </p>
+              <p className='text-xl text-slate-300 mb-10'>{t('gateway.benefits.subtitle')}</p>
               <div className='grid sm:grid-cols-2 gap-4'>
-                {benefits.map(benefit => {
-                  const Icon = benefit.icon
-                  return (
-                    <div
-                      key={benefit.text}
-                      className='flex items-center gap-4 p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-indigo-500/30 transition-colors'
-                    >
-                      <div className='w-10 h-10 bg-indigo-500/20 rounded-xl flex items-center justify-center flex-shrink-0'>
-                        <Icon className='w-5 h-5 text-indigo-400' />
+                {(['rate', 'settlement', 'noFees', 'support', 'webhooks', 'api'] as const).map(
+                  benefitKey => {
+                    const Icon = benefitIcons[benefitKey]
+                    return (
+                      <div
+                        key={benefitKey}
+                        className='flex items-center gap-4 p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-indigo-500/30 transition-colors'
+                      >
+                        <div className='w-10 h-10 bg-indigo-500/20 rounded-xl flex items-center justify-center flex-shrink-0'>
+                          <Icon className='w-5 h-5 text-indigo-400' />
+                        </div>
+                        <span className='text-sm text-slate-200 font-medium'>
+                          {t(`gateway.benefits.${benefitKey}`)}
+                        </span>
                       </div>
-                      <span className='text-sm text-slate-200 font-medium'>{benefit.text}</span>
-                    </div>
-                  )
-                })}
+                    )
+                  }
+                )}
               </div>
             </div>
 
@@ -556,14 +541,14 @@ export default function GatewayLandingPage() {
                 <div className='absolute inset-0 flex items-center justify-center'>
                   <div className='text-center'>
                     <button
-                      title='Ver demonstração do WolkPay'
-                      aria-label='Ver demonstração do WolkPay'
+                      title={t('gateway.video.watchDemo')}
+                      aria-label={t('gateway.video.watchDemo')}
                       className='group relative w-20 h-20 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center mb-4 hover:bg-white/20 transition-all'
                     >
                       <Play className='w-8 h-8 text-white ml-1' />
                       <div className='absolute inset-0 rounded-full border-2 border-white/30 animate-ping' />
                     </button>
-                    <p className='text-slate-400 text-sm'>Ver demonstração</p>
+                    <p className='text-slate-400 text-sm'>{t('gateway.video.watchDemo')}</p>
                   </div>
                 </div>
                 {/* Decorative Elements */}
@@ -588,39 +573,44 @@ export default function GatewayLandingPage() {
         <div className='max-w-7xl mx-auto'>
           <div className='text-center mb-16'>
             <span className='text-indigo-400 font-medium text-sm tracking-widest uppercase mb-4 block'>
-              Depoimentos
+              {t('gateway.testimonials.sectionTitle')}
             </span>
             <h2 className='text-4xl sm:text-5xl font-bold text-white mb-6'>
-              O que dizem nossos clientes
+              {t('gateway.testimonials.title')}
             </h2>
           </div>
 
           <div className='grid md:grid-cols-3 gap-8'>
-            {testimonials.map(testimonial => (
-              <div
-                key={testimonial.name}
-                className='group relative p-8 rounded-3xl bg-white/[0.02] border border-white/5 hover:border-indigo-500/30 transition-all'
-              >
-                <div className='flex gap-1 mb-6'>
-                  {Array.from({ length: testimonial.rating }, (_, i) => (
-                    <Star
-                      key={`star-${testimonial.name}-${i}`}
-                      className='w-5 h-5 fill-amber-400 text-amber-400'
-                    />
-                  ))}
-                </div>
-                <p className='text-slate-300 mb-8 leading-relaxed'>"{testimonial.content}"</p>
-                <div className='flex items-center gap-4'>
-                  <div className='w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold'>
-                    {testimonial.avatar}
+            {(['maria', 'pedro', 'julia'] as const).map(testimonialKey => {
+              const testimonial = t(`gateway.testimonials.${testimonialKey}`, {
+                returnObjects: true,
+              }) as { content: string; name: string; role: string }
+              return (
+                <div
+                  key={testimonialKey}
+                  className='group relative p-8 rounded-3xl bg-white/[0.02] border border-white/5 hover:border-indigo-500/30 transition-all'
+                >
+                  <div className='flex gap-1 mb-6'>
+                    {Array.from({ length: 5 }, (_, i) => (
+                      <Star
+                        key={`star-${testimonialKey}-${i}`}
+                        className='w-5 h-5 fill-amber-400 text-amber-400'
+                      />
+                    ))}
                   </div>
-                  <div>
-                    <div className='font-semibold text-white'>{testimonial.name}</div>
-                    <div className='text-sm text-slate-500'>{testimonial.role}</div>
+                  <p className='text-slate-300 mb-8 leading-relaxed'>"{testimonial.content}"</p>
+                  <div className='flex items-center gap-4'>
+                    <div className='w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold'>
+                      {testimonial.name.charAt(0)}
+                    </div>
+                    <div>
+                      <div className='font-semibold text-white'>{testimonial.name}</div>
+                      <div className='text-sm text-slate-500'>{testimonial.role}</div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       </section>
@@ -632,76 +622,89 @@ export default function GatewayLandingPage() {
         <div className='relative max-w-7xl mx-auto'>
           <div className='text-center mb-20'>
             <span className='text-indigo-400 font-medium text-sm tracking-widest uppercase mb-4 block'>
-              Preços
+              {t('gateway.pricing.sectionTitle')}
             </span>
-            <h2 className='text-4xl sm:text-5xl font-bold text-white mb-6'>Transparente e justo</h2>
+            <h2 className='text-4xl sm:text-5xl font-bold text-white mb-6'>
+              {t('gateway.pricing.title')}
+            </h2>
             <p className='text-xl text-slate-400 max-w-2xl mx-auto'>
-              Sem surpresas. Pague apenas pelo que usar.
+              {t('gateway.pricing.subtitle')}
             </p>
           </div>
 
           <div className='grid md:grid-cols-3 gap-8 max-w-6xl mx-auto'>
-            {pricingPlans.map(plan => (
-              <div
-                key={plan.name}
-                className={`relative group rounded-3xl transition-all duration-300 ${
-                  plan.popular ? 'scale-105 z-10' : 'hover:scale-[1.02]'
-                }`}
-              >
-                {plan.popular && (
-                  <div className='absolute -inset-[2px] bg-gradient-to-r from-indigo-500 to-purple-500 rounded-3xl blur-sm' />
-                )}
+            {(['starter', 'professional', 'enterprise'] as const).map(planKey => {
+              const plan = t(`gateway.pricing.plans.${planKey}`, { returnObjects: true }) as {
+                name: string
+                description: string
+                price: string
+                period: string
+                features: string[]
+                cta: string
+              }
+              const isPopular = planKey === 'professional'
+              return (
                 <div
-                  className={`relative h-full p-8 rounded-3xl border ${
-                    plan.popular
-                      ? 'bg-gradient-to-br from-indigo-950 to-purple-950 border-indigo-500/50'
-                      : 'bg-white/[0.02] border-white/5 hover:border-white/10'
+                  key={planKey}
+                  className={`relative group rounded-3xl transition-all duration-300 ${
+                    isPopular ? 'scale-105 z-10' : 'hover:scale-[1.02]'
                   }`}
                 >
-                  {plan.popular && (
-                    <div className='absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-sm font-semibold rounded-full shadow-lg'>
-                      Mais Popular
-                    </div>
+                  {isPopular && (
+                    <div className='absolute -inset-[2px] bg-gradient-to-r from-indigo-500 to-purple-500 rounded-3xl blur-sm' />
                   )}
-                  <h3 className='text-2xl font-bold text-white mb-2'>{plan.name}</h3>
-                  <p className='text-slate-400 text-sm mb-8'>{plan.description}</p>
-                  <div className='mb-8'>
-                    <span className='text-5xl font-bold text-white'>
-                      {plan.price === 'Custom' ? '' : 'R$ '}
-                      {plan.price}
-                    </span>
-                    <span className='text-slate-400 text-lg'>{plan.period}</span>
-                  </div>
-                  <ul className='space-y-4 mb-10'>
-                    {plan.features.map(feature => (
-                      <li key={feature} className='flex items-center gap-3 text-slate-300'>
-                        <div
-                          className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${
-                            plan.popular ? 'bg-indigo-500/30' : 'bg-white/10'
-                          }`}
-                        >
-                          <Check
-                            className={`w-3 h-3 ${plan.popular ? 'text-indigo-300' : 'text-emerald-400'}`}
-                          />
-                        </div>
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
-                  <Link
-                    to='/register'
-                    className={`w-full py-4 rounded-2xl font-semibold transition-all flex items-center justify-center gap-2 ${
-                      plan.popular
-                        ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white hover:from-indigo-400 hover:to-purple-400 shadow-lg shadow-indigo-500/25'
-                        : 'bg-white/5 text-white hover:bg-white/10 border border-white/10'
+                  <div
+                    className={`relative h-full p-8 rounded-3xl border ${
+                      isPopular
+                        ? 'bg-gradient-to-br from-indigo-950 to-purple-950 border-indigo-500/50'
+                        : 'bg-white/[0.02] border-white/5 hover:border-white/10'
                     }`}
                   >
-                    {plan.cta}
-                    <ArrowRight className='w-4 h-4' />
-                  </Link>
+                    {isPopular && (
+                      <div className='absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-sm font-semibold rounded-full shadow-lg'>
+                        {t('gateway.pricing.mostPopular')}
+                      </div>
+                    )}
+                    <h3 className='text-2xl font-bold text-white mb-2'>{plan.name}</h3>
+                    <p className='text-slate-400 text-sm mb-8'>{plan.description}</p>
+                    <div className='mb-8'>
+                      <span className='text-5xl font-bold text-white'>
+                        {plan.price === 'Custom' ? '' : '$ '}
+                        {plan.price}
+                      </span>
+                      <span className='text-slate-400 text-lg'>{plan.period}</span>
+                    </div>
+                    <ul className='space-y-4 mb-10'>
+                      {plan.features.map((feature, idx) => (
+                        <li key={idx} className='flex items-center gap-3 text-slate-300'>
+                          <div
+                            className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${
+                              isPopular ? 'bg-indigo-500/30' : 'bg-white/10'
+                            }`}
+                          >
+                            <Check
+                              className={`w-3 h-3 ${isPopular ? 'text-indigo-300' : 'text-emerald-400'}`}
+                            />
+                          </div>
+                          {feature}
+                        </li>
+                      ))}
+                    </ul>
+                    <Link
+                      to='/register'
+                      className={`w-full py-4 rounded-2xl font-semibold transition-all flex items-center justify-center gap-2 ${
+                        isPopular
+                          ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white hover:from-indigo-400 hover:to-purple-400 shadow-lg shadow-indigo-500/25'
+                          : 'bg-white/5 text-white hover:bg-white/10 border border-white/10'
+                      }`}
+                    >
+                      {plan.cta}
+                      <ArrowRight className='w-4 h-4' />
+                    </Link>
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       </section>
@@ -717,14 +720,15 @@ export default function GatewayLandingPage() {
         <div className='relative max-w-4xl mx-auto text-center'>
           <div className='inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full mb-8'>
             <Sparkles className='w-4 h-4 text-white' />
-            <span className='text-sm text-white font-medium'>Comece agora, é grátis</span>
+            <span className='text-sm text-white font-medium'>{t('gateway.cta.badge')}</span>
           </div>
           <h2 className='text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-8 leading-tight'>
-            Pronto para começar a<br />
-            receber pagamentos?
+            {t('gateway.cta.title')}
+            <br />
+            {t('gateway.cta.titleLine2')}
           </h2>
           <p className='text-xl text-white/80 mb-12 max-w-2xl mx-auto'>
-            Crie sua conta em menos de 5 minutos e comece a processar pagamentos imediatamente.
+            {t('gateway.cta.subtitle')}
           </p>
           <div className='flex flex-col sm:flex-row items-center justify-center gap-4'>
             <Link
@@ -732,7 +736,7 @@ export default function GatewayLandingPage() {
               className='group w-full sm:w-auto px-10 py-5 bg-white text-indigo-700 rounded-2xl font-bold hover:bg-slate-100 transition-all shadow-2xl flex items-center justify-center gap-2'
             >
               <Building2 className='w-5 h-5' />
-              Criar Conta Grátis
+              {t('gateway.cta.createAccount')}
               <ArrowRight className='w-5 h-5 group-hover:translate-x-1 transition-transform' />
             </Link>
             <a
@@ -740,7 +744,7 @@ export default function GatewayLandingPage() {
               className='w-full sm:w-auto px-10 py-5 bg-white/10 backdrop-blur-sm text-white rounded-2xl font-bold hover:bg-white/20 transition-all border border-white/20 flex items-center justify-center gap-2'
             >
               <MessageCircle className='w-5 h-5' />
-              Falar com Vendas
+              {t('gateway.cta.talkToSales')}
             </a>
           </div>
         </div>
@@ -754,27 +758,25 @@ export default function GatewayLandingPage() {
             <div className='flex flex-col lg:flex-row items-center justify-between gap-8'>
               <div>
                 <h3 className='text-2xl font-bold text-white mb-2'>
-                  Fique por dentro das novidades
+                  {t('gateway.newsletter.title')}
                 </h3>
-                <p className='text-slate-400'>
-                  Receba atualizações sobre novos recursos e dicas de integração.
-                </p>
+                <p className='text-slate-400'>{t('gateway.newsletter.subtitle')}</p>
               </div>
               <form className='flex w-full lg:w-auto gap-3'>
                 <input
                   type='email'
-                  placeholder='seu@email.com'
+                  placeholder={t('gateway.newsletter.placeholder')}
                   value={newsletterEmail}
                   onChange={e => setNewsletterEmail(e.target.value)}
                   className='flex-1 lg:w-80 px-5 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors'
                 />
                 <button
                   type='submit'
-                  title='Inscrever na newsletter'
+                  title={t('gateway.newsletter.subscribe')}
                   className='px-6 py-3.5 bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold rounded-xl hover:from-indigo-400 hover:to-purple-400 transition-all flex items-center gap-2'
                 >
                   <Mail className='w-4 h-4' />
-                  <span className='hidden sm:inline'>Inscrever</span>
+                  <span className='hidden sm:inline'>{t('gateway.newsletter.subscribe')}</span>
                 </button>
               </form>
             </div>
@@ -800,10 +802,7 @@ export default function GatewayLandingPage() {
                   </p>
                 </div>
               </Link>
-              <p className='text-slate-400 mb-6 max-w-sm'>
-                Gateway de pagamentos PIX e Cripto para empresas modernas. Integre em minutos,
-                receba em segundos.
-              </p>
+              <p className='text-slate-400 mb-6 max-w-sm'>{t('gateway.footer.description')}</p>
               <div className='flex gap-4'>
                 {[
                   { label: 'Twitter', href: 'https://twitter.com/wolknow', icon: XIcon },
@@ -831,21 +830,21 @@ export default function GatewayLandingPage() {
 
             {/* Links */}
             <div>
-              <h4 className='font-semibold text-white mb-6'>Produto</h4>
+              <h4 className='font-semibold text-white mb-6'>{t('gateway.footer.product.title')}</h4>
               <ul className='space-y-4 text-slate-400'>
                 <li>
                   <a href='#features' className='hover:text-white transition-colors'>
-                    Recursos
+                    {t('gateway.footer.product.features')}
                   </a>
                 </li>
                 <li>
                   <a href='#pricing' className='hover:text-white transition-colors'>
-                    Preços
+                    {t('gateway.footer.product.pricing')}
                   </a>
                 </li>
                 <li>
                   <Link to='/docs' className='hover:text-white transition-colors'>
-                    Documentação
+                    {t('gateway.footer.product.documentation')}
                   </Link>
                 </li>
                 <li>
@@ -853,20 +852,20 @@ export default function GatewayLandingPage() {
                     href='https://status.wolknow.com'
                     className='hover:text-white transition-colors'
                   >
-                    Status
+                    {t('gateway.footer.product.status')}
                   </a>
                 </li>
               </ul>
             </div>
             <div>
-              <h4 className='font-semibold text-white mb-6'>Empresa</h4>
+              <h4 className='font-semibold text-white mb-6'>{t('gateway.footer.company.title')}</h4>
               <ul className='space-y-4 text-slate-400'>
                 <li>
                   <a
                     href={getCrossAppUrl('main', '/institutional')}
                     className='hover:text-white transition-colors'
                   >
-                    Sobre
+                    {t('gateway.footer.company.about')}
                   </a>
                 </li>
                 <li>
@@ -874,23 +873,23 @@ export default function GatewayLandingPage() {
                     href='mailto:contato@wolknow.com'
                     className='hover:text-white transition-colors'
                   >
-                    Contato
+                    {t('gateway.footer.company.contact')}
                   </a>
                 </li>
                 <li>
                   <Link to='/terms' className='hover:text-white transition-colors'>
-                    Termos de Uso
+                    {t('gateway.footer.company.terms')}
                   </Link>
                 </li>
                 <li>
                   <Link to='/privacy' className='hover:text-white transition-colors'>
-                    Privacidade
+                    {t('gateway.footer.company.privacy')}
                   </Link>
                 </li>
               </ul>
             </div>
             <div>
-              <h4 className='font-semibold text-white mb-6'>Suporte</h4>
+              <h4 className='font-semibold text-white mb-6'>{t('gateway.footer.support.title')}</h4>
               <ul className='space-y-4 text-slate-400'>
                 <li>
                   <a
@@ -910,7 +909,7 @@ export default function GatewayLandingPage() {
                 </li>
                 <li>
                   <Link to='/docs' className='hover:text-white transition-colors'>
-                    Central de Ajuda
+                    {t('gateway.footer.support.helpCenter')}
                   </Link>
                 </li>
               </ul>
@@ -920,17 +919,17 @@ export default function GatewayLandingPage() {
           {/* Bottom Bar */}
           <div className='pt-8 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4'>
             <p className='text-slate-500 text-sm'>
-              &copy; {new Date().getFullYear()} WolkNow Tecnologia. Todos os direitos reservados.
+              &copy; {new Date().getFullYear()} {t('gateway.footer.copyright')}
             </p>
             <div className='flex items-center gap-6 text-sm text-slate-500'>
               <Link to='/terms' className='hover:text-white transition-colors'>
-                Termos
+                {t('gateway.footer.links.terms')}
               </Link>
               <Link to='/privacy' className='hover:text-white transition-colors'>
-                Privacidade
+                {t('gateway.footer.links.privacy')}
               </Link>
               <Link to='/cookies' className='hover:text-white transition-colors'>
-                Cookies
+                {t('gateway.footer.links.cookies')}
               </Link>
             </div>
           </div>

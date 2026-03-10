@@ -1317,5 +1317,191 @@
       "checkboxRisks": "Reconheço os riscos envolvidos e entendo que os retornos não são garantidos.",
       "acceptButton": "Aceitar e Continuar"
     }
+  },
+  "gateway": {
+    "nav": {
+      "features": "Recursos",
+      "pricing": "Preços",
+      "docs": "Docs",
+      "api": "API",
+      "login": "Entrar",
+      "createAccount": "Criar Conta"
+    },
+    "hero": {
+      "badge": "Novo: PIX Copia e Cola + QR Code Dinâmico",
+      "title": "Gateway de Pagamentos",
+      "words": ["PIX", "Cripto", "Global", "Seguro", "Rápido"],
+      "subtitle": "Aceite pagamentos {{pix}} e {{crypto}} com a API mais simples do mercado.",
+      "subtitleLine2": "Integre em minutos, receba em segundos.",
+      "cta": "Começar Gratuitamente",
+      "demo": "Ver Demo"
+    },
+    "stats": {
+      "processed": "Processado",
+      "uptime": "Uptime",
+      "pixConfirmation": "Confirmação PIX",
+      "merchants": "Merchants"
+    },
+    "features": {
+      "sectionTitle": "Recursos",
+      "title": "Tudo que você precisa",
+      "subtitle": "Uma plataforma completa para aceitar PIX e criptomoedas no seu negócio",
+      "integration": {
+        "title": "Integração em Minutos",
+        "description": "API REST simples com SDKs para todas as linguagens populares. Documentação completa."
+      },
+      "pix": {
+        "title": "PIX Instantâneo",
+        "description": "Receba pagamentos PIX 24/7 com confirmação em segundos via webhook."
+      },
+      "crypto": {
+        "title": "Cripto sem Volatilidade",
+        "description": "Aceite Bitcoin, Ethereum e receba em stablecoins USDT/USDC automaticamente."
+      },
+      "security": {
+        "title": "Segurança Enterprise",
+        "description": "Criptografia de ponta, 2FA obrigatório e conformidade com regulações."
+      },
+      "global": {
+        "title": "Alcance Global",
+        "description": "Receba de qualquer lugar do mundo com conversão automática para BRL."
+      },
+      "dashboard": {
+        "title": "Dashboard Completo",
+        "description": "Relatórios em tempo real, analytics avançados e exportação de dados."
+      }
+    },
+    "sdk": {
+      "title": "SDKs para todas as linguagens",
+      "subtitle": "Integre o WolkPay em minutos com nossos SDKs oficiais. Documentação completa e exemplos prontos para usar.",
+      "viewDocs": "Ver documentação completa"
+    },
+    "benefits": {
+      "sectionTitle": "Por que WolkPay?",
+      "title": "Focados em",
+      "titleHighlight": "simplicidade",
+      "subtitle": "Para que você possa focar no que importa: seu negócio. Nós cuidamos da complexidade dos pagamentos.",
+      "rate": "Taxa competitiva a partir de 0.99%",
+      "settlement": "Liquidação em até 1 dia útil",
+      "noFees": "Sem mensalidade ou taxa de setup",
+      "support": "Suporte técnico 24/7",
+      "webhooks": "Webhooks em tempo real",
+      "api": "API RESTful documentada"
+    },
+    "video": {
+      "watchDemo": "Ver demonstração"
+    },
+    "testimonials": {
+      "sectionTitle": "Depoimentos",
+      "title": "O que dizem nossos clientes",
+      "maria": {
+        "content": "Nosso faturamento aumentou 35% após aceitar cripto. Os clientes adoram a praticidade do PIX instantâneo.",
+        "name": "Maria Oliveira",
+        "role": "CEO, E-commerce Plus"
+      },
+      "pedro": {
+        "content": "Integramos o WolkPay em menos de 2 horas. A documentação é excelente e o suporte respondeu todas as dúvidas rapidamente.",
+        "name": "Pedro Santos",
+        "role": "CTO, TechStore"
+      },
+      "julia": {
+        "content": "A melhor taxa do mercado e liquidação super rápida. Recomendo para qualquer empresa que quer escalar.",
+        "name": "Julia Mendes",
+        "role": "Founder, SaaS Brasil"
+      }
+    },
+    "pricing": {
+      "sectionTitle": "Preços",
+      "title": "Transparente e justo",
+      "subtitle": "Sem surpresas. Pague apenas pelo que usar.",
+      "mostPopular": "Mais Popular",
+      "plans": {
+        "starter": {
+          "name": "Starter",
+          "description": "Para pequenos negócios",
+          "price": "0",
+          "period": "/mês",
+          "features": [
+            "Até $10.000/mês",
+            "Taxa: 1.99% PIX / 2.99% Cripto",
+            "Dashboard básico",
+            "Suporte por email",
+            "1 API Key"
+          ],
+          "cta": "Começar Grátis"
+        },
+        "professional": {
+          "name": "Profissional",
+          "description": "Para empresas em crescimento",
+          "price": "299",
+          "period": "/mês",
+          "features": [
+            "Até $100.000/mês",
+            "Taxa: 1.49% PIX / 2.49% Cripto",
+            "Dashboard completo",
+            "Suporte prioritário",
+            "API Keys ilimitadas",
+            "Webhooks customizados"
+          ],
+          "cta": "Começar Agora"
+        },
+        "enterprise": {
+          "name": "Enterprise",
+          "description": "Para grandes operações",
+          "price": "Custom",
+          "period": "",
+          "features": [
+            "Volume ilimitado",
+            "Taxas negociadas",
+            "Gerente dedicado",
+            "SLA garantido",
+            "White-label disponível",
+            "Integração customizada"
+          ],
+          "cta": "Falar com Vendas"
+        }
+      }
+    },
+    "cta": {
+      "badge": "Comece agora, é grátis",
+      "title": "Pronto para começar a",
+      "titleLine2": "receber pagamentos?",
+      "subtitle": "Crie sua conta em menos de 5 minutos e comece a processar pagamentos imediatamente.",
+      "createAccount": "Criar Conta Grátis",
+      "talkToSales": "Falar com Vendas"
+    },
+    "newsletter": {
+      "title": "Fique por dentro das novidades",
+      "subtitle": "Receba atualizações sobre novos recursos e dicas de integração.",
+      "placeholder": "seu@email.com",
+      "subscribe": "Inscrever"
+    },
+    "footer": {
+      "description": "Gateway de pagamentos PIX e Cripto para empresas modernas. Integre em minutos, receba em segundos.",
+      "product": {
+        "title": "Produto",
+        "features": "Recursos",
+        "pricing": "Preços",
+        "documentation": "Documentação",
+        "status": "Status"
+      },
+      "company": {
+        "title": "Empresa",
+        "about": "Sobre",
+        "contact": "Contato",
+        "terms": "Termos de Uso",
+        "privacy": "Privacidade"
+      },
+      "support": {
+        "title": "Suporte",
+        "helpCenter": "Central de Ajuda"
+      },
+      "copyright": "WolkNow Tecnologia. Todos os direitos reservados.",
+      "links": {
+        "terms": "Termos",
+        "privacy": "Privacidade",
+        "cookies": "Cookies"
+      }
+    }
   }
 }
