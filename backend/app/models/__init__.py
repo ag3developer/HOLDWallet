@@ -54,6 +54,24 @@ from . import kyc
 from . import user_profile
 from . import earnpool
 from . import referral
+from . import gateway
+
+# Gateway Models
+from .gateway import (
+    GatewayMerchant,
+    GatewayApiKey,
+    GatewayPayment,
+    GatewayWebhook,
+    GatewayAuditLog,
+    GatewaySettings,
+    MerchantStatus,
+    GatewayPaymentStatus,
+    GatewayPaymentMethod,
+    GatewayWebhookEvent,
+    GatewayWebhookStatus,
+    GatewayAuditAction,
+    SettlementCurrency,
+)
 
 __all__ = [
     # Base
@@ -164,4 +182,20 @@ __all__ = [
     "ReferralConfig",
     "ReferralTier",
     "ReferralStatus",
+    
+    # Gateway (WolkPay Gateway for E-commerce)
+    "gateway",
+    "GatewayMerchant",
+    "GatewayApiKey",
+    "GatewayPayment",
+    "GatewayWebhook",
+    "GatewayAuditLog",
+    "GatewaySettings",
+    "MerchantStatus",
+    "GatewayPaymentStatus",
+    "GatewayPaymentMethod",
+    "GatewayWebhookEvent",
+    "GatewayWebhookStatus",
+    "GatewayAuditAction",
+    "SettlementCurrency",
 ]

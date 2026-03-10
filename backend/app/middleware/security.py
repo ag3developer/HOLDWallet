@@ -26,6 +26,9 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         "/prices/",              # Preços são públicos
         "/api/prices/",          # Preços são públicos
         "/v1/prices/",           # Preços são públicos
+        "/gateway/",             # Gateway público
+        "/v1/gateway/",          # Gateway público
+        "/api/gateway/",         # Gateway público
         "/auth/login",
         "/auth/register",
         "/auth/refresh",
@@ -49,6 +52,10 @@ class SecurityMiddleware(BaseHTTPMiddleware):
     ]
     
     async def dispatch(self, request: Request, call_next):
+        # CORS preflight (OPTIONS) sempre passa
+        if request.method == "OPTIONS":
+            return await call_next(request)
+        
         # Get client IP
         ip_address = self._get_client_ip(request)
         path = request.url.path

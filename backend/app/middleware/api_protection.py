@@ -115,6 +115,9 @@ class APIProtectionMiddleware(BaseHTTPMiddleware):
         '/prices/',            # Preços são públicos
         '/api/prices/',
         '/v1/prices/',
+        '/gateway/',           # Gateway público (checkout, registro)
+        '/v1/gateway/',
+        '/api/gateway/',
     ]
     
     # Rotas de autenticação que precisam funcionar sem bloqueio
@@ -182,7 +185,11 @@ class APIProtectionMiddleware(BaseHTTPMiddleware):
         path = request.url.path
         user_agent = request.headers.get('user-agent', '').lower()
         
-        # 0. IPs locais SEMPRE passam sem verificação (conexões internas/nginx)
+        # 0. Requisições OPTIONS (CORS preflight) SEMPRE passam
+        if request.method == "OPTIONS":
+            return await call_next(request)
+        
+        # 0.1 IPs locais SEMPRE passam sem verificação (conexões internas/nginx)
         if ip_address in self.DEV_BYPASS_IPS:
             return await call_next(request)
         

@@ -3,6 +3,12 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Helmet } from 'react-helmet-async'
 
+// Domain Detection
+import { isGatewayDomain } from '@/utils/domainDetection'
+
+// Gateway App (separate app for gateway.wolknow.com)
+import GatewayApp from '@/apps/GatewayApp'
+
 // Stores
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useThemeStore } from '@/stores/useThemeStore'
@@ -57,6 +63,16 @@ import { WolkPayPage } from '@/pages/wolkpay/WolkPayPage'
 import { WolkPayCheckoutPage } from '@/pages/wolkpay/WolkPayCheckoutPage'
 import { WolkPayHistoryPage } from '@/pages/wolkpay/WolkPayHistoryPage'
 import { WolkPayWelcomePage } from '@/pages/wolkpay/WolkPayWelcomePage'
+
+// Gateway Pages (WolkPay Gateway - B2B)
+import {
+  GatewayCheckoutPage,
+  GatewayDashboardPage,
+  GatewayPaymentsPage,
+  GatewayApiKeysPage,
+  GatewayWebhooksPage,
+  GatewaySettingsPage,
+} from '@/pages/gateway'
 
 // Bill Payment Pages
 import { BillPaymentPage, BillPaymentHistoryPage } from '@/pages/billpayment'
@@ -189,7 +205,18 @@ const RootRedirect = () => {
   return <Navigate to='/dashboard' replace />
 }
 
-function App() {
+// App Router - detects domain and renders appropriate app
+function AppRouter() {
+  // Check if we're on the Gateway subdomain
+  if (isGatewayDomain()) {
+    return <GatewayApp />
+  }
+
+  // Render main app
+  return <MainApp />
+}
+
+function MainApp() {
   const { t, i18n } = useTranslation()
   const { initializeAuth } = useAuthStore()
   const { theme, initializeTheme } = useThemeStore()
@@ -378,6 +405,25 @@ function App() {
           <Route path='/wolkpay/checkout/:token' element={<WolkPayCheckoutPage />} />
           <Route path='/wolkpay/welcome' element={<WolkPayWelcomePage />} />
 
+          {/* Gateway Public Checkout (no auth required) */}
+          <Route path='/gateway/checkout/:token' element={<GatewayCheckoutPage />} />
+
+          {/* Gateway Merchant Dashboard (requires auth) */}
+          <Route
+            element={
+              <ProtectedRoute>
+                <Layout />
+              </ProtectedRoute>
+            }
+          >
+            <Route path='/gateway/dashboard' element={<GatewayDashboardPage />} />
+            <Route path='/gateway/payments' element={<GatewayPaymentsPage />} />
+            <Route path='/gateway/payments/:paymentId' element={<GatewayPaymentsPage />} />
+            <Route path='/gateway/api-keys' element={<GatewayApiKeysPage />} />
+            <Route path='/gateway/webhooks' element={<GatewayWebhooksPage />} />
+            <Route path='/gateway/settings' element={<GatewaySettingsPage />} />
+          </Route>
+
           {/* Admin Routes with Admin Layout */}
           <Route
             element={
@@ -432,4 +478,4 @@ function App() {
   )
 }
 
-export default App
+export default AppRouter
