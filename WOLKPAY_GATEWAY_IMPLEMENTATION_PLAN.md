@@ -1,8 +1,27 @@
 # 📋 WolkPay Gateway - Plano de Implementação por Fases
 
 > **Documento de Planejamento e Execução**  
-> Data: 9 de Março de 2026  
-> Versão: 1.0
+> Data: 10 de Março de 2026  
+> Versão: 2.0
+
+---
+
+## 📊 Status Atual
+
+| Fase | Descrição           | Status      | Data        |
+| ---- | ------------------- | ----------- | ----------- |
+| 1    | Backend Models      | ✅ Completa | 9 Mar 2026  |
+| 2    | Schemas Pydantic    | ✅ Completa | 9 Mar 2026  |
+| 3    | Services Layer      | ✅ Completa | 9 Mar 2026  |
+| 4    | API Routers         | ✅ Completa | 10 Mar 2026 |
+| 5    | Landing Page        | ✅ Completa | 10 Mar 2026 |
+| 6    | Multi-idioma (i18n) | ✅ Completa | 10 Mar 2026 |
+| 7    | Frontend Checkout   | 🔄 Próxima  | -           |
+| 8    | Dashboard Merchant  | ⏳ Pendente | -           |
+| 9    | SDKs                | ⏳ Pendente | -           |
+| 10   | Documentação        | ⏳ Pendente | -           |
+
+**Progresso:** 60% completo (6/10 fases)
 
 ---
 

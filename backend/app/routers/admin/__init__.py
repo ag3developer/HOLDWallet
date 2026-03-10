@@ -40,6 +40,7 @@ from .bill_payment_admin import router as bill_payment_admin_router
 from .kyc_admin import router as kyc_admin_router
 from .user_kyc_admin import router as user_kyc_admin_router
 from .locked_balances import router as locked_balances_router
+from . import gateway_admin  # 🚀 WolkPay Gateway Admin
 
 # Create main admin router
 admin_router = APIRouter(prefix="/admin", tags=["Admin"])
@@ -89,5 +90,6 @@ __all__ = [
     "bill_payment_admin_router",
     "kyc_admin_router",
     "user_kyc_admin_router",
-    "locked_balances_router"
+    "locked_balances_router",
+    "gateway_admin"  # 🚀 WolkPay Gateway Admin
 ]

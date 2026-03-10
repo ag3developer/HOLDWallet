@@ -35,6 +35,7 @@ import {
   Lock,
   PiggyBank,
   Gift,
+  Building2,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useThemeStore } from '@/stores/useThemeStore'
@@ -57,6 +58,7 @@ const adminNavigation = [
   { name: 'Taxas & Receita', href: '/admin/fees', icon: Banknote, group: 'management' },
   { name: 'EarnPool', href: '/admin/earnpool', icon: PiggyBank, group: 'management' },
   { name: 'WOLK FRIENDS', href: '/admin/referral', icon: Gift, group: 'management' },
+  { name: 'WolkPay Gateway', href: '/admin/gateway', icon: Building2, group: 'management' },
   { name: 'Carteira Sistema', href: '/admin/system-wallet', icon: Landmark, group: 'management' },
 
   // Relatórios

@@ -32,6 +32,7 @@ from app.routers.admin import admin_router, wolkpay_admin_router, bill_payment_a
 from app.routers.admin import earnpool_admin
 from app.routers.admin import earnpool_revenue_admin
 from app.routers.admin import referral_admin
+from app.routers.admin import gateway_admin  # 🚀 WolkPay Gateway Admin
 from app.api.v1.endpoints import seed_verification
 
 # Setup logging
@@ -232,6 +233,7 @@ app.include_router(referral.router, prefix="", tags=["referral"])  # 🎁 WOLK F
 app.include_router(referral_admin.router, prefix="", tags=["referral-admin"])  # 🎁 WOLK FRIENDS Admin
 app.include_router(gateway.router, tags=["wolkpay-gateway"])  # 🚀 WolkPay Gateway - API para merchants
 app.include_router(gateway_callbacks.router, tags=["wolkpay-gateway-callbacks"])  # 🔔 WolkPay Gateway - Webhooks externos
+app.include_router(gateway_admin.router, tags=["wolkpay-gateway-admin"])  # 🛡️ WolkPay Gateway Admin - Gerenciamento de merchants
 # KYC Admin já incluído via admin_router
 
 # Root endpoint
