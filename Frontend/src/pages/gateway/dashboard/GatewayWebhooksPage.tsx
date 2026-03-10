@@ -73,10 +73,25 @@ export default function GatewayWebhooksPage() {
   const loadEvents = async () => {
     try {
       const eventsData = await getWebhookEvents(eventsPage, 10)
-      setEvents(eventsData.events)
-      setTotalEvents(eventsData.total)
+      // Handle different response formats
+      const data = eventsData as any
+      if (Array.isArray(data)) {
+        setEvents(data)
+        setTotalEvents(data.length)
+      } else if (data?.events) {
+        setEvents(data.events || [])
+        setTotalEvents(data.total || 0)
+      } else if (data?.data) {
+        setEvents(data.data || [])
+        setTotalEvents(data.total || data.data?.length || 0)
+      } else {
+        setEvents([])
+        setTotalEvents(0)
+      }
     } catch (error) {
       console.error('Erro ao carregar eventos:', error)
+      setEvents([])
+      setTotalEvents(0)
     }
   }
 

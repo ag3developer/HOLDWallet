@@ -1,0 +1,65 @@
+{
+  "name": "wolkpay",
+  "version": "1.0.0",
+  "description": "Official Node.js SDK for WolkPay Gateway - Accept PIX and Crypto payments",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "require": "./dist/index.js",
+      "import": "./dist/index.mjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "lint": "eslint src --ext .ts",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "wolkpay",
+    "payments",
+    "pix",
+    "crypto",
+    "gateway",
+    "api",
+    "brazil",
+    "bitcoin",
+    "ethereum",
+    "usdt"
+  ],
+  "author": "WolkNow <dev@wolknow.com>",
+  "license": "MIT",
+  "homepage": "https://gateway.wolknow.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wolknow/wolkpay-node.git"
+  },
+  "bugs": {
+    "url": "https://github.com/wolknow/wolkpay-node/issues"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/jest": "^29.5.0",
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.45.0",
+    "jest": "^29.6.0",
+    "ts-jest": "^29.1.0",
+    "tsup": "^7.2.0",
+    "typescript": "^5.1.0"
+  }
+}

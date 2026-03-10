@@ -1,0 +1,52 @@
+{
+  "name": "wolknow/wolkpay-php",
+  "description": "Official PHP SDK for WolkPay Gateway - Accept PIX and Crypto payments",
+  "version": "1.0.0",
+  "type": "library",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "WolkNow",
+      "email": "dev@wolknow.com"
+    }
+  ],
+  "keywords": [
+    "wolkpay",
+    "payments",
+    "pix",
+    "crypto",
+    "gateway",
+    "api",
+    "brazil"
+  ],
+  "homepage": "https://gateway.wolknow.com",
+  "support": {
+    "docs": "https://docs.wolknow.com/gateway",
+    "email": "support@wolknow.com"
+  },
+  "require": {
+    "php": ">=7.4",
+    "ext-json": "*",
+    "ext-curl": "*"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^9.0",
+    "phpstan/phpstan": "^1.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "WolkPay\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "WolkPay\\Tests\\": "tests/"
+    }
+  },
+  "scripts": {
+    "test": "phpunit",
+    "analyse": "phpstan analyse src --level=5"
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true
+}
