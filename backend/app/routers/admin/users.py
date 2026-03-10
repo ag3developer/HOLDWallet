@@ -440,6 +440,77 @@ async def verify_user_email(
         )
 
 
+@router.post("/{user_id}/reset-password", response_model=UserActionResponse)
+async def reset_user_password(
+    user_id: str,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin)
+):
+    """
+    Reseta a senha do usuário para uma senha temporária.
+    
+    Gera uma nova senha aleatória e envia por email ao usuário.
+    """
+    import secrets
+    import string
+    
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Usuário {user_id} não encontrado"
+            )
+        
+        # Gerar senha temporária segura (12 caracteres)
+        alphabet = string.ascii_letters + string.digits + "!@#$%"
+        temp_password = ''.join(secrets.choice(alphabet) for _ in range(12))
+        
+        # Atualizar senha no banco
+        user.password_hash = get_password_hash(temp_password)
+        user.updated_at = datetime.now(timezone.utc)
+        db.commit()
+        
+        # Tentar enviar email com a nova senha
+        try:
+            from app.services.email_service import EmailService
+            email_service = EmailService()
+            await email_service.send_password_reset_admin(
+                to_email=user.email,
+                username=user.username,
+                temp_password=temp_password
+            )
+            email_sent = True
+        except Exception as email_error:
+            logger.warning(f"⚠️ Não foi possível enviar email: {email_error}")
+            email_sent = False
+        
+        logger.info(f"🔑 Admin {current_admin.email} resetou senha de {user.email}")
+        
+        message = f"Senha de {user.email} resetada com sucesso."
+        if email_sent:
+            message += " Email enviado com a nova senha."
+        else:
+            message += f" Nova senha temporária: {temp_password}"
+        
+        return UserActionResponse(
+            success=True,
+            message=message,
+            user_id=str(user.id)
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"❌ Erro resetando senha: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
 @router.post("/{user_id}/disable-2fa", response_model=UserActionResponse)
 async def disable_user_2fa(
     user_id: str,
