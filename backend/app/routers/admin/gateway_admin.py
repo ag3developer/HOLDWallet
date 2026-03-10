@@ -206,11 +206,9 @@ async def list_merchants(
         offset = (page - 1) * per_page
         merchants = query.order_by(GatewayMerchant.created_at.desc()).offset(offset).limit(per_page).all()
         
-        # Buscar usuário de cada merchant
+        # Processar cada merchant
         result = []
         for merchant in merchants:
-            user = db.query(User).filter(User.id == merchant.user_id).first()
-            
             # Contar pagamentos do merchant
             payment_count = db.query(func.count(GatewayPayment.id)).filter(
                 GatewayPayment.merchant_id == merchant.id
@@ -222,10 +220,15 @@ async def list_merchants(
                 GatewayPayment.status == GatewayPaymentStatus.COMPLETED
             ).scalar()
             
+            # Contar API keys do merchant
+            api_keys_count = db.query(func.count(GatewayApiKey.id)).filter(
+                GatewayApiKey.merchant_id == merchant.id,
+                GatewayApiKey.is_active == True
+            ).scalar() or 0
+            
             result.append({
                 "id": str(merchant.id),
-                "user_id": str(merchant.user_id),
-                "user_email": user.email if user else None,
+                "owner_email": merchant.owner_email,  # Email do responsável pela empresa
                 "company_name": merchant.company_name,
                 "trade_name": merchant.trade_name,
                 "cnpj": merchant.cnpj,
@@ -233,10 +236,15 @@ async def list_merchants(
                 "phone": merchant.phone,
                 "website": merchant.website,
                 "owner_name": merchant.owner_name,
+                "merchant_code": merchant.merchant_code,
                 "status": merchant.status.value,
-                "fee_percentage": float(merchant.fee_percentage),
+                "fee_percentage": float(merchant.custom_fee_percent or 0),
+                "daily_limit": float(merchant.daily_limit_brl or 0),
+                "monthly_limit": float(merchant.monthly_limit_brl or 0),
                 "payment_count": payment_count or 0,
+                "total_transactions": payment_count or 0,  # Alias para frontend
                 "total_volume": float(volume or 0),
+                "api_keys_count": api_keys_count,
                 "created_at": merchant.created_at.isoformat(),
                 "approved_at": merchant.approved_at.isoformat() if merchant.approved_at else None,
                 "approved_by": str(merchant.approved_by) if merchant.approved_by else None
@@ -304,9 +312,6 @@ async def get_merchant_detail(
                 detail="Merchant não encontrado"
             )
         
-        # Buscar usuário
-        user = db.query(User).filter(User.id == merchant.user_id).first()
-        
         # API Keys
         api_keys = db.query(GatewayApiKey).filter(
             GatewayApiKey.merchant_id == merchant.id
@@ -335,8 +340,6 @@ async def get_merchant_detail(
         return {
             "merchant": {
                 "id": str(merchant.id),
-                "user_id": str(merchant.user_id),
-                "user_email": user.email if user else None,
                 "company_name": merchant.company_name,
                 "trade_name": merchant.trade_name,
                 "cnpj": merchant.cnpj,
@@ -355,7 +358,7 @@ async def get_merchant_detail(
                 "city": merchant.city,
                 "state": merchant.state,
                 "status": merchant.status.value,
-                "fee_percentage": float(merchant.fee_percentage),
+                "fee_percentage": float(merchant.custom_fee_percent or 0),
                 "settlement_currency": merchant.settlement_currency.value if merchant.settlement_currency else None,
                 "settlement_wallet_address": merchant.settlement_wallet_address,
                 "settlement_wallet_network": merchant.settlement_wallet_network,
@@ -670,8 +673,8 @@ async def update_merchant_fee(
                 detail="Merchant não encontrado"
             )
         
-        old_fee = float(merchant.fee_percentage)
-        merchant.fee_percentage = Decimal(str(fee_percentage))
+        old_fee = float(merchant.custom_fee_percent or 0)
+        merchant.custom_fee_percent = Decimal(str(fee_percentage))
         
         # Log de auditoria
         audit_service = AuditService(db)
@@ -778,9 +781,9 @@ async def list_all_payments(
                 "payment_code": p.payment_code,
                 "merchant_id": str(p.merchant_id),
                 "merchant_name": merchant.company_name if merchant else None,
-                "amount": float(p.amount),
-                "currency": p.currency,
-                "net_amount": float(p.net_amount) if p.net_amount else None,
+                "amount": float(p.amount_requested),
+                "currency": p.currency_requested,
+                "net_amount": float(p.settlement_amount) if p.settlement_amount else None,
                 "fee_amount": float(p.fee_amount) if p.fee_amount else None,
                 "status": p.status.value,
                 "payment_method": p.payment_method.value if p.payment_method else None,
@@ -788,7 +791,7 @@ async def list_all_payments(
                 "customer_email": p.customer_email,
                 "description": p.description,
                 "created_at": p.created_at.isoformat(),
-                "paid_at": p.paid_at.isoformat() if p.paid_at else None,
+                "completed_at": p.completed_at.isoformat() if p.completed_at else None,
                 "expires_at": p.expires_at.isoformat() if p.expires_at else None
             })
         
@@ -849,11 +852,11 @@ async def get_payment_detail(
                 "checkout_token": payment.checkout_token,
                 "merchant_id": str(payment.merchant_id),
                 "merchant_name": merchant.company_name if merchant else None,
-                "amount": float(payment.amount),
-                "currency": payment.currency,
-                "net_amount": float(payment.net_amount) if payment.net_amount else None,
+                "amount": float(payment.amount_requested),
+                "currency": payment.currency_requested,
+                "net_amount": float(payment.settlement_amount) if payment.settlement_amount else None,
                 "fee_amount": float(payment.fee_amount) if payment.fee_amount else None,
-                "fee_percentage": float(payment.fee_percentage) if payment.fee_percentage else None,
+                "fee_percentage": float(payment.fee_percent) if payment.fee_percent else None,
                 "status": payment.status.value,
                 "payment_method": payment.payment_method.value if payment.payment_method else None,
                 "customer_name": payment.customer_name,
@@ -863,19 +866,17 @@ async def get_payment_detail(
                 "pix_txid": payment.pix_txid,
                 "pix_qrcode": payment.pix_qrcode,
                 "crypto_address": payment.crypto_address,
-                "crypto_amount": payment.crypto_amount,
+                "crypto_amount": float(payment.crypto_amount) if payment.crypto_amount else None,
                 "crypto_currency": payment.crypto_currency,
                 "crypto_network": payment.crypto_network,
                 "crypto_tx_hash": payment.crypto_tx_hash,
                 "success_url": payment.success_url,
                 "cancel_url": payment.cancel_url,
-                "callback_url": payment.callback_url,
-                "metadata": payment.metadata,
+                "extra_data": payment.extra_data,
                 "created_at": payment.created_at.isoformat(),
-                "paid_at": payment.paid_at.isoformat() if payment.paid_at else None,
-                "expires_at": payment.expires_at.isoformat() if payment.expires_at else None,
-                "cancelled_at": payment.cancelled_at.isoformat() if payment.cancelled_at else None,
-                "refunded_at": payment.refunded_at.isoformat() if payment.refunded_at else None
+                "confirmed_at": payment.confirmed_at.isoformat() if payment.confirmed_at else None,
+                "completed_at": payment.completed_at.isoformat() if payment.completed_at else None,
+                "expires_at": payment.expires_at.isoformat() if payment.expires_at else None
             },
             "webhooks": [
                 {
