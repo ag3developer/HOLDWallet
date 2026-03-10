@@ -300,9 +300,12 @@ async def get_merchant_detail(
     """
     require_admin(current_user)
     
+    # Converter UUID para string pois o campo no DB é VARCHAR(36)
+    merchant_id_str = str(merchant_id)
+    
     try:
         merchant = db.query(GatewayMerchant).filter(
-            GatewayMerchant.id == merchant_id
+            GatewayMerchant.id == merchant_id_str
         ).first()
         
         if not merchant:
@@ -339,6 +342,7 @@ async def get_merchant_detail(
         return {
             "merchant": {
                 "id": str(merchant.id),
+                "merchant_code": merchant.merchant_code,
                 "company_name": merchant.company_name,
                 "trade_name": merchant.trade_name,
                 "cnpj": merchant.cnpj,
@@ -373,11 +377,12 @@ async def get_merchant_detail(
                 "primary_color": merchant.primary_color,
                 "webhook_url": merchant.webhook_url,
                 "created_at": merchant.created_at.isoformat(),
-                "approved_at": merchant.approved_at.isoformat() if merchant.approved_at else None,
-                "approved_by": str(merchant.approved_by) if merchant.approved_by else None,
-                "suspended_at": merchant.suspended_at.isoformat() if merchant.suspended_at else None,
-                "suspended_by": str(merchant.suspended_by) if merchant.suspended_by else None,
-                "suspended_reason": merchant.suspended_reason
+                "activated_at": merchant.activated_at.isoformat() if merchant.activated_at else None,
+                "approved_at": merchant.activated_at.isoformat() if merchant.activated_at else None,
+                "approved_by": None,
+                "suspended_at": None,
+                "suspended_by": None,
+                "suspended_reason": None
             },
             "api_keys": [
                 {
@@ -395,9 +400,9 @@ async def get_merchant_detail(
             "recent_payments": [
                 {
                     "id": str(p.id),
-                    "payment_code": p.payment_code,
-                    "amount": float(p.amount),
-                    "currency": p.currency,
+                    "payment_code": p.payment_id,
+                    "amount": float(p.amount_requested or 0),
+                    "currency": p.currency_requested,
                     "status": p.status.value,
                     "payment_method": p.payment_method.value if p.payment_method else None,
                     "created_at": p.created_at.isoformat()
@@ -412,7 +417,8 @@ async def get_merchant_detail(
             "audit_logs": [
                 {
                     "id": str(log.id),
-                    "action": log.action,
+                    "action": log.action.value if hasattr(log.action, 'value') else str(log.action),
+                    "description": log.description,
                     "old_data": log.old_data,
                     "new_data": log.new_data,
                     "ip_address": log.ip_address,
@@ -453,9 +459,10 @@ async def approve_merchant(
     try:
         merchant_service = MerchantService(db)
         
-        merchant = await merchant_service.approve_merchant(
-            merchant_id=merchant_id,
-            actor_id=str(current_user.id),
+        # Converter UUID para string pois o campo no DB é VARCHAR(36)
+        merchant = await merchant_service.activate_merchant(
+            merchant_id=str(merchant_id),
+            admin_id=str(current_user.id),
             notes=notes
         )
         
@@ -587,9 +594,12 @@ async def reactivate_merchant(
     """
     require_admin(current_user)
     
+    # Converter UUID para string pois o campo no DB é VARCHAR(36)
+    merchant_id_str = str(merchant_id)
+    
     try:
         merchant = db.query(GatewayMerchant).filter(
-            GatewayMerchant.id == merchant_id
+            GatewayMerchant.id == merchant_id_str
         ).first()
         
         if not merchant:
@@ -661,6 +671,9 @@ async def update_merchant_fee(
     """
     require_admin(current_user)
     
+    # Converter UUID para string pois o campo no DB é VARCHAR(36)
+    merchant_id_str = str(merchant_id)
+    
     try:
         if fee_percentage < 0 or fee_percentage > 100:
             raise HTTPException(
@@ -669,7 +682,7 @@ async def update_merchant_fee(
             )
         
         merchant = db.query(GatewayMerchant).filter(
-            GatewayMerchant.id == merchant_id
+            GatewayMerchant.id == merchant_id_str
         ).first()
         
         if not merchant:
@@ -743,9 +756,12 @@ async def update_merchant_settings(
     """
     require_admin(current_user)
     
+    # Converter UUID para string pois o campo no DB é VARCHAR(36)
+    merchant_id_str = str(merchant_id)
+    
     try:
         merchant = db.query(GatewayMerchant).filter(
-            GatewayMerchant.id == merchant_id
+            GatewayMerchant.id == merchant_id_str
         ).first()
         
         if not merchant:
@@ -866,9 +882,12 @@ async def get_merchant_summary(
     """
     require_admin(current_user)
     
+    # Converter UUID para string pois o campo no DB é VARCHAR(36)
+    merchant_id_str = str(merchant_id)
+    
     try:
         merchant = db.query(GatewayMerchant).filter(
-            GatewayMerchant.id == merchant_id
+            GatewayMerchant.id == merchant_id_str
         ).first()
         
         if not merchant:
@@ -910,6 +929,113 @@ async def get_merchant_summary(
         raise
     except Exception as e:
         logger.error(f"Erro ao obter resumo do merchant: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+@router.get("/merchants/{merchant_id}/payments")
+async def get_merchant_payments(
+    merchant_id: UUID,
+    status_filter: Optional[GatewayPaymentStatus] = Query(None, alias="status"),
+    method: Optional[GatewayPaymentMethod] = None,
+    search: Optional[str] = None,
+    date_from: Optional[datetime] = None,
+    date_to: Optional[datetime] = None,
+    page: int = Query(1, ge=1),
+    per_page: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Lista pagamentos de um merchant específico.
+    
+    Apenas admins podem acessar.
+    """
+    require_admin(current_user)
+    
+    # Converter UUID para string pois o campo no DB é VARCHAR(36)
+    merchant_id_str = str(merchant_id)
+    
+    try:
+        # Verificar se merchant existe
+        merchant = db.query(GatewayMerchant).filter(
+            GatewayMerchant.id == merchant_id_str
+        ).first()
+        
+        if not merchant:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Merchant não encontrado"
+            )
+        
+        query = db.query(GatewayPayment).filter(
+            GatewayPayment.merchant_id == merchant_id_str
+        )
+        
+        # Filtros
+        if status_filter:
+            query = query.filter(GatewayPayment.status == status_filter)
+        
+        if method:
+            query = query.filter(GatewayPayment.payment_method == method)
+        
+        if search:
+            search_term = f"%{search}%"
+            query = query.filter(
+                or_(
+                    GatewayPayment.payment_id.ilike(search_term),
+                    GatewayPayment.customer_email.ilike(search_term),
+                    GatewayPayment.customer_name.ilike(search_term)
+                )
+            )
+        
+        if date_from:
+            query = query.filter(GatewayPayment.created_at >= date_from)
+        
+        if date_to:
+            query = query.filter(GatewayPayment.created_at <= date_to)
+        
+        # Contagem total
+        total = query.count()
+        
+        # Paginação
+        offset = (page - 1) * per_page
+        payments = query.order_by(GatewayPayment.created_at.desc()).offset(offset).limit(per_page).all()
+        
+        # Formatar resultado
+        result = []
+        for p in payments:
+            result.append({
+                "id": str(p.id),
+                "payment_id": p.payment_id,
+                "external_id": p.external_id,
+                "amount": float(p.amount_requested or 0),
+                "currency": p.currency_requested,
+                "status": p.status.value,
+                "payment_method": p.payment_method.value if p.payment_method else None,
+                "customer_email": p.customer_email,
+                "customer_name": p.customer_name,
+                "fee_amount": float(p.fee_amount or 0),
+                "settlement_amount": float(p.settlement_amount or 0),
+                "created_at": p.created_at.isoformat(),
+                "confirmed_at": p.confirmed_at.isoformat() if p.confirmed_at else None,
+                "completed_at": p.completed_at.isoformat() if p.completed_at else None
+            })
+        
+        return {
+            "payments": result,
+            "total": total,
+            "page": page,
+            "per_page": per_page,
+            "total_pages": (total + per_page - 1) // per_page
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao listar pagamentos do merchant: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)

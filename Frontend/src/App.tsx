@@ -113,6 +113,7 @@ import {
   AdminEarnPoolPage,
   AdminReferralPage,
   AdminGatewayPage,
+  AdminMerchantDetailPage,
 } from '@/pages/admin'
 
 // Import Dashboard Switcher (V2 + Legacy toggle)
@@ -464,6 +465,10 @@ function MainApp() {
             <Route path='/admin/earnpool' element={<AdminEarnPoolPage />} />
             <Route path='/admin/referral' element={<AdminReferralPage />} />
             <Route path='/admin/gateway' element={<AdminGatewayPage />} />
+            <Route
+              path='/admin/gateway/merchant/:merchantId'
+              element={<AdminMerchantDetailPage />}
+            />
           </Route>
 
           {/* 404 Page */}
