@@ -92,7 +92,7 @@ async def get_gateway_stats(
         payment_stats = db.query(
             GatewayPayment.status,
             func.count(GatewayPayment.id).label('count'),
-            func.sum(GatewayPayment.amount).label('total')
+            func.sum(GatewayPayment.amount_requested).label('total')
         ).group_by(GatewayPayment.status).all()
         
         payments_by_status = {
@@ -110,14 +110,14 @@ async def get_gateway_stats(
         today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
         today_stats = db.query(
             func.count(GatewayPayment.id).label('count'),
-            func.sum(GatewayPayment.amount).label('total')
+            func.sum(GatewayPayment.amount_requested).label('total')
         ).filter(GatewayPayment.created_at >= today).first()
         
         # Pagamentos este mês
         first_of_month = today.replace(day=1)
         month_stats = db.query(
             func.count(GatewayPayment.id).label('count'),
-            func.sum(GatewayPayment.amount).label('total')
+            func.sum(GatewayPayment.amount_requested).label('total')
         ).filter(GatewayPayment.created_at >= first_of_month).first()
         
         # API Keys ativas
@@ -217,7 +217,7 @@ async def list_merchants(
             ).scalar()
             
             # Volume do merchant
-            volume = db.query(func.sum(GatewayPayment.amount)).filter(
+            volume = db.query(func.sum(GatewayPayment.amount_requested)).filter(
                 GatewayPayment.merchant_id == merchant.id,
                 GatewayPayment.status == GatewayPaymentStatus.COMPLETED
             ).scalar()
@@ -320,7 +320,7 @@ async def get_merchant_detail(
         # Estatísticas
         stats = db.query(
             func.count(GatewayPayment.id).label('total_payments'),
-            func.sum(GatewayPayment.amount).label('total_volume'),
+            func.sum(GatewayPayment.amount_requested).label('total_volume'),
             func.sum(GatewayPayment.fee_amount).label('total_fees')
         ).filter(
             GatewayPayment.merchant_id == merchant.id,
