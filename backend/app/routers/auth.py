@@ -510,6 +510,7 @@ async def forgot_password(
     Por segurança, sempre retorna sucesso (não revela se email existe).
     """
     from app.models.password_reset import PasswordResetToken
+    from app.models.user_settings import UserSettings
     
     ip_address = request.client.host if request.client else "unknown"
     
@@ -518,6 +519,10 @@ async def forgot_password(
         user = db.query(User).filter(User.email == request_data.email).first()
         
         if user:
+            # Buscar idioma do usuário
+            user_settings = db.query(UserSettings).filter(UserSettings.user_id == str(user.id)).first()
+            user_language = user_settings.language if user_settings else "en"
+            
             # Invalidar tokens anteriores
             db.query(PasswordResetToken).filter(
                 PasswordResetToken.user_id == user.id,
@@ -533,15 +538,16 @@ async def forgot_password(
             db.add(reset_token)
             db.commit()
             
-            # Enviar email
+            # Enviar email no idioma do usuário
             try:
                 await email_service.send_password_reset(
                     to_email=user.email,
                     username=user.username,
                     reset_token=reset_token.token,
-                    expires_in_hours=1
+                    expires_in_hours=1,
+                    language=user_language
                 )
-                logger.info(f"📧 Email de reset enviado para {user.email}")
+                logger.info(f"Email de reset enviado para {user.email} (idioma: {user_language})")
             except Exception as email_error:
                 logger.error(f"❌ Erro ao enviar email de reset: {email_error}")
             
@@ -601,6 +607,7 @@ async def reset_password(
     Valida o token e atualiza a senha do usuário.
     """
     from app.models.password_reset import PasswordResetToken
+    from app.models.user_settings import UserSettings
     
     ip_address = request.client.host if request.client else "unknown"
     
@@ -631,6 +638,10 @@ async def reset_password(
                 detail="Usuário não encontrado"
             )
         
+        # Buscar idioma do usuário
+        user_settings = db.query(UserSettings).filter(UserSettings.user_id == str(user.id)).first()
+        user_language = user_settings.language if user_settings else "en"
+        
         # Validar nova senha
         if len(request_data.newPassword) < 8:
             raise HTTPException(
@@ -647,12 +658,13 @@ async def reset_password(
         
         db.commit()
         
-        # Enviar notificação de senha alterada
+        # Enviar notificação de senha alterada no idioma do usuário
         try:
             await email_service.send_password_changed(
                 to_email=user.email,
                 username=user.username,
-                ip_address=ip_address
+                ip_address=ip_address,
+                language=user_language
             )
         except Exception:
             pass
@@ -710,11 +722,16 @@ async def resend_verification(
     Reenvia email de verificação de conta.
     """
     from app.models.password_reset import EmailVerificationToken
+    from app.models.user_settings import UserSettings
     
     try:
         user = db.query(User).filter(User.email == request_data.email).first()
         
         if user and not user.is_email_verified:
+            # Buscar idioma do usuário
+            user_settings = db.query(UserSettings).filter(UserSettings.user_id == str(user.id)).first()
+            user_language = user_settings.language if user_settings else "en"
+            
             # Criar novo token de verificação
             verification_token = EmailVerificationToken.create_for_user(
                 user_id=str(user.id),
@@ -724,14 +741,15 @@ async def resend_verification(
             db.add(verification_token)
             db.commit()
             
-            # Enviar email
+            # Enviar email no idioma do usuário
             try:
                 await email_service.send_email_verification(
                     to_email=user.email,
                     username=user.username,
-                    verification_token=verification_token.token
+                    verification_token=verification_token.token,
+                    language=user_language
                 )
-                logger.info(f"📧 Email de verificação reenviado para {user.email}")
+                logger.info(f"Email de verificacao reenviado para {user.email} (idioma: {user_language})")
             except Exception as email_error:
                 logger.error(f"❌ Erro ao reenviar email de verificação: {email_error}")
         

@@ -1,10 +1,18 @@
 #!/usr/bin/env python3
 """
-Script para resetar a senha de um usuário específico no PostgreSQL
-Usando SQL direto para evitar problemas de importação circular
+🔐 Script para Resetar Senha de Usuário
+========================================
+
+Uso:
+    python reset_user_password.py <email>
+    
+Exemplo:
+    python reset_user_password.py contato16171716@gmail.com
 """
 import sys
 import os
+import secrets
+import string
 
 from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
@@ -20,8 +28,6 @@ if not DATABASE_URL:
     print("❌ DATABASE_URL não encontrada no .env!")
     sys.exit(1)
 
-print("📁 Conectando ao banco de dados PostgreSQL...")
-
 # Criar engine
 engine = create_engine(DATABASE_URL)
 
@@ -32,7 +38,12 @@ def get_password_hash(password: str) -> str:
     hashed = bcrypt.hashpw(password_bytes, salt)
     return hashed.decode('utf-8')
 
-def reset_password(email: str, new_password: str):
+def generate_temp_password(length: int = 12) -> str:
+    """Gera senha temporária segura"""
+    alphabet = string.ascii_letters + string.digits + "!@#$%"
+    return ''.join(secrets.choice(alphabet) for _ in range(length))
+
+def reset_password(email: str):
     """Reseta a senha do usuário usando SQL direto"""
     
     try:
@@ -57,6 +68,9 @@ def reset_password(email: str, new_password: str):
             print(f"   ID: {result[0]}")
             print(f"   Ativo: {result[3]}")
             
+            # Usar senha fixa definida
+            new_password = "Mudar123@@"
+            
             # Gerar novo hash de senha
             new_hash = get_password_hash(new_password)
             
@@ -67,8 +81,13 @@ def reset_password(email: str, new_password: str):
             )
             conn.commit()
             
-            print("\n✅ Senha atualizada com sucesso!")
-            print(f"   Nova senha: {new_password}")
+            print("\n" + "=" * 50)
+            print("✅ SENHA RESETADA COM SUCESSO!")
+            print("=" * 50)
+            print(f"📧 Email: {email}")
+            print(f"🔑 Nova Senha: {new_password}")
+            print("=" * 50)
+            print("\n⚠️  Envie esta senha ao usuário e peça para trocar no primeiro login!")
             
             return True
         
@@ -77,30 +96,19 @@ def reset_password(email: str, new_password: str):
         return False
 
 if __name__ == "__main__":
-    # Email do usuário a ser resetado
-    TARGET_EMAIL = "mdhani212@proton.me"
-    
     print("=" * 50)
     print("🔐 RESET DE SENHA - HOLDWallet")
     print("=" * 50)
     
-    # Solicitar nova senha
-    print(f"\n📧 Usuário: {TARGET_EMAIL}")
-    new_password = input("🔑 Digite a nova senha: ").strip()
-    
-    if len(new_password) < 6:
-        print("❌ A senha deve ter pelo menos 6 caracteres!")
+    if len(sys.argv) < 2:
+        print("\n❌ Uso: python reset_user_password.py <email>")
+        print("   Exemplo: python reset_user_password.py usuario@email.com")
         sys.exit(1)
     
-    # Confirmar
-    confirm = input(f"\n⚠️  Confirma reset da senha para '{TARGET_EMAIL}'? (s/n): ").strip().lower()
+    target_email = sys.argv[1]
+    print(f"\n📧 Resetando senha para: {target_email}")
     
-    if confirm != 's':
-        print("❌ Operação cancelada!")
-        sys.exit(0)
-    
-    # Executar reset
-    if reset_password(TARGET_EMAIL, new_password):
+    if reset_password(target_email):
         print("\n✅ Processo concluído com sucesso!")
     else:
         print("\n❌ Falha no processo!")
