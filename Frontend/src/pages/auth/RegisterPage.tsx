@@ -7,13 +7,17 @@ import {
   EyeOff,
   Mail,
   User,
-  Phone,
   Lock,
   CheckCircle,
-  XCircle,
   AlertTriangle,
   Gift,
+  ArrowLeft,
+  Loader2,
+  ShieldCheck,
+  Sparkles,
+  UserPlus,
 } from 'lucide-react'
+import { FiShield } from 'react-icons/fi'
 
 interface RegisterForm {
   email: string
@@ -105,24 +109,6 @@ export const RegisterPage = () => {
     return ''
   }
 
-  const validateName = (name: string, field: string): string => {
-    if (!name) return t(`validation.${field}Required`, `${field} é obrigatório`)
-    if (name.length < 2)
-      return t(`validation.${field}TooShort`, `${field} deve ter pelo menos 2 caracteres`)
-    if (!/^[a-zA-ZÀ-ÿ\s]+$/.test(name)) {
-      return t(`validation.${field}Invalid`, `${field} deve conter apenas letras`)
-    }
-    return ''
-  }
-
-  const validatePhone = (phone: string): string => {
-    if (!phone) return '' // Phone is optional
-    if (!/^\+?[\d\s\-()]+$/.test(phone)) {
-      return t('validation.phoneInvalid', 'Formato de telefone inválido')
-    }
-    return ''
-  }
-
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {}
 
@@ -207,15 +193,15 @@ export const RegisterPage = () => {
     switch (strength) {
       case 0:
       case 1:
-        return { label: 'Muito fraca', color: 'text-red-500' }
+        return { label: t('auth.passwordVeryWeak', 'Muito fraca'), color: 'text-red-500' }
       case 2:
-        return { label: 'Fraca', color: 'text-orange-500' }
+        return { label: t('auth.passwordWeakLabel', 'Fraca'), color: 'text-orange-500' }
       case 3:
-        return { label: 'Média', color: 'text-yellow-500' }
+        return { label: t('auth.passwordMedium', 'Média'), color: 'text-yellow-500' }
       case 4:
-        return { label: 'Forte', color: 'text-green-500' }
+        return { label: t('auth.passwordStrong', 'Forte'), color: 'text-green-500' }
       case 5:
-        return { label: 'Muito forte', color: 'text-green-600' }
+        return { label: t('auth.passwordVeryStrong', 'Muito forte'), color: 'text-green-600' }
       default:
         return { label: '', color: '' }
     }
@@ -223,368 +209,505 @@ export const RegisterPage = () => {
 
   const isLoading = registerMutation.isPending
 
+  // Password strength visual helpers
+  const getStrengthBarColor = (level: number): string => {
+    if (level > passwordStrength) return 'bg-white/10'
+    if (passwordStrength <= 1) return 'bg-red-500'
+    if (passwordStrength <= 2) return 'bg-orange-500'
+    if (passwordStrength <= 3) return 'bg-yellow-500'
+    return 'bg-green-500'
+  }
+
   return (
-    <div className='min-h-screen bg-gradient-to-br from-primary-50 to-primary-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8'>
-      <div className='max-w-md w-full space-y-8'>
-        {/* Header */}
-        <div className='text-center'>
-          <div className='mx-auto h-20 w-20 rounded-2xl bg-white dark:bg-gray-800 shadow-lg flex items-center justify-center mb-6 p-3'>
+    <div className='min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden flex flex-col'>
+      {/* Background Effects */}
+      <div className='absolute inset-0 overflow-hidden pointer-events-none'>
+        <div className='absolute -top-1/2 -left-1/2 w-full h-full bg-gradient-to-br from-purple-500/10 to-transparent rounded-full blur-3xl animate-pulse' />
+        <div
+          className='absolute -bottom-1/2 -right-1/2 w-full h-full bg-gradient-to-tl from-blue-500/10 to-transparent rounded-full blur-3xl animate-pulse'
+          style={{ animationDelay: '1s' }}
+        />
+        <div className='absolute top-1/4 right-1/4 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl' />
+        <div className='absolute bottom-1/4 left-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl' />
+
+        {/* Grid */}
+        <svg className='absolute inset-0 w-full h-full opacity-[0.07]'>
+          <defs>
+            <pattern id='grid-reg' width='50' height='50' patternUnits='userSpaceOnUse'>
+              <path
+                d='M 50 0 L 0 0 0 50'
+                fill='none'
+                stroke='rgba(139, 92, 246, 0.4)'
+                strokeWidth='0.5'
+              />
+            </pattern>
+          </defs>
+          <rect width='100%' height='100%' fill='url(#grid-reg)' />
+        </svg>
+
+        {/* Floating particles */}
+        {Array.from({ length: 20 }, (_, i) => (
+          <div
+            key={`p-${i}`}
+            className='absolute w-1 h-1 bg-purple-400/40 rounded-full'
+            style={{
+              left: `${(i * 37 + 13) % 100}%`,
+              top: `${(i * 53 + 7) % 100}%`,
+              animationName: 'twinkle',
+              animationDuration: `${2 + (i % 4)}s`,
+              animationTimingFunction: 'ease-in-out',
+              animationIterationCount: 'infinite',
+              animationDelay: `${(i % 5) * 0.6}s`,
+            }}
+          />
+        ))}
+      </div>
+
+      {/* CSS Animations */}
+      <style>{`
+        @keyframes twinkle {
+          0%, 100% { opacity: 0; transform: scale(0); }
+          50% { opacity: 1; transform: scale(1); }
+        }
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(30px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes glow {
+          0%, 100% { box-shadow: 0 0 20px rgba(168, 85, 247, 0.2); }
+          50% { box-shadow: 0 0 40px rgba(168, 85, 247, 0.4), 0 0 60px rgba(168, 85, 247, 0.2); }
+        }
+      `}</style>
+
+      {/* Header */}
+      <header className='relative z-10 px-4 md:px-8 py-3 md:py-4 flex justify-between items-center'>
+        <Link to='/login' className='flex items-center gap-2 md:gap-3 group'>
+          <div className='w-10 h-10 md:w-12 md:h-12 bg-white/10 backdrop-blur-sm rounded-xl flex items-center justify-center p-2 border border-white/20 group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-purple-500/20'>
             <img
               src='/images/logos/wn-icon.png'
-              alt='Wolknow Logo'
-              className='h-16 w-16 object-contain'
+              alt='WOLK NOW Logo'
+              className='w-full h-full object-contain'
             />
           </div>
-          <h2 className='text-3xl font-bold text-gray-900 dark:text-white'>
-            {t('auth.register', 'Criar Conta')}
-          </h2>
-          <p className='mt-2 text-sm text-gray-600 dark:text-gray-300'>
-            Registre-se na Wolknow e comece a negociar
-          </p>
-        </div>
-
-        {/* Register Form */}
-        <form className='mt-8 space-y-6' onSubmit={handleSubmit}>
-          <div className='bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 space-y-4'>
-            {/* Error Message */}
-            {registerMutation.error && (
-              <div className='bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3'>
-                <div className='flex items-center'>
-                  <span className='text-red-400 mr-2'>⚠️</span>
-                  <p className='text-sm text-red-600 dark:text-red-400'>
-                    {registerMutation.error.message || 'Erro no registro'}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Username Field */}
-            <div>
-              <label
-                htmlFor='username'
-                className='block text-sm font-medium text-gray-700 dark:text-gray-300'
-              >
-                {t('auth.username', 'Nome de usuário')}
-              </label>
-              <input
-                id='username'
-                name='username'
-                type='text'
-                autoComplete='username'
-                required
-                className={`mt-1 block w-full px-3 py-2 border rounded-lg shadow-sm placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 ${
-                  formErrors.username
-                    ? 'border-red-300 dark:border-red-600 focus:border-red-500'
-                    : 'border-gray-300 dark:border-gray-600 focus:border-primary-500'
-                }`}
-                placeholder='joaosilva'
-                value={formData.username}
-                onChange={handleChange}
-              />
-              {formErrors.username && (
-                <p className='mt-1 text-sm text-red-600 dark:text-red-400'>{formErrors.username}</p>
-              )}
-            </div>
-
-            {/* Email Field */}
-            <div>
-              <label
-                htmlFor='email'
-                className='block text-sm font-medium text-gray-700 dark:text-gray-300'
-              >
-                {t('auth.email', 'E-mail')}
-              </label>
-              <input
-                id='email'
-                name='email'
-                type='email'
-                autoComplete='email'
-                required
-                className={`mt-1 block w-full px-3 py-2 border rounded-lg shadow-sm placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 ${
-                  formErrors.email
-                    ? 'border-red-300 dark:border-red-600 focus:border-red-500'
-                    : 'border-gray-300 dark:border-gray-600 focus:border-primary-500'
-                }`}
-                placeholder='joao@exemplo.com'
-                value={formData.email}
-                onChange={handleChange}
-              />
-              {formErrors.email && (
-                <p className='mt-1 text-sm text-red-600 dark:text-red-400'>{formErrors.email}</p>
-              )}
-            </div>
-
-            {/* Password Field */}
-            <div>
-              <label
-                htmlFor='password'
-                className='block text-sm font-medium text-gray-700 dark:text-gray-300'
-              >
-                {t('auth.password', 'Senha')}
-              </label>
-              <div className='mt-1 relative'>
-                <input
-                  id='password'
-                  name='password'
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete='new-password'
-                  required
-                  className={`block w-full px-3 py-2 pr-10 border rounded-lg shadow-sm placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 ${
-                    formErrors.password
-                      ? 'border-red-300 dark:border-red-600 focus:border-red-500'
-                      : 'border-gray-300 dark:border-gray-600 focus:border-primary-500'
-                  }`}
-                  placeholder='••••••••'
-                  value={formData.password}
-                  onChange={handleChange}
-                />
-                <button
-                  type='button'
-                  className='absolute inset-y-0 right-0 pr-3 flex items-center'
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? (
-                    <EyeOff className='h-5 w-5 text-gray-400 hover:text-gray-600' />
-                  ) : (
-                    <Eye className='h-5 w-5 text-gray-400 hover:text-gray-600' />
-                  )}
-                </button>
-              </div>
-
-              {/* Password Strength Indicator */}
-              {formData.password && (
-                <div className='mt-2'>
-                  <div className='flex items-center space-x-2'>
-                    <div className='flex-1 bg-gray-200 dark:bg-gray-600 rounded-full h-2'>
-                      <div
-                        className={`h-2 rounded-full transition-all duration-300 ${
-                          passwordStrength <= 2
-                            ? 'bg-red-500'
-                            : passwordStrength <= 3
-                              ? 'bg-yellow-500'
-                              : 'bg-green-500'
-                        }`}
-                        {...{
-                          style: { width: `${Math.min((passwordStrength / 5) * 100, 100)}%` },
-                        }}
-                      />
-                    </div>
-                    <span
-                      className={`text-xs font-medium ${getPasswordStrengthLabel(passwordStrength).color}`}
-                    >
-                      {getPasswordStrengthLabel(passwordStrength).label}
-                    </span>
-                  </div>
-                  <p className='mt-1 text-xs text-gray-500 dark:text-gray-400'>
-                    Use maiúscula, minúscula, número e símbolos
-                  </p>
-                </div>
-              )}
-
-              {formErrors.password && (
-                <p className='mt-1 text-sm text-red-600 dark:text-red-400'>{formErrors.password}</p>
-              )}
-            </div>
-
-            {/* Confirm Password Field */}
-            <div>
-              <label
-                htmlFor='confirmPassword'
-                className='block text-sm font-medium text-gray-700 dark:text-gray-300'
-              >
-                {t('auth.confirmPassword', 'Confirmar Senha')}
-              </label>
-              <div className='mt-1 relative'>
-                <input
-                  id='confirmPassword'
-                  name='confirmPassword'
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  autoComplete='new-password'
-                  required
-                  className={`block w-full px-3 py-2 pr-10 border rounded-lg shadow-sm placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 ${
-                    formErrors.confirmPassword
-                      ? 'border-red-300 dark:border-red-600 focus:border-red-500'
-                      : 'border-gray-300 dark:border-gray-600 focus:border-primary-500'
-                  }`}
-                  placeholder='••••••••'
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                />
-                <button
-                  type='button'
-                  className='absolute inset-y-0 right-0 pr-3 flex items-center'
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                >
-                  {showConfirmPassword ? (
-                    <EyeOff className='h-5 w-5 text-gray-400 hover:text-gray-600' />
-                  ) : (
-                    <Eye className='h-5 w-5 text-gray-400 hover:text-gray-600' />
-                  )}
-                </button>
-              </div>
-              {formErrors.confirmPassword && (
-                <p className='mt-1 text-sm text-red-600 dark:text-red-400'>
-                  {formErrors.confirmPassword}
-                </p>
-              )}
-            </div>
-
-            {/* Referral Code Field (Optional) */}
-            <div>
-              <label
-                htmlFor='referralCode'
-                className='block text-sm font-medium text-gray-700 dark:text-gray-300'
-              >
-                <div className='flex items-center gap-2'>
-                  <Gift className='h-4 w-4 text-purple-500' />
-                  Código de Indicação
-                  <span className='text-gray-400 text-xs font-normal'>(opcional)</span>
-                </div>
-              </label>
-              <input
-                id='referralCode'
-                name='referralCode'
-                type='text'
-                className='mt-1 block w-full px-3 py-2 border rounded-lg shadow-sm placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 border-gray-300 dark:border-gray-600 uppercase'
-                placeholder='WOLK-XXXXXX'
-                value={formData.referralCode}
-                onChange={handleChange}
-              />
-              {formData.referralCode && (
-                <p className='mt-1 text-xs text-purple-500 flex items-center gap-1'>
-                  <CheckCircle className='w-3 h-3' />
-                  Você será indicado por alguém!
-                </p>
-              )}
-            </div>
-
-            {/* Terms and Conditions */}
-            <div className='space-y-3'>
-              <div className='flex items-start'>
-                <input
-                  id='acceptTerms'
-                  name='acceptTerms'
-                  type='checkbox'
-                  className='h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded mt-1'
-                  checked={formData.acceptTerms}
-                  onChange={handleChange}
-                />
-                <label
-                  htmlFor='acceptTerms'
-                  className='ml-2 block text-sm text-gray-700 dark:text-gray-300'
-                >
-                  Eu aceito os{' '}
-                  <Link
-                    to='/terms'
-                    className='text-primary-600 hover:text-primary-500'
-                    target='_blank'
-                  >
-                    Termos de Uso
-                  </Link>{' '}
-                  *
-                </label>
-              </div>
-              {formErrors.acceptTerms && (
-                <p className='text-sm text-red-600 dark:text-red-400'>{formErrors.acceptTerms}</p>
-              )}
-
-              <div className='flex items-start'>
-                <input
-                  id='acceptPrivacy'
-                  name='acceptPrivacy'
-                  type='checkbox'
-                  className='h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded mt-1'
-                  checked={formData.acceptPrivacy}
-                  onChange={handleChange}
-                />
-                <label
-                  htmlFor='acceptPrivacy'
-                  className='ml-2 block text-sm text-gray-700 dark:text-gray-300'
-                >
-                  Eu aceito a{' '}
-                  <Link
-                    to='/privacy'
-                    className='text-primary-600 hover:text-primary-500'
-                    target='_blank'
-                  >
-                    Política de Privacidade
-                  </Link>{' '}
-                  *
-                </label>
-              </div>
-              {formErrors.acceptPrivacy && (
-                <p className='text-sm text-red-600 dark:text-red-400'>{formErrors.acceptPrivacy}</p>
-              )}
-
-              <div className='flex items-start'>
-                <input
-                  id='acceptMarketing'
-                  name='acceptMarketing'
-                  type='checkbox'
-                  className='h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded mt-1'
-                  checked={formData.acceptMarketing}
-                  onChange={handleChange}
-                />
-                <label
-                  htmlFor='acceptMarketing'
-                  className='ml-2 block text-sm text-gray-700 dark:text-gray-300'
-                >
-                  Desejo receber e-mails promocionais e newsletters{' '}
-                  <span className='text-gray-400'>(opcional)</span>
-                </label>
-              </div>
-            </div>
-
-            {/* Submit Button */}
-            <button
-              type='submit'
-              disabled={isLoading}
-              className='w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
-            >
-              {isLoading ? (
-                <>
-                  <svg
-                    className='animate-spin -ml-1 mr-3 h-5 w-5 text-white'
-                    xmlns='http://www.w3.org/2000/svg'
-                    fill='none'
-                    viewBox='0 0 24 24'
-                  >
-                    <circle
-                      className='opacity-25'
-                      cx='12'
-                      cy='12'
-                      r='10'
-                      stroke='currentColor'
-                      strokeWidth='4'
-                    ></circle>
-                    <path
-                      className='opacity-75'
-                      fill='currentColor'
-                      d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'
-                    ></path>
-                  </svg>
-                  {t('auth.registering', 'Criando conta...')}
-                </>
-              ) : (
-                t('auth.register', 'Criar Conta')
-              )}
-            </button>
-          </div>
-
-          {/* Login Link */}
-          <div className='text-center'>
-            <p className='text-sm text-gray-600 dark:text-gray-300'>
-              Já tem uma conta?{' '}
-              <Link
-                to='/login'
-                className='font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400'
-              >
-                {t('auth.login', 'Entrar')}
-              </Link>
+          <div>
+            <h1 className='text-lg md:text-2xl font-bold text-white tracking-tight'>
+              WOLK NOW<sup className='text-xs ml-0.5 -top-1 relative'>®</sup>
+            </h1>
+            <p className='text-[10px] md:text-xs text-purple-300 font-medium'>
+              {t('landing.slogan', 'Smart & Secure Wallet')}
             </p>
           </div>
-        </form>
+        </Link>
+        <Link
+          to='/login'
+          className='flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-purple-300 hover:text-white border border-purple-500/30 hover:border-purple-400/60 rounded-full transition-all hover:scale-105 hover:bg-white/5'
+        >
+          <ArrowLeft className='w-4 h-4' />
+          <span className='hidden sm:inline'>{t('auth.backToLogin', 'Voltar ao Login')}</span>
+          <span className='sm:hidden'>Login</span>
+        </Link>
+      </header>
+
+      {/* Main Content */}
+      <div className='relative z-10 flex-1 flex items-center justify-center px-4 py-6 md:py-10'>
+        <div className='w-full max-w-lg' style={{ animation: 'fadeInUp 0.6s ease-out' }}>
+          <div className='bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl p-6 md:p-8 relative overflow-hidden group'>
+            {/* Background glow on hover */}
+            <div className='absolute inset-0 bg-gradient-to-br from-purple-500/0 via-pink-500/0 to-blue-500/0 group-hover:from-purple-500/5 group-hover:via-pink-500/5 group-hover:to-blue-500/5 transition-all duration-500' />
+            <div className='absolute -inset-1 bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 rounded-2xl opacity-0 group-hover:opacity-15 blur-xl transition-opacity duration-500' />
+
+            <div className='relative'>
+              {/* Icon & Title */}
+              <div className='text-center mb-6'>
+                <div
+                  className='mx-auto w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br from-purple-500/20 to-blue-500/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-4 border-2 border-purple-500/30 shadow-2xl shadow-purple-500/20'
+                  style={{ animation: 'glow 2.5s ease-in-out infinite' }}
+                >
+                  <UserPlus className='w-8 h-8 md:w-10 md:h-10 text-purple-300' strokeWidth={1.5} />
+                </div>
+                <h2 className='text-xl md:text-2xl font-bold text-white mb-1.5'>
+                  {t('auth.register', 'Criar Conta')}
+                </h2>
+                <p className='text-sm text-gray-400 leading-relaxed'>
+                  {t('auth.registerSubtitle', 'Registre-se na WOLK NOW e comece a negociar')}
+                </p>
+              </div>
+
+              {/* Error Message */}
+              {registerMutation.error && (
+                <div className='mb-5 bg-red-500/10 border border-red-500/20 rounded-xl p-3.5 backdrop-blur-sm'>
+                  <div className='flex items-center gap-2'>
+                    <AlertTriangle className='w-4 h-4 text-red-400 flex-shrink-0' />
+                    <p className='text-sm text-red-400'>
+                      {registerMutation.error.message ||
+                        t('auth.registerError', 'Erro no registro')}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Form */}
+              <form onSubmit={handleSubmit} className='space-y-4'>
+                {/* Username */}
+                <div>
+                  <label
+                    htmlFor='username'
+                    className='block text-sm font-medium text-gray-300 mb-1.5'
+                  >
+                    {t('auth.username', 'Nome de usuário')}
+                  </label>
+                  <div className='relative'>
+                    <input
+                      id='username'
+                      name='username'
+                      type='text'
+                      autoComplete='username'
+                      required
+                      autoFocus
+                      className={`w-full pl-11 pr-4 py-3 text-sm bg-white/5 border ${
+                        formErrors.username ? 'border-red-500/50' : 'border-white/10'
+                      } rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all`}
+                      placeholder={t('auth.usernamePlaceholder', 'joaosilva')}
+                      value={formData.username}
+                      onChange={handleChange}
+                    />
+                    <User className='absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500' />
+                  </div>
+                  {formErrors.username && (
+                    <p className='mt-1 text-xs text-red-400'>{formErrors.username}</p>
+                  )}
+                </div>
+
+                {/* Email */}
+                <div>
+                  <label htmlFor='email' className='block text-sm font-medium text-gray-300 mb-1.5'>
+                    {t('auth.email', 'E-mail')}
+                  </label>
+                  <div className='relative'>
+                    <input
+                      id='email'
+                      name='email'
+                      type='email'
+                      autoComplete='email'
+                      required
+                      className={`w-full pl-11 pr-4 py-3 text-sm bg-white/5 border ${
+                        formErrors.email ? 'border-red-500/50' : 'border-white/10'
+                      } rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all`}
+                      placeholder='you@example.com'
+                      value={formData.email}
+                      onChange={handleChange}
+                    />
+                    <Mail className='absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500' />
+                  </div>
+                  {formErrors.email && (
+                    <p className='mt-1 text-xs text-red-400'>{formErrors.email}</p>
+                  )}
+                </div>
+
+                {/* Password */}
+                <div>
+                  <label
+                    htmlFor='password'
+                    className='block text-sm font-medium text-gray-300 mb-1.5'
+                  >
+                    {t('auth.password', 'Senha')}
+                  </label>
+                  <div className='relative'>
+                    <input
+                      id='password'
+                      name='password'
+                      type={showPassword ? 'text' : 'password'}
+                      autoComplete='new-password'
+                      required
+                      className={`w-full pl-11 pr-12 py-3 text-sm bg-white/5 border ${
+                        formErrors.password ? 'border-red-500/50' : 'border-white/10'
+                      } rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all`}
+                      placeholder='••••••••'
+                      value={formData.password}
+                      onChange={handleChange}
+                    />
+                    <Lock className='absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500' />
+                    <button
+                      type='button'
+                      className='absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors'
+                      onClick={() => setShowPassword(!showPassword)}
+                      aria-label={
+                        showPassword
+                          ? t('auth.hidePassword', 'Ocultar senha')
+                          : t('auth.showPassword', 'Mostrar senha')
+                      }
+                    >
+                      {showPassword ? <EyeOff className='w-4 h-4' /> : <Eye className='w-4 h-4' />}
+                    </button>
+                  </div>
+
+                  {/* Password Strength */}
+                  {formData.password && (
+                    <div className='mt-2 space-y-1.5'>
+                      <div className='flex items-center gap-2'>
+                        <div className='flex gap-1 flex-1'>
+                          {[1, 2, 3, 4, 5].map(level => (
+                            <div
+                              key={level}
+                              className={`h-1 flex-1 rounded-full transition-all duration-300 ${getStrengthBarColor(level)}`}
+                            />
+                          ))}
+                        </div>
+                        <span
+                          className={`text-xs font-medium ${getPasswordStrengthLabel(passwordStrength).color}`}
+                        >
+                          {getPasswordStrengthLabel(passwordStrength).label}
+                        </span>
+                      </div>
+                      <p className='text-xs text-gray-500'>
+                        {t(
+                          'auth.passwordRequirements',
+                          'Use maiúscula, minúscula, número e símbolos'
+                        )}
+                      </p>
+                    </div>
+                  )}
+
+                  {formErrors.password && (
+                    <p className='mt-1 text-xs text-red-400'>{formErrors.password}</p>
+                  )}
+                </div>
+
+                {/* Confirm Password */}
+                <div>
+                  <label
+                    htmlFor='confirmPassword'
+                    className='block text-sm font-medium text-gray-300 mb-1.5'
+                  >
+                    {t('auth.confirmPassword', 'Confirmar Senha')}
+                  </label>
+                  <div className='relative'>
+                    <input
+                      id='confirmPassword'
+                      name='confirmPassword'
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      autoComplete='new-password'
+                      required
+                      className={`w-full pl-11 pr-12 py-3 text-sm bg-white/5 border ${
+                        formErrors.confirmPassword
+                          ? 'border-red-500/50'
+                          : formData.confirmPassword &&
+                              formData.confirmPassword === formData.password
+                            ? 'border-green-500/50'
+                            : 'border-white/10'
+                      } rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all`}
+                      placeholder='••••••••'
+                      value={formData.confirmPassword}
+                      onChange={handleChange}
+                    />
+                    <ShieldCheck className='absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500' />
+                    <button
+                      type='button'
+                      className='absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors'
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      aria-label={
+                        showConfirmPassword
+                          ? t('auth.hidePassword', 'Ocultar senha')
+                          : t('auth.showPassword', 'Mostrar senha')
+                      }
+                    >
+                      {showConfirmPassword ? (
+                        <EyeOff className='w-4 h-4' />
+                      ) : (
+                        <Eye className='w-4 h-4' />
+                      )}
+                    </button>
+                  </div>
+                  {formData.confirmPassword && formData.confirmPassword === formData.password && (
+                    <p className='mt-1 text-xs text-green-400 flex items-center gap-1'>
+                      <CheckCircle className='w-3 h-3' />
+                      {t('auth.passwordsMatch', 'Senhas coincidem')}
+                    </p>
+                  )}
+                  {formErrors.confirmPassword && (
+                    <p className='mt-1 text-xs text-red-400'>{formErrors.confirmPassword}</p>
+                  )}
+                </div>
+
+                {/* Referral Code */}
+                <div>
+                  <label
+                    htmlFor='referralCode'
+                    className='block text-sm font-medium text-gray-300 mb-1.5'
+                  >
+                    <span className='flex items-center gap-1.5'>
+                      <Gift className='w-3.5 h-3.5 text-purple-400' />
+                      {t('auth.referralCode', 'Código de Indicação')}
+                      <span className='text-gray-500 text-xs font-normal'>
+                        ({t('common.optional', 'opcional')})
+                      </span>
+                    </span>
+                  </label>
+                  <div className='relative'>
+                    <input
+                      id='referralCode'
+                      name='referralCode'
+                      type='text'
+                      className='w-full pl-11 pr-4 py-3 text-sm bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all uppercase font-mono tracking-wider'
+                      placeholder='WOLK-XXXXXX'
+                      value={formData.referralCode}
+                      onChange={handleChange}
+                    />
+                    <Gift className='absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500' />
+                  </div>
+                  {formData.referralCode && (
+                    <p className='mt-1 text-xs text-purple-400 flex items-center gap-1'>
+                      <CheckCircle className='w-3 h-3' />
+                      {t('auth.referralApplied', 'Você será indicado por alguém!')}
+                    </p>
+                  )}
+                </div>
+
+                {/* Divider */}
+                <div className='relative py-1'>
+                  <div className='absolute inset-0 flex items-center'>
+                    <div className='w-full border-t border-white/10' />
+                  </div>
+                </div>
+
+                {/* Terms and Conditions */}
+                <div className='space-y-3'>
+                  {/* Accept Terms */}
+                  <label
+                    htmlFor='acceptTerms'
+                    className='flex items-start gap-3 cursor-pointer group/check'
+                  >
+                    <input
+                      id='acceptTerms'
+                      name='acceptTerms'
+                      type='checkbox'
+                      className='mt-0.5 h-4 w-4 rounded border-white/20 bg-white/5 text-purple-500 focus:ring-purple-500/50 focus:ring-offset-0'
+                      checked={formData.acceptTerms}
+                      onChange={handleChange}
+                    />
+                    <span className='text-sm text-gray-400 group-hover/check:text-gray-300 transition-colors'>
+                      {t('auth.acceptTermsPrefix', 'Eu aceito os')}{' '}
+                      <Link
+                        to='/terms'
+                        className='text-purple-400 hover:text-purple-300 underline underline-offset-2'
+                        target='_blank'
+                      >
+                        {t('auth.termsOfService', 'Termos de Uso')}
+                      </Link>{' '}
+                      *
+                    </span>
+                  </label>
+                  {formErrors.acceptTerms && (
+                    <p className='text-xs text-red-400 ml-7'>{formErrors.acceptTerms}</p>
+                  )}
+
+                  {/* Accept Privacy */}
+                  <label
+                    htmlFor='acceptPrivacy'
+                    className='flex items-start gap-3 cursor-pointer group/check'
+                  >
+                    <input
+                      id='acceptPrivacy'
+                      name='acceptPrivacy'
+                      type='checkbox'
+                      className='mt-0.5 h-4 w-4 rounded border-white/20 bg-white/5 text-purple-500 focus:ring-purple-500/50 focus:ring-offset-0'
+                      checked={formData.acceptPrivacy}
+                      onChange={handleChange}
+                    />
+                    <span className='text-sm text-gray-400 group-hover/check:text-gray-300 transition-colors'>
+                      {t('auth.acceptPrivacyPrefix', 'Eu aceito a')}{' '}
+                      <Link
+                        to='/privacy'
+                        className='text-purple-400 hover:text-purple-300 underline underline-offset-2'
+                        target='_blank'
+                      >
+                        {t('auth.privacyPolicy', 'Política de Privacidade')}
+                      </Link>{' '}
+                      *
+                    </span>
+                  </label>
+                  {formErrors.acceptPrivacy && (
+                    <p className='text-xs text-red-400 ml-7'>{formErrors.acceptPrivacy}</p>
+                  )}
+
+                  {/* Marketing (optional) */}
+                  <label
+                    htmlFor='acceptMarketing'
+                    className='flex items-start gap-3 cursor-pointer group/check'
+                  >
+                    <input
+                      id='acceptMarketing'
+                      name='acceptMarketing'
+                      type='checkbox'
+                      className='mt-0.5 h-4 w-4 rounded border-white/20 bg-white/5 text-purple-500 focus:ring-purple-500/50 focus:ring-offset-0'
+                      checked={formData.acceptMarketing}
+                      onChange={handleChange}
+                    />
+                    <span className='text-sm text-gray-400 group-hover/check:text-gray-300 transition-colors'>
+                      {t(
+                        'auth.acceptMarketing',
+                        'Desejo receber e-mails promocionais e newsletters'
+                      )}{' '}
+                      <span className='text-gray-600'>({t('common.optional', 'opcional')})</span>
+                    </span>
+                  </label>
+                </div>
+
+                {/* Submit Button */}
+                <button
+                  type='submit'
+                  disabled={isLoading}
+                  className='w-full py-3 px-4 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white font-semibold rounded-xl shadow-lg shadow-purple-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 group/btn mt-2'
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className='w-4 h-4 animate-spin' />
+                      <span>{t('auth.registering', 'Criando conta...')}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className='w-4 h-4 group-hover/btn:scale-110 transition-transform' />
+                      <span>{t('auth.register', 'Criar Conta')}</span>
+                    </>
+                  )}
+                </button>
+              </form>
+
+              {/* Security note */}
+              <div className='mt-5 flex items-center gap-2 px-3 py-2.5 bg-purple-500/5 border border-purple-500/10 rounded-lg'>
+                <FiShield className='w-4 h-4 text-purple-400 flex-shrink-0' />
+                <p className='text-xs text-gray-500 leading-relaxed'>
+                  {t(
+                    'auth.registerSecurityNote',
+                    'Seus dados são criptografados e protegidos. Nunca compartilharemos suas informações.'
+                  )}
+                </p>
+              </div>
+
+              {/* Login link */}
+              <div className='mt-5 text-center'>
+                <p className='text-sm text-gray-400'>
+                  {t('auth.alreadyHaveAccount', 'Já tem uma conta?')}{' '}
+                  <Link
+                    to='/login'
+                    className='text-purple-400 hover:text-purple-300 font-medium transition-colors'
+                  >
+                    {t('auth.login', 'Entrar')}
+                  </Link>
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
+
+      {/* Footer */}
+      <footer className='relative z-10 py-4 px-4 text-center'>
+        <p className='text-xs text-gray-600'>
+          © {new Date().getFullYear()} WOLK NOW.{' '}
+          {t('common.allRightsReserved', 'All rights reserved.')}
+        </p>
+      </footer>
     </div>
   )
 }
