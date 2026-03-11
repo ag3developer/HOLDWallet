@@ -52,3 +52,10 @@ coverage/
 *.bak
 *.tmp
 .cache/
+
+# Scripts de admin/manutenção (sensíveis)
+**/reset_user_password.py
+**/reset_password*.py
+**/test_email_service.py
+**/audit_*.py
+**/apply_*_migration.py
