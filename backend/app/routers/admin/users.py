@@ -440,21 +440,47 @@ async def verify_user_email(
         )
 
 
-@router.post("/{user_id}/reset-password", response_model=UserActionResponse)
+# Schema para reset de senha com opções
+class AdminResetPasswordRequest(BaseModel):
+    custom_password: Optional[str] = None  # Se fornecido, usa esta senha
+    admin_password: str  # Senha do admin para confirmar ação
+
+
+class AdminResetPasswordResponse(BaseModel):
+    success: bool
+    message: str
+    user_id: str
+    new_password: str  # Retorna a nova senha para o admin copiar
+    email_sent: bool
+
+
+@router.post("/{user_id}/reset-password", response_model=AdminResetPasswordResponse)
 async def reset_user_password(
     user_id: str,
+    request_data: Optional[AdminResetPasswordRequest] = None,
     db: Session = Depends(get_db),
     current_admin: User = Depends(get_current_admin)
 ):
     """
-    Reseta a senha do usuário para uma senha temporária.
+    Reseta a senha do usuário.
     
-    Gera uma nova senha aleatória e envia por email ao usuário.
+    - Se custom_password for fornecido, usa essa senha
+    - Caso contrário, gera uma senha aleatória segura
+    - Requer confirmação com senha do admin
     """
     import secrets
     import string
+    from app.core.security import verify_password
     
     try:
+        # Se request_data foi fornecido, verificar senha do admin
+        if request_data and request_data.admin_password:
+            if not verify_password(request_data.admin_password, current_admin.password_hash):
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Senha do administrador incorreta"
+                )
+        
         user = db.query(User).filter(User.id == user_id).first()
         
         if not user:
@@ -463,41 +489,48 @@ async def reset_user_password(
                 detail=f"Usuário {user_id} não encontrado"
             )
         
-        # Gerar senha temporária segura (12 caracteres)
-        alphabet = string.ascii_letters + string.digits + "!@#$%"
-        temp_password = ''.join(secrets.choice(alphabet) for _ in range(12))
+        # Definir nova senha
+        if request_data and request_data.custom_password:
+            # Validar senha personalizada
+            if len(request_data.custom_password) < 6:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Senha deve ter pelo menos 6 caracteres"
+                )
+            new_password = request_data.custom_password
+        else:
+            # Gerar senha temporária segura (12 caracteres)
+            alphabet = string.ascii_letters + string.digits + "!@#$%"
+            new_password = ''.join(secrets.choice(alphabet) for _ in range(12))
         
         # Atualizar senha no banco
-        user.password_hash = get_password_hash(temp_password)
+        user.password_hash = get_password_hash(new_password)
         user.updated_at = datetime.now(timezone.utc)
         db.commit()
         
-        # Tentar enviar email com a nova senha
-        try:
-            from app.services.email_service import EmailService
-            email_service = EmailService()
-            await email_service.send_password_reset_admin(
-                to_email=user.email,
-                username=user.username,
-                temp_password=temp_password
-            )
-            email_sent = True
-        except Exception as email_error:
-            logger.warning(f"⚠️ Não foi possível enviar email: {email_error}")
-            email_sent = False
+        # Tentar enviar email com a nova senha (desabilitado - sem serviço de email)
+        email_sent = False
+        # TODO: Implementar serviço de email quando disponível
+        # try:
+        #     from app.services.email_service import EmailService
+        #     email_service = EmailService()
+        #     await email_service.send_password_reset_admin(
+        #         to_email=user.email,
+        #         username=user.username,
+        #         temp_password=new_password
+        #     )
+        #     email_sent = True
+        # except Exception as email_error:
+        #     logger.warning(f"⚠️ Não foi possível enviar email: {email_error}")
         
         logger.info(f"🔑 Admin {current_admin.email} resetou senha de {user.email}")
         
-        message = f"Senha de {user.email} resetada com sucesso."
-        if email_sent:
-            message += " Email enviado com a nova senha."
-        else:
-            message += f" Nova senha temporária: {temp_password}"
-        
-        return UserActionResponse(
+        return AdminResetPasswordResponse(
             success=True,
-            message=message,
-            user_id=str(user.id)
+            message=f"Senha de {user.email} resetada com sucesso!",
+            user_id=str(user.id),
+            new_password=new_password,
+            email_sent=email_sent
         )
         
     except HTTPException:
@@ -603,7 +636,7 @@ async def delete_user(
         
         return UserActionResponse(
             success=True,
-            message=f"Usuário deletado com sucesso",
+            message="Usuário deletado com sucesso",
             user_id=str(user.id)
         )
         

@@ -17,8 +17,13 @@ import {
   RefreshCw,
   AlertTriangle,
   CheckCircle,
+  Key,
+  Copy,
+  Eye,
+  EyeOff,
+  Lock,
 } from 'lucide-react'
-import { getUserById, updateUser } from '@/services/admin/adminService'
+import { getUserById, updateUser, resetUserPassword } from '@/services/admin/adminService'
 import { toast } from 'react-hot-toast'
 
 interface UserFormData {
@@ -43,6 +48,16 @@ export const AdminUserEditPage: React.FC = () => {
     is_admin: false,
     is_email_verified: false,
   })
+
+  // Reset Password States
+  const [showResetPassword, setShowResetPassword] = useState(false)
+  const [resettingPassword, setResettingPassword] = useState(false)
+  const [adminPassword, setAdminPassword] = useState('')
+  const [customPassword, setCustomPassword] = useState('')
+  const [useCustomPassword, setUseCustomPassword] = useState(false)
+  const [showAdminPassword, setShowAdminPassword] = useState(false)
+  const [showCustomPassword, setShowCustomPassword] = useState(false)
+  const [generatedPassword, setGeneratedPassword] = useState<string | null>(null)
 
   const fetchUser = useCallback(async () => {
     if (!userId) return
@@ -128,6 +143,43 @@ export const AdminUserEditPage: React.FC = () => {
       }
     } else {
       navigate(`/admin/users/${userId}`)
+    }
+  }
+
+  const handleResetPassword = async () => {
+    if (!userId) return
+    if (!adminPassword) {
+      toast.error('Digite sua senha de administrador')
+      return
+    }
+    if (useCustomPassword && customPassword.length < 6) {
+      toast.error('A senha deve ter pelo menos 6 caracteres')
+      return
+    }
+
+    try {
+      setResettingPassword(true)
+
+      const requestData: { admin_password: string; custom_password?: string } = {
+        admin_password: adminPassword,
+      }
+      if (useCustomPassword && customPassword) {
+        requestData.custom_password = customPassword
+      }
+
+      const response = await resetUserPassword(userId, requestData)
+
+      if (response.success) {
+        setGeneratedPassword(response.new_password)
+        setAdminPassword('')
+        setCustomPassword('')
+        toast.success('Senha resetada com sucesso!')
+      }
+    } catch (err: any) {
+      console.error('Erro ao resetar senha:', err)
+      toast.error(err.response?.data?.detail || 'Erro ao resetar senha')
+    } finally {
+      setResettingPassword(false)
     }
   }
 
@@ -325,6 +377,184 @@ export const AdminUserEditPage: React.FC = () => {
           )}
         </div>
       </form>
+
+      {/* Reset Password Section */}
+      <div className='max-w-2xl mt-6'>
+        <div className='bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6'>
+          <div className='flex items-center justify-between mb-4'>
+            <div className='flex items-center gap-3'>
+              <div className='w-10 h-10 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center'>
+                <Key className='w-5 h-5 text-amber-600' />
+              </div>
+              <div>
+                <h3 className='text-lg font-semibold text-gray-900 dark:text-white'>
+                  Resetar Senha
+                </h3>
+                <p className='text-sm text-gray-500'>Criar nova senha para o usuário</p>
+              </div>
+            </div>
+            <button
+              type='button'
+              onClick={() => {
+                setShowResetPassword(!showResetPassword)
+                setGeneratedPassword(null)
+                setAdminPassword('')
+                setCustomPassword('')
+              }}
+              className='px-4 py-2 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-colors'
+            >
+              {showResetPassword ? 'Cancelar' : 'Resetar Senha'}
+            </button>
+          </div>
+
+          {showResetPassword && (
+            <div className='space-y-4 border-t border-gray-200 dark:border-gray-700 pt-4'>
+              {/* Tipo de Senha */}
+              <div className='flex gap-4'>
+                <label className='flex items-center gap-2 cursor-pointer'>
+                  <input
+                    type='radio'
+                    checked={!useCustomPassword}
+                    onChange={() => setUseCustomPassword(false)}
+                    className='w-4 h-4 text-amber-600'
+                  />
+                  <span className='text-gray-700 dark:text-gray-300'>Gerar senha automática</span>
+                </label>
+                <label className='flex items-center gap-2 cursor-pointer'>
+                  <input
+                    type='radio'
+                    checked={useCustomPassword}
+                    onChange={() => setUseCustomPassword(true)}
+                    className='w-4 h-4 text-amber-600'
+                  />
+                  <span className='text-gray-700 dark:text-gray-300'>Definir senha manual</span>
+                </label>
+              </div>
+
+              {/* Senha Personalizada */}
+              {useCustomPassword && (
+                <div>
+                  <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                    Nova Senha do Usuário
+                  </label>
+                  <div className='relative'>
+                    <input
+                      type={showCustomPassword ? 'text' : 'password'}
+                      value={customPassword}
+                      onChange={e => setCustomPassword(e.target.value)}
+                      placeholder='Digite a nova senha (mín. 6 caracteres)'
+                      className='w-full px-4 py-3 pr-12 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white'
+                    />
+                    <button
+                      type='button'
+                      onClick={() => setShowCustomPassword(!showCustomPassword)}
+                      className='absolute right-3 top-1/2 -translate-y-1/2 text-gray-500'
+                    >
+                      {showCustomPassword ? (
+                        <EyeOff className='w-5 h-5' />
+                      ) : (
+                        <Eye className='w-5 h-5' />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Confirmação com Senha do Admin */}
+              <div className='bg-red-50 dark:bg-red-900/20 p-4 rounded-lg'>
+                <div className='flex items-center gap-2 mb-3'>
+                  <Lock className='w-5 h-5 text-red-600' />
+                  <span className='font-medium text-red-700 dark:text-red-400'>
+                    Confirmação de Segurança
+                  </span>
+                </div>
+                <label className='block text-sm text-gray-700 dark:text-gray-300 mb-2'>
+                  Digite SUA senha de administrador para confirmar:
+                </label>
+                <div className='relative'>
+                  <input
+                    type={showAdminPassword ? 'text' : 'password'}
+                    value={adminPassword}
+                    onChange={e => setAdminPassword(e.target.value)}
+                    placeholder='Sua senha de admin'
+                    className='w-full px-4 py-3 pr-12 border border-red-200 dark:border-red-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white'
+                  />
+                  <button
+                    type='button'
+                    onClick={() => setShowAdminPassword(!showAdminPassword)}
+                    className='absolute right-3 top-1/2 -translate-y-1/2 text-gray-500'
+                  >
+                    {showAdminPassword ? (
+                      <EyeOff className='w-5 h-5' />
+                    ) : (
+                      <Eye className='w-5 h-5' />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Botão de Confirmar Reset */}
+              <button
+                type='button'
+                onClick={handleResetPassword}
+                disabled={
+                  resettingPassword ||
+                  !adminPassword ||
+                  (useCustomPassword && customPassword.length < 6)
+                }
+                className='w-full flex items-center justify-center gap-2 px-6 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
+              >
+                {resettingPassword ? (
+                  <>
+                    <RefreshCw className='w-5 h-5 animate-spin' />
+                    Resetando...
+                  </>
+                ) : (
+                  <>
+                    <Key className='w-5 h-5' />
+                    Confirmar Reset de Senha
+                  </>
+                )}
+              </button>
+
+              {/* Senha Gerada */}
+              {generatedPassword && (
+                <div className='bg-green-50 dark:bg-green-900/20 p-4 rounded-lg'>
+                  <div className='flex items-center gap-2 mb-3'>
+                    <CheckCircle className='w-5 h-5 text-green-600' />
+                    <span className='font-medium text-green-700 dark:text-green-400'>
+                      Senha Resetada com Sucesso!
+                    </span>
+                  </div>
+                  <p className='text-sm text-gray-600 dark:text-gray-400 mb-2'>
+                    Copie a senha abaixo e envie ao usuário:
+                  </p>
+                  <div className='flex items-center gap-2'>
+                    <code className='flex-1 px-4 py-3 bg-white dark:bg-gray-800 border border-green-200 dark:border-green-700 rounded-lg font-mono text-lg text-center'>
+                      {generatedPassword}
+                    </code>
+                    <button
+                      type='button'
+                      title='Copiar senha'
+                      onClick={() => {
+                        navigator.clipboard.writeText(generatedPassword)
+                        toast.success('Senha copiada!')
+                      }}
+                      className='p-3 bg-green-600 text-white rounded-lg hover:bg-green-700'
+                    >
+                      <Copy className='w-5 h-5' />
+                    </button>
+                  </div>
+                  <p className='text-xs text-gray-500 mt-2'>
+                    ⚠️ O email NÃO foi enviado automaticamente. Envie a senha manualmente ao
+                    usuário.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

@@ -2,12 +2,14 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import pyotp
+from pydantic import BaseModel, EmailStr
+import logging
 
 from app.core.db import get_db
 from app.core.config import settings
-from app.core.security import verify_password, create_access_token, get_current_user
+from app.core.security import verify_password, create_access_token, get_current_user, get_password_hash
 from app.core.exceptions import AuthenticationError, ValidationError
 from app.models.user import User
 from app.models.two_factor import TwoFactorAuth
@@ -16,6 +18,9 @@ from app.services.user_activity_service import UserActivityService
 from app.services.security_service import SecurityService
 from app.services.two_factor_service import TwoFactorService
 from app.services.crypto_service import crypto_service
+from app.services.email_service import email_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 security = HTTPBearer()
@@ -388,3 +393,434 @@ async def verify_token(
         }
     except Exception:
         return {"valid": False}
+
+
+# ============================================
+# CHANGE PASSWORD ENDPOINT
+# ============================================
+
+class ChangePasswordRequest(BaseModel):
+    currentPassword: str
+    newPassword: str
+
+class ChangePasswordResponse(BaseModel):
+    success: bool
+    message: str
+
+@router.post("/change-password", response_model=ChangePasswordResponse)
+async def change_password(
+    password_data: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Change current user's password.
+    Requires current password verification.
+    """
+    try:
+        # Verify current password
+        if not verify_password(password_data.currentPassword, current_user.password_hash):
+            # Log failed attempt
+            try:
+                UserActivityService.log_activity(
+                    db=db,
+                    user_id=str(current_user.id),
+                    activity_type="security",
+                    description="Tentativa de alteração de senha com senha incorreta",
+                    status="failed"
+                )
+            except Exception:
+                pass
+            
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Senha atual incorreta"
+            )
+        
+        # Check if new password is different from current
+        if verify_password(password_data.newPassword, current_user.password_hash):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="A nova senha deve ser diferente da senha atual"
+            )
+        
+        # Validate new password strength
+        if len(password_data.newPassword) < 8:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="A nova senha deve ter pelo menos 8 caracteres"
+            )
+        
+        # Update password
+        current_user.password_hash = get_password_hash(password_data.newPassword)
+        current_user.updated_at = datetime.now(timezone.utc)
+        
+        db.commit()
+        
+        # Log successful password change
+        try:
+            UserActivityService.log_activity(
+                db=db,
+                user_id=str(current_user.id),
+                activity_type="security",
+                description="Senha alterada com sucesso",
+                status="success"
+            )
+        except Exception:
+            pass
+        
+        return ChangePasswordResponse(
+            success=True,
+            message="Senha alterada com sucesso"
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao alterar senha: {str(e)}"
+        )
+
+
+# ============================================
+# FORGOT PASSWORD ENDPOINT
+# ============================================
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ForgotPasswordResponse(BaseModel):
+    success: bool
+    message: str
+
+
+@router.post("/forgot-password", response_model=ForgotPasswordResponse)
+async def forgot_password(
+    request_data: ForgotPasswordRequest,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """
+    Solicita recuperação de senha.
+    
+    Envia um email com link para redefinir a senha.
+    Por segurança, sempre retorna sucesso (não revela se email existe).
+    """
+    from app.models.password_reset import PasswordResetToken
+    
+    ip_address = request.client.host if request.client else "unknown"
+    
+    try:
+        # Buscar usuário pelo email
+        user = db.query(User).filter(User.email == request_data.email).first()
+        
+        if user:
+            # Invalidar tokens anteriores
+            db.query(PasswordResetToken).filter(
+                PasswordResetToken.user_id == user.id,
+                PasswordResetToken.used == False
+            ).update({"used": True})
+            
+            # Criar novo token
+            reset_token = PasswordResetToken.create_for_user(
+                user_id=str(user.id),
+                expires_in_hours=1,
+                ip_address=ip_address
+            )
+            db.add(reset_token)
+            db.commit()
+            
+            # Enviar email
+            try:
+                await email_service.send_password_reset(
+                    to_email=user.email,
+                    username=user.username,
+                    reset_token=reset_token.token,
+                    expires_in_hours=1
+                )
+                logger.info(f"📧 Email de reset enviado para {user.email}")
+            except Exception as email_error:
+                logger.error(f"❌ Erro ao enviar email de reset: {email_error}")
+            
+            # Log da atividade
+            try:
+                UserActivityService.log_activity(
+                    db=db,
+                    user_id=str(user.id),
+                    activity_type="security",
+                    description="Solicitação de recuperação de senha",
+                    ip_address=ip_address,
+                    status="success"
+                )
+            except Exception:
+                pass
+        else:
+            # Mesmo se usuário não existe, não revelamos isso
+            logger.info(f"⚠️ Tentativa de reset para email inexistente: {request_data.email}")
+        
+        # Sempre retorna sucesso por segurança
+        return ForgotPasswordResponse(
+            success=True,
+            message="Se o email estiver cadastrado, você receberá instruções para redefinir sua senha."
+        )
+        
+    except Exception as e:
+        logger.error(f"❌ Erro no forgot-password: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erro ao processar solicitação"
+        )
+
+
+# ============================================
+# RESET PASSWORD ENDPOINT
+# ============================================
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    newPassword: str
+
+
+class ResetPasswordResponse(BaseModel):
+    success: bool
+    message: str
+
+
+@router.post("/reset-password", response_model=ResetPasswordResponse)
+async def reset_password(
+    request_data: ResetPasswordRequest,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """
+    Redefine a senha usando o token de recuperação.
+    
+    Valida o token e atualiza a senha do usuário.
+    """
+    from app.models.password_reset import PasswordResetToken
+    
+    ip_address = request.client.host if request.client else "unknown"
+    
+    try:
+        # Buscar token
+        reset_token = db.query(PasswordResetToken).filter(
+            PasswordResetToken.token == request_data.token
+        ).first()
+        
+        if not reset_token:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Token inválido ou expirado"
+            )
+        
+        if not reset_token.is_valid:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Token inválido ou expirado"
+            )
+        
+        # Buscar usuário
+        user = db.query(User).filter(User.id == reset_token.user_id).first()
+        
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Usuário não encontrado"
+            )
+        
+        # Validar nova senha
+        if len(request_data.newPassword) < 8:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="A senha deve ter pelo menos 8 caracteres"
+            )
+        
+        # Atualizar senha
+        user.password_hash = get_password_hash(request_data.newPassword)
+        user.updated_at = datetime.now(timezone.utc)
+        
+        # Marcar token como usado
+        reset_token.mark_as_used()
+        
+        db.commit()
+        
+        # Enviar notificação de senha alterada
+        try:
+            await email_service.send_password_changed(
+                to_email=user.email,
+                username=user.username,
+                ip_address=ip_address
+            )
+        except Exception:
+            pass
+        
+        # Log da atividade
+        try:
+            UserActivityService.log_activity(
+                db=db,
+                user_id=str(user.id),
+                activity_type="security",
+                description="Senha redefinida via token de recuperação",
+                ip_address=ip_address,
+                status="success"
+            )
+        except Exception:
+            pass
+        
+        logger.info(f"✅ Senha redefinida com sucesso para {user.email}")
+        
+        return ResetPasswordResponse(
+            success=True,
+            message="Senha redefinida com sucesso! Você já pode fazer login."
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"❌ Erro no reset-password: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erro ao redefinir senha"
+        )
+
+
+# ============================================
+# RESEND VERIFICATION EMAIL
+# ============================================
+
+class ResendVerificationRequest(BaseModel):
+    email: EmailStr
+
+
+class ResendVerificationResponse(BaseModel):
+    success: bool
+    message: str
+
+
+@router.post("/resend-verification", response_model=ResendVerificationResponse)
+async def resend_verification(
+    request_data: ResendVerificationRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Reenvia email de verificação de conta.
+    """
+    from app.models.password_reset import EmailVerificationToken
+    
+    try:
+        user = db.query(User).filter(User.email == request_data.email).first()
+        
+        if user and not user.is_email_verified:
+            # Criar novo token de verificação
+            verification_token = EmailVerificationToken.create_for_user(
+                user_id=str(user.id),
+                email=user.email,
+                expires_in_hours=24
+            )
+            db.add(verification_token)
+            db.commit()
+            
+            # Enviar email
+            try:
+                await email_service.send_email_verification(
+                    to_email=user.email,
+                    username=user.username,
+                    verification_token=verification_token.token
+                )
+                logger.info(f"📧 Email de verificação reenviado para {user.email}")
+            except Exception as email_error:
+                logger.error(f"❌ Erro ao reenviar email de verificação: {email_error}")
+        
+        # Sempre retorna sucesso por segurança
+        return ResendVerificationResponse(
+            success=True,
+            message="Se o email estiver cadastrado e não verificado, você receberá um novo link."
+        )
+        
+    except Exception as e:
+        logger.error(f"❌ Erro no resend-verification: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erro ao processar solicitação"
+        )
+
+
+# ============================================
+# VERIFY EMAIL ENDPOINT
+# ============================================
+
+class VerifyEmailRequest(BaseModel):
+    token: str
+
+
+class VerifyEmailResponse(BaseModel):
+    success: bool
+    message: str
+
+
+@router.post("/verify-email", response_model=VerifyEmailResponse)
+async def verify_email(
+    request_data: VerifyEmailRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Verifica o email do usuário usando o token.
+    """
+    from app.models.password_reset import EmailVerificationToken
+    
+    try:
+        # Buscar token
+        verification_token = db.query(EmailVerificationToken).filter(
+            EmailVerificationToken.token == request_data.token
+        ).first()
+        
+        if not verification_token:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Token inválido ou expirado"
+            )
+        
+        if not verification_token.is_valid:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Token inválido ou expirado"
+            )
+        
+        # Buscar usuário
+        user = db.query(User).filter(User.id == verification_token.user_id).first()
+        
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Usuário não encontrado"
+            )
+        
+        # Verificar email
+        user.is_email_verified = True
+        user.updated_at = datetime.now(timezone.utc)
+        
+        # Marcar token como usado
+        verification_token.mark_as_verified()
+        
+        db.commit()
+        
+        logger.info(f"✅ Email verificado com sucesso: {user.email}")
+        
+        return VerifyEmailResponse(
+            success=True,
+            message="Email verificado com sucesso!"
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"❌ Erro no verify-email: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erro ao verificar email"
+        )

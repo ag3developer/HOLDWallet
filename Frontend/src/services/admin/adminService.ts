@@ -198,8 +198,24 @@ export const unblockUser = async (userId: string): Promise<User> => {
   return response.data
 }
 
-export const resetUserPassword = async (userId: string): Promise<{ message: string }> => {
-  const response = await adminApi.post(`/users/${userId}/reset-password`)
+export interface ResetPasswordRequest {
+  admin_password: string
+  custom_password?: string
+}
+
+export interface ResetPasswordResponse {
+  success: boolean
+  message: string
+  user_id: string
+  new_password: string
+  email_sent: boolean
+}
+
+export const resetUserPassword = async (
+  userId: string,
+  data?: ResetPasswordRequest
+): Promise<ResetPasswordResponse> => {
+  const response = await adminApi.post(`/users/${userId}/reset-password`, data || {})
   return response.data
 }
 
