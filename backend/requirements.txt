@@ -61,3 +61,4 @@ base58==2.1.1
 
 # XRP/Ripple support
 xrpl-py==2.5.0
+resend>=2.0.0
