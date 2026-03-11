@@ -203,11 +203,11 @@ const getStatusColor = (status: string) => {
 // DATA FETCHING
 // ============================================================================
 
-const fetchDashboardData = async (): Promise<
-  DashboardStats & { recent_activity?: RecentActivity[] }
-> => {
+const fetchDashboardData = async (
+  period: TimePeriod
+): Promise<DashboardStats & { recent_activity?: RecentActivity[] }> => {
   try {
-    const { data } = await apiClient.get('/admin/dashboard/summary')
+    const { data } = await apiClient.get(`/admin/dashboard/summary?period=${period}`)
     if (data?.data && data.data.trades && data.data.users && data.data.financial) {
       return { ...data.data, recent_activity: data.data.recent_activity || [] }
     }
@@ -650,7 +650,7 @@ const AdminDashboardPageV2: React.FC = () => {
   const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('30d')
   const [showCommandPalette, setShowCommandPalette] = useState(false)
 
-  // Fetch dashboard data
+  // Fetch dashboard data with period filter
   const {
     data: stats,
     isLoading,
@@ -659,7 +659,7 @@ const AdminDashboardPageV2: React.FC = () => {
     dataUpdatedAt,
   } = useQuery({
     queryKey: ['admin-dashboard-v2', selectedPeriod],
-    queryFn: fetchDashboardData,
+    queryFn: () => fetchDashboardData(selectedPeriod),
     refetchInterval: 30000, // Auto-refresh every 30s
     staleTime: 10000,
   })

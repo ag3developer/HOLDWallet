@@ -45,28 +45,59 @@ router = APIRouter(
 
 @router.get("/summary")
 async def get_dashboard_summary(
+    period: str = "all",  # today, 7d, 30d, 90d, all
     db: Session = Depends(get_db),
     current_admin: User = Depends(get_current_admin)
 ):
     """
     Retorna resumo geral do sistema para o dashboard admin.
     Inclui todas as métricas necessárias: usuários, trades, financeiro, disputas.
+    
+    Parâmetros:
+    - period: Filtro de período (today, 7d, 30d, 90d, all)
     """
     try:
         now = datetime.utcnow()
         last_24h = now - timedelta(hours=24)
         last_7d = now - timedelta(days=7)
         last_30d = now - timedelta(days=30)
+        last_90d = now - timedelta(days=90)
+        
+        # Determinar data de início baseada no período selecionado
+        if period == "today":
+            period_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        elif period == "7d":
+            period_start = last_7d
+        elif period == "30d":
+            period_start = last_30d
+        elif period == "90d":
+            period_start = last_90d
+        else:  # "all"
+            period_start = None
         
         # =====================
         # USUÁRIOS
         # =====================
+        # Total de todos os tempos
         total_users = db.query(func.count(User.id)).scalar() or 0
-        active_users = db.query(func.count(User.id)).filter(User.is_active == True).scalar() or 0
-        new_users_24h = db.query(func.count(User.id)).filter(User.created_at >= last_24h).scalar() or 0
-        new_users_7d = db.query(func.count(User.id)).filter(User.created_at >= last_7d).scalar() or 0
         admin_users = db.query(func.count(User.id)).filter(User.is_admin == True).scalar() or 0
         verified_email = db.query(func.count(User.id)).filter(User.is_email_verified == True).scalar() or 0
+        
+        # Filtrar por período se especificado
+        if period_start:
+            active_users = db.query(func.count(User.id)).filter(
+                User.is_active == True,
+                User.created_at >= period_start
+            ).scalar() or 0
+            new_users_period = db.query(func.count(User.id)).filter(
+                User.created_at >= period_start
+            ).scalar() or 0
+        else:
+            active_users = db.query(func.count(User.id)).filter(User.is_active == True).scalar() or 0
+            new_users_period = total_users
+            
+        new_users_24h = db.query(func.count(User.id)).filter(User.created_at >= last_24h).scalar() or 0
+        new_users_7d = db.query(func.count(User.id)).filter(User.created_at >= last_7d).scalar() or 0
         
         # =====================
         # WALLETS
@@ -78,68 +109,89 @@ async def get_dashboard_summary(
         ).scalar() or 0
         
         # =====================
-        # TRADES OTC (InstantTrades)
+        # TRADES OTC (InstantTrades) - Filtrado por período
         # =====================
-        total_otc_trades = db.query(func.count(InstantTrade.id)).scalar() or 0
-        pending_otc = db.query(func.count(InstantTrade.id)).filter(
+        otc_base_query = db.query(InstantTrade)
+        if period_start:
+            otc_base_query = otc_base_query.filter(InstantTrade.created_at >= period_start)
+        
+        total_otc_trades = otc_base_query.count() or 0
+        pending_otc = otc_base_query.filter(
             InstantTrade.status == TradeStatus.PENDING
-        ).scalar() or 0
-        completed_otc = db.query(func.count(InstantTrade.id)).filter(
+        ).count() or 0
+        completed_otc = otc_base_query.filter(
             InstantTrade.status == TradeStatus.COMPLETED
-        ).scalar() or 0
+        ).count() or 0
         
         # =====================
-        # P2P
+        # P2P - Filtrado por período
         # =====================
-        total_p2p_orders = db.query(func.count(P2POrder.id)).scalar() or 0
-        active_p2p_orders = db.query(func.count(P2POrder.id)).filter(
+        p2p_base_query = db.query(P2POrder)
+        if period_start:
+            p2p_base_query = p2p_base_query.filter(P2POrder.created_at >= period_start)
+        
+        total_p2p_orders = p2p_base_query.count() or 0
+        active_p2p_orders = p2p_base_query.filter(
             P2POrder.status == "active"
-        ).scalar() or 0
-        completed_p2p = db.query(func.count(P2POrder.id)).filter(
+        ).count() or 0
+        completed_p2p = p2p_base_query.filter(
             P2POrder.status == "completed"
-        ).scalar() or 0
+        ).count() or 0
         
-        total_p2p_matches = db.query(func.count(P2PMatch.id)).scalar() or 0
+        p2p_match_query = db.query(P2PMatch)
+        if period_start:
+            p2p_match_query = p2p_match_query.filter(P2PMatch.created_at >= period_start)
+        total_p2p_matches = p2p_match_query.count() or 0
         
         # =====================
-        # DISPUTAS
+        # DISPUTAS - Filtrado por período
         # =====================
-        total_disputes = db.query(func.count(P2PDispute.id)).scalar() or 0
-        open_disputes = db.query(func.count(P2PDispute.id)).filter(
+        dispute_base_query = db.query(P2PDispute)
+        if period_start:
+            dispute_base_query = dispute_base_query.filter(P2PDispute.created_at >= period_start)
+        
+        total_disputes = dispute_base_query.count() or 0
+        open_disputes = dispute_base_query.filter(
             P2PDispute.status == "open"
-        ).scalar() or 0
-        resolved_disputes = db.query(func.count(P2PDispute.id)).filter(
+        ).count() or 0
+        resolved_disputes = dispute_base_query.filter(
             P2PDispute.status == "resolved"
-        ).scalar() or 0
+        ).count() or 0
         
         # =====================
-        # FINANCEIRO - Volume de Trades
+        # FINANCEIRO - Volume de Trades (filtrado por período)
         # =====================
-        # Volume total OTC (em BRL)
-        total_volume_brl = db.query(func.sum(InstantTrade.brl_amount)).filter(
+        # Query base para volume OTC
+        volume_query = db.query(func.sum(InstantTrade.brl_amount)).filter(
             InstantTrade.status == TradeStatus.COMPLETED
-        ).scalar() or 0.0
+        )
+        if period_start:
+            volume_query = volume_query.filter(InstantTrade.completed_at >= period_start)
+        total_volume_brl = volume_query.scalar() or 0.0
         
-        # Volume últimas 24h
+        # Volume últimas 24h (sempre calculado)
         volume_24h = db.query(func.sum(InstantTrade.brl_amount)).filter(
             InstantTrade.status == TradeStatus.COMPLETED,
             InstantTrade.completed_at >= last_24h
         ).scalar() or 0.0
         
-        # Volume últimos 7 dias
+        # Volume últimos 7 dias (sempre calculado)
         volume_7d = db.query(func.sum(InstantTrade.brl_amount)).filter(
             InstantTrade.status == TradeStatus.COMPLETED,
             InstantTrade.completed_at >= last_7d
         ).scalar() or 0.0
         
         # =====================
-        # TAXAS COLETADAS (da tabela accounting_entries)
+        # TAXAS COLETADAS (da tabela accounting_entries) - filtrado por período
         # =====================
         from app.models.accounting import AccountingEntry
         
-        total_fees = db.query(func.sum(AccountingEntry.amount)).filter(
+        fees_base_query = db.query(func.sum(AccountingEntry.amount)).filter(
             AccountingEntry.status == "processed"
-        ).scalar() or 0.0
+        )
+        if period_start:
+            fees_base_query = fees_base_query.filter(AccountingEntry.created_at >= period_start)
+        total_fees = fees_base_query.scalar() or 0.0
         
         fees_24h = db.query(func.sum(AccountingEntry.amount)).filter(
             AccountingEntry.status == "processed",
@@ -151,21 +203,30 @@ async def get_dashboard_summary(
             AccountingEntry.created_at >= last_7d
         ).scalar() or 0.0
         
-        # Breakdown por tipo de taxa
-        spread_fees = db.query(func.sum(AccountingEntry.amount)).filter(
+        # Breakdown por tipo de taxa (filtrado por período)
+        spread_fees_query = db.query(func.sum(AccountingEntry.amount)).filter(
             AccountingEntry.entry_type == "spread",
             AccountingEntry.status == "processed"
-        ).scalar() or 0.0
+        )
+        if period_start:
+            spread_fees_query = spread_fees_query.filter(AccountingEntry.created_at >= period_start)
+        spread_fees = spread_fees_query.scalar() or 0.0
         
-        network_fees = db.query(func.sum(AccountingEntry.amount)).filter(
+        network_fees_query = db.query(func.sum(AccountingEntry.amount)).filter(
             AccountingEntry.entry_type == "network_fee",
             AccountingEntry.status == "processed"
-        ).scalar() or 0.0
+        )
+        if period_start:
+            network_fees_query = network_fees_query.filter(AccountingEntry.created_at >= period_start)
+        network_fees = network_fees_query.scalar() or 0.0
         
-        platform_fees = db.query(func.sum(AccountingEntry.amount)).filter(
+        platform_fees_query = db.query(func.sum(AccountingEntry.amount)).filter(
             AccountingEntry.entry_type == "platform_fee",
             AccountingEntry.status == "processed"
-        ).scalar() or 0.0
+        )
+        if period_start:
+            platform_fees_query = platform_fees_query.filter(AccountingEntry.created_at >= period_start)
+        platform_fees = platform_fees_query.scalar() or 0.0
         
         # Valor médio dos trades
         avg_trade_value = 0.0
@@ -173,63 +234,83 @@ async def get_dashboard_summary(
             avg_trade_value = float(total_volume_brl) / completed_otc
         
         # =====================
-        # WOLKPAY - Faturas e Pagamentos
+        # WOLKPAY - Faturas e Pagamentos (filtrado por período)
         # =====================
-        total_wolkpay_invoices = db.query(func.count(WolkPayInvoice.id)).scalar() or 0
-        wolkpay_completed = db.query(func.count(WolkPayInvoice.id)).filter(
-            WolkPayInvoice.status == InvoiceStatus.COMPLETED
-        ).scalar() or 0
-        wolkpay_pending = db.query(func.count(WolkPayInvoice.id)).filter(
-            WolkPayInvoice.status == InvoiceStatus.PENDING
-        ).scalar() or 0
+        wolkpay_base_query = db.query(WolkPayInvoice)
+        if period_start:
+            wolkpay_base_query = wolkpay_base_query.filter(WolkPayInvoice.created_at >= period_start)
         
-        # Volume WolkPay
-        wolkpay_volume = db.query(func.sum(WolkPayInvoice.total_amount_brl)).filter(
+        total_wolkpay_invoices = wolkpay_base_query.count() or 0
+        wolkpay_completed = wolkpay_base_query.filter(
             WolkPayInvoice.status == InvoiceStatus.COMPLETED
-        ).scalar() or 0.0
+        ).count() or 0
+        wolkpay_pending = wolkpay_base_query.filter(
+            WolkPayInvoice.status == InvoiceStatus.PENDING
+        ).count() or 0
+        
+        # Volume WolkPay (filtrado por período)
+        wolkpay_volume_query = db.query(func.sum(WolkPayInvoice.total_amount_brl)).filter(
+            WolkPayInvoice.status == InvoiceStatus.COMPLETED
+        )
+        if period_start:
+            wolkpay_volume_query = wolkpay_volume_query.filter(WolkPayInvoice.created_at >= period_start)
+        wolkpay_volume = wolkpay_volume_query.scalar() or 0.0
         
         wolkpay_volume_24h = db.query(func.sum(WolkPayInvoice.total_amount_brl)).filter(
             WolkPayInvoice.status == InvoiceStatus.COMPLETED,
             WolkPayInvoice.created_at >= last_24h
         ).scalar() or 0.0
         
-        # Taxas WolkPay
-        wolkpay_fees = db.query(
+        # Taxas WolkPay (filtrado por período)
+        wolkpay_fees_query = db.query(
             func.sum(WolkPayInvoice.service_fee_brl + WolkPayInvoice.network_fee_brl)
         ).filter(
             WolkPayInvoice.status == InvoiceStatus.COMPLETED
-        ).scalar() or 0.0
+        )
+        if period_start:
+            wolkpay_fees_query = wolkpay_fees_query.filter(WolkPayInvoice.created_at >= period_start)
+        wolkpay_fees = wolkpay_fees_query.scalar() or 0.0
         
         # =====================
-        # BILL PAYMENT - Pagamento de Boletos
+        # BILL PAYMENT - Pagamento de Boletos (filtrado por período)
         # =====================
-        total_bills = db.query(func.count(WolkPayBillPayment.id)).scalar() or 0
-        bills_paid = db.query(func.count(WolkPayBillPayment.id)).filter(
+        bills_base_query = db.query(WolkPayBillPayment)
+        if period_start:
+            bills_base_query = bills_base_query.filter(WolkPayBillPayment.created_at >= period_start)
+        
+        total_bills = bills_base_query.count() or 0
+        bills_paid = bills_base_query.filter(
             WolkPayBillPayment.status == BillPaymentStatus.PAID
-        ).scalar() or 0
-        bills_pending = db.query(func.count(WolkPayBillPayment.id)).filter(
+        ).count() or 0
+        bills_pending = bills_base_query.filter(
             WolkPayBillPayment.status == BillPaymentStatus.PENDING
-        ).scalar() or 0
+        ).count() or 0
         
-        # Volume de boletos pagos
-        bills_volume = db.query(func.sum(WolkPayBillPayment.bill_amount_brl)).filter(
+        # Volume de boletos pagos (filtrado por período)
+        bills_volume_query = db.query(func.sum(WolkPayBillPayment.bill_amount_brl)).filter(
             WolkPayBillPayment.status == BillPaymentStatus.PAID
-        ).scalar() or 0.0
+        )
+        if period_start:
+            bills_volume_query = bills_volume_query.filter(WolkPayBillPayment.created_at >= period_start)
+        bills_volume = bills_volume_query.scalar() or 0.0
         
         bills_volume_24h = db.query(func.sum(WolkPayBillPayment.bill_amount_brl)).filter(
             WolkPayBillPayment.status == BillPaymentStatus.PAID,
             WolkPayBillPayment.created_at >= last_24h
         ).scalar() or 0.0
         
-        # Taxas de boletos
-        bills_fees = db.query(
+        # Taxas de boletos (filtrado por período)
+        bills_fees_query = db.query(
             func.sum(WolkPayBillPayment.service_fee_brl + WolkPayBillPayment.network_fee_brl)
         ).filter(
             WolkPayBillPayment.status == BillPaymentStatus.PAID
-        ).scalar() or 0.0
+        )
+        if period_start:
+            bills_fees_query = bills_fees_query.filter(WolkPayBillPayment.created_at >= period_start)
+        bills_fees = bills_fees_query.scalar() or 0.0
         
         # =====================
-        # VOLUME TOTAL DA PLATAFORMA
+        # VOLUME TOTAL DA PLATAFORMA (filtrado por período)
         # =====================
         total_platform_volume = float(total_volume_brl) + float(wolkpay_volume) + float(bills_volume)
         total_platform_fees = float(total_fees) + float(wolkpay_fees) + float(bills_fees)
@@ -428,7 +509,15 @@ async def get_dashboard_summary(
                     "db_health": "healthy"
                 },
                 "recent_activity": recent_activity,
-                "generated_at": now.isoformat()
+                "generated_at": now.isoformat(),
+                "period": period,
+                "period_label": {
+                    "today": "Hoje",
+                    "7d": "Últimos 7 dias",
+                    "30d": "Últimos 30 dias",
+                    "90d": "Últimos 90 dias",
+                    "all": "Todo o período"
+                }.get(period, "Todo o período")
             }
         }
         
