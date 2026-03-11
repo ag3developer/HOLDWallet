@@ -1,5 +1,7 @@
 {
   "common": {
+    "appName": "Wolknow",
+    "appDescription": "Plataforma de trading P2P con sistema de chat y reputación",
     "language": "Idioma",
     "loading": "Cargando...",
     "error": "Error",
@@ -73,6 +75,17 @@
     "settings": "Configuración",
     "help": "Ayuda",
     "logout": "Cerrar Sesión"
+  },
+  "seo": {
+    "defaultTitle": "WOLK NOW® - Billetera Inteligente P2P",
+    "defaultDescription": "Negocia Bitcoin, Ethereum y criptomonedas de forma segura con trading P2P impulsado por IA, sistema de reputación y soporte multi-moneda. Disponible en 6 idiomas.",
+    "defaultKeywords": "wolk now, billetera inteligente, billetera digital, trading P2P, bitcoin, ethereum, crypto, exchange descentralizado, fintech, billetera segura, criptomonedas, trading IA",
+    "loginTitle": "Iniciar Sesión - WOLK NOW® Billetera Inteligente",
+    "loginDescription": "Accede a tu billetera digital WOLK NOW®. Trading P2P seguro de Bitcoin, Ethereum y criptomonedas con IA predictiva y sistema de reputación.",
+    "registerTitle": "Crear Cuenta - WOLK NOW® Billetera Inteligente",
+    "registerDescription": "Crea tu cuenta gratuita en WOLK NOW®. Comienza a negociar Bitcoin y criptomonedas de forma segura con IA predictiva y sistema de reputación P2P.",
+    "forgotPasswordTitle": "Recuperar Contraseña - WOLK NOW®",
+    "forgotPasswordDescription": "Recupera el acceso a tu billetera digital WOLK NOW®. Proceso seguro y rápido de restablecimiento de contraseña."
   },
   "auth": {
     "login": "Iniciar Sesión",

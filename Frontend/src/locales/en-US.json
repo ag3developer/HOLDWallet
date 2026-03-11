@@ -1,5 +1,7 @@
 {
   "common": {
+    "appName": "Wolknow",
+    "appDescription": "P2P trading platform with chat and reputation system",
     "language": "Language",
     "loading": "Loading...",
     "error": "Error",
@@ -76,6 +78,17 @@
     "aiIntelligence": "AI Intelligence",
     "institutional": "Institutional",
     "education": "Education"
+  },
+  "seo": {
+    "defaultTitle": "WOLK NOW® - Smart & Secure P2P Wallet",
+    "defaultDescription": "Trade Bitcoin, Ethereum & crypto securely with AI-Powered P2P trading, reputation system & multi-currency support. Available in 6 languages worldwide.",
+    "defaultKeywords": "wolk now, smart wallet, crypto wallet, P2P trading, bitcoin, ethereum, digital wallet, decentralized exchange, fintech, secure wallet, cryptocurrency, AI trading",
+    "loginTitle": "Login - WOLK NOW® Smart Wallet",
+    "loginDescription": "Access your WOLK NOW® digital wallet. Secure P2P trading of Bitcoin, Ethereum & cryptocurrencies with AI predictions and reputation system.",
+    "registerTitle": "Create Account - WOLK NOW® Smart Wallet",
+    "registerDescription": "Create your free WOLK NOW® account. Start trading Bitcoin & cryptocurrencies securely with AI predictions and P2P reputation system.",
+    "forgotPasswordTitle": "Reset Password - WOLK NOW®",
+    "forgotPasswordDescription": "Recover access to your WOLK NOW® digital wallet. Fast and secure password reset process."
   },
   "auth": {
     "login": "Login",

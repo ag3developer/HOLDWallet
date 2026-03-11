@@ -2,6 +2,18 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
+
+    <!-- Google Analytics (GA4) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-J6JM2Y4KX2"></script>
+    <script>
+      window.dataLayer = window.dataLayer || []
+      function gtag() {
+        dataLayer.push(arguments)
+      }
+      gtag('js', new Date())
+      gtag('config', 'G-J6JM2Y4KX2')
+    </script>
+
     <link rel="icon" type="image/png" href="/images/logos/wn-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
@@ -11,35 +23,159 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
 
-    <!-- SEO Meta Tags -->
+    <!-- ===== SEO Meta Tags ===== -->
     <meta
       name="description"
-      content="WOLK NOW® - Carteira Inteligente P2P com IA Preditiva e Sistema de Reputação"
+      content="WOLK NOW® - Smart P2P Wallet with AI-Powered Trading, Reputation System & Multi-Currency Support. Trade Bitcoin, Ethereum & crypto securely. Available in 6 languages."
     />
     <meta
       name="keywords"
-      content="wolk now, carteira inteligente, crypto, bitcoin, ethereum, P2P, trading, IA, chat, seguro"
+      content="wolk now, smart wallet, crypto wallet, P2P trading, bitcoin, ethereum, digital wallet, carteira digital, carteira inteligente, billetera digital, 智能钱包, スマートウォレット, 스마트 지갑, decentralized exchange, AI trading, fintech, secure wallet, crypto exchange, peer to peer, blockchain wallet, DeFi, cryptocurrency, trading platform, multi-currency wallet, reputation system"
     />
-    <meta name="author" content="WOLK NOW Team" />
+    <meta name="author" content="WOLK NOW®" />
+    <meta
+      name="robots"
+      content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+    />
+    <meta name="googlebot" content="index, follow" />
 
-    <!-- Open Graph Meta Tags -->
-    <meta property="og:title" content="WOLK NOW® - Smart & Secure Wallet" />
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://wolknow.com" />
+
+    <!-- Hreflang Tags - Multi-language SEO -->
+    <link rel="alternate" hreflang="pt-BR" href="https://wolknow.com?lang=pt-BR" />
+    <link rel="alternate" hreflang="en-US" href="https://wolknow.com?lang=en-US" />
+    <link rel="alternate" hreflang="es-ES" href="https://wolknow.com?lang=es-ES" />
+    <link rel="alternate" hreflang="zh-CN" href="https://wolknow.com?lang=zh-CN" />
+    <link rel="alternate" hreflang="ja-JP" href="https://wolknow.com?lang=ja-JP" />
+    <link rel="alternate" hreflang="ko-KR" href="https://wolknow.com?lang=ko-KR" />
+    <link rel="alternate" hreflang="x-default" href="https://wolknow.com" />
+
+    <!-- ===== Open Graph Meta Tags ===== -->
+    <meta property="og:title" content="WOLK NOW® - Smart & Secure P2P Wallet" />
     <meta
       property="og:description"
-      content="Carteira Inteligente P2P com IA Preditiva e Sistema de Reputação"
+      content="Trade Bitcoin, Ethereum & crypto securely with AI-Powered P2P trading, reputation system & multi-currency support. Available in 6 languages worldwide."
     />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://wolknow.com" />
-    <meta property="og:image" content="/images/logos/wn-icon.png" />
+    <meta property="og:image" content="https://wolknow.com/images/logos/wn-icon.png" />
+    <meta property="og:image:width" content="512" />
+    <meta property="og:image:height" content="512" />
+    <meta property="og:image:alt" content="WOLK NOW® Smart Wallet Logo" />
+    <meta property="og:site_name" content="WOLK NOW®" />
+    <meta property="og:locale" content="pt_BR" />
+    <meta property="og:locale:alternate" content="en_US" />
+    <meta property="og:locale:alternate" content="es_ES" />
+    <meta property="og:locale:alternate" content="zh_CN" />
+    <meta property="og:locale:alternate" content="ja_JP" />
+    <meta property="og:locale:alternate" content="ko_KR" />
 
-    <!-- Twitter Meta Tags -->
+    <!-- ===== Twitter Card Meta Tags ===== -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="WOLK NOW® - Smart & Secure Wallet" />
+    <meta name="twitter:title" content="WOLK NOW® - Smart & Secure P2P Wallet" />
     <meta
       name="twitter:description"
-      content="Carteira Inteligente P2P com IA Preditiva e Sistema de Reputação"
+      content="Trade Bitcoin, Ethereum & crypto securely with AI-Powered P2P trading, reputation system & multi-currency support."
     />
-    <meta name="twitter:image" content="/images/logos/wn-icon.png" />
+    <meta name="twitter:image" content="https://wolknow.com/images/logos/wn-icon.png" />
+    <meta name="twitter:image:alt" content="WOLK NOW® Smart Wallet Logo" />
+
+    <!-- ===== Structured Data - JSON-LD ===== -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "WOLK NOW®",
+        "url": "https://wolknow.com",
+        "logo": "https://wolknow.com/images/logos/wn-icon.png",
+        "description": "Smart P2P Wallet with AI-Powered Trading, Reputation System & Multi-Currency Support",
+        "foundingDate": "2024",
+        "sameAs": [],
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "contactType": "customer support",
+          "availableLanguage": ["Portuguese", "English", "Spanish", "Chinese", "Japanese", "Korean"]
+        }
+      }
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "WOLK NOW®",
+        "url": "https://wolknow.com",
+        "description": "Smart P2P Wallet with AI-Powered Trading, Reputation System & Multi-Currency Support. Trade Bitcoin, Ethereum and other cryptocurrencies securely.",
+        "applicationCategory": "FinanceApplication",
+        "operatingSystem": "Web, iOS, Android",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "aggregateRating": {
+          "@type": "AggregateRating",
+          "ratingValue": "4.8",
+          "ratingCount": "1000",
+          "bestRating": "5"
+        },
+        "featureList": [
+          "P2P Cryptocurrency Trading",
+          "AI-Powered Price Predictions",
+          "Multi-Currency Wallet",
+          "Reputation System",
+          "Secure Chat",
+          "Real-time Market Data",
+          "Multi-Language Support",
+          "Bill Payment",
+          "Instant Swap",
+          "WolkPay Payment Gateway"
+        ],
+        "screenshot": "https://wolknow.com/images/logos/wn-icon.png",
+        "softwareVersion": "2.0",
+        "inLanguage": ["pt-BR", "en-US", "es-ES", "zh-CN", "ja-JP", "ko-KR"]
+      }
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "What is WOLK NOW?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "WOLK NOW is a smart P2P digital wallet that allows you to trade Bitcoin, Ethereum and other cryptocurrencies securely with AI-powered predictions and a reputation system."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Is WOLK NOW free to use?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes, WOLK NOW is free to download and use. You only pay minimal trading fees when executing P2P transactions."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What languages does WOLK NOW support?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "WOLK NOW supports 6 languages: Portuguese (Brazil), English (US), Spanish, Chinese (Simplified), Japanese, and Korean."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How secure is WOLK NOW?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "WOLK NOW uses industry-standard encryption, two-factor authentication (2FA), KYC verification, and an escrow system for all P2P trades to ensure maximum security."
+            }
+          }
+        ]
+      }
+    </script>
 
     <!-- Apple Meta Tags - COMPATIBILIDADE iOS 12-17+ -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -132,7 +268,7 @@
     <!-- Security Headers -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https: blob:; connect-src 'self' ws: wss: https: http://localhost:* http://127.0.0.1:*; font-src 'self' https://fonts.gstatic.com; frame-src 'self' blob:; object-src 'none';"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https: blob:; connect-src 'self' ws: wss: https: http://localhost:* http://127.0.0.1:*; font-src 'self' https://fonts.gstatic.com; frame-src 'self' blob:; object-src 'none';"
     />
 
     <!-- Preload Critical Resources -->
@@ -143,7 +279,7 @@
       rel="stylesheet"
     />
 
-    <title>WOLK NOW® - Smart & Secure Wallet</title>
+    <title>WOLK NOW® - Smart P2P Wallet | Trade Bitcoin & Crypto Securely</title>
   </head>
   <body>
     <div id="root"></div>

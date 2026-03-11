@@ -80,6 +80,17 @@
     "help": "Ajuda",
     "logout": "Sair"
   },
+  "seo": {
+    "defaultTitle": "WOLK NOW® - Carteira Inteligente P2P",
+    "defaultDescription": "Negocie Bitcoin, Ethereum e criptomoedas com segurança usando trading P2P com IA, sistema de reputação e suporte multi-moedas. Disponível em 6 idiomas.",
+    "defaultKeywords": "wolk now, carteira inteligente, carteira digital, trading P2P, bitcoin, ethereum, crypto, exchange descentralizada, fintech, carteira segura, criptomoedas, IA trading",
+    "loginTitle": "Entrar - WOLK NOW® Carteira Inteligente",
+    "loginDescription": "Acesse sua carteira digital WOLK NOW®. Trading P2P seguro de Bitcoin, Ethereum e criptomoedas com IA preditiva e sistema de reputação.",
+    "registerTitle": "Criar Conta - WOLK NOW® Carteira Inteligente",
+    "registerDescription": "Crie sua conta gratuita na WOLK NOW®. Comece a negociar Bitcoin e criptomoedas com segurança, IA preditiva e sistema de reputação P2P.",
+    "forgotPasswordTitle": "Recuperar Senha - WOLK NOW®",
+    "forgotPasswordDescription": "Recupere o acesso à sua carteira digital WOLK NOW®. Processo seguro e rápido de redefinição de senha."
+  },
   "auth": {
     "login": "Entrar",
     "loginSubtitle": "Acesse sua conta WOLK NOW",

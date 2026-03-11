@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useLogin, useValidate2FA } from '@/hooks/useAuth'
 import { LoadingScreen } from '@/components/ui/LoadingScreen'
+import { SEOHead } from '@/components/seo/SEOHead'
 import {
   Eye,
   EyeOff,
@@ -618,6 +619,16 @@ export const LoginPage = () => {
       key={i18n.language}
       className='min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-x-hidden overflow-y-auto'
     >
+      {/* SEO Meta Tags */}
+      <SEOHead
+        title={t('seo.loginTitle', 'Login - WOLK NOW® Smart Wallet')}
+        description={t(
+          'seo.loginDescription',
+          'Access your WOLK NOW® digital wallet. Secure P2P trading of Bitcoin, Ethereum & cryptocurrencies with AI predictions and reputation system.'
+        )}
+        path='/login'
+      />
+
       {/* Background */}
       <div className='absolute inset-0 overflow-hidden'>
         {/* Gradient Orbs */}

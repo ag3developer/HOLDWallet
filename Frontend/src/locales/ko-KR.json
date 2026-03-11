@@ -1,5 +1,7 @@
 {
   "common": {
+    "appName": "Wolknow",
+    "appDescription": "채팅 및 평판 시스템을 갖춘 P2P 거래 플랫폼",
     "loading": "로딩 중...",
     "error": "오류",
     "success": "성공",
@@ -70,6 +72,17 @@
     "settings": "설정",
     "help": "도움말",
     "logout": "로그아웃"
+  },
+  "seo": {
+    "defaultTitle": "WOLK NOW® - 스마트 P2P 지갑",
+    "defaultDescription": "AI 기반 P2P 거래, 평판 시스템 및 다중 통화 지원으로 비트코인, 이더리움 및 암호화폐를 안전하게 거래하세요. 6개 언어 지원.",
+    "defaultKeywords": "wolk now, 스마트 지갑, 암호화폐 지갑, P2P 거래, 비트코인, 이더리움, 디지털 지갑, 탈중앙화 거래소, 핀테크, 보안 지갑, AI 거래",
+    "loginTitle": "로그인 - WOLK NOW® 스마트 지갑",
+    "loginDescription": "WOLK NOW® 디지털 지갑에 접속하세요. AI 예측과 평판 시스템으로 비트코인, 이더리움 및 암호화폐의 안전한 P2P 거래.",
+    "registerTitle": "계정 만들기 - WOLK NOW® 스마트 지갑",
+    "registerDescription": "WOLK NOW® 무료 계정을 만드세요. AI 예측과 P2P 평판 시스템으로 비트코인과 암호화폐를 안전하게 거래하세요.",
+    "forgotPasswordTitle": "비밀번호 재설정 - WOLK NOW®",
+    "forgotPasswordDescription": "WOLK NOW® 디지털 지갑 접근을 복구하세요. 빠르고 안전한 비밀번호 재설정 프로세스."
   },
   "auth": {
     "login": "로그인",

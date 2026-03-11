@@ -1,0 +1,55 @@
+# WOLK NOW® - Robots.txt
+# https://wolknow.com
+
+User-agent: *
+Allow: /
+Allow: /login
+Allow: /register
+Allow: /forgot-password
+Allow: /wolkpay/welcome
+
+# Block authenticated/admin areas from crawlers
+Disallow: /dashboard
+Disallow: /wallet
+Disallow: /p2p
+Disallow: /swap
+Disallow: /chat
+Disallow: /profile
+Disallow: /kyc
+Disallow: /services
+Disallow: /contact
+Disallow: /support
+Disallow: /portfolio
+Disallow: /ai-intelligence
+Disallow: /institutional
+Disallow: /education
+Disallow: /settings
+Disallow: /notifications
+Disallow: /wolkpay/checkout
+Disallow: /wolkpay/history
+Disallow: /bill-payment
+Disallow: /earnpool
+Disallow: /referral
+Disallow: /instant-trade
+Disallow: /gateway/dashboard
+Disallow: /gateway/payments
+Disallow: /gateway/api-keys
+Disallow: /gateway/webhooks
+Disallow: /gateway/settings
+Disallow: /admin
+
+# Block API and internal resources
+Disallow: /api/
+Disallow: /sw-push.js
+Disallow: /version.json
+Disallow: /clear-cache.html
+
+# Sitemap
+Sitemap: https://wolknow.com/sitemap.xml
+
+# Crawl-delay for politeness
+User-agent: Bingbot
+Crawl-delay: 5
+
+User-agent: Yandex
+Crawl-delay: 10

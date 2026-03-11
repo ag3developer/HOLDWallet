@@ -303,15 +303,22 @@ function MainApp() {
   return (
     <ErrorBoundary>
       <Helmet
-        defaultTitle={t('common.appName', 'Wolknow')}
-        titleTemplate={`%s - ${t('common.appName', 'Wolknow')}`}
+        defaultTitle={t('seo.defaultTitle', 'WOLK NOW® - Smart & Secure P2P Wallet')}
+        titleTemplate={`%s | ${t('common.appName', 'WOLK NOW®')}`}
       >
-        <html lang={t('common.language', 'pt-BR')} />
+        <html lang={i18n.language || 'pt-BR'} />
         <meta
           name='description'
           content={t(
-            'common.appDescription',
-            'Carteira digital P2P com sistema de chat e reputação'
+            'seo.defaultDescription',
+            'Trade Bitcoin, Ethereum & crypto securely with AI-Powered P2P trading, reputation system & multi-currency support.'
+          )}
+        />
+        <meta
+          name='keywords'
+          content={t(
+            'seo.defaultKeywords',
+            'wolk now, smart wallet, crypto wallet, P2P trading, bitcoin, ethereum, digital wallet'
           )}
         />
         <meta name='theme-color' content='#3b82f6' media='(prefers-color-scheme: light)' />

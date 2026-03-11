@@ -1,5 +1,7 @@
 {
   "common": {
+    "appName": "Wolknow",
+    "appDescription": "チャットとレピュテーションシステムを備えたP2P取引プラットフォーム",
     "loading": "読み込み中...",
     "error": "エラー",
     "success": "成功",
@@ -71,6 +73,17 @@
     "settings": "設定",
     "help": "ヘルプ",
     "logout": "ログアウト"
+  },
+  "seo": {
+    "defaultTitle": "WOLK NOW® - スマートP2Pウォレット",
+    "defaultDescription": "AIを活用したP2P取引、レピュテーションシステム、マルチ通貨サポートで、ビットコイン、イーサリアム、暗号資産を安全に取引。6言語対応。",
+    "defaultKeywords": "wolk now, スマートウォレット, 暗号資産ウォレット, P2P取引, ビットコイン, イーサリアム, デジタルウォレット, 分散型取引, フィンテック, AI取引",
+    "loginTitle": "ログイン - WOLK NOW® スマートウォレット",
+    "loginDescription": "WOLK NOW®デジタルウォレットにアクセス。AI予測とレピュテーションシステムによる安全なビットコイン、イーサリアム、暗号資産のP2P取引。",
+    "registerTitle": "アカウント作成 - WOLK NOW® スマートウォレット",
+    "registerDescription": "WOLK NOW®の無料アカウントを作成。AI予測とP2Pレピュテーションシステムで安全にビットコインと暗号資産の取引を始めましょう。",
+    "forgotPasswordTitle": "パスワードリセット - WOLK NOW®",
+    "forgotPasswordDescription": "WOLK NOW®デジタルウォレットへのアクセスを回復。迅速で安全なパスワードリセットプロセス。"
   },
   "auth": {
     "login": "ログイン",

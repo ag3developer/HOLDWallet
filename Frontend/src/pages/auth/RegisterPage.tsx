@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useRegister } from '@/hooks/useAuth'
+import { SEOHead } from '@/components/seo/SEOHead'
 import {
   Eye,
   EyeOff,
@@ -220,6 +221,16 @@ export const RegisterPage = () => {
 
   return (
     <div className='min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden flex flex-col'>
+      {/* SEO Meta Tags */}
+      <SEOHead
+        title={t('seo.registerTitle', 'Create Account - WOLK NOW® Smart Wallet')}
+        description={t(
+          'seo.registerDescription',
+          'Create your free WOLK NOW® account. Start trading Bitcoin & cryptocurrencies securely with AI predictions and P2P reputation system.'
+        )}
+        path='/register'
+      />
+
       {/* Background Effects */}
       <div className='absolute inset-0 overflow-hidden pointer-events-none'>
         <div className='absolute -top-1/2 -left-1/2 w-full h-full bg-gradient-to-br from-purple-500/10 to-transparent rounded-full blur-3xl animate-pulse' />

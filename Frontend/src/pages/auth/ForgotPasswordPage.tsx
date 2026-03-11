@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useForgotPassword, useResetPassword } from '@/hooks/useAuth'
+import { SEOHead } from '@/components/seo/SEOHead'
 import {
   Eye,
   EyeOff,
@@ -184,6 +185,16 @@ export const ForgotPasswordPage = () => {
 
   return (
     <div className='min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden flex flex-col'>
+      {/* SEO Meta Tags */}
+      <SEOHead
+        title={t('seo.forgotPasswordTitle', 'Reset Password - WOLK NOW®')}
+        description={t(
+          'seo.forgotPasswordDescription',
+          'Recover access to your WOLK NOW® digital wallet. Fast and secure password reset process.'
+        )}
+        path='/forgot-password'
+      />
+
       {/* Background Effects */}
       <div className='absolute inset-0 overflow-hidden pointer-events-none'>
         <div className='absolute -top-1/2 -left-1/2 w-full h-full bg-gradient-to-br from-purple-500/10 to-transparent rounded-full blur-3xl animate-pulse' />

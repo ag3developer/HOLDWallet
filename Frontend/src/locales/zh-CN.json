@@ -1,5 +1,7 @@
 {
   "common": {
+    "appName": "Wolknow",
+    "appDescription": "具有聊天和信誉系统的P2P交易平台",
     "loading": "加载中...",
     "error": "错误",
     "success": "成功",
@@ -70,6 +72,17 @@
     "settings": "设置",
     "help": "帮助",
     "logout": "退出"
+  },
+  "seo": {
+    "defaultTitle": "WOLK NOW® - 智能P2P钱包",
+    "defaultDescription": "使用AI驱动的P2P交易、信誉系统和多币种支持，安全地交易比特币、以太坊和加密货币。支持6种语言。",
+    "defaultKeywords": "wolk now, 智能钱包, 加密货币钱包, P2P交易, 比特币, 以太坊, 数字钱包, 去中心化交易, 金融科技, 安全钱包, AI交易",
+    "loginTitle": "登录 - WOLK NOW® 智能钱包",
+    "loginDescription": "访问您的WOLK NOW®数字钱包。使用AI预测和信誉系统安全地进行比特币、以太坊和加密货币的P2P交易。",
+    "registerTitle": "创建账户 - WOLK NOW® 智能钱包",
+    "registerDescription": "创建您的免费WOLK NOW®账户。开始使用AI预测和P2P信誉系统安全地交易比特币和加密货币。",
+    "forgotPasswordTitle": "重置密码 - WOLK NOW®",
+    "forgotPasswordDescription": "恢复您的WOLK NOW®数字钱包访问权限。快速安全的密码重置流程。"
   },
   "auth": {
     "login": "登录",
