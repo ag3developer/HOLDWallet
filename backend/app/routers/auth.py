@@ -19,6 +19,7 @@ from app.services.security_service import SecurityService
 from app.services.two_factor_service import TwoFactorService
 from app.services.crypto_service import crypto_service
 from app.services.email_service import email_service
+from app.services.notifications import notify_welcome, fire_and_forget
 
 logger = logging.getLogger(__name__)
 
@@ -273,6 +274,17 @@ async def register(
     db.refresh(user)
     
     logger.info(f"✅ Novo usuário registrado: {user.email}")
+    
+    # 📧 SEND NOTIFICATION: Welcome email
+    try:
+        fire_and_forget(notify_welcome(
+            db=db,
+            user_id=str(user.id),
+            user_email=user.email,
+            user_name=user.username or user.email.split("@")[0]
+        ))
+    except Exception as notif_error:
+        logger.warning(f"Failed to send welcome notification: {notif_error}")
     
     # Process referral code if provided (WOLK FRIENDS)
     if register_data.referral_code:

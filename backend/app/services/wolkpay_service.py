@@ -34,6 +34,7 @@ from app.services.price_aggregator import price_aggregator
 from app.services.wallet_service import WalletService
 from app.services.platform_settings_service import platform_settings_service
 from app.services.kyc_service import KYCService
+from app.services.notifications import notify_invoice_created, notify_invoice_paid, fire_and_forget
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -252,6 +253,19 @@ class WolkPayService:
                 action="create_invoice",
                 description=f"Fatura {invoice_number} criada: {request.crypto_amount} {request.crypto_currency} (taxas: {fee_payer_label})"
             )
+            
+            # 📧 SEND NOTIFICATION: Invoice created
+            try:
+                fire_and_forget(notify_invoice_created(
+                    db=self.db,
+                    user_id=user_id,
+                    invoice_id=str(invoice.id),
+                    amount=float(total_amount_brl),
+                    cryptocurrency=request.crypto_currency,
+                    description=f"Fatura {invoice_number}"
+                ))
+            except Exception as notif_error:
+                logger.warning(f"Failed to send invoice notification: {notif_error}")
             
             logger.info(f"WolkPay: Fatura {invoice_number} criada por {user_id} (fee_payer={fee_payer.value})")
             
@@ -1057,6 +1071,19 @@ class WolkPayService:
             action="approve_invoice",
             description=f"Fatura aprovada. TX: {crypto_tx_hash}, Rede: {selected_network}, Destino: {wallet_address}"
         )
+        
+        # 📧 SEND NOTIFICATION: Invoice paid/completed
+        try:
+            fire_and_forget(notify_invoice_paid(
+                db=self.db,
+                merchant_user_id=str(invoice.beneficiary_id),
+                invoice_id=str(invoice.id),
+                amount=float(invoice.total_amount_brl),
+                cryptocurrency=invoice.crypto_currency,
+                payer_name=payer.name if payer else "Cliente"
+            ))
+        except Exception as notif_error:
+            logger.warning(f"Failed to send invoice paid notification: {notif_error}")
         
         # TODO: Enviar e-mail para beneficiário e pagador
         

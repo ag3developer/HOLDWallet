@@ -59,6 +59,12 @@ from app.services.wallet_balance_service import WalletBalanceService
 from app.services.bill_validation_service import bill_validation_service
 from app.services.blockchain_withdraw_service import blockchain_withdraw_service
 from app.services.platform_settings_service import platform_settings_service
+from app.services.notifications import (
+    notify_bill_payment_processing,
+    notify_bill_payment_completed,
+    notify_bill_payment_failed,
+    fire_and_forget
+)
 
 logger = logging.getLogger(__name__)
 
@@ -770,6 +776,18 @@ class WolkPayBillService:
                 f"do usuário {user_id} para pagamento {bill_payment.payment_number}"
             )
             
+            # 📧 SEND NOTIFICATION: Bill payment processing
+            try:
+                fire_and_forget(notify_bill_payment_processing(
+                    db=self.db,
+                    user_id=user_id,
+                    bill_type=bill_payment.bill_type.value if bill_payment.bill_type else "boleto",
+                    amount=float(bill_payment.bill_amount_brl),
+                    barcode=bill_payment.barcode
+                ))
+            except Exception as notif_error:
+                logger.warning(f"Failed to send bill processing notification: {notif_error}")
+            
             return BillPaymentResponse(
                 id=bill_payment.id,
                 payment_number=bill_payment.payment_number,
@@ -857,7 +875,17 @@ class WolkPayBillService:
             
             logger.info(f"✅ Boleto pago: {bill_payment.payment_number} por operador {operator_id}")
             
-            # TODO: Enviar notificação ao usuário
+            # 📧 SEND NOTIFICATION: Bill payment completed
+            try:
+                fire_and_forget(notify_bill_payment_completed(
+                    db=self.db,
+                    user_id=str(bill_payment.user_id),
+                    bill_type=bill_payment.bill_type.value if bill_payment.bill_type else "boleto",
+                    amount=float(bill_payment.bill_amount_brl),
+                    transaction_id=bill_payment.payment_number
+                ))
+            except Exception as notif_error:
+                logger.warning(f"Failed to send bill completed notification: {notif_error}")
             
             return self._build_response(bill_payment, "🎉 Boleto pago com sucesso! Comprovante disponível.")
             

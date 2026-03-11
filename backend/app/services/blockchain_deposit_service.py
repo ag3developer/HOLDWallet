@@ -20,6 +20,7 @@ from app.models.wallet import Wallet
 from app.models.address import Address
 from app.models.instant_trade import InstantTrade, TradeStatus
 from app.core.config import settings
+from app.services.notifications import notify_deposit_received, fire_and_forget
 
 logger = logging.getLogger(__name__)
 
@@ -442,6 +443,18 @@ class BlockchainDepositService:
             db.refresh(trade)
             
             logger.info(f"✅ Depósito concluído! TX: {tx_hash}")
+            
+            # 📧 SEND NOTIFICATION: Deposit received
+            try:
+                fire_and_forget(notify_deposit_received(
+                    db=db,
+                    user_id=str(trade.user_id),
+                    amount=float(trade.crypto_amount),
+                    cryptocurrency=trade.symbol,
+                    tx_hash=str(tx_hash)
+                ))
+            except Exception as notif_error:
+                logger.warning(f"Failed to send deposit notification: {notif_error}")
             
             return {
                 "success": True,

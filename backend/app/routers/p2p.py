@@ -25,6 +25,7 @@ from app.core.kyc_middleware import check_kyc_limit
 from app.models.user import User
 from app.services.platform_settings_service import platform_settings_service
 from app.services.kyc_service import KYCService
+from app.services.notifications import notify_trade_started, notify_trade_completed, fire_and_forget
 from uuid import UUID
 import logging
 
@@ -1399,6 +1400,22 @@ async def start_trade(
                 detail=f"Failed to freeze balance for trade: {str(freeze_error)}"
             )
         
+        # 📧 SEND NOTIFICATION: Trade started
+        try:
+            fire_and_forget(notify_trade_started(
+                db=db,
+                trade_id=str(trade_id),
+                buyer_id=str(buyer_id),
+                seller_id=str(order.user_id),
+                cryptocurrency=order.cryptocurrency,
+                amount=crypto_amount,
+                total_fiat=fiat_amount,
+                fiat_currency=order.fiat_currency or "BRL"
+            ))
+            print(f"[DEBUG] Trade notification queued for trade {trade_id}")
+        except Exception as notif_error:
+            print(f"[WARNING] Failed to send trade notification: {notif_error}")
+        
         return {
             "success": True,
             "data": {
@@ -1828,6 +1845,23 @@ async def complete_trade(
         db.commit()
         
         print(f"[DEBUG] Trade {trade_id} completed successfully with fee collection")
+        
+        # 📧 SEND NOTIFICATION: Trade completed
+        try:
+            fire_and_forget(notify_trade_completed(
+                db=db,
+                trade_id=str(trade_id),
+                buyer_id=str(trade.buyer_id),
+                seller_id=str(trade.seller_id),
+                cryptocurrency=trade.cryptocurrency,
+                amount=float(trade.amount),
+                total_fiat=float(trade.total_price),
+                fiat_currency=trade.fiat_currency or "BRL",
+                fee_amount=fee_amount_brl
+            ))
+            print(f"[DEBUG] Trade completion notification queued for trade {trade_id}")
+        except Exception as notif_error:
+            print(f"[WARNING] Failed to send trade completion notification: {notif_error}")
         
         return {
             "success": True,

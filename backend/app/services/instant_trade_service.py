@@ -21,6 +21,7 @@ from app.models.quote_cache import QuoteCache
 from app.core.exceptions import ValidationError
 from app.services.price_aggregator import price_aggregator
 from app.services.platform_settings_service import platform_settings_service
+from app.services.notifications import fire_and_forget
 
 logger = logging.getLogger(__name__)
 
@@ -782,6 +783,35 @@ class InstantTradeService:
         self.db.commit()
 
         logger.info(f"Trade completed: {trade.reference_code}")
+        
+        # 📧 SEND NOTIFICATION: Instant trade completed
+        try:
+            from app.services.notifications.notification_integration import (
+                notify_instant_buy_completed,
+                notify_instant_sell_completed
+            )
+            
+            if trade.operation_type.value == "buy":
+                fire_and_forget(notify_instant_buy_completed(
+                    db=self.db,
+                    user_id=str(trade.user_id),
+                    crypto_amount=float(trade.crypto_amount),
+                    crypto_symbol=trade.symbol,
+                    fiat_amount=float(trade.brl_amount) if trade.brl_amount else 0,
+                    transaction_id=trade.reference_code
+                ))
+            else:
+                fire_and_forget(notify_instant_sell_completed(
+                    db=self.db,
+                    user_id=str(trade.user_id),
+                    crypto_amount=float(trade.crypto_amount),
+                    crypto_symbol=trade.symbol,
+                    fiat_amount=float(trade.brl_amount) if trade.brl_amount else 0,
+                    transaction_id=trade.reference_code
+                ))
+            logger.info(f"📧 Notification queued for trade {trade.reference_code}")
+        except Exception as notif_error:
+            logger.warning(f"Failed to send trade notification: {notif_error}")
 
         completed_at = trade.completed_at.isoformat() if trade.completed_at is not None else None
         return {
