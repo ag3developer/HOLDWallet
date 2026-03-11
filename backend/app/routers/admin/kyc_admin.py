@@ -22,6 +22,7 @@ from app.schemas.kyc import (
     KYCStatusEnum, KYCLevelEnum, DocumentTypeEnum
 )
 from app.services.kyc_service import KYCService
+from app.services.notifications import notify_kyc_status_change, fire_and_forget
 
 router = APIRouter(prefix="/kyc", tags=["admin-kyc"])
 
@@ -419,6 +420,17 @@ async def approve_verification(
             user_agent=user_agent
         )
         
+        # 📧 SEND NOTIFICATION: KYC Approved
+        try:
+            fire_and_forget(notify_kyc_status_change(
+                db=db,
+                user_id=str(verification.user_id),
+                new_status="approved",
+                level=verification.level.value if hasattr(verification.level, 'value') else str(verification.level)
+            ))
+        except Exception as notif_error:
+            pass  # Don't fail approval if notification fails
+        
         return {
             "success": True,
             "message": "KYC aprovado com sucesso",
@@ -456,6 +468,17 @@ async def reject_verification(
             ip_address=ip,
             user_agent=user_agent
         )
+        
+        # 📧 SEND NOTIFICATION: KYC Rejected
+        try:
+            fire_and_forget(notify_kyc_status_change(
+                db=db,
+                user_id=str(verification.user_id),
+                new_status="rejected",
+                rejection_reason=data.reason
+            ))
+        except Exception:
+            pass  # Don't fail rejection if notification fails
         
         return {
             "success": True,

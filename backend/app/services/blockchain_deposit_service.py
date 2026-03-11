@@ -451,7 +451,8 @@ class BlockchainDepositService:
                     user_id=str(trade.user_id),
                     amount=float(trade.crypto_amount),
                     cryptocurrency=trade.symbol,
-                    tx_hash=str(tx_hash)
+                    tx_hash=str(tx_hash),
+                    network=network
                 ))
             except Exception as notif_error:
                 logger.warning(f"Failed to send deposit notification: {notif_error}")

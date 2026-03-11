@@ -26,6 +26,7 @@ from app.services.usdt_transaction_service import USDTTransactionService, usdt_t
 from app.services.user_activity_service import UserActivityService
 from app.services.price_aggregator import PriceData
 from app.config.token_contracts import USDT_CONTRACTS, USDC_CONTRACTS
+from app.services.notifications import notify_withdrawal_submitted, fire_and_forget
 from pydantic import BaseModel, Field
 
 from app.schemas.wallet import (
@@ -2131,6 +2132,19 @@ async def send_transaction(
             if biometric_token_to_consume:
                 logger.info("🔐 Consuming biometric token after successful transaction...")
                 webauthn_service.consume_biometric_token(biometric_token_to_consume)
+            
+            # 📧 SEND NOTIFICATION: Withdrawal submitted
+            try:
+                fire_and_forget(notify_withdrawal_submitted(
+                    db=db,
+                    user_id=str(current_user.id),
+                    amount=float(request.amount),
+                    cryptocurrency=request.token_symbol or request.network.upper(),
+                    destination=request.to_address,
+                    network=request.network
+                ))
+            except Exception as notif_error:
+                logger.warning(f"Failed to send withdrawal notification: {notif_error}")
             
             return {
                 "success": True,
