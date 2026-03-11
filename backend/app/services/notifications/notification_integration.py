@@ -73,6 +73,10 @@ def get_notification_preferences(db: Session, user_id: str) -> Dict[str, bool]:
         return {"trade_alerts": True, "security_alerts": True, "price_alerts": True, "marketing_emails": True, "weekly_report": True}
 
 
+# ============================================
+# P2P TRADE NOTIFICATIONS
+# ============================================
+
 async def notify_trade_started(
     db: Session,
     trade_id: str,
@@ -87,31 +91,45 @@ async def notify_trade_started(
     try:
         from app.services.notifications import NotificationService
         
-        notifier = NotificationService(db)
+        notifier = NotificationService()
         
-        # Notificar comprador
-        await notifier.notify_trade_started(
-            user_id=buyer_id,
-            trade_id=trade_id,
-            cryptocurrency=cryptocurrency,
-            amount=amount,
-            fiat_amount=total_fiat,
-            fiat_currency=fiat_currency,
-            counterparty_name="Vendedor",
-            is_buyer=True
-        )
+        # Buscar info do comprador
+        buyer_info = get_user_info(db, buyer_id)
+        if buyer_info:
+            await notifier.send_trade_created(
+                db=db,
+                user_id=buyer_id,
+                to_email=buyer_info["email"],
+                username=buyer_info["name"],
+                trade_type="buy",
+                crypto_amount=amount,
+                crypto_symbol=cryptocurrency,
+                fiat_amount=total_fiat,
+                fiat_currency=fiat_currency,
+                price_per_unit=total_fiat / amount if amount > 0 else 0,
+                payment_method="PIX",
+                order_id=trade_id,
+                expires_hours=24
+            )
         
-        # Notificar vendedor
-        await notifier.notify_trade_started(
-            user_id=seller_id,
-            trade_id=trade_id,
-            cryptocurrency=cryptocurrency,
-            amount=amount,
-            fiat_amount=total_fiat,
-            fiat_currency=fiat_currency,
-            counterparty_name="Comprador",
-            is_buyer=False
-        )
+        # Buscar info do vendedor
+        seller_info = get_user_info(db, seller_id)
+        if seller_info:
+            await notifier.send_trade_created(
+                db=db,
+                user_id=seller_id,
+                to_email=seller_info["email"],
+                username=seller_info["name"],
+                trade_type="sell",
+                crypto_amount=amount,
+                crypto_symbol=cryptocurrency,
+                fiat_amount=total_fiat,
+                fiat_currency=fiat_currency,
+                price_per_unit=total_fiat / amount if amount > 0 else 0,
+                payment_method="PIX",
+                order_id=trade_id,
+                expires_hours=24
+            )
         
         logger.info(f"Trade notifications sent for trade {trade_id}")
         
@@ -134,30 +152,40 @@ async def notify_trade_completed(
     try:
         from app.services.notifications import NotificationService
         
-        notifier = NotificationService(db)
+        notifier = NotificationService()
         
         # Notificar comprador - recebeu crypto
-        await notifier.notify_trade_completed(
-            user_id=buyer_id,
-            trade_id=trade_id,
-            cryptocurrency=cryptocurrency,
-            amount=amount,
-            fiat_amount=total_fiat,
-            fiat_currency=fiat_currency,
-            is_buyer=True
-        )
+        buyer_info = get_user_info(db, buyer_id)
+        if buyer_info:
+            await notifier.send_trade_completed(
+                db=db,
+                user_id=buyer_id,
+                to_email=buyer_info["email"],
+                username=buyer_info["name"],
+                trade_type="buy",
+                crypto_amount=amount,
+                crypto_symbol=cryptocurrency,
+                fiat_amount=total_fiat,
+                fiat_currency=fiat_currency,
+                trade_id=trade_id
+            )
         
         # Notificar vendedor - recebeu fiat (menos taxa)
-        net_amount = total_fiat - fee_amount
-        await notifier.notify_trade_completed(
-            user_id=seller_id,
-            trade_id=trade_id,
-            cryptocurrency=cryptocurrency,
-            amount=amount,
-            fiat_amount=net_amount,
-            fiat_currency=fiat_currency,
-            is_buyer=False
-        )
+        seller_info = get_user_info(db, seller_id)
+        if seller_info:
+            net_amount = total_fiat - fee_amount
+            await notifier.send_trade_completed(
+                db=db,
+                user_id=seller_id,
+                to_email=seller_info["email"],
+                username=seller_info["name"],
+                trade_type="sell",
+                crypto_amount=amount,
+                crypto_symbol=cryptocurrency,
+                fiat_amount=net_amount,
+                fiat_currency=fiat_currency,
+                trade_id=trade_id
+            )
         
         logger.info(f"Trade completion notifications sent for trade {trade_id}")
         
@@ -178,24 +206,35 @@ async def notify_trade_cancelled(
     try:
         from app.services.notifications import NotificationService
         
-        notifier = NotificationService(db)
+        notifier = NotificationService()
         
-        # Notificar ambos
-        await notifier.notify_trade_cancelled(
-            user_id=buyer_id,
-            trade_id=trade_id,
-            cryptocurrency=cryptocurrency,
-            amount=amount,
-            reason=reason
-        )
+        # Notificar comprador
+        buyer_info = get_user_info(db, buyer_id)
+        if buyer_info:
+            await notifier.send_trade_cancelled(
+                db=db,
+                user_id=buyer_id,
+                to_email=buyer_info["email"],
+                username=buyer_info["name"],
+                crypto_amount=amount,
+                crypto_symbol=cryptocurrency,
+                reason=reason,
+                trade_id=trade_id
+            )
         
-        await notifier.notify_trade_cancelled(
-            user_id=seller_id,
-            trade_id=trade_id,
-            cryptocurrency=cryptocurrency,
-            amount=amount,
-            reason=reason
-        )
+        # Notificar vendedor
+        seller_info = get_user_info(db, seller_id)
+        if seller_info:
+            await notifier.send_trade_cancelled(
+                db=db,
+                user_id=seller_id,
+                to_email=seller_info["email"],
+                username=seller_info["name"],
+                crypto_amount=amount,
+                crypto_symbol=cryptocurrency,
+                reason=reason,
+                trade_id=trade_id
+            )
         
         logger.info(f"Trade cancellation notifications sent for trade {trade_id}")
         
@@ -212,33 +251,10 @@ async def notify_trade_dispute(
     amount: float,
     dispute_reason: str
 ):
-    """Notifica sobre disputa aberta em trade P2P"""
-    try:
-        from app.services.notifications import NotificationService
-        
-        notifier = NotificationService(db)
-        
-        # Notificar ambos
-        await notifier.notify_trade_disputed(
-            user_id=buyer_id,
-            trade_id=trade_id,
-            cryptocurrency=cryptocurrency,
-            amount=amount,
-            dispute_reason=dispute_reason
-        )
-        
-        await notifier.notify_trade_disputed(
-            user_id=seller_id,
-            trade_id=trade_id,
-            cryptocurrency=cryptocurrency,
-            amount=amount,
-            dispute_reason=dispute_reason
-        )
-        
-        logger.info(f"Trade dispute notifications sent for trade {trade_id}")
-        
-    except Exception as e:
-        logger.error(f"Failed to send trade dispute notifications: {e}")
+    """Notifica sobre disputa aberta em trade P2P - apenas log por enquanto"""
+    # NotificationService não tem template para disputas ainda
+    logger.info(f"Trade dispute opened for trade {trade_id}: {dispute_reason}")
+    # TODO: Implementar send_trade_disputed no NotificationService quando necessário
 
 
 async def notify_new_chat_message(
@@ -248,27 +264,10 @@ async def notify_new_chat_message(
     recipient_id: str,
     message_preview: str
 ):
-    """Notifica sobre nova mensagem no chat do trade"""
-    try:
-        from app.services.notifications import NotificationService
-        
-        # Buscar nome do sender
-        sender_info = get_user_info(db, sender_id)
-        sender_name = sender_info.get("name", "Usuário") if sender_info else "Usuário"
-        
-        notifier = NotificationService(db)
-        
-        await notifier.notify_new_trade_message(
-            user_id=recipient_id,
-            trade_id=trade_id,
-            sender_name=sender_name,
-            message_preview=message_preview[:100]  # Truncate
-        )
-        
-        logger.info(f"Chat message notification sent for trade {trade_id}")
-        
-    except Exception as e:
-        logger.error(f"Failed to send chat message notification: {e}")
+    """Notifica sobre nova mensagem no chat do trade - apenas log por enquanto"""
+    # NotificationService não tem template para chat ainda
+    logger.info(f"New chat message in trade {trade_id}")
+    # TODO: Implementar send_chat_message no NotificationService quando necessário
 
 
 # ============================================
@@ -287,14 +286,28 @@ async def notify_invoice_created(
     try:
         from app.services.notifications import NotificationService
         
-        notifier = NotificationService(db)
+        notifier = NotificationService()
         
-        await notifier.notify_invoice_created(
+        user_info = get_user_info(db, user_id)
+        if not user_info:
+            logger.warning(f"User not found for invoice notification: {user_id}")
+            return
+        
+        # send_invoice_created precisa de payment_link
+        frontend_url = "https://wolknow.com"
+        payment_link = f"{frontend_url}/wolkpay/invoice/{invoice_id}"
+        
+        await notifier.send_invoice_created(
+            db=db,
             user_id=user_id,
+            to_email=user_info["email"],
+            username=user_info["name"],
             invoice_id=invoice_id,
             amount=amount,
-            cryptocurrency=cryptocurrency,
-            description=description
+            currency=cryptocurrency,
+            description=description,
+            payment_link=payment_link,
+            expires_hours=24
         )
         
         logger.info(f"Invoice created notification sent for invoice {invoice_id}")
@@ -315,15 +328,24 @@ async def notify_invoice_paid(
     try:
         from app.services.notifications import NotificationService
         
-        notifier = NotificationService(db)
+        notifier = NotificationService()
         
-        # Notificar o comerciante (dono da invoice)
-        await notifier.notify_invoice_paid(
+        user_info = get_user_info(db, merchant_user_id)
+        if not user_info:
+            logger.warning(f"User not found for invoice paid notification: {merchant_user_id}")
+            return
+        
+        await notifier.send_invoice_paid(
+            db=db,
             user_id=merchant_user_id,
+            to_email=user_info["email"],
+            username=user_info["name"],
             invoice_id=invoice_id,
             amount=amount,
-            cryptocurrency=cryptocurrency,
-            payer_name=payer_name
+            currency="BRL",  # Fiat amount
+            crypto_amount=amount,
+            crypto_symbol=cryptocurrency,
+            payer_email=None
         )
         
         logger.info(f"Invoice paid notification sent for invoice {invoice_id}")
@@ -343,13 +365,21 @@ async def notify_invoice_expired(
     try:
         from app.services.notifications import NotificationService
         
-        notifier = NotificationService(db)
+        notifier = NotificationService()
         
-        await notifier.notify_invoice_expired(
+        user_info = get_user_info(db, user_id)
+        if not user_info:
+            logger.warning(f"User not found for invoice expired notification: {user_id}")
+            return
+        
+        await notifier.send_invoice_expired(
+            db=db,
             user_id=user_id,
+            to_email=user_info["email"],
+            username=user_info["name"],
             invoice_id=invoice_id,
             amount=amount,
-            cryptocurrency=cryptocurrency
+            currency=cryptocurrency
         )
         
         logger.info(f"Invoice expired notification sent for invoice {invoice_id}")
@@ -367,19 +397,36 @@ async def notify_bill_payment_processing(
     user_id: str,
     bill_type: str,
     amount: float,
-    barcode: str
+    barcode: str,
+    beneficiary: str = "Beneficiário",
+    due_date: str = "",
+    crypto_amount: float = 0,
+    crypto_symbol: str = "USDT",
+    transaction_id: str = ""
 ):
     """Notifica sobre boleto sendo processado"""
     try:
         from app.services.notifications import NotificationService
         
-        notifier = NotificationService(db)
+        notifier = NotificationService()
         
-        await notifier.notify_bill_payment_processing(
+        user_info = get_user_info(db, user_id)
+        if not user_info:
+            logger.warning(f"User not found for bill processing notification: {user_id}")
+            return
+        
+        await notifier.send_bill_processing(
+            db=db,
             user_id=user_id,
-            bill_type=bill_type,
+            to_email=user_info["email"],
+            username=user_info["name"],
+            barcode=barcode,
+            beneficiary=beneficiary,
             amount=amount,
-            barcode=barcode[-8:]  # Últimos 8 dígitos
+            due_date=due_date or "N/A",
+            crypto_amount=crypto_amount,
+            crypto_symbol=crypto_symbol,
+            transaction_id=transaction_id or "N/A"
         )
         
         logger.info(f"Bill processing notification sent for barcode {barcode[-8:]}")
@@ -393,18 +440,33 @@ async def notify_bill_payment_completed(
     user_id: str,
     bill_type: str,
     amount: float,
-    transaction_id: str
+    transaction_id: str,
+    beneficiary: str = "Beneficiário",
+    authentication_code: str = "",
+    crypto_amount: float = 0,
+    crypto_symbol: str = "USDT"
 ):
     """Notifica sobre boleto pago com sucesso"""
     try:
         from app.services.notifications import NotificationService
         
-        notifier = NotificationService(db)
+        notifier = NotificationService()
         
-        await notifier.notify_bill_payment_completed(
+        user_info = get_user_info(db, user_id)
+        if not user_info:
+            logger.warning(f"User not found for bill completed notification: {user_id}")
+            return
+        
+        await notifier.send_bill_paid(
+            db=db,
             user_id=user_id,
-            bill_type=bill_type,
+            to_email=user_info["email"],
+            username=user_info["name"],
+            beneficiary=beneficiary,
             amount=amount,
+            authentication_code=authentication_code or transaction_id[:12],
+            crypto_amount=crypto_amount,
+            crypto_symbol=crypto_symbol,
             transaction_id=transaction_id
         )
         
@@ -419,19 +481,30 @@ async def notify_bill_payment_failed(
     user_id: str,
     bill_type: str,
     amount: float,
-    reason: str
+    reason: str,
+    beneficiary: str = "Beneficiário",
+    transaction_id: str = ""
 ):
     """Notifica sobre falha no pagamento de boleto"""
     try:
         from app.services.notifications import NotificationService
         
-        notifier = NotificationService(db)
+        notifier = NotificationService()
         
-        await notifier.notify_bill_payment_failed(
+        user_info = get_user_info(db, user_id)
+        if not user_info:
+            logger.warning(f"User not found for bill failed notification: {user_id}")
+            return
+        
+        await notifier.send_bill_failed(
+            db=db,
             user_id=user_id,
-            bill_type=bill_type,
+            to_email=user_info["email"],
+            username=user_info["name"],
+            beneficiary=beneficiary,
             amount=amount,
-            reason=reason
+            reason=reason,
+            transaction_id=transaction_id or "N/A"
         )
         
         logger.info("Bill failed notification sent")
@@ -449,19 +522,31 @@ async def notify_deposit_received(
     user_id: str,
     amount: float,
     cryptocurrency: str,
-    tx_hash: Optional[str] = None
+    tx_hash: Optional[str] = None,
+    network: str = "BTC"
 ):
     """Notifica sobre depósito recebido"""
     try:
         from app.services.notifications import NotificationService
         
-        notifier = NotificationService(db)
+        notifier = NotificationService()
         
-        await notifier.notify_deposit_received(
+        user_info = get_user_info(db, user_id)
+        if not user_info:
+            logger.warning(f"User not found for deposit notification: {user_id}")
+            return
+        
+        await notifier.send_deposit_received(
+            db=db,
             user_id=user_id,
+            to_email=user_info["email"],
+            username=user_info["name"],
             amount=amount,
-            cryptocurrency=cryptocurrency,
-            tx_hash=tx_hash
+            symbol=cryptocurrency,
+            network=network,
+            tx_hash=tx_hash or "N/A",
+            confirmations=1,
+            new_balance=amount  # Simplified - we don't have balance here
         )
         
         logger.info(f"Deposit notification sent: {amount} {cryptocurrency}")
@@ -475,19 +560,31 @@ async def notify_withdrawal_submitted(
     user_id: str,
     amount: float,
     cryptocurrency: str,
-    destination: str
+    destination: str,
+    network: str = "BTC"
 ):
     """Notifica sobre saque enviado para processamento"""
     try:
         from app.services.notifications import NotificationService
         
-        notifier = NotificationService(db)
+        notifier = NotificationService()
         
-        await notifier.notify_withdrawal_submitted(
+        user_info = get_user_info(db, user_id)
+        if not user_info:
+            logger.warning(f"User not found for withdrawal submitted notification: {user_id}")
+            return
+        
+        await notifier.send_withdrawal_requested(
+            db=db,
             user_id=user_id,
+            to_email=user_info["email"],
+            username=user_info["name"],
             amount=amount,
-            cryptocurrency=cryptocurrency,
-            destination_address=destination
+            symbol=cryptocurrency,
+            address=destination,
+            network=network,
+            fee=0.0,
+            withdrawal_id="N/A"
         )
         
         logger.info(f"Withdrawal submitted notification sent: {amount} {cryptocurrency}")
@@ -501,19 +598,29 @@ async def notify_withdrawal_completed(
     user_id: str,
     amount: float,
     cryptocurrency: str,
-    tx_hash: Optional[str] = None
+    tx_hash: Optional[str] = None,
+    address: str = ""
 ):
     """Notifica sobre saque concluído"""
     try:
         from app.services.notifications import NotificationService
         
-        notifier = NotificationService(db)
+        notifier = NotificationService()
         
-        await notifier.notify_withdrawal_completed(
+        user_info = get_user_info(db, user_id)
+        if not user_info:
+            logger.warning(f"User not found for withdrawal completed notification: {user_id}")
+            return
+        
+        await notifier.send_withdrawal_completed(
+            db=db,
             user_id=user_id,
+            to_email=user_info["email"],
+            username=user_info["name"],
             amount=amount,
-            cryptocurrency=cryptocurrency,
-            tx_hash=tx_hash
+            symbol=cryptocurrency,
+            address=address or "N/A",
+            tx_hash=tx_hash or "N/A"
         )
         
         logger.info(f"Withdrawal completed notification sent: {amount} {cryptocurrency}")
@@ -530,22 +637,9 @@ async def notify_withdrawal_failed(
     reason: str
 ):
     """Notifica sobre saque falhou"""
-    try:
-        from app.services.notifications import NotificationService
-        
-        notifier = NotificationService(db)
-        
-        await notifier.notify_withdrawal_failed(
-            user_id=user_id,
-            amount=amount,
-            cryptocurrency=cryptocurrency,
-            reason=reason
-        )
-        
-        logger.info(f"Withdrawal failed notification sent: {amount} {cryptocurrency}")
-        
-    except Exception as e:
-        logger.error(f"Failed to send withdrawal failed notification: {e}")
+    # NotificationService não tem send_withdrawal_failed, usar log
+    logger.info(f"Withdrawal failed for user {user_id}: {amount} {cryptocurrency} - {reason}")
+    # TODO: Implementar send_withdrawal_failed no NotificationService quando necessário
 
 
 # ============================================
@@ -557,12 +651,13 @@ async def notify_welcome(db: Session, user_id: str, user_email: str, user_name: 
     try:
         from app.services.notifications import NotificationService
         
-        notifier = NotificationService(db)
+        notifier = NotificationService()
         
-        await notifier.notify_welcome(
+        await notifier.send_welcome(
+            db=db,
             user_id=user_id,
-            email=user_email,
-            name=user_name
+            to_email=user_email,
+            username=user_name
         )
         
         logger.info(f"Welcome notification sent to {user_email}")
@@ -582,20 +677,32 @@ async def notify_kyc_status_change(
     try:
         from app.services.notifications import NotificationService
         
-        notifier = NotificationService(db)
+        notifier = NotificationService()
+        
+        user_info = get_user_info(db, user_id)
+        if not user_info:
+            logger.warning(f"User not found for KYC notification: {user_id}")
+            return
         
         if new_status == "approved":
-            await notifier.notify_kyc_approved(
+            await notifier.send_kyc_approved(
+                db=db,
                 user_id=user_id,
+                to_email=user_info["email"],
+                username=user_info["name"],
                 level=level or "basic"
             )
         elif new_status == "rejected":
-            await notifier.notify_kyc_rejected(
+            await notifier.send_kyc_rejected(
+                db=db,
                 user_id=user_id,
+                to_email=user_info["email"],
+                username=user_info["name"],
                 reason=rejection_reason or "Documentos inválidos"
             )
         elif new_status == "pending":
-            await notifier.notify_kyc_submitted(user_id=user_id)
+            # Não há template para pending, apenas log
+            logger.info(f"KYC submitted for user {user_id}")
         
         logger.info(f"KYC status notification sent for user {user_id}: {new_status}")
         
@@ -620,9 +727,8 @@ async def notify_instant_buy_completed(
     try:
         from app.services.notifications import NotificationService
         
-        notifier = NotificationService(db)
+        notifier = NotificationService()
         
-        # Buscar info do usuário
         user_info = get_user_info(db, user_id)
         if not user_info:
             logger.warning(f"User not found for notification: {user_id}")
@@ -659,9 +765,8 @@ async def notify_instant_sell_completed(
     try:
         from app.services.notifications import NotificationService
         
-        notifier = NotificationService(db)
+        notifier = NotificationService()
         
-        # Buscar info do usuário
         user_info = get_user_info(db, user_id)
         if not user_info:
             logger.warning(f"User not found for notification: {user_id}")
@@ -699,9 +804,8 @@ async def notify_instant_trade_pending(
     try:
         from app.services.notifications import NotificationService
         
-        notifier = NotificationService(db)
+        notifier = NotificationService()
         
-        # Buscar info do usuário
         user_info = get_user_info(db, user_id)
         if not user_info:
             logger.warning(f"User not found for notification: {user_id}")
