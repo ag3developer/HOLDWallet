@@ -34,7 +34,7 @@ from app.models.gateway import (
     GatewayMerchant, GatewayApiKey, GatewayPayment, GatewayWebhook,
     GatewayAuditLog, GatewaySettings,
     MerchantStatus, GatewayPaymentStatus, GatewayPaymentMethod,
-    GatewayAuditAction
+    GatewayAuditAction, SettlementCurrency
 )
 from app.services.gateway.merchant_service import MerchantService
 from app.services.gateway.audit_service import AuditService
@@ -779,7 +779,7 @@ async def update_merchant_settings(
             'custom_fee_percent': lambda x: 0 <= x <= 100,
             'daily_limit_brl': lambda x: x >= 0,
             'monthly_limit_brl': lambda x: x >= 0,
-            'settlement_currency': lambda x: x in ['BRL', 'USDT', 'BTC', 'ETH', None],
+            'settlement_currency': lambda x: x in ['BRL', 'USDT', 'ORIGINAL', None],
             'settlement_wallet_address': lambda x: True,
             'bank_pix_key': lambda x: True,
             'bank_pix_key_type': lambda x: x in ['CPF', 'CNPJ', 'EMAIL', 'PHONE', 'EVP', None],
@@ -794,6 +794,11 @@ async def update_merchant_settings(
         for field, validator in allowed_fields.items():
             if field in settings:
                 value = settings[field]
+                
+                # Normalizar strings vazias para None
+                if isinstance(value, str) and value.strip() == '':
+                    value = None
+                    settings[field] = None
                 
                 # Validar o valor
                 if value is not None and not validator(value):
@@ -816,9 +821,39 @@ async def update_merchant_settings(
                     if value is not None:
                         value = Decimal(str(value))
                 
+                # Converter settlement_currency string para enum
+                if field == 'settlement_currency' and value is not None:
+                    try:
+                        value = SettlementCurrency(value)
+                    except ValueError:
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"Valor inválido para settlement_currency: {value}"
+                        )
+                
                 # Atualizar o campo
                 setattr(merchant, field, value)
-                new_data[field] = settings[field]
+                # Guardar valor JSON-safe para new_data
+                raw = settings[field]
+                if isinstance(raw, Decimal):
+                    new_data[field] = float(raw)
+                elif hasattr(raw, 'value'):
+                    new_data[field] = raw.value
+                else:
+                    new_data[field] = raw
+        
+        # Garantir que old_data e new_data sao JSON-safe
+        def _json_safe(obj):
+            if isinstance(obj, dict):
+                return {k: _json_safe(v) for k, v in obj.items()}
+            if isinstance(obj, Decimal):
+                return float(obj)
+            if hasattr(obj, 'value') and not isinstance(obj, (bool, int, float, str)):
+                return obj.value
+            return obj
+        
+        old_data = _json_safe(old_data)
+        new_data = _json_safe(new_data)
         
         # Log de auditoria
         audit_service = AuditService(db)

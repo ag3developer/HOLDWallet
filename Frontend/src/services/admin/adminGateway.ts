@@ -231,7 +231,7 @@ export interface MerchantSettings {
   settlement_currency?: string
   settlement_wallet_address?: string
   bank_pix_key?: string
-  bank_pix_key_type?: string
+  bank_pix_key_type?: string | null
   webhook_url?: string
   logo_url?: string
   primary_color?: string

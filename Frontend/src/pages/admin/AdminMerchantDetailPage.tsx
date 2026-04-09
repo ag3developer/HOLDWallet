@@ -101,7 +101,7 @@ interface MerchantDetail {
   settlement_currency?: string
   settlement_wallet_address?: string
   bank_pix_key?: string
-  bank_pix_key_type?: string
+  bank_pix_key_type?: string | null
   webhook_url?: string
   logo_url?: string
   primary_color?: string
@@ -327,7 +327,7 @@ export const AdminMerchantDetailPage: React.FC = () => {
         settlement_currency: details.settlement_currency || 'BRL',
         settlement_wallet_address: details.settlement_wallet_address || '',
         bank_pix_key: details.bank_pix_key || '',
-        bank_pix_key_type: details.bank_pix_key_type || '',
+        bank_pix_key_type: details.bank_pix_key_type || null,
         webhook_url: details.webhook_url || '',
         logo_url: details.logo_url || '',
         primary_color: details.primary_color || '#6366f1',
