@@ -33,7 +33,8 @@ from app.models.user import User
 from app.models.gateway import (
     GatewayMerchant, GatewayApiKey, GatewayPayment, GatewayWebhook,
     GatewayAuditLog, GatewaySettings,
-    MerchantStatus, GatewayPaymentStatus, GatewayPaymentMethod
+    MerchantStatus, GatewayPaymentStatus, GatewayPaymentMethod,
+    GatewayAuditAction
 )
 from app.services.gateway.merchant_service import MerchantService
 from app.services.gateway.audit_service import AuditService
@@ -631,7 +632,7 @@ async def reactivate_merchant(
         await audit_service.log(
             merchant_id=merchant.id,
             actor_id=str(current_user.id),
-            action="merchant.reactivated",
+            action=GatewayAuditAction.MERCHANT_ACTIVATED,
             new_data={"notes": notes}
         )
         
@@ -699,7 +700,7 @@ async def update_merchant_fee(
         await audit_service.log(
             merchant_id=merchant.id,
             actor_id=str(current_user.id),
-            action="merchant.fee_updated",
+            action=GatewayAuditAction.MERCHANT_UPDATED,
             old_data={"fee_percentage": old_fee},
             new_data={"fee_percentage": fee_percentage}
         )
@@ -824,7 +825,7 @@ async def update_merchant_settings(
         await audit_service.log(
             merchant_id=merchant.id,
             actor_id=str(current_user.id),
-            action="merchant.settings_updated",
+            action=GatewayAuditAction.MERCHANT_SETTINGS_UPDATED,
             old_data=old_data,
             new_data=new_data
         )
