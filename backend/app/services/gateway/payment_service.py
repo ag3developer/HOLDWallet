@@ -297,11 +297,13 @@ class GatewayPaymentService:
         coin_type = self._get_coin_type(payment.crypto_currency)
         payment.hd_derivation_path = f"m/44'/{coin_type}'/1000'/{merchant.hd_index}/{payment.hd_payment_index}"
         
-        # Derivar endereço
+        # Derivar endereço único via HD wallet
         payment.crypto_address = await self._derive_payment_address(
             currency=payment.crypto_currency,
             network=payment.crypto_network,
-            derivation_path=payment.hd_derivation_path
+            derivation_path=payment.hd_derivation_path,
+            merchant_hd_index=merchant.hd_index,
+            payment_hd_index=payment.hd_payment_index
         )
         
         # Calcular quantidade em crypto
@@ -362,18 +364,49 @@ class GatewayPaymentService:
         self,
         currency: str,
         network: str,
-        derivation_path: str
+        derivation_path: str,
+        merchant_hd_index: int = 0,
+        payment_hd_index: int = 0
     ) -> str:
         """
-        Deriva endereço único para o pagamento usando HD wallet
+        Deriva endereço único para o pagamento usando HD wallet.
         
-        TODO: Implementar derivação real usando BIP32/BIP44
-        Por enquanto, usa endereços da plataforma
+        Se GATEWAY_MASTER_MNEMONIC estiver configurada, gera endereço único
+        via derivação BIP32/BIP44. Caso contrário, usa endereços fixos da plataforma.
+        
+        Args:
+            currency: Moeda (BTC, ETH, etc)
+            network: Rede (bitcoin, ethereum, polygon, etc)
+            derivation_path: Path HD completo
+            merchant_hd_index: Índice HD do merchant
+            payment_hd_index: Índice HD do pagamento
+            
+        Returns:
+            Endereço crypto para recebimento
         """
         from app.core.config import settings
+        from app.services.gateway.hd_wallet_service import get_gateway_hd_wallet
         
-        # Placeholder - em produção, derivar endereço real
-        # Usando endereço da plataforma por enquanto
+        # Tentar derivação HD
+        hd_wallet = get_gateway_hd_wallet()
+        
+        if hd_wallet.is_initialized:
+            address, _ = hd_wallet.derive_address(
+                currency=currency,
+                network=network,
+                merchant_index=merchant_hd_index,
+                payment_index=payment_hd_index
+            )
+            
+            if address:
+                logger.info(f"✅ Endereço HD derivado: {address[:10]}...{address[-6:]} (path: {derivation_path})")
+                return address
+            
+            logger.warning("⚠️ Falha na derivação HD, usando endereço fixo")
+        
+        # Fallback: usar endereços fixos da plataforma
+        logger.info("ℹ️ Usando endereço fixo da plataforma (GATEWAY_MASTER_MNEMONIC não configurada)")
+        
         if currency.upper() == "BTC":
             return getattr(settings, 'PLATFORM_BTC_ADDRESS', 
                           '1JnwPXAtGHDJxNbd3QwrhSCqWYpqq4Lmcb')

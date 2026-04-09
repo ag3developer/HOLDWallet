@@ -38,6 +38,10 @@ class Settings(BaseSettings):
     PLATFORM_BTC_ADDRESS: Optional[str] = None
     PLATFORM_BTC_PRIVATE_KEY_WIF: Optional[str] = None  # Private key em formato WIF
     
+    # Gateway HD Wallet (para derivação de endereços únicos por pagamento)
+    # Use a mesma mnemonic da plataforma ou gere uma exclusiva para o gateway
+    GATEWAY_MASTER_MNEMONIC: Optional[str] = None  # 12 ou 24 palavras BIP39
+    
     # System Blockchain Wallet (para receber taxas e comissões)
     SYSTEM_BLOCKCHAIN_WALLET_ID: str = "545473df-0dd4-4bfa-a43f-06721a43af63"
     

@@ -72,6 +72,9 @@ services:
         value: ""
       - key: BTC_API_URL
         value: https://blockstream.info/api
+      - key: GATEWAY_MASTER_MNEMONIC
+        scope: RUN_TIME
+        value: ${GATEWAY_MASTER_MNEMONIC}
     health_check:
       http_path: /health
       initial_delay_seconds: 60

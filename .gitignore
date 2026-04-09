@@ -59,3 +59,14 @@ coverage/
 **/test_email_service.py
 **/audit_*.py
 **/apply_*_migration.py
+audit_result.txt
+backend_logs.txt
+backend.log
+
+# Scripts de teste local (podem conter credenciais)
+test_nowax_gateway.py
+test_nowax_api.py
+test_wolkpay_nowax.py
+test_gateway_hd_wallet.py
+generate_gateway_mnemonic.py
+generate_nowax_apikey.py
