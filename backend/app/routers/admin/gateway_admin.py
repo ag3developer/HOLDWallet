@@ -1234,3 +1234,466 @@ async def get_payment_detail(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
         )
+
+
+# ==========================================
+# API KEYS MANAGEMENT
+# ==========================================
+
+@router.get("/merchants/{merchant_id}/api-keys")
+async def list_merchant_api_keys(
+    merchant_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Lista todas as API Keys de um merchant.
+    """
+    require_admin(current_user)
+    merchant_id_str = str(merchant_id)
+    
+    try:
+        merchant = db.query(GatewayMerchant).filter(
+            GatewayMerchant.id == merchant_id_str
+        ).first()
+        
+        if not merchant:
+            raise HTTPException(status_code=404, detail="Merchant nao encontrado")
+        
+        keys = db.query(GatewayApiKey).filter(
+            GatewayApiKey.merchant_id == merchant_id_str
+        ).order_by(GatewayApiKey.created_at.desc()).all()
+        
+        return {
+            "api_keys": [
+                {
+                    "id": str(k.id),
+                    "name": k.name,
+                    "description": k.description,
+                    "key_prefix": k.key_prefix,
+                    "is_test": k.is_test,
+                    "is_active": k.is_active,
+                    "permissions": k.permissions,
+                    "allowed_ips": k.allowed_ips,
+                    "rate_limit_per_minute": k.rate_limit_per_minute,
+                    "rate_limit_per_hour": k.rate_limit_per_hour,
+                    "last_used_at": k.last_used_at.isoformat() if k.last_used_at else None,
+                    "last_used_ip": k.last_used_ip,
+                    "total_requests": k.total_requests or 0,
+                    "expires_at": k.expires_at.isoformat() if k.expires_at else None,
+                    "revoked_at": k.revoked_at.isoformat() if k.revoked_at else None,
+                    "revoked_reason": k.revoked_reason,
+                    "created_at": k.created_at.isoformat(),
+                }
+                for k in keys
+            ],
+            "total": len(keys)
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao listar API keys: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/merchants/{merchant_id}/api-keys")
+async def create_merchant_api_key(
+    merchant_id: UUID,
+    body: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Cria uma nova API Key para o merchant.
+    Body: { name, description?, is_test? }
+    """
+    require_admin(current_user)
+    merchant_id_str = str(merchant_id)
+    
+    try:
+        merchant = db.query(GatewayMerchant).filter(
+            GatewayMerchant.id == merchant_id_str
+        ).first()
+        
+        if not merchant:
+            raise HTTPException(status_code=404, detail="Merchant nao encontrado")
+        
+        name = body.get("name", "Nova API Key")
+        description = body.get("description")
+        is_test = body.get("is_test", False)
+        
+        full_key, prefix, key_hash = GatewayApiKey.generate_api_key(is_test=is_test)
+        
+        api_key = GatewayApiKey(
+            merchant_id=merchant_id_str,
+            name=name,
+            description=description,
+            key_prefix=prefix,
+            key_hash=key_hash,
+            is_test=is_test,
+        )
+        db.add(api_key)
+        
+        audit_service = AuditService(db)
+        await audit_service.log(
+            merchant_id=merchant_id_str,
+            actor_id=str(current_user.id),
+            action=GatewayAuditAction.API_KEY_CREATED,
+            new_data={"name": name, "is_test": is_test, "prefix": prefix}
+        )
+        
+        db.commit()
+        db.refresh(api_key)
+        
+        return {
+            "success": True,
+            "message": "API Key criada com sucesso",
+            "api_key": {
+                "id": str(api_key.id),
+                "name": api_key.name,
+                "key_prefix": api_key.key_prefix,
+                "full_key": full_key,
+                "is_test": api_key.is_test,
+                "created_at": api_key.created_at.isoformat(),
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Erro ao criar API key: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.put("/merchants/{merchant_id}/api-keys/{key_id}/revoke")
+async def revoke_merchant_api_key(
+    merchant_id: UUID,
+    key_id: UUID,
+    body: dict = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Revoga uma API Key do merchant.
+    Body: { reason? }
+    """
+    require_admin(current_user)
+    merchant_id_str = str(merchant_id)
+    key_id_str = str(key_id)
+    
+    try:
+        api_key = db.query(GatewayApiKey).filter(
+            GatewayApiKey.id == key_id_str,
+            GatewayApiKey.merchant_id == merchant_id_str
+        ).first()
+        
+        if not api_key:
+            raise HTTPException(status_code=404, detail="API Key nao encontrada")
+        
+        if not api_key.is_active:
+            raise HTTPException(status_code=400, detail="API Key ja esta revogada")
+        
+        reason = (body or {}).get("reason", "Revogada pelo admin")
+        
+        api_key.is_active = False
+        api_key.revoked_at = datetime.now(timezone.utc)
+        api_key.revoked_reason = reason
+        
+        audit_service = AuditService(db)
+        await audit_service.log(
+            merchant_id=merchant_id_str,
+            actor_id=str(current_user.id),
+            action=GatewayAuditAction.API_KEY_REVOKED,
+            old_data={"key_prefix": api_key.key_prefix, "is_active": True},
+            new_data={"is_active": False, "reason": reason}
+        )
+        
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": "API Key revogada com sucesso"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Erro ao revogar API key: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==========================================
+# WEBHOOKS HISTORY
+# ==========================================
+
+@router.get("/merchants/{merchant_id}/webhooks")
+async def list_merchant_webhooks(
+    merchant_id: UUID,
+    status_filter: Optional[str] = Query(None, alias="status"),
+    event_filter: Optional[str] = Query(None, alias="event"),
+    page: int = Query(1, ge=1),
+    per_page: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Lista historico de webhooks enviados para um merchant.
+    """
+    require_admin(current_user)
+    merchant_id_str = str(merchant_id)
+    
+    try:
+        merchant = db.query(GatewayMerchant).filter(
+            GatewayMerchant.id == merchant_id_str
+        ).first()
+        
+        if not merchant:
+            raise HTTPException(status_code=404, detail="Merchant nao encontrado")
+        
+        query = db.query(GatewayWebhook).filter(
+            GatewayWebhook.merchant_id == merchant_id_str
+        )
+        
+        if status_filter:
+            query = query.filter(GatewayWebhook.status == status_filter)
+        
+        if event_filter:
+            query = query.filter(GatewayWebhook.event == event_filter)
+        
+        total = query.count()
+        offset = (page - 1) * per_page
+        webhooks = query.order_by(GatewayWebhook.created_at.desc()).offset(offset).limit(per_page).all()
+        
+        # Stats summary
+        stats = {
+            "total_sent": db.query(func.count(GatewayWebhook.id)).filter(
+                GatewayWebhook.merchant_id == merchant_id_str,
+                GatewayWebhook.status == "SENT"
+            ).scalar() or 0,
+            "total_failed": db.query(func.count(GatewayWebhook.id)).filter(
+                GatewayWebhook.merchant_id == merchant_id_str,
+                GatewayWebhook.status.in_(["FAILED", "EXHAUSTED"])
+            ).scalar() or 0,
+            "total_pending": db.query(func.count(GatewayWebhook.id)).filter(
+                GatewayWebhook.merchant_id == merchant_id_str,
+                GatewayWebhook.status == "PENDING"
+            ).scalar() or 0,
+        }
+        
+        result = []
+        for w in webhooks:
+            payment = db.query(GatewayPayment).filter(
+                GatewayPayment.id == w.payment_id
+            ).first()
+            
+            result.append({
+                "id": str(w.id),
+                "payment_id": str(w.payment_id),
+                "payment_code": payment.payment_id if payment else None,
+                "event": w.event.value if hasattr(w.event, 'value') else str(w.event),
+                "url": w.url,
+                "status": w.status.value if hasattr(w.status, 'value') else str(w.status),
+                "attempts": w.attempts,
+                "max_attempts": w.max_attempts,
+                "last_response_code": w.last_response_code,
+                "last_error": w.last_error,
+                "next_attempt_at": w.next_attempt_at.isoformat() if w.next_attempt_at else None,
+                "created_at": w.created_at.isoformat(),
+                "sent_at": w.sent_at.isoformat() if w.sent_at else None,
+            })
+        
+        return {
+            "webhooks": result,
+            "stats": stats,
+            "total": total,
+            "page": page,
+            "per_page": per_page,
+            "total_pages": (total + per_page - 1) // per_page,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao listar webhooks: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==========================================
+# AUDIT LOGS
+# ==========================================
+
+@router.get("/merchants/{merchant_id}/audit-logs")
+async def list_merchant_audit_logs(
+    merchant_id: UUID,
+    action_filter: Optional[str] = Query(None, alias="action"),
+    page: int = Query(1, ge=1),
+    per_page: int = Query(30, ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Lista logs de auditoria de um merchant com filtros e paginacao.
+    """
+    require_admin(current_user)
+    merchant_id_str = str(merchant_id)
+    
+    try:
+        merchant = db.query(GatewayMerchant).filter(
+            GatewayMerchant.id == merchant_id_str
+        ).first()
+        
+        if not merchant:
+            raise HTTPException(status_code=404, detail="Merchant nao encontrado")
+        
+        query = db.query(GatewayAuditLog).filter(
+            GatewayAuditLog.merchant_id == merchant_id_str
+        )
+        
+        if action_filter:
+            query = query.filter(GatewayAuditLog.action == action_filter)
+        
+        total = query.count()
+        offset = (page - 1) * per_page
+        logs = query.order_by(GatewayAuditLog.created_at.desc()).offset(offset).limit(per_page).all()
+        
+        result = []
+        for log in logs:
+            result.append({
+                "id": str(log.id),
+                "action": log.action.value if hasattr(log.action, 'value') else str(log.action),
+                "actor_type": log.actor_type,
+                "actor_id": log.actor_id,
+                "actor_email": log.actor_email,
+                "description": log.description,
+                "old_data": log.old_data,
+                "new_data": log.new_data,
+                "ip_address": log.ip_address,
+                "user_agent": log.user_agent,
+                "request_id": log.request_id,
+                "payment_id": log.payment_id,
+                "api_key_id": log.api_key_id,
+                "created_at": log.created_at.isoformat(),
+            })
+        
+        return {
+            "audit_logs": result,
+            "total": total,
+            "page": page,
+            "per_page": per_page,
+            "total_pages": (total + per_page - 1) // per_page,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao listar audit logs: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==========================================
+# CUSTOMERS / PAYERS
+# ==========================================
+
+@router.get("/merchants/{merchant_id}/customers")
+async def list_merchant_customers(
+    merchant_id: UUID,
+    search: Optional[str] = None,
+    page: int = Query(1, ge=1),
+    per_page: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Lista clientes/pagadores unicos de um merchant.
+    Agrupa por customer_email com totais.
+    """
+    require_admin(current_user)
+    merchant_id_str = str(merchant_id)
+    
+    try:
+        merchant = db.query(GatewayMerchant).filter(
+            GatewayMerchant.id == merchant_id_str
+        ).first()
+        
+        if not merchant:
+            raise HTTPException(status_code=404, detail="Merchant nao encontrado")
+        
+        # Subquery para agregar por customer_email
+        base_query = db.query(
+            GatewayPayment.customer_email,
+            func.max(GatewayPayment.customer_name).label('customer_name'),
+            func.max(GatewayPayment.customer_phone).label('customer_phone'),
+            func.max(GatewayPayment.customer_document).label('customer_document'),
+            func.count(GatewayPayment.id).label('total_payments'),
+            func.sum(GatewayPayment.amount_requested).label('total_amount'),
+            func.max(GatewayPayment.created_at).label('last_payment_at'),
+            func.min(GatewayPayment.created_at).label('first_payment_at'),
+        ).filter(
+            GatewayPayment.merchant_id == merchant_id_str,
+            GatewayPayment.customer_email != None,
+            GatewayPayment.customer_email != '',
+        )
+        
+        if search:
+            search_term = f"%{search}%"
+            base_query = base_query.filter(
+                or_(
+                    GatewayPayment.customer_email.ilike(search_term),
+                    GatewayPayment.customer_name.ilike(search_term),
+                    GatewayPayment.customer_document.ilike(search_term),
+                )
+            )
+        
+        base_query = base_query.group_by(GatewayPayment.customer_email)
+        
+        # Total de clientes unicos
+        total_subquery = base_query.subquery()
+        total = db.query(func.count()).select_from(total_subquery).scalar() or 0
+        
+        # Paginacao
+        offset = (page - 1) * per_page
+        customers = base_query.order_by(
+            func.max(GatewayPayment.created_at).desc()
+        ).offset(offset).limit(per_page).all()
+        
+        result = []
+        for c in customers:
+            # Contar pagamentos concluidos
+            completed = db.query(func.count(GatewayPayment.id)).filter(
+                GatewayPayment.merchant_id == merchant_id_str,
+                GatewayPayment.customer_email == c.customer_email,
+                GatewayPayment.status == GatewayPaymentStatus.COMPLETED,
+            ).scalar() or 0
+            
+            result.append({
+                "email": c.customer_email,
+                "name": c.customer_name,
+                "phone": c.customer_phone,
+                "document": c.customer_document,
+                "total_payments": c.total_payments,
+                "completed_payments": completed,
+                "total_amount": float(c.total_amount or 0),
+                "last_payment_at": c.last_payment_at.isoformat() if c.last_payment_at else None,
+                "first_payment_at": c.first_payment_at.isoformat() if c.first_payment_at else None,
+            })
+        
+        # Summary stats
+        total_customers_all = db.query(
+            func.count(func.distinct(GatewayPayment.customer_email))
+        ).filter(
+            GatewayPayment.merchant_id == merchant_id_str,
+            GatewayPayment.customer_email != None,
+            GatewayPayment.customer_email != '',
+        ).scalar() or 0
+        
+        return {
+            "customers": result,
+            "total": total,
+            "total_unique_customers": total_customers_all,
+            "page": page,
+            "per_page": per_page,
+            "total_pages": (total + per_page - 1) // per_page,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao listar clientes do merchant: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

@@ -267,6 +267,187 @@ export const regenerateApiKey = async (merchantId: string): Promise<{ api_key: s
   return response.data
 }
 
+// ============================================
+// API Keys
+// ============================================
+
+export interface GatewayApiKeyItem {
+  id: string
+  name: string
+  description?: string
+  key_prefix: string
+  is_test: boolean
+  is_active: boolean
+  permissions?: string[]
+  allowed_ips?: string[]
+  rate_limit_per_minute: number
+  rate_limit_per_hour: number
+  last_used_at?: string
+  last_used_ip?: string
+  total_requests: number
+  expires_at?: string
+  revoked_at?: string
+  revoked_reason?: string
+  created_at: string
+}
+
+export const getMerchantApiKeys = async (
+  merchantId: string
+): Promise<{ api_keys: GatewayApiKeyItem[]; total: number }> => {
+  const response = await gatewayAdminApi.get(`/merchants/${merchantId}/api-keys`)
+  return response.data
+}
+
+export const createMerchantApiKey = async (
+  merchantId: string,
+  data: { name: string; description?: string; is_test?: boolean }
+): Promise<{
+  success: boolean
+  api_key: {
+    id: string
+    name: string
+    key_prefix: string
+    full_key: string
+    is_test: boolean
+    created_at: string
+  }
+}> => {
+  const response = await gatewayAdminApi.post(`/merchants/${merchantId}/api-keys`, data)
+  return response.data
+}
+
+export const revokeMerchantApiKey = async (
+  merchantId: string,
+  keyId: string,
+  reason?: string
+): Promise<{ success: boolean }> => {
+  const response = await gatewayAdminApi.put(`/merchants/${merchantId}/api-keys/${keyId}/revoke`, {
+    reason,
+  })
+  return response.data
+}
+
+// ============================================
+// Webhooks
+// ============================================
+
+export interface GatewayWebhookItem {
+  id: string
+  payment_id: string
+  payment_code?: string
+  event: string
+  url: string
+  status: string
+  attempts: number
+  max_attempts: number
+  last_response_code?: number
+  last_error?: string
+  next_attempt_at?: string
+  created_at: string
+  sent_at?: string
+}
+
+export interface WebhookStats {
+  total_sent: number
+  total_failed: number
+  total_pending: number
+}
+
+export const getMerchantWebhooks = async (
+  merchantId: string,
+  params?: { page?: number; per_page?: number; status?: string; event?: string }
+): Promise<{
+  webhooks: GatewayWebhookItem[]
+  stats: WebhookStats
+  total: number
+  page: number
+  total_pages: number
+}> => {
+  const searchParams = new URLSearchParams()
+  if (params?.page) searchParams.append('page', params.page.toString())
+  if (params?.per_page) searchParams.append('per_page', params.per_page.toString())
+  if (params?.status) searchParams.append('status', params.status)
+  if (params?.event) searchParams.append('event', params.event)
+  const response = await gatewayAdminApi.get(
+    `/merchants/${merchantId}/webhooks?${searchParams.toString()}`
+  )
+  return response.data
+}
+
+// ============================================
+// Audit Logs
+// ============================================
+
+export interface GatewayAuditLogItem {
+  id: string
+  action: string
+  actor_type: string
+  actor_id?: string
+  actor_email?: string
+  description?: string
+  old_data?: Record<string, unknown>
+  new_data?: Record<string, unknown>
+  ip_address?: string
+  payment_id?: string
+  api_key_id?: string
+  created_at: string
+}
+
+export const getMerchantAuditLogs = async (
+  merchantId: string,
+  params?: { page?: number; per_page?: number; action?: string }
+): Promise<{
+  audit_logs: GatewayAuditLogItem[]
+  total: number
+  page: number
+  total_pages: number
+}> => {
+  const searchParams = new URLSearchParams()
+  if (params?.page) searchParams.append('page', params.page.toString())
+  if (params?.per_page) searchParams.append('per_page', params.per_page.toString())
+  if (params?.action) searchParams.append('action', params.action)
+  const response = await gatewayAdminApi.get(
+    `/merchants/${merchantId}/audit-logs?${searchParams.toString()}`
+  )
+  return response.data
+}
+
+// ============================================
+// Customers / Payers
+// ============================================
+
+export interface GatewayCustomer {
+  email: string
+  name?: string
+  phone?: string
+  document?: string
+  total_payments: number
+  completed_payments: number
+  total_amount: number
+  last_payment_at?: string
+  first_payment_at?: string
+}
+
+export const getMerchantCustomers = async (
+  merchantId: string,
+  params?: { page?: number; per_page?: number; search?: string }
+): Promise<{
+  customers: GatewayCustomer[]
+  total: number
+  total_unique_customers: number
+  page: number
+  total_pages: number
+}> => {
+  const searchParams = new URLSearchParams()
+  if (params?.page) searchParams.append('page', params.page.toString())
+  if (params?.per_page) searchParams.append('per_page', params.per_page.toString())
+  if (params?.search) searchParams.append('search', params.search)
+  const response = await gatewayAdminApi.get(
+    `/merchants/${merchantId}/customers?${searchParams.toString()}`
+  )
+  return response.data
+}
+
 /**
  * Obter histórico de transações do merchant
  */
