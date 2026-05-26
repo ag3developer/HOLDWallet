@@ -2026,3 +2026,164 @@ async def trigger_pix_reconciliation_batch(
     except Exception as e:
         logger.exception(f"Erro na reconciliação em lote: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==========================================
+# WEBHOOK HEALTH (Opção A)
+# ==========================================
+
+@router.get("/webhooks/health")
+async def webhook_health_overview(
+    hours_back: int = Query(168, ge=1, le=720, description="Olhar webhooks das últimas N horas"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Visão agregada da saúde dos webhooks por merchant.
+    
+    Para cada merchant com webhook_url configurada, retorna:
+    - Totais (sent/failed/pending) na janela
+    - Taxa de sucesso
+    - Último webhook entregue
+    - Último erro
+    """
+    require_admin(current_user)
+    
+    try:
+        now = datetime.now(timezone.utc)
+        lookback = now - timedelta(hours=hours_back)
+        
+        merchants = db.query(GatewayMerchant).filter(
+            GatewayMerchant.webhook_url.isnot(None),
+            GatewayMerchant.webhook_url != "",
+        ).all()
+        
+        result = []
+        global_sent = 0
+        global_failed = 0
+        global_pending = 0
+        
+        for m in merchants:
+            sent = db.query(func.count(GatewayWebhook.id)).filter(
+                GatewayWebhook.merchant_id == m.id,
+                GatewayWebhook.status == "SENT",
+                GatewayWebhook.created_at >= lookback,
+            ).scalar() or 0
+            
+            failed = db.query(func.count(GatewayWebhook.id)).filter(
+                GatewayWebhook.merchant_id == m.id,
+                GatewayWebhook.status.in_(["FAILED", "EXHAUSTED"]),
+                GatewayWebhook.created_at >= lookback,
+            ).scalar() or 0
+            
+            pending = db.query(func.count(GatewayWebhook.id)).filter(
+                GatewayWebhook.merchant_id == m.id,
+                GatewayWebhook.status == "PENDING",
+                GatewayWebhook.created_at >= lookback,
+            ).scalar() or 0
+            
+            total = sent + failed + pending
+            success_rate = (sent / total * 100) if total > 0 else None
+            
+            last_sent = db.query(GatewayWebhook).filter(
+                GatewayWebhook.merchant_id == m.id,
+                GatewayWebhook.status == "SENT",
+            ).order_by(GatewayWebhook.sent_at.desc()).first()
+            
+            last_failed = db.query(GatewayWebhook).filter(
+                GatewayWebhook.merchant_id == m.id,
+                GatewayWebhook.status.in_(["FAILED", "EXHAUSTED"]),
+            ).order_by(GatewayWebhook.created_at.desc()).first()
+            
+            global_sent += sent
+            global_failed += failed
+            global_pending += pending
+            
+            result.append({
+                "merchant_id": str(m.id),
+                "merchant_code": m.merchant_code,
+                "merchant_name": m.company_name,
+                "webhook_url": m.webhook_url,
+                "merchant_status": m.status.value if m.status else None,
+                "total_sent": sent,
+                "total_failed": failed,
+                "total_pending": pending,
+                "total": total,
+                "success_rate": round(success_rate, 2) if success_rate is not None else None,
+                "last_sent_at": last_sent.sent_at.isoformat() if last_sent and last_sent.sent_at else None,
+                "last_failed_at": last_failed.created_at.isoformat() if last_failed else None,
+                "last_error": last_failed.last_error if last_failed else None,
+                "last_error_code": last_failed.last_response_code if last_failed else None,
+            })
+        
+        # Ordenar: maior número de FAILED primeiro
+        result.sort(key=lambda x: (-x["total_failed"], -x["total_pending"]))
+        
+        global_total = global_sent + global_failed + global_pending
+        global_rate = (global_sent / global_total * 100) if global_total > 0 else None
+        
+        return {
+            "merchants": result,
+            "summary": {
+                "total_merchants_with_webhook": len(merchants),
+                "total_sent": global_sent,
+                "total_failed": global_failed,
+                "total_pending": global_pending,
+                "total": global_total,
+                "success_rate": round(global_rate, 2) if global_rate is not None else None,
+            },
+            "hours_back": hours_back,
+            "checked_at": now.isoformat(),
+        }
+    except Exception as e:
+        logger.exception(f"Erro ao calcular health de webhooks: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/webhooks/{webhook_id}/resend")
+async def admin_resend_webhook(
+    webhook_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Força o reenvio de um webhook específico. Reseta status e attempts.
+    """
+    require_admin(current_user)
+    
+    from app.services.gateway.webhook_service import WebhookService
+    
+    webhook_id_str = str(webhook_id)
+    
+    try:
+        webhook = db.query(GatewayWebhook).filter(
+            GatewayWebhook.id == webhook_id_str
+        ).first()
+        
+        if not webhook:
+            raise HTTPException(status_code=404, detail="Webhook não encontrado")
+        
+        service = WebhookService(db)
+        success = await service.resend_webhook(webhook_id_str)
+        
+        db.refresh(webhook)
+        
+        logger.info(
+            f"🔁 Admin {current_user.email} reenviou webhook {webhook_id_str} "
+            f"(sucesso={success}, status={webhook.status.value})"
+        )
+        
+        return {
+            "success": success,
+            "webhook_id": webhook_id_str,
+            "status": webhook.status.value if webhook.status else None,
+            "attempts": webhook.attempts,
+            "last_response_code": webhook.last_response_code,
+            "last_error": webhook.last_error,
+            "sent_at": webhook.sent_at.isoformat() if webhook.sent_at else None,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Erro ao reenviar webhook: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

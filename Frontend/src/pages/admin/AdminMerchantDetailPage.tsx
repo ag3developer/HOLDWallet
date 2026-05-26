@@ -66,6 +66,7 @@ import {
   createMerchantApiKey,
   revokeMerchantApiKey,
   getMerchantWebhooks,
+  resendWebhook,
   getMerchantAuditLogs,
   getMerchantCustomers,
   type GatewayPayment,
@@ -394,6 +395,30 @@ export const AdminMerchantDetailPage: React.FC = () => {
       toast.error('Erro ao carregar webhooks')
     } finally {
       setWebhooksLoading(false)
+    }
+  }
+
+  // Resend webhook (admin)
+  const [resendingWebhookId, setResendingWebhookId] = useState<string | null>(null)
+  const handleResendWebhook = async (webhookId: string) => {
+    setResendingWebhookId(webhookId)
+    try {
+      const result = await resendWebhook(webhookId)
+      if (result.success) {
+        toast.success(`Webhook reenviado com sucesso (HTTP ${result.last_response_code})`)
+      } else {
+        toast.error(
+          `Falha: ${result.last_error || `HTTP ${result.last_response_code || 'erro'}`}`,
+          { duration: 6000 }
+        )
+      }
+      // recarregar para atualizar status/attempts
+      await loadWebhooks(webhooksPage)
+    } catch (err: any) {
+      console.error('Erro ao reenviar webhook:', err)
+      toast.error(err?.response?.data?.detail || 'Erro ao reenviar webhook')
+    } finally {
+      setResendingWebhookId(null)
     }
   }
 
@@ -1628,7 +1653,7 @@ export const AdminMerchantDetailPage: React.FC = () => {
                             <Globe className='w-3 h-3' />
                             <span className='truncate max-w-xs'>{w.url}</span>
                           </div>
-                          <div className='flex flex-wrap gap-3 text-xs text-gray-400'>
+                          <div className='flex flex-wrap gap-3 text-xs text-gray-400 items-center'>
                             {w.payment_code && (
                               <span className='flex items-center gap-1'>
                                 <CreditCard className='w-3 h-3' />
@@ -1651,6 +1676,26 @@ export const AdminMerchantDetailPage: React.FC = () => {
                             )}
                             {w.last_error && (
                               <span className='text-red-400 truncate max-w-xs'>{w.last_error}</span>
+                            )}
+                            {isFailed && (
+                              <button
+                                type='button'
+                                onClick={() => handleResendWebhook(w.id)}
+                                disabled={resendingWebhookId === w.id}
+                                className='ml-auto inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white rounded transition-colors'
+                              >
+                                {resendingWebhookId === w.id ? (
+                                  <>
+                                    <RefreshCw className='w-3 h-3 animate-spin' />
+                                    Reenviando...
+                                  </>
+                                ) : (
+                                  <>
+                                    <RefreshCw className='w-3 h-3' />
+                                    Reenviar
+                                  </>
+                                )}
+                              </button>
                             )}
                           </div>
                         </div>

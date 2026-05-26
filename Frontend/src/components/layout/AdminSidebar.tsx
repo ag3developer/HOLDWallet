@@ -37,6 +37,7 @@ import {
   Gift,
   Building2,
   RefreshCw,
+  Webhook,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useThemeStore } from '@/stores/useThemeStore'
@@ -64,6 +65,12 @@ const adminNavigation = [
     name: 'Reconciliação PIX',
     href: '/admin/gateway/pix-reconciliation',
     icon: RefreshCw,
+    group: 'management',
+  },
+  {
+    name: 'Saúde dos Webhooks',
+    href: '/admin/gateway/webhooks-health',
+    icon: Webhook,
     group: 'management',
   },
   { name: 'Carteira Sistema', href: '/admin/system-wallet', icon: Landmark, group: 'management' },

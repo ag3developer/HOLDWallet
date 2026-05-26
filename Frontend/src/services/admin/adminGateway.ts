@@ -573,4 +573,65 @@ export const triggerPixReconciliationBatch = async (): Promise<PixBatchReconcile
   return response.data
 }
 
+// ============================================
+// Webhook Health (visão global por merchant)
+// ============================================
+
+export interface WebhookHealthMerchant {
+  merchant_id: string
+  merchant_code: string
+  merchant_name: string
+  webhook_url: string
+  merchant_status?: string
+  total_sent: number
+  total_failed: number
+  total_pending: number
+  total: number
+  success_rate?: number | null
+  last_sent_at?: string | null
+  last_failed_at?: string | null
+  last_error?: string | null
+  last_error_code?: number | null
+}
+
+export interface WebhookHealthResponse {
+  merchants: WebhookHealthMerchant[]
+  summary: {
+    total_merchants_with_webhook: number
+    total_sent: number
+    total_failed: number
+    total_pending: number
+    total: number
+    success_rate?: number | null
+  }
+  hours_back: number
+  checked_at: string
+}
+
+export interface WebhookResendResult {
+  success: boolean
+  webhook_id: string
+  status?: string
+  attempts: number
+  last_response_code?: number | null
+  last_error?: string | null
+  sent_at?: string | null
+}
+
+/**
+ * Visão agregada da saúde dos webhooks por merchant.
+ */
+export const getWebhookHealth = async (hoursBack = 168): Promise<WebhookHealthResponse> => {
+  const response = await gatewayAdminApi.get(`/webhooks/health?hours_back=${hoursBack}`)
+  return response.data
+}
+
+/**
+ * Reenvia manualmente um webhook FAILED/EXHAUSTED.
+ */
+export const resendWebhook = async (webhookId: string): Promise<WebhookResendResult> => {
+  const response = await gatewayAdminApi.post(`/webhooks/${webhookId}/resend`)
+  return response.data
+}
+
 export default gatewayAdminApi

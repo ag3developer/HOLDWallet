@@ -124,6 +124,7 @@ import AdminKYCUsersPage from '@/pages/admin/AdminKYCUsersPage'
 import AdminLockedBalancesPage from '@/pages/admin/AdminLockedBalancesPage'
 import AdminWalletBlockPage from '@/pages/admin/AdminWalletBlockPage'
 import AdminGatewayPixReconciliationPage from '@/pages/admin/AdminGatewayPixReconciliationPage'
+import AdminGatewayWebhooksHealthPage from '@/pages/admin/AdminGatewayWebhooksHealthPage'
 
 // Protected Route Component (for authenticated users)
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -476,6 +477,10 @@ function MainApp() {
             <Route
               path='/admin/gateway/pix-reconciliation'
               element={<AdminGatewayPixReconciliationPage />}
+            />
+            <Route
+              path='/admin/gateway/webhooks-health'
+              element={<AdminGatewayWebhooksHealthPage />}
             />
             <Route
               path='/admin/gateway/merchant/:merchantId'
