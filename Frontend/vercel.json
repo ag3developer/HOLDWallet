@@ -15,7 +15,7 @@
     { "source": "/payments/(.*)", "destination": "/index.html" },
     { "source": "/settings", "destination": "/index.html" },
     {
-      "source": "/((?!sitemap\\.xml|robots\\.txt|favicon\\.ico|manifest\\.json|images/).*)",
+      "source": "/((?!assets/|sitemap\\.xml|robots\\.txt|favicon\\.ico|manifest\\.json|images/).*)",
       "destination": "/index.html"
     }
   ],
@@ -43,6 +43,33 @@
         {
           "key": "Cache-Control",
           "value": "public, max-age=86400"
+        }
+      ]
+    },
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/index.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
         }
       ]
     },
