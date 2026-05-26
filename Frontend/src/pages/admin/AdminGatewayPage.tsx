@@ -451,7 +451,7 @@ export const AdminGatewayPage: React.FC = () => {
                         </td>
                         <td className='px-4 py-3'>
                           <span className='text-sm text-gray-900 dark:text-white'>
-                            {merchant.fee_percentage?.toFixed(2) || '0.00'}%
+                            {Number(merchant.fee_percentage ?? 0).toFixed(2)}%
                           </span>
                         </td>
                         <td className='px-4 py-3'>
@@ -585,7 +585,7 @@ export const AdminGatewayPage: React.FC = () => {
                       <div>
                         <span className='text-gray-500 dark:text-gray-400'>Taxa:</span>{' '}
                         <span className='text-gray-900 dark:text-white'>
-                          {merchant.fee_percentage?.toFixed(2) || '0.00'}%
+                          {Number(merchant.fee_percentage ?? 0).toFixed(2)}%
                         </span>
                       </div>
                       <div>

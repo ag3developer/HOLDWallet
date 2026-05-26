@@ -426,7 +426,7 @@ export default function GatewaySettingsPage() {
                 <div className='flex justify-between'>
                   <span className='text-slate-500 dark:text-slate-400'>Taxa</span>
                   <span className='text-slate-900 dark:text-white'>
-                    {merchant?.fee_percentage?.toFixed(2) || '0.00'}%
+                    {Number(merchant?.fee_percentage ?? 0).toFixed(2)}%
                   </span>
                 </div>
                 <div className='flex justify-between'>
