@@ -39,6 +39,71 @@ LOOKBACK_HOURS = 24
 # Limite máximo de pagamentos verificados por rodada (proteção)
 MAX_PAYMENTS_PER_RUN = 50
 
+# Tolerância de tempo: só marca como EXPIRED se passou X minutos da data
+# (evita conflito com pagamentos pagos "no segundo" do vencimento).
+EXPIRATION_GRACE_MINUTES = 1
+
+
+async def expire_overdue_payments() -> dict:
+    """
+    Marca pagamentos PENDING/PROCESSING como EXPIRED quando expires_at já passou.
+
+    Roda no mesmo loop da reconciliação PIX. Trabalha com tempo UTC e respeita
+    uma pequena tolerância (`EXPIRATION_GRACE_MINUTES`) para evitar marcar como
+    expirado um pagamento que acabou de ser pago e ainda não veio o webhook.
+
+    Returns:
+        dict com estatísticas: expired
+    """
+    from app.models.gateway import GatewayPayment, GatewayPaymentStatus
+
+    stats = {"expired": 0, "errors": 0}
+    db = next(get_db())
+
+    try:
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=EXPIRATION_GRACE_MINUTES)
+        # Yield ao loop para manter a função honestamente async
+        await asyncio.sleep(0)
+
+        overdue = (
+            db.query(GatewayPayment)
+            .filter(
+                GatewayPayment.status.in_([
+                    GatewayPaymentStatus.PENDING,
+                    GatewayPaymentStatus.PROCESSING,
+                ]),
+                GatewayPayment.expires_at.isnot(None),
+                GatewayPayment.expires_at < cutoff,
+            )
+            .limit(200)
+            .all()
+        )
+
+        if not overdue:
+            return stats
+
+        for payment in overdue:
+            try:
+                payment.status = GatewayPaymentStatus.EXPIRED
+                stats["expired"] += 1
+                logger.info(f"⏰ [EXPIRE] {payment.payment_id} (expirou em {payment.expires_at})")
+            except Exception as e:
+                stats["errors"] += 1
+                logger.exception(f"❌ [EXPIRE] Erro ao expirar {payment.payment_id}: {e}")
+
+        if stats["expired"]:
+            db.commit()
+            logger.info(f"⏰ [EXPIRE] {stats['expired']} pagamentos marcados como EXPIRED")
+
+        return stats
+
+    except Exception as e:
+        db.rollback()
+        logger.exception(f"❌ [EXPIRE] Erro inesperado: {e}")
+        return stats
+    finally:
+        db.close()
+
 
 async def reconcile_pending_pix_payments() -> dict:
     """
@@ -180,6 +245,9 @@ async def pix_reconciliation_loop():
     
     while True:
         try:
+            # 1) Expira pagamentos vencidos (PENDING/PROCESSING com expires_at no passado)
+            await expire_overdue_payments()
+            # 2) Reconcilia PIX pendentes ainda dentro do prazo
             await reconcile_pending_pix_payments()
         except asyncio.CancelledError:
             logger.info("🛑 [PIX RECON] Loop cancelado (shutdown)")
