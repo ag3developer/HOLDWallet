@@ -229,7 +229,9 @@ class WebhookService:
                     raise Exception(f"HTTP {response.status_code}")
                     
         except Exception as e:
-            error_msg = str(e)[:500]
+            # repr(e) garante que erros do httpx (ConnectError, ReadTimeout, etc.)
+            # apareçam mesmo quando str(e) vier vazio.
+            error_msg = (str(e) or repr(e))[:500]
             webhook.last_error = error_msg
             
             logger.warning(f"⚠️ Webhook falhou ({webhook.attempts}/{webhook.max_attempts}): {error_msg}")

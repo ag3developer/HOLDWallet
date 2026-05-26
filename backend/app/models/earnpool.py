@@ -158,7 +158,7 @@ class EarnPoolDeposit(Base):
     
     # Transferência para sistema (admin)
     tx_hash_to_system = Column(String(100), nullable=True)  # TX de transferência para carteira do sistema
-    transferred_to_system_at = Column(DateTime, nullable=True)  # Data da transferência
+    transferred_to_system_at = Column(DateTime(timezone=True), nullable=True)  # Data da transferência (UTC)
     transferred_by_admin = Column(String(50), nullable=True)  # ID do admin que fez a transferência
     
     # Auditoria

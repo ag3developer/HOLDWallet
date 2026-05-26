@@ -91,7 +91,18 @@ async def lifespan(app: FastAPI):
             logger.info("✅ PIX reconciliation loop started (fallback for BB webhooks)")
         except Exception as recon_error:
             logger.warning(f"⚠️ PIX reconciliation loop failed to start: {recon_error}")
-        
+
+        # 🔁 Start webhook retry background task (WolkPay Gateway)
+        webhook_retry_task = None
+        try:
+            import asyncio
+            from app.jobs.webhook_retry_job import webhook_retry_loop
+            webhook_retry_task = asyncio.create_task(webhook_retry_loop())
+            app.state.webhook_retry_task = webhook_retry_task
+            logger.info("✅ Webhook retry loop started (delivery resilience)")
+        except Exception as wh_error:
+            logger.warning(f"⚠️ Webhook retry loop failed to start: {wh_error}")
+
         logger.info("🎉 Wolknow Backend started successfully")
         yield
         
@@ -115,7 +126,21 @@ async def lifespan(app: FastAPI):
                     logger.warning("⚠️ PIX reconciliation task ended with error")
         except Exception:
             pass
-        
+
+        # Cancel webhook retry task
+        try:
+            task = getattr(app.state, "webhook_retry_task", None)
+            if task and not task.done():
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+                except Exception:
+                    logger.warning("⚠️ Webhook retry task ended with error")
+        except Exception:
+            pass
+
         await cache_service.disconnect()
 
 # Create FastAPI app
