@@ -123,6 +123,7 @@ import AdminDashboardSwitcher from '@/pages/admin/AdminDashboardSwitcher'
 import AdminKYCUsersPage from '@/pages/admin/AdminKYCUsersPage'
 import AdminLockedBalancesPage from '@/pages/admin/AdminLockedBalancesPage'
 import AdminWalletBlockPage from '@/pages/admin/AdminWalletBlockPage'
+import AdminGatewayPixReconciliationPage from '@/pages/admin/AdminGatewayPixReconciliationPage'
 
 // Protected Route Component (for authenticated users)
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -472,6 +473,10 @@ function MainApp() {
             <Route path='/admin/earnpool' element={<AdminEarnPoolPage />} />
             <Route path='/admin/referral' element={<AdminReferralPage />} />
             <Route path='/admin/gateway' element={<AdminGatewayPage />} />
+            <Route
+              path='/admin/gateway/pix-reconciliation'
+              element={<AdminGatewayPixReconciliationPage />}
+            />
             <Route
               path='/admin/gateway/merchant/:merchantId'
               element={<AdminMerchantDetailPage />}

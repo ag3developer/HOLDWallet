@@ -591,17 +591,71 @@ class PaymentPublicResponse(GatewayBaseSchema):
 
 
 class PaymentListResponse(GatewayBaseSchema):
-    """Response para listagem de pagamentos"""
+    """Response para listagem de pagamentos.
+    
+    Inclui aliases compatíveis com o frontend (payment_code, amount, currency,
+    customer/payer, paid_at, etc.) além dos nomes canônicos do backend.
+    """
+    model_config = {
+        "from_attributes": True,
+        "populate_by_name": True,
+    }
+    
     id: str
     payment_id: str
-    external_id: Optional[str]
-    payment_method: GatewayPaymentMethod
-    amount_requested: Decimal
-    currency_requested: str
+    payment_code: Optional[str] = None  # alias frontend (= payment_id)
+    external_id: Optional[str] = None
+    
+    payment_method: Optional[GatewayPaymentMethod] = None
     status: GatewayPaymentStatus
-    customer_email: Optional[str]
+    
+    # Valores - nomes canônicos + aliases
+    amount_requested: Decimal
+    amount: Optional[Decimal] = None  # alias frontend
+    currency_requested: str
+    currency: Optional[str] = None  # alias frontend
+    fee_amount: Optional[Decimal] = None
+    net_amount: Optional[Decimal] = None
+    
+    # Descrição
+    description: Optional[str] = None
+    
+    # Pagador (backend usa customer_*, frontend espera payer_*)
+    customer_email: Optional[str] = None
+    customer_name: Optional[str] = None
+    payer_email: Optional[str] = None  # alias frontend
+    payer_name: Optional[str] = None  # alias frontend
+    
+    # Datas
     created_at: datetime
-    completed_at: Optional[datetime]
+    expires_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    confirmed_at: Optional[datetime] = None
+    paid_at: Optional[datetime] = None  # alias: confirmed_at ou completed_at
+    
+    @model_validator(mode='after')
+    def populate_aliases(self) -> 'PaymentListResponse':
+        """Preenche aliases para o frontend."""
+        if not self.payment_code:
+            self.payment_code = self.payment_id
+        if self.amount is None:
+            self.amount = self.amount_requested
+        if not self.currency:
+            self.currency = self.currency_requested
+        if not self.payer_email and self.customer_email:
+            self.payer_email = self.customer_email
+        if not self.payer_name and self.customer_name:
+            self.payer_name = self.customer_name
+        if not self.paid_at:
+            self.paid_at = self.confirmed_at or self.completed_at
+        # Calcula net_amount se não informado
+        if self.net_amount is None and self.fee_amount is not None:
+            self.net_amount = (self.amount_requested or Decimal('0')) - self.fee_amount
+        elif self.net_amount is None:
+            self.net_amount = self.amount_requested
+        if self.fee_amount is None:
+            self.fee_amount = Decimal('0')
+        return self
 
 
 class PaymentFilterParams(BaseModel):

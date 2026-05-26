@@ -484,4 +484,93 @@ export const getMerchantSummary = async (
   return response.data
 }
 
+// ============================================
+// PIX RECONCILIATION (Fallback do webhook BB)
+// ============================================
+
+export interface PendingPixPayment {
+  payment_id: string
+  internal_id: string
+  merchant_id: string
+  merchant_code: string
+  merchant_name: string
+  amount: number
+  status: string
+  pix_txid?: string
+  customer_email?: string
+  customer_name?: string
+  created_at: string
+  expires_at?: string
+  age_minutes: number
+  expires_in_minutes?: number | null
+  is_expired: boolean
+}
+
+export interface PendingPixListResponse {
+  items: PendingPixPayment[]
+  total: number
+  hours_back: number
+  checked_at: string
+}
+
+export interface PixReconcileResult {
+  success?: boolean
+  message?: string
+  payment_id: string
+  txid?: string
+  current_status?: string
+  new_status?: string
+  bb_status?: string
+  bb_pago?: boolean
+  bb_valor_pago?: string | null
+  bb_end_to_end_id?: string | null
+  confirmed_at?: string
+}
+
+export interface PixBatchReconcileResult {
+  success: boolean
+  message: string
+  stats: {
+    checked: number
+    confirmed: number
+    errors: number
+    skipped: number
+  }
+  triggered_by: string
+  triggered_at: string
+}
+
+/**
+ * Lista pagamentos PIX em PENDING/PROCESSING (admin global ou por merchant).
+ */
+export const getPendingPixPayments = async (params?: {
+  hours_back?: number
+  merchant_id?: string
+  only_overdue?: boolean
+}): Promise<PendingPixListResponse> => {
+  const searchParams = new URLSearchParams()
+  if (params?.hours_back) searchParams.append('hours_back', params.hours_back.toString())
+  if (params?.merchant_id) searchParams.append('merchant_id', params.merchant_id)
+  if (params?.only_overdue) searchParams.append('only_overdue', 'true')
+
+  const response = await gatewayAdminApi.get(`/pix/pending?${searchParams.toString()}`)
+  return response.data
+}
+
+/**
+ * Força reconciliação manual de um pagamento PIX específico contra o Banco do Brasil.
+ */
+export const forceReconcilePix = async (paymentId: string): Promise<PixReconcileResult> => {
+  const response = await gatewayAdminApi.post(`/pix/${paymentId}/reconcile`)
+  return response.data
+}
+
+/**
+ * Dispara uma rodada completa do job de reconciliação PIX.
+ */
+export const triggerPixReconciliationBatch = async (): Promise<PixBatchReconcileResult> => {
+  const response = await gatewayAdminApi.post('/pix/reconcile-batch')
+  return response.data
+}
+
 export default gatewayAdminApi

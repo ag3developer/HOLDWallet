@@ -36,6 +36,7 @@ import {
   PiggyBank,
   Gift,
   Building2,
+  RefreshCw,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useThemeStore } from '@/stores/useThemeStore'
@@ -59,6 +60,12 @@ const adminNavigation = [
   { name: 'EarnPool', href: '/admin/earnpool', icon: PiggyBank, group: 'management' },
   { name: 'WOLK FRIENDS', href: '/admin/referral', icon: Gift, group: 'management' },
   { name: 'WolkPay Gateway', href: '/admin/gateway', icon: Building2, group: 'management' },
+  {
+    name: 'Reconciliação PIX',
+    href: '/admin/gateway/pix-reconciliation',
+    icon: RefreshCw,
+    group: 'management',
+  },
   { name: 'Carteira Sistema', href: '/admin/system-wallet', icon: Landmark, group: 'management' },
 
   // Relatórios

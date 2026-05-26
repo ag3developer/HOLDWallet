@@ -1747,3 +1747,257 @@ async def list_merchant_customers(
     except Exception as e:
         logger.error(f"Erro ao listar clientes do merchant: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==========================================
+# RECONCILIAÇÃO PIX (Fallback do webhook BB)
+# ==========================================
+
+@router.get("/pix/pending")
+async def list_pending_pix_reconciliation(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    hours_back: int = Query(24, ge=1, le=168, description="Olhar PIX criados nas últimas N horas"),
+    merchant_id: Optional[str] = Query(None, description="Filtrar por merchant"),
+    only_overdue: bool = Query(False, description="Apenas PIX criados há mais de 30 min"),
+):
+    """
+    Lista pagamentos PIX que estão em PENDING/PROCESSING.
+    
+    Útil para identificar pagamentos onde o webhook do BB pode ter falhado.
+    Admin pode então forçar reconciliação manual.
+    """
+    require_admin(current_user)
+    
+    try:
+        now = datetime.now(timezone.utc)
+        lookback = now - timedelta(hours=hours_back)
+        
+        query = db.query(GatewayPayment, GatewayMerchant).join(
+            GatewayMerchant,
+            GatewayPayment.merchant_id == GatewayMerchant.id
+        ).filter(
+            GatewayPayment.payment_method == GatewayPaymentMethod.PIX,
+            GatewayPayment.status.in_([
+                GatewayPaymentStatus.PENDING,
+                GatewayPaymentStatus.PROCESSING,
+            ]),
+            GatewayPayment.created_at >= lookback,
+        )
+        
+        if merchant_id:
+            query = query.filter(GatewayPayment.merchant_id == merchant_id)
+        
+        if only_overdue:
+            overdue_cutoff = now - timedelta(minutes=30)
+            query = query.filter(GatewayPayment.created_at <= overdue_cutoff)
+        
+        results = query.order_by(GatewayPayment.created_at.desc()).limit(200).all()
+        
+        items = []
+        for payment, merchant in results:
+            age_minutes = int((now - payment.created_at.replace(tzinfo=timezone.utc)).total_seconds() / 60) if payment.created_at else 0
+            expires_in = None
+            if payment.expires_at:
+                exp = payment.expires_at.replace(tzinfo=timezone.utc) if payment.expires_at.tzinfo is None else payment.expires_at
+                expires_in = int((exp - now).total_seconds() / 60)
+            
+            items.append({
+                "payment_id": str(payment.payment_id),
+                "internal_id": str(payment.id),
+                "merchant_id": str(merchant.id),
+                "merchant_code": merchant.merchant_code,
+                "merchant_name": merchant.company_name,
+                "amount": float(payment.amount_requested or 0),
+                "status": payment.status.value if payment.status else None,
+                "pix_txid": payment.pix_txid,
+                "customer_email": payment.customer_email,
+                "customer_name": payment.customer_name,
+                "created_at": payment.created_at.isoformat() if payment.created_at else None,
+                "expires_at": payment.expires_at.isoformat() if payment.expires_at else None,
+                "age_minutes": age_minutes,
+                "expires_in_minutes": expires_in,
+                "is_expired": expires_in is not None and expires_in < 0,
+            })
+        
+        return {
+            "items": items,
+            "total": len(items),
+            "hours_back": hours_back,
+            "checked_at": now.isoformat(),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Erro ao listar PIX pendentes: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/pix/{payment_id}/reconcile")
+async def force_reconcile_pix(
+    payment_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Força a verificação de UM pagamento PIX específico no Banco do Brasil.
+    
+    Se o BB confirmar pagamento, atualiza o status para CONFIRMED/COMPLETED.
+    Útil quando o webhook do BB falhou ou demorou.
+    """
+    require_admin(current_user)
+    
+    from app.services.banco_brasil_service import BancoBrasilService
+    from app.services.gateway.payment_service import GatewayPaymentService
+    
+    try:
+        # Busca o pagamento (por payment_id ou id interno)
+        payment = db.query(GatewayPayment).filter(
+            or_(
+                GatewayPayment.payment_id == payment_id,
+                GatewayPayment.id == payment_id,
+            )
+        ).first()
+        
+        if not payment:
+            raise HTTPException(status_code=404, detail="Pagamento não encontrado")
+        
+        if payment.payment_method != GatewayPaymentMethod.PIX:
+            raise HTTPException(
+                status_code=400,
+                detail="Reconciliação só é suportada para pagamentos PIX"
+            )
+        
+        if not payment.pix_txid:
+            raise HTTPException(
+                status_code=400,
+                detail="Pagamento não tem pix_txid registrado"
+            )
+        
+        if payment.status not in [GatewayPaymentStatus.PENDING, GatewayPaymentStatus.PROCESSING]:
+            return {
+                "success": False,
+                "message": f"Pagamento já está em status final: {payment.status.value}",
+                "payment_id": payment.payment_id,
+                "current_status": payment.status.value,
+            }
+        
+        # Consulta BB
+        try:
+            bb_service = BancoBrasilService()
+        except Exception as e:
+            raise HTTPException(
+                status_code=503,
+                detail=f"Banco do Brasil indisponível: {e}"
+            )
+        
+        bb_result = await bb_service.verificar_pagamento(str(payment.pix_txid))
+        
+        response = {
+            "payment_id": payment.payment_id,
+            "txid": payment.pix_txid,
+            "bb_status": bb_result.get("status"),
+            "bb_pago": bb_result.get("pago"),
+            "bb_valor_pago": str(bb_result.get("valor_pago")) if bb_result.get("valor_pago") else None,
+            "bb_end_to_end_id": bb_result.get("end_to_end_id"),
+        }
+        
+        if bb_result.get("pago") is True:
+            valor_pago = bb_result.get("valor_pago") or Decimal("0")
+            horario_str = bb_result.get("horario_pagamento")
+            horario_dt = datetime.now(timezone.utc)
+            if horario_str:
+                try:
+                    horario_dt = datetime.fromisoformat(str(horario_str).replace("Z", "+00:00"))
+                except (ValueError, TypeError):
+                    pass
+            
+            payment_service = GatewayPaymentService(db)
+            confirmed = await payment_service.confirm_pix_payment(
+                txid=str(payment.pix_txid),
+                valor_recebido=Decimal(str(valor_pago)),
+                horario=horario_dt,
+                end_to_end_id=str(bb_result.get("end_to_end_id")) if bb_result.get("end_to_end_id") else None,
+            )
+            
+            if confirmed:
+                db.refresh(payment)
+                response.update({
+                    "success": True,
+                    "message": "Pagamento confirmado com sucesso via reconciliação manual",
+                    "new_status": payment.status.value,
+                    "confirmed_at": payment.confirmed_at.isoformat() if payment.confirmed_at else None,
+                })
+                
+                # Auditoria
+                audit_log = GatewayAuditLog(
+                    merchant_id=payment.merchant_id,
+                    payment_id=payment.id,
+                    actor_type="admin",
+                    actor_id=str(current_user.id),
+                    action=GatewayAuditAction.PAYMENT_CONFIRMED,
+                    description=f"Reconciliação manual pelo admin {current_user.email}",
+                    new_data={
+                        "admin_id": str(current_user.id),
+                        "admin_email": current_user.email,
+                        "valor_pago": str(valor_pago),
+                        "source": "manual_reconciliation",
+                    }
+                )
+                db.add(audit_log)
+                db.commit()
+                
+                logger.info(
+                    f"✅ Admin {current_user.email} reconciliou manualmente: "
+                    f"payment_id={payment.payment_id}"
+                )
+                return response
+            else:
+                response.update({
+                    "success": False,
+                    "message": "BB confirmou pagamento mas não foi possível atualizar o registro",
+                })
+                return response
+        else:
+            response.update({
+                "success": False,
+                "message": "Banco do Brasil não confirma o pagamento ainda",
+                "current_status": payment.status.value,
+            })
+            return response
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Erro na reconciliação manual: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/pix/reconcile-batch")
+async def trigger_pix_reconciliation_batch(
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Dispara uma rodada completa do job de reconciliação PIX.
+    
+    Equivale a rodar manualmente o loop que já roda a cada 2 minutos em background.
+    Útil quando o admin suspeita que muitos pagamentos estão atrasados.
+    """
+    require_admin(current_user)
+    
+    from app.jobs.pix_reconciliation_job import reconcile_pending_pix_payments
+    
+    try:
+        logger.info(
+            f"🔄 Reconciliação em lote disparada manualmente por {current_user.email}"
+        )
+        stats = await reconcile_pending_pix_payments()
+        return {
+            "success": True,
+            "message": "Reconciliação em lote concluída",
+            "stats": stats,
+            "triggered_by": current_user.email,
+            "triggered_at": datetime.now(timezone.utc).isoformat(),
+        }
+    except Exception as e:
+        logger.exception(f"Erro na reconciliação em lote: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
