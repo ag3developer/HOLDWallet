@@ -221,10 +221,11 @@ export interface PaymentListItem {
   id: string
   payment_code: string
   external_id?: string
-  amount: number
+  // Backend envia Decimal serializado como string; aceitamos ambos.
+  amount: number | string
   currency: string
-  fee_amount: number
-  net_amount: number
+  fee_amount: number | string
+  net_amount: number | string
   payment_method?: GatewayPaymentMethod
   status: GatewayPaymentStatus
   description?: string
@@ -336,13 +337,18 @@ export const getTimeRemaining = (
 }
 
 /**
- * Formata valor em BRL
+ * Formata valor em BRL.
+ *
+ * Aceita number, string (ex.: Decimal serializado pelo backend) ou null/undefined.
+ * Sempre retorna um valor formatado válido (R$ 0,00 quando não numérico).
  */
-export const formatBRL = (amount: number): string => {
+export const formatBRL = (amount: number | string | null | undefined): string => {
+  const num = typeof amount === 'string' ? Number.parseFloat(amount) : (amount ?? 0)
+  const safe = Number.isFinite(num) ? num : 0
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL',
-  }).format(amount)
+  }).format(safe)
 }
 
 /**

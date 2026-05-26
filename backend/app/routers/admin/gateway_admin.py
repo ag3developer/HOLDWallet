@@ -796,9 +796,30 @@ async def update_merchant_settings(
             'min_payment_brl': lambda x: x >= 0,
             'max_payment_brl': lambda x: x >= 0,
         }
-        
+
+        # Detectar quais colunas realmente existem na tabela em produção.
+        # Algumas instalações antigas podem não ter `auto_settlement` ainda
+        # (migração 20260526_add_gateway_merchant_missing_columns aplica),
+        # então pulamos silenciosamente colunas ausentes em vez de quebrar.
+        try:
+            from sqlalchemy import inspect as sa_inspect
+            inspector = sa_inspect(db.get_bind())
+            existing_columns = {
+                col['name'] for col in inspector.get_columns('gateway_merchants')
+            }
+        except Exception as col_err:
+            logger.warning(f"Não foi possível inspecionar colunas: {col_err}")
+            existing_columns = None  # sem filtro
+
         for field, validator in allowed_fields.items():
             if field in settings:
+                # Se sabemos que a coluna não existe no banco, pula
+                if existing_columns is not None and field not in existing_columns:
+                    logger.warning(
+                        f"Coluna '{field}' ausente em gateway_merchants — ignorando."
+                    )
+                    continue
+
                 value = settings[field]
                 
                 # Normalizar strings vazias para None
@@ -904,10 +925,10 @@ async def update_merchant_settings(
         raise
     except Exception as e:
         db.rollback()
-        logger.error(f"Erro ao atualizar configurações do merchant: {e}")
+        logger.exception(f"Erro ao atualizar configurações do merchant {merchant_id}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
+            detail=f"Erro ao salvar configurações: {e}"
         )
 
 

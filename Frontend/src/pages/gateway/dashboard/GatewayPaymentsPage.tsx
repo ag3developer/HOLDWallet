@@ -130,11 +130,13 @@ export default function GatewayPaymentsPage() {
     navigator.clipboard.writeText(text)
   }
 
-  const formatCurrency = (value: number) => {
+  const formatCurrency = (value: number | string | null | undefined) => {
+    const num = typeof value === 'string' ? Number.parseFloat(value) : (value ?? 0)
+    const safe = Number.isFinite(num) ? num : 0
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL',
-    }).format(value)
+    }).format(safe)
   }
 
   const formatDate = (dateStr: string) => {

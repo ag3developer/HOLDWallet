@@ -94,9 +94,7 @@ const AdminGatewayPixReconciliationPage: React.FC = () => {
       const result = await forceReconcilePix(payment.payment_id)
 
       if (result.success) {
-        toast.success(
-          `Pagamento confirmado! Novo status: ${result.new_status || 'CONFIRMED'}`
-        )
+        toast.success(`Pagamento confirmado! Novo status: ${result.new_status || 'CONFIRMED'}`)
         // Remove da lista (já foi confirmado)
         setPayments(prev => prev.filter(p => p.payment_id !== payment.payment_id))
       } else if (result.bb_pago === false) {
@@ -215,9 +213,7 @@ const AdminGatewayPixReconciliationPage: React.FC = () => {
             </div>
             <div>
               <p className='text-sm text-gray-600 dark:text-gray-400'>Total Pendentes</p>
-              <p className='text-2xl font-bold text-gray-900 dark:text-white'>
-                {payments.length}
-              </p>
+              <p className='text-2xl font-bold text-gray-900 dark:text-white'>{payments.length}</p>
             </div>
           </div>
         </div>
@@ -229,9 +225,7 @@ const AdminGatewayPixReconciliationPage: React.FC = () => {
             </div>
             <div>
               <p className='text-sm text-gray-600 dark:text-gray-400'>Atrasados (&gt; 30min)</p>
-              <p className='text-2xl font-bold text-gray-900 dark:text-white'>
-                {overdueCount}
-              </p>
+              <p className='text-2xl font-bold text-gray-900 dark:text-white'>{overdueCount}</p>
             </div>
           </div>
         </div>
@@ -243,9 +237,7 @@ const AdminGatewayPixReconciliationPage: React.FC = () => {
             </div>
             <div>
               <p className='text-sm text-gray-600 dark:text-gray-400'>Já Expirados</p>
-              <p className='text-2xl font-bold text-gray-900 dark:text-white'>
-                {expiredCount}
-              </p>
+              <p className='text-2xl font-bold text-gray-900 dark:text-white'>{expiredCount}</p>
             </div>
           </div>
         </div>
@@ -314,9 +306,7 @@ const AdminGatewayPixReconciliationPage: React.FC = () => {
         ) : filteredPayments.length === 0 ? (
           <div className='p-12 text-center'>
             <CheckCircle2 className='w-12 h-12 text-emerald-500 mx-auto mb-3' />
-            <p className='text-gray-700 dark:text-gray-300 font-medium'>
-              Nenhum PIX pendente!
-            </p>
+            <p className='text-gray-700 dark:text-gray-300 font-medium'>Nenhum PIX pendente!</p>
             <p className='text-sm text-gray-500 dark:text-gray-400 mt-1'>
               Todos os pagamentos PIX recentes foram confirmados.
             </p>
@@ -442,12 +432,12 @@ const AdminGatewayPixReconciliationPage: React.FC = () => {
             <p className='font-medium mb-1'>Como funciona?</p>
             <ul className='list-disc list-inside space-y-0.5 text-blue-700 dark:text-blue-300'>
               <li>
-                Um job automático roda a cada 2 minutos verificando todos os PIX pendentes no
-                Banco do Brasil.
+                Um job automático roda a cada 2 minutos verificando todos os PIX pendentes no Banco
+                do Brasil.
               </li>
               <li>
-                Use <strong>Reconciliar</strong> para forçar a verificação imediata de um
-                pagamento específico.
+                Use <strong>Reconciliar</strong> para forçar a verificação imediata de um pagamento
+                específico.
               </li>
               <li>
                 Use <strong>Reconciliar Todos</strong> para disparar uma rodada completa do job
