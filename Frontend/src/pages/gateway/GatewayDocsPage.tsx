@@ -306,7 +306,7 @@ const webhookEvents = [
 
 // Códigos de exemplo
 const codeExamples = {
-  curl: `curl -X POST "https://api.wolknow.com/gateway/payments" \\
+  curl: `curl -X POST "https://api.wolknow.com/v1/gateway/payments" \\
   -H "Authorization: Bearer sk_live_sua_api_key" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -943,7 +943,7 @@ export default function GatewayDocsPage() {
                   Produção
                 </span>
                 <code className='text-sm bg-white dark:bg-slate-800 px-3 py-1.5 rounded-lg text-slate-800 dark:text-slate-200'>
-                  https://api.wolknow.com/gateway
+                  https://api.wolknow.com/v1/gateway
                 </code>
               </div>
               <div className='flex-1'>
@@ -951,10 +951,23 @@ export default function GatewayDocsPage() {
                   Teste
                 </span>
                 <code className='text-sm bg-white dark:bg-slate-800 px-3 py-1.5 rounded-lg text-slate-800 dark:text-slate-200'>
-                  https://sandbox.wolknow.com/gateway
+                  https://sandbox.wolknow.com/v1/gateway
                 </code>
               </div>
             </div>
+            <p className='text-xs text-indigo-700 dark:text-indigo-400 mt-3'>
+              <strong>Importante:</strong> Todas as rotas devem ser prefixadas com{' '}
+              <code className='bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded'>/v1</code>. Os
+              endpoints listados abaixo (ex:{' '}
+              <code className='bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded'>
+                /gateway/payments
+              </code>
+              ) devem ser chamados como{' '}
+              <code className='bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded'>
+                https://api.wolknow.com/v1/gateway/payments
+              </code>
+              .
+            </p>
           </div>
         </section>
 
