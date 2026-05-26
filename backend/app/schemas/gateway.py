@@ -232,48 +232,95 @@ class MerchantUpdate(BaseModel):
 
 
 class MerchantResponse(GatewayBaseSchema):
-    """Response com dados do merchant"""
+    """Response com dados do merchant.
+    
+    Suporta tanto os nomes "novos" (compatíveis com o frontend) quanto os
+    nomes legados via aliases do Pydantic. Quando serializado, ambos saem
+    no JSON para garantir retrocompatibilidade total.
+    """
+    model_config = {
+        "from_attributes": True,
+        "populate_by_name": True,
+    }
+    
     id: str
+    merchant_id: Optional[str] = None  # alias para id
     merchant_code: str
     
     # Dados da empresa
     company_name: str
-    trade_name: Optional[str]
+    business_name: Optional[str] = None  # alias frontend
+    trade_name: Optional[str] = None
     cnpj: str
+    business_document: Optional[str] = None  # alias frontend
     
     # Contato
     email: str
-    phone: Optional[str]
-    website: Optional[str]
+    business_email: Optional[str] = None  # alias frontend
+    phone: Optional[str] = None
+    business_phone: Optional[str] = None  # alias frontend
+    website: Optional[str] = None
+    website_url: Optional[str] = None  # alias frontend
     
     # Responsável
     owner_name: str
-    owner_email: Optional[str]
-    owner_phone: Optional[str]
+    owner_email: Optional[str] = None
+    owner_phone: Optional[str] = None
     
     # Status
     status: MerchantStatus
     
     # Configurações
     settlement_currency: SettlementCurrency
+    settlement_crypto: Optional[str] = None  # alias frontend
+    settlement_network: Optional[str] = None
     daily_limit_brl: Decimal
     monthly_limit_brl: Decimal
     min_payment_brl: Decimal
     max_payment_brl: Decimal
     
     # Taxas
-    custom_fee_percent: Optional[Decimal]
+    custom_fee_percent: Optional[Decimal] = None
+    fee_percentage: Optional[Decimal] = None  # alias frontend
     
     # Branding
-    logo_url: Optional[str]
-    primary_color: Optional[str]
+    logo_url: Optional[str] = None
+    primary_color: Optional[str] = None
     
     # Webhook
-    webhook_url: Optional[str]
+    webhook_url: Optional[str] = None
     
     # Timestamps
     created_at: datetime
-    activated_at: Optional[datetime]
+    activated_at: Optional[datetime] = None
+    approved_at: Optional[datetime] = None  # alias frontend para activated_at
+    
+    @model_validator(mode='after')
+    def populate_aliases(self) -> 'MerchantResponse':
+        """Preenche os aliases automaticamente a partir dos campos canônicos."""
+        if not self.merchant_id:
+            self.merchant_id = self.id
+        if not self.business_name:
+            self.business_name = self.company_name
+        if not self.business_document:
+            self.business_document = self.cnpj
+        if not self.business_email:
+            self.business_email = self.email
+        if not self.business_phone and self.phone:
+            self.business_phone = self.phone
+        if not self.website_url and self.website:
+            self.website_url = self.website
+        if not self.fee_percentage and self.custom_fee_percent is not None:
+            self.fee_percentage = self.custom_fee_percent
+        if not self.approved_at and self.activated_at:
+            self.approved_at = self.activated_at
+        if not self.settlement_crypto and self.settlement_currency:
+            self.settlement_crypto = (
+                self.settlement_currency.value
+                if hasattr(self.settlement_currency, 'value')
+                else str(self.settlement_currency)
+            )
+        return self
 
 
 class MerchantPublicResponse(GatewayBaseSchema):

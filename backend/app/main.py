@@ -7,6 +7,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse
 from contextlib import asynccontextmanager
+import asyncio
 import uvicorn
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request as StarletteRequest
@@ -80,6 +81,17 @@ async def lifespan(app: FastAPI):
         except Exception as cache_error:
             logger.warning(f"⚠️ Cache service failed to connect: {cache_error}")
         
+        # 🔄 Start PIX reconciliation background task (WolkPay Gateway)
+        pix_recon_task = None
+        try:
+            import asyncio
+            from app.jobs.pix_reconciliation_job import pix_reconciliation_loop
+            pix_recon_task = asyncio.create_task(pix_reconciliation_loop())
+            app.state.pix_recon_task = pix_recon_task
+            logger.info("✅ PIX reconciliation loop started (fallback for BB webhooks)")
+        except Exception as recon_error:
+            logger.warning(f"⚠️ PIX reconciliation loop failed to start: {recon_error}")
+        
         logger.info("🎉 Wolknow Backend started successfully")
         yield
         
@@ -89,6 +101,21 @@ async def lifespan(app: FastAPI):
     finally:
         # Shutdown
         logger.info("👋 Shutting down Wolknow Backend...")
+        
+        # Cancel PIX reconciliation task
+        try:
+            task = getattr(app.state, "pix_recon_task", None)
+            if task and not task.done():
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+                except Exception:
+                    logger.warning("⚠️ PIX reconciliation task ended with error")
+        except Exception:
+            pass
+        
         await cache_service.disconnect()
 
 # Create FastAPI app

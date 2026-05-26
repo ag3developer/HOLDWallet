@@ -507,20 +507,40 @@ class MerchantService:
         date_to: Optional[datetime] = None
     ) -> Dict[str, Any]:
         """
-        Retorna estatísticas do merchant
+        Retorna estatísticas do merchant.
+        
+        IMPORTANTE: Retorna nomes de campos COMPATÍVEIS com o frontend
+        (total_volume, total_transactions, completed_payments, etc.) e
+        também os nomes legados (total_completed, total_volume_brl) para
+        retrocompatibilidade com integrações antigas.
+        
+        Considera como "pago" tanto status COMPLETED quanto CONFIRMED
+        (pagamento foi recebido mas ainda não foi liquidado ao merchant).
         """
-        from app.models.gateway import GatewayPayment, GatewayPaymentStatus
+        from app.models.gateway import (
+            GatewayPayment,
+            GatewayPaymentStatus,
+            GatewayPaymentMethod,
+        )
+        from datetime import timedelta
         
         merchant = await self.get_merchant_by_id(merchant_id)
         if not merchant:
             raise ValueError("Merchant não encontrado")
         
-        # Query base
-        query = self.db.query(GatewayPayment).filter(
+        # Statuses que contam como "pago" (recebido pelo gateway)
+        PAID_STATUSES = [
+            GatewayPaymentStatus.CONFIRMED,
+            GatewayPaymentStatus.COMPLETED,
+        ]
+        
+        # Query base (todo o histórico, ignorando filtro de período para totais gerais)
+        base_query = self.db.query(GatewayPayment).filter(
             GatewayPayment.merchant_id == merchant_id
         )
         
-        # Filtrar por período
+        # Query filtrada pelo período (se informado)
+        query = base_query
         if date_from:
             query = query.filter(GatewayPayment.created_at >= date_from)
         if date_to:
@@ -529,57 +549,204 @@ class MerchantService:
         # Totais por status
         total_payments = query.count()
         total_completed = query.filter(
-            GatewayPayment.status == GatewayPaymentStatus.COMPLETED
+            GatewayPayment.status.in_(PAID_STATUSES)
         ).count()
         total_pending = query.filter(
-            GatewayPayment.status == GatewayPaymentStatus.PENDING
+            GatewayPayment.status.in_([
+                GatewayPaymentStatus.PENDING,
+                GatewayPaymentStatus.PROCESSING,
+            ])
         ).count()
         total_expired = query.filter(
             GatewayPayment.status == GatewayPaymentStatus.EXPIRED
         ).count()
         total_failed = query.filter(
-            GatewayPayment.status == GatewayPaymentStatus.FAILED
+            GatewayPayment.status.in_([
+                GatewayPaymentStatus.FAILED,
+                GatewayPaymentStatus.CANCELLED,
+            ])
         ).count()
         
-        # Valores
-        completed_payments = query.filter(
-            GatewayPayment.status == GatewayPaymentStatus.COMPLETED
+        # Pagamentos pagos (para somas)
+        paid_payments = query.filter(
+            GatewayPayment.status.in_(PAID_STATUSES)
         ).all()
         
+        # Pagamentos pendentes (para "pending_volume")
+        pending_payments_list = query.filter(
+            GatewayPayment.status.in_([
+                GatewayPaymentStatus.PENDING,
+                GatewayPaymentStatus.PROCESSING,
+            ])
+        ).all()
+        
+        # Valores
         total_volume = sum(
-            p.amount_requested for p in completed_payments
-        ) if completed_payments else Decimal('0')
+            p.amount_requested or Decimal('0') for p in paid_payments
+        ) if paid_payments else Decimal('0')
         
         total_fees = sum(
-            p.fee_amount or Decimal('0') for p in completed_payments
-        ) if completed_payments else Decimal('0')
+            p.fee_amount or Decimal('0') for p in paid_payments
+        ) if paid_payments else Decimal('0')
         
         total_settled = sum(
             p.settlement_amount or Decimal('0') 
-            for p in completed_payments 
+            for p in paid_payments 
             if p.settlement_status == 'completed'
-        ) if completed_payments else Decimal('0')
+        ) if paid_payments else Decimal('0')
         
         pending_settlement = sum(
             p.settlement_amount or Decimal('0')
-            for p in completed_payments
+            for p in paid_payments
             if p.settlement_status != 'completed'
-        ) if completed_payments else Decimal('0')
+        ) if paid_payments else Decimal('0')
+        
+        pending_volume = sum(
+            p.amount_requested or Decimal('0') for p in pending_payments_list
+        ) if pending_payments_list else Decimal('0')
+        
+        net_volume = total_volume - total_fees
+        
+        # Por método de pagamento
+        pix_payments_count = sum(
+            1 for p in paid_payments
+            if p.payment_method == GatewayPaymentMethod.PIX
+        )
+        crypto_payments_count = sum(
+            1 for p in paid_payments
+            if p.payment_method == GatewayPaymentMethod.CRYPTO
+        )
+        pix_volume = sum(
+            p.amount_requested or Decimal('0') for p in paid_payments
+            if p.payment_method == GatewayPaymentMethod.PIX
+        ) if paid_payments else Decimal('0')
+        crypto_volume = sum(
+            p.amount_requested or Decimal('0') for p in paid_payments
+            if p.payment_method == GatewayPaymentMethod.CRYPTO
+        ) if paid_payments else Decimal('0')
+        
+        # Taxa de sucesso (% de aprovados sobre total)
+        success_rate = (
+            (total_completed / total_payments) * 100
+            if total_payments > 0 else 0.0
+        )
+        
+        # Percentuais por método
+        pix_percentage = (
+            (pix_payments_count / total_completed) * 100
+            if total_completed > 0 else 0.0
+        )
+        crypto_percentage = (
+            (crypto_payments_count / total_completed) * 100
+            if total_completed > 0 else 0.0
+        )
+        
+        # Stats de hoje (no fuso UTC)
+        now = datetime.now(timezone.utc)
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        
+        today_query = base_query.filter(
+            GatewayPayment.created_at >= today_start
+        )
+        today_paid = today_query.filter(
+            GatewayPayment.status.in_(PAID_STATUSES)
+        ).all()
+        today_payments = len(today_paid)
+        today_volume = sum(
+            p.amount_requested or Decimal('0') for p in today_paid
+        ) if today_paid else Decimal('0')
+        
+        # Stats do mês corrente
+        month_start = today_start.replace(day=1)
+        month_query = base_query.filter(
+            GatewayPayment.created_at >= month_start
+        )
+        month_paid = month_query.filter(
+            GatewayPayment.status.in_(PAID_STATUSES)
+        ).all()
+        this_month_payments = len(month_paid)
+        this_month_volume = sum(
+            p.amount_requested or Decimal('0') for p in month_paid
+        ) if month_paid else Decimal('0')
+        
+        # Comparação com período anterior (mesmo tamanho)
+        if date_from and date_to:
+            period_size = date_to - date_from
+            prev_start = date_from - period_size
+            prev_end = date_from
+            prev_query = base_query.filter(
+                GatewayPayment.created_at >= prev_start,
+                GatewayPayment.created_at < prev_end,
+            )
+            prev_paid = prev_query.filter(
+                GatewayPayment.status.in_(PAID_STATUSES)
+            ).all()
+            prev_volume = sum(
+                p.amount_requested or Decimal('0') for p in prev_paid
+            ) if prev_paid else Decimal('0')
+            prev_count = len(prev_paid)
+            
+            volume_change = (
+                float(((total_volume - prev_volume) / prev_volume) * 100)
+                if prev_volume > 0 else 0.0
+            )
+            transactions_change = (
+                ((total_completed - prev_count) / prev_count) * 100
+                if prev_count > 0 else 0.0
+            )
+        else:
+            volume_change = 0.0
+            transactions_change = 0.0
         
         return {
             "merchant_id": merchant_id,
             "merchant_code": merchant.merchant_code,
+            
+            # === Campos compatíveis com o frontend (nomes "novos") ===
+            "total_volume": float(total_volume),
+            "total_transactions": total_completed,
             "total_payments": total_payments,
+            "completed_payments": total_completed,
+            "pending_payments": total_pending,
+            "failed_payments": total_failed,
+            "expired_payments": total_expired,
+            
+            "total_volume_brl": float(total_volume),
+            "total_fees_brl": float(total_fees),
+            "net_volume_brl": float(net_volume),
+            "pending_volume": float(pending_volume),
+            
+            "today_payments": today_payments,
+            "today_transactions": today_payments,
+            "today_volume_brl": float(today_volume),
+            "today_volume": float(today_volume),
+            
+            "this_month_payments": this_month_payments,
+            "this_month_volume_brl": float(this_month_volume),
+            
+            "success_rate": round(success_rate, 2),
+            "volume_change": round(volume_change, 2),
+            "transactions_change": round(transactions_change, 2),
+            
+            "pix_percentage": round(pix_percentage, 2),
+            "crypto_percentage": round(crypto_percentage, 2),
+            "pix_volume_brl": float(pix_volume),
+            "crypto_volume_brl": float(crypto_volume),
+            "pix_payments": pix_payments_count,
+            "crypto_payments": crypto_payments_count,
+            
+            # === Campos legados (mantidos para compatibilidade) ===
             "total_completed": total_completed,
             "total_pending": total_pending,
             "total_expired": total_expired,
             "total_failed": total_failed,
-            "total_volume_brl": str(total_volume),
-            "total_fees_collected": str(total_fees),
-            "total_settled": str(total_settled),
-            "pending_settlement": str(pending_settlement),
+            "total_fees_collected": float(total_fees),
+            "total_settled": float(total_settled),
+            "pending_settlement": float(pending_settlement),
+            
+            # === Período ===
             "period_start": date_from.isoformat() if date_from else None,
-            "period_end": date_to.isoformat() if date_to else None
+            "period_end": date_to.isoformat() if date_to else None,
         }
     
     async def check_daily_limit(

@@ -386,7 +386,6 @@ async def get_merchant_stats(
 
 @router.get(
     "/merchants/me/payments",
-    response_model=PaginatedResponse,
     summary="Listar meus pagamentos",
     description="Lista pagamentos do merchant (via dashboard, autenticado com JWT)"
 )
@@ -404,6 +403,9 @@ async def list_my_payments(
     """
     Lista pagamentos do merchant autenticado (dashboard).
     Diferente do /payments que requer API Key.
+    
+    Retorna formato compatível com o frontend: { payments: [...], total, page, per_page, total_pages }
+    Também inclui aliases legados (items, pages) para retrocompatibilidade.
     """
     filters = PaymentFilterParams(
         status=status_filter,
@@ -422,16 +424,21 @@ async def list_my_payments(
     )
     
     total_pages = (total + per_page - 1) // per_page
+    items = [PaymentListResponse.model_validate(p).model_dump(mode='json') for p in payments]
     
-    return PaginatedResponse(
-        items=[PaymentListResponse.model_validate(p) for p in payments],
-        total=total,
-        page=page,
-        per_page=per_page,
-        pages=total_pages,
-        has_next=page < total_pages,
-        has_prev=page > 1
-    )
+    return {
+        # Nomes compatíveis com o frontend
+        "payments": items,
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "total_pages": total_pages,
+        "has_next": page < total_pages,
+        "has_prev": page > 1,
+        # Aliases legados
+        "items": items,
+        "pages": total_pages,
+    }
 
 
 @router.get(

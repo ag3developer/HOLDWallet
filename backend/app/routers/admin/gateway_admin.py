@@ -215,10 +215,13 @@ async def list_merchants(
                 GatewayPayment.merchant_id == merchant.id
             ).scalar()
             
-            # Volume do merchant
+            # Volume do merchant (considera CONFIRMED + COMPLETED como pagos)
             volume = db.query(func.sum(GatewayPayment.amount_requested)).filter(
                 GatewayPayment.merchant_id == merchant.id,
-                GatewayPayment.status == GatewayPaymentStatus.COMPLETED
+                GatewayPayment.status.in_([
+                    GatewayPaymentStatus.CONFIRMED,
+                    GatewayPaymentStatus.COMPLETED,
+                ])
             ).scalar()
             
             # Contar API keys do merchant
@@ -325,14 +328,17 @@ async def get_merchant_detail(
             GatewayPayment.merchant_id == merchant.id
         ).order_by(GatewayPayment.created_at.desc()).limit(10).all()
         
-        # Estatísticas
+        # Estatísticas (CONFIRMED + COMPLETED contam como pagos)
         stats = db.query(
             func.count(GatewayPayment.id).label('total_payments'),
             func.sum(GatewayPayment.amount_requested).label('total_volume'),
             func.sum(GatewayPayment.fee_amount).label('total_fees')
         ).filter(
             GatewayPayment.merchant_id == merchant.id,
-            GatewayPayment.status == GatewayPaymentStatus.COMPLETED
+            GatewayPayment.status.in_([
+                GatewayPaymentStatus.CONFIRMED,
+                GatewayPaymentStatus.COMPLETED,
+            ])
         ).first()
         
         # Audit logs
@@ -940,7 +946,10 @@ async def get_merchant_summary(
             func.max(GatewayPayment.created_at).label('last_payment_date')
         ).filter(
             GatewayPayment.merchant_id == merchant.id,
-            GatewayPayment.status == GatewayPaymentStatus.COMPLETED
+            GatewayPayment.status.in_([
+                GatewayPaymentStatus.CONFIRMED,
+                GatewayPaymentStatus.COMPLETED,
+            ])
         ).first()
         
         # Settlement pendente
@@ -948,7 +957,10 @@ async def get_merchant_summary(
             func.sum(GatewayPayment.settlement_amount)
         ).filter(
             GatewayPayment.merchant_id == merchant.id,
-            GatewayPayment.status == GatewayPaymentStatus.COMPLETED,
+            GatewayPayment.status.in_([
+                GatewayPaymentStatus.CONFIRMED,
+                GatewayPaymentStatus.COMPLETED,
+            ]),
             GatewayPayment.settled_at == None
         ).scalar() or 0
         
@@ -1691,11 +1703,14 @@ async def list_merchant_customers(
         
         result = []
         for c in customers:
-            # Contar pagamentos concluidos
+            # Contar pagamentos concluidos (CONFIRMED + COMPLETED)
             completed = db.query(func.count(GatewayPayment.id)).filter(
                 GatewayPayment.merchant_id == merchant_id_str,
                 GatewayPayment.customer_email == c.customer_email,
-                GatewayPayment.status == GatewayPaymentStatus.COMPLETED,
+                GatewayPayment.status.in_([
+                    GatewayPaymentStatus.CONFIRMED,
+                    GatewayPaymentStatus.COMPLETED,
+                ]),
             ).scalar() or 0
             
             result.append({
