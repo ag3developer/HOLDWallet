@@ -53,7 +53,7 @@ const apiSections: Section[] = [
     endpoints: [
       {
         method: 'POST',
-        path: '/gateway/payments',
+        path: '/v1/gateway/payments',
         description: 'Criar novo pagamento',
         auth: true,
         body: [
@@ -105,7 +105,7 @@ const apiSections: Section[] = [
       },
       {
         method: 'GET',
-        path: '/gateway/payments',
+        path: '/v1/gateway/payments',
         description: 'Listar pagamentos com filtros',
         auth: true,
         params: [
@@ -128,7 +128,7 @@ const apiSections: Section[] = [
       },
       {
         method: 'GET',
-        path: '/gateway/payments/{id}',
+        path: '/v1/gateway/payments/{id}',
         description: 'Obter detalhes de um pagamento',
         auth: true,
         params: [{ name: 'id', type: 'string', required: true, description: 'ID do pagamento' }],
@@ -143,7 +143,7 @@ const apiSections: Section[] = [
       },
       {
         method: 'POST',
-        path: '/gateway/payments/{id}/cancel',
+        path: '/v1/gateway/payments/{id}/cancel',
         description: 'Cancelar pagamento pendente',
         auth: true,
         params: [{ name: 'id', type: 'string', required: true, description: 'ID do pagamento' }],
@@ -158,7 +158,7 @@ const apiSections: Section[] = [
     endpoints: [
       {
         method: 'GET',
-        path: '/gateway/webhooks/config',
+        path: '/v1/gateway/webhooks/config',
         description: 'Obter configuração atual',
         auth: true,
         response: `{
@@ -169,7 +169,7 @@ const apiSections: Section[] = [
       },
       {
         method: 'PUT',
-        path: '/gateway/webhooks/config',
+        path: '/v1/gateway/webhooks/config',
         description: 'Atualizar URL do webhook',
         auth: true,
         body: [
@@ -189,7 +189,7 @@ const apiSections: Section[] = [
       },
       {
         method: 'POST',
-        path: '/gateway/webhooks/regenerate-secret',
+        path: '/v1/gateway/webhooks/regenerate-secret',
         description: 'Gerar novo secret',
         auth: true,
         response: `{
@@ -198,7 +198,7 @@ const apiSections: Section[] = [
       },
       {
         method: 'GET',
-        path: '/gateway/webhooks/events',
+        path: '/v1/gateway/webhooks/events',
         description: 'Histórico de eventos enviados',
         auth: true,
         params: [
@@ -216,13 +216,13 @@ const apiSections: Section[] = [
     endpoints: [
       {
         method: 'GET',
-        path: '/gateway/api-keys',
+        path: '/v1/gateway/api-keys',
         description: 'Listar chaves',
         auth: true,
       },
       {
         method: 'POST',
-        path: '/gateway/api-keys',
+        path: '/v1/gateway/api-keys',
         description: 'Criar nova chave',
         auth: true,
         body: [
@@ -254,7 +254,7 @@ const apiSections: Section[] = [
       },
       {
         method: 'DELETE',
-        path: '/gateway/api-keys/{id}',
+        path: '/v1/gateway/api-keys/{id}',
         description: 'Revogar chave',
         auth: true,
       },
@@ -268,7 +268,7 @@ const apiSections: Section[] = [
     endpoints: [
       {
         method: 'GET',
-        path: '/gateway/checkout/{token}',
+        path: '/v1/gateway/checkout/{token}',
         description: 'Obter dados do checkout (público)',
         auth: false,
         params: [
@@ -277,14 +277,14 @@ const apiSections: Section[] = [
       },
       {
         method: 'POST',
-        path: '/gateway/checkout/{token}/method',
+        path: '/v1/gateway/checkout/{token}/method',
         description: 'Selecionar método de pagamento',
         auth: false,
         body: [{ name: 'method', type: 'string', required: true, description: 'pix ou crypto' }],
       },
       {
         method: 'GET',
-        path: '/gateway/checkout/{token}/status',
+        path: '/v1/gateway/checkout/{token}/status',
         description: 'Verificar status do pagamento',
         auth: false,
       },
