@@ -194,9 +194,30 @@ class WebhookService:
             logger.info(f"ℹ️ Webhook já processado: {webhook_id}")
             return webhook.status == GatewayWebhookStatus.SENT
         
-        # Atualizar webhook_id no payload
+        # Atualizar webhook_id no payload (era None na criação)
         webhook.payload['webhook_id'] = webhook_id
+        # Forçar SQLAlchemy a detectar a mutação do dict JSON
+        try:
+            from sqlalchemy.orm.attributes import flag_modified
+            flag_modified(webhook, "payload")
+        except Exception:
+            pass
         payload_json = json.dumps(webhook.payload, default=str)
+
+        # IMPORTANTE: a assinatura DEVE ser recalculada aqui sobre o payload
+        # final (com webhook_id preenchido), senão o body enviado e o HMAC
+        # divergem e o receptor responde 401. A assinatura armazenada no
+        # registro era calculada sobre o payload SEM webhook_id (bug histórico).
+        merchant = self.db.query(GatewayMerchant).filter(
+            GatewayMerchant.id == webhook.merchant_id
+        ).first()
+        if not merchant or not merchant.webhook_secret:
+            logger.warning(
+                f"❌ Webhook {webhook_id}: merchant ou webhook_secret ausente — não envia"
+            )
+            return False
+        signature = self._generate_signature(payload_json, merchant.webhook_secret)
+        webhook.signature = signature  # atualiza para auditoria
         
         # Incrementar tentativas
         webhook.attempts += 1
@@ -208,7 +229,7 @@ class WebhookService:
                     content=payload_json,
                     headers={
                         **self.DEFAULT_HEADERS,
-                        "X-WolkPay-Signature": webhook.signature,
+                        "X-WolkPay-Signature": signature,
                         "X-WolkPay-Event": webhook.event,
                         "X-WolkPay-Delivery": webhook_id
                     }
