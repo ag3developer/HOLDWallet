@@ -26,6 +26,10 @@ import {
   type MerchantProfile,
   type MerchantStatus,
 } from '../../../services/gatewayService'
+import { isGatewayDomain } from '@/utils/domainDetection'
+
+// Prefixo de rota: vazio no subdomínio gateway.*, /gateway no domínio principal.
+const ROUTE_PREFIX = isGatewayDomain() ? '' : '/gateway'
 
 export default function GatewaySettingsPage() {
   const [merchant, setMerchant] = useState<MerchantProfile | null>(null)
@@ -158,7 +162,7 @@ export default function GatewaySettingsPage() {
           <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4'>
             <div className='flex items-center gap-4'>
               <Link
-                to='/gateway/dashboard'
+                to={`${ROUTE_PREFIX}/dashboard`}
                 className='p-2 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors'
               >
                 <ChevronLeft className='w-5 h-5' />

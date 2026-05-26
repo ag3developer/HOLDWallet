@@ -37,6 +37,15 @@ import {
   getStatusBadgeColor,
   getStatusLabel,
 } from '../../../services/gatewayService'
+import { isGatewayDomain } from '@/utils/domainDetection'
+
+// Este componente é montado em DOIS apps:
+//  - MainApp  (wolknow.com)         → rotas começam com /gateway/*
+//  - GatewayApp (gateway.wolknow.com) → rotas SEM o prefixo /gateway
+// Usamos este prefixo para que os <Link to=...> apontem para a rota
+// correta dependendo do domínio em que o componente está sendo
+// renderizado (evita "sair" do dashboard para a landing page).
+const ROUTE_PREFIX = isGatewayDomain() ? '' : '/gateway'
 
 export default function GatewayDashboardPage() {
   const [merchant, setMerchant] = useState<MerchantProfile | null>(null)
@@ -164,7 +173,7 @@ export default function GatewayDashboardPage() {
                 <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
               </button>
               <Link
-                to='/gateway/settings'
+                to={`${ROUTE_PREFIX}/settings`}
                 className='p-2 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors'
               >
                 <Settings className='w-5 h-5' />
@@ -266,7 +275,7 @@ export default function GatewayDashboardPage() {
         {/* Quick Actions */}
         <div className='grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8'>
           <Link
-            to='/gateway/payments'
+            to={`${ROUTE_PREFIX}/payments`}
             className='bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-600 transition-colors group'
           >
             <BarChart3 className='w-8 h-8 text-indigo-600 dark:text-indigo-400 mb-3 group-hover:scale-110 transition-transform' />
@@ -275,7 +284,7 @@ export default function GatewayDashboardPage() {
           </Link>
 
           <Link
-            to='/gateway/api-keys'
+            to={`${ROUTE_PREFIX}/api-keys`}
             className='bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-600 transition-colors group'
           >
             <Key className='w-8 h-8 text-emerald-600 dark:text-emerald-400 mb-3 group-hover:scale-110 transition-transform' />
@@ -284,7 +293,7 @@ export default function GatewayDashboardPage() {
           </Link>
 
           <Link
-            to='/gateway/webhooks'
+            to={`${ROUTE_PREFIX}/webhooks`}
             className='bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-600 transition-colors group'
           >
             <Webhook className='w-8 h-8 text-purple-600 dark:text-purple-400 mb-3 group-hover:scale-110 transition-transform' />
@@ -293,7 +302,7 @@ export default function GatewayDashboardPage() {
           </Link>
 
           <Link
-            to='/gateway/settings'
+            to={`${ROUTE_PREFIX}/settings`}
             className='bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-600 transition-colors group'
           >
             <Settings className='w-8 h-8 text-slate-600 dark:text-slate-400 mb-3 group-hover:scale-110 transition-transform' />
@@ -316,7 +325,7 @@ export default function GatewayDashboardPage() {
                 </h2>
               </div>
               <Link
-                to='/gateway/payments'
+                to={`${ROUTE_PREFIX}/payments`}
                 className='text-sm text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1'
               >
                 Ver todos
@@ -334,7 +343,7 @@ export default function GatewayDashboardPage() {
                 recentPayments.map(payment => (
                   <Link
                     key={payment.id}
-                    to={`/gateway/payments/${payment.id}`}
+                    to={`${ROUTE_PREFIX}/payments/${payment.id}`}
                     className='block p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors'
                   >
                     <div className='flex items-center justify-between'>

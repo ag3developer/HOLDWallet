@@ -22,6 +22,8 @@ import {
   ChevronRight,
   Info,
 } from 'lucide-react'
+import { isGatewayDomain } from '@/utils/domainDetection'
+
 import {
   getWebhookConfig,
   updateWebhookConfig,
@@ -30,6 +32,9 @@ import {
   type WebhookConfig,
   type WebhookEvent,
 } from '../../../services/gatewayService'
+
+// Prefixo de rota: vazio no subdomínio gateway.*, /gateway no domínio principal.
+const ROUTE_PREFIX = isGatewayDomain() ? '' : '/gateway'
 
 export default function GatewayWebhooksPage() {
   const [config, setConfig] = useState<WebhookConfig | null>(null)
@@ -186,7 +191,7 @@ export default function GatewayWebhooksPage() {
         <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6'>
           <div className='flex items-center gap-4'>
             <Link
-              to='/gateway/dashboard'
+              to={`${ROUTE_PREFIX}/dashboard`}
               className='p-2 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors'
             >
               <ChevronLeft className='w-5 h-5' />
