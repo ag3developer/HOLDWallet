@@ -1868,7 +1868,7 @@ async def force_reconcile_pix(
     """
     require_admin(current_user)
     
-    from app.services.banco_brasil_service import BancoBrasilService
+    from app.services.banco_brasil_service import BancoBrasilAPIService as BancoBrasilService
     from app.services.gateway.payment_service import GatewayPaymentService
     
     try:

@@ -117,7 +117,7 @@ async def reconcile_pending_pix_payments() -> dict:
         GatewayPaymentStatus,
         GatewayPaymentMethod,
     )
-    from app.services.banco_brasil_service import BancoBrasilService
+    from app.services.banco_brasil_service import BancoBrasilAPIService as BancoBrasilService
     from app.services.gateway.payment_service import GatewayPaymentService
     
     stats = {"checked": 0, "confirmed": 0, "errors": 0, "skipped": 0}
