@@ -128,7 +128,8 @@ async def reconcile_pending_pix_payments() -> dict:
         now = datetime.now(timezone.utc)
         lookback = now - timedelta(hours=LOOKBACK_HOURS)
         
-        # Busca PIX pendentes
+        # Busca PIX pendentes (inclui EXPIRED recentes: cliente pode ter pago após
+        # o vencimento local e o BB recebeu — confirm_pix_payment reverte para CONFIRMED).
         pending_payments = (
             db.query(GatewayPayment)
             .filter(
@@ -136,6 +137,7 @@ async def reconcile_pending_pix_payments() -> dict:
                 GatewayPayment.status.in_([
                     GatewayPaymentStatus.PENDING,
                     GatewayPaymentStatus.PROCESSING,
+                    GatewayPaymentStatus.EXPIRED,
                 ]),
                 GatewayPayment.created_at >= lookback,
                 GatewayPayment.pix_txid.isnot(None),
@@ -164,12 +166,9 @@ async def reconcile_pending_pix_payments() -> dict:
         
         for payment in pending_payments:
             stats["checked"] += 1
-            
-            # Pular se já expirou (não vamos consultar BB para PIX expirados)
-            if payment.expires_at and payment.expires_at < now:
-                stats["skipped"] += 1
-                continue
-            
+
+            # Não pulamos mais por expires_at: agora aceitamos EXPIRED também
+            # (BB pode ter recebido o valor mesmo após o vencimento local).
             txid = payment.pix_txid
             if not txid:
                 stats["skipped"] += 1

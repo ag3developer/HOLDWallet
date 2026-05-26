@@ -470,10 +470,25 @@ class GatewayPaymentService:
             logger.warning(f"❌ Pagamento não encontrado para TXID: {txid}")
             return None
         
-        if payment.status not in [GatewayPaymentStatus.PENDING, GatewayPaymentStatus.PROCESSING]:
+        # Aceita PENDING, PROCESSING e EXPIRED (cliente pode ter pago após o vencimento
+        # local mas o BB efetivamente recebeu o valor — vamos reverter para CONFIRMED).
+        # Já em CONFIRMED/COMPLETED/REFUNDED/FAILED não reprocessa (idempotência).
+        reviveable_statuses = [
+            GatewayPaymentStatus.PENDING,
+            GatewayPaymentStatus.PROCESSING,
+            GatewayPaymentStatus.EXPIRED,
+        ]
+        if payment.status not in reviveable_statuses:
             logger.warning(f"⚠️ Pagamento {payment.payment_id} já processado: {payment.status}")
             return payment
-        
+
+        was_expired = payment.status == GatewayPaymentStatus.EXPIRED
+        if was_expired:
+            logger.info(
+                f"♻️ Revivendo pagamento EXPIRED → CONFIRMED (BB confirmou recebimento): "
+                f"{payment.payment_id}"
+            )
+
         # Atualizar
         payment.amount_received = valor_recebido
         payment.status = GatewayPaymentStatus.CONFIRMED

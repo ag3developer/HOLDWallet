@@ -1895,7 +1895,11 @@ async def force_reconcile_pix(
                 detail="Pagamento não tem pix_txid registrado"
             )
         
-        if payment.status not in [GatewayPaymentStatus.PENDING, GatewayPaymentStatus.PROCESSING]:
+        if payment.status not in [
+            GatewayPaymentStatus.PENDING,
+            GatewayPaymentStatus.PROCESSING,
+            GatewayPaymentStatus.EXPIRED,
+        ]:
             return {
                 "success": False,
                 "message": f"Pagamento já está em status final: {payment.status.value}",
