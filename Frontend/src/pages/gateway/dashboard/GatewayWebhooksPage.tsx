@@ -154,14 +154,18 @@ export default function GatewayWebhooksPage() {
     }
   }
 
-  const getEventBadgeColor = (eventType: string) => {
-    if (eventType.includes('completed') || eventType.includes('success')) {
+  const getEventBadgeColor = (eventType?: string | null) => {
+    const t = (eventType || '').toLowerCase()
+    if (!t) {
+      return 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
+    }
+    if (t.includes('completed') || t.includes('success')) {
       return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
     }
-    if (eventType.includes('failed') || eventType.includes('error')) {
+    if (t.includes('failed') || t.includes('error')) {
       return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
     }
-    if (eventType.includes('pending') || eventType.includes('created')) {
+    if (t.includes('pending') || t.includes('created')) {
       return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
     }
     return 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
@@ -344,49 +348,55 @@ export default function GatewayWebhooksPage() {
                 </div>
               ) : (
                 <div className='divide-y divide-slate-100 dark:divide-slate-700'>
-                  {events.map(event => (
-                    <div
-                      key={event.id}
-                      className='p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors'
-                    >
-                      <div className='flex items-start justify-between gap-4'>
-                        <div className='flex items-start gap-3'>
-                          {getEventStatusIcon(event.status)}
-                          <div>
-                            <span
-                              className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${getEventBadgeColor(event.event_type)}`}
-                            >
-                              {event.event_type}
-                            </span>
-                            <p className='text-sm text-slate-900 dark:text-white mt-1 font-mono'>
-                              {event.payment_id}
-                            </p>
-                            <p className='text-xs text-slate-500 dark:text-slate-400 mt-1'>
-                              {formatDate(event.created_at)}
-                            </p>
+                  {events.map(event => {
+                    const eventType =
+                      (event as { event_type?: string; event?: string }).event_type ||
+                      (event as { event_type?: string; event?: string }).event ||
+                      'unknown'
+                    return (
+                      <div
+                        key={event.id}
+                        className='p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors'
+                      >
+                        <div className='flex items-start justify-between gap-4'>
+                          <div className='flex items-start gap-3'>
+                            {getEventStatusIcon(event.status)}
+                            <div>
+                              <span
+                                className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${getEventBadgeColor(eventType)}`}
+                              >
+                                {eventType}
+                              </span>
+                              <p className='text-sm text-slate-900 dark:text-white mt-1 font-mono'>
+                                {event.payment_id}
+                              </p>
+                              <p className='text-xs text-slate-500 dark:text-slate-400 mt-1'>
+                                {formatDate(event.created_at)}
+                              </p>
+                            </div>
+                          </div>
+                          <div className='text-right'>
+                            {event.response_code !== undefined && event.response_code !== null && (
+                              <span
+                                className={`text-sm ${
+                                  event.response_code >= 200 && event.response_code < 300
+                                    ? 'text-emerald-600 dark:text-emerald-400'
+                                    : 'text-red-600 dark:text-red-400'
+                                }`}
+                              >
+                                HTTP {event.response_code}
+                              </span>
+                            )}
+                            {event.attempts > 1 && (
+                              <p className='text-xs text-slate-500 mt-1'>
+                                {event.attempts} tentativas
+                              </p>
+                            )}
                           </div>
                         </div>
-                        <div className='text-right'>
-                          {event.response_code !== undefined && event.response_code !== null && (
-                            <span
-                              className={`text-sm ${
-                                event.response_code >= 200 && event.response_code < 300
-                                  ? 'text-emerald-600 dark:text-emerald-400'
-                                  : 'text-red-600 dark:text-red-400'
-                              }`}
-                            >
-                              HTTP {event.response_code}
-                            </span>
-                          )}
-                          {event.attempts > 1 && (
-                            <p className='text-xs text-slate-500 mt-1'>
-                              {event.attempts} tentativas
-                            </p>
-                          )}
-                        </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
 
