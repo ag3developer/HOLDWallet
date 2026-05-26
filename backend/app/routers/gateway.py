@@ -807,6 +807,39 @@ async def cancel_payment(
 # WEBHOOK CONFIGURATION
 # ============================================
 
+@router.get(
+    "/webhooks/config",
+    summary="Obter configuração de webhook",
+    description=(
+        "Retorna URL, secret e eventos habilitados do webhook do merchant. "
+        "Este endpoint expõe o webhook_secret em texto claro — use apenas no "
+        "dashboard do próprio merchant autenticado."
+    ),
+)
+async def get_webhook_config(
+    merchant: GatewayMerchant = Depends(get_current_merchant),
+):
+    """Retorna a configuração atual de webhook do merchant autenticado.
+
+    Esse endpoint é necessário porque ``GET /gateway/merchants/me`` (que usa
+    ``MerchantResponse``) NÃO expõe ``webhook_secret`` por design — então o
+    painel não conseguia mostrar o secret atual ao recarregar a página e o
+    usuário acabava colando um secret antigo / desatualizado nos sistemas
+    integrados (ex.: variável ``WOLKNOW_WEBHOOK_SECRET`` no Brawe).
+    """
+    return {
+        "webhook_url": merchant.webhook_url or "",
+        "webhook_secret": merchant.webhook_secret or "",
+        "events_enabled": merchant.webhook_events or [
+            "payment.created",
+            "payment.completed",
+            "payment.confirmed",
+            "payment.failed",
+            "payment.expired",
+        ],
+    }
+
+
 @router.put(
     "/webhooks/config",
     response_model=MerchantResponse,

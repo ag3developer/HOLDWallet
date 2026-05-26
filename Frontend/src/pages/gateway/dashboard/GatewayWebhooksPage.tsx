@@ -307,7 +307,13 @@ export default function GatewayWebhooksPage() {
                 <div className='flex items-center justify-between'>
                   <div className='flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400'>
                     <Info className='w-4 h-4' />
-                    <span>Inclua este secret no header X-Webhook-Signature</span>
+                    <span>
+                      Use no header{' '}
+                      <code className='font-mono text-xs px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-900'>
+                        X-WolkPay-Signature
+                      </code>{' '}
+                      (HMAC-SHA256 hex)
+                    </span>
                   </div>
                   <button
                     onClick={handleRegenerateSecret}
@@ -316,6 +322,16 @@ export default function GatewayWebhooksPage() {
                   >
                     {regenerating ? 'Regenerando...' : 'Regenerar Secret'}
                   </button>
+                </div>
+
+                <div className='mt-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50'>
+                  <p className='text-xs text-amber-800 dark:text-amber-200 leading-relaxed'>
+                    <strong>Atenção:</strong> ao clicar em <em>Regenerar Secret</em>, o secret
+                    anterior é invalidado imediatamente. Todos os sistemas que validam webhooks
+                    (ex.: variável <code className='font-mono px-1'>WOLKNOW_WEBHOOK_SECRET</code> no
+                    seu backend) precisam ser atualizados com este novo valor — caso contrário os
+                    webhooks serão rejeitados com HTTP 401.
+                  </p>
                 </div>
               </div>
             </div>

@@ -559,15 +559,15 @@ export const cancelPayment = async (paymentId: string): Promise<void> => {
 
 /**
  * Busca configuracao de webhook
+ *
+ * Usa o endpoint dedicado /gateway/webhooks/config que expõe webhook_secret
+ * em texto claro (necessário para o usuário copiar e configurar no sistema
+ * integrado). O endpoint /gateway/merchants/me NÃO retorna webhook_secret
+ * por design.
  */
 export const getWebhookConfig = async (): Promise<WebhookConfig> => {
-  const response = await apiClient.get('/gateway/merchants/me')
-  const merchant = response.data as MerchantProfile
-  return {
-    webhook_url: merchant.webhook_url || '',
-    webhook_secret: merchant.webhook_secret || '',
-    events_enabled: ['payment.created', 'payment.completed', 'payment.failed', 'payment.expired'],
-  }
+  const response = await apiClient.get('/gateway/webhooks/config')
+  return response.data as WebhookConfig
 }
 
 /**
