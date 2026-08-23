@@ -2,16 +2,23 @@
 
 ## 📋 Status: READY FOR PRODUCTION ✅
 
-**Commit Hash:** `b3b700bb`  
+**Latest Commit Hash:** `e8df1766` (Deployment fix: openpyxl==3.1.5)
+**Initial Feature Commit:** `b3b700bb` (Account Deletion & Export System)
 **Date:** 2026-08-23  
 **Branch:** main  
 **Repository:** https://github.com/ag3developer/HOLDWallet
+
+### Recent Fix (2026-08-23 23:45:00)
+- **Issue:** openpyxl==3.11.2 does not exist in PyPI
+- **Solution:** Updated to openpyxl==3.1.5 (latest stable version)
+- **Impact:** Deployment now succeeds on Digital Ocean and Railway
 
 ---
 
 ## 📦 O Que Foi Enviado
 
 ### Backend (FastAPI)
+
 ```
 ✅ backend/app/main.py                               (MODIFICADO)
 ✅ backend/app/routers/user/account.py               (NOVO - 400+ linhas)
@@ -21,6 +28,7 @@
 ```
 
 **Endpoints Criados:**
+
 ```
 POST   /account/export                 - Exportar dados (PDF/Excel/JSON)
 POST   /account/delete-request         - Solicitar exclusão de conta
@@ -31,6 +39,7 @@ GET    /account/profile                - Obter perfil da conta
 ```
 
 ### Frontend (React/TypeScript)
+
 ```
 ✅ Frontend/src/pages/admin/AdminUsersPage.tsx       (MODIFICADO)
 ✅ Frontend/src/hooks/user/useAccountDeletion.ts     (NOVO - 100+ linhas)
@@ -38,11 +47,13 @@ GET    /account/profile                - Obter perfil da conta
 ```
 
 **Novos Componentes:**
+
 - `useAccountDeletion` - 6 custom React Query hooks
 - `AccountDeletion` - Componente completo com múltiplos estados
 - Admin page - Integração com botão de deletar usuário
 
 ### Documentação
+
 ```
 ✅ ACCOUNT_DELETION_FRONTEND_INTEGRATION.md
 ✅ ACCOUNT_DELETION_IMPLEMENTATION_GUIDE.md
@@ -57,6 +68,7 @@ GET    /account/profile                - Obter perfil da conta
 ### Backend
 
 #### 1. Python Dependencies
+
 ```bash
 # Instalar novas dependências
 pip install reportlab==4.0.9 openpyxl==3.11.2
@@ -66,6 +78,7 @@ pip install -r requirements.txt
 ```
 
 #### 2. Database Migration (Opcional)
+
 ```bash
 # Se usar a tabela account_deletion_requests:
 alembic revision --autogenerate -m "Add account_deletion_requests table"
@@ -73,7 +86,9 @@ alembic upgrade head
 ```
 
 #### 3. Environment Variables
+
 Verificar que estão configuradas:
+
 ```bash
 DATABASE_URL=postgresql://...        # Já existente
 RESEND_API_KEY=...                   # Para enviar emails
@@ -83,7 +98,9 @@ EMAIL_FROM=...                       # Para confirmar deletions
 ```
 
 #### 4. Email Service
+
 Escolher uma opção:
+
 - **Resend** (Recomendado) - Já existe código integrado
 - **SMTP** - Usar config.py
 - **SendGrid** - Adicionar código customizado
@@ -91,18 +108,22 @@ Escolher uma opção:
 ### Frontend
 
 #### 1. Build da Aplicação
+
 ```bash
 npm install
 npm run build
 ```
 
 #### 2. Variáveis de Ambiente
+
 ```bash
 VITE_API_URL=https://api.producao.com    # API em produção
 ```
 
 #### 3. Dependencies
+
 Verificar que React Query está instalado:
+
 ```bash
 npm list @tanstack/react-query
 ```
@@ -113,7 +134,8 @@ npm list @tanstack/react-query
 
 ### Fase 1: Backend
 
-- [ ] Clonar/fazer pull do commit `b3b700bb`
+- [ ] Clonar/fazer pull do commit `e8df1766` (latest with fixes)
+- [ ] Verificar `requirements.txt`: openpyxl==3.1.5 ✅
 - [ ] Instalar dependências: `pip install -r requirements.txt`
 - [ ] Testar imports: `python -c "from app.routers.user import account; print('OK')"`
 - [ ] Verificar endpoints: `curl http://localhost:8000/docs`
@@ -220,23 +242,35 @@ curl -X DELETE https://api.producao.com/admin/users/{user_id} \
 
 ## ⚠️ Possíveis Problemas & Soluções
 
+### Problema: ERROR - openpyxl==3.11.2 not found
+
+**Causa:** Versão 3.11.2 não existe no PyPI (versão nunca foi lançada)  
+**Solução:** ✅ JÁ CORRIGIDO - requirements.txt usa openpyxl==3.1.5  
+**Histórico:** Cometido e=e8df1766 corrige a versão para a última estável  
+**Versões disponíveis:** 3.1.5 é a máxima disponível até 2026-08-23
+
 ### Problema: Erro 401 Unauthorized
+
 **Causa:** Token expirado ou inválido  
 **Solução:** Fazer login novamente, verificar token em localStorage
 
 ### Problema: Erro 422 Validation Error
+
 **Causa:** Código de email inválido ou expirado  
 **Solução:** Solicitar novo código, verificar email enviado
 
 ### Problema: Erro 500 ao exportar PDF
+
 **Causa:** ReportLab não instalado ou memória insuficiente  
 **Solução:** Instalar: `pip install reportlab`, aumentar RAM
 
 ### Problema: Email não recebido
+
 **Causa:** Resend não configurado ou SMTP erro  
 **Solução:** Verificar `RESEND_API_KEY`, testar email service
 
 ### Problema: Admin não consegue deletar usuário
+
 **Causa:** Permissões não verificadas  
 **Solução:** Verificar `is_admin=True`, testar endpoint diretamente
 
@@ -245,6 +279,7 @@ curl -X DELETE https://api.producao.com/admin/users/{user_id} \
 ## 📈 Performance
 
 ### Esperado
+
 - Export PDF: 2-5 segundos
 - Export Excel: 1-3 segundos
 - Export JSON: <1 segundo
@@ -252,6 +287,7 @@ curl -X DELETE https://api.producao.com/admin/users/{user_id} \
 - Email: <5 segundos
 
 ### Monitoramento
+
 ```python
 # Adicionar telemetria em services/user/account_deletion_service.py
 import time
@@ -266,6 +302,7 @@ logger.info(f"Account deletion took {elapsed}s for user {user_id}")
 ## 📞 Suporte em Produção
 
 ### Logs Importantes
+
 ```
 - /app/logs/account_deletion.log
 - /app/logs/account_export.log
@@ -273,6 +310,7 @@ logger.info(f"Account deletion took {elapsed}s for user {user_id}")
 ```
 
 ### Debug
+
 ```bash
 # Ver logs em tempo real
 tail -f /app/logs/account_deletion.log
@@ -289,12 +327,14 @@ curl http://api.producao.com/docs
 ## 🎯 Próximas Fases (Não no Commit)
 
 ### Fase 2 (Sprint Próxima)
+
 - [ ] Analytics de deletions (por motivo, por tipo)
 - [ ] Webhook para notificar sistema externo
 - [ ] Recuperação de soft-deleted users
 - [ ] GDPR data portability report
 
 ### Fase 3 (Roadmap)
+
 - [ ] Machine learning para detectar solicitações fraudulentas
 - [ ] Blockchain audit trail de deletions
 - [ ] Multi-language email templates
@@ -330,6 +370,7 @@ curl http://api.producao.com/docs
 **Production Ready:** ✅ YES
 
 **Tested Components:**
+
 - ✅ Backend API (FastAPI)
 - ✅ Database models (SQLAlchemy)
 - ✅ Frontend hooks (React Query)
