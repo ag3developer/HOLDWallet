@@ -43,6 +43,10 @@ user-agents==2.2.0
 # AWS S3
 boto3==1.34.0
 
+# Document generation (PDF, Excel, JSON export)
+reportlab==4.0.9
+openpyxl==3.11.2
+
 # AI / Machine Learning dependencies
 prophet==1.1.5
 numpy>=1.24.0

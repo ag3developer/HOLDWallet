@@ -21,6 +21,7 @@ import {
   XCircle,
   MoreVertical,
   LogIn,
+  Trash2,
 } from 'lucide-react'
 import { useUsers, useBlockUser, useUnblockUser } from '@/hooks/admin/useAdminUsers'
 import { toast } from 'react-hot-toast'
@@ -101,6 +102,34 @@ export const AdminUsersPage: React.FC = () => {
     } catch (err) {
       console.error('Erro ao alterar status:', err)
       toast.error(`Erro ao ${action} usuário`)
+    }
+  }
+
+  const handleDeleteUser = async (userId: string, username: string) => {
+    // Confirmação dupla para deletar usuário
+    if (!confirm(`Tem certeza que deseja DELETAR a conta do usuário ${username}?`)) return
+    if (!confirm(`⚠️ Esta ação é IRREVERSÍVEL. Todos os dados serão deletados. Deseja continuar?`))
+      return
+
+    try {
+      const token = localStorage.getItem('auth_token')
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/admin/users/${userId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error('Erro ao deletar usuário')
+      }
+
+      toast.success(`Usuário ${username} deletado com sucesso`)
+      refetch()
+    } catch (err) {
+      console.error('Erro ao deletar usuário:', err)
+      toast.error('Erro ao deletar usuário')
     }
   }
 
@@ -349,10 +378,11 @@ export const AdminUsersPage: React.FC = () => {
                             </>
                           )}
                           <button
-                            className='p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg'
-                            title='Mais opções'
+                            className='p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg'
+                            title='Deletar conta do usuário'
+                            onClick={() => handleDeleteUser(user.id, user.username)}
                           >
-                            <MoreVertical className='w-4 h-4' />
+                            <Trash2 className='w-4 h-4' />
                           </button>
                         </div>
                       </td>

@@ -29,6 +29,7 @@ from app.middleware.mandatory_2fa import Mandatory2FAMiddleware, TransactionValu
 # Routers
 from app.routers import auth, users, wallet, wallets, tx, prices, prices_batch, prices_batch_v2, health, blockchain, transactions, billing, portfolio, exchange, p2p, chat, chat_enterprise, reputation, dashboard, two_factor, tokens, wallet_transactions, instant_trade, trader_profiles, admin_instant_trades, webauthn, public_settings, notifications, webhooks_bb, wolkpay, wolkpay_bill, kyc, user_profile, ai, address_book, swap, earnpool, referral
 from app.routers import gateway, gateway_callbacks  # 🚀 WolkPay Gateway
+from app.routers.user import account  # 👤 Account Deletion & Export
 from app.routers.admin import admin_router, wolkpay_admin_router, bill_payment_admin_router, kyc_admin
 from app.routers.admin import earnpool_admin
 from app.routers.admin import earnpool_revenue_admin
@@ -243,6 +244,7 @@ app.include_router(webauthn.router, prefix="", tags=["webauthn"])
 app.include_router(two_factor.router, prefix="", tags=["two-factor"])
 app.include_router(users.router, prefix="/users", tags=["users"])
 app.include_router(user_profile.router, prefix="/users", tags=["user-profile"])  # User profile endpoints
+app.include_router(account.router, prefix="", tags=["account"])  # Account deletion & export (router já tem /account prefix)
 app.include_router(dashboard.router, prefix="", tags=["dashboard"])
 app.include_router(wallet.router, prefix="/wallet", tags=["wallets"]) 
 app.include_router(wallets.router, prefix="/wallets", tags=["hd-wallets"])
