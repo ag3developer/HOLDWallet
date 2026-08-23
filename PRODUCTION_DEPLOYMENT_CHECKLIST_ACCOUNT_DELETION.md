@@ -9,6 +9,7 @@
 **Repository:** https://github.com/ag3developer/HOLDWallet
 
 ### Recent Fix (2026-08-23 23:45:00)
+
 - **Issue:** openpyxl==3.11.2 does not exist in PyPI
 - **Solution:** Updated to openpyxl==3.1.5 (latest stable version)
 - **Impact:** Deployment now succeeds on Digital Ocean and Railway

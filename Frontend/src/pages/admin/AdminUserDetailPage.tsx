@@ -37,7 +37,9 @@ import {
   resetUserPassword,
   disable2FA,
   setAdminStatus,
+  deleteUser,
 } from '@/services/admin/adminService'
+import { ConfirmationModal } from '@/components/admin/ConfirmationModal'
 import { toast } from 'react-hot-toast'
 
 interface UserDetail {
@@ -75,6 +77,20 @@ export const AdminUserDetailPage: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean
+    action: string
+    title: string
+    message: string
+    description?: string
+    type: 'warning' | 'danger'
+  }>({
+    isOpen: false,
+    action: '',
+    title: '',
+    message: '',
+    type: 'warning',
+  })
 
   const fetchUser = useCallback(async () => {
     if (!userId) return
@@ -142,53 +158,108 @@ export const AdminUserDetailPage: React.FC = () => {
     })
   }
 
-  const handleAction = async (action: string) => {
+  const showConfirmation = (action: string) => {
+    if (!user) return
+
+    const confirmations: Record<string, any> = {
+      block: {
+        title: 'Bloquear Usuário',
+        message: `Deseja bloquear ${user.username}?`,
+        description: 'O usuário não poderá mais acessar sua conta.',
+        type: 'warning',
+      },
+      unblock: {
+        title: 'Desbloquear Usuário',
+        message: `Deseja desbloquear ${user.username}?`,
+        type: 'warning',
+      },
+      reset_password: {
+        title: 'Resetar Senha',
+        message: `Deseja resetar a senha de ${user.username}?`,
+        description: 'Um email com instruções será enviado.',
+        type: 'warning',
+      },
+      disable_2fa: {
+        title: 'Desativar 2FA',
+        message: `Deseja desativar 2FA de ${user.username}?`,
+        description: 'A autenticação de dois fatores será desativada.',
+        type: 'warning',
+      },
+      make_admin: {
+        title: 'Tornar Administrador',
+        message: `Deseja tornar ${user.username} um administrador?`,
+        description: 'O usuário terá acesso ao painel de administração.',
+        type: 'warning',
+      },
+      remove_admin: {
+        title: 'Remover Privilégios Admin',
+        message: `Deseja remover privilégios de admin de ${user.username}?`,
+        type: 'warning',
+      },
+      delete: {
+        title: 'Deletar Usuário Permanentemente',
+        message: `Tem certeza que deseja DELETAR ${user.username}?`,
+        description:
+          'Esta ação é IRREVERSÍVEL. O usuário e todos seus dados serão deletados permanentemente.',
+        type: 'danger',
+      },
+    }
+
+    const config = confirmations[action]
+    if (config) {
+      setConfirmModal({
+        isOpen: true,
+        action,
+        title: config.title,
+        message: config.message,
+        description: config.description,
+        type: config.type,
+      })
+    }
+  }
+
+  const executeAction = async (action: string) => {
     if (!userId || !user) return
 
     try {
       setActionLoading(action)
+      setConfirmModal(prev => ({ ...prev, isOpen: false }))
 
       switch (action) {
         case 'block':
-          if (confirm(`Deseja bloquear o usuário ${user.username}?`)) {
-            await blockUser(userId, 'Bloqueado pelo administrador')
-            toast.success('Usuário bloqueado com sucesso')
-          }
+          await blockUser(userId, 'Bloqueado pelo administrador')
+          toast.success('Usuário bloqueado com sucesso')
           break
 
         case 'unblock':
-          if (confirm(`Deseja desbloquear o usuário ${user.username}?`)) {
-            await unblockUser(userId)
-            toast.success('Usuário desbloqueado com sucesso')
-          }
+          await unblockUser(userId)
+          toast.success('Usuário desbloqueado com sucesso')
           break
 
         case 'reset_password':
-          if (confirm(`Deseja resetar a senha do usuário ${user.username}?`)) {
-            await resetUserPassword(userId)
-            toast.success('Email de reset de senha enviado')
-          }
+          await resetUserPassword(userId)
+          toast.success('Email de reset de senha enviado')
           break
 
         case 'disable_2fa':
-          if (confirm(`Deseja desativar 2FA do usuário ${user.username}?`)) {
-            await disable2FA(userId)
-            toast.success('2FA desativado com sucesso')
-          }
+          await disable2FA(userId)
+          toast.success('2FA desativado com sucesso')
           break
 
         case 'make_admin':
-          if (confirm(`Deseja tornar ${user.username} um administrador?`)) {
-            await setAdminStatus(userId, true)
-            toast.success('Usuário agora é administrador')
-          }
+          await setAdminStatus(userId, true)
+          toast.success('Usuário agora é administrador')
           break
 
         case 'remove_admin':
-          if (confirm(`Deseja remover privilégios de admin de ${user.username}?`)) {
-            await setAdminStatus(userId, false)
-            toast.success('Privilégios de admin removidos')
-          }
+          await setAdminStatus(userId, false)
+          toast.success('Privilégios de admin removidos')
+          break
+
+        case 'delete':
+          await deleteUser(userId)
+          toast.success('Usuário deletado com sucesso')
+          setTimeout(() => navigate('/admin/users'), 1500)
           break
 
         default:
@@ -202,6 +273,10 @@ export const AdminUserDetailPage: React.FC = () => {
     } finally {
       setActionLoading(null)
     }
+  }
+
+  const handleAction = (action: string) => {
+    showConfirmation(action)
   }
 
   if (loading) {
@@ -497,9 +572,13 @@ export const AdminUserDetailPage: React.FC = () => {
                 <Lock className='w-4 h-4' />
                 Logs de Acesso
               </button>
-              <button className='w-full px-4 py-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 flex items-center gap-2 text-left'>
+              <button
+                onClick={() => handleAction('delete')}
+                disabled={actionLoading === 'delete'}
+                className='w-full px-4 py-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 flex items-center gap-2 text-left disabled:opacity-50 disabled:cursor-not-allowed'
+              >
                 <Trash2 className='w-4 h-4' />
-                Excluir Conta
+                {actionLoading === 'delete' ? 'Deletando...' : 'Excluir Conta'}
               </button>
             </div>
           </div>
@@ -523,6 +602,20 @@ export const AdminUserDetailPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        description={confirmModal.description}
+        type={confirmModal.type as 'warning' | 'danger'}
+        confirmText={confirmModal.type === 'danger' ? 'Deletar Permanentemente' : 'Confirmar'}
+        cancelText='Cancelar'
+        isLoading={actionLoading === confirmModal.action}
+        onConfirm={() => executeAction(confirmModal.action)}
+        onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+      />
     </div>
   )
 }

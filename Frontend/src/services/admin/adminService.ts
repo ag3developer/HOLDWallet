@@ -230,6 +230,14 @@ export const setAdminStatus = async (userId: string, isAdmin: boolean): Promise<
   return response.data
 }
 
+export const deleteUser = async (
+  userId: string
+): Promise<{ success: boolean; message: string }> => {
+  // Backend usa DELETE /users/{user_id} para deletar usuário
+  const response = await adminApi.delete(`/users/${userId}`)
+  return response.data
+}
+
 // ============================================
 // Trades Management
 // ============================================
