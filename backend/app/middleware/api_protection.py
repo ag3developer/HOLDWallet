@@ -112,6 +112,7 @@ class APIProtectionMiddleware(BaseHTTPMiddleware):
         '/api/public',
         '/webhooks/',          # Webhooks precisam ser públicos
         '/api/webhooks/',
+        '/v1/webhooks/',       # Webhooks - versão v1
         '/prices/',            # Preços são públicos
         '/api/prices/',
         '/v1/prices/',
@@ -152,6 +153,14 @@ class APIProtectionMiddleware(BaseHTTPMiddleware):
         'localhost',
         '::1',
         '0.0.0.0',
+    ]
+    
+    # IPs confiáveis para webhooks (Banco do Brasil, gateways, etc)
+    TRUSTED_WEBHOOK_IPS = [
+        '170.66.1.0/24',      # Banco do Brasil - Range principal
+        '170.66.2.0/24',      # Banco do Brasil - Range alternativo
+        '170.66.3.0/24',      # Banco do Brasil - Range adicional
+        '179.159.0.0/16',     # Banco do Brasil - Range completo (fallback)
     ]
     
     # Rotas que só devem funcionar em desenvolvimento
@@ -238,7 +247,17 @@ class APIProtectionMiddleware(BaseHTTPMiddleware):
                 }
             )
         
-        # 2. Permitir rotas públicas
+        # 2. Verificar se é webhook de um IP confiável
+        if self._is_webhook_route(path):
+            # Webhooks podem ter User-Agent vazio, isso é normal
+            # Permitir se vem de IP confiável
+            if self._is_trusted_webhook_ip(ip_address):
+                logger.debug(f"✅ Trusted webhook from {ip_address} on {path}")
+                return await call_next(request)
+            # Se não é IP confiável, aplicar proteção reduzida
+            logger.debug(f"⚠️ Webhook from untrusted IP {ip_address}, applying basic checks")
+        
+        # 2.1 Permitir rotas públicas
         if self._is_public_route(path):
             return await call_next(request)
         
@@ -266,17 +285,20 @@ class APIProtectionMiddleware(BaseHTTPMiddleware):
                 }
             )
         
-        # 5. Verificar User-Agent vazio ou ausente
+        # 5. Verificar User-Agent vazio ou ausente (NÃO para webhooks confiáveis)
+        # Webhooks podem ter User-Agent vazio, isso é esperado
         if not user_agent or len(user_agent) < 10:
-            self._record_suspicious_activity(ip_address, "missing_user_agent", "")
-            logger.warning(f"⚠️ Missing/Invalid User-Agent from {ip_address}")
-            return JSONResponse(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                content={
-                    "detail": "Invalid request headers",
-                    "code": "INVALID_HEADERS"
-                }
-            )
+            # Se é webhook de IP confiável, permitir mesmo com User-Agent vazio
+            if not self._is_webhook_route(path) or not self._is_trusted_webhook_ip(ip_address):
+                self._record_suspicious_activity(ip_address, "missing_user_agent", "")
+                logger.warning(f"⚠️ Missing/Invalid User-Agent from {ip_address} on {path}")
+                return JSONResponse(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    content={
+                        "detail": "Invalid request headers",
+                        "code": "INVALID_HEADERS"
+                    }
+                )
         
         # 6. Verificar rate limit por IP
         if self._check_rate_limit(ip_address):
@@ -331,6 +353,39 @@ class APIProtectionMiddleware(BaseHTTPMiddleware):
     def _is_protected_app_route(self, path: str) -> bool:
         """Verifica se a rota é do app (wallets, earnpool, etc) - proteção reduzida."""
         return any(path.startswith(route) for route in self.PROTECTED_APP_ROUTES)
+    
+    def _is_webhook_route(self, path: str) -> bool:
+        """Verifica se a rota é de webhook."""
+        webhook_patterns = [
+            '/webhooks/',
+            '/v1/webhooks/',
+            '/api/webhooks/',
+        ]
+        return any(path.startswith(pattern) for pattern in webhook_patterns)
+    
+    def _is_trusted_webhook_ip(self, ip_address: str) -> bool:
+        """Verifica se o IP é de um webhook confiável (Banco do Brasil, gateways, etc)."""
+        import ipaddress
+        
+        try:
+            # Converter IP em objeto
+            ip_obj = ipaddress.ip_address(ip_address)
+            
+            # Verificar contra cada range confiável
+            for trusted_range in self.TRUSTED_WEBHOOK_IPS:
+                try:
+                    network = ipaddress.ip_network(trusted_range, strict=False)
+                    if ip_obj in network:
+                        logger.info(f"✅ IP {ip_address} found in trusted webhook range {trusted_range}")
+                        return True
+                except ValueError:
+                    logger.warning(f"Invalid network range: {trusted_range}")
+                    continue
+            
+            return False
+        except ValueError:
+            logger.warning(f"Invalid IP address: {ip_address}")
+            return False
     
     def _is_dev_only_route(self, path: str) -> bool:
         """Verifica se a rota é apenas para desenvolvimento."""
