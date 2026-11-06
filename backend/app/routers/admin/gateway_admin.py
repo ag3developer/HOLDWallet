@@ -372,7 +372,7 @@ async def get_merchant_detail(
                 "custom_fee_percent": float(merchant.custom_fee_percent or 0),
                 "daily_limit_brl": float(merchant.daily_limit_brl or 0),
                 "monthly_limit_brl": float(merchant.monthly_limit_brl or 0),
-                "min_payment_brl": float(merchant.min_payment_brl or 10),
+                "min_payment_brl": float(merchant.min_payment_brl or 5),
                 "max_payment_brl": float(merchant.max_payment_brl or 50000),
                 "auto_settlement": getattr(merchant, 'auto_settlement', True),
                 "settlement_currency": merchant.settlement_currency.value if merchant.settlement_currency else None,

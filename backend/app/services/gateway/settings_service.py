@@ -38,7 +38,7 @@ DEFAULT_SETTINGS = {
         "description": "Taxa adicional de rede (%)"
     },
     "gateway.min_payment_brl": {
-        "value": "10.00",
+        "value": "5.00",
         "description": "Valor mínimo de pagamento (BRL)"
     },
     "gateway.max_payment_brl": {
@@ -179,7 +179,7 @@ class GatewaySettingsService:
     
     async def get_min_payment(self) -> Decimal:
         """Pagamento mínimo"""
-        return await self.get_decimal('gateway.min_payment_brl', Decimal('10.00'))
+        return await self.get_decimal('gateway.min_payment_brl', Decimal('5.00'))
     
     async def get_max_payment(self) -> Decimal:
         """Pagamento máximo"""

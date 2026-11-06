@@ -322,7 +322,7 @@ export const AdminMerchantDetailPage: React.FC = () => {
         custom_fee_percent: details.fee_percentage ?? details.custom_fee_percent ?? 2.5,
         daily_limit_brl: details.daily_limit_brl ?? 50000,
         monthly_limit_brl: details.monthly_limit_brl ?? 500000,
-        min_payment_brl: details.min_payment_brl ?? 10,
+        min_payment_brl: details.min_payment_brl ?? 5,
         max_payment_brl: details.max_payment_brl ?? 10000,
         auto_settlement: details.auto_settlement ?? true,
         settlement_currency: details.settlement_currency || 'BRL',

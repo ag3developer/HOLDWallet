@@ -38,6 +38,10 @@ from app.schemas.gateway import PaymentCreate, PaymentFilterParams
 logger = logging.getLogger(__name__)
 
 
+class GatewayPixError(Exception):
+    """Falha ao gerar a cobrança Pix no Banco do Brasil."""
+
+
 class GatewayPaymentService:
     """
     Serviço para criação e gerenciamento de pagamentos no Gateway
@@ -230,56 +234,141 @@ class GatewayPaymentService:
         merchant: GatewayMerchant,
         data: PaymentCreate
     ):
-        """Processa pagamento PIX via Banco do Brasil"""
+        """Processa pagamento PIX via Banco do Brasil (levanta GatewayPixError se falhar)"""
+        devedor_cpf = None
+        devedor_nome = None
+        if data.customer_document:
+            doc_clean = ''.join(c for c in data.customer_document if c.isdigit())
+            if len(doc_clean) == 11:
+                devedor_cpf = doc_clean
+                devedor_nome = data.customer_name or "Cliente"
+
+        await self._create_bb_pix_charge(
+            payment,
+            descricao=data.description or f"Pagamento {payment.payment_id}",
+            expiracao_segundos=data.expiration_minutes * 60,
+            devedor_cpf=devedor_cpf,
+            devedor_nome=devedor_nome,
+            info_adicionais={
+                "merchant": merchant.merchant_code,
+                "payment": payment.payment_id
+            }
+        )
+
+    async def _create_bb_pix_charge(
+        self,
+        payment: GatewayPayment,
+        descricao: str,
+        expiracao_segundos: int,
+        devedor_cpf: Optional[str] = None,
+        devedor_nome: Optional[str] = None,
+        info_adicionais: Optional[Dict[str, Any]] = None
+    ) -> None:
+        """
+        Cria a cobrança no BB e grava os dados Pix no pagamento.
+        Nunca deixa o pagamento "PENDING sem QR": qualquer falha vira GatewayPixError.
+        """
         from app.services.banco_brasil_service import BancoBrasilAPIService
         from app.core.config import settings
-        
-        # TXID para o BB (máx 35 chars alfanumérico)
-        txid = f"WKGW{payment.payment_id.replace('-', '')}"
-        
+
+        # TXID para o BB (26-35 chars alfanumérico)
+        txid = payment.pix_txid or f"WKGW{payment.payment_id.replace('-', '')}"[:35]
         payment.pix_txid = txid
-        
+
         try:
-            bb_service = BancoBrasilAPIService()
-            
-            # Dados do devedor (se disponíveis)
-            devedor_cpf = None
-            devedor_nome = None
-            
-            if data.customer_document:
-                doc_clean = ''.join(c for c in data.customer_document if c.isdigit())
-                if len(doc_clean) == 11:
-                    devedor_cpf = doc_clean
-                    devedor_nome = data.customer_name or "Cliente"
-            
-            # Criar cobrança no BB
+            bb_service = BancoBrasilAPIService(self.db)
             bb_response = await bb_service.criar_cobranca_pix(
                 txid=txid,
                 valor=payment.amount_requested,
-                descricao=data.description or f"Pagamento {payment.payment_id}",
-                expiracao_segundos=data.expiration_minutes * 60,
+                descricao=descricao,
+                expiracao_segundos=expiracao_segundos,
                 devedor_cpf=devedor_cpf,
                 devedor_nome=devedor_nome,
-                info_adicionais={
-                    "merchant": merchant.merchant_code,
-                    "payment": payment.payment_id
-                }
+                info_adicionais=info_adicionais
             )
-            
-            # Salvar dados do PIX
-            payment.pix_txid = bb_response.get('txid', txid)
-            payment.pix_qrcode = bb_response.get('qrcode', '')
-            payment.pix_qrcode_image = bb_response.get('qrcode_base64', '')
-            payment.pix_emv = bb_response.get('location', '')
-            payment.pix_key = settings.BB_PIX_KEY
-            
-            logger.info(f"✅ PIX criado no BB: {payment.pix_txid}")
-            
         except Exception as e:
-            logger.error(f"❌ Erro ao criar PIX no BB: {str(e)}")
-            # Não falha o pagamento, mas registra o erro
-            payment.extra_data = payment.extra_data or {}
-            payment.extra_data['bb_error'] = str(e)
+            logger.exception(f"❌ Erro ao criar PIX no BB para {payment.payment_id}")
+            raise GatewayPixError(str(e)[:500]) from e
+
+        if not bb_response.get('qrcode'):
+            logger.error(f"❌ BB não devolveu pixCopiaECola para {payment.payment_id}")
+            raise GatewayPixError("Banco do Brasil não devolveu o Pix copia e cola")
+
+        payment.payment_method = GatewayPaymentMethod.PIX
+        payment.pix_txid = bb_response.get('txid', txid)
+        payment.pix_qrcode = bb_response['qrcode']
+        payment.pix_qrcode_image = bb_response.get('qrcode_base64', '')
+        payment.pix_emv = bb_response.get('location', '')
+        payment.pix_key = settings.BB_PIX_KEY
+
+        logger.info(f"✅ PIX criado no BB: {payment.pix_txid}")
+
+    async def generate_pix_for_payment(self, payment: GatewayPayment) -> Dict[str, Any]:
+        """
+        Gera (ou devolve, se já existe) o Pix de um pagamento pendente.
+        Usado pelo checkout quando o cliente escolhe Pix.
+        """
+        if payment.pix_qrcode:
+            return {
+                "qrcode": payment.pix_qrcode,
+                "qrcode_image": payment.pix_qrcode_image,
+                "txid": payment.pix_txid
+            }
+
+        remaining = 1800
+        if payment.expires_at:
+            expires_at = payment.expires_at
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=timezone.utc)
+            remaining = int((expires_at - datetime.now(timezone.utc)).total_seconds())
+
+        await self._create_bb_pix_charge(
+            payment,
+            descricao=payment.description or f"Pagamento {payment.payment_id}",
+            expiracao_segundos=max(300, remaining)
+        )
+        self.db.commit()
+
+        return {
+            "qrcode": payment.pix_qrcode,
+            "qrcode_image": payment.pix_qrcode_image,
+            "txid": payment.pix_txid
+        }
+
+    async def generate_crypto_address_for_payment(
+        self,
+        payment: GatewayPayment,
+        currency: str,
+        network: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Gera (ou devolve) o endereço crypto de um pagamento pendente.
+        Usado pelo checkout quando o cliente escolhe Crypto.
+        """
+        if not (payment.crypto_address and payment.crypto_currency == currency):
+            merchant = self.db.query(GatewayMerchant).filter(
+                GatewayMerchant.id == payment.merchant_id
+            ).first()
+            if not merchant:
+                raise ValueError("Merchant não encontrado")
+
+            from types import SimpleNamespace
+            await self._process_crypto_payment(
+                payment,
+                merchant,
+                SimpleNamespace(crypto_currency=currency, crypto_network=network)
+            )
+            payment.payment_method = GatewayPaymentMethod.CRYPTO
+            self.db.commit()
+
+        return {
+            "address": payment.crypto_address,
+            "amount": str(payment.crypto_amount) if payment.crypto_amount is not None else None,
+            "currency": payment.crypto_currency,
+            "network": payment.crypto_network,
+            "qrcode": payment.crypto_address,
+            "rate": str(payment.exchange_rate) if payment.exchange_rate is not None else None
+        }
     
     async def _process_crypto_payment(
         self,

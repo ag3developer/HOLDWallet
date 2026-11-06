@@ -250,7 +250,14 @@ export function GatewayCheckoutPage() {
       startPolling()
     } catch (err) {
       console.error('Error selecting method:', err)
-      setError('Erro ao selecionar metodo de pagamento')
+      const detail = (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
+      const message =
+        detail && typeof detail === 'object' && 'message' in detail
+          ? String((detail as { message: unknown }).message)
+          : typeof detail === 'string'
+            ? detail
+            : 'Erro ao selecionar metodo de pagamento'
+      setError(message)
     } finally {
       setIsProcessing(false)
     }

@@ -173,7 +173,7 @@ class GatewayMerchant(Base):
     # Limites
     daily_limit_brl = Column(Numeric(18, 2), default=100000)  # Limite diário
     monthly_limit_brl = Column(Numeric(18, 2), default=1000000)  # Limite mensal
-    min_payment_brl = Column(Numeric(18, 2), default=10)  # Pagamento mínimo
+    min_payment_brl = Column(Numeric(18, 2), default=5)  # Pagamento mínimo
     max_payment_brl = Column(Numeric(18, 2), default=50000)  # Pagamento máximo
     
     # Settlement automático

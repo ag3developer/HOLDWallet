@@ -31,6 +31,10 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 
+class BBConfigError(Exception):
+    """Configuração do Banco do Brasil inválida (ex.: certificado mTLS ausente em produção)."""
+
+
 class BancoBrasilAPIService:
     """
     Serviço de integração com APIs do Banco do Brasil.
@@ -92,7 +96,8 @@ class BancoBrasilAPIService:
         self._temp_key_file = None
         
         # Se temos base64 mas não temos arquivos, criar arquivos temporários
-        if not self.cert_path and self.cert_content_b64:
+        # (cert e chave são tratados de forma independente)
+        if (not self.cert_path and self.cert_content_b64) or (not self.key_path and self.key_content_b64):
             self._setup_certs_from_base64()
 
         # Token de acesso (cache em memória)
@@ -111,7 +116,7 @@ class BancoBrasilAPIService:
         Útil para ambientes cloud onde não é possível ter arquivos estáticos.
         """
         try:
-            if self.cert_content_b64:
+            if self.cert_content_b64 and not self.cert_path:
                 # Decodificar certificado
                 cert_content = base64.b64decode(self.cert_content_b64)
                 self._temp_cert_file = tempfile.NamedTemporaryFile(
@@ -124,7 +129,7 @@ class BancoBrasilAPIService:
                 self.cert_path = self._temp_cert_file.name
                 logger.info(f"✅ Certificado criado de base64: {self.cert_path}")
                 
-            if self.key_content_b64:
+            if self.key_content_b64 and not self.key_path:
                 # Decodificar chave privada
                 key_content = base64.b64decode(self.key_content_b64)
                 self._temp_key_file = tempfile.NamedTemporaryFile(
@@ -185,21 +190,50 @@ class BancoBrasilAPIService:
     def _get_http_client(self, timeout: float = 30.0) -> httpx.AsyncClient:
         """
         Cria cliente HTTP com ou sem mTLS dependendo do ambiente.
-        
+
+        Em produção o mTLS é OBRIGATÓRIO: se o certificado não carregar,
+        falha alto (BBConfigError) em vez de seguir sem certificado e
+        receber SSLV3_ALERT_BAD_CERTIFICATE do BB.
+
         Args:
             timeout: Timeout em segundos
-            
+
         Returns:
             AsyncClient configurado
         """
-        ssl_context = self._get_ssl_context() if self.is_production else None
-        
-        if self.is_production and ssl_context:
+        if self.is_production:
+            ssl_context = self._get_ssl_context()
+            if ssl_context is None:
+                raise BBConfigError(
+                    "Certificado mTLS do Banco do Brasil não carregado em produção "
+                    "(verifique BB_CERT_PATH/BB_KEY_PATH ou BB_CERT_CONTENT/BB_KEY_CONTENT)"
+                )
             logger.debug("🔐 Usando conexão com mTLS")
             return httpx.AsyncClient(timeout=timeout, verify=ssl_context)
-        else:
-            logger.debug("🔓 Usando conexão sem mTLS")
-            return httpx.AsyncClient(timeout=timeout)
+
+        logger.debug("🔓 Usando conexão sem mTLS (homologação)")
+        return httpx.AsyncClient(timeout=timeout)
+
+    def _app_key_params(self, extra: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Query params com a chave da aplicação BB.
+
+        O BB exige a app key como QUERY PARAMETER (não header), com nome
+        dependente do ambiente: `gw-app-key` em produção e
+        `gw-dev-app-key` em homologação.
+        """
+        name = "gw-app-key" if self.is_production else "gw-dev-app-key"
+        params: Dict[str, Any] = {name: self.gw_dev_app_key}
+        if extra:
+            params.update(extra)
+        return params
+
+    @staticmethod
+    def _auth_headers(token: str, json_body: bool = False) -> Dict[str, str]:
+        headers = {"Authorization": f"Bearer {token}"}
+        if json_body:
+            headers["Content-Type"] = "application/json"
+        return headers
 
     def _validate_credentials(self) -> bool:
         """Valida se todas as credenciais estão configuradas."""
@@ -371,13 +405,20 @@ class BancoBrasilAPIService:
             async with self._get_http_client() as client:
                 response = await client.put(
                     f"{self.api_url}/cob/{txid_clean}",
-                    headers={
-                        "Authorization": f"Bearer {token}",
-                        "Content-Type": "application/json",
-                        "gw-dev-app-key": self.gw_dev_app_key
-                    },
+                    headers=self._auth_headers(token, json_body=True),
+                    params=self._app_key_params(),
                     json=payload
                 )
+
+            if response.status_code == 409:
+                # txid já existe no BB (PUT repetido): reaproveita a cobrança existente
+                logger.warning(f"⚠️ Cobrança {txid_clean} já existe no BB, reaproveitando")
+                async with self._get_http_client(timeout=15.0) as client:
+                    response = await client.get(
+                        f"{self.api_url}/cob/{txid_clean}",
+                        headers=self._auth_headers(token),
+                        params=self._app_key_params()
+                    )
 
             if response.status_code not in [200, 201]:
                 error_detail = response.text
@@ -484,10 +525,8 @@ class BancoBrasilAPIService:
             async with self._get_http_client(timeout=15.0) as client:
                 response = await client.get(
                     f"{self.api_url}/cob/{txid}",
-                    headers={
-                        "Authorization": f"Bearer {token}",
-                        "gw-dev-app-key": self.gw_dev_app_key
-                    }
+                    headers=self._auth_headers(token),
+                    params=self._app_key_params()
                 )
             
             if response.status_code == 200:
@@ -543,10 +582,8 @@ class BancoBrasilAPIService:
             async with self._get_http_client(timeout=15.0) as client:
                 response = await client.get(
                     qrcode_url,
-                    headers={
-                        "Authorization": f"Bearer {token}",
-                        "gw-dev-app-key": self.gw_dev_app_key
-                    }
+                    headers=self._auth_headers(token),
+                    params=self._app_key_params()
                 )
 
             if response.status_code != 200:
@@ -587,10 +624,8 @@ class BancoBrasilAPIService:
             async with self._get_http_client(timeout=15.0) as client:
                 response = await client.get(
                     f"{self.api_url}/cob/{txid_clean}",
-                    headers={
-                        "Authorization": f"Bearer {token}",
-                        "gw-dev-app-key": self.gw_dev_app_key
-                    }
+                    headers=self._auth_headers(token),
+                    params=self._app_key_params()
                 )
 
             if response.status_code == 404:
@@ -734,11 +769,8 @@ class BancoBrasilAPIService:
             async with self._get_http_client() as client:
                 response = await client.put(
                     f"{self.api_url}/webhook/{self.pix_key}",
-                    headers={
-                        "Authorization": f"Bearer {token}",
-                        "Content-Type": "application/json",
-                        "gw-dev-app-key": self.gw_dev_app_key
-                    },
+                    headers=self._auth_headers(token, json_body=True),
+                    params=self._app_key_params(),
                     json={"webhookUrl": webhook_url}
                 )
 
@@ -774,10 +806,8 @@ class BancoBrasilAPIService:
             async with self._get_http_client(timeout=15.0) as client:
                 response = await client.get(
                     f"{self.api_url}/webhook/{self.pix_key}",
-                    headers={
-                        "Authorization": f"Bearer {token}",
-                        "gw-dev-app-key": self.gw_dev_app_key
-                    }
+                    headers=self._auth_headers(token),
+                    params=self._app_key_params()
                 )
 
             if response.status_code == 404:
@@ -837,11 +867,8 @@ class BancoBrasilAPIService:
             async with self._get_http_client() as client:
                 response = await client.get(
                     f"{self.api_url}/cob",
-                    headers={
-                        "Authorization": f"Bearer {token}",
-                        "gw-dev-app-key": self.gw_dev_app_key
-                    },
-                    params=params
+                    headers=self._auth_headers(token),
+                    params=self._app_key_params(params)
                 )
 
             if response.status_code != 200:
@@ -923,11 +950,8 @@ class BancoBrasilAPIService:
                 # A API do BB usa POST /pix para pagamentos
                 response = await client.post(
                     f"{self.api_url}/pix",
-                    headers={
-                        "Authorization": f"Bearer {token}",
-                        "Content-Type": "application/json",
-                        "gw-dev-app-key": self.gw_dev_app_key
-                    },
+                    headers=self._auth_headers(token, json_body=True),
+                    params=self._app_key_params(),
                     json=payload
                 )
                 
@@ -992,10 +1016,8 @@ class BancoBrasilAPIService:
             async with self._get_http_client() as client:
                 response = await client.get(
                     f"{self.api_url}/pix/{end_to_end_id}",
-                    headers={
-                        "Authorization": f"Bearer {token}",
-                        "gw-dev-app-key": self.gw_dev_app_key
-                    }
+                    headers=self._auth_headers(token),
+                    params=self._app_key_params()
                 )
                 
                 if response.status_code == 200:

@@ -70,6 +70,7 @@ from app.services.gateway import (
     WebhookService,
     GatewaySettingsService
 )
+from app.services.gateway.payment_service import GatewayPixError
 
 logger = logging.getLogger(__name__)
 
@@ -678,6 +679,18 @@ async def create_payment(
         
         return payment
         
+    except GatewayPixError as e:
+        # Não cria pagamento "PENDING sem QR": o merchant recebe erro claro
+        # e pode tentar outro gateway.
+        db.rollback()
+        logger.error(f"❌ Pix indisponível ao criar pagamento ({merchant.merchant_code}): {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "code": "pix_unavailable",
+                "message": "Pix indisponível no momento. Tente novamente em instantes."
+            }
+        )
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -1068,7 +1081,18 @@ async def select_payment_method(
     
     if method_upper == 'PIX':
         # Gerar QR Code PIX
-        result = await payment_service.generate_pix_for_payment(payment)
+        try:
+            result = await payment_service.generate_pix_for_payment(payment)
+        except GatewayPixError as e:
+            db.rollback()
+            logger.error(f"❌ Pix indisponível no checkout {payment.payment_id}: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail={
+                    "code": "pix_unavailable",
+                    "message": "Pix indisponível no momento. Tente novamente em instantes."
+                }
+            )
         return {
             "payment_id": payment.payment_id,
             "method": "PIX",
