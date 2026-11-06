@@ -8,6 +8,7 @@
 
 import { apiClient } from './api'
 import { authStorage } from '@/utils/indexedDBStorage'
+import i18n from '@/config/i18n'
 
 // ============================================
 // TYPES
@@ -409,17 +410,18 @@ export const getStatusColor = (status: GatewayPaymentStatus): string => {
  * Retorna label do status
  */
 export const getStatusLabel = (status: GatewayPaymentStatus): string => {
-  const labels: Record<GatewayPaymentStatus, string> = {
-    PENDING: 'Aguardando pagamento',
-    PROCESSING: 'Processando',
-    CONFIRMED: 'Confirmado',
-    COMPLETED: 'Concluido',
-    EXPIRED: 'Expirado',
-    CANCELLED: 'Cancelado',
-    REFUNDED: 'Reembolsado',
-    FAILED: 'Falhou',
+  const keys: Record<GatewayPaymentStatus, string> = {
+    PENDING: 'pending',
+    PROCESSING: 'processing',
+    CONFIRMED: 'confirmed',
+    COMPLETED: 'completed',
+    EXPIRED: 'expired',
+    CANCELLED: 'cancelled',
+    REFUNDED: 'refunded',
+    FAILED: 'failed',
   }
-  return labels[status] || status
+  const key = keys[status]
+  return key ? i18n.t(`gateway.portal.status.${key}`) : status
 }
 
 /**

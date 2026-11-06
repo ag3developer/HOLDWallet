@@ -5,6 +5,7 @@
 
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { getCrossAppUrl, isGatewayDomain } from '@/utils/domainDetection'
 import {
   Key,
@@ -29,6 +30,7 @@ import {
 } from '../../../services/gatewayService'
 
 export default function GatewayApiKeysPage() {
+  const { t, i18n } = useTranslation()
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -77,14 +79,14 @@ export default function GatewayApiKeysPage() {
       loadApiKeys()
     } catch (error) {
       console.error('Erro ao criar API Key:', error)
-      alert('Não foi possível criar a API Key')
+      alert(t('gateway.portal.apiKeys.createError'))
     } finally {
       setCreating(false)
     }
   }
 
   const handleRevokeKey = async (keyId: string) => {
-    if (!confirm('Tem certeza que deseja revogar esta chave? Esta ação não pode ser desfeita.'))
+    if (!confirm(t('gateway.portal.apiKeys.revokeConfirm')))
       return
 
     try {
@@ -92,7 +94,7 @@ export default function GatewayApiKeysPage() {
       loadApiKeys()
     } catch (error) {
       console.error('Erro ao revogar API Key:', error)
-      alert('Não foi possível revogar a API Key')
+      alert(t('gateway.portal.apiKeys.revokeError'))
     }
   }
 
@@ -103,7 +105,7 @@ export default function GatewayApiKeysPage() {
   }
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('pt-BR', {
+    return new Date(dateStr).toLocaleDateString(i18n.language, {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
@@ -119,19 +121,21 @@ export default function GatewayApiKeysPage() {
   const allPermissions = [
     {
       id: 'payments:create',
-      label: 'Criar Pagamentos',
-      description: 'Criar novos pagamentos via API',
+      label: t('gateway.portal.apiKeys.permCreateLabel'),
+      description: t('gateway.portal.apiKeys.permCreateDesc'),
     },
-    { id: 'payments:read', label: 'Ler Pagamentos', description: 'Consultar status de pagamentos' },
+    { id: 'payments:read', label: t('gateway.portal.apiKeys.permReadLabel'),
+      description: t('gateway.portal.apiKeys.permReadDesc'),
+    },
     {
       id: 'payments:cancel',
-      label: 'Cancelar Pagamentos',
-      description: 'Cancelar pagamentos pendentes',
+      label: t('gateway.portal.apiKeys.permCancelLabel'),
+      description: t('gateway.portal.apiKeys.permCancelDesc'),
     },
     {
       id: 'webhooks:manage',
-      label: 'Gerenciar Webhooks',
-      description: 'Configurar endpoints de webhook',
+      label: t('gateway.portal.apiKeys.permWebhooksLabel'),
+      description: t('gateway.portal.apiKeys.permWebhooksDesc'),
     },
   ]
 
@@ -149,9 +153,9 @@ export default function GatewayApiKeysPage() {
                 <ChevronLeft className='w-5 h-5' />
               </Link>
               <div>
-                <h1 className='text-2xl font-bold text-slate-900 dark:text-white'>API Keys</h1>
+                <h1 className='text-2xl font-bold text-slate-900 dark:text-white'>{t('gateway.portal.apiKeys.title')}</h1>
                 <p className='text-slate-600 dark:text-slate-400 mt-1'>
-                  Gerencie suas chaves de acesso à API
+                  {t('gateway.portal.apiKeys.subtitle')}
                 </p>
               </div>
             </div>
@@ -161,7 +165,7 @@ export default function GatewayApiKeysPage() {
               className='flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors'
             >
               <Plus className='w-5 h-5' />
-              Nova API Key
+              {t('gateway.portal.apiKeys.newKey')}
             </button>
           </div>
         </div>
@@ -173,11 +177,10 @@ export default function GatewayApiKeysPage() {
           <AlertTriangle className='w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5' />
           <div>
             <h3 className='font-medium text-amber-800 dark:text-amber-200'>
-              Importante sobre segurança
+              {t('gateway.portal.apiKeys.securityTitle')}
             </h3>
             <p className='text-sm text-amber-700 dark:text-amber-300 mt-1'>
-              Suas API Keys dão acesso à sua conta. Nunca compartilhe ou exponha suas chaves em
-              código público. As chaves de teste podem ser usadas em ambiente de desenvolvimento.
+              {t('gateway.portal.apiKeys.securityText')}
             </p>
           </div>
         </div>
@@ -187,23 +190,23 @@ export default function GatewayApiKeysPage() {
           {loading ? (
             <div className='p-12 text-center'>
               <RefreshCw className='w-8 h-8 text-indigo-600 animate-spin mx-auto mb-3' />
-              <p className='text-slate-500 dark:text-slate-400'>Carregando chaves...</p>
+              <p className='text-slate-500 dark:text-slate-400'>{t('gateway.portal.apiKeys.loading')}</p>
             </div>
           ) : apiKeys.length === 0 ? (
             <div className='p-12 text-center'>
               <Key className='w-16 h-16 text-slate-300 dark:text-slate-600 mx-auto mb-4' />
               <h3 className='text-lg font-medium text-slate-900 dark:text-white mb-2'>
-                Nenhuma API Key criada
+                {t('gateway.portal.apiKeys.emptyTitle')}
               </h3>
               <p className='text-slate-500 dark:text-slate-400 mb-6'>
-                Crie sua primeira chave de API para começar a integrar
+                {t('gateway.portal.apiKeys.emptyText')}
               </p>
               <button
                 onClick={() => setShowCreateModal(true)}
                 className='inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors'
               >
                 <Plus className='w-5 h-5' />
-                Criar API Key
+                {t('gateway.portal.apiKeys.createKey')}
               </button>
             </div>
           ) : (
@@ -242,11 +245,11 @@ export default function GatewayApiKeysPage() {
                                 : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
                             }`}
                           >
-                            {key.environment === 'live' ? 'Produção' : 'Teste'}
+                            {key.environment === 'live' ? t('gateway.portal.apiKeys.envLive') : t('gateway.portal.apiKeys.envTest')}
                           </span>
                           {!key.is_active && (
                             <span className='px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'>
-                              Revogada
+                              {t('gateway.portal.apiKeys.revoked')}
                             </span>
                           )}
                         </div>
@@ -268,10 +271,14 @@ export default function GatewayApiKeysPage() {
                         <div className='flex items-center gap-4 mt-2 text-sm text-slate-500 dark:text-slate-400'>
                           <span className='flex items-center gap-1'>
                             <Calendar className='w-4 h-4' />
-                            Criada em {formatDate(key.created_at)}
+                            {t('gateway.portal.apiKeys.createdOn', { date: formatDate(key.created_at) })}
                           </span>
                           {key.last_used_at && (
-                            <span>Último uso: {formatDate(key.last_used_at)}</span>
+                            <span>
+                              {t('gateway.portal.apiKeys.lastUsed', {
+                                date: formatDate(key.last_used_at),
+                              })}
+                            </span>
                           )}
                         </div>
                       </div>
@@ -283,7 +290,7 @@ export default function GatewayApiKeysPage() {
                         className='flex items-center gap-2 px-4 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors'
                       >
                         <Trash2 className='w-4 h-4' />
-                        <span className='hidden sm:inline'>Revogar</span>
+                        <span className='hidden sm:inline'>{t('gateway.portal.apiKeys.revoke')}</span>
                       </button>
                     )}
                   </div>
@@ -314,15 +321,15 @@ export default function GatewayApiKeysPage() {
               <Shield className='w-6 h-6' />
             </div>
             <div>
-              <h3 className='font-semibold text-lg mb-2'>Documentação da API</h3>
+              <h3 className='font-semibold text-lg mb-2'>{t('gateway.portal.apiKeys.docsTitle')}</h3>
               <p className='text-white/80 mb-4'>
-                Consulte nossa documentação completa para integrar o WolkPay Gateway ao seu sistema.
+                {t('gateway.portal.apiKeys.docsText')}
               </p>
               <a
                 href={getCrossAppUrl('gateway', '/docs#autenticacao')}
                 className='inline-flex items-center gap-2 px-4 py-2 bg-white text-indigo-600 rounded-xl font-medium hover:bg-white/90 transition-colors'
               >
-                Ver Documentação
+                {t('gateway.portal.apiKeys.docsLink')}
               </a>
             </div>
           </div>
@@ -339,7 +346,7 @@ export default function GatewayApiKeysPage() {
           <div className='relative w-full max-w-md bg-white dark:bg-slate-800 rounded-2xl shadow-2xl'>
             <div className='px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between'>
               <h3 className='text-lg font-semibold text-slate-900 dark:text-white'>
-                Criar Nova API Key
+                {t('gateway.portal.apiKeys.createModalTitle')}
               </h3>
               <button
                 onClick={() => setShowCreateModal(false)}
@@ -353,13 +360,13 @@ export default function GatewayApiKeysPage() {
               {/* Key Name */}
               <div>
                 <label className='block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2'>
-                  Nome da Chave
+                  {t('gateway.portal.apiKeys.keyName')}
                 </label>
                 <input
                   type='text'
                   value={keyName}
                   onChange={e => setKeyName(e.target.value)}
-                  placeholder='Ex: Backend Production'
+                  placeholder={t('gateway.portal.apiKeys.keyNamePlaceholder')}
                   className='w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500'
                 />
               </div>
@@ -367,7 +374,7 @@ export default function GatewayApiKeysPage() {
               {/* Key Type */}
               <div>
                 <span className='block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2'>
-                  Ambiente
+                  {t('gateway.portal.apiKeys.environment')}
                 </span>
                 <div className='grid grid-cols-2 gap-3'>
                   <button
@@ -382,9 +389,9 @@ export default function GatewayApiKeysPage() {
                     <p
                       className={`font-medium ${keyEnv === 'test' ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white'}`}
                     >
-                      Teste
+                      {t('gateway.portal.apiKeys.envTest')}
                     </p>
-                    <p className='text-xs text-slate-500 mt-1'>Para desenvolvimento</p>
+                    <p className='text-xs text-slate-500 mt-1'>{t('gateway.portal.apiKeys.envTestHint')}</p>
                   </button>
                   <button
                     type='button'
@@ -398,9 +405,9 @@ export default function GatewayApiKeysPage() {
                     <p
                       className={`font-medium ${keyEnv === 'live' ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-900 dark:text-white'}`}
                     >
-                      Produção
+                      {t('gateway.portal.apiKeys.envLive')}
                     </p>
-                    <p className='text-xs text-slate-500 mt-1'>Para uso real</p>
+                    <p className='text-xs text-slate-500 mt-1'>{t('gateway.portal.apiKeys.envLiveHint')}</p>
                   </button>
                 </div>
               </div>
@@ -408,7 +415,7 @@ export default function GatewayApiKeysPage() {
               {/* Permissions */}
               <div>
                 <label className='block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2'>
-                  Permissões
+                  {t('gateway.portal.apiKeys.permissions')}
                 </label>
                 <div className='space-y-2'>
                   {allPermissions.map(perm => (
@@ -447,12 +454,12 @@ export default function GatewayApiKeysPage() {
                 {creating ? (
                   <>
                     <RefreshCw className='w-5 h-5 animate-spin' />
-                    Criando...
+                    {t('gateway.portal.apiKeys.creating')}
                   </>
                 ) : (
                   <>
                     <Key className='w-5 h-5' />
-                    Criar API Key
+                    {t('gateway.portal.apiKeys.createKey')}
                   </>
                 )}
               </button>
@@ -471,10 +478,10 @@ export default function GatewayApiKeysPage() {
                 <Key className='w-8 h-8 text-emerald-600 dark:text-emerald-400' />
               </div>
               <h3 className='text-xl font-semibold text-slate-900 dark:text-white mb-2'>
-                API Key Criada!
+                {t('gateway.portal.apiKeys.createdTitle')}
               </h3>
               <p className='text-slate-600 dark:text-slate-400 mb-6'>
-                Copie sua chave agora. Por segurança, ela não será exibida novamente.
+                {t('gateway.portal.apiKeys.createdText')}
               </p>
 
               <div className='bg-slate-100 dark:bg-slate-900 rounded-xl p-4 mb-6'>
@@ -484,7 +491,7 @@ export default function GatewayApiKeysPage() {
                   </code>
                   <button
                     onClick={() => copyToClipboard(newKey.api_key_full, 'new-key')}
-                    title='Copiar chave'
+                    title={t('gateway.portal.apiKeys.copyKey')}
                     className='p-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors flex-shrink-0'
                   >
                     {copiedId === 'new-key' ? (
@@ -499,7 +506,7 @@ export default function GatewayApiKeysPage() {
               <div className='flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl mb-6'>
                 <Lock className='w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0' />
                 <p className='text-sm text-amber-700 dark:text-amber-300 text-left'>
-                  Guarde esta chave em local seguro. Ela não poderá ser visualizada novamente.
+                  {t('gateway.portal.apiKeys.storeSafely')}
                 </p>
               </div>
 
@@ -510,7 +517,7 @@ export default function GatewayApiKeysPage() {
                 }}
                 className='w-full py-3 px-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-medium hover:bg-slate-800 dark:hover:bg-slate-100 transition-colors'
               >
-                Entendi, já copiei
+                {t('gateway.portal.apiKeys.gotIt')}
               </button>
             </div>
           </div>

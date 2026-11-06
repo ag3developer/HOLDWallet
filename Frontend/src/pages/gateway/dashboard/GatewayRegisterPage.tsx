@@ -5,6 +5,7 @@
 
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   Building2,
   Mail,
@@ -26,6 +27,7 @@ import { registerMerchant, type RegisterMerchantRequest } from '../../../service
 import { useAuthStore } from '../../../stores/useAuthStore'
 
 export default function GatewayRegisterPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { initializeAuth } = useAuthStore()
   const [loading, setLoading] = useState(false)
@@ -65,17 +67,17 @@ export default function GatewayRegisterPage() {
 
   const handleSubmit = async () => {
     if (!acceptTerms) {
-      setError('Você precisa aceitar os termos de uso')
+      setError(t('gateway.portal.register.termsRequired'))
       return
     }
 
     if (password.length < 8) {
-      setError('A senha deve ter pelo menos 8 caracteres')
+      setError(t('gateway.portal.register.passwordTooShort'))
       return
     }
 
     if (password !== confirmPassword) {
-      setError('As senhas não coincidem')
+      setError(t('gateway.portal.register.passwordMismatch'))
       return
     }
 
@@ -102,9 +104,9 @@ export default function GatewayRegisterPage() {
     } catch (err: unknown) {
       console.error('Erro ao registrar:', err)
       if (err instanceof Error) {
-        setError(err.message || 'Erro ao criar conta de merchant')
+        setError(err.message || t('gateway.portal.register.createError'))
       } else {
-        setError('Erro ao criar conta de merchant')
+        setError(t('gateway.portal.register.createError'))
       }
     } finally {
       setLoading(false)
@@ -129,7 +131,7 @@ export default function GatewayRegisterPage() {
           <div className='max-w-lg'>
             <h1 className='text-4xl xl:text-5xl font-bold text-white mb-6'>WolkPay Gateway</h1>
             <p className='text-xl text-indigo-200 mb-12'>
-              Aceite pagamentos PIX e Criptomoedas de forma simples e segura
+              {t('gateway.portal.register.heroSubtitle')}
             </p>
 
             <div className='space-y-6'>
@@ -138,9 +140,9 @@ export default function GatewayRegisterPage() {
                   <Zap className='w-6 h-6 text-indigo-400' />
                 </div>
                 <div>
-                  <h3 className='text-lg font-semibold text-white'>Integração Rápida</h3>
+                  <h3 className='text-lg font-semibold text-white'>{t('gateway.portal.register.benefitIntegrationTitle')}</h3>
                   <p className='text-indigo-200/80'>
-                    API simples e documentação completa para integrar em minutos
+                    {t('gateway.portal.register.benefitIntegrationDesc')}
                   </p>
                 </div>
               </div>
@@ -150,9 +152,9 @@ export default function GatewayRegisterPage() {
                   <CreditCard className='w-6 h-6 text-emerald-400' />
                 </div>
                 <div>
-                  <h3 className='text-lg font-semibold text-white'>PIX Instantâneo</h3>
+                  <h3 className='text-lg font-semibold text-white'>{t('gateway.portal.register.benefitPixTitle')}</h3>
                   <p className='text-indigo-200/80'>
-                    Receba pagamentos PIX 24/7 com confirmação em segundos
+                    {t('gateway.portal.register.benefitPixDesc')}
                   </p>
                 </div>
               </div>
@@ -162,9 +164,9 @@ export default function GatewayRegisterPage() {
                   <Wallet className='w-6 h-6 text-purple-400' />
                 </div>
                 <div>
-                  <h3 className='text-lg font-semibold text-white'>Cripto sem Volatilidade</h3>
+                  <h3 className='text-lg font-semibold text-white'>{t('gateway.portal.register.benefitCryptoTitle')}</h3>
                   <p className='text-indigo-200/80'>
-                    Receba em stablecoins USDT/USDC automaticamente
+                    {t('gateway.portal.register.benefitCryptoDesc')}
                   </p>
                 </div>
               </div>
@@ -174,9 +176,9 @@ export default function GatewayRegisterPage() {
                   <Shield className='w-6 h-6 text-amber-400' />
                 </div>
                 <div>
-                  <h3 className='text-lg font-semibold text-white'>Segurança Total</h3>
+                  <h3 className='text-lg font-semibold text-white'>{t('gateway.portal.register.benefitSecurityTitle')}</h3>
                   <p className='text-indigo-200/80'>
-                    Criptografia de ponta e conformidade com regulações
+                    {t('gateway.portal.register.benefitSecurityDesc')}
                   </p>
                 </div>
               </div>
@@ -190,7 +192,7 @@ export default function GatewayRegisterPage() {
             {/* Mobile Header */}
             <div className='lg:hidden text-center mb-8'>
               <h1 className='text-2xl font-bold text-white mb-2'>WolkPay Gateway</h1>
-              <p className='text-indigo-200'>Crie sua conta de merchant</p>
+              <p className='text-indigo-200'>{t('gateway.portal.register.mobileSubtitle')}</p>
             </div>
 
             {/* Progress Steps */}
@@ -223,10 +225,10 @@ export default function GatewayRegisterPage() {
                   <div className='text-center mb-6'>
                     <Building2 className='w-12 h-12 text-indigo-600 mx-auto mb-3' />
                     <h2 className='text-xl font-semibold text-slate-900 dark:text-white'>
-                      Dados da Empresa
+                      {t('gateway.portal.register.step1Title')}
                     </h2>
                     <p className='text-sm text-slate-500 dark:text-slate-400'>
-                      Informe os dados básicos do seu negócio
+                      {t('gateway.portal.register.step1Desc')}
                     </p>
                   </div>
 
@@ -235,7 +237,7 @@ export default function GatewayRegisterPage() {
                       htmlFor='business-name'
                       className='block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2'
                     >
-                      Nome da Empresa *
+                      {t('gateway.portal.register.businessName')}
                     </label>
                     <div className='relative'>
                       <Building2 className='absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400' />
@@ -244,7 +246,7 @@ export default function GatewayRegisterPage() {
                         type='text'
                         value={businessName}
                         onChange={e => setBusinessName(e.target.value)}
-                        placeholder='Sua Empresa Ltda'
+                        placeholder={t('gateway.portal.register.businessNamePlaceholder')}
                         className='w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500'
                       />
                     </div>
@@ -255,7 +257,7 @@ export default function GatewayRegisterPage() {
                       htmlFor='business-document'
                       className='block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2'
                     >
-                      CNPJ ou CPF *
+                      {t('gateway.portal.register.document')}
                     </label>
                     <div className='relative'>
                       <FileText className='absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400' />
@@ -276,7 +278,7 @@ export default function GatewayRegisterPage() {
                     disabled={!isStep1Valid}
                     className='w-full py-3 px-4 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2'
                   >
-                    Continuar
+                    {t('gateway.portal.register.continue')}
                     <ArrowRight className='w-5 h-5' />
                   </button>
                 </div>
@@ -288,10 +290,10 @@ export default function GatewayRegisterPage() {
                   <div className='text-center mb-6'>
                     <Mail className='w-12 h-12 text-indigo-600 mx-auto mb-3' />
                     <h2 className='text-xl font-semibold text-slate-900 dark:text-white'>
-                      Informações de Contato
+                      {t('gateway.portal.register.step2Title')}
                     </h2>
                     <p className='text-sm text-slate-500 dark:text-slate-400'>
-                      Como podemos entrar em contato?
+                      {t('gateway.portal.register.step2Desc')}
                     </p>
                   </div>
 
@@ -300,7 +302,7 @@ export default function GatewayRegisterPage() {
                       htmlFor='business-email'
                       className='block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2'
                     >
-                      Email Comercial *
+                      {t('gateway.portal.register.businessEmail')}
                     </label>
                     <div className='relative'>
                       <Mail className='absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400' />
@@ -309,7 +311,7 @@ export default function GatewayRegisterPage() {
                         type='email'
                         value={businessEmail}
                         onChange={e => setBusinessEmail(e.target.value)}
-                        placeholder='contato@empresa.com'
+                        placeholder={t('gateway.portal.register.businessEmailPlaceholder')}
                         className='w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500'
                       />
                     </div>
@@ -320,7 +322,7 @@ export default function GatewayRegisterPage() {
                       htmlFor='business-phone'
                       className='block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2'
                     >
-                      Telefone (opcional)
+                      {t('gateway.portal.register.phoneOptional')}
                     </label>
                     <div className='relative'>
                       <Phone className='absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400' />
@@ -341,7 +343,7 @@ export default function GatewayRegisterPage() {
                       htmlFor='website-url'
                       className='block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2'
                     >
-                      Website (opcional)
+                      {t('gateway.portal.register.websiteOptional')}
                     </label>
                     <div className='relative'>
                       <Globe className='absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400' />
@@ -362,7 +364,7 @@ export default function GatewayRegisterPage() {
                       htmlFor='password'
                       className='block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2'
                     >
-                      Senha *
+                      {t('gateway.portal.register.password')}
                     </label>
                     <div className='relative'>
                       <Lock className='absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400' />
@@ -371,12 +373,13 @@ export default function GatewayRegisterPage() {
                         type={showPassword ? 'text' : 'password'}
                         value={password}
                         onChange={e => setPassword(e.target.value)}
-                        placeholder='Mínimo 8 caracteres'
+                        placeholder={t('gateway.portal.register.passwordPlaceholder')}
                         className='w-full pl-10 pr-12 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500'
                       />
                       <button
                         type='button'
                         onClick={() => setShowPassword(!showPassword)}
+                        aria-label={showPassword ? t('gateway.portal.register.hidePassword') : t('gateway.portal.register.showPassword')}
                         className='absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600'
                       >
                         {showPassword ? (
@@ -393,7 +396,7 @@ export default function GatewayRegisterPage() {
                       htmlFor='confirm-password'
                       className='block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2'
                     >
-                      Confirmar Senha *
+                      {t('gateway.portal.register.confirmPassword')}
                     </label>
                     <div className='relative'>
                       <Lock className='absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400' />
@@ -402,12 +405,12 @@ export default function GatewayRegisterPage() {
                         type={showPassword ? 'text' : 'password'}
                         value={confirmPassword}
                         onChange={e => setConfirmPassword(e.target.value)}
-                        placeholder='Repita a senha'
+                        placeholder={t('gateway.portal.register.confirmPasswordPlaceholder')}
                         className='w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500'
                       />
                     </div>
                     {confirmPassword && password !== confirmPassword && (
-                      <p className='mt-1 text-sm text-red-500'>As senhas não coincidem</p>
+                      <p className='mt-1 text-sm text-red-500'>{t('gateway.portal.register.passwordMismatch')}</p>
                     )}
                   </div>
 
@@ -416,14 +419,14 @@ export default function GatewayRegisterPage() {
                       onClick={() => setStep(1)}
                       className='flex-1 py-3 px-4 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-medium hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors'
                     >
-                      Voltar
+                      {t('gateway.portal.register.back')}
                     </button>
                     <button
                       onClick={() => setStep(3)}
                       disabled={!isStep2Valid}
                       className='flex-1 py-3 px-4 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2'
                     >
-                      Continuar
+                      {t('gateway.portal.register.continue')}
                       <ArrowRight className='w-5 h-5' />
                     </button>
                   </div>
@@ -436,34 +439,34 @@ export default function GatewayRegisterPage() {
                   <div className='text-center mb-6'>
                     <CheckCircle className='w-12 h-12 text-emerald-600 mx-auto mb-3' />
                     <h2 className='text-xl font-semibold text-slate-900 dark:text-white'>
-                      Finalizar Cadastro
+                      {t('gateway.portal.register.step3Title')}
                     </h2>
                     <p className='text-sm text-slate-500 dark:text-slate-400'>
-                      Revise os dados e aceite os termos
+                      {t('gateway.portal.register.step3Desc')}
                     </p>
                   </div>
 
                   {/* Summary */}
                   <div className='bg-slate-50 dark:bg-slate-900 rounded-xl p-4 space-y-3'>
                     <div className='flex justify-between text-sm'>
-                      <span className='text-slate-500 dark:text-slate-400'>Empresa</span>
+                      <span className='text-slate-500 dark:text-slate-400'>{t('gateway.portal.register.summaryCompany')}</span>
                       <span className='text-slate-900 dark:text-white font-medium'>
                         {businessName}
                       </span>
                     </div>
                     <div className='flex justify-between text-sm'>
-                      <span className='text-slate-500 dark:text-slate-400'>Documento</span>
+                      <span className='text-slate-500 dark:text-slate-400'>{t('gateway.portal.register.summaryDocument')}</span>
                       <span className='text-slate-900 dark:text-white font-mono'>
                         {businessDocument}
                       </span>
                     </div>
                     <div className='flex justify-between text-sm'>
-                      <span className='text-slate-500 dark:text-slate-400'>Email</span>
+                      <span className='text-slate-500 dark:text-slate-400'>{t('gateway.portal.register.summaryEmail')}</span>
                       <span className='text-slate-900 dark:text-white'>{businessEmail}</span>
                     </div>
                     {businessPhone && (
                       <div className='flex justify-between text-sm'>
-                        <span className='text-slate-500 dark:text-slate-400'>Telefone</span>
+                        <span className='text-slate-500 dark:text-slate-400'>{t('gateway.portal.register.summaryPhone')}</span>
                         <span className='text-slate-900 dark:text-white'>{businessPhone}</span>
                       </div>
                     )}
@@ -478,15 +481,15 @@ export default function GatewayRegisterPage() {
                       className='mt-1 w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500'
                     />
                     <span className='text-sm text-slate-600 dark:text-slate-400'>
-                      Li e aceito os{' '}
+                      {t('gateway.portal.register.termsPrefix')}{' '}
                       <a href='/terms' target='_blank' rel='noopener noreferrer' className='text-indigo-600 hover:underline'>
-                        Termos de Uso
+                        {t('gateway.portal.register.termsOfUse')}
                       </a>{' '}
-                      e a{' '}
+                      {t('gateway.portal.register.termsAnd')}{' '}
                       <a href='/privacy' target='_blank' rel='noopener noreferrer' className='text-indigo-600 hover:underline'>
-                        Política de Privacidade
+                        {t('gateway.portal.register.privacyPolicy')}
                       </a>{' '}
-                      do WolkPay Gateway
+                      {t('gateway.portal.register.termsSuffix')}
                     </span>
                   </label>
 
@@ -502,7 +505,7 @@ export default function GatewayRegisterPage() {
                       disabled={loading}
                       className='flex-1 py-3 px-4 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-medium hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors disabled:opacity-50'
                     >
-                      Voltar
+                      {t('gateway.portal.register.back')}
                     </button>
                     <button
                       onClick={handleSubmit}
@@ -512,12 +515,12 @@ export default function GatewayRegisterPage() {
                       {loading ? (
                         <>
                           <Loader2 className='w-5 h-5 animate-spin' />
-                          Criando...
+                          {t('gateway.portal.register.creating')}
                         </>
                       ) : (
                         <>
                           <CheckCircle className='w-5 h-5' />
-                          Criar Conta
+                          {t('gateway.portal.register.createAccount')}
                         </>
                       )}
                     </button>
@@ -528,9 +531,9 @@ export default function GatewayRegisterPage() {
 
             {/* Footer */}
             <p className='text-center text-sm text-indigo-200/60 mt-6'>
-              Já tem uma conta?{' '}
+              {t('gateway.portal.register.haveAccount')}{' '}
               <Link to='/login' className='text-indigo-300 hover:underline'>
-                Entrar
+                {t('gateway.portal.register.signIn')}
               </Link>
             </p>
           </div>

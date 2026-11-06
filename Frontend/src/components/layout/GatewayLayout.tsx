@@ -4,6 +4,7 @@
  */
 
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard,
@@ -25,19 +26,20 @@ import { getCrossAppUrl } from '@/utils/domainDetection'
 
 // Menu items for merchant dashboard
 const menuItems = [
-  { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/payments', label: 'Pagamentos', icon: CreditCard },
-  { path: '/api-keys', label: 'API Keys', icon: Key },
-  { path: '/webhooks', label: 'Webhooks', icon: Webhook },
-  { path: '/settings', label: 'Configurações', icon: Settings },
+  { path: '/dashboard', labelKey: 'gateway.portal.layout.menu.dashboard', icon: LayoutDashboard },
+  { path: '/payments', labelKey: 'gateway.portal.layout.menu.payments', icon: CreditCard },
+  { path: '/api-keys', labelKey: 'gateway.portal.layout.menu.apiKeys', icon: Key },
+  { path: '/webhooks', labelKey: 'gateway.portal.layout.menu.webhooks', icon: Webhook },
+  { path: '/settings', labelKey: 'gateway.portal.layout.menu.settings', icon: Settings },
 ]
 
 const secondaryItems = [
-  { path: '/docs', label: 'Documentação', icon: FileText, external: true },
-  { path: 'mailto:suporte@wolknow.com', label: 'Suporte', icon: HelpCircle },
+  { path: '/docs', labelKey: 'gateway.portal.layout.menu.docs', icon: FileText, external: true },
+  { path: 'mailto:suporte@wolknow.com', labelKey: 'gateway.portal.layout.menu.support', icon: HelpCircle },
 ]
 
 export function GatewayLayout() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout } = useAuthStore()
@@ -61,7 +63,7 @@ export function GatewayLayout() {
           type='button'
           className='fixed inset-0 bg-black/50 z-40 lg:hidden cursor-default'
           onClick={() => setSidebarOpen(false)}
-          aria-label='Fechar menu lateral'
+          aria-label={t('gateway.portal.layout.closeSidebar')}
         />
       )}
 
@@ -88,7 +90,7 @@ export function GatewayLayout() {
           <button
             onClick={() => setSidebarOpen(false)}
             className='lg:hidden p-2 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-            aria-label='Fechar menu'
+            aria-label={t('gateway.portal.layout.closeMenu')}
           >
             <X className='w-5 h-5' />
           </button>
@@ -114,7 +116,7 @@ export function GatewayLayout() {
                 `}
               >
                 <Icon className={`w-5 h-5 ${active ? 'text-indigo-500' : ''}`} />
-                {item.label}
+                {t(item.labelKey)}
               </NavLink>
             )
           })}
@@ -136,7 +138,7 @@ export function GatewayLayout() {
                 className='flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 hover:text-slate-900 dark:hover:text-white transition-all'
               >
                 <Icon className='w-5 h-5' />
-                {item.label}
+                {t(item.labelKey)}
               </a>
             )
           })}
@@ -150,7 +152,7 @@ export function GatewayLayout() {
             </div>
             <div className='flex-1 min-w-0'>
               <p className='text-sm font-medium text-slate-900 dark:text-white truncate'>
-                {user?.firstName || user?.username || 'Merchant'}
+                {user?.firstName || user?.username || t('gateway.portal.layout.merchant')}
               </p>
               <p className='text-xs text-slate-500 dark:text-slate-400 truncate'>{user?.email}</p>
             </div>
@@ -167,7 +169,7 @@ export function GatewayLayout() {
             <button
               onClick={() => setSidebarOpen(true)}
               className='lg:hidden p-2 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-              aria-label='Abrir menu'
+              aria-label={t('gateway.portal.layout.openMenu')}
             >
               <Menu className='w-6 h-6' />
             </button>
@@ -186,7 +188,7 @@ export function GatewayLayout() {
               {/* Notifications */}
               <button
                 className='p-2 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 relative'
-                aria-label='Notificações'
+                aria-label={t('gateway.portal.layout.notifications')}
               >
                 <Bell className='w-5 h-5' />
                 <span className='absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full' />
@@ -197,7 +199,7 @@ export function GatewayLayout() {
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
                   className='flex items-center gap-2 p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors'
-                  aria-label='Menu do usuário'
+                  aria-label={t('gateway.portal.layout.userMenu')}
                 >
                   <div className='w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center'>
                     <Building2 className='w-4 h-4 text-indigo-600 dark:text-indigo-400' />
@@ -214,12 +216,12 @@ export function GatewayLayout() {
                       type='button'
                       className='fixed inset-0 z-40 cursor-default'
                       onClick={() => setUserMenuOpen(false)}
-                      aria-label='Fechar menu'
+                      aria-label={t('gateway.portal.layout.closeMenu')}
                     />
                     <div className='absolute right-0 top-full mt-2 w-56 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 z-50'>
                       <div className='p-4 border-b border-slate-200 dark:border-slate-700'>
                         <p className='text-sm font-medium text-slate-900 dark:text-white'>
-                          {user?.firstName || user?.username || 'Merchant'}
+                          {user?.firstName || user?.username || t('gateway.portal.layout.merchant')}
                         </p>
                         <p className='text-xs text-slate-500 dark:text-slate-400 mt-1'>
                           {user?.email}
@@ -232,21 +234,21 @@ export function GatewayLayout() {
                           className='flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
                         >
                           <Settings className='w-4 h-4' />
-                          Configurações
+                          {t('gateway.portal.layout.menu.settings')}
                         </NavLink>
                         <a
                           href={getCrossAppUrl('main', '/')}
                           className='flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
                         >
                           <LayoutDashboard className='w-4 h-4' />
-                          Ir para Wolknow
+                          {t('gateway.portal.layout.goToWolknow')}
                         </a>
                         <button
                           onClick={handleLogout}
                           className='w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
                         >
                           <LogOut className='w-4 h-4' />
-                          Sair
+                          {t('gateway.portal.layout.logout')}
                         </button>
                       </div>
                     </div>

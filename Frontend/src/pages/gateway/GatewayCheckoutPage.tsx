@@ -15,6 +15,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import QRCode from 'qrcode'
 import {
   Shield,
@@ -78,6 +79,7 @@ const POLLING_INTERVAL = 5000 // 5 seconds
 // ============================================
 
 export function GatewayCheckoutPage() {
+  const { t } = useTranslation()
   const { token } = useParams<{ token: string }>()
 
   // State
@@ -102,7 +104,7 @@ export function GatewayCheckoutPage() {
   // Load checkout data
   useEffect(() => {
     if (!token) {
-      setError('Token de pagamento invalido')
+      setError(t('gateway.portal.checkout.invalidToken'))
       setStep('error')
       return
     }
@@ -186,7 +188,7 @@ export function GatewayCheckoutPage() {
         setStep('expired')
         return
       }
-      setError(detail || 'Pagamento não encontrado ou expirado')
+      setError(detail || t('gateway.portal.checkout.notFound'))
       setStep('error')
     }
   }
@@ -262,7 +264,7 @@ export function GatewayCheckoutPage() {
           ? String((detail as { message: unknown }).message)
           : typeof detail === 'string'
             ? detail
-            : 'Erro ao selecionar metodo de pagamento'
+            : t('gateway.portal.checkout.selectMethodError')
       setError(message)
     } finally {
       setIsProcessing(false)
@@ -308,9 +310,9 @@ export function GatewayCheckoutPage() {
             )}
             <div>
               <h1 className='text-sm font-semibold text-slate-900 dark:text-white'>
-                {checkoutData?.merchant.business_name || 'Carregando...'}
+                {checkoutData?.merchant.business_name || t('gateway.portal.checkout.loadingMerchant')}
               </h1>
-              <p className='text-xs text-slate-500 dark:text-slate-400'>Pagamento seguro</p>
+              <p className='text-xs text-slate-500 dark:text-slate-400'>{t('gateway.portal.checkout.securePayment')}</p>
             </div>
           </div>
           <div className='flex items-center gap-2 text-emerald-600 dark:text-emerald-400'>
@@ -346,7 +348,7 @@ export function GatewayCheckoutPage() {
 
   const renderAmount = () => (
     <div className='text-center py-6'>
-      <p className='text-sm text-slate-500 dark:text-slate-400 mb-1'>Valor do pagamento</p>
+      <p className='text-sm text-slate-500 dark:text-slate-400 mb-1'>{t('gateway.portal.checkout.paymentAmount')}</p>
       <p className='text-4xl font-bold text-slate-900 dark:text-white tracking-tight'>
         {formatBRL(checkoutData?.amount || 0)}
       </p>
@@ -365,7 +367,7 @@ export function GatewayCheckoutPage() {
   const renderLoading = () => (
     <div className='flex flex-col items-center justify-center py-20'>
       <Loader2 className='w-10 h-10 text-indigo-600 animate-spin mb-4' />
-      <p className='text-slate-600 dark:text-slate-400'>Carregando pagamento...</p>
+      <p className='text-slate-600 dark:text-slate-400'>{t('gateway.portal.checkout.loadingPayment')}</p>
     </div>
   )
 
@@ -375,7 +377,7 @@ export function GatewayCheckoutPage() {
 
       <div className='space-y-3'>
         <h2 className='text-lg font-semibold text-slate-900 dark:text-white text-center'>
-          Como voce deseja pagar?
+          {t('gateway.portal.checkout.howToPay')}
         </h2>
 
         {/* PIX Option */}
@@ -391,7 +393,7 @@ export function GatewayCheckoutPage() {
             <div className='flex-1 text-left'>
               <p className='text-lg font-semibold text-slate-900 dark:text-white'>PIX</p>
               <p className='text-sm text-slate-500 dark:text-slate-400'>
-                Pagamento instantaneo via QR Code
+                {t('gateway.portal.checkout.pixInstant')}
               </p>
             </div>
             <ChevronRight className='w-5 h-5 text-slate-400 group-hover:text-indigo-500 transition-colors' />
@@ -414,9 +416,9 @@ export function GatewayCheckoutPage() {
                 <Wallet className='w-7 h-7 text-white' />
               </div>
               <div className='flex-1 text-left'>
-                <p className='text-lg font-semibold text-slate-900 dark:text-white'>Criptomoedas</p>
+                <p className='text-lg font-semibold text-slate-900 dark:text-white'>{t('gateway.portal.checkout.crypto')}</p>
                 <p className='text-sm text-slate-500 dark:text-slate-400'>
-                  BTC, ETH, USDT, USDC e mais
+                  {t('gateway.portal.checkout.cryptoList')}
                 </p>
               </div>
               <ChevronRight
@@ -466,7 +468,7 @@ export function GatewayCheckoutPage() {
                 <Loader2 className='w-5 h-5 animate-spin' />
               ) : (
                 <>
-                  <span>Pagar com {selectedCrypto.symbol}</span>
+                  <span>{t('gateway.portal.checkout.payWith', { symbol: selectedCrypto.symbol })}</span>
                   <ChevronRight className='w-5 h-5' />
                 </>
               )}
@@ -478,7 +480,7 @@ export function GatewayCheckoutPage() {
       {/* Security Badge */}
       <div className='flex items-center justify-center gap-2 text-sm text-slate-500 dark:text-slate-400'>
         <Lock className='w-4 h-4' />
-        <span>Ambiente seguro e criptografado</span>
+        <span>{t('gateway.portal.checkout.secureEnv')}</span>
       </div>
     </div>
   )
@@ -495,7 +497,7 @@ export function GatewayCheckoutPage() {
           className='flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300 transition-colors'
         >
           <ArrowLeft className='w-4 h-4' />
-          <span>Voltar</span>
+          <span>{t('gateway.portal.checkout.back')}</span>
         </button>
 
         {/* Amount Card */}
@@ -542,14 +544,17 @@ export function GatewayCheckoutPage() {
 
             <p className='text-sm text-slate-500 dark:text-slate-400 text-center mb-4'>
               {isPix
-                ? 'Escaneie o QR Code ou copie o codigo PIX abaixo'
-                : `Envie exatamente ${formatCrypto(checkoutData?.crypto_amount || '0', checkoutData?.crypto_currency || '')} ${checkoutData?.crypto_currency} para o endereco`}
+                ? t('gateway.portal.checkout.scanPix')
+                : t('gateway.portal.checkout.sendExactly', {
+                    amount: formatCrypto(checkoutData?.crypto_amount || '0', checkoutData?.crypto_currency || ''),
+                    currency: checkoutData?.crypto_currency,
+                  })}
             </p>
 
             {/* Copy Field */}
             <div className='w-full'>
               <label htmlFor='copy-code' className='sr-only'>
-                Codigo para copia
+                {t('gateway.portal.checkout.copyCodeLabel')}
               </label>
               <div className='flex items-center gap-2 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700'>
                 <input
@@ -557,11 +562,12 @@ export function GatewayCheckoutPage() {
                   type='text'
                   readOnly
                   value={copyText || ''}
-                  placeholder='Codigo do pagamento'
+                  placeholder={t('gateway.portal.checkout.paymentCodePlaceholder')}
                   className='flex-1 bg-transparent text-sm text-slate-700 dark:text-slate-300 truncate outline-none'
                 />
                 <button
                   onClick={() => copyText && handleCopy(copyText)}
+                  aria-label={copied ? t('gateway.portal.checkout.copied') : t('gateway.portal.checkout.copy')}
                   className={`flex-shrink-0 p-2 rounded-lg transition-all ${
                     copied
                       ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'
@@ -580,9 +586,9 @@ export function GatewayCheckoutPage() {
           <Info className='w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5' />
           <div className='text-sm text-blue-700 dark:text-blue-300'>
             {isPix ? (
-              <p>Apos o pagamento, aguarde alguns segundos para a confirmacao automatica.</p>
+              <p>{t('gateway.portal.checkout.pixInfo')}</p>
             ) : (
-              <p>Apos o envio, aguarde as confirmacoes da rede. Isso pode levar alguns minutos.</p>
+              <p>{t('gateway.portal.checkout.cryptoInfo')}</p>
             )}
           </div>
         </div>
@@ -590,7 +596,7 @@ export function GatewayCheckoutPage() {
         {/* Status Indicator */}
         <div className='flex items-center justify-center gap-2 text-sm text-slate-500 dark:text-slate-400'>
           <RefreshCw className='w-4 h-4 animate-spin' />
-          <span>Aguardando pagamento...</span>
+          <span>{t('gateway.portal.checkout.waiting')}</span>
         </div>
       </div>
     )
@@ -603,22 +609,22 @@ export function GatewayCheckoutPage() {
       </div>
 
       <h2 className='text-2xl font-bold text-slate-900 dark:text-white mb-2'>
-        Pagamento confirmado!
+        {t('gateway.portal.checkout.confirmed')}
       </h2>
 
       <p className='text-slate-500 dark:text-slate-400 mb-6 max-w-xs'>
-        Seu pagamento foi processado com sucesso. O lojista foi notificado.
+        {t('gateway.portal.checkout.confirmedDesc')}
       </p>
 
       <div className='w-full max-w-sm p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800'>
         <div className='flex items-center justify-between text-sm'>
-          <span className='text-slate-600 dark:text-slate-400'>Valor pago</span>
+          <span className='text-slate-600 dark:text-slate-400'>{t('gateway.portal.checkout.amountPaid')}</span>
           <span className='font-semibold text-slate-900 dark:text-white'>
             {formatBRL(checkoutData?.amount || 0)}
           </span>
         </div>
         <div className='flex items-center justify-between text-sm mt-2'>
-          <span className='text-slate-600 dark:text-slate-400'>Codigo</span>
+          <span className='text-slate-600 dark:text-slate-400'>{t('gateway.portal.checkout.code')}</span>
           <span className='font-mono text-slate-900 dark:text-white'>
             {checkoutData?.payment_code}
           </span>
@@ -632,7 +638,7 @@ export function GatewayCheckoutPage() {
           rel='noopener noreferrer'
           className='mt-6 inline-flex items-center gap-2 text-sm text-indigo-600 dark:text-indigo-400 hover:underline'
         >
-          <span>Voltar para {checkoutData.merchant.business_name}</span>
+          <span>{t('gateway.portal.checkout.backTo', { name: checkoutData.merchant.business_name })}</span>
           <ExternalLink className='w-4 h-4' />
         </a>
       )}
@@ -645,15 +651,15 @@ export function GatewayCheckoutPage() {
         <Clock className='w-10 h-10 text-slate-500 dark:text-slate-400' />
       </div>
 
-      <h2 className='text-2xl font-bold text-slate-900 dark:text-white mb-2'>Pagamento expirado</h2>
+      <h2 className='text-2xl font-bold text-slate-900 dark:text-white mb-2'>{t('gateway.portal.checkout.expired')}</h2>
 
       <p className='text-slate-500 dark:text-slate-400 mb-6 max-w-xs'>
-        O tempo para pagamento acabou. Solicite um novo link ao lojista.
+        {t('gateway.portal.checkout.expiredDesc')}
       </p>
 
       <div className='w-full max-w-sm p-4 bg-slate-100 dark:bg-slate-800 rounded-xl'>
         <div className='flex items-center justify-between text-sm'>
-          <span className='text-slate-600 dark:text-slate-400'>Codigo</span>
+          <span className='text-slate-600 dark:text-slate-400'>{t('gateway.portal.checkout.code')}</span>
           <span className='font-mono text-slate-900 dark:text-white'>
             {checkoutData?.payment_code}
           </span>
@@ -668,10 +674,10 @@ export function GatewayCheckoutPage() {
         <XCircle className='w-10 h-10 text-red-500' />
       </div>
 
-      <h2 className='text-2xl font-bold text-slate-900 dark:text-white mb-2'>Erro</h2>
+      <h2 className='text-2xl font-bold text-slate-900 dark:text-white mb-2'>{t('gateway.portal.checkout.errorTitle')}</h2>
 
       <p className='text-slate-500 dark:text-slate-400 mb-6 max-w-xs'>
-        {error || 'Ocorreu um erro ao carregar o pagamento.'}
+        {error || t('gateway.portal.checkout.errorDefault')}
       </p>
 
       <button
@@ -679,7 +685,7 @@ export function GatewayCheckoutPage() {
         className='inline-flex items-center gap-2 px-6 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-medium rounded-xl hover:opacity-90 transition-opacity'
       >
         <RefreshCw className='w-4 h-4' />
-        <span>Tentar novamente</span>
+        <span>{t('gateway.portal.checkout.retry')}</span>
       </button>
     </div>
   )
@@ -705,7 +711,7 @@ export function GatewayCheckoutPage() {
       <footer className='max-w-lg mx-auto px-4 py-6 text-center'>
         <div className='flex items-center justify-center gap-2 text-sm text-slate-400 dark:text-slate-500'>
           <Shield className='w-4 h-4' />
-          <span>Powered by WolkPay Gateway</span>
+          <span>{t('gateway.portal.checkout.poweredBy')}</span>
         </div>
       </footer>
     </div>

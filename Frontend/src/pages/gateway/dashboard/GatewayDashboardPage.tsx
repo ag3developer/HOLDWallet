@@ -5,6 +5,7 @@
 
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   CreditCard,
   TrendingUp,
@@ -48,6 +49,7 @@ import { isGatewayDomain } from '@/utils/domainDetection'
 const ROUTE_PREFIX = isGatewayDomain() ? '' : '/gateway'
 
 export default function GatewayDashboardPage() {
+  const { t } = useTranslation()
   const [merchant, setMerchant] = useState<MerchantProfile | null>(null)
   const [stats, setStats] = useState<MerchantStats | null>(null)
   const [recentPayments, setRecentPayments] = useState<PaymentListItem[]>([])
@@ -75,7 +77,7 @@ export default function GatewayDashboardPage() {
       setRecentPayments(paymentsData.payments || [])
     } catch (err) {
       console.error('Erro ao carregar dashboard:', err)
-      setError('Não foi possível carregar os dados do dashboard')
+      setError(t('gateway.portal.dashboard.loadError'))
     } finally {
       setLoading(false)
     }
@@ -125,7 +127,7 @@ export default function GatewayDashboardPage() {
       <div className='min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center'>
         <div className='text-center'>
           <RefreshCw className='w-10 h-10 text-indigo-600 animate-spin mx-auto mb-4' />
-          <p className='text-slate-600 dark:text-slate-400'>Carregando dashboard...</p>
+          <p className='text-slate-600 dark:text-slate-400'>{t('gateway.portal.dashboard.loading')}</p>
         </div>
       </div>
     )
@@ -137,14 +139,14 @@ export default function GatewayDashboardPage() {
         <div className='bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 max-w-md w-full text-center'>
           <AlertCircle className='w-16 h-16 text-red-500 mx-auto mb-4' />
           <h2 className='text-xl font-semibold text-slate-900 dark:text-white mb-2'>
-            Erro ao carregar
+            {t('gateway.portal.dashboard.errorTitle')}
           </h2>
           <p className='text-slate-600 dark:text-slate-400 mb-6'>{error}</p>
           <button
             onClick={loadDashboardData}
             className='px-6 py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors'
           >
-            Tentar novamente
+            {t('gateway.portal.dashboard.retry')}
           </button>
         </div>
       </div>
@@ -160,7 +162,7 @@ export default function GatewayDashboardPage() {
             <div>
               <h1 className='text-2xl font-bold text-slate-900 dark:text-white'>WolkPay Gateway</h1>
               <p className='text-slate-600 dark:text-slate-400 mt-1'>
-                {merchant?.business_name || 'Dashboard do Merchant'}
+                {merchant?.business_name || t('gateway.portal.dashboard.merchantDashboard')}
               </p>
             </div>
 
@@ -168,12 +170,14 @@ export default function GatewayDashboardPage() {
               <button
                 onClick={handleRefresh}
                 disabled={refreshing}
+                aria-label={t('gateway.portal.dashboard.refresh')}
                 className='p-2 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors disabled:opacity-50'
               >
                 <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
               </button>
               <Link
                 to={`${ROUTE_PREFIX}/settings`}
+                aria-label={t('gateway.portal.dashboard.settings')}
                 className='p-2 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors'
               >
                 <Settings className='w-5 h-5' />
@@ -205,7 +209,7 @@ export default function GatewayDashboardPage() {
                 </span>
               )}
             </div>
-            <p className='text-sm text-slate-600 dark:text-slate-400 mb-1'>Volume Total</p>
+            <p className='text-sm text-slate-600 dark:text-slate-400 mb-1'>{t('gateway.portal.dashboard.totalVolume')}</p>
             <p className='text-2xl font-bold text-slate-900 dark:text-white'>
               {formatCurrency(stats?.total_volume || 0)}
             </p>
@@ -230,7 +234,7 @@ export default function GatewayDashboardPage() {
                 </span>
               )}
             </div>
-            <p className='text-sm text-slate-600 dark:text-slate-400 mb-1'>Total Transações</p>
+            <p className='text-sm text-slate-600 dark:text-slate-400 mb-1'>{t('gateway.portal.dashboard.totalTransactions')}</p>
             <p className='text-2xl font-bold text-slate-900 dark:text-white'>
               {stats?.total_transactions?.toLocaleString('pt-BR') || 0}
             </p>
@@ -243,7 +247,7 @@ export default function GatewayDashboardPage() {
                 <Activity className='w-6 h-6 text-blue-600 dark:text-blue-400' />
               </div>
             </div>
-            <p className='text-sm text-slate-600 dark:text-slate-400 mb-1'>Taxa de Sucesso</p>
+            <p className='text-sm text-slate-600 dark:text-slate-400 mb-1'>{t('gateway.portal.dashboard.successRate')}</p>
             <p className='text-2xl font-bold text-slate-900 dark:text-white'>
               {stats?.success_rate?.toFixed(1) || 0}%
             </p>
@@ -262,7 +266,7 @@ export default function GatewayDashboardPage() {
                 <Clock className='w-6 h-6 text-amber-600 dark:text-amber-400' />
               </div>
             </div>
-            <p className='text-sm text-slate-600 dark:text-slate-400 mb-1'>Pendentes</p>
+            <p className='text-sm text-slate-600 dark:text-slate-400 mb-1'>{t('gateway.portal.dashboard.pending')}</p>
             <p className='text-2xl font-bold text-slate-900 dark:text-white'>
               {stats?.pending_payments || 0}
             </p>
@@ -279,8 +283,8 @@ export default function GatewayDashboardPage() {
             className='bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-600 transition-colors group'
           >
             <BarChart3 className='w-8 h-8 text-indigo-600 dark:text-indigo-400 mb-3 group-hover:scale-110 transition-transform' />
-            <p className='font-medium text-slate-900 dark:text-white'>Pagamentos</p>
-            <p className='text-sm text-slate-500 dark:text-slate-400'>Ver todos</p>
+            <p className='font-medium text-slate-900 dark:text-white'>{t('gateway.portal.dashboard.payments')}</p>
+            <p className='text-sm text-slate-500 dark:text-slate-400'>{t('gateway.portal.dashboard.viewAll')}</p>
           </Link>
 
           <Link
@@ -288,8 +292,8 @@ export default function GatewayDashboardPage() {
             className='bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-600 transition-colors group'
           >
             <Key className='w-8 h-8 text-emerald-600 dark:text-emerald-400 mb-3 group-hover:scale-110 transition-transform' />
-            <p className='font-medium text-slate-900 dark:text-white'>API Keys</p>
-            <p className='text-sm text-slate-500 dark:text-slate-400'>Gerenciar</p>
+            <p className='font-medium text-slate-900 dark:text-white'>{t('gateway.portal.dashboard.apiKeys')}</p>
+            <p className='text-sm text-slate-500 dark:text-slate-400'>{t('gateway.portal.dashboard.manage')}</p>
           </Link>
 
           <Link
@@ -297,8 +301,8 @@ export default function GatewayDashboardPage() {
             className='bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-600 transition-colors group'
           >
             <Webhook className='w-8 h-8 text-purple-600 dark:text-purple-400 mb-3 group-hover:scale-110 transition-transform' />
-            <p className='font-medium text-slate-900 dark:text-white'>Webhooks</p>
-            <p className='text-sm text-slate-500 dark:text-slate-400'>Configurar</p>
+            <p className='font-medium text-slate-900 dark:text-white'>{t('gateway.portal.dashboard.webhooks')}</p>
+            <p className='text-sm text-slate-500 dark:text-slate-400'>{t('gateway.portal.dashboard.configure')}</p>
           </Link>
 
           <Link
@@ -306,8 +310,8 @@ export default function GatewayDashboardPage() {
             className='bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-600 transition-colors group'
           >
             <Settings className='w-8 h-8 text-slate-600 dark:text-slate-400 mb-3 group-hover:scale-110 transition-transform' />
-            <p className='font-medium text-slate-900 dark:text-white'>Configurações</p>
-            <p className='text-sm text-slate-500 dark:text-slate-400'>Ajustar</p>
+            <p className='font-medium text-slate-900 dark:text-white'>{t('gateway.portal.dashboard.settings')}</p>
+            <p className='text-sm text-slate-500 dark:text-slate-400'>{t('gateway.portal.dashboard.adjust')}</p>
           </Link>
         </div>
 
@@ -321,14 +325,14 @@ export default function GatewayDashboardPage() {
                   <CreditCard className='w-5 h-5 text-indigo-600 dark:text-indigo-400' />
                 </div>
                 <h2 className='text-lg font-semibold text-slate-900 dark:text-white'>
-                  Pagamentos Recentes
+                  {t('gateway.portal.dashboard.recentPayments')}
                 </h2>
               </div>
               <Link
                 to={`${ROUTE_PREFIX}/payments`}
                 className='text-sm text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1'
               >
-                Ver todos
+                {t('gateway.portal.dashboard.viewAll')}
                 <ChevronRight className='w-4 h-4' />
               </Link>
             </div>
@@ -337,7 +341,7 @@ export default function GatewayDashboardPage() {
               {recentPayments.length === 0 ? (
                 <div className='p-8 text-center'>
                   <CreditCard className='w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3' />
-                  <p className='text-slate-500 dark:text-slate-400'>Nenhum pagamento ainda</p>
+                  <p className='text-slate-500 dark:text-slate-400'>{t('gateway.portal.dashboard.noPayments')}</p>
                 </div>
               ) : (
                 recentPayments.map(payment => (
@@ -381,24 +385,25 @@ export default function GatewayDashboardPage() {
             <div className='bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl p-6 text-white'>
               <div className='flex items-center gap-3 mb-4'>
                 <Zap className='w-6 h-6' />
-                <span className='font-semibold'>Status da Conta</span>
+                <span className='font-semibold'>{t('gateway.portal.dashboard.accountStatus')}</span>
               </div>
               <div className='flex items-center gap-2 mb-4'>
                 <span
                   className={`w-3 h-3 rounded-full ${merchant?.status === 'ACTIVE' ? 'bg-emerald-400' : 'bg-amber-400'}`}
                 />
                 <span className='text-white/90'>
-                  {merchant?.status === 'ACTIVE' ? 'Ativa' : merchant?.status || 'Pendente'}
+                  {merchant?.status === 'ACTIVE' ? t('gateway.portal.dashboard.active') : merchant?.status || t('gateway.portal.dashboard.pendingStatus')}
                 </span>
               </div>
               <div className='text-sm text-white/70'>
-                Desde{' '}
                 {merchant?.created_at
-                  ? new Date(merchant.created_at).toLocaleDateString('pt-BR', {
-                      month: 'long',
-                      year: 'numeric',
+                  ? t('gateway.portal.dashboard.since', {
+                      date: new Date(merchant.created_at).toLocaleDateString('pt-BR', {
+                        month: 'long',
+                        year: 'numeric',
+                      }),
                     })
-                  : '-'}
+                  : t('gateway.portal.dashboard.sinceEmpty')}
               </div>
             </div>
 
@@ -409,7 +414,7 @@ export default function GatewayDashboardPage() {
                   <PieChart className='w-5 h-5 text-purple-600 dark:text-purple-400' />
                 </div>
                 <h3 className='font-semibold text-slate-900 dark:text-white'>
-                  Métodos de Pagamento
+                  {t('gateway.portal.dashboard.paymentMethods')}
                 </h3>
               </div>
 
@@ -426,7 +431,7 @@ export default function GatewayDashboardPage() {
                 <div className='flex items-center justify-between'>
                   <div className='flex items-center gap-2'>
                     <span className='w-3 h-3 rounded-full bg-indigo-500' />
-                    <span className='text-sm text-slate-600 dark:text-slate-400'>Crypto</span>
+                    <span className='text-sm text-slate-600 dark:text-slate-400'>{t('gateway.portal.dashboard.crypto')}</span>
                   </div>
                   <span className='text-sm font-medium text-slate-900 dark:text-white'>
                     {stats?.crypto_percentage?.toFixed(1) || 0}%
@@ -452,18 +457,18 @@ export default function GatewayDashboardPage() {
                 <div className='p-2 bg-amber-100 dark:bg-amber-900/30 rounded-lg'>
                   <Calendar className='w-5 h-5 text-amber-600 dark:text-amber-400' />
                 </div>
-                <h3 className='font-semibold text-slate-900 dark:text-white'>Hoje</h3>
+                <h3 className='font-semibold text-slate-900 dark:text-white'>{t('gateway.portal.dashboard.today')}</h3>
               </div>
 
               <div className='grid grid-cols-2 gap-4'>
                 <div>
-                  <p className='text-sm text-slate-500 dark:text-slate-400 mb-1'>Transações</p>
+                  <p className='text-sm text-slate-500 dark:text-slate-400 mb-1'>{t('gateway.portal.dashboard.transactions')}</p>
                   <p className='text-xl font-bold text-slate-900 dark:text-white'>
                     {stats?.today_transactions || 0}
                   </p>
                 </div>
                 <div>
-                  <p className='text-sm text-slate-500 dark:text-slate-400 mb-1'>Volume</p>
+                  <p className='text-sm text-slate-500 dark:text-slate-400 mb-1'>{t('gateway.portal.dashboard.volume')}</p>
                   <p className='text-xl font-bold text-slate-900 dark:text-white'>
                     {formatCurrency(stats?.today_volume || 0)}
                   </p>

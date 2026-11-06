@@ -5,6 +5,7 @@
 
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation, Trans } from 'react-i18next'
 import {
   Webhook,
   ChevronLeft,
@@ -37,6 +38,7 @@ import {
 const ROUTE_PREFIX = isGatewayDomain() ? '' : '/gateway'
 
 export default function GatewayWebhooksPage() {
+  const { t, i18n } = useTranslation()
   const [config, setConfig] = useState<WebhookConfig | null>(null)
   const [events, setEvents] = useState<WebhookEvent[]>([])
   const [loading, setLoading] = useState(true)
@@ -107,14 +109,14 @@ export default function GatewayWebhooksPage() {
       await loadData()
     } catch (error) {
       console.error('Erro ao salvar URL:', error)
-      alert('Não foi possível salvar a URL do webhook')
+      alert(t('gateway.portal.webhooks.saveError'))
     } finally {
       setSaving(false)
     }
   }
 
   const handleRegenerateSecret = async () => {
-    if (!confirm('Tem certeza que deseja regenerar o secret? O secret atual será invalidado.'))
+    if (!confirm(t('gateway.portal.webhooks.regenerateConfirm')))
       return
 
     try {
@@ -123,7 +125,7 @@ export default function GatewayWebhooksPage() {
       setConfig(prev => (prev ? { ...prev, webhook_secret: result.webhook_secret } : null))
     } catch (error) {
       console.error('Erro ao regenerar secret:', error)
-      alert('Não foi possível regenerar o secret')
+      alert(t('gateway.portal.webhooks.regenerateError'))
     } finally {
       setRegenerating(false)
     }
@@ -136,7 +138,7 @@ export default function GatewayWebhooksPage() {
   }
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('pt-BR', {
+    return new Date(dateStr).toLocaleDateString(i18n.language, {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
@@ -160,17 +162,17 @@ export default function GatewayWebhooksPage() {
   }
 
   const getEventBadgeColor = (eventType?: string | null) => {
-    const t = (eventType || '').toLowerCase()
-    if (!t) {
+    const type = (eventType || '').toLowerCase()
+    if (!type) {
       return 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
     }
-    if (t.includes('completed') || t.includes('success')) {
+    if (type.includes('completed') || type.includes('success')) {
       return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
     }
-    if (t.includes('failed') || t.includes('error')) {
+    if (type.includes('failed') || type.includes('error')) {
       return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
     }
-    if (t.includes('pending') || t.includes('created')) {
+    if (type.includes('pending') || type.includes('created')) {
       return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
     }
     return 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
@@ -197,9 +199,9 @@ export default function GatewayWebhooksPage() {
               <ChevronLeft className='w-5 h-5' />
             </Link>
             <div>
-              <h1 className='text-2xl font-bold text-slate-900 dark:text-white'>Webhooks</h1>
+              <h1 className='text-2xl font-bold text-slate-900 dark:text-white'>{t('gateway.portal.webhooks.title')}</h1>
               <p className='text-slate-600 dark:text-slate-400 mt-1'>
-                Configure notificações em tempo real
+                {t('gateway.portal.webhooks.subtitle')}
               </p>
             </div>
           </div>
@@ -218,10 +220,10 @@ export default function GatewayWebhooksPage() {
                 </div>
                 <div>
                   <h2 className='text-lg font-semibold text-slate-900 dark:text-white'>
-                    Endpoint URL
+                    {t('gateway.portal.webhooks.endpointTitle')}
                   </h2>
                   <p className='text-sm text-slate-500 dark:text-slate-400'>
-                    URL que receberá as notificações de eventos
+                    {t('gateway.portal.webhooks.endpointText')}
                   </p>
                 </div>
               </div>
@@ -232,14 +234,14 @@ export default function GatewayWebhooksPage() {
                     htmlFor='webhook-url'
                     className='block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2'
                   >
-                    URL do Webhook
+                    {t('gateway.portal.webhooks.urlLabel')}
                   </label>
                   <input
                     id='webhook-url'
                     type='url'
                     value={webhookUrl}
                     onChange={e => setWebhookUrl(e.target.value)}
-                    placeholder='https://seu-dominio.com/webhook/wolkpay'
+                    placeholder={t('gateway.portal.webhooks.urlPlaceholder')}
                     className='w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500'
                   />
                 </div>
@@ -252,12 +254,12 @@ export default function GatewayWebhooksPage() {
                   {saving ? (
                     <>
                       <RefreshCw className='w-4 h-4 animate-spin' />
-                      Salvando...
+                      {t('gateway.portal.webhooks.saving')}
                     </>
                   ) : (
                     <>
                       <Save className='w-4 h-4' />
-                      Salvar URL
+                      {t('gateway.portal.webhooks.saveUrl')}
                     </>
                   )}
                 </button>
@@ -269,10 +271,10 @@ export default function GatewayWebhooksPage() {
               <div className='flex items-center justify-between mb-6'>
                 <div>
                   <h2 className='text-lg font-semibold text-slate-900 dark:text-white'>
-                    Secret Key
+                    {t('gateway.portal.webhooks.secretTitle')}
                   </h2>
                   <p className='text-sm text-slate-500 dark:text-slate-400'>
-                    Use para validar a autenticidade das requisições
+                    {t('gateway.portal.webhooks.secretText')}
                   </p>
                 </div>
               </div>
@@ -290,14 +292,14 @@ export default function GatewayWebhooksPage() {
                       <button
                         onClick={() => setShowSecret(!showSecret)}
                         className='p-2 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors'
-                        title={showSecret ? 'Ocultar' : 'Mostrar'}
+                        title={showSecret ? t('gateway.portal.webhooks.hide') : t('gateway.portal.webhooks.show')}
                       >
                         {showSecret ? <EyeOff className='w-4 h-4' /> : <Eye className='w-4 h-4' />}
                       </button>
                       <button
                         onClick={() => copyToClipboard(config?.webhook_secret || '')}
                         className='p-2 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors'
-                        title='Copiar'
+                        title={t('gateway.portal.webhooks.copy')}
                       >
                         {copied ? (
                           <Check className='w-4 h-4 text-emerald-500' />
@@ -313,11 +315,14 @@ export default function GatewayWebhooksPage() {
                   <div className='flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400'>
                     <Info className='w-4 h-4' />
                     <span>
-                      Use no header{' '}
-                      <code className='font-mono text-xs px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-900'>
-                        X-WolkPay-Signature
-                      </code>{' '}
-                      (HMAC-SHA256 hex)
+                      <Trans
+                        i18nKey='gateway.portal.webhooks.headerHint'
+                        components={{
+                          mono: (
+                            <code className='font-mono text-xs px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-900' />
+                          ),
+                        }}
+                      />
                     </span>
                   </div>
                   <button
@@ -325,17 +330,20 @@ export default function GatewayWebhooksPage() {
                     disabled={regenerating}
                     className='text-sm text-indigo-600 dark:text-indigo-400 hover:underline disabled:opacity-50 disabled:cursor-not-allowed'
                   >
-                    {regenerating ? 'Regenerando...' : 'Regenerar Secret'}
+                    {regenerating ? t('gateway.portal.webhooks.regenerating') : t('gateway.portal.webhooks.regenerate')}
                   </button>
                 </div>
 
                 <div className='mt-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50'>
                   <p className='text-xs text-amber-800 dark:text-amber-200 leading-relaxed'>
-                    <strong>Atenção:</strong> ao clicar em <em>Regenerar Secret</em>, o secret
-                    anterior é invalidado imediatamente. Todos os sistemas que validam webhooks
-                    (ex.: variável <code className='font-mono px-1'>WOLKNOW_WEBHOOK_SECRET</code> no
-                    seu backend) precisam ser atualizados com este novo valor — caso contrário os
-                    webhooks serão rejeitados com HTTP 401.
+                    <Trans
+                      i18nKey='gateway.portal.webhooks.regenerateWarning'
+                      components={{
+                        bold: <strong />,
+                        italic: <em />,
+                        mono: <code className='font-mono px-1' />,
+                      }}
+                    />
                   </p>
                 </div>
               </div>
@@ -347,10 +355,10 @@ export default function GatewayWebhooksPage() {
                 <div className='flex items-center justify-between'>
                   <div>
                     <h2 className='text-lg font-semibold text-slate-900 dark:text-white'>
-                      Histórico de Eventos
+                      {t('gateway.portal.webhooks.historyTitle')}
                     </h2>
                     <p className='text-sm text-slate-500 dark:text-slate-400'>
-                      Últimas notificações enviadas
+                      {t('gateway.portal.webhooks.historyText')}
                     </p>
                   </div>
                   <button
@@ -365,7 +373,7 @@ export default function GatewayWebhooksPage() {
               {events.length === 0 ? (
                 <div className='p-8 text-center'>
                   <Send className='w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3' />
-                  <p className='text-slate-500 dark:text-slate-400'>Nenhum evento enviado ainda</p>
+                  <p className='text-slate-500 dark:text-slate-400'>{t('gateway.portal.webhooks.noEvents')}</p>
                 </div>
               ) : (
                 <div className='divide-y divide-slate-100 dark:divide-slate-700'>
@@ -410,7 +418,9 @@ export default function GatewayWebhooksPage() {
                             )}
                             {event.attempts > 1 && (
                               <p className='text-xs text-slate-500 mt-1'>
-                                {event.attempts} tentativas
+                                {t('gateway.portal.webhooks.attempts', {
+                                  count: event.attempts,
+                                })}
                               </p>
                             )}
                           </div>
@@ -431,7 +441,7 @@ export default function GatewayWebhooksPage() {
                     <ChevronLeft className='w-4 h-4' />
                   </button>
                   <span className='text-sm text-slate-600 dark:text-slate-400'>
-                    Página {eventsPage}
+                    {t('gateway.portal.webhooks.page', { page: eventsPage })}
                   </span>
                   <button
                     onClick={() => setEventsPage(eventsPage + 1)}
@@ -450,13 +460,13 @@ export default function GatewayWebhooksPage() {
             {/* Events Info */}
             <div className='bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6'>
               <h3 className='font-semibold text-slate-900 dark:text-white mb-4'>
-                Eventos Disponíveis
+                {t('gateway.portal.webhooks.eventsTitle')}
               </h3>
               <div className='space-y-3'>
                 {[
-                  { event: 'payment.confirmed', desc: 'Pagamento confirmado' },
-                  { event: 'payment.completed', desc: 'Concluído e creditado' },
-                  { event: 'payment.expired', desc: 'Prazo esgotado sem pagamento' },
+                  { event: 'payment.confirmed', desc: t('gateway.portal.webhooks.eventConfirmed') },
+                  { event: 'payment.completed', desc: t('gateway.portal.webhooks.eventCompleted') },
+                  { event: 'payment.expired', desc: t('gateway.portal.webhooks.eventExpired') },
                 ].map(item => (
                   <div
                     key={item.event}
@@ -474,7 +484,7 @@ export default function GatewayWebhooksPage() {
             {/* Payload Example */}
             <div className='bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6'>
               <h3 className='font-semibold text-slate-900 dark:text-white mb-4'>
-                Exemplo de Payload
+                {t('gateway.portal.webhooks.payloadTitle')}
               </h3>
               <pre className='bg-slate-900 dark:bg-slate-950 text-slate-100 p-4 rounded-xl text-xs overflow-x-auto'>
                 {`{
@@ -499,26 +509,26 @@ export default function GatewayWebhooksPage() {
 
             {/* Integration Tips */}
             <div className='bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl p-6 text-white'>
-              <h3 className='font-semibold mb-3'>Dicas de Integração</h3>
+              <h3 className='font-semibold mb-3'>{t('gateway.portal.webhooks.tipsTitle')}</h3>
               <ul className='space-y-2 text-sm text-white/90'>
                 <li className='flex items-start gap-2'>
                   <CheckCircle className='w-4 h-4 mt-0.5 flex-shrink-0' />
-                  <span>Sempre valide o header X-WolkPay-Signature</span>
+                  <span>{t('gateway.portal.webhooks.tipSignature')}</span>
                 </li>
                 <li className='flex items-start gap-2'>
                   <CheckCircle className='w-4 h-4 mt-0.5 flex-shrink-0' />
-                  <span>Responda com HTTP 2xx em até 30 segundos</span>
+                  <span>{t('gateway.portal.webhooks.tipRespond')}</span>
                 </li>
                 <li className='flex items-start gap-2'>
                   <CheckCircle className='w-4 h-4 mt-0.5 flex-shrink-0' />
-                  <span>Implemente idempotência para evitar duplicatas</span>
+                  <span>{t('gateway.portal.webhooks.tipIdempotency')}</span>
                 </li>
               </ul>
               <a
                 href={getCrossAppUrl('gateway', '/docs#webhooks-config')}
                 className='inline-flex items-center gap-2 mt-4 text-sm font-medium hover:underline'
               >
-                Ver documentação completa
+                {t('gateway.portal.webhooks.docsLink')}
                 <ExternalLink className='w-4 h-4' />
               </a>
             </div>

@@ -5,6 +5,7 @@
 
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   Settings,
   ChevronLeft,
@@ -33,6 +34,7 @@ import { isGatewayDomain } from '@/utils/domainDetection'
 const ROUTE_PREFIX = isGatewayDomain() ? '' : '/gateway'
 
 export default function GatewaySettingsPage() {
+  const { t, i18n } = useTranslation()
   const [merchant, setMerchant] = useState<MerchantProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -96,7 +98,7 @@ export default function GatewaySettingsPage() {
       await loadProfile()
     } catch (error) {
       console.error('Erro ao salvar perfil:', error)
-      alert('Não foi possível salvar as alterações')
+      alert(t('gateway.portal.settings.saveError'))
     } finally {
       setSaving(false)
     }
@@ -113,25 +115,25 @@ export default function GatewaySettingsPage() {
   const getStatusConfig = (status: MerchantStatus) => {
     const configs = {
       ACTIVE: {
-        label: 'Ativa',
+        label: t('gateway.portal.settings.statusActive'),
         icon: CheckCircle,
         color: 'text-emerald-600 dark:text-emerald-400',
         bg: 'bg-emerald-100 dark:bg-emerald-900/30',
       },
       PENDING: {
-        label: 'Pendente',
+        label: t('gateway.portal.settings.statusPending'),
         icon: Clock,
         color: 'text-amber-600 dark:text-amber-400',
         bg: 'bg-amber-100 dark:bg-amber-900/30',
       },
       SUSPENDED: {
-        label: 'Suspensa',
+        label: t('gateway.portal.settings.statusSuspended'),
         icon: AlertCircle,
         color: 'text-red-600 dark:text-red-400',
         bg: 'bg-red-100 dark:bg-red-900/30',
       },
       BLOCKED: {
-        label: 'Bloqueada',
+        label: t('gateway.portal.settings.statusBlocked'),
         icon: AlertCircle,
         color: 'text-red-600 dark:text-red-400',
         bg: 'bg-red-100 dark:bg-red-900/30',
@@ -142,7 +144,7 @@ export default function GatewaySettingsPage() {
 
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return '-'
-    return new Date(dateStr).toLocaleDateString('pt-BR', {
+    return new Date(dateStr).toLocaleDateString(i18n.language, {
       day: '2-digit',
       month: 'long',
       year: 'numeric',
@@ -174,9 +176,9 @@ export default function GatewaySettingsPage() {
                 <ChevronLeft className='w-5 h-5' />
               </Link>
               <div>
-                <h1 className='text-2xl font-bold text-slate-900 dark:text-white'>Configurações</h1>
+                <h1 className='text-2xl font-bold text-slate-900 dark:text-white'>{t('gateway.portal.settings.title')}</h1>
                 <p className='text-slate-600 dark:text-slate-400 mt-1'>
-                  Gerencie os dados da sua conta
+                  {t('gateway.portal.settings.subtitle')}
                 </p>
               </div>
             </div>
@@ -189,12 +191,12 @@ export default function GatewaySettingsPage() {
               {saving ? (
                 <>
                   <RefreshCw className='w-4 h-4 animate-spin' />
-                  Salvando...
+                  {t('gateway.portal.settings.saving')}
                 </>
               ) : (
                 <>
                   <Save className='w-4 h-4' />
-                  Salvar Alterações
+                  {t('gateway.portal.settings.saveChanges')}
                 </>
               )}
             </button>
@@ -213,7 +215,7 @@ export default function GatewaySettingsPage() {
                   <Building2 className='w-5 h-5 text-indigo-600 dark:text-indigo-400' />
                 </div>
                 <h2 className='text-lg font-semibold text-slate-900 dark:text-white'>
-                  Dados Empresariais
+                  {t('gateway.portal.settings.businessTitle')}
                 </h2>
               </div>
 
@@ -223,7 +225,7 @@ export default function GatewaySettingsPage() {
                     htmlFor='business-name'
                     className='block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2'
                   >
-                    Nome da Empresa
+                    {t('gateway.portal.settings.businessName')}
                   </label>
                   <div className='relative'>
                     <Building2 className='absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400' />
@@ -242,7 +244,7 @@ export default function GatewaySettingsPage() {
                     htmlFor='business-email'
                     className='block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2'
                   >
-                    Email Comercial
+                    {t('gateway.portal.settings.businessEmail')}
                   </label>
                   <div className='relative'>
                     <Mail className='absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400' />
@@ -251,7 +253,7 @@ export default function GatewaySettingsPage() {
                       type='email'
                       value={businessEmail}
                       readOnly
-                      title='Para alterar o e-mail da conta, fale com o suporte'
+                      title={t('gateway.portal.settings.emailReadonlyHint')}
                       className='w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400 cursor-not-allowed'
                     />
                   </div>
@@ -262,7 +264,7 @@ export default function GatewaySettingsPage() {
                     htmlFor='business-phone'
                     className='block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2'
                   >
-                    Telefone
+                    {t('gateway.portal.settings.phone')}
                   </label>
                   <div className='relative'>
                     <Phone className='absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400' />
@@ -282,7 +284,7 @@ export default function GatewaySettingsPage() {
                     htmlFor='website-url'
                     className='block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2'
                   >
-                    Website
+                    {t('gateway.portal.settings.website')}
                   </label>
                   <div className='relative'>
                     <Globe className='absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400' />
@@ -291,7 +293,7 @@ export default function GatewaySettingsPage() {
                       type='url'
                       value={websiteUrl}
                       onChange={e => handleFieldChange(setWebsiteUrl, e.target.value)}
-                      placeholder='https://seu-site.com'
+                      placeholder={t('gateway.portal.settings.websitePlaceholder')}
                       className='w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500'
                     />
                   </div>
@@ -302,7 +304,7 @@ export default function GatewaySettingsPage() {
                     htmlFor='logo-url'
                     className='block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2'
                   >
-                    URL do Logo
+                    {t('gateway.portal.settings.logoUrl')}
                   </label>
                   <div className='relative'>
                     <Image className='absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400' />
@@ -327,10 +329,10 @@ export default function GatewaySettingsPage() {
                 </div>
                 <div>
                   <h2 className='text-lg font-semibold text-slate-900 dark:text-white'>
-                    Liquidação
+                    {t('gateway.portal.settings.settlementTitle')}
                   </h2>
                   <p className='text-sm text-slate-500 dark:text-slate-400'>
-                    Configure como receber seus pagamentos
+                    {t('gateway.portal.settings.settlementText')}
                   </p>
                 </div>
               </div>
@@ -341,7 +343,7 @@ export default function GatewaySettingsPage() {
                     htmlFor='settlement-currency'
                     className='block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2'
                   >
-                    Receber em
+                    {t('gateway.portal.settings.receiveIn')}
                   </label>
                   <select
                     id='settlement-currency'
@@ -354,9 +356,9 @@ export default function GatewaySettingsPage() {
                     }
                     className='w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500'
                   >
-                    <option value='BRL'>Reais (BRL)</option>
+                    <option value='BRL'>{t('gateway.portal.settings.optionBrl')}</option>
                     <option value='USDT'>USDT (stablecoin)</option>
-                    <option value='ORIGINAL'>Mesma moeda do pagamento</option>
+                    <option value='ORIGINAL'>{t('gateway.portal.settings.optionOriginal')}</option>
                   </select>
                 </div>
 
@@ -367,7 +369,7 @@ export default function GatewaySettingsPage() {
                         htmlFor='settlement-network'
                         className='block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2'
                       >
-                        Rede da carteira
+                        {t('gateway.portal.settings.walletNetwork')}
                       </label>
                       <select
                         id='settlement-network'
@@ -375,7 +377,7 @@ export default function GatewaySettingsPage() {
                         onChange={e => handleFieldChange(setWalletNetwork, e.target.value)}
                         className='w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500'
                       >
-                        <option value=''>Selecione</option>
+                        <option value=''>{t('gateway.portal.settings.select')}</option>
                         <option value='polygon'>Polygon</option>
                         <option value='ethereum'>Ethereum</option>
                         <option value='bsc'>BNB Smart Chain</option>
@@ -389,14 +391,14 @@ export default function GatewaySettingsPage() {
                         htmlFor='settlement-wallet'
                         className='block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2'
                       >
-                        Endereço da carteira
+                        {t('gateway.portal.settings.walletAddress')}
                       </label>
                       <input
                         id='settlement-wallet'
                         type='text'
                         value={walletAddress}
                         onChange={e => handleFieldChange(setWalletAddress, e.target.value)}
-                        placeholder='Deixe em branco para manter o atual'
+                        placeholder={t('gateway.portal.settings.walletAddressPlaceholder')}
                         className='w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500'
                       />
                     </div>
@@ -410,7 +412,7 @@ export default function GatewaySettingsPage() {
           <div className='space-y-6'>
             {/* Account Status */}
             <div className='bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6'>
-              <h3 className='font-semibold text-slate-900 dark:text-white mb-4'>Status da Conta</h3>
+              <h3 className='font-semibold text-slate-900 dark:text-white mb-4'>{t('gateway.portal.settings.accountStatus')}</h3>
 
               {statusConfig && (
                 <div className={`flex items-center gap-3 p-4 rounded-xl ${statusConfig.bg}`}>
@@ -419,7 +421,9 @@ export default function GatewaySettingsPage() {
                     <p className={`font-semibold ${statusConfig.color}`}>{statusConfig.label}</p>
                     {merchant?.approved_at && (
                       <p className='text-sm text-slate-500 dark:text-slate-400 mt-1'>
-                        Aprovada em {formatDate(merchant.approved_at)}
+                        {t('gateway.portal.settings.approvedOn', {
+                          date: formatDate(merchant.approved_at),
+                        })}
                       </p>
                     )}
                   </div>
@@ -428,23 +432,25 @@ export default function GatewaySettingsPage() {
 
               <div className='mt-4 space-y-3 text-sm'>
                 <div className='flex justify-between'>
-                  <span className='text-slate-500 dark:text-slate-400'>CNPJ/CPF</span>
+                  <span className='text-slate-500 dark:text-slate-400'>{t('gateway.portal.settings.document')}</span>
                   <span className='text-slate-900 dark:text-white font-mono'>
                     {merchant?.business_document || '-'}
                   </span>
                 </div>
                 <div className='flex justify-between'>
-                  <span className='text-slate-500 dark:text-slate-400'>Taxa</span>
+                  <span className='text-slate-500 dark:text-slate-400'>{t('gateway.portal.settings.fee')}</span>
                   <span className='text-slate-900 dark:text-white'>
                     {merchant?.fee_percentage != null
                       ? `${Number(merchant.fee_percentage).toFixed(2)}%`
                       : defaultPixFee != null
-                        ? `${Number(defaultPixFee).toFixed(2)}% (padrão Pix)`
+                        ? t('gateway.portal.settings.defaultPixFee', {
+                            fee: Number(defaultPixFee).toFixed(2),
+                          })
                         : '—'}
                   </span>
                 </div>
                 <div className='flex justify-between'>
-                  <span className='text-slate-500 dark:text-slate-400'>Membro desde</span>
+                  <span className='text-slate-500 dark:text-slate-400'>{t('gateway.portal.settings.memberSince')}</span>
                   <span className='text-slate-900 dark:text-white'>
                     {formatDate(merchant?.created_at)}
                   </span>
@@ -456,12 +462,12 @@ export default function GatewaySettingsPage() {
             {logoUrl && (
               <div className='bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6'>
                 <h3 className='font-semibold text-slate-900 dark:text-white mb-4'>
-                  Preview do Logo
+                  {t('gateway.portal.settings.logoPreview')}
                 </h3>
                 <div className='aspect-video bg-slate-100 dark:bg-slate-900 rounded-xl flex items-center justify-center overflow-hidden'>
                   <img
                     src={logoUrl}
-                    alt='Logo preview'
+                    alt={t('gateway.portal.settings.logoPreviewAlt')}
                     className='max-w-full max-h-full object-contain'
                     onError={e => {
                       ;(e.target as HTMLImageElement).style.display = 'none'
@@ -473,15 +479,15 @@ export default function GatewaySettingsPage() {
 
             {/* Support */}
             <div className='bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl p-6 text-white'>
-              <h3 className='font-semibold mb-2'>Precisa de ajuda?</h3>
+              <h3 className='font-semibold mb-2'>{t('gateway.portal.settings.helpTitle')}</h3>
               <p className='text-sm text-white/80 mb-4'>
-                Entre em contato com nosso suporte para dúvidas sobre sua conta ou integração.
+                {t('gateway.portal.settings.helpText')}
               </p>
               <a
                 href='mailto:suporte@wolknow.com'
                 className='inline-block px-4 py-2 bg-white text-indigo-600 rounded-xl text-sm font-medium hover:bg-white/90 transition-colors'
               >
-                Falar com Suporte
+                {t('gateway.portal.settings.contactSupport')}
               </a>
             </div>
           </div>
