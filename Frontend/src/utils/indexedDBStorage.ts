@@ -126,7 +126,11 @@ const loadAllToMemory = (): Promise<void> => {
       request.onsuccess = () => {
         const items = request.result as Array<{ key: string; value: string }>
         items.forEach(item => {
-          memoryCache.set(item.key, item.value)
+          // Não sobrescrever valores gravados enquanto o banco abria
+          // (ex.: login feito durante o carregamento) com dados antigos do disco
+          if (!memoryCache.has(item.key)) {
+            memoryCache.set(item.key, item.value)
+          }
         })
         console.log(`[IndexedDBStorage] Loaded ${items.length} items to memory cache`)
         resolve()

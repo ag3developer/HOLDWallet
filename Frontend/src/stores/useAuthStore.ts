@@ -5,11 +5,41 @@ import { authService } from '@/services/auth'
 import { APP_CONFIG } from '@/config/app'
 import { safariSafeStorage } from '@/utils/safariStorage'
 import { authStorage } from '@/utils/indexedDBStorage'
+import { isTokenExpired } from '@/utils/jwt'
+
+/**
+ * Grava a sessão em TODOS os armazenamentos de uma vez (fonte única de verdade).
+ * Antes, cada caminho de login gravava em lugares diferentes e o cliente HTTP
+ * podia continuar enviando um token antigo/expirado do IndexedDB.
+ */
+function persistSessionStorages(token: string, user?: User | null, markLogin = false): void {
+  authStorage.setToken(token)
+  if (user) authStorage.setUser(user)
+  try {
+    sessionStorage.setItem('auth_token_backup', token)
+    if (markLogin) sessionStorage.setItem('auth_token_timestamp', Date.now().toString())
+  } catch {
+    // sessionStorage indisponível (modo privado)
+  }
+}
+
+/** Remove a sessão de todos os armazenamentos locais. */
+export function clearSessionStorages(): void {
+  authStorage.clearAll().catch(console.error)
+  try {
+    sessionStorage.removeItem('auth_token_backup')
+    sessionStorage.removeItem('auth_token_timestamp')
+  } catch {
+    // ignore
+  }
+}
 
 interface AuthStore extends AuthState {
   // Actions
   login: (credentials: LoginRequest) => Promise<void>
   setAuthData: (user: User, token: string) => void
+  /** Atualiza só o token (após refresh), mantendo o usuário */
+  setToken: (token: string) => void
   register: (userData: RegisterRequest) => Promise<void>
   logout: () => Promise<void>
   refreshToken: () => Promise<void>
@@ -44,18 +74,7 @@ export const useAuthStore = create<AuthStore>()(
         try {
           const response: AuthResponse = await authService.login(credentials)
 
-          // ✅ SAFARI iOS FIX: Save to ALL storage mechanisms
-          // 1. IndexedDB (most reliable for iOS)
-          authStorage.setToken(response.access_token)
-          authStorage.setUser(response.user)
-
-          // 2. sessionStorage backup
-          try {
-            sessionStorage.setItem('auth_token_timestamp', Date.now().toString())
-            sessionStorage.setItem('auth_token_backup', response.access_token)
-          } catch {
-            // sessionStorage not available
-          }
+          persistSessionStorages(response.access_token, response.user, true)
 
           set({
             user: response.user,
@@ -89,13 +108,9 @@ export const useAuthStore = create<AuthStore>()(
 
       // Set auth data after successful login
       setAuthData: (user: User, token: string) => {
-        // ✅ Mark login time for Safari iOS fix
-        try {
-          sessionStorage.setItem('auth_token_timestamp', Date.now().toString())
-          sessionStorage.setItem('auth_token_backup', token)
-        } catch {
-          // sessionStorage not available
-        }
+        // Grava em todos os armazenamentos (antes não atualizava o IndexedDB e o
+        // cliente HTTP seguia enviando o token anterior → "sessão expirou" logo após o login)
+        persistSessionStorages(token, user, true)
 
         set({
           user,
@@ -106,12 +121,18 @@ export const useAuthStore = create<AuthStore>()(
         })
       },
 
+      setToken: (token: string) => {
+        persistSessionStorages(token, get().user)
+        set({ token, isAuthenticated: true, error: null })
+      },
+
       // Register action
       register: async (userData: RegisterRequest) => {
         set({ isLoading: true, error: null })
 
         try {
           const response: AuthResponse = await authService.register(userData)
+          persistSessionStorages(response.access_token, response.user, true)
 
           set({
             user: response.user,
@@ -151,17 +172,7 @@ export const useAuthStore = create<AuthStore>()(
           }
         }
 
-        // ✅ SAFARI iOS FIX: Clear ALL storage mechanisms
-        // 1. IndexedDB
-        authStorage.clearAll().catch(console.error)
-
-        // 2. sessionStorage
-        try {
-          sessionStorage.removeItem('auth_token_backup')
-          sessionStorage.removeItem('auth_token_timestamp')
-        } catch {
-          // ignore
-        }
+        clearSessionStorages()
 
         // Clear local state
         set({
@@ -185,13 +196,7 @@ export const useAuthStore = create<AuthStore>()(
 
         try {
           const response: AuthResponse = await authService.refreshToken(currentToken)
-
-          set({
-            user: response.user,
-            token: response.access_token,
-            isAuthenticated: true,
-            error: null,
-          })
+          get().setToken(response.access_token)
         } catch (error: any) {
           // ✅ Check grace period before logging out (Safari iOS fix)
           let timeSinceLogin = Infinity
@@ -235,6 +240,16 @@ export const useAuthStore = create<AuthStore>()(
       initializeAuth: async () => {
         let token = get().token
 
+        // Token vencido guardado de uma sessão anterior: descarta já, em vez de
+        // mostrar o usuário como logado e expulsá-lo segundos depois.
+        const storedToken = token || authStorage.getToken()
+        if (storedToken && isTokenExpired(storedToken)) {
+          console.warn('[AuthStore] ⌛ Stored token is expired - clearing session')
+          clearSessionStorages()
+          set({ user: null, token: null, isAuthenticated: false, isLoading: false, error: null })
+          return
+        }
+
         // ✅ SAFARI iOS FIX: If no token in Zustand, try IndexedDB
         if (!token) {
           const indexedDBToken = authStorage.getToken()
@@ -267,9 +282,7 @@ export const useAuthStore = create<AuthStore>()(
           // Verify token and get current user
           const user = await authService.getCurrentUser(token)
 
-          // Save to IndexedDB for future recovery
-          authStorage.setToken(token)
-          authStorage.setUser(user)
+          persistSessionStorages(token, user)
 
           set({
             user,
@@ -391,12 +404,8 @@ export const useAuthStore = create<AuthStore>()(
           // ✅ SAFARI iOS FIX: If we have a token, mark it as fresh to prevent logout
           if (state.token) {
             try {
-              // Set timestamp to prevent immediate logout on Safari
-              const existingTimestamp = sessionStorage.getItem('auth_token_timestamp')
-              if (!existingTimestamp) {
-                sessionStorage.setItem('auth_token_timestamp', Date.now().toString())
-              }
-              // Always backup token
+              // Não marcar o token reidratado como "recém-logado": isso escondia
+              // tokens expirados por 15s e depois expulsava o usuário.
               sessionStorage.setItem('auth_token_backup', state.token)
               console.log('[AuthStore] ✅ Token backed up to sessionStorage')
             } catch {

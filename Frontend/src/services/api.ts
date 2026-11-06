@@ -1,7 +1,17 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios'
 import { APP_CONFIG } from '@/config/app'
-import { useAuthStore } from '@/stores/useAuthStore'
+import { useAuthStore, clearSessionStorages } from '@/stores/useAuthStore'
 import { authStorage } from '@/utils/indexedDBStorage'
+import { isTokenExpired, msUntilExpiry } from '@/utils/jwt'
+
+// Renova a sessão quando faltar menos que isso para o token expirar (token dura 24h)
+const PROACTIVE_REFRESH_WINDOW_MS = 12 * 60 * 60 * 1000
+// Intervalo mínimo entre renovações proativas
+const PROACTIVE_REFRESH_MIN_INTERVAL_MS = 10 * 60 * 1000
+
+// Endpoints de autenticação: um 401 aqui é credencial inválida, não sessão expirada
+const isAuthEndpoint = (url?: string): boolean =>
+  !!url && /\/auth\/(login|signup|register|refresh|logout|2fa|verify|forgot|reset|webauthn)/.test(url)
 
 // 🔧 Endpoints que precisam de trailing slash para evitar redirect 307
 // Safari iOS perde o Authorization header em redirects
@@ -149,6 +159,11 @@ class ApiClient {
         // Get token from localStorage (or from auth store)
         const token = this.getStoredToken()
 
+        // Sessão deslizante: renova em background antes de expirar
+        if (token && !isAuthEndpoint(config.url)) {
+          this.maybeRefreshProactively(token)
+        }
+
         // Debug logging
         this.debugLogRequest(config, token)
 
@@ -227,23 +242,34 @@ class ApiClient {
         // Tentar parsear resposta padronizada
         const parsedError = parseErrorResponse(error)
 
-        // Handle 401 Unauthorized - SEMPRE é sessão expirada
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        // Handle 401 Unauthorized
+        if (
+          error.response?.status === 401 &&
+          !originalRequest?._retry &&
+          !isAuthEndpoint(originalRequest?.url)
+        ) {
           originalRequest._retry = true
+          const token = this.getStoredToken()
 
-          try {
-            // Try to refresh token
-            const token = this.getStoredToken()
-            if (token) {
-              await this.refreshToken(token)
-              // Retry original request with new token
+          if (token && !isTokenExpired(token)) {
+            try {
+              // Uma única renovação, compartilhada por todos os 401 simultâneos
+              const newToken = await this.refreshSession(token)
+              originalRequest.headers = originalRequest.headers || {}
+              originalRequest.headers.Authorization = `Bearer ${newToken}`
               return this.client(originalRequest)
+            } catch (refreshError: any) {
+              // Só desloga se o servidor RECUSOU a sessão; falha de rede/timeout/5xx não
+              const refreshStatus = refreshError?.response?.status
+              if (refreshStatus === 401 || refreshStatus === 403) {
+                this.handleAuthError()
+              }
+              throw this.handleApiError(error)
             }
-          } catch (refreshError) {
-            // Refresh failed, logout user
-            this.handleAuthError()
-            throw refreshError
           }
+
+          // Sem token ou token já expirado: a sessão acabou de fato
+          if (token) this.handleAuthError()
         }
 
         // Handle 403 Forbidden - Decisão baseada no código de erro
@@ -289,80 +315,37 @@ class ApiClient {
     )
   }
 
+  /**
+   * Token da sessão atual.
+   * Fonte de verdade: o estado do auth store (atualizado no login/refresh).
+   * Os armazenamentos persistentes só são usados enquanto o store ainda não
+   * reidratou (Safari iOS). Tokens expirados são ignorados.
+   */
   private getStoredToken(): string | null {
     try {
-      // 🗄️ Strategy 0: IndexedDB (most reliable for Safari iOS)
-      const indexedDBToken = authStorage.getToken()
-      if (indexedDBToken) {
-        console.log('[API] ✅ Token from IndexedDB')
-        return indexedDBToken
-      }
+      const state = useAuthStore.getState()
+      if (state.token) return state.token
 
-      // Strategy 1: Check in-memory Zustand store (fastest)
-      const zustandToken = useAuthStore.getState().token
-      if (zustandToken) {
-        // Save to IndexedDB for iOS
-        authStorage.setToken(zustandToken)
-        this.backupTokenToSession(zustandToken)
-        return zustandToken
-      }
-
-      // ⚠️ SAFARI iOS FIX: Check if Zustand is still hydrating
-      const hasHydrated = useAuthStore.getState()._hasHydrated
-      if (!hasHydrated) {
-        console.log('[API] ⏳ Zustand still hydrating, checking storage directly...')
-      }
-
-      // Strategy 2: Try the Zustand persist format from localStorage
+      // Store vazio: pode estar reidratando (Safari) — tenta os backups
       const zustandKey = `${APP_CONFIG.storage.prefix}${APP_CONFIG.storage.keys.auth}`
-      const authData = localStorage.getItem(zustandKey)
-
-      if (authData) {
-        const token = this.extractTokenFromData(authData)
-        if (token) {
-          console.log('[API] ✅ Token recovered from localStorage (Zustand format)')
-          // Save to IndexedDB for iOS
-          authStorage.setToken(token)
-          this.backupTokenToSession(token)
-          return token
-        }
-      }
-
-      // Strategy 3: Check sessionStorage backup (Safari PWA fallback)
+      let sessionBackup: string | null = null
       try {
-        const sessionToken = sessionStorage.getItem('auth_token_backup')
-        if (sessionToken) {
-          console.log('[API] ✅ Token recovered from sessionStorage backup')
-          authStorage.setToken(sessionToken)
-          return sessionToken
-        }
+        sessionBackup = sessionStorage.getItem('auth_token_backup')
       } catch {
-        // sessionStorage not available
+        // sessionStorage indisponível
       }
-
-      // Strategy 4: Check all localStorage keys (comprehensive fallback)
-      const foundToken = this.findTokenInAllKeys()
-      if (foundToken) {
-        authStorage.setToken(foundToken)
-        this.backupTokenToSession(foundToken)
-        return foundToken
+      const candidates = [
+        authStorage.getToken(),
+        this.extractTokenFromData(localStorage.getItem(zustandKey)),
+        sessionBackup,
+      ]
+      for (const candidate of candidates) {
+        if (candidate && !isTokenExpired(candidate)) return candidate
       }
-
-      console.warn('[API] ⚠️ No token found - user not logged in or session expired')
       return null
     } catch (error) {
       console.error('[API] Error retrieving token:', error)
       return null
-    }
-  }
-
-  // Backup token to sessionStorage for Safari iOS recovery
-  private backupTokenToSession(token: string): void {
-    try {
-      sessionStorage.setItem('auth_token_backup', token)
-      sessionStorage.setItem('auth_token_timestamp', Date.now().toString())
-    } catch {
-      // sessionStorage not available (private mode)
     }
   }
 
@@ -404,72 +387,53 @@ class ApiClient {
     }
   }
 
-  private findTokenInAllKeys(): string | null {
-    try {
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i)
-        if (!key) continue
-
-        // Look for keys that likely contain auth data
-        if (key.includes('auth') || key.includes('token')) {
-          const data = localStorage.getItem(key)
-          if (!data) continue
-
-          const token = this.extractTokenFromData(data)
-          // Validate token (should be a non-empty string)
-          if (token && token.length > 10) {
-            console.log(`[API] ✅ Token found in fallback key: ${key}`)
-            return token
-          }
-        }
-      }
-    } catch (e) {
-      console.warn('[API] Error searching localStorage:', e)
-    }
-
-    return null
-  }
-
   private generateRequestId(): string {
     return `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
   }
 
-  private async refreshToken(token: string): Promise<void> {
-    try {
-      const response = await axios.post(
+  private refreshPromise: Promise<string> | null = null
+  private lastRefreshAt = 0
+
+  /**
+   * Renova o token (single-flight) e grava o novo token no auth store e em
+   * todos os armazenamentos. Antes o token novo só ia para o JSON do
+   * localStorage e o cliente continuava usando o antigo.
+   */
+  private refreshSession(token: string): Promise<string> {
+    if (this.refreshPromise) return this.refreshPromise
+
+    this.refreshPromise = axios
+      .post(
         `${APP_CONFIG.api.baseUrl}/auth/refresh`,
         {},
         {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          timeout: 20000,
         }
       )
-      const newToken = response.data.access_token
+      .then(response => {
+        const newToken = response.data?.access_token as string | undefined
+        if (!newToken) throw new Error('Refresh response without access_token')
+        useAuthStore.getState().setToken(newToken)
+        this.lastRefreshAt = Date.now()
+        return newToken
+      })
+      .finally(() => {
+        this.refreshPromise = null
+      })
 
-      // Update stored token
-      this.updateStoredToken(newToken)
-    } catch (error) {
-      console.error('[API] Token refresh failed:', error)
-      throw error
-    }
+    return this.refreshPromise
   }
 
-  private updateStoredToken(token: string): void {
-    try {
-      const authKey = `${APP_CONFIG.storage.prefix}${APP_CONFIG.storage.keys.auth}`
-      const authData = localStorage.getItem(authKey)
-      if (authData) {
-        const parsed = JSON.parse(authData)
-        if (parsed.state) {
-          parsed.state.token = token
-          localStorage.setItem(authKey, JSON.stringify(parsed))
-        }
-      }
-    } catch (error) {
-      console.error('Failed to update stored token:', error)
-    }
+  private maybeRefreshProactively(token: string): void {
+    if (this.refreshPromise) return
+    if (Date.now() - this.lastRefreshAt < PROACTIVE_REFRESH_MIN_INTERVAL_MS) return
+    const remaining = msUntilExpiry(token)
+    if (remaining <= 0 || remaining > PROACTIVE_REFRESH_WINDOW_MS) return
+    this.lastRefreshAt = Date.now()
+    this.refreshSession(token).catch(err => {
+      console.warn('[API] Proactive token refresh failed (will retry later):', err?.message)
+    })
   }
 
   // Track if we're already handling an auth error to prevent duplicate logouts
@@ -515,19 +479,10 @@ class ApiClient {
         console.warn('Session expired - redirecting to login')
       })
 
-    // Clear all auth data
+    // Clear all auth data (store em memória + todos os armazenamentos)
+    useAuthStore.setState({ user: null, token: null, isAuthenticated: false })
     localStorage.removeItem(`${APP_CONFIG.storage.prefix}${APP_CONFIG.storage.keys.auth}`)
-
-    // Clear IndexedDB
-    authStorage.clearAll().catch(console.error)
-
-    // Also clear sessionStorage backup
-    try {
-      sessionStorage.removeItem('auth_token_backup')
-      sessionStorage.removeItem('auth_token_timestamp')
-    } catch {
-      // sessionStorage not available
-    }
+    clearSessionStorages()
 
     // Aguardar um pouco para o usuário ver a notificação
     setTimeout(() => {
