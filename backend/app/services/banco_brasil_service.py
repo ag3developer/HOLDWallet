@@ -13,6 +13,7 @@ Author: GitHub Copilot para WOLK NOW
 Date: Janeiro 2026
 """
 
+import asyncio
 import httpx
 import ssl
 import base64
@@ -59,6 +60,10 @@ class BancoBrasilAPIService:
 
     API_URL_SANDBOX = "https://api.hm.bb.com.br/pix/v2"
     API_URL_PROD = "https://api-pix.bb.com.br/pix/v2"
+
+    # Cache de token OAuth compartilhado: {(oauth_url, client_id): (token, expires_at)}
+    _token_cache: Dict[tuple, tuple] = {}
+    _token_lock: Optional["asyncio.Lock"] = None
 
     def __init__(self, db: Session = None):
         """
@@ -269,52 +274,85 @@ class BancoBrasilAPIService:
         if not self._validate_credentials():
             raise Exception("Credenciais do Banco do Brasil não configuradas")
 
-        # Verifica se token ainda é válido (com margem de 5 min)
-        if self._access_token and self._token_expires_at:
-            if datetime.now() < self._token_expires_at - timedelta(minutes=5):
-                return self._access_token
+        # Cache compartilhado entre instâncias (gateway/jobs criam instâncias novas)
+        cache_key = (self.oauth_url, self.client_id)
 
-        logger.info("🔐 Solicitando novo token OAuth do Banco do Brasil...")
+        def _cached_token() -> Optional[str]:
+            cached = BancoBrasilAPIService._token_cache.get(cache_key)
+            if cached and datetime.now() < cached[1] - timedelta(minutes=5):
+                return cached[0]
+            return None
 
-        # Prepara credenciais Base64
+        token = _cached_token()
+        if token:
+            return token
+
+        # Uma única requisição de token por vez (evita rajada no OAuth do BB)
+        if BancoBrasilAPIService._token_lock is None:
+            BancoBrasilAPIService._token_lock = asyncio.Lock()
+
+        async with BancoBrasilAPIService._token_lock:
+            token = _cached_token()  # outra corrotina pode ter renovado
+            if token:
+                return token
+            return await self._request_new_token(cache_key)
+
+    async def _request_new_token(self, cache_key: tuple) -> str:
+        # Somente escopos liberados no portal BB: um escopo não autorizado
+        # (ex.: pagamentos-lote.*) faz o BB recusar o token inteiro.
+        scopes = getattr(settings, 'BB_OAUTH_SCOPES', None) or \
+            "cob.write cob.read pix.read pix.write webhook.read webhook.write"
+
         credentials = f"{self.client_id}:{self.client_secret}"
         credentials_b64 = base64.b64encode(credentials.encode()).decode()
 
-        try:
-            async with self._get_http_client() as client:
-                response = await client.post(
-                    self.oauth_url,
-                    headers={
-                        "Authorization": f"Basic {credentials_b64}",
-                        "Content-Type": "application/x-www-form-urlencoded"
-                    },
-                    data={
-                        "grant_type": "client_credentials",
-                        # Scopes PIX Cobrança (receber) + Pagamentos em Lote (enviar PIX)
-                        "scope": "cob.write cob.read pix.read pix.write webhook.read webhook.write pagamentos-lote.lotes-requisicao pagamentos-lote.transferencias-info"
-                    }
-                )
+        # oauth.bb.com.br (atrás do Cloudflare desde 2026) trava de forma
+        # intermitente: algumas conexões não respondem e a seguinte responde
+        # em <1s. Por isso: timeout curto por tentativa + nova conexão + retry.
+        attempts = 4
+        last_error = "erro desconhecido"
+        for attempt in range(1, attempts + 1):
+            logger.info(f"🔐 Solicitando token OAuth BB (tentativa {attempt}/{attempts}, scopes: {scopes})...")
+            try:
+                async with self._get_http_client(timeout=httpx.Timeout(12.0, connect=8.0)) as client:
+                    response = await client.post(
+                        self.oauth_url,
+                        headers={
+                            "Authorization": f"Basic {credentials_b64}",
+                            "Content-Type": "application/x-www-form-urlencoded"
+                        },
+                        data={"grant_type": "client_credentials", "scope": scopes}
+                    )
+            except httpx.TimeoutException:
+                last_error = "Timeout na conexão com Banco do Brasil"
+                logger.warning(f"⏱️ Timeout no OAuth BB (tentativa {attempt}/{attempts})")
+                await asyncio.sleep(min(attempt, 3))
+                continue
+            except httpx.TransportError as e:
+                last_error = f"Falha de conexão com Banco do Brasil: {e}"
+                logger.warning(f"⚠️ {last_error} (tentativa {attempt}/{attempts})")
+                await asyncio.sleep(min(attempt, 3))
+                continue
 
-            if response.status_code != 200:
-                logger.error(f"❌ Erro OAuth BB [{response.status_code}]: {response.text}")
-                raise Exception(f"Erro ao obter token BB: {response.status_code} - {response.text}")
+            if response.status_code == 200:
+                data = response.json()
+                self._access_token = data["access_token"]
+                expires_in = data.get("expires_in", 600)
+                self._token_expires_at = datetime.now() + timedelta(seconds=expires_in)
+                BancoBrasilAPIService._token_cache[cache_key] = (self._access_token, self._token_expires_at)
+                logger.info(f"✅ Token BB obtido (tentativa {attempt}). Expira em {expires_in}s")
+                return self._access_token
 
-            data = response.json()
-            self._access_token = data["access_token"]
-            
-            # Calcula expiração (default 10 minutos se não informado)
-            expires_in = data.get("expires_in", 600)
-            self._token_expires_at = datetime.now() + timedelta(seconds=expires_in)
+            last_error = f"Erro ao obter token BB: {response.status_code} - {response.text}"
+            logger.error(f"❌ Erro OAuth BB [{response.status_code}]: {response.text}")
 
-            logger.info(f"✅ Token BB obtido com sucesso. Expira em {expires_in}s")
-            return self._access_token
+            # invalid_scope / credenciais erradas de forma consistente: não adianta repetir
+            if response.status_code == 400:
+                break
+            # 401 isolado e 5xx/429 já foram observados de forma intermitente: tenta de novo
+            await asyncio.sleep(min(attempt, 3))
 
-        except httpx.TimeoutException:
-            logger.error("❌ Timeout ao obter token do Banco do Brasil")
-            raise Exception("Timeout na conexão com Banco do Brasil")
-        except Exception as e:
-            logger.error(f"❌ Erro inesperado ao obter token BB: {str(e)}")
-            raise
+        raise Exception(last_error)
 
     async def criar_cobranca_pix(
         self,

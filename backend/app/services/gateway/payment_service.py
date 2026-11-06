@@ -271,8 +271,11 @@ class GatewayPaymentService:
         from app.services.banco_brasil_service import BancoBrasilAPIService
         from app.core.config import settings
 
-        # TXID para o BB (26-35 chars alfanumérico)
-        txid = payment.pix_txid or f"WKGW{payment.payment_id.replace('-', '')}"[:35]
+        # TXID para o BB: [a-zA-Z0-9]{26,35}, determinístico (mesmo pagamento = mesmo txid)
+        txid = payment.pix_txid or ""
+        if not (26 <= len(txid) <= 35 and txid.isalnum()):
+            base = "WKGW" + ''.join(c for c in payment.payment_id if c.isalnum())
+            txid = base.ljust(26, "0")[:35]
         payment.pix_txid = txid
 
         try:

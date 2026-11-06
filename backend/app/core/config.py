@@ -108,6 +108,9 @@ class Settings(BaseSettings):
     BB_CLIENT_SECRET: Optional[str] = None
     # App Key (identificador da aplicação no portal BB)
     BB_GW_DEV_APP_KEY: Optional[str] = None
+    # Escopos OAuth pedidos ao BB. Pedir um escopo não liberado no portal faz o
+    # BB recusar o token INTEIRO (invalid_scope) — só inclua os autorizados.
+    BB_OAUTH_SCOPES: str = "cob.write cob.read pix.read pix.write webhook.read webhook.write"
     # Chave PIX da empresa (CNPJ da HOLD DIGITAL ASSETS)
     BB_PIX_KEY: str = "24275355000151"
     # URL do webhook para receber notificações de pagamento
