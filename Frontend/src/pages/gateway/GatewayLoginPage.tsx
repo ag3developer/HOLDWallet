@@ -7,6 +7,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { CreditCard, Mail, Lock, Eye, EyeOff, Loader2, ArrowLeft } from 'lucide-react'
 import { useAuthStore } from '@/stores/useAuthStore'
+import { getCrossAppUrl } from '@/utils/domainDetection'
 
 export default function GatewayLoginPage() {
   const navigate = useNavigate()
@@ -126,12 +127,12 @@ export default function GatewayLoginPage() {
 
             {/* Forgot Password */}
             <div className='flex justify-end'>
-              <Link
-                to='/forgot-password'
+              <a
+                href={getCrossAppUrl('main', '/forgot-password')}
                 className='text-sm text-indigo-600 dark:text-indigo-400 hover:underline'
               >
                 Esqueceu a senha?
-              </Link>
+              </a>
             </div>
 
             {/* Error Message */}

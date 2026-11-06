@@ -4,7 +4,7 @@
  */
 
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   Building2,
   Mail,
@@ -529,9 +529,9 @@ export default function GatewayRegisterPage() {
             {/* Footer */}
             <p className='text-center text-sm text-indigo-200/60 mt-6'>
               Já tem uma conta?{' '}
-              <a href='/gateway/dashboard' className='text-indigo-300 hover:underline'>
-                Acessar Dashboard
-              </a>
+              <Link to='/login' className='text-indigo-300 hover:underline'>
+                Entrar
+              </Link>
             </p>
           </div>
         </div>

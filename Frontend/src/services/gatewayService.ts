@@ -285,7 +285,24 @@ export interface WebhookEvent {
  */
 export const getCheckoutData = async (token: string): Promise<GatewayCheckoutData> => {
   const response = await apiClient.get(`/gateway/checkout/${token}`)
-  return response.data
+  // O backend (PaymentPublicResponse) usa amount_requested/currency_requested e
+  // merchant.company_name/trade_name; normaliza para o formato usado pela página.
+  const raw = response.data as Record<string, any>
+  const merchant = (raw.merchant ?? {}) as Record<string, any>
+  return {
+    ...raw,
+    payment_code: raw.payment_code ?? raw.payment_id,
+    amount: Number(raw.amount ?? raw.amount_requested ?? 0),
+    currency: raw.currency ?? raw.currency_requested ?? 'BRL',
+    created_at: raw.created_at ?? '',
+    merchant: {
+      id: merchant.id ?? merchant.merchant_code ?? '',
+      business_name:
+        merchant.business_name ?? merchant.trade_name ?? merchant.company_name ?? 'Lojista',
+      logo_url: merchant.logo_url ?? undefined,
+      website_url: merchant.website_url ?? undefined,
+    },
+  } as GatewayCheckoutData
 }
 
 /**
@@ -485,14 +502,21 @@ export const getMerchantStats = async (): Promise<MerchantStats> => {
  */
 export const getApiKeys = async (): Promise<ApiKey[]> => {
   const response = await apiClient.get('/gateway/api-keys')
-  return response.data
+  const items = (Array.isArray(response.data) ? response.data : response.data?.items ?? []) as Record<string, any>[]
+  return items.map(k => ({
+    ...k,
+    environment: k.environment ?? (k.is_test ? 'test' : 'live'),
+    permissions: k.permissions ?? [],
+  })) as ApiKey[]
 }
 
 /**
  * Cria nova API Key
  */
 export const createApiKey = async (data: CreateApiKeyRequest): Promise<CreateApiKeyResponse> => {
-  const response = await apiClient.post('/gateway/api-keys', data)
+  // Backend (ApiKeyCreate) espera is_test, não environment
+  const { environment, ...rest } = data
+  const response = await apiClient.post('/gateway/api-keys', { ...rest, is_test: environment === 'test' })
   // O backend retorna um objeto flat com todos os campos + api_key (a chave completa)
   const apiKeyData = response.data
   return {

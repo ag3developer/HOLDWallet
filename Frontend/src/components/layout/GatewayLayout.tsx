@@ -34,7 +34,7 @@ const menuItems = [
 
 const secondaryItems = [
   { path: '/docs', label: 'Documentação', icon: FileText, external: true },
-  { path: '/support', label: 'Suporte', icon: HelpCircle },
+  { path: 'mailto:suporte@wolknow.com', label: 'Suporte', icon: HelpCircle },
 ]
 
 export function GatewayLayout() {
@@ -130,7 +130,7 @@ export function GatewayLayout() {
             return (
               <a
                 key={item.path}
-                href={item.external ? `https://docs.wolknow.com${item.path}` : item.path}
+                href={item.external ? getCrossAppUrl('gateway', item.path) : item.path}
                 target={item.external ? '_blank' : undefined}
                 rel={item.external ? 'noopener noreferrer' : undefined}
                 className='flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 hover:text-slate-900 dark:hover:text-white transition-all'

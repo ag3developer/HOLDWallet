@@ -184,6 +184,8 @@ export function GatewayApp() {
 
           {/* Public Checkout (no auth required) */}
           <Route path='/checkout/:token' element={<GatewayCheckoutPage />} />
+          {/* checkout_url gerado pela API: https://gateway.wolknow.com/pay/{token} */}
+          <Route path='/pay/:token' element={<GatewayCheckoutPage />} />
 
           {/* Protected Merchant Dashboard */}
           <Route

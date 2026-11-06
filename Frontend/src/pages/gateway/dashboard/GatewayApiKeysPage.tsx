@@ -5,6 +5,7 @@
 
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { getCrossAppUrl, isGatewayDomain } from '@/utils/domainDetection'
 import {
   Key,
   Plus,
@@ -142,7 +143,7 @@ export default function GatewayApiKeysPage() {
           <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4'>
             <div className='flex items-center gap-4'>
               <Link
-                to='/gateway/dashboard'
+                to={`${isGatewayDomain() ? '' : '/gateway'}/dashboard`}
                 className='p-2 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors'
               >
                 <ChevronLeft className='w-5 h-5' />
@@ -318,7 +319,7 @@ export default function GatewayApiKeysPage() {
                 Consulte nossa documentação completa para integrar o WolkPay Gateway ao seu sistema.
               </p>
               <a
-                href='/docs/api'
+                href={getCrossAppUrl('gateway', '/docs#autenticacao')}
                 className='inline-flex items-center gap-2 px-4 py-2 bg-white text-indigo-600 rounded-xl font-medium hover:bg-white/90 transition-colors'
               >
                 Ver Documentação

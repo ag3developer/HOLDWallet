@@ -180,7 +180,13 @@ export function GatewayCheckoutPage() {
       }
     } catch (err) {
       console.error('Error loading checkout:', err)
-      setError('Pagamento nao encontrado ou expirado')
+      const resp = (err as { response?: { status?: number; data?: { detail?: unknown } } })?.response
+      const detail = typeof resp?.data?.detail === 'string' ? resp.data.detail : ''
+      if (resp?.status === 410 && /expir/i.test(detail)) {
+        setStep('expired')
+        return
+      }
+      setError(detail || 'Pagamento não encontrado ou expirado')
       setStep('error')
     }
   }

@@ -22,7 +22,7 @@ import {
   ChevronRight,
   Info,
 } from 'lucide-react'
-import { isGatewayDomain } from '@/utils/domainDetection'
+import { isGatewayDomain, getCrossAppUrl } from '@/utils/domainDetection'
 
 import {
   getWebhookConfig,
@@ -499,11 +499,11 @@ export default function GatewayWebhooksPage() {
               <ul className='space-y-2 text-sm text-white/90'>
                 <li className='flex items-start gap-2'>
                   <CheckCircle className='w-4 h-4 mt-0.5 flex-shrink-0' />
-                  <span>Sempre valide o header X-Webhook-Signature</span>
+                  <span>Sempre valide o header X-WolkPay-Signature</span>
                 </li>
                 <li className='flex items-start gap-2'>
                   <CheckCircle className='w-4 h-4 mt-0.5 flex-shrink-0' />
-                  <span>Responda com HTTP 200 em até 5 segundos</span>
+                  <span>Responda com HTTP 2xx em até 30 segundos</span>
                 </li>
                 <li className='flex items-start gap-2'>
                   <CheckCircle className='w-4 h-4 mt-0.5 flex-shrink-0' />
@@ -511,7 +511,7 @@ export default function GatewayWebhooksPage() {
                 </li>
               </ul>
               <a
-                href='/docs/webhooks'
+                href={getCrossAppUrl('gateway', '/docs#webhooks-config')}
                 className='inline-flex items-center gap-2 mt-4 text-sm font-medium hover:underline'
               >
                 Ver documentação completa

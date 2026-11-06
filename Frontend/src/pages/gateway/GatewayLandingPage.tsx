@@ -202,7 +202,7 @@ export default function GatewayLandingPage() {
                 { label: t('gateway.nav.features'), href: '#features' },
                 { label: t('gateway.nav.pricing'), href: '#pricing' },
                 { label: t('gateway.nav.docs'), href: '/docs' },
-                { label: t('gateway.nav.api'), href: '#api' },
+                { label: t('gateway.nav.api'), href: '/docs' },
               ].map(item => (
                 <a
                   key={item.label}

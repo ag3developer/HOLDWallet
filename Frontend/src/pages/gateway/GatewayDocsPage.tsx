@@ -1,1003 +1,1338 @@
 /**
  * WolkPay Gateway - Documentação da API
- * Página de documentação completa para desenvolvedores
+ *
+ * Documentação para desenvolvedores, fiel ao contrato real do backend
+ * (backend/app/routers/gateway.py, schemas/gateway.py, services/gateway/*).
+ * Taxas e limites são carregados ao vivo de GET /gateway/fees.
  */
 
-import { useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  Book,
-  Code,
-  Terminal,
-  Webhook,
-  Key,
-  CreditCard,
-  Copy,
+  AlertTriangle,
+  BookOpen,
   Check,
   ChevronDown,
-  ChevronRight,
-  ExternalLink,
+  Copy,
+  Info,
+  LifeBuoy,
+  Lock,
+  Menu,
+  Search,
+  X,
   Zap,
-  Shield,
-  FileCode,
-  Layers,
-  Globe,
 } from 'lucide-react'
+import { apiClient } from '@/services/api'
 
-// Tipos para a documentação
-interface Endpoint {
-  method: 'GET' | 'POST' | 'PUT' | 'DELETE'
-  path: string
-  description: string
-  auth: boolean
-  params?: { name: string; type: string; required: boolean; description: string }[]
-  body?: { name: string; type: string; required: boolean; description: string }[]
-  response?: string
+// ============================================================
+// Constantes do contrato da API
+// ============================================================
+
+const API_BASE = 'https://api.wolknow.com/v1/gateway'
+const CHECKOUT_BASE = 'https://gateway.wolknow.com/pay'
+const SUPPORT_EMAIL = 'suporte@wolknow.com'
+
+interface GatewayFees {
+  pix_fee_percent: string
+  crypto_fee_percent: string
+  network_fee_percent: string
+  min_payment_brl: string
+  max_payment_brl: string
+  daily_limit_brl: string
 }
 
-interface Section {
+// ============================================================
+// Sumário
+// ============================================================
+
+interface TocItem {
   id: string
   title: string
-  icon: React.ElementType
-  description: string
-  endpoints: Endpoint[]
+}
+interface TocGroup {
+  title: string
+  items: TocItem[]
 }
 
-// Dados da documentação
-const apiSections: Section[] = [
+const TOC: TocGroup[] = [
   {
-    id: 'payments',
+    title: 'Primeiros passos',
+    items: [
+      { id: 'visao-geral', title: 'Visão geral' },
+      { id: 'inicio-rapido', title: 'Início rápido' },
+      { id: 'autenticacao', title: 'Autenticação' },
+      { id: 'url-base', title: 'URL base e ambientes' },
+      { id: 'taxas-limites', title: 'Taxas e limites' },
+    ],
+  },
+  {
     title: 'Pagamentos',
-    icon: CreditCard,
-    description: 'Criar e gerenciar pagamentos PIX e Crypto',
-    endpoints: [
-      {
-        method: 'POST',
-        path: '/v1/gateway/payments',
-        description: 'Criar novo pagamento',
-        auth: true,
-        body: [
-          {
-            name: 'amount',
-            type: 'number',
-            required: true,
-            description: 'Valor em BRL (mínimo 10.00)',
-          },
-          { name: 'currency', type: 'string', required: true, description: 'Moeda: "BRL"' },
-          {
-            name: 'description',
-            type: 'string',
-            required: false,
-            description: 'Descrição do pagamento',
-          },
-          {
-            name: 'customer_email',
-            type: 'string',
-            required: true,
-            description: 'Email do cliente',
-          },
-          {
-            name: 'customer_name',
-            type: 'string',
-            required: false,
-            description: 'Nome do cliente',
-          },
-          {
-            name: 'external_id',
-            type: 'string',
-            required: false,
-            description: 'ID externo para referência',
-          },
-          {
-            name: 'metadata',
-            type: 'object',
-            required: false,
-            description: 'Dados adicionais (JSON)',
-          },
-        ],
-        response: `{
-  "id": "pay_abc123",
-  "status": "pending",
-  "amount": 150.00,
-  "checkout_url": "https://gateway.wolknow.com/checkout/TOKEN",
-  "expires_at": "2024-01-01T12:00:00Z"
-}`,
-      },
-      {
-        method: 'GET',
-        path: '/v1/gateway/payments',
-        description: 'Listar pagamentos com filtros',
-        auth: true,
-        params: [
-          { name: 'status', type: 'string', required: false, description: 'Filtrar por status' },
-          { name: 'method', type: 'string', required: false, description: 'pix ou crypto' },
-          { name: 'page', type: 'number', required: false, description: 'Página (default: 1)' },
-          {
-            name: 'per_page',
-            type: 'number',
-            required: false,
-            description: 'Items por página (default: 20)',
-          },
-        ],
-        response: `{
-  "payments": [...],
-  "total": 100,
-  "page": 1,
-  "per_page": 20
-}`,
-      },
-      {
-        method: 'GET',
-        path: '/v1/gateway/payments/{id}',
-        description: 'Obter detalhes de um pagamento',
-        auth: true,
-        params: [{ name: 'id', type: 'string', required: true, description: 'ID do pagamento' }],
-        response: `{
-  "id": "pay_abc123",
-  "status": "completed",
-  "amount": 150.00,
-  "method": "pix",
-  "pix_code": "00020126...",
-  "paid_at": "2024-01-01T11:30:00Z"
-}`,
-      },
-      {
-        method: 'POST',
-        path: '/v1/gateway/payments/{id}/cancel',
-        description: 'Cancelar pagamento pendente',
-        auth: true,
-        params: [{ name: 'id', type: 'string', required: true, description: 'ID do pagamento' }],
-      },
+    items: [
+      { id: 'objeto-pagamento', title: 'O objeto Payment' },
+      { id: 'criar-pagamento', title: 'Criar pagamento' },
+      { id: 'consultar-pagamento', title: 'Consultar pagamento' },
+      { id: 'listar-pagamentos', title: 'Listar pagamentos' },
+      { id: 'cancelar-pagamento', title: 'Cancelar pagamento' },
+      { id: 'status', title: 'Ciclo de vida e status' },
     ],
   },
   {
-    id: 'webhooks',
+    title: 'Métodos de pagamento',
+    items: [
+      { id: 'pix', title: 'Pix' },
+      { id: 'crypto', title: 'Criptomoedas' },
+      { id: 'checkout', title: 'Checkout hospedado' },
+    ],
+  },
+  {
     title: 'Webhooks',
-    icon: Webhook,
-    description: 'Configurar notificações em tempo real',
-    endpoints: [
-      {
-        method: 'GET',
-        path: '/v1/gateway/webhooks/config',
-        description: 'Obter configuração atual',
-        auth: true,
-        response: `{
-  "webhook_url": "https://seu-site.com/webhook",
-  "webhook_secret": "whsec_...",
-  "events": ["payment.completed", "payment.failed"]
-}`,
-      },
-      {
-        method: 'PUT',
-        path: '/v1/gateway/webhooks/config',
-        description: 'Atualizar URL do webhook',
-        auth: true,
-        body: [
-          {
-            name: 'webhook_url',
-            type: 'string',
-            required: true,
-            description: 'URL HTTPS para receber eventos',
-          },
-          {
-            name: 'events',
-            type: 'string[]',
-            required: false,
-            description: 'Eventos para receber',
-          },
-        ],
-      },
-      {
-        method: 'POST',
-        path: '/v1/gateway/webhooks/regenerate-secret',
-        description: 'Gerar novo secret',
-        auth: true,
-        response: `{
-  "webhook_secret": "whsec_novo_secret_aqui"
-}`,
-      },
-      {
-        method: 'GET',
-        path: '/v1/gateway/webhooks/events',
-        description: 'Histórico de eventos enviados',
-        auth: true,
-        params: [
-          { name: 'page', type: 'number', required: false, description: 'Página' },
-          { name: 'per_page', type: 'number', required: false, description: 'Items por página' },
-        ],
-      },
+    items: [
+      { id: 'webhooks-config', title: 'Configuração' },
+      { id: 'webhooks-eventos', title: 'Eventos e payload' },
+      { id: 'webhooks-assinatura', title: 'Verificar assinatura' },
+      { id: 'webhooks-retentativas', title: 'Entrega e retentativas' },
     ],
   },
   {
-    id: 'api-keys',
-    title: 'API Keys',
-    icon: Key,
-    description: 'Gerenciar chaves de acesso',
-    endpoints: [
-      {
-        method: 'GET',
-        path: '/v1/gateway/api-keys',
-        description: 'Listar chaves',
-        auth: true,
-      },
-      {
-        method: 'POST',
-        path: '/v1/gateway/api-keys',
-        description: 'Criar nova chave',
-        auth: true,
-        body: [
-          {
-            name: 'name',
-            type: 'string',
-            required: true,
-            description: 'Nome identificador da chave',
-          },
-          {
-            name: 'environment',
-            type: 'string',
-            required: true,
-            description: 'test ou production',
-          },
-          {
-            name: 'permissions',
-            type: 'string[]',
-            required: false,
-            description: 'Permissões da chave',
-          },
-        ],
-        response: `{
-  "id": "key_123",
-  "name": "Minha API Key",
-  "key": "sk_test_...",
-  "environment": "test"
-}`,
-      },
-      {
-        method: 'DELETE',
-        path: '/v1/gateway/api-keys/{id}',
-        description: 'Revogar chave',
-        auth: true,
-      },
-    ],
-  },
-  {
-    id: 'checkout',
-    title: 'Checkout',
-    icon: Globe,
-    description: 'Endpoints públicos do checkout',
-    endpoints: [
-      {
-        method: 'GET',
-        path: '/v1/gateway/checkout/{token}',
-        description: 'Obter dados do checkout (público)',
-        auth: false,
-        params: [
-          { name: 'token', type: 'string', required: true, description: 'Token do checkout' },
-        ],
-      },
-      {
-        method: 'POST',
-        path: '/v1/gateway/checkout/{token}/method',
-        description: 'Selecionar método de pagamento',
-        auth: false,
-        body: [{ name: 'method', type: 'string', required: true, description: 'pix ou crypto' }],
-      },
-      {
-        method: 'GET',
-        path: '/v1/gateway/checkout/{token}/status',
-        description: 'Verificar status do pagamento',
-        auth: false,
-      },
+    title: 'Referência',
+    items: [
+      { id: 'erros', title: 'Erros' },
+      { id: 'endpoints', title: 'Todos os endpoints' },
+      { id: 'checklist', title: 'Checklist de produção' },
+      { id: 'suporte', title: 'Suporte' },
     ],
   },
 ]
 
-// Eventos de webhook disponíveis
-const webhookEvents = [
-  { event: 'payment.created', description: 'Pagamento criado' },
-  { event: 'payment.pending', description: 'Aguardando pagamento' },
-  { event: 'payment.processing', description: 'Processando pagamento' },
-  { event: 'payment.completed', description: 'Pagamento confirmado' },
-  { event: 'payment.failed', description: 'Pagamento falhou' },
-  { event: 'payment.cancelled', description: 'Pagamento cancelado' },
-  { event: 'payment.expired', description: 'Pagamento expirou' },
-  { event: 'payment.refunded', description: 'Pagamento reembolsado' },
-]
+const ALL_IDS = TOC.flatMap(g => g.items.map(i => i.id))
 
-// Códigos de exemplo
-const codeExamples = {
-  curl: `curl -X POST "https://api.wolknow.com/v1/gateway/payments" \\
-  -H "Authorization: Bearer sk_live_sua_api_key" \\
+// ============================================================
+// Exemplos de código
+// ============================================================
+
+type Lang = 'curl' | 'node' | 'python' | 'php'
+const LANG_LABEL: Record<Lang, string> = {
+  curl: 'cURL',
+  node: 'Node.js',
+  python: 'Python',
+  php: 'PHP',
+}
+
+const CREATE_PAYMENT: Record<Lang, string> = {
+  curl: `curl -X POST "${API_BASE}/payments" \\
+  -H "Authorization: Bearer wkgw_live_SUA_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
+    "payment_method": "pix",
     "amount": 150.00,
     "currency": "BRL",
+    "external_id": "pedido-12345",
+    "description": "Pedido #12345",
     "customer_email": "cliente@email.com",
-    "description": "Pedido #12345"
+    "customer_name": "Maria Silva",
+    "expiration_minutes": 30,
+    "success_url": "https://sualoja.com/obrigado",
+    "cancel_url": "https://sualoja.com/carrinho"
   }'`,
+  node: `// Node.js 18+ (fetch nativo)
+const response = await fetch('${API_BASE}/payments', {
+  method: 'POST',
+  headers: {
+    Authorization: \`Bearer \${process.env.WOLKPAY_API_KEY}\`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    payment_method: 'pix',
+    amount: 150.0,
+    currency: 'BRL',
+    external_id: 'pedido-12345',
+    description: 'Pedido #12345',
+    customer_email: 'cliente@email.com',
+    expiration_minutes: 30,
+  }),
+})
 
-  python: `import wolkpay
+if (!response.ok) {
+  throw new Error(\`WolkPay \${response.status}: \${await response.text()}\`)
+}
 
-client = wolkpay.Client(api_key="sk_live_sua_api_key")
+const payment = await response.json()
+console.log(payment.payment_id, payment.pix_qrcode, payment.checkout_url)`,
+  python: `import os
+import requests
 
-payment = client.payments.create(
-    amount=150.00,
-    currency="BRL",
-    customer_email="cliente@email.com",
-    description="Pedido #12345"
+response = requests.post(
+    "${API_BASE}/payments",
+    headers={"Authorization": f"Bearer {os.environ['WOLKPAY_API_KEY']}"},
+    json={
+        "payment_method": "pix",
+        "amount": 150.00,
+        "currency": "BRL",
+        "external_id": "pedido-12345",
+        "description": "Pedido #12345",
+        "customer_email": "cliente@email.com",
+        "expiration_minutes": 30,
+    },
+    timeout=60,
 )
+response.raise_for_status()
 
-print(f"Checkout URL: {payment.checkout_url}")`,
-
-  node: `const WolkPay = require('@wolkpay/sdk');
-
-const client = new WolkPay('sk_live_sua_api_key');
-
-const payment = await client.payments.create({
-  amount: 150.00,
-  currency: 'BRL',
-  customerEmail: 'cliente@email.com',
-  description: 'Pedido #12345'
-});
-
-console.log('Checkout URL:', payment.checkoutUrl);`,
-
+payment = response.json()
+print(payment["payment_id"], payment["pix_qrcode"], payment["checkout_url"])`,
   php: `<?php
-require 'vendor/autoload.php';
-
-$wolkpay = new \\WolkPay\\Client('sk_live_sua_api_key');
-
-$payment = $wolkpay->payments->create([
-    'amount' => 150.00,
-    'currency' => 'BRL',
-    'customer_email' => 'cliente@email.com',
-    'description' => 'Pedido #12345'
+$ch = curl_init('${API_BASE}/payments');
+curl_setopt_array($ch, [
+    CURLOPT_POST           => true,
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_TIMEOUT        => 60,
+    CURLOPT_HTTPHEADER     => [
+        'Authorization: Bearer ' . getenv('WOLKPAY_API_KEY'),
+        'Content-Type: application/json',
+    ],
+    CURLOPT_POSTFIELDS     => json_encode([
+        'payment_method'     => 'pix',
+        'amount'             => 150.00,
+        'currency'           => 'BRL',
+        'external_id'        => 'pedido-12345',
+        'description'        => 'Pedido #12345',
+        'customer_email'     => 'cliente@email.com',
+        'expiration_minutes' => 30,
+    ]),
 ]);
 
-echo "Checkout URL: " . $payment->checkout_url;`,
+$body   = curl_exec($ch);
+$status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+curl_close($ch);
 
-  webhook: `import hmac
-import hashlib
+if ($status !== 201) {
+    throw new Exception("WolkPay $status: $body");
+}
 
-def verify_webhook(payload: bytes, signature: str, secret: str) -> bool:
-    """Verifica assinatura do webhook"""
-    expected = hmac.new(
-        secret.encode(),
-        payload,
-        hashlib.sha256
-    ).hexdigest()
-    
-    return hmac.compare_digest(f"sha256={expected}", signature)
+$payment = json_decode($body, true);
+echo $payment['checkout_url'];`,
+}
 
-# No seu endpoint de webhook:
-@app.post("/webhook")
-async def handle_webhook(request: Request):
-    payload = await request.body()
-    signature = request.headers.get("X-Webhook-Signature")
-    
-    if not verify_webhook(payload, signature, WEBHOOK_SECRET):
-        raise HTTPException(401, "Invalid signature")
-    
-    event = json.loads(payload)
-    
-    if event["type"] == "payment.completed":
-        payment_id = event["data"]["id"]
-        # Processar pagamento confirmado
-    
+const PAYMENT_OBJECT_JSON = `{
+  "id": "8b0f4c1e-2a7d-4d8e-9f51-3c6b2e9a1d47",
+  "payment_id": "WKPAY-20261106-ABD0E4",
+  "external_id": "pedido-12345",
+  "merchant_id": "c2d9e7a4-5b3f-4e21-8a6c-7f0d1b2e3a45",
+  "payment_method": "PIX",
+  "amount_requested": "150.00",
+  "currency_requested": "BRL",
+  "amount_received": null,
+  "fee_percent": "3.50",
+  "fee_amount": "5.25",
+  "settlement_amount": "144.75",
+  "status": "PENDING",
+  "expires_at": "2026-11-06T21:26:00Z",
+  "pix_qrcode": "00020101021226870014br.gov.bcb.pix...6304A1B2",
+  "pix_qrcode_image": "iVBORw0KGgoAAAANSUhEUgAA...",
+  "crypto_currency": null,
+  "crypto_network": null,
+  "crypto_address": null,
+  "crypto_amount": null,
+  "crypto_tx_hash": null,
+  "crypto_confirmations": null,
+  "checkout_url": "${CHECKOUT_BASE}/AikrbSd9Xq...",
+  "success_url": "https://sualoja.com/obrigado",
+  "cancel_url": "https://sualoja.com/carrinho",
+  "description": "Pedido #12345",
+  "created_at": "2026-11-06T20:56:00Z",
+  "confirmed_at": null,
+  "completed_at": null
+}`
+
+const LIST_RESPONSE_JSON = `{
+  "items": [
+    {
+      "id": "8b0f4c1e-...",
+      "payment_id": "WKPAY-20261106-ABD0E4",
+      "external_id": "pedido-12345",
+      "payment_method": "PIX",
+      "status": "COMPLETED",
+      "amount_requested": "150.00",
+      "currency_requested": "BRL",
+      "fee_amount": "5.25",
+      "net_amount": "144.75",
+      "customer_email": "cliente@email.com",
+      "created_at": "2026-11-06T20:56:00Z",
+      "paid_at": "2026-11-06T20:58:12Z"
+    }
+  ],
+  "total": 42,
+  "page": 1,
+  "per_page": 20,
+  "pages": 3,
+  "has_next": true,
+  "has_prev": false
+}`
+
+const WEBHOOK_PAYLOAD_JSON = `POST https://sualoja.com/webhooks/wolkpay
+Content-Type: application/json
+User-Agent: WolkPay-Gateway/1.0
+X-WolkPay-Event: payment.completed
+X-WolkPay-Delivery: 5e1c9a2b-7d4f-4a3e-b8c1-0f2e6d9a4b17
+X-WolkPay-Signature: 3f9a1c...e07b   (HMAC-SHA256 em hex)
+
+{
+  "event": "payment.completed",
+  "created_at": "2026-11-06T20:58:15.120394+00:00",
+  "webhook_id": "5e1c9a2b-7d4f-4a3e-b8c1-0f2e6d9a4b17",
+  "data": {
+    "payment_id": "WKPAY-20261106-ABD0E4",
+    "external_id": "pedido-12345",
+    "merchant_code": "WKGW-1B8107",
+    "payment_method": "PIX",
+    "status": "COMPLETED",
+    "amount_requested": "150.00",
+    "currency": "BRL",
+    "amount_received": "150.00",
+    "fee_amount": "5.25",
+    "settlement_amount": "144.75",
+    "settlement_currency": "BRL",
+    "customer_email": "cliente@email.com",
+    "customer_name": "Maria Silva",
+    "description": "Pedido #12345",
+    "created_at": "2026-11-06T20:56:00+00:00",
+    "confirmed_at": "2026-11-06T20:58:12+00:00",
+    "completed_at": "2026-11-06T20:58:15+00:00",
+    "pix_txid": "WKGWWKPAY20261106ABD0E4000",
+    "crypto_currency": null,
+    "crypto_network": null,
+    "crypto_address": null,
+    "crypto_tx_hash": null,
+    "crypto_amount": null,
+    "crypto_confirmations": null
+  }
+}`
+
+const VERIFY_SIGNATURE: Record<Exclude<Lang, 'curl'>, string> = {
+  node: `import crypto from 'node:crypto'
+import express from 'express'
+
+const app = express()
+
+// IMPORTANTE: use o corpo BRUTO (bytes exatos recebidos) para validar o HMAC.
+app.post('/webhooks/wolkpay', express.raw({ type: 'application/json' }), (req, res) => {
+  const signature = req.header('X-WolkPay-Signature') ?? ''
+  const expected = crypto
+    .createHmac('sha256', process.env.WOLKPAY_WEBHOOK_SECRET)
+    .update(req.body) // Buffer com o corpo bruto
+    .digest('hex')
+
+  const valid =
+    signature.length === expected.length &&
+    crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))
+  if (!valid) return res.status(401).send('invalid signature')
+
+  const event = JSON.parse(req.body.toString('utf8'))
+  const deliveryId = req.header('X-WolkPay-Delivery') // use para idempotência
+
+  if (event.event === 'payment.completed') {
+    // marque o pedido event.data.external_id como pago
+  }
+
+  res.sendStatus(200) // responda 2xx rápido; processe pesado em background
+})`,
+  python: `import hashlib
+import hmac
+import json
+import os
+
+from fastapi import FastAPI, HTTPException, Request
+
+app = FastAPI()
+WEBHOOK_SECRET = os.environ["WOLKPAY_WEBHOOK_SECRET"]
+
+
+@app.post("/webhooks/wolkpay")
+async def wolkpay_webhook(request: Request):
+    raw_body = await request.body()  # bytes exatos recebidos
+    signature = request.headers.get("X-WolkPay-Signature", "")
+
+    expected = hmac.new(WEBHOOK_SECRET.encode(), raw_body, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected, signature):
+        raise HTTPException(status_code=401, detail="invalid signature")
+
+    event = json.loads(raw_body)
+    delivery_id = request.headers.get("X-WolkPay-Delivery")  # idempotência
+
+    if event["event"] == "payment.completed":
+        order_id = event["data"]["external_id"]
+        # marque o pedido como pago
+
     return {"received": True}`,
+  php: `<?php
+$rawBody   = file_get_contents('php://input');           // corpo bruto
+$signature = $_SERVER['HTTP_X_WOLKPAY_SIGNATURE'] ?? '';
+$expected  = hash_hmac('sha256', $rawBody, getenv('WOLKPAY_WEBHOOK_SECRET'));
+
+if (!hash_equals($expected, $signature)) {
+    http_response_code(401);
+    exit('invalid signature');
+}
+
+$event      = json_decode($rawBody, true);
+$deliveryId = $_SERVER['HTTP_X_WOLKPAY_DELIVERY'] ?? null; // idempotência
+
+if ($event['event'] === 'payment.completed') {
+    $orderId = $event['data']['external_id'];
+    // marque o pedido como pago
+}
+
+http_response_code(200);
+echo json_encode(['received' => true]);`,
+}
+
+// ============================================================
+// Componentes de apresentação
+// ============================================================
+
+function CopyButton({ text, label = 'Copiar' }: { text: string; label?: string }) {
+  const [copied, setCopied] = useState(false)
+  return (
+    <button
+      type='button'
+      onClick={() => {
+        navigator.clipboard?.writeText(text).catch(() => undefined)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 1800)
+      }}
+      className='inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-slate-400 transition-colors hover:bg-white/10 hover:text-white'
+      aria-label={label}
+    >
+      {copied ? <Check className='h-3.5 w-3.5 text-emerald-400' /> : <Copy className='h-3.5 w-3.5' />}
+      {copied ? 'Copiado' : label}
+    </button>
+  )
+}
+
+function CodeBlock({ code, title }: { code: string; title?: string }) {
+  return (
+    <div className='overflow-hidden rounded-xl border border-slate-800 bg-slate-950'>
+      <div className='flex items-center justify-between border-b border-slate-800 px-4 py-2'>
+        <span className='font-mono text-xs text-slate-400'>{title ?? ''}</span>
+        <CopyButton text={code} />
+      </div>
+      <pre className='overflow-x-auto p-4 text-[13px] leading-relaxed text-slate-100'>
+        <code>{code}</code>
+      </pre>
+    </div>
+  )
+}
+
+function CodeTabs<L extends string>({
+  examples,
+  labels,
+}: {
+  examples: Record<L, string>
+  labels: Record<L, string>
+}) {
+  const langs = Object.keys(examples) as L[]
+  const [active, setActive] = useState<L>(langs[0] as L)
+  return (
+    <div className='overflow-hidden rounded-xl border border-slate-800 bg-slate-950'>
+      <div className='flex items-center justify-between gap-2 border-b border-slate-800 px-2'>
+        <div className='flex overflow-x-auto' role='tablist'>
+          {langs.map(lang => (
+            <button
+              key={lang}
+              type='button'
+              role='tab'
+              aria-selected={active === lang}
+              onClick={() => setActive(lang)}
+              className={`whitespace-nowrap border-b-2 px-3 py-2.5 text-xs font-medium transition-colors ${
+                active === lang
+                  ? 'border-indigo-400 text-white'
+                  : 'border-transparent text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              {labels[lang]}
+            </button>
+          ))}
+        </div>
+        <CopyButton text={examples[active]} />
+      </div>
+      <pre className='overflow-x-auto p-4 text-[13px] leading-relaxed text-slate-100'>
+        <code>{examples[active]}</code>
+      </pre>
+    </div>
+  )
+}
+
+const METHOD_STYLE: Record<string, string> = {
+  GET: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400',
+  POST: 'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-400',
+  PUT: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400',
+  DELETE: 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400',
+}
+
+function EndpointBadge({
+  method,
+  path,
+  auth = 'api_key',
+}: {
+  method: string
+  path: string
+  auth?: 'api_key' | 'painel' | 'publico'
+}) {
+  const authLabel = {
+    api_key: 'API key',
+    painel: 'Sessão do painel',
+    publico: 'Público',
+  }[auth]
+  return (
+    <div className='flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 dark:border-slate-700 dark:bg-slate-800/60'>
+      <span className={`rounded-md px-2 py-0.5 font-mono text-xs font-bold ${METHOD_STYLE[method]}`}>
+        {method}
+      </span>
+      <code className='break-all font-mono text-sm text-slate-800 dark:text-slate-200'>
+        /v1/gateway{path}
+      </code>
+      <span className='ml-auto inline-flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400'>
+        <Lock className='h-3 w-3' />
+        {authLabel}
+      </span>
+    </div>
+  )
+}
+
+interface Field {
+  name: string
+  type: string
+  required?: boolean
+  description: ReactNode
+}
+
+function FieldTable({ fields, title }: { fields: Field[]; title?: string }) {
+  return (
+    <div>
+      {title && (
+        <h4 className='mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400'>
+          {title}
+        </h4>
+      )}
+      <div className='divide-y divide-slate-200 overflow-hidden rounded-xl border border-slate-200 bg-white dark:divide-slate-700 dark:border-slate-700 dark:bg-slate-800/40'>
+        {fields.map(f => (
+          <div key={f.name} className='grid gap-1 px-4 py-3 sm:grid-cols-[minmax(0,220px)_1fr] sm:gap-4'>
+            <div className='flex flex-wrap items-baseline gap-x-2'>
+              <code className='font-mono text-sm font-semibold text-slate-900 dark:text-white'>{f.name}</code>
+              <span className='font-mono text-xs text-slate-500 dark:text-slate-400'>{f.type}</span>
+              {f.required && (
+                <span className='text-[11px] font-semibold uppercase text-rose-600 dark:text-rose-400'>
+                  obrigatório
+                </span>
+              )}
+            </div>
+            <div className='text-sm text-slate-600 dark:text-slate-300'>{f.description}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function Callout({
+  tone = 'info',
+  title,
+  children,
+}: {
+  tone?: 'info' | 'warning'
+  title?: string
+  children: ReactNode
+}) {
+  const styles =
+    tone === 'warning'
+      ? 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200'
+      : 'border-indigo-200 bg-indigo-50 text-indigo-900 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-200'
+  const Icon = tone === 'warning' ? AlertTriangle : Info
+  return (
+    <div className={`flex gap-3 rounded-xl border p-4 text-sm ${styles}`}>
+      <Icon className='mt-0.5 h-4 w-4 shrink-0' />
+      <div className='space-y-1'>
+        {title && <p className='font-semibold'>{title}</p>}
+        <div className='leading-relaxed'>{children}</div>
+      </div>
+    </div>
+  )
+}
+
+function Section({ id, title, children }: { id: string; title: string; children: ReactNode }) {
+  return (
+    <section id={id} className='scroll-mt-24 border-b border-slate-200 py-10 first:pt-0 last:border-0 dark:border-slate-800'>
+      <h2 className='group mb-4 text-2xl font-bold tracking-tight text-slate-900 dark:text-white'>
+        <a href={`#${id}`} className='hover:underline decoration-slate-300 underline-offset-4'>
+          {title}
+        </a>
+      </h2>
+      <div className='space-y-5 text-[15px] leading-relaxed text-slate-600 dark:text-slate-300'>{children}</div>
+    </section>
+  )
+}
+
+const C = ({ children }: { children: ReactNode }) => (
+  <code className='rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[0.85em] text-slate-800 dark:bg-slate-800 dark:text-slate-200'>
+    {children}
+  </code>
+)
+
+// ============================================================
+// Página
+// ============================================================
+
+function formatBRL(value?: string) {
+  if (value === undefined || value === null || value === '') return '—'
+  const n = Number(value)
+  return Number.isFinite(n) ? n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'
+}
+
+function formatPercent(value?: string) {
+  if (value === undefined || value === null || value === '') return '—'
+  const n = Number(value)
+  return Number.isFinite(n) ? `${n.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%` : '—'
 }
 
 export default function GatewayDocsPage() {
-  const [activeSection, setActiveSection] = useState('payments')
-  const [activeLanguage, setActiveLanguage] = useState<'curl' | 'python' | 'node' | 'php'>('curl')
-  const [expandedEndpoints, setExpandedEndpoints] = useState<string[]>([])
-  const [copied, setCopied] = useState<string | null>(null)
+  const [activeId, setActiveId] = useState<string>(ALL_IDS[0] ?? '')
+  const [mobileTocOpen, setMobileTocOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const [fees, setFees] = useState<GatewayFees | null>(null)
+  const [feesError, setFeesError] = useState(false)
 
-  const toggleEndpoint = (id: string) => {
-    setExpandedEndpoints(prev => (prev.includes(id) ? prev.filter(e => e !== id) : [...prev, id]))
-  }
+  // Taxas/limites ao vivo (nada hardcoded)
+  useEffect(() => {
+    apiClient
+      .get<GatewayFees>('/gateway/fees')
+      .then(res => setFees(res.data))
+      .catch(() => setFeesError(true))
+  }, [])
 
-  const copyCode = (code: string, id: string) => {
-    navigator.clipboard.writeText(code)
-    setCopied(id)
-    setTimeout(() => setCopied(null), 2000)
-  }
+  // Scroll-spy do sumário
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      entries => {
+        const visible = entries
+          .filter(e => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)
+        if (visible[0]) setActiveId(visible[0].target.id)
+      },
+      { rootMargin: '-96px 0px -65% 0px', threshold: 0 }
+    )
+    ALL_IDS.forEach(id => {
+      const el = document.getElementById(id)
+      if (el) observer.observe(el)
+    })
+    return () => observer.disconnect()
+  }, [])
 
-  const getMethodColor = (method: string) => {
-    switch (method) {
-      case 'GET':
-        return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-      case 'POST':
-        return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-      case 'PUT':
-        return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-      case 'DELETE':
-        return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-      default:
-        return 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
-    }
-  }
+  useEffect(() => {
+    document.title = 'Documentação da API · WolkPay Gateway'
+  }, [])
+
+  const filteredToc = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return TOC
+    return TOC.map(g => ({
+      ...g,
+      items: g.items.filter(i => i.title.toLowerCase().includes(q) || g.title.toLowerCase().includes(q)),
+    })).filter(g => g.items.length > 0)
+  }, [query])
+
+  const activeTitle = TOC.flatMap(g => g.items).find(i => i.id === activeId)?.title ?? 'Sumário'
+
+  const tocNav = (
+    <nav aria-label='Sumário da documentação' className='space-y-6'>
+      <div className='relative'>
+        <Search className='pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400' />
+        <input
+          type='search'
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder='Buscar no sumário'
+          aria-label='Buscar no sumário'
+          className='w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white'
+        />
+      </div>
+      {filteredToc.map(group => (
+        <div key={group.title}>
+          <p className='mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500'>
+            {group.title}
+          </p>
+          <ul className='space-y-0.5'>
+            {group.items.map(item => (
+              <li key={item.id}>
+                <a
+                  href={`#${item.id}`}
+                  onClick={() => setMobileTocOpen(false)}
+                  aria-current={activeId === item.id ? 'location' : undefined}
+                  className={`block rounded-lg border-l-2 px-3 py-1.5 text-sm transition-colors ${
+                    activeId === item.id
+                      ? 'border-indigo-500 bg-indigo-50 font-medium text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300'
+                      : 'border-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white'
+                  }`}
+                >
+                  {item.title}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+      {filteredToc.length === 0 && (
+        <p className='px-3 text-sm text-slate-500'>Nenhuma seção encontrada.</p>
+      )}
+    </nav>
+  )
 
   return (
     <div className='min-h-screen bg-slate-50 dark:bg-slate-900'>
       {/* Header */}
-      <header className='bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-50'>
-        <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
-          <div className='flex items-center justify-between h-16'>
-            <div className='flex items-center gap-3'>
-              <Link to='/' className='flex items-center gap-2'>
-                <div className='w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center'>
-                  <Zap className='w-5 h-5 text-white' />
-                </div>
-                <span className='text-lg font-bold text-slate-900 dark:text-white'>WolkPay</span>
-              </Link>
-              <span className='text-slate-300 dark:text-slate-600'>|</span>
-              <Link
-                to='/docs'
-                className='text-slate-600 dark:text-slate-400 font-medium hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors'
-              >
-                Documentação
-              </Link>
-            </div>
-
-            <nav className='flex items-center gap-4'>
-              <Link
-                to='/dashboard'
-                className='text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              >
-                Dashboard
-              </Link>
-              <a
-                href='https://github.com/wolkpay'
-                target='_blank'
-                rel='noopener noreferrer'
-                className='text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white flex items-center gap-1'
-              >
-                GitHub <ExternalLink className='w-3 h-3' />
-              </a>
-            </nav>
+      <header className='sticky top-0 z-40 border-b border-slate-200 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-900/90'>
+        <div className='mx-auto flex h-16 max-w-[1400px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8'>
+          <div className='flex min-w-0 items-center gap-3'>
+            <Link to='/' className='flex items-center gap-2'>
+              <span className='flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600'>
+                <Zap className='h-5 w-5 text-white' />
+              </span>
+              <span className='text-lg font-bold text-slate-900 dark:text-white'>WolkPay</span>
+            </Link>
+            <span className='text-slate-300 dark:text-slate-700'>/</span>
+            <span className='flex items-center gap-1.5 truncate text-sm font-medium text-slate-600 dark:text-slate-300'>
+              <BookOpen className='h-4 w-4' />
+              Documentação da API
+            </span>
           </div>
+          <nav className='flex items-center gap-2 sm:gap-3'>
+            <a
+              href={`mailto:${SUPPORT_EMAIL}`}
+              className='hidden text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white sm:inline'
+            >
+              Suporte
+            </a>
+            <Link
+              to='/dashboard'
+              className='rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-indigo-700'
+            >
+              Ir para o painel
+            </Link>
+          </nav>
+        </div>
+
+        {/* Sumário mobile */}
+        <div className='border-t border-slate-200 dark:border-slate-800 lg:hidden'>
+          <button
+            type='button'
+            onClick={() => setMobileTocOpen(o => !o)}
+            aria-expanded={mobileTocOpen}
+            className='flex w-full items-center justify-between px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-200'
+          >
+            <span className='flex items-center gap-2'>
+              {mobileTocOpen ? <X className='h-4 w-4' /> : <Menu className='h-4 w-4' />}
+              {activeTitle}
+            </span>
+            <ChevronDown className={`h-4 w-4 transition-transform ${mobileTocOpen ? 'rotate-180' : ''}`} />
+          </button>
+          {mobileTocOpen && (
+            <div className='max-h-[70vh] overflow-y-auto border-t border-slate-200 bg-white px-4 py-4 dark:border-slate-800 dark:bg-slate-900'>
+              {tocNav}
+            </div>
+          )}
         </div>
       </header>
 
-      <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'>
-        {/* Hero */}
-        <div className='text-center mb-12'>
-          <h1 className='text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white mb-4'>
-            Documentação da API
-          </h1>
-          <p className='text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto'>
-            Tudo que você precisa para integrar pagamentos PIX e Crypto em sua aplicação. SDKs
-            oficiais, exemplos de código e referência completa.
-          </p>
-        </div>
+      <div className='mx-auto flex max-w-[1400px] gap-10 px-4 sm:px-6 lg:px-8'>
+        {/* Sumário desktop */}
+        <aside className='hidden w-64 shrink-0 lg:block'>
+          <div className='sticky top-16 max-h-[calc(100vh-4rem)] overflow-y-auto py-8 pr-2'>{tocNav}</div>
+        </aside>
 
-        {/* Quick Links */}
-        <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-12'>
-          <a
-            href='#getting-started'
-            className='p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors group'
-          >
-            <Zap className='w-6 h-6 text-indigo-500 mb-2' />
-            <h3 className='font-semibold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400'>
-              Início Rápido
-            </h3>
-            <p className='text-sm text-slate-500 dark:text-slate-400'>Comece em 5 minutos</p>
-          </a>
-
-          <a
-            href='#api-reference'
-            className='p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors group'
-          >
-            <Book className='w-6 h-6 text-emerald-500 mb-2' />
-            <h3 className='font-semibold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400'>
-              Referência API
-            </h3>
-            <p className='text-sm text-slate-500 dark:text-slate-400'>Endpoints completos</p>
-          </a>
-
-          <a
-            href='#webhooks'
-            className='p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors group'
-          >
-            <Webhook className='w-6 h-6 text-purple-500 mb-2' />
-            <h3 className='font-semibold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400'>
-              Webhooks
-            </h3>
-            <p className='text-sm text-slate-500 dark:text-slate-400'>Notificações em tempo real</p>
-          </a>
-
-          <a
-            href='#sdks'
-            className='p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors group'
-          >
-            <Code className='w-6 h-6 text-amber-500 mb-2' />
-            <h3 className='font-semibold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400'>
-              SDKs
-            </h3>
-            <p className='text-sm text-slate-500 dark:text-slate-400'>Python, Node.js, PHP</p>
-          </a>
-        </div>
-
-        {/* Getting Started */}
-        <section id='getting-started' className='mb-16'>
-          <h2 className='text-2xl font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2'>
-            <Zap className='w-6 h-6 text-indigo-500' />
-            Início Rápido
-          </h2>
-
-          <div className='bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden'>
-            {/* Steps */}
-            <div className='p-6 border-b border-slate-200 dark:border-slate-700'>
-              <div className='flex items-start gap-4'>
-                <div className='w-8 h-8 bg-indigo-100 dark:bg-indigo-900/30 rounded-full flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-sm shrink-0'>
-                  1
-                </div>
-                <div>
-                  <h3 className='font-semibold text-slate-900 dark:text-white mb-1'>
-                    Obtenha sua API Key
-                  </h3>
-                  <p className='text-sm text-slate-600 dark:text-slate-400 mb-3'>
-                    Acesse o{' '}
-                    <Link
-                      to='/api-keys'
-                      className='text-indigo-600 dark:text-indigo-400 hover:underline'
-                    >
-                      Dashboard → API Keys
-                    </Link>{' '}
-                    para criar sua chave de produção ou teste.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className='p-6 border-b border-slate-200 dark:border-slate-700'>
-              <div className='flex items-start gap-4'>
-                <div className='w-8 h-8 bg-indigo-100 dark:bg-indigo-900/30 rounded-full flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-sm shrink-0'>
-                  2
-                </div>
-                <div className='flex-1'>
-                  <h3 className='font-semibold text-slate-900 dark:text-white mb-1'>
-                    Faça sua primeira requisição
-                  </h3>
-                  <p className='text-sm text-slate-600 dark:text-slate-400 mb-3'>
-                    Use o exemplo abaixo para criar um pagamento:
-                  </p>
-
-                  {/* Language Tabs */}
-                  <div className='flex gap-1 mb-3'>
-                    {(['curl', 'python', 'node', 'php'] as const).map(lang => (
-                      <button
-                        key={lang}
-                        onClick={() => setActiveLanguage(lang)}
-                        className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                          activeLanguage === lang
-                            ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400'
-                            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
-                        }`}
-                      >
-                        {lang === 'curl'
-                          ? 'cURL'
-                          : lang === 'node'
-                            ? 'Node.js'
-                            : lang.charAt(0).toUpperCase() + lang.slice(1)}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Code Block */}
-                  <div className='relative'>
-                    <pre className='bg-slate-900 dark:bg-slate-950 text-slate-100 p-4 rounded-xl text-sm overflow-x-auto'>
-                      <code>{codeExamples[activeLanguage]}</code>
-                    </pre>
-                    <button
-                      onClick={() => copyCode(codeExamples[activeLanguage], 'example')}
-                      className='absolute top-3 right-3 p-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors'
-                      title='Copiar código'
-                    >
-                      {copied === 'example' ? (
-                        <Check className='w-4 h-4 text-emerald-400' />
-                      ) : (
-                        <Copy className='w-4 h-4 text-slate-400' />
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className='p-6'>
-              <div className='flex items-start gap-4'>
-                <div className='w-8 h-8 bg-indigo-100 dark:bg-indigo-900/30 rounded-full flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-sm shrink-0'>
-                  3
-                </div>
-                <div>
-                  <h3 className='font-semibold text-slate-900 dark:text-white mb-1'>
-                    Configure Webhooks
-                  </h3>
-                  <p className='text-sm text-slate-600 dark:text-slate-400'>
-                    Configure um endpoint para receber notificações de pagamentos confirmados. Veja
-                    a seção{' '}
-                    <a
-                      href='#webhooks'
-                      className='text-indigo-600 dark:text-indigo-400 hover:underline'
-                    >
-                      Webhooks
-                    </a>{' '}
-                    abaixo.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* API Reference */}
-        <section id='api-reference' className='mb-16'>
-          <h2 className='text-2xl font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2'>
-            <Book className='w-6 h-6 text-emerald-500' />
-            Referência da API
-          </h2>
-
-          <div className='flex gap-6'>
-            {/* Sidebar */}
-            <nav className='hidden lg:block w-48 shrink-0'>
-              <div className='sticky top-24 space-y-1'>
-                {apiSections.map(section => (
-                  <button
-                    key={section.id}
-                    onClick={() => setActiveSection(section.id)}
-                    className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                      activeSection === section.id
-                        ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400'
-                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50'
-                    }`}
-                  >
-                    <section.icon className='w-4 h-4' />
-                    {section.title}
-                  </button>
-                ))}
-              </div>
-            </nav>
-
-            {/* Content */}
-            <div className='flex-1 space-y-4'>
-              {/* Mobile Section Selector */}
-              <div className='lg:hidden'>
-                <select
-                  value={activeSection}
-                  onChange={e => setActiveSection(e.target.value)}
-                  aria-label='Selecionar seção da API'
-                  className='w-full px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white'
+        {/* Conteúdo */}
+        <main className='min-w-0 max-w-4xl flex-1 py-8 lg:py-10'>
+          {/* ===================== PRIMEIROS PASSOS ===================== */}
+          <Section id='visao-geral' title='Visão geral'>
+            <p>
+              O <strong>WolkPay Gateway</strong> permite receber pagamentos via <strong>Pix</strong> e{' '}
+              <strong>criptomoedas</strong> com uma API REST simples. Você cria um pagamento, mostra o QR Code
+              Pix (ou envia o cliente para o checkout hospedado) e recebe a confirmação por webhook.
+            </p>
+            <ol className='grid gap-3 sm:grid-cols-4'>
+              {[
+                ['1', 'Criar', 'Seu servidor chama POST /payments'],
+                ['2', 'Exibir', 'Mostre o Pix copia e cola ou redirecione ao checkout_url'],
+                ['3', 'Pagar', 'O cliente paga no app do banco ou na carteira'],
+                ['4', 'Confirmar', 'Você recebe o webhook payment.completed'],
+              ].map(([n, t, d]) => (
+                <li
+                  key={n}
+                  className='rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800/40'
                 >
-                  {apiSections.map(section => (
-                    <option key={section.id} value={section.id}>
-                      {section.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                  <span className='mb-2 flex h-7 w-7 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300'>
+                    {n}
+                  </span>
+                  <p className='font-semibold text-slate-900 dark:text-white'>{t}</p>
+                  <p className='text-sm text-slate-500 dark:text-slate-400'>{d}</p>
+                </li>
+              ))}
+            </ol>
+            <p>
+              Todas as requisições e respostas usam <C>JSON</C> em UTF-8. Valores monetários são retornados como{' '}
+              <strong>string decimal</strong> (ex.: <C>"150.00"</C>) para evitar erros de arredondamento. Datas
+              seguem ISO 8601 em UTC.
+            </p>
+          </Section>
 
-              {/* Endpoints */}
-              {apiSections
-                .filter(s => s.id === activeSection)
-                .map(section => (
-                  <div key={section.id} className='space-y-4'>
-                    <div className='bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6'>
-                      <div className='flex items-center gap-3 mb-2'>
-                        <section.icon className='w-6 h-6 text-indigo-500' />
-                        <h3 className='text-xl font-bold text-slate-900 dark:text-white'>
-                          {section.title}
-                        </h3>
-                      </div>
-                      <p className='text-slate-600 dark:text-slate-400'>{section.description}</p>
-                    </div>
-
-                    {section.endpoints.map((endpoint, idx) => {
-                      const endpointId = `${section.id}-${idx}`
-                      const isExpanded = expandedEndpoints.includes(endpointId)
-
-                      return (
-                        <div
-                          key={endpointId}
-                          className='bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden'
-                        >
-                          <button
-                            onClick={() => toggleEndpoint(endpointId)}
-                            className='w-full flex items-center gap-3 p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors'
-                          >
-                            <span
-                              className={`px-2 py-1 text-xs font-bold rounded ${getMethodColor(
-                                endpoint.method
-                              )}`}
-                            >
-                              {endpoint.method}
-                            </span>
-                            <code className='text-sm text-slate-700 dark:text-slate-300 font-mono'>
-                              {endpoint.path}
-                            </code>
-                            {endpoint.auth && (
-                              <span title='Requer autenticação'>
-                                <Shield className='w-4 h-4 text-amber-500' />
-                              </span>
-                            )}
-                            <span className='flex-1 text-left text-sm text-slate-500 dark:text-slate-400 truncate'>
-                              {endpoint.description}
-                            </span>
-                            {isExpanded ? (
-                              <ChevronDown className='w-4 h-4 text-slate-400' />
-                            ) : (
-                              <ChevronRight className='w-4 h-4 text-slate-400' />
-                            )}
-                          </button>
-
-                          {isExpanded && (
-                            <div className='border-t border-slate-200 dark:border-slate-700 p-4 space-y-4'>
-                              {endpoint.params && endpoint.params.length > 0 && (
-                                <div>
-                                  <h4 className='text-sm font-semibold text-slate-900 dark:text-white mb-2'>
-                                    Parâmetros
-                                  </h4>
-                                  <div className='space-y-2'>
-                                    {endpoint.params.map(param => (
-                                      <div
-                                        key={param.name}
-                                        className='flex items-start gap-3 text-sm'
-                                      >
-                                        <code className='px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded text-slate-700 dark:text-slate-300'>
-                                          {param.name}
-                                        </code>
-                                        <span className='text-slate-500 dark:text-slate-400'>
-                                          {param.type}
-                                        </span>
-                                        {param.required && (
-                                          <span className='text-xs text-red-500'>obrigatório</span>
-                                        )}
-                                        <span className='text-slate-600 dark:text-slate-400'>
-                                          {param.description}
-                                        </span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-
-                              {endpoint.body && endpoint.body.length > 0 && (
-                                <div>
-                                  <h4 className='text-sm font-semibold text-slate-900 dark:text-white mb-2'>
-                                    Body (JSON)
-                                  </h4>
-                                  <div className='space-y-2'>
-                                    {endpoint.body.map(field => (
-                                      <div
-                                        key={field.name}
-                                        className='flex items-start gap-3 text-sm'
-                                      >
-                                        <code className='px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded text-slate-700 dark:text-slate-300'>
-                                          {field.name}
-                                        </code>
-                                        <span className='text-slate-500 dark:text-slate-400'>
-                                          {field.type}
-                                        </span>
-                                        {field.required && (
-                                          <span className='text-xs text-red-500'>obrigatório</span>
-                                        )}
-                                        <span className='text-slate-600 dark:text-slate-400'>
-                                          {field.description}
-                                        </span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-
-                              {endpoint.response && (
-                                <div>
-                                  <h4 className='text-sm font-semibold text-slate-900 dark:text-white mb-2'>
-                                    Resposta
-                                  </h4>
-                                  <pre className='bg-slate-900 dark:bg-slate-950 text-slate-100 p-3 rounded-lg text-xs overflow-x-auto'>
-                                    <code>{endpoint.response}</code>
-                                  </pre>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Webhooks */}
-        <section id='webhooks' className='mb-16'>
-          <h2 className='text-2xl font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2'>
-            <Webhook className='w-6 h-6 text-purple-500' />
-            Webhooks
-          </h2>
-
-          <div className='grid gap-6 lg:grid-cols-2'>
-            {/* Events */}
-            <div className='bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6'>
-              <h3 className='font-semibold text-slate-900 dark:text-white mb-4'>
-                Eventos Disponíveis
-              </h3>
-              <div className='space-y-2'>
-                {webhookEvents.map(({ event, description }) => (
-                  <div
-                    key={event}
-                    className='flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-700 last:border-0'
-                  >
-                    <code className='text-sm text-indigo-600 dark:text-indigo-400'>{event}</code>
-                    <span className='text-sm text-slate-500 dark:text-slate-400'>
-                      {description}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Verification */}
-            <div className='bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6'>
-              <h3 className='font-semibold text-slate-900 dark:text-white mb-4'>
-                Verificação de Assinatura
-              </h3>
-              <p className='text-sm text-slate-600 dark:text-slate-400 mb-4'>
-                Sempre verifique a assinatura HMAC-SHA256 do webhook para garantir autenticidade:
-              </p>
-              <div className='relative'>
-                <pre className='bg-slate-900 dark:bg-slate-950 text-slate-100 p-4 rounded-xl text-xs overflow-x-auto'>
-                  <code>{codeExamples.webhook}</code>
-                </pre>
-                <button
-                  onClick={() => copyCode(codeExamples.webhook, 'webhook')}
-                  className='absolute top-3 right-3 p-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors'
-                  title='Copiar código'
-                >
-                  {copied === 'webhook' ? (
-                    <Check className='w-4 h-4 text-emerald-400' />
-                  ) : (
-                    <Copy className='w-4 h-4 text-slate-400' />
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* SDKs */}
-        <section id='sdks' className='mb-16'>
-          <h2 className='text-2xl font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2'>
-            <Layers className='w-6 h-6 text-amber-500' />
-            SDKs Oficiais
-          </h2>
-
-          <div className='grid gap-4 sm:grid-cols-3'>
-            <div className='bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6'>
-              <div className='w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center mb-4'>
-                <FileCode className='w-6 h-6 text-blue-600 dark:text-blue-400' />
-              </div>
-              <h3 className='font-semibold text-slate-900 dark:text-white mb-1'>Python</h3>
-              <p className='text-sm text-slate-500 dark:text-slate-400 mb-4'>pip install wolkpay</p>
-              <a
-                href='https://pypi.org/project/wolkpay'
-                target='_blank'
-                rel='noopener noreferrer'
-                className='text-sm text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1'
-              >
-                Ver no PyPI <ExternalLink className='w-3 h-3' />
+          <Section id='inicio-rapido' title='Início rápido'>
+            <ol className='list-decimal space-y-2 pl-5'>
+              <li>
+                Crie sua conta de lojista em <Link to='/register' className='text-indigo-600 hover:underline dark:text-indigo-400'>gateway.wolknow.com/register</Link>{' '}
+                e aguarde a aprovação (status <C>ACTIVE</C>).
+              </li>
+              <li>
+                Gere uma API key em{' '}
+                <Link to='/api-keys' className='text-indigo-600 hover:underline dark:text-indigo-400'>
+                  Painel → API Keys
+                </Link>
+                . A chave completa é exibida <strong>uma única vez</strong>.
+              </li>
+              <li>
+                Configure a URL de webhook em{' '}
+                <Link to='/webhooks' className='text-indigo-600 hover:underline dark:text-indigo-400'>
+                  Painel → Webhooks
+                </Link>{' '}
+                e guarde o <C>webhook_secret</C>.
+              </li>
+              <li>Crie seu primeiro pagamento:</li>
+            </ol>
+            <CodeTabs examples={CREATE_PAYMENT} labels={LANG_LABEL} />
+            <p>
+              A resposta (<C>201 Created</C>) traz o <C>pix_qrcode</C> (Pix copia e cola), o{' '}
+              <C>pix_qrcode_image</C> (PNG em base64) e o <C>checkout_url</C>. Veja{' '}
+              <a href='#objeto-pagamento' className='text-indigo-600 hover:underline dark:text-indigo-400'>
+                O objeto Payment
               </a>
-            </div>
-
-            <div className='bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6'>
-              <div className='w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-xl flex items-center justify-center mb-4'>
-                <Terminal className='w-6 h-6 text-green-600 dark:text-green-400' />
-              </div>
-              <h3 className='font-semibold text-slate-900 dark:text-white mb-1'>Node.js</h3>
-              <p className='text-sm text-slate-500 dark:text-slate-400 mb-4'>
-                npm install @wolkpay/sdk
-              </p>
-              <a
-                href='https://www.npmjs.com/package/@wolkpay/sdk'
-                target='_blank'
-                rel='noopener noreferrer'
-                className='text-sm text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1'
-              >
-                Ver no NPM <ExternalLink className='w-3 h-3' />
-              </a>
-            </div>
-
-            <div className='bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6'>
-              <div className='w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-xl flex items-center justify-center mb-4'>
-                <Code className='w-6 h-6 text-purple-600 dark:text-purple-400' />
-              </div>
-              <h3 className='font-semibold text-slate-900 dark:text-white mb-1'>PHP</h3>
-              <p className='text-sm text-slate-500 dark:text-slate-400 mb-4'>
-                composer require wolkpay/sdk
-              </p>
-              <a
-                href='https://packagist.org/packages/wolkpay/sdk'
-                target='_blank'
-                rel='noopener noreferrer'
-                className='text-sm text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1'
-              >
-                Ver no Packagist <ExternalLink className='w-3 h-3' />
-              </a>
-            </div>
-          </div>
-        </section>
-
-        {/* Base URL Info */}
-        <section className='mb-16'>
-          <div className='bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl border border-indigo-200 dark:border-indigo-800 p-6'>
-            <h3 className='font-semibold text-indigo-900 dark:text-indigo-300 mb-2 flex items-center gap-2'>
-              <Globe className='w-5 h-5' />
-              Base URL
-            </h3>
-            <div className='flex flex-col sm:flex-row gap-4'>
-              <div className='flex-1'>
-                <span className='text-sm text-indigo-700 dark:text-indigo-400 block mb-1'>
-                  Produção
-                </span>
-                <code className='text-sm bg-white dark:bg-slate-800 px-3 py-1.5 rounded-lg text-slate-800 dark:text-slate-200'>
-                  https://api.wolknow.com/v1/gateway
-                </code>
-              </div>
-              <div className='flex-1'>
-                <span className='text-sm text-indigo-700 dark:text-indigo-400 block mb-1'>
-                  Teste
-                </span>
-                <code className='text-sm bg-white dark:bg-slate-800 px-3 py-1.5 rounded-lg text-slate-800 dark:text-slate-200'>
-                  https://sandbox.wolknow.com/v1/gateway
-                </code>
-              </div>
-            </div>
-            <p className='text-xs text-indigo-700 dark:text-indigo-400 mt-3'>
-              <strong>Importante:</strong> Todas as rotas devem ser prefixadas com{' '}
-              <code className='bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded'>/v1</code>. Os
-              endpoints listados abaixo (ex:{' '}
-              <code className='bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded'>
-                /gateway/payments
-              </code>
-              ) devem ser chamados como{' '}
-              <code className='bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded'>
-                https://api.wolknow.com/v1/gateway/payments
-              </code>
               .
             </p>
-          </div>
-        </section>
+          </Section>
 
-        {/* Help */}
-        <section>
-          <div className='text-center py-8'>
-            <h3 className='text-lg font-semibold text-slate-900 dark:text-white mb-2'>
-              Precisa de Ajuda?
-            </h3>
-            <p className='text-slate-600 dark:text-slate-400 mb-4'>
-              Nossa equipe está pronta para auxiliar na integração.
+          <Section id='autenticacao' title='Autenticação'>
+            <p>
+              Autentique as chamadas de integração enviando sua API key no header <C>Authorization</C> com o
+              esquema <C>Bearer</C>:
             </p>
-            <div className='flex justify-center gap-4'>
+            <CodeBlock title='Header' code='Authorization: Bearer wkgw_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxx' />
+            <ul className='list-disc space-y-1.5 pl-5'>
+              <li>
+                As chaves começam com <C>wkgw_live_</C> ou <C>wkgw_test_</C>. Guardamos apenas o hash — se perder a
+                chave, revogue-a e gere outra.
+              </li>
+              <li>
+                Opcionalmente, restrinja a chave a uma lista de <strong>IPs permitidos</strong> ao criá-la.
+              </li>
+              <li>
+                Nunca exponha a API key no navegador ou no app mobile. Faça as chamadas sempre do seu servidor.
+              </li>
+              <li>
+                A gestão de API keys e de webhooks é feita pelo <strong>painel</strong> (sessão do lojista), não
+                pela API key.
+              </li>
+            </ul>
+            <Callout tone='warning' title='Chave ausente ou inválida'>
+              Sem o header <C>Authorization</C> a API responde <C>422</C>. Com chave inválida, revogada, expirada
+              ou de IP não permitido, responde <C>401</C>.
+            </Callout>
+          </Section>
+
+          <Section id='url-base' title='URL base e ambientes'>
+            <CodeBlock title='URL base' code={API_BASE} />
+            <p>
+              Todos os caminhos desta documentação são relativos a essa URL. Exemplo: criar pagamento ={' '}
+              <C>POST {API_BASE}/payments</C>.
+            </p>
+            <Callout tone='warning' title='Não há ambiente sandbox separado'>
+              Chaves <C>wkgw_test_</C> servem para identificar integrações de teste, mas usam a mesma
+              infraestrutura de produção: <strong>pagamentos Pix criados são cobranças reais</strong> no Banco do
+              Brasil. Para homologar, use o valor mínimo e cancele os pagamentos de teste que não forem pagos.
+            </Callout>
+          </Section>
+
+          <Section id='taxas-limites' title='Taxas e limites'>
+            <p>
+              Valores vigentes, carregados em tempo real de <C>GET /v1/gateway/fees</C> (endpoint público).
+              Lojistas com contrato próprio podem ter taxas e limites diferentes — o valor aplicado a cada
+              pagamento vem em <C>fee_percent</C> e <C>fee_amount</C>.
+            </p>
+            <div className='grid gap-3 sm:grid-cols-3'>
+              {[
+                ['Taxa Pix', formatPercent(fees?.pix_fee_percent)],
+                ['Taxa cripto', formatPercent(fees?.crypto_fee_percent)],
+                ['Pagamento mínimo', formatBRL(fees?.min_payment_brl)],
+                ['Pagamento máximo', formatBRL(fees?.max_payment_brl)],
+                ['Limite diário', formatBRL(fees?.daily_limit_brl)],
+                ['Expiração', '5 min a 24 h'],
+              ].map(([label, value]) => (
+                <div
+                  key={label}
+                  className='rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800/40'
+                >
+                  <p className='text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400'>
+                    {label}
+                  </p>
+                  <p className='mt-1 text-xl font-semibold text-slate-900 dark:text-white'>
+                    {fees || label === 'Expiração' ? value : feesError ? '—' : '…'}
+                  </p>
+                </div>
+              ))}
+            </div>
+            {feesError && (
+              <p className='text-sm text-slate-500'>
+                Não foi possível carregar as taxas agora. Consulte <C>GET /v1/gateway/fees</C> ou o seu painel.
+              </p>
+            )}
+            <p>
+              A taxa é descontada do valor recebido: <C>settlement_amount = amount_requested − fee_amount</C>.
+            </p>
+          </Section>
+
+          {/* ===================== PAGAMENTOS ===================== */}
+          <Section id='objeto-pagamento' title='O objeto Payment'>
+            <p>Retornado ao criar, consultar e cancelar pagamentos.</p>
+            <FieldTable
+              fields={[
+                { name: 'payment_id', type: 'string', description: <>Identificador público, formato <C>WKPAY-AAAAMMDD-XXXXXX</C>. Use-o nas demais chamadas.</> },
+                { name: 'id', type: 'uuid', description: 'Identificador interno.' },
+                { name: 'external_id', type: 'string | null', description: 'O ID do pedido no seu sistema, como você enviou.' },
+                { name: 'payment_method', type: 'enum', description: <><C>PIX</C> ou <C>CRYPTO</C>.</> },
+                { name: 'status', type: 'enum', description: <>Ver <a href='#status' className='text-indigo-600 hover:underline dark:text-indigo-400'>Ciclo de vida</a>.</> },
+                { name: 'amount_requested', type: 'decimal', description: 'Valor cobrado do cliente.' },
+                { name: 'currency_requested', type: 'string', description: <>Moeda, normalmente <C>BRL</C>.</> },
+                { name: 'amount_received', type: 'decimal | null', description: 'Valor efetivamente recebido.' },
+                { name: 'fee_percent / fee_amount', type: 'decimal', description: 'Taxa aplicada (percentual e valor).' },
+                { name: 'settlement_amount', type: 'decimal', description: 'Valor líquido creditado a você.' },
+                { name: 'expires_at', type: 'datetime', description: 'Prazo para pagamento.' },
+                { name: 'pix_qrcode', type: 'string | null', description: <>Pix copia e cola (payload EMV, começa com <C>000201</C>).</> },
+                { name: 'pix_qrcode_image', type: 'string | null', description: <>PNG do QR Code em base64 <strong>sem</strong> prefixo — use <C>data:image/png;base64,</C> + valor.</> },
+                { name: 'crypto_*', type: 'vários', description: <>Moeda, rede, endereço, quantidade, hash e confirmações (pagamentos cripto).</> },
+                { name: 'checkout_url', type: 'string', description: 'Página de pagamento hospedada pela WolkPay.' },
+                { name: 'success_url / cancel_url', type: 'string | null', description: 'Redirecionamentos do checkout.' },
+                { name: 'created_at / confirmed_at / completed_at', type: 'datetime', description: 'Marcos do pagamento.' },
+              ]}
+            />
+            <CodeBlock title='Exemplo' code={PAYMENT_OBJECT_JSON} />
+          </Section>
+
+          <Section id='criar-pagamento' title='Criar pagamento'>
+            <EndpointBadge method='POST' path='/payments' />
+            <p>
+              Cria um pagamento e, para Pix, já gera a cobrança no Banco do Brasil. Retorna <C>201</C> com o{' '}
+              <a href='#objeto-pagamento' className='text-indigo-600 hover:underline dark:text-indigo-400'>objeto Payment</a>.
+            </p>
+            <FieldTable
+              title='Corpo (JSON)'
+              fields={[
+                { name: 'payment_method', type: 'string', required: true, description: <><C>pix</C> ou <C>crypto</C>.</> },
+                { name: 'amount', type: 'decimal', required: true, description: <>Valor em BRL. Respeita o mínimo/máximo em <a href='#taxas-limites' className='text-indigo-600 hover:underline dark:text-indigo-400'>Taxas e limites</a>.</> },
+                { name: 'currency', type: 'string', description: <>Padrão <C>BRL</C>.</> },
+                { name: 'crypto_currency', type: 'string', description: <>Obrigatório se <C>payment_method = crypto</C>. Ver <a href='#crypto' className='text-indigo-600 hover:underline dark:text-indigo-400'>Criptomoedas</a>.</> },
+                { name: 'crypto_network', type: 'string', description: 'Rede blockchain. Se omitida, usamos a rede padrão da moeda.' },
+                { name: 'external_id', type: 'string', description: 'Até 100 caracteres. Recomendado: o ID do pedido, para conciliar no webhook.' },
+                { name: 'description', type: 'string', description: 'Até 500 caracteres. Os primeiros 140 aparecem no app do banco do pagador.' },
+                { name: 'customer_email', type: 'email', description: 'E-mail do cliente.' },
+                { name: 'customer_name', type: 'string', description: 'Nome do cliente.' },
+                { name: 'customer_phone', type: 'string', description: 'Telefone do cliente.' },
+                { name: 'customer_document', type: 'string', description: 'CPF (11 dígitos) — identifica o pagador na cobrança Pix.' },
+                { name: 'expiration_minutes', type: 'integer', description: <>De <C>5</C> a <C>1440</C>. Padrão <C>30</C>.</> },
+                { name: 'success_url / cancel_url', type: 'string', description: 'Para onde o checkout hospedado redireciona o cliente.' },
+                { name: 'extra_data', type: 'object', description: 'Dados livres seus, devolvidos no pagamento.' },
+              ]}
+            />
+            <CodeTabs examples={CREATE_PAYMENT} labels={LANG_LABEL} />
+            <Callout tone='warning' title='Pix indisponível'>
+              Se o Banco do Brasil não conseguir gerar a cobrança, a API responde <C>503</C> com{' '}
+              <C>{'{"detail": {"code": "pix_unavailable", ...}}'}</C> e <strong>nenhum pagamento é criado</strong>.
+              Tente novamente em instantes ou ofereça outro meio de pagamento.
+            </Callout>
+          </Section>
+
+          <Section id='consultar-pagamento' title='Consultar pagamento'>
+            <EndpointBadge method='GET' path='/payments/{payment_id}' />
+            <p>
+              Retorna o objeto Payment atualizado. Útil como conferência após receber um webhook. Responde{' '}
+              <C>404</C> se não existir e <C>403</C> se pertencer a outro lojista.
+            </p>
+            <CodeBlock
+              title='cURL'
+              code={`curl "${API_BASE}/payments/WKPAY-20261106-ABD0E4" \\
+  -H "Authorization: Bearer wkgw_live_SUA_API_KEY"`}
+            />
+          </Section>
+
+          <Section id='listar-pagamentos' title='Listar pagamentos'>
+            <EndpointBadge method='GET' path='/payments' />
+            <FieldTable
+              title='Parâmetros de consulta'
+              fields={[
+                { name: 'status', type: 'enum', description: <>Ex.: <C>PENDING</C>, <C>COMPLETED</C>.</> },
+                { name: 'payment_method', type: 'enum', description: <><C>PIX</C> ou <C>CRYPTO</C>.</> },
+                { name: 'external_id', type: 'string', description: 'Filtra pelo ID do seu pedido.' },
+                { name: 'date_from / date_to', type: 'datetime', description: 'Intervalo de criação (ISO 8601).' },
+                { name: 'page', type: 'integer', description: <>Página, a partir de <C>1</C>.</> },
+                { name: 'per_page', type: 'integer', description: <>Itens por página, de <C>1</C> a <C>100</C> (padrão <C>20</C>).</> },
+              ]}
+            />
+            <CodeBlock
+              title='cURL'
+              code={`curl "${API_BASE}/payments?status=COMPLETED&page=1&per_page=20" \\
+  -H "Authorization: Bearer wkgw_live_SUA_API_KEY"`}
+            />
+            <CodeBlock title='Resposta' code={LIST_RESPONSE_JSON} />
+          </Section>
+
+          <Section id='cancelar-pagamento' title='Cancelar pagamento'>
+            <EndpointBadge method='POST' path='/payments/{payment_id}/cancel' />
+            <p>
+              Cancela um pagamento com status <C>PENDING</C>. Para qualquer outro status a API responde{' '}
+              <C>400</C>. Retorna o objeto Payment com status <C>CANCELLED</C>.
+            </p>
+            <CodeBlock
+              title='cURL'
+              code={`curl -X POST "${API_BASE}/payments/WKPAY-20261106-ABD0E4/cancel" \\
+  -H "Authorization: Bearer wkgw_live_SUA_API_KEY"`}
+            />
+          </Section>
+
+          <Section id='status' title='Ciclo de vida e status'>
+            <div className='overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700'>
+              <table className='w-full text-left text-sm'>
+                <thead className='bg-slate-100 text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-800 dark:text-slate-400'>
+                  <tr>
+                    <th className='px-4 py-2.5'>Status</th>
+                    <th className='px-4 py-2.5'>Significado</th>
+                  </tr>
+                </thead>
+                <tbody className='divide-y divide-slate-200 bg-white dark:divide-slate-700 dark:bg-slate-800/40'>
+                  {[
+                    ['PENDING', 'Aguardando o pagamento do cliente.'],
+                    ['PROCESSING', 'Cripto recebida, aguardando confirmações na blockchain.'],
+                    ['CONFIRMED', 'Pagamento confirmado.'],
+                    ['COMPLETED', 'Concluído e creditado ao lojista. Status final de sucesso — libere o pedido.'],
+                    ['EXPIRED', 'Prazo esgotado sem pagamento.'],
+                    ['CANCELLED', 'Cancelado pelo lojista.'],
+                    ['REFUNDED', 'Estornado.'],
+                    ['FAILED', 'Falhou.'],
+                  ].map(([s, d]) => (
+                    <tr key={s}>
+                      <td className='px-4 py-2.5'>
+                        <C>{s}</C>
+                      </td>
+                      <td className='px-4 py-2.5 text-slate-600 dark:text-slate-300'>{d}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <CodeBlock
+              title='Fluxo típico'
+              code={`PENDING ──► CONFIRMED ──► COMPLETED      (pago)
+PENDING ──► EXPIRED                      (não pago no prazo)
+PENDING ──► CANCELLED                    (cancelado por você)`}
+            />
+          </Section>
+
+          {/* ===================== MÉTODOS ===================== */}
+          <Section id='pix' title='Pix'>
+            <ul className='list-disc space-y-1.5 pl-5'>
+              <li>
+                A cobrança Pix é gerada no Banco do Brasil no momento da criação (Pix dinâmico com valor fixo e
+                vencimento).
+              </li>
+              <li>
+                Mostre o <C>pix_qrcode</C> com botão “copiar” e o QR Code a partir de{' '}
+                <C>pix_qrcode_image</C>.
+              </li>
+              <li>
+                A confirmação é automática: assim que o Banco do Brasil notifica o pagamento (ou na conciliação
+                periódica), o status avança e o webhook é enviado.
+              </li>
+            </ul>
+            <CodeBlock
+              title='HTML'
+              code={`<img src="data:image/png;base64,{{ payment.pix_qrcode_image }}" alt="QR Code Pix" />
+<textarea readonly>{{ payment.pix_qrcode }}</textarea>`}
+            />
+          </Section>
+
+          <Section id='crypto' title='Criptomoedas'>
+            <p>
+              Envie <C>payment_method: "crypto"</C> e <C>crypto_currency</C>. Um endereço exclusivo é gerado para o
+              pagamento, e a quantidade é calculada pela cotação no momento da criação.
+            </p>
+            <div className='overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700'>
+              <table className='w-full text-left text-sm'>
+                <thead className='bg-slate-100 text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-800 dark:text-slate-400'>
+                  <tr>
+                    <th className='px-4 py-2.5'>Moeda</th>
+                    <th className='px-4 py-2.5'>Rede padrão</th>
+                    <th className='px-4 py-2.5'>Confirmações</th>
+                  </tr>
+                </thead>
+                <tbody className='divide-y divide-slate-200 bg-white dark:divide-slate-700 dark:bg-slate-800/40'>
+                  {[
+                    ['BTC', 'bitcoin', '2'],
+                    ['ETH', 'ethereum', '12'],
+                    ['USDT', 'polygon', '30'],
+                    ['USDC', 'polygon', '30'],
+                    ['MATIC', 'polygon', '30'],
+                    ['BNB', 'bsc', '15'],
+                    ['SOL', 'solana', '32'],
+                    ['LTC', 'litecoin', '6'],
+                  ].map(([c, n, conf]) => (
+                    <tr key={c}>
+                      <td className='px-4 py-2.5 font-medium text-slate-900 dark:text-white'>{c}</td>
+                      <td className='px-4 py-2.5'>
+                        <C>{n}</C>
+                      </td>
+                      <td className='px-4 py-2.5 text-slate-600 dark:text-slate-300'>{conf}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p>
+              Redes aceitas em <C>crypto_network</C>: <C>bitcoin</C>, <C>ethereum</C>, <C>polygon</C>, <C>bsc</C>,{' '}
+              <C>solana</C>, <C>litecoin</C>.
+            </p>
+            <CodeBlock
+              title='Exemplo de corpo'
+              code={`{
+  "payment_method": "crypto",
+  "amount": 250.00,
+  "crypto_currency": "USDT",
+  "crypto_network": "polygon",
+  "external_id": "pedido-12346"
+}`}
+            />
+          </Section>
+
+          <Section id='checkout' title='Checkout hospedado'>
+            <p>
+              Todo pagamento tem um <C>checkout_url</C> ({CHECKOUT_BASE}/…): uma página pronta, responsiva, onde
+              o cliente escolhe Pix ou cripto, vê o QR Code e acompanha a confirmação. Ao concluir, ele é
+              redirecionado para o seu <C>success_url</C>.
+            </p>
+            <Callout title='Redirecionamento não é confirmação'>
+              Libere o pedido somente após o webhook <C>payment.completed</C> (ou consultando{' '}
+              <C>GET /payments/{'{payment_id}'}</C>), nunca apenas porque o cliente voltou ao <C>success_url</C>.
+            </Callout>
+            <p>Endpoints públicos usados pela página de checkout (não exigem API key):</p>
+            <div className='space-y-2'>
+              <EndpointBadge method='GET' path='/checkout/{token}' auth='publico' />
+              <EndpointBadge method='POST' path='/checkout/{token}/select-method' auth='publico' />
+              <EndpointBadge method='GET' path='/checkout/{token}/status' auth='publico' />
+            </div>
+            <p>
+              <C>select-method</C> recebe <C>{'{"method": "PIX"}'}</C> ou{' '}
+              <C>{'{"method": "CRYPTO", "crypto_currency": "USDT", "crypto_network": "polygon"}'}</C>.
+            </p>
+          </Section>
+
+          {/* ===================== WEBHOOKS ===================== */}
+          <Section id='webhooks-config' title='Webhooks: configuração'>
+            <p>
+              Em{' '}
+              <Link to='/webhooks' className='text-indigo-600 hover:underline dark:text-indigo-400'>
+                Painel → Webhooks
+              </Link>{' '}
+              informe a URL HTTPS que receberá os eventos e escolha quais eventos deseja. O painel mostra o{' '}
+              <C>webhook_secret</C>, usado para assinar cada entrega. Você pode regenerá-lo a qualquer momento —
+              atualize seu servidor em seguida.
+            </p>
+            <Callout tone='warning'>
+              Use <strong>HTTPS</strong> e responda com status <C>2xx</C> em até 30 segundos.
+            </Callout>
+          </Section>
+
+          <Section id='webhooks-eventos' title='Eventos e payload'>
+            <div className='overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700'>
+              <table className='w-full text-left text-sm'>
+                <thead className='bg-slate-100 text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-800 dark:text-slate-400'>
+                  <tr>
+                    <th className='px-4 py-2.5'>Evento</th>
+                    <th className='px-4 py-2.5'>Quando é enviado</th>
+                  </tr>
+                </thead>
+                <tbody className='divide-y divide-slate-200 bg-white dark:divide-slate-700 dark:bg-slate-800/40'>
+                  {[
+                    ['payment.confirmed', 'O pagamento foi confirmado (Pix recebido ou cripto com confirmações suficientes).'],
+                    ['payment.completed', 'O pagamento foi concluído e creditado. Use este evento para liberar o pedido.'],
+                    ['payment.expired', 'O prazo terminou sem pagamento.'],
+                  ].map(([e, d]) => (
+                    <tr key={e}>
+                      <td className='whitespace-nowrap px-4 py-2.5'>
+                        <C>{e}</C>
+                      </td>
+                      <td className='px-4 py-2.5 text-slate-600 dark:text-slate-300'>{d}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p>
+              Cada entrega é um <C>POST</C> com o corpo JSON abaixo. O campo <C>event</C> indica o tipo e{' '}
+              <C>data.external_id</C> traz o ID do seu pedido.
+            </p>
+            <CodeBlock title='Requisição enviada ao seu servidor' code={WEBHOOK_PAYLOAD_JSON} />
+            <FieldTable
+              title='Headers'
+              fields={[
+                { name: 'X-WolkPay-Signature', type: 'hex', description: <>HMAC-SHA256 do corpo bruto com o seu <C>webhook_secret</C>.</> },
+                { name: 'X-WolkPay-Event', type: 'string', description: <>Nome do evento (igual a <C>event</C> no corpo).</> },
+                { name: 'X-WolkPay-Delivery', type: 'uuid', description: 'ID único da entrega (igual a webhook_id). Use para idempotência.' },
+              ]}
+            />
+          </Section>
+
+          <Section id='webhooks-assinatura' title='Verificar assinatura'>
+            <p>
+              Calcule <C>HMAC-SHA256(webhook_secret, corpo_bruto)</C> em hexadecimal e compare com{' '}
+              <C>X-WolkPay-Signature</C> usando comparação de tempo constante. Use os <strong>bytes exatos</strong>{' '}
+              recebidos — reserializar o JSON muda a assinatura.
+            </p>
+            <CodeTabs
+              examples={VERIFY_SIGNATURE}
+              labels={{ node: 'Node.js (Express)', python: 'Python (FastAPI)', php: 'PHP' }}
+            />
+          </Section>
+
+          <Section id='webhooks-retentativas' title='Entrega e retentativas'>
+            <ul className='list-disc space-y-1.5 pl-5'>
+              <li>
+                Consideramos entregue quando seu servidor responde <C>200</C>, <C>201</C>, <C>202</C> ou{' '}
+                <C>204</C>. Timeout de 30 segundos.
+              </li>
+              <li>
+                Em caso de falha, reenviamos até <strong>5 tentativas</strong> no total, com intervalos crescentes
+                (aprox. 1 min, 5 min, 15 min, 1 h e 4 h).
+              </li>
+              <li>
+                Uma mesma entrega pode chegar mais de uma vez. Trate eventos de forma <strong>idempotente</strong>{' '}
+                usando <C>X-WolkPay-Delivery</C> ou <C>payment_id</C> + <C>event</C>.
+              </li>
+              <li>O histórico de entregas fica disponível no painel, em Webhooks.</li>
+            </ul>
+          </Section>
+
+          {/* ===================== REFERÊNCIA ===================== */}
+          <Section id='erros' title='Erros'>
+            <p>
+              Erros retornam o status HTTP apropriado e um corpo com <C>detail</C> — texto, objeto ou, em erros de
+              validação (<C>422</C>), a lista de campos inválidos.
+            </p>
+            <div className='overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700'>
+              <table className='w-full text-left text-sm'>
+                <thead className='bg-slate-100 text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-800 dark:text-slate-400'>
+                  <tr>
+                    <th className='px-4 py-2.5'>HTTP</th>
+                    <th className='px-4 py-2.5'>Quando acontece</th>
+                  </tr>
+                </thead>
+                <tbody className='divide-y divide-slate-200 bg-white dark:divide-slate-700 dark:bg-slate-800/40'>
+                  {[
+                    ['400', 'Regra de negócio: valor abaixo do mínimo/acima do máximo, limite diário excedido, lojista inativo, cancelar pagamento que não está pendente.'],
+                    ['401', 'API key inválida, revogada, expirada, de IP não permitido ou sem o prefixo Bearer.'],
+                    ['403', 'O pagamento pertence a outro lojista.'],
+                    ['404', 'Pagamento não encontrado.'],
+                    ['422', 'Corpo ou header inválido (ex.: payment_method ausente, crypto_currency ausente para cripto, Authorization ausente).'],
+                    ['503', <>Pix temporariamente indisponível (<C>pix_unavailable</C>). Nenhum pagamento foi criado; tente novamente.</>],
+                  ].map(([code, d]) => (
+                    <tr key={code as string}>
+                      <td className='px-4 py-2.5 font-mono font-semibold text-slate-900 dark:text-white'>{code}</td>
+                      <td className='px-4 py-2.5 text-slate-600 dark:text-slate-300'>{d}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <CodeBlock
+              title='Exemplos'
+              code={`// 400
+{ "detail": "Valor mínimo: R$ 5.00" }
+
+// 503
+{ "detail": { "code": "pix_unavailable", "message": "Pix indisponível no momento. Tente novamente em instantes." } }
+
+// 422
+{ "detail": [ { "type": "missing", "loc": ["body", "payment_method"], "msg": "Field required" } ] }`}
+            />
+          </Section>
+
+          <Section id='endpoints' title='Todos os endpoints'>
+            <p className='text-sm'>Integração (servidor a servidor, com API key):</p>
+            <div className='space-y-2'>
+              <EndpointBadge method='POST' path='/payments' />
+              <EndpointBadge method='GET' path='/payments' />
+              <EndpointBadge method='GET' path='/payments/{payment_id}' />
+              <EndpointBadge method='POST' path='/payments/{payment_id}/cancel' />
+            </div>
+            <p className='pt-2 text-sm'>Públicos:</p>
+            <div className='space-y-2'>
+              <EndpointBadge method='GET' path='/fees' auth='publico' />
+              <EndpointBadge method='GET' path='/checkout/{token}' auth='publico' />
+              <EndpointBadge method='POST' path='/checkout/{token}/select-method' auth='publico' />
+              <EndpointBadge method='GET' path='/checkout/{token}/status' auth='publico' />
+            </div>
+            <p className='pt-2 text-sm'>Gerenciados pelo painel (sessão do lojista):</p>
+            <div className='space-y-2'>
+              <EndpointBadge method='GET' path='/api-keys' auth='painel' />
+              <EndpointBadge method='POST' path='/api-keys' auth='painel' />
+              <EndpointBadge method='DELETE' path='/api-keys/{api_key_id}' auth='painel' />
+              <EndpointBadge method='GET' path='/webhooks/config' auth='painel' />
+              <EndpointBadge method='PUT' path='/webhooks/config' auth='painel' />
+              <EndpointBadge method='POST' path='/webhooks/regenerate-secret' auth='painel' />
+              <EndpointBadge method='GET' path='/webhooks/events' auth='painel' />
+            </div>
+          </Section>
+
+          <Section id='checklist' title='Checklist de produção'>
+            <ul className='space-y-2'>
+              {[
+                'API key guardada em variável de ambiente no servidor (nunca no front-end).',
+                'external_id preenchido com o ID do pedido em todos os pagamentos.',
+                'Webhook em HTTPS validando X-WolkPay-Signature com o corpo bruto.',
+                'Processamento idempotente de webhooks (X-WolkPay-Delivery).',
+                'Pedido liberado apenas em payment.completed (ou após consultar o pagamento).',
+                'Tratamento do 503 pix_unavailable com nova tentativa ou meio alternativo.',
+                'Pagamentos expirados tratados (payment.expired) para liberar estoque.',
+                'Timeout de requisição de pelo menos 60 s na criação de pagamento Pix.',
+              ].map(item => (
+                <li key={item} className='flex gap-2.5'>
+                  <Check className='mt-0.5 h-4 w-4 shrink-0 text-emerald-500' />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </Section>
+
+          <Section id='suporte' title='Suporte'>
+            <div className='flex flex-col items-start gap-4 rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-800/40 sm:flex-row sm:items-center'>
+              <span className='flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-100 dark:bg-indigo-500/15'>
+                <LifeBuoy className='h-5 w-5 text-indigo-600 dark:text-indigo-300' />
+              </span>
+              <div className='flex-1'>
+                <p className='font-semibold text-slate-900 dark:text-white'>Precisa de ajuda com a integração?</p>
+                <p className='text-sm text-slate-500 dark:text-slate-400'>
+                  Envie o <C>payment_id</C> e o horário da requisição para agilizar o atendimento.
+                </p>
+              </div>
               <a
-                href='mailto:suporte@wolknow.com'
-                className='px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors'
+                href={`mailto:${SUPPORT_EMAIL}`}
+                className='rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700'
               >
-                Falar com Suporte
-              </a>
-              <a
-                href='https://github.com/wolkpay/issues'
-                target='_blank'
-                rel='noopener noreferrer'
-                className='px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 text-sm font-medium rounded-lg transition-colors'
-              >
-                Reportar Bug
+                {SUPPORT_EMAIL}
               </a>
             </div>
-          </div>
-        </section>
+          </Section>
+        </main>
       </div>
     </div>
   )
