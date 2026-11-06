@@ -85,6 +85,49 @@ async def webhook_health_check():
     return {"status": "ok", "service": "WOLK NOW PIX Webhook", "timestamp": datetime.utcnow().isoformat()}
 
 
+async def _confirm_gateway_pix(db: Session, txid, valor, horario, end_to_end_id):
+    """Confirma um Pix do WolkPay Gateway recebido pelo webhook único do BB."""
+    if not txid:
+        return None
+    from decimal import Decimal, InvalidOperation
+    from datetime import timezone as _tz
+    from app.models.gateway import GatewayPayment
+    from app.services.gateway.payment_service import GatewayPaymentService
+
+    exists = db.query(GatewayPayment.id).filter(GatewayPayment.pix_txid == txid).first()
+    if not exists:
+        return None
+
+    try:
+        valor_dec = Decimal(str(valor or "0"))
+    except InvalidOperation:
+        valor_dec = Decimal("0")
+
+    horario_dt = None
+    if horario:
+        try:
+            horario_dt = datetime.fromisoformat(str(horario).replace("Z", "+00:00"))
+        except ValueError:
+            horario_dt = None
+    if horario_dt is None:
+        horario_dt = datetime.now(_tz.utc)
+
+    try:
+        payment = await GatewayPaymentService(db).confirm_pix_payment(
+            txid=txid,
+            valor_recebido=valor_dec,
+            horario=horario_dt,
+            end_to_end_id=end_to_end_id,
+        )
+        if payment:
+            logger.info(f"✅ Gateway: Pix confirmado {payment.payment_id} (txid={txid}, R${valor_dec})")
+        return payment
+    except Exception:
+        logger.exception(f"❌ Gateway: erro ao confirmar Pix txid={txid}")
+        db.rollback()
+        return None
+
+
 @router.post("/pix")
 async def receive_pix_webhook(
     request: Request,
@@ -155,8 +198,17 @@ async def receive_pix_webhook(
                     WolkPayPayment.pix_txid == txid
                 ).first()
             
+            # 4c. Se não é OTC nem WolkPay, pode ser pagamento do Gateway (txid WKGW...).
+            # O BB só aceita UMA URL de webhook por chave Pix, então os pagamentos do
+            # gateway também chegam aqui e precisam ser repassados ao GatewayPaymentService.
             if not trade and not wolkpay_payment:
-                logger.warning(f"⚠️ Trade/WolkPay não encontrado para txid: {txid}")
+                gateway_payment = await _confirm_gateway_pix(
+                    db, txid, valor_recebido, horario, end_to_end_id
+                )
+                if gateway_payment:
+                    processed_count += 1
+                    continue
+                logger.warning(f"⚠️ Trade/WolkPay/Gateway não encontrado para txid: {txid}")
                 continue
 
             # ===== PROCESSAR OTC (InstantTrade) =====
