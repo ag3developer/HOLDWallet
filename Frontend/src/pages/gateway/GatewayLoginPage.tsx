@@ -31,9 +31,7 @@ export default function GatewayLoginPage() {
       setLoading(true)
       setError(null)
 
-      console.log('[GatewayLogin] Attempting login for:', email)
       await login({ email, password })
-      console.log('[GatewayLogin] ✅ Login successful, navigating to dashboard')
       navigate('/dashboard')
     } catch (err: unknown) {
       console.error('Erro ao fazer login:', err)

@@ -103,7 +103,7 @@ export default function GatewayWebhooksPage() {
   const handleSaveUrl = async () => {
     try {
       setSaving(true)
-      await updateWebhookConfig(webhookUrl)
+      await updateWebhookConfig(webhookUrl, config?.events_enabled)
       await loadData()
     } catch (error) {
       console.error('Erro ao salvar URL:', error)
@@ -454,12 +454,9 @@ export default function GatewayWebhooksPage() {
               </h3>
               <div className='space-y-3'>
                 {[
-                  { event: 'payment.created', desc: 'Pagamento criado' },
-                  { event: 'payment.pending', desc: 'Aguardando pagamento' },
-                  { event: 'payment.completed', desc: 'Pagamento confirmado' },
-                  { event: 'payment.failed', desc: 'Pagamento falhou' },
-                  { event: 'payment.expired', desc: 'Pagamento expirado' },
-                  { event: 'payment.refunded', desc: 'Pagamento reembolsado' },
+                  { event: 'payment.confirmed', desc: 'Pagamento confirmado' },
+                  { event: 'payment.completed', desc: 'Concluído e creditado' },
+                  { event: 'payment.expired', desc: 'Prazo esgotado sem pagamento' },
                 ].map(item => (
                   <div
                     key={item.event}
@@ -482,13 +479,20 @@ export default function GatewayWebhooksPage() {
               <pre className='bg-slate-900 dark:bg-slate-950 text-slate-100 p-4 rounded-xl text-xs overflow-x-auto'>
                 {`{
   "event": "payment.completed",
-  "payment_id": "pay_abc123",
-  "payment_code": "WP-ABC123",
-  "amount": 100.00,
-  "currency": "BRL",
-  "status": "COMPLETED",
-  "paid_at": "2024-01-15T10:30:00Z",
-  "metadata": {}
+  "created_at": "2026-11-06T20:58:15+00:00",
+  "webhook_id": "5e1c9a2b-7d4f-4a3e-b8c1-0f2e6d9a4b17",
+  "data": {
+    "payment_id": "WKPAY-20261106-ABD0E4",
+    "external_id": "pedido-12345",
+    "payment_method": "PIX",
+    "status": "COMPLETED",
+    "amount_requested": "150.00",
+    "currency": "BRL",
+    "fee_amount": "5.25",
+    "settlement_amount": "144.75",
+    "confirmed_at": "2026-11-06T20:58:12+00:00",
+    "completed_at": "2026-11-06T20:58:15+00:00"
+  }
 }`}
               </pre>
             </div>

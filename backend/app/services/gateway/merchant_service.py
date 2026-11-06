@@ -428,9 +428,11 @@ class MerchantService:
         if not merchant:
             raise ValueError("Merchant não encontrado")
         
-        # Gerar novo secret
-        new_secret = GatewayMerchant.generate_webhook_secret()
-        
+        # Mantém o secret atual: trocar o secret a cada "salvar URL" quebrava a
+        # validação HMAC nas integrações em produção. Secret novo só quando não
+        # existe nenhum; para rotacionar use POST /webhooks/regenerate-secret.
+        new_secret = merchant.webhook_secret or GatewayMerchant.generate_webhook_secret()
+
         old_data = {
             "webhook_url": merchant.webhook_url,
             "webhook_events": merchant.webhook_events

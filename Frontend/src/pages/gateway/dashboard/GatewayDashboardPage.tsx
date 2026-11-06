@@ -360,7 +360,7 @@ export default function GatewayDashboardPage() {
                       </div>
                       <div className='text-right'>
                         <p className='font-semibold text-slate-900 dark:text-white'>
-                          {formatCurrency(payment.amount)}
+                          {formatCurrency(Number(payment.amount))}
                         </p>
                         <span
                           className={`text-xs px-2 py-1 rounded-full ${getStatusBadgeColor(payment.status)}`}

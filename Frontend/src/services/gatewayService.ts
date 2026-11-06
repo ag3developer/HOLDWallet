@@ -38,30 +38,30 @@ export interface GatewayCheckoutData {
   merchant: GatewayMerchant
   amount: number
   currency: string
-  description?: string
+  description?: string | undefined
   status: GatewayPaymentStatus
-  payment_method?: GatewayPaymentMethod
+  payment_method?: GatewayPaymentMethod | undefined
   expires_at: string
   created_at: string
 
   // PIX data
-  pix_qrcode?: string
-  pix_qrcode_image?: string
-  pix_txid?: string
+  pix_qrcode?: string | undefined
+  pix_qrcode_image?: string | undefined
+  pix_txid?: string | undefined
 
   // Crypto data
-  crypto_currency?: string
-  crypto_network?: string
-  crypto_address?: string
-  crypto_amount?: string
-  crypto_qrcode?: string
+  crypto_currency?: string | undefined
+  crypto_network?: string | undefined
+  crypto_address?: string | undefined
+  crypto_amount?: string | undefined
+  crypto_qrcode?: string | undefined
 
   // Payer data (optional)
-  payer_name?: string
-  payer_email?: string
+  payer_name?: string | undefined
+  payer_email?: string | undefined
 
   // Metadata from merchant
-  metadata?: Record<string, unknown>
+  metadata?: Record<string, unknown> | undefined
 }
 
 export interface GatewayStatusResponse {
@@ -115,10 +115,10 @@ export interface MerchantProfile {
   logo_url?: string
   webhook_url?: string
   webhook_secret?: string
-  settlement_crypto: string
-  settlement_network: string
-  auto_settlement: boolean
-  fee_percentage: number
+  settlement_currency?: 'BRL' | 'USDT' | 'ORIGINAL'
+  settlement_crypto?: string
+  settlement_network?: string
+  fee_percentage?: number | null
   status: MerchantStatus
   created_at: string
   approved_at?: string
@@ -177,13 +177,13 @@ export interface RegisterMerchantResponse {
 
 export interface UpdateMerchantRequest {
   business_name?: string | undefined
-  business_email?: string | undefined
   business_phone?: string | undefined
   website_url?: string | undefined
   logo_url?: string | undefined
-  settlement_crypto?: string | undefined
-  settlement_network?: string | undefined
-  auto_settlement?: boolean | undefined
+  primary_color?: string | undefined
+  settlement_currency?: 'BRL' | 'USDT' | 'ORIGINAL' | undefined
+  settlement_wallet_address?: string | undefined
+  settlement_wallet_network?: string | undefined
 }
 
 // ============================================
@@ -245,13 +245,13 @@ export interface PaymentListResponse {
 }
 
 export interface PaymentFilters {
-  status?: GatewayPaymentStatus
-  payment_method?: GatewayPaymentMethod
-  from_date?: string
-  to_date?: string
-  search?: string
-  page?: number
-  per_page?: number
+  status?: GatewayPaymentStatus | undefined
+  payment_method?: GatewayPaymentMethod | undefined
+  from_date?: string | undefined
+  to_date?: string | undefined
+  search?: string | undefined
+  page?: number | undefined
+  per_page?: number | undefined
 }
 
 // ============================================
@@ -268,7 +268,7 @@ export interface WebhookEvent {
   id: string
   event_type: string
   payment_id: string
-  status: 'pending' | 'sent' | 'failed'
+  status: 'pending' | 'delivered' | 'failed'
   attempts: number
   last_attempt_at?: string
   next_retry_at?: string
@@ -469,7 +469,6 @@ export const registerMerchant = async (
     // Salvar em IndexedDB (para Safari iOS e consistência)
     authStorage.setToken(token)
 
-    console.log('[Gateway] ✅ Token salvo após registro')
   }
 
   return response.data
@@ -481,7 +480,39 @@ export const registerMerchant = async (
 export const updateMerchantProfile = async (
   data: UpdateMerchantRequest
 ): Promise<MerchantProfile> => {
-  const response = await apiClient.put('/gateway/merchants/me', data)
+  // Converte nomes do front para o schema real do backend (MerchantUpdate);
+  // campos desconhecidos eram descartados silenciosamente.
+  const d = data as Record<string, unknown>
+  const body: Record<string, unknown> = {}
+  const set = (key: string, value: unknown) => {
+    if (value !== undefined) body[key] = value === '' ? null : value
+  }
+  set('trade_name', d.trade_name ?? d.business_name)
+  set('phone', d.phone ?? d.business_phone)
+  set('website', d.website ?? d.website_url)
+  set('logo_url', d.logo_url)
+  set('primary_color', d.primary_color)
+  set('settlement_currency', d.settlement_currency)
+  set('settlement_wallet_address', d.settlement_wallet_address)
+  set('settlement_wallet_network', d.settlement_wallet_network)
+  const response = await apiClient.put('/gateway/merchants/me', body)
+  return response.data
+}
+
+export interface GatewayFees {
+  pix_fee_percent: string
+  crypto_fee_percent: string
+  network_fee_percent: string
+  min_payment_brl: string
+  max_payment_brl: string
+  daily_limit_brl: string
+}
+
+/**
+ * Taxas e limites vigentes (endpoint público)
+ */
+export const getGatewayFees = async (): Promise<GatewayFees> => {
+  const response = await apiClient.get('/gateway/fees')
   return response.data
 }
 
@@ -597,8 +628,14 @@ export const getWebhookConfig = async (): Promise<WebhookConfig> => {
 /**
  * Atualiza configuracao de webhook
  */
-export const updateWebhookConfig = async (webhookUrl: string): Promise<MerchantProfile> => {
-  const response = await apiClient.put('/gateway/webhooks/config', { webhook_url: webhookUrl })
+export const updateWebhookConfig = async (
+  webhookUrl: string,
+  events?: string[]
+): Promise<MerchantProfile> => {
+  // Envia os eventos atuais: sem eles o backend volta para a lista padrão.
+  const body: Record<string, unknown> = { webhook_url: webhookUrl }
+  if (events && events.length > 0) body.webhook_events = events
+  const response = await apiClient.put('/gateway/webhooks/config', body)
   return response.data
 }
 
@@ -618,7 +655,35 @@ export const getWebhookEvents = async (
   perPage = 20
 ): Promise<{ events: WebhookEvent[]; total: number }> => {
   const response = await apiClient.get(`/gateway/webhooks/events?page=${page}&per_page=${perPage}`)
-  return response.data
+  // Backend devolve uma lista de WebhookEventResponse (status SENT/FAILED/PENDING/EXHAUSTED)
+  const data = response.data as unknown
+  const rows = (Array.isArray(data)
+    ? data
+    : ((data as { items?: unknown[]; events?: unknown[] })?.items ??
+      (data as { events?: unknown[] })?.events ??
+      [])) as Record<string, any>[]
+  const toStatus = (s: string): WebhookEvent['status'] => {
+    const v = String(s || '').toUpperCase()
+    if (v === 'SENT' || v === 'DELIVERED') return 'delivered'
+    if (v === 'FAILED' || v === 'EXHAUSTED') return 'failed'
+    return 'pending'
+  }
+  const events: WebhookEvent[] = rows.map(r => ({
+    id: r.id,
+    event_type: r.event_type ?? r.event ?? '',
+    payment_id: r.payment_id ?? '',
+    status: toStatus(r.status),
+    attempts: r.attempts ?? 0,
+    last_attempt_at: r.sent_at ?? r.last_attempt_at ?? undefined,
+    next_retry_at: r.next_attempt_at ?? r.next_retry_at ?? undefined,
+    response_code: r.last_response_code ?? r.response_code ?? undefined,
+    created_at: r.created_at,
+  }))
+  const total =
+    typeof (data as { total?: number })?.total === 'number'
+      ? (data as { total: number }).total
+      : (page - 1) * perPage + events.length + (events.length === perPage ? 1 : 0)
+  return { events, total }
 }
 
 // Export default service object
@@ -629,6 +694,7 @@ const gatewayService = {
   selectPaymentMethod,
   // Merchant Dashboard
   getMerchantProfile,
+  getGatewayFees,
   registerMerchant,
   updateMerchantProfile,
   getMerchantStats,

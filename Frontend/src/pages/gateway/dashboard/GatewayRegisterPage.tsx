@@ -479,11 +479,11 @@ export default function GatewayRegisterPage() {
                     />
                     <span className='text-sm text-slate-600 dark:text-slate-400'>
                       Li e aceito os{' '}
-                      <a href='/terms' className='text-indigo-600 hover:underline'>
+                      <a href='/terms' target='_blank' rel='noopener noreferrer' className='text-indigo-600 hover:underline'>
                         Termos de Uso
                       </a>{' '}
                       e a{' '}
-                      <a href='/privacy' className='text-indigo-600 hover:underline'>
+                      <a href='/privacy' target='_blank' rel='noopener noreferrer' className='text-indigo-600 hover:underline'>
                         Política de Privacidade
                       </a>{' '}
                       do WolkPay Gateway

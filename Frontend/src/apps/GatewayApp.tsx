@@ -33,6 +33,7 @@ import {
   GatewayRegisterPage,
 } from '@/pages/gateway'
 import GatewayDocsPage from '@/pages/gateway/GatewayDocsPage'
+import GatewayLegalPage from '@/pages/gateway/GatewayLegalPage'
 
 // Hook para verificar se usuário é merchant
 const useMerchantCheck = () => {
@@ -65,13 +66,10 @@ const useMerchantCheck = () => {
       setIsChecking(true)
 
       try {
-        console.log('[GatewayApp] Checking if user is merchant...')
-        const profile = await getMerchantProfile()
-        console.log('[GatewayApp] ✅ User is merchant:', profile.id)
+        await getMerchantProfile()
         setIsMerchant(true)
         setLastUserId(currentUserId)
-      } catch (error) {
-        console.log('[GatewayApp] ❌ User is NOT a merchant:', error)
+      } catch {
         setIsMerchant(false)
         setLastUserId(currentUserId)
       } finally {
@@ -163,6 +161,9 @@ export function GatewayApp() {
 
           {/* Documentation (public) */}
           <Route path='/docs' element={<GatewayDocsPage />} />
+          <Route path='/terms' element={<GatewayLegalPage doc='terms' />} />
+          <Route path='/privacy' element={<GatewayLegalPage doc='privacy' />} />
+          <Route path='/cookies' element={<GatewayLegalPage doc='cookies' />} />
 
           {/* Auth Routes */}
           <Route

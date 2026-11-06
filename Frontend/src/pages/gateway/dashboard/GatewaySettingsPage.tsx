@@ -23,6 +23,7 @@ import {
 import {
   getMerchantProfile,
   updateMerchantProfile,
+  getGatewayFees,
   type MerchantProfile,
   type MerchantStatus,
 } from '../../../services/gatewayService'
@@ -43,12 +44,16 @@ export default function GatewaySettingsPage() {
   const [businessPhone, setBusinessPhone] = useState('')
   const [websiteUrl, setWebsiteUrl] = useState('')
   const [logoUrl, setLogoUrl] = useState('')
-  const [settlementCrypto, setSettlementCrypto] = useState('')
-  const [settlementNetwork, setSettlementNetwork] = useState('')
-  const [autoSettlement, setAutoSettlement] = useState(false)
+  const [settlementCurrency, setSettlementCurrency] = useState<'BRL' | 'USDT' | 'ORIGINAL'>('BRL')
+  const [walletAddress, setWalletAddress] = useState('')
+  const [walletNetwork, setWalletNetwork] = useState('')
+  const [defaultPixFee, setDefaultPixFee] = useState<string | null>(null)
 
   useEffect(() => {
     loadProfile()
+    getGatewayFees()
+      .then(f => setDefaultPixFee(f.pix_fee_percent))
+      .catch(() => setDefaultPixFee(null))
   }, [])
 
   const loadProfile = async () => {
@@ -63,9 +68,9 @@ export default function GatewaySettingsPage() {
       setBusinessPhone(profile.business_phone || '')
       setWebsiteUrl(profile.website_url || '')
       setLogoUrl(profile.logo_url || '')
-      setSettlementCrypto(profile.settlement_crypto || 'USDT')
-      setSettlementNetwork(profile.settlement_network || 'TRC20')
-      setAutoSettlement(profile.auto_settlement || false)
+      setSettlementCurrency(profile.settlement_currency || 'BRL')
+      setWalletNetwork(profile.settlement_network || '')
+      setWalletAddress('')
     } catch (error) {
       console.error('Erro ao carregar perfil:', error)
     } finally {
@@ -78,13 +83,14 @@ export default function GatewaySettingsPage() {
       setSaving(true)
       await updateMerchantProfile({
         business_name: businessName,
-        business_email: businessEmail,
-        business_phone: businessPhone || undefined,
-        website_url: websiteUrl || undefined,
-        logo_url: logoUrl || undefined,
-        settlement_crypto: settlementCrypto,
-        settlement_network: settlementNetwork,
-        auto_settlement: autoSettlement,
+        business_phone: businessPhone,
+        website_url: websiteUrl,
+        logo_url: logoUrl,
+        settlement_currency: settlementCurrency,
+        // Endereço não é devolvido pela API: só envia se o lojista digitou um novo
+        settlement_wallet_address:
+          settlementCurrency !== 'BRL' && walletAddress.trim() ? walletAddress.trim() : undefined,
+        settlement_wallet_network: settlementCurrency !== 'BRL' && walletNetwork ? walletNetwork : undefined,
       })
       setHasChanges(false)
       await loadProfile()
@@ -244,8 +250,9 @@ export default function GatewaySettingsPage() {
                       id='business-email'
                       type='email'
                       value={businessEmail}
-                      onChange={e => handleFieldChange(setBusinessEmail, e.target.value)}
-                      className='w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500'
+                      readOnly
+                      title='Para alterar o e-mail da conta, fale com o suporte'
+                      className='w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400 cursor-not-allowed'
                     />
                   </div>
                 </div>
@@ -329,73 +336,72 @@ export default function GatewaySettingsPage() {
               </div>
 
               <div className='grid grid-cols-1 md:grid-cols-2 gap-5'>
-                <div>
-                  <label
-                    htmlFor='settlement-crypto'
-                    className='block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2'
-                  >
-                    Criptomoeda
-                  </label>
-                  <select
-                    id='settlement-crypto'
-                    value={settlementCrypto}
-                    onChange={e => handleFieldChange(setSettlementCrypto, e.target.value)}
-                    className='w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500'
-                  >
-                    <option value='USDT'>USDT (Tether)</option>
-                    <option value='USDC'>USDC</option>
-                    <option value='BTC'>Bitcoin</option>
-                    <option value='ETH'>Ethereum</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label
-                    htmlFor='settlement-network'
-                    className='block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2'
-                  >
-                    Rede
-                  </label>
-                  <select
-                    id='settlement-network'
-                    value={settlementNetwork}
-                    onChange={e => handleFieldChange(setSettlementNetwork, e.target.value)}
-                    className='w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500'
-                  >
-                    <option value='TRC20'>TRON (TRC20)</option>
-                    <option value='ERC20'>Ethereum (ERC20)</option>
-                    <option value='BEP20'>BNB Chain (BEP20)</option>
-                    <option value='POLYGON'>Polygon</option>
-                  </select>
-                </div>
-
                 <div className='md:col-span-2'>
-                  <label className='flex items-center gap-3 cursor-pointer'>
-                    <div className='relative'>
-                      <input
-                        type='checkbox'
-                        checked={autoSettlement}
-                        onChange={e => handleFieldChange(setAutoSettlement, e.target.checked)}
-                        className='sr-only'
-                      />
-                      <div
-                        className={`w-11 h-6 rounded-full transition-colors ${autoSettlement ? 'bg-indigo-600' : 'bg-slate-200 dark:bg-slate-700'}`}
+                  <label
+                    htmlFor='settlement-currency'
+                    className='block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2'
+                  >
+                    Receber em
+                  </label>
+                  <select
+                    id='settlement-currency'
+                    value={settlementCurrency}
+                    onChange={e =>
+                      handleFieldChange(
+                        setSettlementCurrency as React.Dispatch<React.SetStateAction<string>>,
+                        e.target.value
+                      )
+                    }
+                    className='w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500'
+                  >
+                    <option value='BRL'>Reais (BRL)</option>
+                    <option value='USDT'>USDT (stablecoin)</option>
+                    <option value='ORIGINAL'>Mesma moeda do pagamento</option>
+                  </select>
+                </div>
+
+                {settlementCurrency !== 'BRL' && (
+                  <>
+                    <div>
+                      <label
+                        htmlFor='settlement-network'
+                        className='block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2'
                       >
-                        <div
-                          className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${autoSettlement ? 'translate-x-5' : ''}`}
-                        />
-                      </div>
+                        Rede da carteira
+                      </label>
+                      <select
+                        id='settlement-network'
+                        value={walletNetwork}
+                        onChange={e => handleFieldChange(setWalletNetwork, e.target.value)}
+                        className='w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500'
+                      >
+                        <option value=''>Selecione</option>
+                        <option value='polygon'>Polygon</option>
+                        <option value='ethereum'>Ethereum</option>
+                        <option value='bsc'>BNB Smart Chain</option>
+                        <option value='bitcoin'>Bitcoin</option>
+                        <option value='solana'>Solana</option>
+                        <option value='litecoin'>Litecoin</option>
+                      </select>
                     </div>
                     <div>
-                      <p className='font-medium text-slate-900 dark:text-white'>
-                        Liquidação Automática
-                      </p>
-                      <p className='text-sm text-slate-500 dark:text-slate-400'>
-                        Converter automaticamente para a criptomoeda selecionada
-                      </p>
+                      <label
+                        htmlFor='settlement-wallet'
+                        className='block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2'
+                      >
+                        Endereço da carteira
+                      </label>
+                      <input
+                        id='settlement-wallet'
+                        type='text'
+                        value={walletAddress}
+                        onChange={e => handleFieldChange(setWalletAddress, e.target.value)}
+                        placeholder='Deixe em branco para manter o atual'
+                        className='w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500'
+                      />
                     </div>
-                  </label>
-                </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -430,7 +436,11 @@ export default function GatewaySettingsPage() {
                 <div className='flex justify-between'>
                   <span className='text-slate-500 dark:text-slate-400'>Taxa</span>
                   <span className='text-slate-900 dark:text-white'>
-                    {Number(merchant?.fee_percentage ?? 0).toFixed(2)}%
+                    {merchant?.fee_percentage != null
+                      ? `${Number(merchant.fee_percentage).toFixed(2)}%`
+                      : defaultPixFee != null
+                        ? `${Number(defaultPixFee).toFixed(2)}% (padrão Pix)`
+                        : '—'}
                   </span>
                 </div>
                 <div className='flex justify-between'>
@@ -468,7 +478,7 @@ export default function GatewaySettingsPage() {
                 Entre em contato com nosso suporte para dúvidas sobre sua conta ou integração.
               </p>
               <a
-                href='mailto:suporte@wolkpay.com'
+                href='mailto:suporte@wolknow.com'
                 className='inline-block px-4 py-2 bg-white text-indigo-600 rounded-xl text-sm font-medium hover:bg-white/90 transition-colors'
               >
                 Falar com Suporte

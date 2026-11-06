@@ -1396,41 +1396,47 @@
     "hero": {
       "badge": "Novo: PIX Copia e Cola + QR Code Dinâmico",
       "title": "Gateway de Pagamentos",
-      "words": ["PIX", "Cripto", "Global", "Seguro", "Rápido"],
+      "words": [
+        "PIX",
+        "Cripto",
+        "Global",
+        "Seguro",
+        "Rápido"
+      ],
       "subtitle": "Aceite pagamentos {{pix}} e {{crypto}} com a API mais simples do mercado.",
       "subtitleLine2": "Integre em minutos, receba em segundos.",
-      "cta": "Começar Gratuitamente",
-      "demo": "Ver Demo"
+      "cta": "Criar conta",
+      "demo": "Ver documentação"
     },
     "stats": {
-      "processed": "Processado",
-      "uptime": "Uptime",
-      "pixConfirmation": "Confirmação PIX",
-      "merchants": "Merchants"
+      "pixFee": "Taxa Pix",
+      "cryptoFee": "Taxa cripto",
+      "minPayment": "Pagamento mínimo",
+      "cryptos": "Criptomoedas aceitas"
     },
     "features": {
       "sectionTitle": "Recursos",
       "title": "Tudo que você precisa",
       "subtitle": "Uma plataforma completa para aceitar PIX e criptomoedas no seu negócio",
       "integration": {
-        "title": "Integração em Minutos",
-        "description": "API REST simples com SDKs para todas as linguagens populares. Documentação completa."
+        "title": "Integração em minutos",
+        "description": "API REST simples, com exemplos prontos em cURL, Node.js, Python e PHP e documentação completa."
       },
       "pix": {
-        "title": "PIX Instantâneo",
-        "description": "Receba pagamentos PIX 24/7 com confirmação em segundos via webhook."
+        "title": "Pix dinâmico",
+        "description": "Cobrança Pix gerada no Banco do Brasil, com QR Code, copia e cola e confirmação automática via webhook."
       },
       "crypto": {
-        "title": "Cripto sem Volatilidade",
-        "description": "Aceite Bitcoin, Ethereum e receba em stablecoins USDT/USDC automaticamente."
+        "title": "Criptomoedas",
+        "description": "Aceite BTC, ETH, USDT, USDC, BNB, SOL, MATIC e LTC e escolha receber em BRL, USDT ou na mesma moeda."
       },
       "security": {
-        "title": "Segurança Enterprise",
-        "description": "Criptografia de ponta, 2FA obrigatório e conformidade com regulações."
+        "title": "Segurança",
+        "description": "Webhooks assinados com HMAC-SHA256, API keys armazenadas com hash e restrição opcional por IP."
       },
       "global": {
-        "title": "Alcance Global",
-        "description": "Receba de qualquer lugar do mundo com conversão automática para BRL."
+        "title": "Checkout hospedado",
+        "description": "Página de pagamento pronta e responsiva: envie o cliente para o link e receba a confirmação."
       },
       "dashboard": {
         "title": "Dashboard Completo",
@@ -1438,8 +1444,8 @@
       }
     },
     "sdk": {
-      "title": "SDKs para todas as linguagens",
-      "subtitle": "Integre o WolkPay em minutos com nossos SDKs oficiais. Documentação completa e exemplos prontos para usar.",
+      "title": "Integre com qualquer linguagem",
+      "subtitle": "API REST com JSON e autenticação por API key. A documentação traz exemplos prontos em cURL, Node.js, Python e PHP.",
       "viewDocs": "Ver documentação completa"
     },
     "benefits": {
@@ -1447,100 +1453,46 @@
       "title": "Focados em",
       "titleHighlight": "simplicidade",
       "subtitle": "Para que você possa focar no que importa: seu negócio. Nós cuidamos da complexidade dos pagamentos.",
-      "rate": "Taxa competitiva a partir de 0.99%",
-      "settlement": "Liquidação em até 1 dia útil",
-      "noFees": "Sem mensalidade ou taxa de setup",
-      "support": "Suporte técnico 24/7",
-      "webhooks": "Webhooks em tempo real",
-      "api": "API RESTful documentada"
+      "rate": "Taxas transparentes por transação",
+      "settlement": "Liquidação em BRL ou USDT",
+      "noFees": "Pix gerado no Banco do Brasil",
+      "support": "Suporte por e-mail",
+      "webhooks": "Webhooks assinados em tempo real",
+      "api": "API REST documentada"
     },
     "video": {
-      "watchDemo": "Ver demonstração"
-    },
-    "testimonials": {
-      "sectionTitle": "Depoimentos",
-      "title": "O que dizem nossos clientes",
-      "maria": {
-        "content": "Nosso faturamento aumentou 35% após aceitar cripto. Os clientes adoram a praticidade do PIX instantâneo.",
-        "name": "Maria Oliveira",
-        "role": "CEO, E-commerce Plus"
-      },
-      "pedro": {
-        "content": "Integramos o WolkPay em menos de 2 horas. A documentação é excelente e o suporte respondeu todas as dúvidas rapidamente.",
-        "name": "Pedro Santos",
-        "role": "CTO, TechStore"
-      },
-      "julia": {
-        "content": "A melhor taxa do mercado e liquidação super rápida. Recomendo para qualquer empresa que quer escalar.",
-        "name": "Julia Mendes",
-        "role": "Founder, SaaS Brasil"
-      }
+      "watchDemo": "Explorar a documentação",
+      "subtitle": "Exemplos reais de requisição, payload de webhook e checklist de produção."
     },
     "pricing": {
       "sectionTitle": "Preços",
       "title": "Transparente e justo",
-      "subtitle": "Sem surpresas. Pague apenas pelo que usar.",
-      "mostPopular": "Mais Popular",
-      "plans": {
-        "starter": {
-          "name": "Starter",
-          "description": "Para pequenos negócios",
-          "price": "0",
-          "period": "/mês",
-          "features": [
-            "Até $10.000/mês",
-            "Taxa: 1.99% PIX / 2.99% Cripto",
-            "Dashboard básico",
-            "Suporte por email",
-            "1 API Key"
-          ],
-          "cta": "Começar Grátis"
-        },
-        "professional": {
-          "name": "Profissional",
-          "description": "Para empresas em crescimento",
-          "price": "299",
-          "period": "/mês",
-          "features": [
-            "Até $100.000/mês",
-            "Taxa: 1.49% PIX / 2.49% Cripto",
-            "Dashboard completo",
-            "Suporte prioritário",
-            "API Keys ilimitadas",
-            "Webhooks customizados"
-          ],
-          "cta": "Começar Agora"
-        },
-        "enterprise": {
-          "name": "Enterprise",
-          "description": "Para grandes operações",
-          "price": "Custom",
-          "period": "",
-          "features": [
-            "Volume ilimitado",
-            "Taxas negociadas",
-            "Gerente dedicado",
-            "SLA garantido",
-            "White-label disponível",
-            "Integração customizada"
-          ],
-          "cta": "Falar com Vendas"
-        }
-      }
+      "subtitle": "Você paga uma taxa por transação aprovada, descontada do valor recebido.",
+      "planName": "Por transação",
+      "planDescription": "Taxas vigentes, atualizadas em tempo real",
+      "pixFee": "Pix",
+      "cryptoFee": "Criptomoedas",
+      "minPayment": "Pagamento mínimo",
+      "maxPayment": "Pagamento máximo",
+      "dailyLimit": "Limite diário por lojista",
+      "included": [
+        "Checkout hospedado",
+        "Webhooks assinados",
+        "Painel com relatórios",
+        "API keys ilimitadas"
+      ],
+      "customTitle": "Volume alto?",
+      "customDescription": "Taxas e limites personalizados para grandes operações.",
+      "cta": "Criar conta",
+      "talkToSales": "Falar com vendas"
     },
     "cta": {
-      "badge": "Comece agora, é grátis",
+      "badge": "Comece agora",
       "title": "Pronto para começar a",
       "titleLine2": "receber pagamentos?",
-      "subtitle": "Crie sua conta em menos de 5 minutos e comece a processar pagamentos imediatamente.",
-      "createAccount": "Criar Conta Grátis",
+      "subtitle": "Crie sua conta, aguarde a aprovação e comece a integrar com a documentação completa.",
+      "createAccount": "Criar conta",
       "talkToSales": "Falar com Vendas"
-    },
-    "newsletter": {
-      "title": "Fique por dentro das novidades",
-      "subtitle": "Receba atualizações sobre novos recursos e dicas de integração.",
-      "placeholder": "seu@email.com",
-      "subscribe": "Inscrever"
     },
     "footer": {
       "description": "Gateway de pagamentos PIX e Cripto para empresas modernas. Integre em minutos, receba em segundos.",
