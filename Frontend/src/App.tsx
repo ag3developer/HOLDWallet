@@ -327,7 +327,7 @@ function MainApp() {
         <meta name='theme-color' content='#1f2937' media='(prefers-color-scheme: dark)' />
       </Helmet>
 
-      <div className='App min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200'>
+      <div className='App min-h-screen bg-gray-50 dark:bg-[#0A0E15] transition-colors duration-200'>
         <Routes>
           {/* Public Routes */}
           <Route

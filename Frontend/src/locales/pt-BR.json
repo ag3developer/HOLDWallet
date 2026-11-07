@@ -57,11 +57,11 @@
     "optional": "opcional"
   },
   "navigation": {
-    "dashboard": "Dashboard",
+    "dashboard": "Início",
     "wallet": "Carteira",
-    "marketplace": "Marketplace",
-    "instantTrade": "Trade Instantâneo",
-    "swap": "Swap",
+    "marketplace": "P2P",
+    "instantTrade": "Comprar e vender",
+    "swap": "Converter",
     "wolkpay": "WolkPay",
     "billPayment": "Pagar Boleto",
     "earnpool": "Pool de Liquidez",

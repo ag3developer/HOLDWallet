@@ -10,7 +10,7 @@ export const Layout = () => {
   useCurrencyPreferenceSync()
 
   return (
-    <div className='min-h-screen bg-gray-50 dark:bg-gray-900'>
+    <div className='min-h-screen bg-gray-50 dark:bg-[#0A0E15]'>
       <div className='flex h-screen'>
         {/* Sidebar - Esconde no mobile quando é chat */}
         <div className={isChatPage ? 'hidden lg:block' : ''}>
@@ -27,12 +27,12 @@ export const Layout = () => {
           {/* Page content */}
           {isChatPage ? (
             /* Chat - Full screen, sem padding, sem scroll do container */
-            <main className='flex-1 overflow-hidden bg-gray-50 dark:bg-gray-900'>
+            <main className='flex-1 overflow-hidden bg-gray-50 dark:bg-[#0A0E15]'>
               <Outlet />
             </main>
           ) : (
             /* Outras páginas - Com container e padding normal */
-            <main className='flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 dark:bg-gray-900'>
+            <main className='flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 dark:bg-[#0A0E15]'>
               <div className='container mx-auto px-4 sm:px-6 py-6 lg:py-8 pb-28 lg:pb-8'>
                 <Outlet />
               </div>

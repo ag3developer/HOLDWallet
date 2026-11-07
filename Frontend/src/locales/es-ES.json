@@ -55,10 +55,10 @@
     "optional": "opcional"
   },
   "navigation": {
-    "dashboard": "Panel",
+    "dashboard": "Inicio",
     "wallet": "Billetera",
-    "marketplace": "Marketplace",
-    "instantTrade": "Trade Instantáneo",
+    "marketplace": "P2P",
+    "instantTrade": "Comprar y vender",
     "wolkpay": "WolkPay",
     "billPayment": "Pagar Facturas",
     "earnpool": "Pool de Liquidez",
@@ -74,7 +74,8 @@
     "kyc": "Verificación KYC",
     "settings": "Configuración",
     "help": "Ayuda",
-    "logout": "Cerrar Sesión"
+    "logout": "Cerrar Sesión",
+    "swap": "Convertir"
   },
   "seo": {
     "defaultTitle": "WOLK NOW® - Billetera Inteligente P2P",

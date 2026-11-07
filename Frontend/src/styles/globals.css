@@ -127,7 +127,7 @@
   /* Dark mode */
   .dark body {
     color: theme('colors.gray.100');
-    background-color: theme('colors.gray.900');
+    background-color: #0a0e15; /* azul-noite: fundo da identidade */
   }
 
   /* ✅ Mobile PWA - Keyboard behavior */
@@ -177,7 +177,7 @@
   }
 
   .dark ::-webkit-scrollbar-track {
-    background: theme('colors.gray.800');
+    background: #0d121c;
   }
 
   ::-webkit-scrollbar-thumb {
@@ -190,11 +190,11 @@
   }
 
   .dark ::-webkit-scrollbar-thumb {
-    background: theme('colors.gray.600');
+    background: #2a3449;
   }
 
   .dark ::-webkit-scrollbar-thumb:hover {
-    background: theme('colors.gray.500');
+    background: #3a4660;
   }
 
   /* Thin scrollbar for transaction lists */

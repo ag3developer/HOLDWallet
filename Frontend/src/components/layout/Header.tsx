@@ -1,71 +1,64 @@
 import { useTranslation } from 'react-i18next'
-import { Sun, Moon, Globe, Search } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { ChevronDown, Menu, Moon, Sun } from 'lucide-react'
 import { useThemeStore } from '@/stores/useThemeStore'
+import { useSidebarStore } from '@/stores/useSidebarStore'
 import { BackendStatusIndicator } from '@/components/ui/BackendStatusIndicator'
 import { NotificationCenter } from '@/components/NotificationCenter'
-import { useState } from 'react'
 
+const LANGS = [
+  { id: 'pt-BR', label: 'PT' },
+  { id: 'en-US', label: 'EN' },
+  { id: 'es-ES', label: 'ES' },
+  { id: 'zh-CN', label: '中文' },
+  { id: 'ja-JP', label: '日本語' },
+  { id: 'ko-KR', label: '한국어' },
+]
+
+const iconBtn =
+  'w-10 h-10 rounded-xl flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-[#8590A6] dark:hover:text-white dark:hover:bg-[#172033] transition-colors'
+
+/** Cabeçalho: menu (celular), status, idioma, notificações e o único botão de tema do app. */
 export const Header = () => {
   const { i18n } = useTranslation()
-  const { theme, toggleTheme } = useThemeStore()
-  const [searchQuery, setSearchQuery] = useState('')
-
-  const handleLanguageChange = (lang: string) => {
-    i18n.changeLanguage(lang)
-  }
+  const { isDark, toggleTheme } = useThemeStore()
+  const setMobileOpen = useSidebarStore(s => s.setMobileOpen)
 
   return (
-    <header className='bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4'>
-      <div className='flex items-center justify-between gap-6'>
-        {/* Search Bar */}
-        <div className='hidden md:flex flex-1 max-w-md'>
-          <div className='relative w-full'>
-            <Search className='absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400' />
-            <input
-              type='text'
-              placeholder='Buscar carteiras, transações...'
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className='w-full pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-all'
-            />
-          </div>
-        </div>
+    <header className='h-16 shrink-0 flex items-center gap-2 px-3 sm:px-6 bg-white/90 backdrop-blur border-b border-gray-200 dark:bg-[#0D121C]/90 dark:border-[#1A2232]'>
+      {/* Celular/tablet: abre o menu e mostra a marca */}
+      <button type='button' onClick={() => setMobileOpen(true)} aria-label='Abrir menu' className={`lg:hidden ${iconBtn}`}>
+        <Menu className='w-5 h-5' aria-hidden='true' />
+      </button>
+      <Link to='/dashboard' className='lg:hidden flex items-center gap-2' aria-label='Wolknow — início'>
+        <img src='/images/logos/wn-icon.png' alt='' className='w-8 h-8 rounded-lg object-contain' />
+        <span className='font-semibold text-gray-900 dark:text-[#EEF1F7] hidden sm:inline'>Wolknow</span>
+      </Link>
 
-        {/* Header actions */}
-        <div className='flex items-center gap-4 ml-auto'>
-          {/* Backend Status Indicator */}
-          <BackendStatusIndicator />
+      <div className='ml-auto flex items-center gap-1 sm:gap-2'>
+        <BackendStatusIndicator />
 
-          {/* Language selector */}
-          <div className='relative'>
-            <select
-              value={i18n.language}
-              onChange={e => handleLanguageChange(e.target.value)}
-              className='appearance-none bg-transparent border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1 pr-8 text-sm text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500'
-              title='Selecionar idioma'
-            >
-              <option value='pt-BR'>PT</option>
-              <option value='en-US'>EN</option>
-              <option value='es-ES'>ES</option>
-              <option value='zh-CN'>中文</option>
-              <option value='ja-JP'>日本語</option>
-              <option value='ko-KR'>한국어</option>
-            </select>
-            <Globe className='absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none' />
-          </div>
-
-          {/* Notifications */}
-          <NotificationCenter />
-
-          {/* Theme toggle */}
-          <button
-            onClick={toggleTheme}
-            className='p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700'
-            title={theme === 'dark' ? 'Modo claro' : 'Modo escuro'}
+        <label className='relative'>
+          <span className='sr-only'>Idioma</span>
+          <select
+            value={i18n.language}
+            onChange={e => i18n.changeLanguage(e.target.value)}
+            className='appearance-none h-10 pl-3 pr-8 rounded-xl bg-transparent border border-gray-200 dark:border-[#222B3D] text-sm font-medium text-gray-700 dark:text-[#A3ADC2] hover:border-gray-300 dark:hover:border-[#2F3D5C] focus:outline-none focus:ring-2 focus:ring-blue-500/40 cursor-pointer'
           >
-            {theme === 'dark' ? <Sun className='w-5 h-5' /> : <Moon className='w-5 h-5' />}
-          </button>
-        </div>
+            {LANGS.map(l => (
+              <option key={l.id} value={l.id}>
+                {l.label}
+              </option>
+            ))}
+          </select>
+          <ChevronDown className='absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none' aria-hidden='true' />
+        </label>
+
+        <NotificationCenter />
+
+        <button type='button' onClick={toggleTheme} aria-label={isDark ? 'Usar tema claro' : 'Usar tema escuro'} title={isDark ? 'Tema claro' : 'Tema escuro'} className={iconBtn}>
+          {isDark ? <Sun className='w-5 h-5' aria-hidden='true' /> : <Moon className='w-5 h-5' aria-hidden='true' />}
+        </button>
       </div>
     </header>
   )

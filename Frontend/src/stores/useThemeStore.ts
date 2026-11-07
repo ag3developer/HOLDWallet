@@ -56,9 +56,8 @@ export const useThemeStore = create<ThemeStore>()(
 
       // Toggle between light and dark (ignoring system)
       toggleTheme: () => {
-        const currentTheme = get().theme
-        const newTheme = currentTheme === 'dark' ? 'light' : 'dark'
-        get().setTheme(newTheme)
+        // Alterna a partir do que está na tela (no modo "sistema" escuro, o 1º clique vai para claro)
+        get().setTheme(get().isDark ? 'light' : 'dark')
       },
 
       // Initialize theme on app start
