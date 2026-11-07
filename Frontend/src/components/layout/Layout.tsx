@@ -1,6 +1,7 @@
 import { Outlet, useLocation } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { Header } from './Header'
+import { MobileTabBar } from './MobileTabBar'
 
 export const Layout = () => {
   const location = useLocation()
@@ -30,11 +31,12 @@ export const Layout = () => {
           ) : (
             /* Outras páginas - Com container e padding normal */
             <main className='flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 dark:bg-gray-900'>
-              <div className='container mx-auto px-6 py-8'>
+              <div className='container mx-auto px-4 sm:px-6 py-6 lg:py-8 pb-28 lg:pb-8'>
                 <Outlet />
               </div>
             </main>
           )}
+          {!isChatPage && <MobileTabBar />}
         </div>
       </div>
     </div>

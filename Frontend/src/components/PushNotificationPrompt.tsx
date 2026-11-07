@@ -58,7 +58,8 @@ export const PushNotificationPrompt = ({
       return
     }
 
-    if (!isSupported || isSubscribed || permission === 'denied' || isDismissed) {
+    // Só decide depois de saber se já existe inscrição (evita mostrar para quem já ativou)
+    if (isLoading || !isSupported || isSubscribed || permission === 'denied' || isDismissed) {
       return
     }
 
@@ -67,7 +68,7 @@ export const PushNotificationPrompt = ({
     }, delay)
 
     return () => clearTimeout(timer)
-  }, [isSupported, isSubscribed, permission, isDismissed, delay, isAuthenticated, token])
+  }, [isLoading, isSupported, isSubscribed, permission, isDismissed, delay, isAuthenticated, token])
 
   // Handler para ativar
   const handleSubscribe = async () => {

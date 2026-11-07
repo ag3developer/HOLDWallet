@@ -1572,5 +1572,88 @@
         "contactSupport": "Contactar con soporte"
       }
     }
+  },
+  "home": {
+    "greeting": {
+      "morning": "Buenos días",
+      "afternoon": "Buenas tardes",
+      "evening": "Buenas noches"
+    },
+    "netWorth": "Patrimonio total",
+    "hide": "Ocultar valores",
+    "show": "Mostrar valores",
+    "period": "Período",
+    "inPeriod": {
+      "24h": "en las últimas 24 horas",
+      "7D": "en los últimos 7 días",
+      "30D": "en los últimos 30 días",
+      "1A": "en los últimos 12 meses"
+    },
+    "chartAria": "Evolución del patrimonio en el período",
+    "chartEmpty": "El gráfico aparece cuando tu billetera tenga saldo.",
+    "high": "Máximo del período",
+    "low": "Mínimo del período",
+    "quickActions": "Acciones rápidas",
+    "actions": {
+      "buy": "Comprar",
+      "receive": "Recibir",
+      "send": "Enviar",
+      "convert": "Convertir"
+    },
+    "assets": {
+      "title": "Tus activos",
+      "viewWallet": "Ver billetera",
+      "empty": "Aún no tienes saldo.",
+      "emptyCta": "Recibir cripto",
+      "networks_one": "{{count}} red",
+      "networks_other": "{{count}} redes",
+      "col": {
+        "asset": "Activo",
+        "quantity": "Cantidad",
+        "price": "Precio",
+        "value": "Valor",
+        "allocation": "Asignación"
+      }
+    },
+    "market": {
+      "title": "Mercado",
+      "seeAll": "Negociar"
+    },
+    "activity": {
+      "title": "Actividad",
+      "history": "Historial",
+      "received": "{{symbol}} recibido",
+      "sent": "{{symbol}} enviado",
+      "empty": "Aún no hay movimientos.",
+      "status": {
+        "pending": "Pendiente",
+        "confirmed": "Confirmado",
+        "failed": "Fallido"
+      }
+    },
+    "kyc": {
+      "title": "Verifica tu identidad",
+      "body": "Libera límites mayores en OTC y Pix"
+    },
+    "quote": {
+      "title": "Cotización instantánea",
+      "operation": "Operación",
+      "buy": "Comprar",
+      "sell": "Vender",
+      "youPay": "Pagas",
+      "youSell": "Vendes",
+      "asset": "Activo",
+      "youGet": "Recibes aproximadamente",
+      "note": "estimación; el precio se fija por 60 s al confirmar",
+      "ctaBuy": "Comprar {{symbol}}",
+      "ctaSell": "Vender {{symbol}}"
+    },
+    "nav": {
+      "label": "Navegación principal",
+      "home": "Inicio",
+      "wallet": "Billetera",
+      "trade": "Negociar",
+      "services": "Servicios"
+    }
   }
 }

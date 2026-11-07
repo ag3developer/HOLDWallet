@@ -1866,5 +1866,88 @@
         "contactSupport": "Contact Support"
       }
     }
+  },
+  "home": {
+    "greeting": {
+      "morning": "Good morning",
+      "afternoon": "Good afternoon",
+      "evening": "Good evening"
+    },
+    "netWorth": "Total balance",
+    "hide": "Hide values",
+    "show": "Show values",
+    "period": "Period",
+    "inPeriod": {
+      "24h": "in the last 24 hours",
+      "7D": "in the last 7 days",
+      "30D": "in the last 30 days",
+      "1A": "in the last 12 months"
+    },
+    "chartAria": "Balance over the period",
+    "chartEmpty": "The chart appears once your wallet has a balance.",
+    "high": "Period high",
+    "low": "Period low",
+    "quickActions": "Quick actions",
+    "actions": {
+      "buy": "Buy",
+      "receive": "Receive",
+      "send": "Send",
+      "convert": "Convert"
+    },
+    "assets": {
+      "title": "Your assets",
+      "viewWallet": "View wallet",
+      "empty": "You don't have a balance yet.",
+      "emptyCta": "Receive crypto",
+      "networks_one": "{{count}} network",
+      "networks_other": "{{count}} networks",
+      "col": {
+        "asset": "Asset",
+        "quantity": "Amount",
+        "price": "Price",
+        "value": "Value",
+        "allocation": "Allocation"
+      }
+    },
+    "market": {
+      "title": "Market",
+      "seeAll": "Trade"
+    },
+    "activity": {
+      "title": "Activity",
+      "history": "History",
+      "received": "{{symbol}} received",
+      "sent": "{{symbol}} sent",
+      "empty": "No activity yet.",
+      "status": {
+        "pending": "Pending",
+        "confirmed": "Confirmed",
+        "failed": "Failed"
+      }
+    },
+    "kyc": {
+      "title": "Verify your identity",
+      "body": "Unlocks higher OTC and Pix limits"
+    },
+    "quote": {
+      "title": "Instant quote",
+      "operation": "Operation",
+      "buy": "Buy",
+      "sell": "Sell",
+      "youPay": "You pay",
+      "youSell": "You sell",
+      "asset": "Asset",
+      "youGet": "You receive approximately",
+      "note": "estimate; the price is locked for 60 s when you confirm",
+      "ctaBuy": "Buy {{symbol}}",
+      "ctaSell": "Sell {{symbol}}"
+    },
+    "nav": {
+      "label": "Main navigation",
+      "home": "Home",
+      "wallet": "Wallet",
+      "trade": "Trade",
+      "services": "Services"
+    }
   }
 }

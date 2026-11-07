@@ -155,8 +155,11 @@ class PriceService:
                 params = {
                     "vs_currency": vs_currency,
                     "days": days,
-                    "interval": interval
                 }
+                # Só "daily" é aceito no plano gratuito; sem o parâmetro a CoinGecko escolhe
+                # a granularidade sozinha (5 min em 1 dia, 1 h até 90 dias) — necessário no gráfico de 24h/7D.
+                if interval == "daily":
+                    params["interval"] = "daily"
                 
                 if settings.COINGECKO_API_KEY:
                     params["x_cg_demo_api_key"] = settings.COINGECKO_API_KEY

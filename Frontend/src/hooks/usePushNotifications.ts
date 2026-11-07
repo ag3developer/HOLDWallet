@@ -63,7 +63,14 @@ export const usePushNotifications = () => {
    */
   const checkSubscription = async () => {
     try {
-      const registration = await navigator.serviceWorker.ready
+      // getRegistration() responde na hora; `serviceWorker.ready` fica pendente para sempre
+      // quando não há service worker registrado (ex.: ambiente de desenvolvimento), o que
+      // deixava o convite aparecendo em toda visita e o botão preso em "Ativando...".
+      const registration = await navigator.serviceWorker.getRegistration()
+      if (!registration) {
+        setState(prev => ({ ...prev, isSupported: false, isLoading: false }))
+        return false
+      }
       const subscription = await registration.pushManager.getSubscription()
 
       setState(prev => ({

@@ -1,1369 +1,596 @@
-import React, { useState, useMemo, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import {
+  ArrowDownLeft,
+  ArrowLeftRight,
+  ArrowUpRight,
+  ChevronRight,
+  Eye,
+  EyeOff,
+  Plus,
+  ShieldCheck,
+} from 'lucide-react'
 import { useCurrentUser } from '@/hooks/useAuth'
 import { useWallets, useMultipleWalletBalances } from '@/hooks/useWallet'
 import { useMarketPrices } from '@/hooks/useMarketPrices'
+import { useTransactions } from '@/hooks/useTransactions'
+import { useKYC } from '@/hooks/useKYC'
 import { CryptoIcon } from '@/components/CryptoIcon'
 import { useCurrencyStore } from '@/stores/useCurrencyStore'
-import {
-  DollarSign,
-  TrendingUp,
-  Award,
-  Wallet,
-  Send,
-  Download,
-  MessageCircle,
-  Plus,
-  Coins,
-  ChevronDown,
-  ChevronRight,
-  RefreshCw,
-  Shield,
-  Sparkles,
-  CheckCircle,
-} from 'lucide-react'
+import { PERIODS, type Period, useHoldings, usePortfolioSeries, usePriceHistories } from './home/usePortfolio'
+import { PortfolioChart, Sparkline } from './home/PortfolioChart'
 
-// Skeleton Components para loading state
-const SkeletonBox = ({ className = '' }: { className?: string }) => (
-  <div className={`animate-pulse bg-gray-200 dark:bg-gray-700 rounded ${className}`} />
-)
+const PRICE_SYMBOLS = ['BTC', 'ETH', 'USDT', 'USDC', 'SOL', 'BNB', 'MATIC', 'ADA', 'AVAX', 'TRX', 'LTC', 'DOGE', 'DOT', 'LINK', 'SHIB', 'XRP']
+const MARKET_SYMBOLS = ['BTC', 'ETH', 'SOL', 'USDT']
+const QUOTE_SYMBOLS = ['BTC', 'ETH', 'SOL', 'USDT']
+const HIDE_KEY = 'home_hide_values'
 
-const StatCardSkeleton = () => (
-  <div className='bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl p-4 shadow-sm'>
-    <div className='flex items-start justify-between mb-2'>
-      <div className='flex-1'>
-        <SkeletonBox className='h-3 w-20 mb-2' />
-        <SkeletonBox className='h-7 w-24 mb-1' />
-        <SkeletonBox className='h-3 w-16' />
-      </div>
-      <SkeletonBox className='w-10 h-10 rounded-xl' />
-    </div>
-    <SkeletonBox className='h-0.5 w-full mt-2' />
-  </div>
-)
+const card = 'bg-white border border-gray-200 dark:bg-[#111724] dark:border-[#1E2738] rounded-2xl'
+const cardSm =
+  'sm:bg-white sm:border sm:border-gray-200 sm:dark:bg-[#111724] sm:dark:border-[#1E2738] sm:rounded-2xl'
+const upText = 'text-emerald-600 dark:text-[#34C77B]'
+const downText = 'text-red-600 dark:text-[#FF7A7A]'
+const muted = 'text-gray-500 dark:text-[#8590A6]'
+const soft = 'text-gray-600 dark:text-[#A3ADC2]'
+const linkCls = 'text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-[#8FB0FF] dark:hover:text-[#B9CDFF]'
 
-const WalletCardSkeleton = () => (
-  <div className='bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl overflow-hidden shadow-sm'>
-    <div className='px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between'>
-      <div className='flex items-center gap-2'>
-        <SkeletonBox className='w-8 h-8 rounded-xl' />
-        <div>
-          <SkeletonBox className='h-4 w-24 mb-1' />
-          <SkeletonBox className='h-3 w-32' />
-        </div>
-      </div>
-    </div>
-    <div className='p-4 space-y-3'>
-      <div className='flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl'>
-        <div className='flex items-center gap-3'>
-          <SkeletonBox className='w-10 h-10 rounded-xl' />
-          <div>
-            <SkeletonBox className='h-4 w-20 mb-1' />
-            <SkeletonBox className='h-3 w-16' />
-          </div>
-        </div>
-        <SkeletonBox className='h-5 w-16' />
-      </div>
-      <div className='flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl'>
-        <div className='flex items-center gap-3'>
-          <SkeletonBox className='w-10 h-10 rounded-xl' />
-          <div>
-            <SkeletonBox className='h-4 w-20 mb-1' />
-            <SkeletonBox className='h-3 w-16' />
-          </div>
-        </div>
-        <SkeletonBox className='h-5 w-16' />
-      </div>
-    </div>
-  </div>
-)
+const pct = (n: number, locale: string) =>
+  `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(n).toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`
 
-const QuickActionsSkeleton = () => (
-  <div className='bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl overflow-hidden shadow-sm'>
-    <div className='px-5 py-4 border-b border-gray-100 dark:border-gray-700'>
-      <div className='flex items-center gap-2'>
-        <SkeletonBox className='w-8 h-8 rounded-xl' />
-        <SkeletonBox className='h-4 w-24' />
-      </div>
-    </div>
-    <div className='p-4 space-y-2'>
-      {[1, 2, 3].map(i => (
-        <div
-          key={i}
-          className='flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl'
-        >
-          <SkeletonBox className='w-10 h-10 rounded-xl' />
-          <div className='flex-1'>
-            <SkeletonBox className='h-4 w-24 mb-1' />
-            <SkeletonBox className='h-3 w-32' />
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-)
+const qtyFmt = (n: number, locale: string) =>
+  n.toLocaleString(locale, { maximumFractionDigits: n >= 100 ? 2 : n >= 1 ? 4 : 8 })
 
-const MarketCardSkeleton = () => (
-  <div className='bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl overflow-hidden shadow-sm'>
-    <div className='px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between'>
-      <div className='flex items-center gap-2'>
-        <SkeletonBox className='w-8 h-8 rounded-xl' />
-        <SkeletonBox className='h-4 w-16' />
-      </div>
-      <SkeletonBox className='w-5 h-5 rounded' />
-    </div>
-    <div className='p-4 space-y-3'>
-      {[1, 2, 3, 4, 5].map(i => (
-        <div key={i} className='flex items-center justify-between'>
-          <div className='flex items-center gap-2'>
-            <SkeletonBox className='w-8 h-8 rounded-full' />
-            <SkeletonBox className='h-4 w-16' />
-          </div>
-          <div className='text-right'>
-            <SkeletonBox className='h-4 w-20 mb-1' />
-            <SkeletonBox className='h-3 w-12' />
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-)
+const shortAddr = (a: string) => (a && a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a)
 
 export const DashboardPage = () => {
   const navigate = useNavigate()
   const { t, i18n } = useTranslation()
-  const { data: user, isLoading: userLoading } = useCurrentUser()
-  // useWallets retorna { data, isLoading, isFetching, isError, etc } do React Query
-  const {
-    data: apiWallets,
-    isLoading: walletsLoading,
-    isFetching: walletsFetching,
-    isSuccess: walletsSuccess,
-    isError: walletsError,
-    refetch: refetchWallets,
-  } = useWallets()
-  const { formatCurrency, currency } = useCurrencyStore()
-  const [expandedWallets, setExpandedWallets] = useState<Set<string>>(new Set())
-  const [manualRetryCount, setManualRetryCount] = useState(0)
+  const locale = i18n.language || 'pt-BR'
+  const { data: user } = useCurrentUser()
+  const { data: apiWallets, isLoading: walletsLoading } = useWallets()
+  const { formatCurrency, convertToUSD, currency } = useCurrencyStore()
+  const { verification, loading: kycLoading } = useKYC()
 
-  // Safari/PWA detection
-  const isSafari =
-    typeof navigator !== 'undefined' && /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
-  const isPWA =
-    typeof globalThis !== 'undefined' &&
-    (globalThis.matchMedia?.('(display-mode: standalone)')?.matches ||
-      (globalThis.navigator as any)?.standalone === true)
-
-  // Auto-retry mechanism for Safari/PWA when wallets are empty but user should have them
+  const [period, setPeriod] = useState<Period>('30D')
+  const [hidden, setHidden] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(HIDE_KEY) === '1'
+    } catch {
+      return false
+    }
+  })
   useEffect(() => {
-    // Se retornou sucesso mas 0 carteiras, pode ser problema de timing
-    if (walletsSuccess && apiWallets?.length === 0 && manualRetryCount < 3) {
-      const delay = isSafari || isPWA ? 1500 : 800
-
-      const timer = setTimeout(() => {
-        setManualRetryCount(prev => prev + 1)
-        refetchWallets()
-      }, delay)
-
-      return () => clearTimeout(timer)
+    try {
+      localStorage.setItem(HIDE_KEY, hidden ? '1' : '0')
+    } catch {
+      /* navegação privada: só não lembra a escolha */
     }
-    return undefined
-  }, [walletsSuccess, apiWallets?.length, manualRetryCount, refetchWallets, isSafari, isPWA])
+  }, [hidden])
 
-  // Reset retry count when wallets are loaded
-  useEffect(() => {
-    if (apiWallets && apiWallets.length > 0 && manualRetryCount > 0) {
-      setManualRetryCount(0)
-    }
-  }, [apiWallets, manualRetryCount])
-
-  // Mapear nome da rede para símbolo da criptomoeda
-  const getSymbolFromKey = (key: string): string => {
-    // Verificar se é um token (ex: ethereum_usdt, polygon_usdc)
-    if (key.includes('_usdt') || key.includes('_USDT')) {
-      return 'USDT'
-    }
-    if (key.includes('_usdc') || key.includes('_USDC')) {
-      return 'USDC'
-    }
-
-    // Caso contrário, mapear rede para símbolo
-    const networkToSymbol: Record<string, string> = {
-      bitcoin: 'BTC',
-      ethereum: 'ETH',
-      polygon: 'MATIC',
-      bsc: 'BNB',
-      tron: 'TRX',
-      base: 'BASE',
-      solana: 'SOL',
-      litecoin: 'LTC',
-      dogecoin: 'DOGE',
-      cardano: 'ADA',
-      avalanche: 'AVAX',
-      polkadot: 'DOT',
-      chainlink: 'LINK',
-      shiba: 'SHIB',
-      xrp: 'XRP',
-    }
-
-    return networkToSymbol[key] || key.toUpperCase()
-  }
-
-  // Símbolos de criptos para buscar preços
-  const priceSymbols = useMemo(
-    () => [
-      'BTC',
-      'ETH',
-      'USDT',
-      'USDC',
-      'SOL',
-      'BNB',
-      'MATIC',
-      'ADA',
-      'AVAX',
-      'TRX',
-      'BASE',
-      'LTC',
-      'DOGE',
-      'DOT',
-      'LINK',
-      'SHIB',
-      'XRP',
-      'TRAY',
-    ],
-    []
-  )
-
-  // Hook para buscar preços via backend aggregator
-  // ⚠️ IMPORTANTE: Sempre buscar preços em USD!
-  // O formatCurrency do useCurrencyStore converte USD → moeda do usuário
-  // Se buscar em BRL e depois usar formatCurrency, o valor será multiplicado 2x
-  const { prices: marketPrices, isLoading: loadingPrices } = useMarketPrices(priceSymbols, 'USD')
-
-  // Debug log
-  useEffect(() => {
-    console.log('[DashboardPage] marketPrices updated:', Object.keys(marketPrices), marketPrices)
+  // Preços ao vivo (sempre em USD; formatCurrency converte para a moeda do usuário)
+  const { prices: marketPrices, isLoading: pricesLoading } = useMarketPrices(PRICE_SYMBOLS, 'USD')
+  const priceInfo = useMemo(() => {
+    const out: Record<string, { price: number; change24h: number }> = {}
+    for (const [s, p] of Object.entries(marketPrices)) out[s] = { price: p.price, change24h: p.change24h }
+    return out
   }, [marketPrices])
 
-  // Buscar saldos reais
+  // Saldos de todas as carteiras
   const walletIds = useMemo(() => apiWallets?.map((w: any) => String(w.id)) || [], [apiWallets])
-  const balancesQueries = useMultipleWalletBalances(walletIds)
+  const balanceQueries = useMultipleWalletBalances(walletIds)
+  const balancesKey = balanceQueries.map(q => q.dataUpdatedAt).join('|')
+  const balanceData = useMemo(() => balanceQueries.map(q => q.data as Record<string, any> | undefined), [balancesKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  const balancesLoading = walletsLoading || balanceQueries.some(q => q.isLoading)
 
-  // Carregar preferências de rede com fallback para Safari
-  const networkPreferences = useMemo(() => {
-    try {
-      const saved = localStorage.getItem('wallet_network_preferences')
-      const defaultPreferences = {
-        bitcoin: true,
-        ethereum: true,
-        polygon: true,
-        bsc: true,
-        tron: true,
-        base: true,
-        solana: true,
-        litecoin: true,
-        dogecoin: true,
-        cardano: true,
-        avalanche: true,
-        polkadot: true,
-        chainlink: true,
-        shiba: true,
-        xrp: true,
-      }
-      if (!saved) return defaultPreferences
+  const { holdings, totalUSD, addresses } = useHoldings(balanceData, priceInfo)
+  const { points, isLoading: chartLoading } = usePortfolioSeries(holdings, period)
 
-      const parsed = JSON.parse(saved)
-      return { ...defaultPreferences, ...parsed }
-    } catch (error) {
-      console.error('[DashboardPage] Error loading network preferences:', error)
-      return {
-        bitcoin: true,
-        ethereum: true,
-        polygon: true,
-        bsc: true,
-        tron: true,
-        base: true,
-        solana: true,
-        litecoin: true,
-        dogecoin: true,
-        cardano: true,
-        avalanche: true,
-        polkadot: true,
-        chainlink: true,
-        shiba: true,
-        xrp: true,
-      }
-    }
-  }, [])
+  const first = points[0]?.v ?? totalUSD
+  const delta = points.length > 1 ? totalUSD - first : 0
+  const deltaPct = first > 0 ? (delta / first) * 100 : 0
+  const values = points.map(p => p.v)
+  const max = values.length ? Math.max(...values) : totalUSD
+  const min = values.length ? Math.min(...values) : totalUSD
 
-  const showAllNetworks = useMemo(() => {
-    try {
-      const saved = localStorage.getItem('wallet_show_all_networks')
-      console.log('[DashboardPage] localStorage wallet_show_all_networks:', saved)
-      const result = saved !== null ? saved === 'true' : true
-      console.log('[DashboardPage] showAllNetworks result:', result)
-      return result
-    } catch (error) {
-      console.error('[DashboardPage] Error loading showAllNetworks:', error)
-      return true // Default to showing all networks
-    }
-  }, [])
+  // Mercado: sparkline de 7 dias
+  const { data: marketHistory } = usePriceHistories(MARKET_SYMBOLS.filter(s => s !== 'USDT'), 7)
 
-  // Filtrar carteiras por preferências
-  const wallets = useMemo(() => {
-    console.log('[DashboardPage] apiWallets:', apiWallets)
-    console.log('[DashboardPage] showAllNetworks:', showAllNetworks)
+  // Atividade recente
+  const txFilters = useMemo(() => ({ limit: 5 }), [])
+  const { transactions, isLoading: txLoading } = useTransactions(txFilters)
 
-    if (!apiWallets || !Array.isArray(apiWallets)) {
-      console.log('[DashboardPage] No wallets or not array')
-      return []
-    }
+  const money = (usd: number) => (hidden ? '••••••' : formatCurrency(usd))
+  const hour = new Date().getHours()
+  const greeting = hour < 12 ? t('home.greeting.morning') : hour < 18 ? t('home.greeting.afternoon') : t('home.greeting.evening')
+  const name = user?.firstName || user?.username || ''
+  const kycPending = !kycLoading && verification?.status !== 'approved'
 
-    console.log('[DashboardPage] apiWallets length:', apiWallets.length)
+  const actions = [
+    { key: 'buy', icon: Plus, to: '/instant-trade', primary: true },
+    { key: 'receive', icon: ArrowDownLeft, to: '/wallet?action=receive' },
+    { key: 'send', icon: ArrowUpRight, to: '/wallet?action=send' },
+    { key: 'convert', icon: ArrowLeftRight, to: '/swap' },
+  ]
 
-    // Se não houver carteiras da API, retorna vazio
-    if (apiWallets.length === 0) {
-      console.log('[DashboardPage] No wallets from API')
-      return []
-    }
-
-    // SEMPRE mostrar todas as carteiras no Dashboard (não aplicar filtro de rede)
-    // O filtro de rede só deve ser aplicado na página de Wallets
-    console.log('[DashboardPage] Returning all wallets (no filter in Dashboard)')
-    return apiWallets
-  }, [apiWallets, networkPreferences, showAllNetworks]) // Calcular saldo total (em USD, depois convertemos com formatCurrency)
-  const totalBalanceUSD = useMemo(() => {
-    let total = 0
-
-    balancesQueries.forEach(query => {
-      if (query.data) {
-        Object.entries(query.data).forEach(([networkKey, netBalance]: any) => {
-          const balance = Number.parseFloat(netBalance.balance || '0')
-
-          // Mapear nome da rede/token para símbolo
-          const symbol = getSymbolFromKey(networkKey)
-
-          // ✅ Use real-time price from marketPrices hook instead of backend price
-          const marketPriceData = marketPrices[symbol]
-          const priceUSD = marketPriceData?.price || Number.parseFloat(netBalance.price_usd || '0')
-
-          const balanceUSD = balance * priceUSD
-          console.log(
-            `[Dashboard] ${networkKey} (${symbol}): balance=${balance}, price=${priceUSD}, total=${balanceUSD}`
-          )
-          total += balanceUSD
-        })
-      }
-    })
-
-    console.log('[Dashboard] totalBalanceUSD:', total)
-    return total
-  }, [balancesQueries, marketPrices, currency])
-
-  const toggleWallet = (walletId: string) => {
-    setExpandedWallets(prev => {
-      const next = new Set(prev)
-      if (next.has(walletId)) {
-        next.delete(walletId)
-      } else {
-        next.add(walletId)
-      }
-      return next
-    })
-  }
-
-  // Handlers
-  const handleCreateP2POrder = () => {
-    navigate('/p2p/create-order')
-  }
-
-  const handleSendCrypto = () => {
-    navigate('/wallet')
-  }
-
-  const handleReceiveCrypto = () => {
-    navigate('/wallet')
-  }
-
-  const handleChatP2P = () => {
-    navigate('/chat')
-  }
-
-  const handleCreateWallet = () => {
-    navigate('/wallet')
-  }
-
-  const getAvailableNetworks = (wallet: any) => {
-    return [
-      { network: 'bitcoin', name: 'Bitcoin', symbol: 'BTC' },
-      { network: 'ethereum', name: 'Ethereum', symbol: 'ETH' },
-      { network: 'polygon', name: 'Polygon', symbol: 'MATIC' },
-      { network: 'bsc', name: 'BSC', symbol: 'BNB' },
-      { network: 'tron', name: 'Tron', symbol: 'TRX' },
-      { network: 'base', name: 'Base', symbol: 'BASE' },
-      { network: 'solana', name: 'Solana', symbol: 'SOL' },
-      { network: 'litecoin', name: 'Litecoin', symbol: 'LTC' },
-      { network: 'dogecoin', name: 'Dogecoin', symbol: 'DOGE' },
-      { network: 'cardano', name: 'Cardano', symbol: 'ADA' },
-      { network: 'avalanche', name: 'Avalanche', symbol: 'AVAX' },
-      { network: 'polkadot', name: 'Polkadot', symbol: 'DOT' },
-      { network: 'chainlink', name: 'Chainlink', symbol: 'LINK' },
-      { network: 'shiba', name: 'Shiba Inu', symbol: 'SHIB' },
-      { network: 'xrp', name: 'XRP', symbol: 'XRP' },
-    ]
-  }
+  const kycBanner = (extra: string) => (
+    <Link
+      to='/kyc'
+      className={`${card} ${extra} items-center gap-4 px-4 py-3.5 sm:px-5 sm:py-4 hover:border-blue-300 dark:hover:border-[#2F3D5C] transition-colors`}
+    >
+      <span className='w-10 h-10 shrink-0 rounded-xl bg-blue-50 text-blue-600 dark:bg-[#172033] dark:text-[#8FB0FF] flex items-center justify-center'>
+        <ShieldCheck className='w-5 h-5' aria-hidden='true' />
+      </span>
+      <span className='flex-1 min-w-0'>
+        <span className='block text-sm font-semibold text-gray-900 dark:text-[#EEF1F7]'>{t('home.kyc.title')}</span>
+        <span className={`block text-sm ${soft}`}>{t('home.kyc.body')}</span>
+      </span>
+      <ChevronRight className={`w-5 h-5 shrink-0 ${muted}`} aria-hidden='true' />
+    </Link>
+  )
 
   return (
-    <div key={i18n.language} className='min-h-screen bg-gray-50 dark:bg-gray-900'>
-      {/* Conteúdo */}
-      <div className='relative z-10 p-4 md:p-6 space-y-6'>
-        {/* Header */}
-        <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4'>
-          <div>
-            <div className='flex items-center gap-3 mb-1'>
-              <h1 className='text-2xl md:text-3xl font-bold text-gray-900 dark:text-white'>
-                {t('dashboard.title')}
-              </h1>
-              <div className='flex items-center gap-1.5 px-2.5 py-1 bg-green-100 dark:bg-green-900/30 rounded-full'>
-                <span className='w-2 h-2 bg-green-500 rounded-full animate-pulse' />
-                <span className='text-xs font-medium text-green-700 dark:text-green-400'>Live</span>
+    <div key={i18n.language} className='max-w-[1600px] mx-auto text-gray-900 dark:text-[#EEF1F7] tabular-nums'>
+      {/* Cabeçalho */}
+      <div className='flex items-center justify-between gap-4 mb-6 lg:mb-8'>
+        <div className='min-w-0'>
+          <h1 className='text-xl sm:text-2xl font-semibold truncate'>
+            {greeting}
+            {name ? `, ${name}` : ''}
+          </h1>
+          <p className={`text-sm ${muted}`}>
+            {new Date().toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' })}
+          </p>
+        </div>
+        <button
+          type='button'
+          onClick={() => setHidden(h => !h)}
+          aria-pressed={hidden}
+          aria-label={hidden ? t('home.show') : t('home.hide')}
+          className={`h-11 shrink-0 inline-flex items-center gap-2 px-3 sm:px-4 rounded-xl border border-gray-200 bg-white dark:border-[#222B3D] dark:bg-[#111724] ${soft} hover:text-gray-900 dark:hover:text-white transition-colors`}
+        >
+          {hidden ? <EyeOff className='w-5 h-5' aria-hidden='true' /> : <Eye className='w-5 h-5' aria-hidden='true' />}
+          <span className='hidden sm:inline text-sm'>{hidden ? t('home.show') : t('home.hide')}</span>
+        </button>
+      </div>
+
+      <div className='grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_400px] gap-6 items-start'>
+        {/* Coluna principal (abaixo de xl as seções se intercalam pela ordem) */}
+        <div className='contents xl:flex xl:flex-col xl:gap-6 xl:min-w-0'>
+          {/* Patrimônio + gráfico + ações */}
+          <section
+            aria-label={t('home.netWorth')}
+            className='order-1 xl:order-none md:col-span-2 xl:col-span-1 sm:bg-white sm:border sm:border-gray-200 sm:dark:bg-[#111724] sm:dark:border-[#1E2738] sm:rounded-2xl sm:p-6 lg:p-7 min-w-0'
+          >
+            <div className='flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4'>
+              <div className='min-w-0'>
+                <p className={`text-sm ${soft}`}>
+                  {t('home.netWorth')} · {currency}
+                </p>
+                {balancesLoading && !holdings.length ? (
+                  <div className='mt-2 h-11 w-56 rounded-lg bg-gray-100 dark:bg-white/5 animate-pulse' />
+                ) : (
+                  <p className='mt-1 font-["Space_Grotesk",Inter,sans-serif] text-[2.5rem] leading-tight sm:text-5xl font-semibold tracking-tight break-words'>
+                    {money(totalUSD)}
+                  </p>
+                )}
+                {points.length > 1 && (
+                  <p className='mt-1.5 text-sm flex flex-wrap gap-x-2'>
+                    <span className={`font-semibold ${delta >= 0 ? upText : downText}`}>
+                      {hidden ? '••••' : `${delta >= 0 ? '+' : '−'}${formatCurrency(Math.abs(delta))}`} ({pct(deltaPct, locale)})
+                    </span>
+                    <span className={muted}>{t(`home.inPeriod.${period}`)}</span>
+                  </p>
+                )}
+              </div>
+              <div
+                role='tablist'
+                aria-label={t('home.period')}
+                className='grid grid-cols-4 gap-1 p-1 rounded-xl bg-gray-100 dark:bg-[#0D121C] dark:border dark:border-[#1E2738] lg:w-auto'
+              >
+                {PERIODS.map(p => (
+                  <button
+                    key={p}
+                    type='button'
+                    role='tab'
+                    aria-selected={p === period}
+                    onClick={() => setPeriod(p)}
+                    className={`h-9 lg:min-w-[56px] px-3 rounded-lg text-sm transition-colors ${
+                      p === period
+                        ? 'bg-white shadow-sm font-semibold text-gray-900 dark:bg-[#172033] dark:text-[#EEF1F7] dark:shadow-none'
+                        : `font-medium ${muted} hover:text-gray-900 dark:hover:text-[#EEF1F7]`
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
               </div>
             </div>
-            <p className='text-gray-500 dark:text-gray-400 text-sm'>
-              {new Date().toLocaleDateString(
-                i18n.language === 'pt-BR' ? 'pt-BR' : i18n.language === 'es-ES' ? 'es-ES' : 'en-US'
-              )}
-              {user && ` • ${t('dashboard.welcome')}, ${user.username}`}
-            </p>
-          </div>
 
-          {/* Action Pills */}
-          <div className='flex gap-2'>
-            <button
-              onClick={() => navigate('/wallet')}
-              className='flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all'
+            <div className='-mx-6 sm:mx-0 mt-5'>
+              <PortfolioChart
+                points={points}
+                period={period}
+                loading={chartLoading || balancesLoading || pricesLoading}
+                hidden={hidden}
+                format={formatCurrency}
+                locale={locale}
+                emptyLabel={t('home.chartEmpty')}
+                ariaLabel={t('home.chartAria')}
+              />
+            </div>
+
+            {points.length > 1 && (
+              <div className={`mt-3 flex flex-wrap justify-between gap-x-6 gap-y-1 text-xs sm:text-sm ${muted}`}>
+                <span>
+                  {t('home.high')}: <strong className='font-semibold text-gray-900 dark:text-[#EEF1F7]'>{money(max)}</strong>
+                </span>
+                <span>
+                  {t('home.low')}: <strong className='font-semibold text-gray-900 dark:text-[#EEF1F7]'>{money(min)}</strong>
+                </span>
+              </div>
+            )}
+
+            <nav
+              aria-label={t('home.quickActions')}
+              className='mt-6 grid grid-cols-4 gap-2 sm:flex sm:flex-wrap sm:gap-3 sm:pt-5 sm:border-t sm:border-gray-100 sm:dark:border-[#1E2738]'
             >
-              <Wallet className='w-4 h-4 text-blue-500' />
-              <span className='text-sm font-medium text-gray-900 dark:text-white'>
-                {t('navigation.wallet')}
-              </span>
-            </button>
-            <button
-              onClick={() => navigate('/instant-trade')}
-              className='flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl shadow-sm hover:shadow-md transition-all'
-            >
-              <TrendingUp className='w-4 h-4 text-white' />
-              <span className='text-sm font-medium text-white'>{t('dashboard.trade')}</span>
-            </button>
-          </div>
+              {actions.map(a => (
+                <Link
+                  key={a.key}
+                  to={a.to}
+                  className={`group flex flex-col items-center gap-2 text-[13px] font-medium sm:flex-row sm:h-11 sm:px-4 sm:rounded-xl sm:text-sm transition-colors ${
+                    a.primary
+                      ? 'sm:bg-blue-600 sm:text-white sm:hover:bg-blue-700 sm:dark:bg-[#5B8CFF] sm:dark:text-[#0A0E15] sm:dark:hover:bg-[#7AA2FF] sm:font-semibold'
+                      : 'sm:border sm:border-gray-200 sm:hover:bg-gray-50 sm:dark:border-[#2A3449] sm:dark:hover:bg-[#172033]'
+                  }`}
+                >
+                  <span
+                    className={`w-14 h-14 rounded-2xl flex items-center justify-center sm:w-auto sm:h-auto sm:rounded-none sm:bg-transparent sm:border-0 sm:text-current ${
+                      a.primary
+                        ? 'bg-blue-600 text-white dark:bg-[#5B8CFF] dark:text-[#0A0E15]'
+                        : 'bg-white border border-gray-200 dark:bg-[#172033] dark:border-[#222B3D]'
+                    }`}
+                  >
+                    <a.icon className='w-[22px] h-[22px] sm:w-[18px] sm:h-[18px]' aria-hidden='true' />
+                  </span>
+                  {t(`home.actions.${a.key}`)}
+                </Link>
+              ))}
+            </nav>
+          </section>
+
+          {/* Seus ativos */}
+          <section aria-labelledby='home-assets' className={`order-3 xl:order-none md:col-span-2 xl:col-span-1 min-w-0 ${cardSm} sm:p-6`}>
+            <div className='flex items-baseline justify-between mb-4'>
+              <h2 id='home-assets' className='text-lg font-semibold'>
+                {t('home.assets.title')}
+              </h2>
+              <Link to='/wallet' className={linkCls}>
+                {t('home.assets.viewWallet')}
+              </Link>
+            </div>
+
+            {balancesLoading && !holdings.length ? (
+              <div className='space-y-3'>
+                {[0, 1, 2].map(i => (
+                  <div key={i} className='h-14 rounded-xl bg-gray-100 dark:bg-white/5 animate-pulse' />
+                ))}
+              </div>
+            ) : !holdings.length ? (
+              <div className='py-8 text-center'>
+                <p className={`text-sm ${soft}`}>{t('home.assets.empty')}</p>
+                <Link to='/wallet?action=receive' className={`inline-block mt-2 ${linkCls}`}>
+                  {t('home.assets.emptyCta')}
+                </Link>
+              </div>
+            ) : (
+              <>
+                {/* Barra de alocação */}
+                <div className='flex gap-0.5 h-2 mb-4' aria-hidden='true'>
+                  {holdings
+                    .filter(h => h.share >= 0.5)
+                    .map((h, i) => (
+                      <span
+                        key={h.symbol}
+                        className='rounded-full first:rounded-l-full'
+                        style={{ flex: `${h.share} 1 0`, background: ALLOC_COLORS[i % ALLOC_COLORS.length] }}
+                      />
+                    ))}
+                </div>
+
+                {/* Celular: lista */}
+                <ul className='md:hidden divide-y divide-gray-100 dark:divide-[#172033]'>
+                  {holdings.map(h => (
+                    <li key={h.symbol}>
+                      <Link to='/wallet' className='flex items-center gap-3.5 py-3'>
+                        <CryptoIcon symbol={h.symbol} size={40} className='rounded-full shrink-0' />
+                        <span className='flex-1 min-w-0'>
+                          <span className='block text-[15px] font-semibold'>{marketPrices[h.symbol]?.name || h.symbol}</span>
+                          <span className={`block text-[13px] ${muted} truncate`}>
+                            {hidden ? '••••' : `${qtyFmt(h.quantity, locale)} ${h.symbol}`} · {h.share.toFixed(0)}%
+                          </span>
+                        </span>
+                        <span className='text-right'>
+                          <span className='block text-[15px] font-semibold'>{money(h.valueUSD)}</span>
+                          <span className={`block text-[13px] ${h.change24h >= 0 ? upText : downText}`}>{pct(h.change24h, locale)}</span>
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+
+                {/* Tablet e desktop: tabela */}
+                <div className='hidden md:block overflow-x-auto -mx-1 px-1'>
+                  <table className='w-full min-w-[560px] text-sm'>
+                    <thead>
+                      <tr className={`text-xs text-left ${muted}`}>
+                        <th scope='col' className='py-2 font-medium'>{t('home.assets.col.asset')}</th>
+                        <th scope='col' className='py-2 font-medium text-right'>{t('home.assets.col.quantity')}</th>
+                        <th scope='col' className='py-2 font-medium text-right'>{t('home.assets.col.price')}</th>
+                        <th scope='col' className='py-2 font-medium text-right'>24h</th>
+                        <th scope='col' className='py-2 font-medium text-right'>{t('home.assets.col.value')}</th>
+                        <th scope='col' className='py-2 font-medium text-right hidden lg:table-cell'>{t('home.assets.col.allocation')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {holdings.map(h => (
+                        <tr
+                          key={h.symbol}
+                          onClick={() => navigate('/wallet')}
+                          className='border-t border-gray-100 dark:border-[#1A2232] cursor-pointer hover:bg-gray-50 dark:hover:bg-white/[0.02]'
+                        >
+                          <td className='py-3.5'>
+                            <span className='flex items-center gap-3'>
+                              <CryptoIcon symbol={h.symbol} size={36} className='rounded-full shrink-0' />
+                              <span>
+                                <span className='block font-semibold'>{marketPrices[h.symbol]?.name || h.symbol}</span>
+                                <span className={`block text-xs ${muted}`}>
+                                  {h.symbol}
+                                  {h.networks.length > 1 ? ` · ${t('home.assets.networks', { count: h.networks.length })}` : ''}
+                                </span>
+                              </span>
+                            </span>
+                          </td>
+                          <td className={`py-3.5 text-right ${soft}`}>{hidden ? '••••' : qtyFmt(h.quantity, locale)}</td>
+                          <td className={`py-3.5 text-right ${soft}`}>{formatCurrency(h.priceUSD)}</td>
+                          <td className={`py-3.5 text-right ${h.change24h >= 0 ? upText : downText}`}>{pct(h.change24h, locale)}</td>
+                          <td className='py-3.5 text-right font-semibold'>{money(h.valueUSD)}</td>
+                          <td className={`py-3.5 text-right hidden lg:table-cell ${soft}`}>
+                            {h.share.toLocaleString(locale, { maximumFractionDigits: 1 })}%
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </section>
+
+          {/* Atividade */}
+          <section aria-labelledby='home-activity' className={`order-6 xl:order-none md:col-span-2 xl:col-span-1 min-w-0 ${cardSm} sm:p-6`}>
+            <div className='flex items-baseline justify-between mb-2'>
+              <h2 id='home-activity' className='text-lg font-semibold'>
+                {t('home.activity.title')}
+              </h2>
+              <Link to='/wallet?tab=transactions' className={linkCls}>
+                {t('home.activity.history')}
+              </Link>
+            </div>
+            {txLoading && !transactions.length ? (
+              <div className='space-y-3 pt-2'>
+                {[0, 1, 2].map(i => (
+                  <div key={i} className='h-12 rounded-xl bg-gray-100 dark:bg-white/5 animate-pulse' />
+                ))}
+              </div>
+            ) : !transactions.length ? (
+              <p className={`py-6 text-sm ${soft}`}>{t('home.activity.empty')}</p>
+            ) : (
+              <ul className='divide-y divide-gray-100 dark:divide-[#1A2232]'>
+                {transactions.slice(0, 5).map(tx => {
+                  const incoming = addresses.has(String(tx.to_address || '').toLowerCase())
+                  const symbol = (tx.token_symbol || tx.network || '').toUpperCase()
+                  const Icon = incoming ? ArrowDownLeft : ArrowUpRight
+                  return (
+                    <li key={tx.id} className='flex items-center gap-3.5 py-3'>
+                      <span className='w-10 h-10 shrink-0 rounded-xl bg-gray-100 dark:bg-[#172033] flex items-center justify-center text-gray-600 dark:text-[#A3ADC2]'>
+                        <Icon className='w-[18px] h-[18px]' aria-hidden='true' />
+                      </span>
+                      <span className='flex-1 min-w-0'>
+                        <span className='block text-[15px] font-medium truncate'>
+                          {t(incoming ? 'home.activity.received' : 'home.activity.sent', { symbol })}
+                        </span>
+                        <span className={`block text-[13px] ${muted} truncate`}>
+                          {tx.network} · {new Date(tx.created_at).toLocaleString(locale, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                          <span className='hidden sm:inline'> · {shortAddr(incoming ? tx.from_address : tx.to_address)}</span>
+                        </span>
+                      </span>
+                      <span className={`hidden sm:inline-block text-xs ${soft} border border-gray-200 dark:border-[#2A3449] rounded-full px-2.5 py-0.5`}>
+                        {t(`home.activity.status.${tx.status}`, tx.status)}
+                      </span>
+                      <span className='text-sm font-semibold text-right min-w-[96px]'>
+                        {hidden ? '••••' : `${incoming ? '+' : '−'}${qtyFmt(Number(tx.amount) || 0, locale)} ${symbol}`}
+                      </span>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </section>
         </div>
 
-        {/* Stats Grid - 4 colunas com design premium */}
-        {userLoading || walletsLoading ? (
-          <div className='grid grid-cols-2 lg:grid-cols-4 gap-3'>
-            <StatCardSkeleton />
-            <StatCardSkeleton />
-            <StatCardSkeleton />
-            <StatCardSkeleton />
-          </div>
-        ) : (
-          <div className='grid grid-cols-2 lg:grid-cols-4 gap-3'>
-            {/* Saldo Total - Card Premium */}
-            <div className='group relative bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 rounded-2xl p-4 shadow-lg shadow-blue-500/20 overflow-hidden hover:shadow-xl hover:shadow-blue-500/30 transition-all duration-300 hover:-translate-y-0.5'>
-              {/* Efeito de brilho */}
-              <div className='absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700'></div>
-              {/* Círculos decorativos */}
-              <div className='absolute -top-4 -right-4 w-24 h-24 bg-white/10 rounded-full blur-xl'></div>
-              <div className='absolute -bottom-8 -left-8 w-32 h-32 bg-blue-400/20 rounded-full blur-2xl'></div>
+        {/* Coluna lateral */}
+        <div className='contents xl:flex xl:flex-col xl:gap-6 xl:min-w-0'>
+          {kycPending && kycBanner('order-2 xl:order-none md:col-span-2 xl:col-span-1 flex')}
 
-              <div className='relative z-10'>
-                <div className='flex items-start justify-between mb-3'>
-                  <div className='p-2.5 bg-white/20 backdrop-blur-sm rounded-xl group-hover:scale-110 transition-transform'>
-                    <DollarSign className='w-5 h-5 text-white' />
-                  </div>
-                  <div className='flex items-center gap-1 px-2 py-0.5 bg-white/20 backdrop-blur-sm rounded-full'>
-                    <span className='w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse'></span>
-                    <span className='text-[10px] font-medium text-white/90'>USD</span>
-                  </div>
-                </div>
-                <p className='text-2xl font-bold text-white mb-1'>
-                  {formatCurrency(totalBalanceUSD)}
-                </p>
-                <p className='text-xs text-blue-200'>
-                  {t('dashboard.totalBalance')} • {wallets?.length || 0} {t('dashboard.wallets')}
-                </p>
-              </div>
+          <InstantQuote
+            className='order-5 md:order-4 xl:order-none'
+            prices={priceInfo}
+            formatCurrency={formatCurrency}
+            convertToUSD={convertToUSD}
+            currency={currency}
+            locale={locale}
+          />
+
+          {/* Mercado */}
+          <section aria-labelledby='home-market' className={`order-4 md:order-5 xl:order-none min-w-0 ${cardSm} sm:p-6`}>
+            <div className='flex items-baseline justify-between mb-2'>
+              <h2 id='home-market' className='text-lg font-semibold'>
+                {t('home.market.title')}
+              </h2>
+              <Link to='/instant-trade' className={linkCls}>
+                {t('home.market.seeAll')}
+              </Link>
             </div>
-
-            {/* Ordens P2P - Card Premium */}
-            <div className='group relative bg-gradient-to-br from-purple-600 via-purple-700 to-pink-700 rounded-2xl p-4 shadow-lg shadow-purple-500/20 overflow-hidden hover:shadow-xl hover:shadow-purple-500/30 transition-all duration-300 hover:-translate-y-0.5'>
-              {/* Efeito de brilho */}
-              <div className='absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700'></div>
-              {/* Círculos decorativos */}
-              <div className='absolute -top-4 -right-4 w-24 h-24 bg-white/10 rounded-full blur-xl'></div>
-              <div className='absolute -bottom-8 -left-8 w-32 h-32 bg-pink-400/20 rounded-full blur-2xl'></div>
-
-              <div className='relative z-10'>
-                <div className='flex items-start justify-between mb-3'>
-                  <div className='p-2.5 bg-white/20 backdrop-blur-sm rounded-xl group-hover:scale-110 transition-transform'>
-                    <TrendingUp className='w-5 h-5 text-white' />
-                  </div>
-                  <div className='flex items-center gap-1 px-2 py-0.5 bg-white/20 backdrop-blur-sm rounded-full'>
-                    <span className='text-[10px] font-medium text-white/90'>P2P</span>
-                  </div>
-                </div>
-                <p className='text-2xl font-bold text-white mb-1'>0</p>
-                <p className='text-xs text-purple-200'>
-                  {t('dashboard.activeOrders')} • {t('dashboard.readyToTrade')}
-                </p>
-              </div>
-            </div>
-
-            {/* Reputação - Card Premium */}
-            <div className='group relative bg-gradient-to-br from-amber-500 via-orange-600 to-red-600 rounded-2xl p-4 shadow-lg shadow-orange-500/20 overflow-hidden hover:shadow-xl hover:shadow-orange-500/30 transition-all duration-300 hover:-translate-y-0.5'>
-              {/* Efeito de brilho */}
-              <div className='absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700'></div>
-              {/* Círculos decorativos */}
-              <div className='absolute -top-4 -right-4 w-24 h-24 bg-white/10 rounded-full blur-xl'></div>
-              <div className='absolute -bottom-8 -left-8 w-32 h-32 bg-yellow-400/20 rounded-full blur-2xl'></div>
-
-              <div className='relative z-10'>
-                <div className='flex items-start justify-between mb-3'>
-                  <div className='p-2.5 bg-white/20 backdrop-blur-sm rounded-xl group-hover:scale-110 transition-transform'>
-                    <Award className='w-5 h-5 text-white' />
-                  </div>
-                  <div className='flex items-center gap-1 px-2 py-0.5 bg-white/20 backdrop-blur-sm rounded-full'>
-                    <span
-                      className={`w-1.5 h-1.5 rounded-full ${user?.isVerified ? 'bg-green-400' : 'bg-yellow-400'} animate-pulse`}
-                    ></span>
-                    <span className='text-[10px] font-medium text-white/90'>
-                      {user?.isVerified ? t('dashboard.verified') : t('dashboard.new')}
-                    </span>
-                  </div>
-                </div>
-                <p className='text-2xl font-bold text-white mb-1'>
-                  {user?.isVerified ? '100%' : '--'}
-                </p>
-                <p className='text-xs text-amber-100'>
-                  {t('dashboard.reputation')} •{' '}
-                  {user?.isVerified ? t('dashboard.excellent') : t('dashboard.completeProfile')}
-                </p>
-              </div>
-            </div>
-
-            {/* BTC Price - Card Premium */}
-            <div className='group relative bg-gradient-to-br from-orange-500 via-orange-600 to-amber-700 rounded-2xl p-4 shadow-lg shadow-orange-500/20 overflow-hidden hover:shadow-xl hover:shadow-orange-500/30 transition-all duration-300 hover:-translate-y-0.5'>
-              {/* Efeito de brilho */}
-              <div className='absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700'></div>
-              {/* Círculos decorativos */}
-              <div className='absolute -top-4 -right-4 w-24 h-24 bg-white/10 rounded-full blur-xl'></div>
-              <div className='absolute -bottom-8 -left-8 w-32 h-32 bg-amber-400/20 rounded-full blur-2xl'></div>
-
-              <div className='relative z-10'>
-                <div className='flex items-start justify-between mb-3'>
-                  <div className='p-2.5 bg-white/20 backdrop-blur-sm rounded-xl group-hover:scale-110 transition-transform'>
-                    <Coins className='w-5 h-5 text-white' />
-                  </div>
-                  <div
-                    className={`flex items-center gap-1 px-2 py-0.5 rounded-full ${(marketPrices.BTC?.change24h ?? 0) >= 0 ? 'bg-green-500/30' : 'bg-red-500/30'}`}
-                  >
-                    <span className='text-[10px] font-medium text-white'>
-                      {marketPrices.BTC?.change24hPercent || '--%'}
-                    </span>
-                  </div>
-                </div>
-                <p className='text-xl font-bold text-white mb-1'>
-                  {marketPrices.BTC?.price ? formatCurrency(marketPrices.BTC.price) : '--'}
-                </p>
-                <p className='text-xs text-orange-100'>Bitcoin • {t('dashboard.currentPrice')}</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Main Content Grid - Layout reorganizado */}
-        {userLoading || walletsLoading ? (
-          <div className='grid grid-cols-1 lg:grid-cols-3 gap-4'>
-            <div className='lg:col-span-2 space-y-4'>
-              <WalletCardSkeleton />
-              <QuickActionsSkeleton />
-            </div>
-            <div className='space-y-4'>
-              <MarketCardSkeleton />
-            </div>
-          </div>
-        ) : (
-          <div className='grid grid-cols-1 lg:grid-cols-3 gap-4'>
-            {/* Carteiras + Ações Rápidas - 2 colunas */}
-            <div className='lg:col-span-2 space-y-4'>
-              {/* Wallets Card */}
-              <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden'>
-                <div className='px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between'>
-                  <div className='flex items-center gap-3'>
-                    <div className='p-2 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl'>
-                      <Wallet className='w-5 h-5 text-white' />
-                    </div>
-                    <div>
-                      <h3 className='font-bold text-gray-900 dark:text-white'>
-                        {t('dashboard.yourWallets')}
-                      </h3>
-                      <p className='text-xs text-gray-500 dark:text-gray-400'>
-                        {t('dashboard.manageYourCrypto')}
-                      </p>
-                    </div>
-                  </div>
-                  <div className='flex items-center gap-1'>
-                    {walletsFetching && (
-                      <span className='text-xs text-gray-400 dark:text-gray-500 mr-1'>
-                        {t('dashboard.updating')}
+            <ul className='divide-y divide-gray-100 dark:divide-[#1A2232]'>
+              {MARKET_SYMBOLS.map(s => {
+                const p = marketPrices[s]
+                const change = p?.change24h ?? 0
+                const spark = (marketHistory[s] || []).map(x => x[1])
+                return (
+                  <li key={s}>
+                    <Link to='/instant-trade' className='grid grid-cols-[minmax(0,1fr)_72px_auto] items-center gap-3 py-3'>
+                      <span className='flex items-center gap-3 min-w-0'>
+                        <CryptoIcon symbol={s} size={32} className='rounded-full shrink-0' />
+                        <span className='min-w-0'>
+                          <span className='block text-sm font-semibold'>{s}</span>
+                          <span className={`block text-xs ${muted} truncate`}>{p?.name || s}</span>
+                        </span>
                       </span>
-                    )}
-                    <button
-                      onClick={() => refetchWallets()}
-                      title={t('dashboard.refreshWallets')}
-                      disabled={walletsFetching}
-                      className='p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors disabled:opacity-50'
-                    >
-                      <RefreshCw
-                        className={`w-4 h-4 text-gray-400 dark:text-gray-500 ${walletsFetching ? 'animate-spin text-blue-500' : 'hover:text-blue-600 dark:hover:text-blue-400'}`}
-                      />
-                    </button>
-                    <button
-                      onClick={handleCreateWallet}
-                      title={t('dashboard.addWallet')}
-                      className='p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors'
-                    >
-                      <Plus className='w-5 h-5 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400' />
-                    </button>
-                  </div>
-                </div>
-
-                <div className='p-4'>
-                  {/* Renderizar conteúdo das carteiras */}
-                  {(() => {
-                    // Estado de loading - mostrar skeleton enquanto carrega
-                    // walletsLoading = true no primeiro fetch
-                    // walletsFetching = true em qualquer fetch (primeiro ou refetch)
-                    // walletsSuccess = true só depois de ter dados
-                    const isLoadingWallets = walletsLoading || (walletsFetching && !walletsSuccess)
-                    const hasNoWallets = walletsSuccess && (!wallets || wallets.length === 0)
-
-                    // NUNCA mostrar erro ao usuário - sempre mostrar loading e retry automático
-                    // O erro é tratado internamente com retries automáticos
-                    if (walletsError && !isLoadingWallets) {
-                      // Em vez de mostrar erro, mostrar loading com retry automático
-                      // O useEffect acima já faz retry automático
-                      setTimeout(() => refetchWallets(), 1000) // Auto-retry silencioso
-                      return (
-                        <div className='space-y-3'>
-                          {[1, 2].map(i => (
-                            <div
-                              key={i}
-                              className='animate-pulse bg-gray-100 dark:bg-gray-700/50 rounded-xl p-4'
-                            >
-                              <div className='flex items-center space-x-3'>
-                                <div className='w-10 h-10 bg-gray-200 dark:bg-gray-600 rounded-xl'></div>
-                                <div className='flex-1'>
-                                  <div className='h-4 bg-gray-200 dark:bg-gray-600 rounded w-24 mb-2'></div>
-                                  <div className='h-3 bg-gray-200 dark:bg-gray-600 rounded w-16'></div>
-                                </div>
-                                <div className='text-right'>
-                                  <div className='h-4 bg-gray-200 dark:bg-gray-600 rounded w-20 mb-2'></div>
-                                  <div className='h-3 bg-gray-200 dark:bg-gray-600 rounded w-14'></div>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                          <p className='text-center text-xs text-gray-500 dark:text-gray-400 mt-2'>
-                            {t('dashboard.connecting')}...
-                          </p>
-                        </div>
-                      )
-                    }
-
-                    if (isLoadingWallets) {
-                      return (
-                        <div className='space-y-3'>
-                          {[1, 2].map(i => (
-                            <div
-                              key={i}
-                              className='animate-pulse bg-gray-100 dark:bg-gray-700/50 rounded-xl p-4'
-                            >
-                              <div className='flex items-center space-x-3'>
-                                <div className='w-10 h-10 bg-gray-200 dark:bg-gray-600 rounded-xl'></div>
-                                <div className='flex-1'>
-                                  <div className='h-4 bg-gray-200 dark:bg-gray-600 rounded w-24 mb-2'></div>
-                                  <div className='h-3 bg-gray-200 dark:bg-gray-600 rounded w-16'></div>
-                                </div>
-                                <div className='text-right'>
-                                  <div className='h-4 bg-gray-200 dark:bg-gray-600 rounded w-20 mb-2'></div>
-                                  <div className='h-3 bg-gray-200 dark:bg-gray-600 rounded w-14'></div>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                          <p className='text-center text-xs text-gray-500 dark:text-gray-400 mt-2'>
-                            {t('dashboard.loadingWallets')}
-                          </p>
-                        </div>
-                      )
-                    }
-
-                    if (hasNoWallets) {
-                      return (
-                        <div className='text-center py-10'>
-                          <div className='w-16 h-16 mx-auto bg-gray-100 dark:bg-gray-700 rounded-2xl flex items-center justify-center mb-4'>
-                            <Wallet className='w-8 h-8 text-gray-400 dark:text-gray-500' />
-                          </div>
-                          <p className='text-gray-600 dark:text-gray-400 mb-4'>
-                            {t('dashboard.noWalletsFound')}
-                          </p>
-                          <button
-                            onClick={handleCreateWallet}
-                            className='bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-5 py-2.5 rounded-xl font-medium text-sm transition-all inline-flex items-center gap-2 shadow-lg'
-                          >
-                            <Plus className='w-4 h-4' />
-                            {t('dashboard.createWallet')}
-                          </button>
-                        </div>
-                      )
-                    }
-
-                    // Lista de carteiras
-                    return (
-                      <div className='space-y-3'>
-                        {wallets.map(wallet => {
-                          const walletIdStr = String(wallet.id)
-                          const isExpanded = expandedWallets.has(walletIdStr)
-                          const networks = getAvailableNetworks(wallet)
-
-                          return (
-                            <div
-                              key={wallet.id}
-                              className='bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-600 overflow-hidden hover:border-blue-200 dark:hover:border-blue-500/30 transition-all'
-                            >
-                              <button
-                                onClick={() => toggleWallet(walletIdStr)}
-                                className='w-full flex items-center justify-between p-4 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors'
-                              >
-                                <div className='flex items-center space-x-3 flex-1'>
-                                  <div className='w-10 h-10 flex items-center justify-center rounded-xl bg-gradient-to-br from-blue-500/10 to-purple-500/10 dark:from-blue-500/20 dark:to-purple-500/20'>
-                                    <Wallet className='w-5 h-5 text-blue-600 dark:text-blue-400' />
-                                  </div>
-                                  <div className='text-left'>
-                                    <h4 className='font-semibold text-gray-900 dark:text-white text-sm'>
-                                      {wallet.name}
-                                    </h4>
-                                    <p className='text-xs text-gray-500 dark:text-gray-400'>
-                                      Multi • {networks.length} {t('dashboard.networks')}
-                                    </p>
-                                  </div>
-                                </div>
-                                <div className='flex items-center space-x-3'>
-                                  <div className='text-right'>
-                                    {(() => {
-                                      const walletIndex = walletIds.indexOf(walletIdStr)
-                                      const balanceQuery = balancesQueries[walletIndex]
-                                      const balanceData = balanceQuery?.data
-
-                                      if (balanceQuery?.isLoading) {
-                                        return (
-                                          <div className='animate-pulse space-y-1'>
-                                            <div className='h-4 bg-gray-300 dark:bg-gray-600 rounded w-20'></div>
-                                            <div className='h-3 bg-gray-300 dark:bg-gray-600 rounded w-14'></div>
-                                          </div>
-                                        )
-                                      }
-
-                                      let totalBRL = 0
-                                      let hasLoadingPrice = false
-                                      if (balanceData) {
-                                        Object.entries(balanceData).forEach(
-                                          ([networkKey, netBalance]: any) => {
-                                            const balance = Number.parseFloat(
-                                              netBalance.balance || '0'
-                                            )
-                                            const symbol = getSymbolFromKey(networkKey)
-                                            const marketPriceData = marketPrices[symbol]
-                                            const priceUSD =
-                                              marketPriceData?.price ||
-                                              Number.parseFloat(netBalance.price_usd || '0')
-                                            const priceLoading =
-                                              marketPriceData === undefined ||
-                                              netBalance.price_loading ||
-                                              false
-
-                                            const balanceUSD = balance * priceUSD
-                                            totalBRL += balanceUSD
-                                            if (priceLoading) hasLoadingPrice = true
-                                          }
-                                        )
-                                      }
-
-                                      return (
-                                        <>
-                                          <p className='font-bold text-gray-900 dark:text-white text-sm'>
-                                            {hasLoadingPrice ? (
-                                              <span className='animate-pulse'>
-                                                {t('dashboard.updating')}
-                                              </span>
-                                            ) : (
-                                              formatCurrency(totalBRL)
-                                            )}
-                                          </p>
-                                          <p className='text-xs text-gray-500 dark:text-gray-400'>
-                                            {t('dashboard.balance')}
-                                          </p>
-                                        </>
-                                      )
-                                    })()}
-                                  </div>
-                                  <div className='text-gray-400 dark:text-gray-500'>
-                                    {isExpanded ? (
-                                      <ChevronDown className='w-5 h-5' />
-                                    ) : (
-                                      <ChevronRight className='w-5 h-5' />
-                                    )}
-                                  </div>
-                                </div>
-                              </button>
-
-                              {isExpanded && (
-                                <div className='border-t border-gray-100 dark:border-gray-600 bg-white dark:bg-gray-800/50 p-4'>
-                                  <div className='grid grid-cols-1 md:grid-cols-2 gap-2'>
-                                    {networks
-                                      .filter(net => {
-                                        if (showAllNetworks) return true
-                                        return networkPreferences[
-                                          net.network as keyof typeof networkPreferences
-                                        ]
-                                      })
-                                      .map(network => (
-                                        <div
-                                          key={network.network}
-                                          className='flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-600 hover:border-blue-200 dark:hover:border-blue-500/30 transition-all'
-                                        >
-                                          <div className='flex items-center space-x-2'>
-                                            <div className='w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-600'>
-                                              <CryptoIcon symbol={network.symbol} size={24} />
-                                            </div>
-                                            <div>
-                                              <p className='font-medium text-gray-900 dark:text-white text-xs'>
-                                                {network.name}
-                                              </p>
-                                              <p className='text-xs text-gray-500 dark:text-gray-400'>
-                                                {network.symbol}
-                                              </p>
-                                            </div>
-                                          </div>
-                                          <div className='text-right'>
-                                            {(() => {
-                                              const walletIndex = walletIds.indexOf(walletIdStr)
-                                              const balanceQuery = balancesQueries[walletIndex]
-                                              const balanceData = balanceQuery?.data
-                                              const networkBalance = balanceData?.[network.network]
-
-                                              if (balanceQuery?.isLoading) {
-                                                return (
-                                                  <div className='animate-pulse space-y-1'>
-                                                    <div className='h-3 bg-gray-300 dark:bg-gray-600 rounded w-16'></div>
-                                                    <div className='h-2 bg-gray-300 dark:bg-gray-600 rounded w-12 mt-1'></div>
-                                                  </div>
-                                                )
-                                              }
-
-                                              if (networkBalance) {
-                                                const balance = Number.parseFloat(
-                                                  (networkBalance as any).balance || '0'
-                                                )
-                                                const marketPriceData = marketPrices[network.symbol]
-                                                const priceUSD =
-                                                  marketPriceData?.price ||
-                                                  Number.parseFloat(
-                                                    (networkBalance as any).price_usd || '0'
-                                                  )
-                                                const priceLoading =
-                                                  marketPriceData === undefined || false
-                                                const totalUSD = balance * priceUSD
-
-                                                return (
-                                                  <>
-                                                    <p className='font-semibold text-gray-900 dark:text-white text-xs'>
-                                                      {balance.toFixed(6)} {network.symbol}
-                                                    </p>
-                                                    <p className='text-xs text-gray-500 dark:text-gray-400'>
-                                                      {priceLoading ? (
-                                                        <span className='animate-pulse'>
-                                                          {t('dashboard.loading')}
-                                                        </span>
-                                                      ) : (
-                                                        formatCurrency(totalUSD)
-                                                      )}
-                                                    </p>
-                                                  </>
-                                                )
-                                              }
-
-                                              return (
-                                                <>
-                                                  <p className='font-semibold text-gray-900 dark:text-white text-xs'>
-                                                    0.000000 {network.symbol}
-                                                  </p>
-                                                  <p className='text-xs text-gray-500 dark:text-gray-400'>
-                                                    R$ 0,00
-                                                  </p>
-                                                </>
-                                              )
-                                            })()}
-                                          </div>
-                                        </div>
-                                      ))}
-                                  </div>
-
-                                  {/* 🪙 TOKENS SECTION (USDT, USDC, TRAY, etc) */}
-                                  <div className='mt-4 pt-4 border-t border-gray-100 dark:border-gray-600'>
-                                    <p className='text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3'>
-                                      Stablecoins
-                                    </p>
-                                    <div className='grid grid-cols-1 md:grid-cols-2 gap-2'>
-                                      {(() => {
-                                        const walletIndex = walletIds.indexOf(walletIdStr)
-                                        const balanceQuery = balancesQueries[walletIndex]
-                                        const balanceData = balanceQuery?.data || {}
-                                        const stablecoins: any[] = []
-
-                                        // Procurar por stablecoins no balanceData
-                                        for (const [key, value] of Object.entries(balanceData)) {
-                                          const keyLower = String(key).toLowerCase()
-
-                                          // Detectar USDT
-                                          if (keyLower.includes('usdt')) {
-                                            const networkName =
-                                              keyLower.split('_')[0]?.toUpperCase() ?? 'UNKNOWN'
-                                            stablecoins.push({
-                                              id: key,
-                                              symbol: 'USDT',
-                                              name: `USDT (${networkName})`,
-                                              balance: value,
-                                              color: 'green',
-                                            })
-                                          }
-
-                                          // Detectar USDC
-                                          if (keyLower.includes('usdc')) {
-                                            const networkName =
-                                              keyLower.split('_')[0]?.toUpperCase() ?? 'UNKNOWN'
-                                            stablecoins.push({
-                                              id: key,
-                                              symbol: 'USDC',
-                                              name: `USDC (${networkName})`,
-                                              balance: value,
-                                              color: 'blue',
-                                            })
-                                          }
-                                        }
-
-                                        // Se não encontrou stablecoins, retorna mensagem
-                                        if (stablecoins.length === 0) {
-                                          return (
-                                            <p className='text-xs text-gray-500 dark:text-gray-400 col-span-full'>
-                                              {t('dashboard.noStablecoinsFound')}
-                                            </p>
-                                          )
-                                        }
-
-                                        // Renderizar stablecoins
-                                        return stablecoins.map(token => {
-                                          const bgColorGreen = 'bg-green-100 dark:bg-green-600/20'
-                                          const bgColorBlue = 'bg-blue-100 dark:bg-blue-600/20'
-                                          const borderColorGreen =
-                                            'border-green-300 dark:border-green-600/50 hover:border-green-400 dark:hover:border-green-500'
-                                          const borderColorBlue =
-                                            'border-blue-300 dark:border-blue-600/50 hover:border-blue-400 dark:hover:border-blue-500'
-                                          const bgColor =
-                                            token.color === 'green' ? bgColorGreen : bgColorBlue
-                                          const borderColor =
-                                            token.color === 'green'
-                                              ? borderColorGreen
-                                              : borderColorBlue
-
-                                          const balance = Number.parseFloat(
-                                            token.balance?.balance || '0'
-                                          )
-                                          const marketPriceData = marketPrices[token.symbol]
-                                          const priceUSD = marketPriceData?.price ?? 1
-                                          const totalUSD = balance * priceUSD
-
-                                          return (
-                                            <div
-                                              key={token.id}
-                                              className={`flex items-center justify-between p-3 ${bgColor} rounded-xl border ${borderColor} transition-all`}
-                                            >
-                                              <div className='flex items-center space-x-2'>
-                                                <div
-                                                  className={`w-8 h-8 flex items-center justify-center rounded-lg ${token.color === 'green' ? 'bg-green-100 dark:bg-green-500/20' : 'bg-blue-100 dark:bg-blue-500/20'}`}
-                                                >
-                                                  <CryptoIcon symbol={token.symbol} size={24} />
-                                                </div>
-                                                <div>
-                                                  <p className='font-medium text-gray-900 dark:text-white text-xs'>
-                                                    {token.symbol}
-                                                  </p>
-                                                  <p className='text-xs text-gray-500 dark:text-gray-400'>
-                                                    {token.name.split('(')[1]?.replace(')', '') ||
-                                                      token.symbol}
-                                                  </p>
-                                                </div>
-                                              </div>
-                                              <div className='text-right'>
-                                                <p className='font-semibold text-gray-900 dark:text-white text-xs'>
-                                                  {balance.toFixed(2)} {token.symbol}
-                                                </p>
-                                                <p className='text-xs text-gray-500 dark:text-gray-400'>
-                                                  {formatCurrency(totalUSD)}
-                                                </p>
-                                              </div>
-                                            </div>
-                                          )
-                                        })
-                                      })()}
-                                    </div>
-                                  </div>
-
-                                  {/* 🎯 TOKENS SECTION (TRAY, etc) */}
-                                  {(() => {
-                                    const walletIndex = walletIds.indexOf(walletIdStr)
-                                    const balanceQuery = balancesQueries[walletIndex]
-                                    const balanceData = balanceQuery?.data || {}
-                                    const customTokens: any[] = []
-
-                                    // Procurar por tokens customizados (TRAY, etc)
-                                    for (const [key, value] of Object.entries(balanceData)) {
-                                      const keyLower = String(key).toLowerCase()
-
-                                      // Detectar TRAY (polygon_tray)
-                                      if (keyLower.includes('tray')) {
-                                        const networkName =
-                                          keyLower.split('_')[0]?.toUpperCase() ?? 'POLYGON'
-                                        const balance = Number.parseFloat(
-                                          (value as any)?.balance || '0'
-                                        )
-                                        // Só mostrar se tiver saldo
-                                        if (balance > 0) {
-                                          customTokens.push({
-                                            id: key,
-                                            symbol: 'TRAY',
-                                            name: `Trayon (${networkName})`,
-                                            balance: value,
-                                            color: 'purple',
-                                          })
-                                        }
-                                      }
-                                    }
-
-                                    // Se não tem tokens, não renderiza a seção
-                                    if (customTokens.length === 0) {
-                                      return null
-                                    }
-
-                                    return (
-                                      <div className='mt-4 pt-4 border-t border-gray-100 dark:border-gray-600'>
-                                        <div className='flex items-center gap-2 mb-3'>
-                                          <p className='text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest'>
-                                            Tokens
-                                          </p>
-                                          <span className='px-2 py-0.5 text-[10px] font-bold bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-full'>
-                                            {customTokens.length}
-                                          </span>
-                                        </div>
-                                        <div className='grid grid-cols-1 md:grid-cols-2 gap-2'>
-                                          {customTokens.map(token => {
-                                            const balance = Number.parseFloat(
-                                              token.balance?.balance || '0'
-                                            )
-                                            // TRAY não tem preço no marketPrices, usar 0
-                                            const priceUSD = marketPrices[token.symbol]?.price ?? 0
-                                            const totalUSD = balance * priceUSD
-
-                                            return (
-                                              <div
-                                                key={token.id}
-                                                className='flex items-center justify-between p-3 bg-purple-100 dark:bg-purple-600/20 rounded-xl border border-purple-300 dark:border-purple-600/50 hover:border-purple-400 dark:hover:border-purple-500 transition-all'
-                                              >
-                                                <div className='flex items-center space-x-2'>
-                                                  <div className='w-8 h-8 flex items-center justify-center rounded-lg bg-purple-200 dark:bg-purple-500/20'>
-                                                    <CryptoIcon symbol={token.symbol} size={24} />
-                                                  </div>
-                                                  <div>
-                                                    <p className='font-medium text-gray-900 dark:text-white text-xs'>
-                                                      {token.symbol}
-                                                    </p>
-                                                    <p className='text-xs text-gray-500 dark:text-gray-400'>
-                                                      {token.name.split('(')[1]?.replace(')', '') ||
-                                                        'Polygon'}
-                                                    </p>
-                                                  </div>
-                                                </div>
-                                                <div className='text-right'>
-                                                  <p className='font-semibold text-gray-900 dark:text-white text-xs'>
-                                                    {balance.toFixed(2)} {token.symbol}
-                                                  </p>
-                                                  <p className='text-xs text-gray-500 dark:text-gray-400'>
-                                                    {priceUSD > 0
-                                                      ? formatCurrency(totalUSD)
-                                                      : 'Sem cotação'}
-                                                  </p>
-                                                </div>
-                                              </div>
-                                            )
-                                          })}
-                                        </div>
-                                      </div>
-                                    )
-                                  })()}
-                                </div>
-                              )}
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )
-                  })()}
-                </div>
-              </div>
-
-              {/* Quick Actions */}
-              <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden'>
-                <div className='px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center gap-3'>
-                  <div className='p-2 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl'>
-                    <Sparkles className='w-5 h-5 text-white' />
-                  </div>
-                  <div>
-                    <h3 className='font-bold text-gray-900 dark:text-white'>
-                      {t('dashboard.quickActions')}
-                    </h3>
-                    <p className='text-xs text-gray-500 dark:text-gray-400'>
-                      {t('dashboard.quickAccessFunctions')}
-                    </p>
-                  </div>
-                </div>
-                <div className='p-4 grid grid-cols-2 gap-3'>
-                  <button
-                    onClick={handleCreateP2POrder}
-                    className='group p-4 bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-900/20 dark:to-blue-800/10 rounded-xl border border-blue-200 dark:border-blue-700/30 hover:border-blue-300 dark:hover:border-blue-600/50 transition-all text-left'
-                  >
-                    <div className='w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform shadow-lg'>
-                      <DollarSign className='w-5 h-5 text-white' />
-                    </div>
-                    <p className='font-semibold text-gray-900 dark:text-white text-sm'>
-                      P2P Trading
-                    </p>
-                    <p className='text-xs text-gray-500 dark:text-gray-400 mt-0.5'>
-                      {t('dashboard.createOrder')}
-                    </p>
-                  </button>
-
-                  <button
-                    onClick={handleSendCrypto}
-                    className='group p-4 bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/20 dark:to-green-800/10 rounded-xl border border-green-200 dark:border-green-700/30 hover:border-green-300 dark:hover:border-green-600/50 transition-all text-left'
-                  >
-                    <div className='w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform shadow-lg'>
-                      <Send className='w-5 h-5 text-white' />
-                    </div>
-                    <p className='font-semibold text-gray-900 dark:text-white text-sm'>
-                      {t('dashboard.send')}
-                    </p>
-                    <p className='text-xs text-gray-500 dark:text-gray-400 mt-0.5'>
-                      {t('dashboard.transferCrypto')}
-                    </p>
-                  </button>
-
-                  <button
-                    onClick={handleReceiveCrypto}
-                    className='group p-4 bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-900/20 dark:to-purple-800/10 rounded-xl border border-purple-200 dark:border-purple-700/30 hover:border-purple-300 dark:hover:border-purple-600/50 transition-all text-left'
-                  >
-                    <div className='w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform shadow-lg'>
-                      <Download className='w-5 h-5 text-white' />
-                    </div>
-                    <p className='font-semibold text-gray-900 dark:text-white text-sm'>
-                      {t('dashboard.receive')}
-                    </p>
-                    <p className='text-xs text-gray-500 dark:text-gray-400 mt-0.5'>
-                      {t('dashboard.depositAddress')}
-                    </p>
-                  </button>
-
-                  <button
-                    onClick={handleChatP2P}
-                    className='group p-4 bg-gradient-to-br from-orange-50 to-orange-100/50 dark:from-orange-900/20 dark:to-orange-800/10 rounded-xl border border-orange-200 dark:border-orange-700/30 hover:border-orange-300 dark:hover:border-orange-600/50 transition-all text-left'
-                  >
-                    <div className='w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform shadow-lg'>
-                      <MessageCircle className='w-5 h-5 text-white' />
-                    </div>
-                    <p className='font-semibold text-gray-900 dark:text-white text-sm'>Chat</p>
-                    <p className='text-xs text-gray-500 dark:text-gray-400 mt-0.5'>
-                      {t('dashboard.negotiateWithOthers')}
-                    </p>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Mercado + Segurança - 1 coluna */}
-            <div className='space-y-4'>
-              {/* Market Prices */}
-              <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden'>
-                <div className='px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between'>
-                  <div className='flex items-center gap-3'>
-                    <div className='p-2 bg-gradient-to-br from-rose-500 to-rose-600 rounded-xl'>
-                      <TrendingUp className='w-5 h-5 text-white' />
-                    </div>
-                    <div>
-                      <h3 className='font-bold text-gray-900 dark:text-white'>
-                        {t('dashboard.market')}
-                      </h3>
-                      <p className='text-xs text-gray-500 dark:text-gray-400'>
-                        {t('dashboard.realTimePrices')}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={async () => {
-                      // Forçar atualização dos preços (refresh=true)
-                      // O hook usePrices já faz isso automaticamente a cada 5 segundos
-                    }}
-                    disabled={loadingPrices}
-                    className='p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors disabled:opacity-50'
-                    title={t('dashboard.pricesUpdatingAutomatically')}
-                  >
-                    <RefreshCw
-                      className={`w-4 h-4 text-gray-500 dark:text-gray-400 ${loadingPrices ? 'animate-spin' : ''}`}
-                    />
-                  </button>
-                </div>
-                <div className='p-4 space-y-2'>
-                  {[
-                    {
-                      symbol: 'BTC',
-                      name: 'Bitcoin',
-                      gradient: 'from-orange-500 to-amber-500',
-                      bg: 'bg-orange-50 dark:bg-orange-900/20',
-                      border: 'border-orange-200 dark:border-orange-700/30',
-                    },
-                    {
-                      symbol: 'ETH',
-                      name: 'Ethereum',
-                      gradient: 'from-blue-500 to-indigo-500',
-                      bg: 'bg-blue-50 dark:bg-blue-900/20',
-                      border: 'border-blue-200 dark:border-blue-700/30',
-                    },
-                    {
-                      symbol: 'BNB',
-                      name: 'BNB',
-                      gradient: 'from-yellow-500 to-amber-500',
-                      bg: 'bg-yellow-50 dark:bg-yellow-900/20',
-                      border: 'border-yellow-200 dark:border-yellow-700/30',
-                    },
-                    {
-                      symbol: 'SOL',
-                      name: 'Solana',
-                      gradient: 'from-purple-500 to-violet-500',
-                      bg: 'bg-purple-50 dark:bg-purple-900/20',
-                      border: 'border-purple-200 dark:border-purple-700/30',
-                    },
-                    {
-                      symbol: 'USDT',
-                      name: 'USDT',
-                      gradient: 'from-green-500 to-emerald-500',
-                      bg: 'bg-green-50 dark:bg-green-900/20',
-                      border: 'border-green-200 dark:border-green-700/30',
-                    },
-                  ].map(crypto => (
-                    <div
-                      key={crypto.symbol}
-                      className={`p-3 ${crypto.bg} rounded-xl border ${crypto.border} hover:scale-[1.02] transition-all`}
-                    >
-                      <div className='flex items-center justify-between'>
-                        <div className='flex items-center gap-3'>
-                          <div
-                            className={`w-9 h-9 rounded-xl bg-gradient-to-br ${crypto.gradient} flex items-center justify-center shadow-md`}
-                          >
-                            <CryptoIcon symbol={crypto.symbol} size={22} />
-                          </div>
-                          <div>
-                            <p className='text-sm font-bold text-gray-900 dark:text-white'>
-                              {crypto.name}
-                            </p>
-                            <p className='text-xs text-gray-500 dark:text-gray-400'>
-                              {crypto.symbol}
-                            </p>
-                          </div>
-                        </div>
-                        <div className='text-right'>
-                          <p className='text-sm font-bold text-gray-900 dark:text-white'>
-                            {marketPrices?.[crypto.symbol]?.price
-                              ? formatCurrency(marketPrices[crypto.symbol]!.price)
-                              : '--'}
-                          </p>
-                          <span
-                            className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-xs font-semibold ${(marketPrices?.[crypto.symbol]?.change24h ?? 0) >= 0 ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'}`}
-                          >
-                            {marketPrices?.[crypto.symbol]?.change24hPercent || '--%'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Security Status */}
-              <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden'>
-                <div className='px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center gap-3'>
-                  <div className='p-2 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-xl'>
-                    <Shield className='w-5 h-5 text-white' />
-                  </div>
-                  <div>
-                    <h3 className='font-bold text-gray-900 dark:text-white'>
-                      {t('dashboard.security')}
-                    </h3>
-                    <p className='text-xs text-gray-500 dark:text-gray-400'>
-                      {t('dashboard.accountStatus')}
-                    </p>
-                  </div>
-                </div>
-                <div className='p-4 space-y-3'>
-                  <div className='flex items-center gap-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-700/30'>
-                    <div className='w-3 h-3 bg-green-500 rounded-full animate-pulse'></div>
-                    <div className='flex-1'>
-                      <p className='text-sm font-semibold text-gray-900 dark:text-white'>
-                        {t('dashboard.twoFAEnabled')}
-                      </p>
-                      <p className='text-xs text-gray-500 dark:text-gray-400'>
-                        {user?.isVerified ? t('dashboard.verified') : t('dashboard.pending')}
-                      </p>
-                    </div>
-                    <CheckCircle className='w-5 h-5 text-green-500' />
-                  </div>
-                  <div className='flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-700/30'>
-                    <div className='w-3 h-3 bg-blue-500 rounded-full'></div>
-                    <div className='flex-1'>
-                      <p className='text-sm font-semibold text-gray-900 dark:text-white'>
-                        {t('dashboard.strongPassword')}
-                      </p>
-                      <p className='text-xs text-gray-500 dark:text-gray-400'>
-                        {t('dashboard.wellProtected')}
-                      </p>
-                    </div>
-                    <CheckCircle className='w-5 h-5 text-blue-500' />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+                      <Sparkline values={spark.length ? spark : s === 'USDT' ? [1, 1] : []} up={change >= 0} />
+                      <span className='text-right'>
+                        <span className='block text-sm font-semibold'>{p ? formatCurrency(p.price) : '—'}</span>
+                        <span className={`block text-xs ${change >= 0 ? upText : downText}`}>{pct(change, locale)}</span>
+                      </span>
+                    </Link>
+                  </li>
+                )
+              })}
+            </ul>
+          </section>
+        </div>
       </div>
     </div>
   )
 }
+
+const ALLOC_COLORS = ['#5B8CFF', '#F59E0B', '#14B8A6', '#A78BFA', '#F472B6', '#94A3B8']
+
+/** Cotação instantânea (estimativa com o preço ao vivo; a cotação travada vem no fluxo do OTC). */
+const InstantQuote = ({
+  className,
+  prices,
+  formatCurrency,
+  convertToUSD,
+  currency,
+  locale,
+}: {
+  className: string
+  prices: Record<string, { price: number; change24h: number }>
+  formatCurrency: (usd: number) => string
+  convertToUSD: (amount: number) => number
+  currency: string
+  locale: string
+}) => {
+  const { t } = useTranslation()
+  const navigate = useNavigate()
+  const [side, setSide] = useState<'buy' | 'sell'>('buy')
+  const [symbol, setSymbol] = useState('BTC')
+  const [text, setText] = useState('1000')
+
+  const amount = Number.parseFloat(text.replace(/\./g, '').replace(',', '.')) || 0
+  const priceUSD = prices[symbol]?.price || 0
+  const receive =
+    side === 'buy'
+      ? priceUSD > 0
+        ? `${(convertToUSD(amount) / priceUSD).toLocaleString(locale, { maximumFractionDigits: symbol === 'USDT' ? 2 : 8 })} ${symbol}`
+        : '—'
+      : formatCurrency(amount * priceUSD)
+
+  const go = () =>
+    navigate(`/instant-trade?side=${side}&symbol=${symbol}&amount=${encodeURIComponent(String(amount))}`)
+
+  return (
+    <section aria-labelledby='home-quote' className={`${className} ${card} p-5 sm:p-6 min-w-0 flex flex-col gap-4`}>
+      <div className='flex items-baseline justify-between'>
+        <h2 id='home-quote' className='text-lg font-semibold'>
+          {t('home.quote.title')}
+        </h2>
+        <span className={`text-xs ${soft}`}>OTC · Pix</span>
+      </div>
+
+      <div role='tablist' aria-label={t('home.quote.operation')} className='grid grid-cols-2 gap-1 p-1 rounded-xl bg-gray-100 dark:bg-[#0D121C] dark:border dark:border-[#1E2738]'>
+        {(['buy', 'sell'] as const).map(s => (
+          <button
+            key={s}
+            type='button'
+            role='tab'
+            aria-selected={side === s}
+            onClick={() => {
+              setSide(s)
+              setText(s === 'buy' ? '1000' : symbol === 'USDT' ? '100' : '0,001')
+            }}
+            className={`h-10 rounded-lg text-sm transition-colors ${
+              side === s
+                ? 'bg-white shadow-sm font-semibold dark:bg-[#172033] dark:shadow-none'
+                : `font-medium ${muted} hover:text-gray-900 dark:hover:text-[#EEF1F7]`
+            }`}
+          >
+            {t(`home.quote.${s}`)}
+          </button>
+        ))}
+      </div>
+
+      <label className={`flex flex-col gap-2 text-sm ${soft}`}>
+        {side === 'buy' ? t('home.quote.youPay') : t('home.quote.youSell')}
+        <span className='flex items-center gap-3 h-[52px] px-4 rounded-xl border border-gray-200 bg-white focus-within:border-blue-500 dark:border-[#2A3449] dark:bg-[#0D121C] dark:focus-within:border-[#5B8CFF]'>
+          <span className={`text-base ${muted}`}>{side === 'buy' ? currency : symbol}</span>
+          <input
+            inputMode='decimal'
+            value={text}
+            onChange={e => setText(e.target.value.replace(/[^\d.,]/g, ''))}
+            className='flex-1 min-w-0 bg-transparent outline-none text-xl font-semibold text-gray-900 dark:text-[#EEF1F7]'
+          />
+        </span>
+      </label>
+
+      <div role='group' aria-label={t('home.quote.asset')} className='grid grid-cols-4 gap-1.5'>
+        {QUOTE_SYMBOLS.map(s => (
+          <button
+            key={s}
+            type='button'
+            aria-pressed={symbol === s}
+            onClick={() => setSymbol(s)}
+            className={`h-10 rounded-lg border text-sm transition-colors ${
+              symbol === s
+                ? 'border-blue-600 bg-blue-50 font-semibold text-blue-700 dark:border-[#5B8CFF] dark:bg-[#172033] dark:text-[#EEF1F7]'
+                : `border-gray-200 dark:border-[#222B3D] ${soft} hover:border-gray-300 dark:hover:border-[#2F3D5C]`
+            }`}
+          >
+            {s}
+          </button>
+        ))}
+      </div>
+
+      <div className='rounded-xl bg-gray-50 dark:bg-[#0D121C] px-4 py-3.5'>
+        <p className={`text-sm ${soft}`}>{t('home.quote.youGet')}</p>
+        <p className='mt-1 font-["Space_Grotesk",Inter,sans-serif] text-2xl font-semibold break-all'>{receive}</p>
+        <p className={`mt-1 text-xs ${muted}`}>
+          1 {symbol} = {priceUSD ? formatCurrency(priceUSD) : '—'} · {t('home.quote.note')}
+        </p>
+      </div>
+
+      <button
+        type='button'
+        onClick={go}
+        disabled={!amount || !priceUSD}
+        className='h-12 rounded-xl bg-blue-600 text-white hover:bg-blue-700 dark:bg-[#5B8CFF] dark:text-[#0A0E15] dark:hover:bg-[#7AA2FF] font-semibold disabled:opacity-50 transition-colors'
+      >
+        {t(side === 'buy' ? 'home.quote.ctaBuy' : 'home.quote.ctaSell', { symbol })}
+      </button>
+    </section>
+  )
+}
+
+export default DashboardPage
