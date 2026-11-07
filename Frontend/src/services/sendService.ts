@@ -217,10 +217,7 @@ class SendService {
         mode: data.mode || 'custodial',
         has_2fa_token: !!data.two_factor_token,
         token_length: data.two_factor_token?.length,
-        token_value: data.two_factor_token, // TEMPORÁRIO - remover depois!
       })
-
-      console.log('[SendService] Full request data:', data) // Ver tudo
 
       const response = await apiClient.post<SendTransactionResponse>('/wallets/send', {
         ...data,

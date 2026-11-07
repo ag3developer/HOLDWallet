@@ -1152,7 +1152,15 @@ async def validate_send_transaction(
             }
         
         # Verificar se é transação de token ou moeda nativa
-        is_token = request.token_symbol and request.token_symbol.upper() in ['USDT', 'USDC']
+        # Qualquer token ERC-20 configurado (USDT, USDC, TRAY, ...). Antes só USDT/USDC
+        # eram tratados como token: TRAY caía no ramo de moeda nativa e o valor em
+        # TRAY era comparado com o saldo de MATIC ("saldo insuficiente").
+        from app.config.token_contracts import TOKEN_CONTRACTS as _TOKEN_CONTRACTS
+        is_token = bool(
+            request.token_symbol
+            and request.token_symbol.upper() in _TOKEN_CONTRACTS
+            and network_lower in _TOKEN_CONTRACTS[request.token_symbol.upper()]
+        )
         
         if is_token:
             # Para tokens, verificar saldo do token E saldo de gas
@@ -1209,7 +1217,12 @@ async def validate_send_transaction(
                 gas_cost = Decimal("0.01")  # Fallback
             
             amount_decimal = Decimal(request.amount)
-            
+
+            # "Enviar tudo" com arredondamento de float do cliente: tolera diferença
+            # desprezível (≤ 0,000001 token) — o envio usa o saldo exato.
+            if token_balance < amount_decimal <= token_balance + Decimal("0.000001"):
+                amount_decimal = token_balance
+
             # Verificar saldo do token
             if token_balance < amount_decimal:
                 logger.warning(f"❌ Insufficient token balance: {token_balance} < {amount_decimal}")
@@ -1224,7 +1237,7 @@ async def validate_send_transaction(
             
             # Verificar saldo para gas
             if native_balance < gas_cost:
-                native_symbol = {"polygon": "MATIC", "ethereum": "ETH", "bsc": "BNB", "base": "ETH"}.get(network_lower, "NATIVE")
+                native_symbol = {"polygon": "POL", "ethereum": "ETH", "bsc": "BNB", "base": "ETH"}.get(network_lower, "NATIVE")
                 logger.warning(f"❌ Insufficient gas: {native_balance} < {gas_cost}")
                 return {
                     "valid": False,
@@ -1280,7 +1293,7 @@ async def validate_send_transaction(
             
             # Verificar saldo total (valor + gas)
             if balance < total_required:
-                native_symbol = {"polygon": "MATIC", "ethereum": "ETH", "bsc": "BNB", "base": "ETH"}.get(network_lower, "NATIVE")
+                native_symbol = {"polygon": "POL", "ethereum": "ETH", "bsc": "BNB", "base": "ETH"}.get(network_lower, "NATIVE")
                 logger.warning(f"❌ Insufficient balance: {balance} < {total_required}")
                 return {
                     "valid": False,

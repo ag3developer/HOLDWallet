@@ -31,6 +31,20 @@ import { sendService } from '@/services/sendService'
 import { walletService } from '@/services/walletService'
 import { apiClient } from '@/services/api'
 
+/**
+ * Normaliza um saldo decimal vindo da API como string exata (sem notação
+ * científica e sem passar por Number), para não perder precisão em tokens
+ * de 18 casas.
+ */
+function toPlainDecimal(value: unknown): string | null {
+  if (value === null || value === undefined) return null
+  const str = String(value).trim()
+  if (!/^\d+(\.\d+)?$/.test(str)) return null
+  const [intPart = '0', fracPart = ''] = str.split('.')
+  const frac = fracPart.replace(/0+$/, '')
+  return frac ? `${intPart}.${frac}` : intPart
+}
+
 // Timeline step types
 type TimelineStep =
   | 'idle'
@@ -297,6 +311,7 @@ export const SendPage = () => {
             network,
             address,
             balance,
+            balanceRaw: String(networkBalance?.balance ?? '0'),
             balanceUSD,
           })
         })
@@ -319,6 +334,7 @@ export const SendPage = () => {
               network: baseNetwork, // Usa a rede base (polygon, ethereum)
               address,
               balance,
+              balanceRaw: String(tokenBalance?.balance ?? '0'),
               balanceUSD,
             })
           }
@@ -367,6 +383,7 @@ export const SendPage = () => {
                 network: networkKey, // Network base (polygon, ethereum, etc)
                 address,
                 balance,
+                balanceRaw: String(value?.balance ?? '0'),
                 balanceUSD,
               })
             }
@@ -575,12 +592,16 @@ export const SendPage = () => {
       const isToken = erc20Tokens.includes(selectedToken.toUpperCase())
 
       if (isToken) {
-        // Para tokens, usar saldo total (taxa paga em ETH/MATIC/TRX/etc)
-        setAmount(tokenData.balance.toString())
+        // Para tokens, usar o saldo total (taxa paga em ETH/POL/TRX/etc).
+        // IMPORTANTE: usar a string exata do backend. Converter para Number
+        // (≈16 dígitos) arredondava saldos de 18 casas PARA CIMA e o backend
+        // recusava com "Saldo insuficiente".
+        const exactBalance = toPlainDecimal(selectedWalletData.balanceRaw) ?? tokenData.balance.toString()
+        setAmount(exactBalance)
         setMaxFeeEstimate({
           fee: '~0.001',
           feeUSD: '~$0.01',
-          maxAmount: tokenData.balance.toString(),
+          maxAmount: exactBalance,
           isLoading: false,
         })
         return

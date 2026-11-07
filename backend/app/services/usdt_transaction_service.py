@@ -129,7 +129,13 @@ class USDTTransactionService:
             decimals = get_token_decimals(token, network)
             
             # Converter amount para wei
-            amount_wei = int(Decimal(amount) * (10 ** decimals))
+            try:
+                amount_dec = Decimal(str(amount))
+            except Exception:
+                return {'valid': False, 'error': 'Valor inválido'}
+            if amount_dec <= 0:
+                return {'valid': False, 'error': 'Valor deve ser maior que zero'}
+            amount_wei = int(amount_dec * (10 ** decimals))
             
             # Criar instância do contrato
             contract = w3.eth.contract(
@@ -145,6 +151,17 @@ class USDTTransactionService:
                 logger.error(f"Erro ao buscar saldo: {e}")
                 balance_human = Decimal(0)
             
+            # "Enviar tudo": clientes que passam o saldo por float (JS Number tem
+            # ~16 dígitos) podem pedir alguns wei A MAIS que o saldo real. Se a
+            # diferença for desprezível (≤ 0,000001 token), envia o saldo exato.
+            dust_tolerance_wei = 10 ** max(decimals - 6, 0)
+            if balance_wei < amount_wei <= balance_wei + dust_tolerance_wei:
+                logger.info(
+                    f"🔧 Ajustando valor ao saldo exato (diferença de {amount_wei - balance_wei} wei)"
+                )
+                amount_wei = balance_wei
+                amount = str(balance_human)
+
             # Validar saldo
             if balance_wei < amount_wei:
                 return {
@@ -333,6 +350,25 @@ class USDTTransactionService:
                 gas_limit = gas_estimate['gas']
                 gas_price = int(gas_estimate['gas_price_wei'])
             
+            # Verificar saldo nativo para o gás (MATIC/POL, ETH, BNB...)
+            try:
+                native_balance_wei = w3.eth.get_balance(from_address)
+                gas_cost_wei = int(gas_limit) * int(gas_price)
+                if native_balance_wei < gas_cost_wei:
+                    native_symbol = self._get_native_symbol(network)
+                    needed = Web3.from_wei(gas_cost_wei, 'ether')
+                    have = Web3.from_wei(native_balance_wei, 'ether')
+                    return {
+                        'valid': False,
+                        'error': (
+                            f'Saldo de {native_symbol} insuficiente para pagar a taxa de rede. '
+                            f'Necessário ~{needed:.6f} {native_symbol}, disponível {have:.6f} {native_symbol}.'
+                        ),
+                        'error_code': 'INSUFFICIENT_GAS',
+                    }
+            except Exception as e:
+                logger.warning(f"Não foi possível verificar saldo nativo para gás: {e}")
+
             # Criar função de transfer
             contract = w3.eth.contract(
                 address=token_address,
@@ -465,6 +501,11 @@ class USDTTransactionService:
             # Compatible with web3.py v5 and v6+
             raw_tx = getattr(signed_tx, 'rawTransaction', None) or getattr(signed_tx, 'raw_transaction', None)
             logger.info(f"📤 Enviando raw transaction ({len(raw_tx) if raw_tx else 0} bytes)")
+            # Hash real da transação assinada (independe da resposta do RPC)
+            signed_hash = getattr(signed_tx, 'hash', None)
+            signed_hash_hex = signed_hash.hex() if signed_hash is not None else None
+            if signed_hash_hex and not signed_hash_hex.startswith('0x'):
+                signed_hash_hex = f"0x{signed_hash_hex}"
             try:
                 tx_hash = w3.eth.send_raw_transaction(raw_tx)
                 tx_hash_hex = tx_hash.hex()
@@ -473,15 +514,21 @@ class USDTTransactionService:
                     tx_hash_hex = f"0x{tx_hash_hex}"
                 logger.info(f"✅ Transação enviada: {tx_hash_hex}")
             except TimeoutError as e:
+                # O RPC pode ter recebido a transação: usa o hash real assinado
                 logger.error(f"❌ Timeout ao enviar transação: {e}")
-                # Usar nonce como fallback para hash
-                tx_hash_hex = f"pending_{prep['tx_dict']['nonce']:064x}"
-                logger.warning(f"⚠️  Usando hash simulado: {tx_hash_hex}")
+                if not signed_hash_hex:
+                    return {'error': 'Timeout ao enviar a transação. Tente novamente.', 'tx_hash': None}
+                tx_hash_hex = signed_hash_hex
+                logger.warning(f"⚠️ Timeout no envio; acompanhando pelo hash assinado {tx_hash_hex}")
             except Exception as e:
+                # Antes: gerava um hash falso "pending_..." e respondia sucesso,
+                # mesmo com a transação recusada pela rede (ex.: sem gás).
                 logger.error(f"❌ Erro ao enviar raw transaction: {e}")
-                # Usar nonce como fallback para hash
-                tx_hash_hex = f"pending_{prep['tx_dict']['nonce']:064x}"
-                logger.warning(f"⚠️  Usando hash simulado: {tx_hash_hex}")
+                msg = str(e)
+                if 'insufficient funds' in msg.lower():
+                    native_symbol = self._get_native_symbol(network)
+                    msg = f'Saldo de {native_symbol} insuficiente para pagar a taxa de rede.'
+                return {'error': msg, 'tx_hash': None}
             
             return {
                 'valid': True,
@@ -583,7 +630,7 @@ class USDTTransactionService:
         """Retorna o símbolo do token nativo"""
         symbols = {
             'ethereum': 'ETH',
-            'polygon': 'MATIC',
+            'polygon': 'POL',  # MATIC foi migrado para POL (gás da Polygon desde 09/2024)
             'bsc': 'BNB',
             'arbitrum': 'ETH',
             'optimism': 'ETH',
@@ -612,6 +659,7 @@ class USDTTransactionService:
         prices = {
             'ETH': 2500.0,
             'MATIC': 0.8,
+            'POL': 0.8,
             'BNB': 600.0,
             'AVAX': 40.0,
             'FTM': 1.2,
