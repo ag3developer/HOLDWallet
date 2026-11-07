@@ -9,6 +9,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { Send, Paperclip, Loader2, CheckCheck, Check, Clock, AlertCircle } from 'lucide-react'
 import { apiClient } from '@/services/api'
 import { useAuthStore } from '@/stores/useAuthStore'
+import { APP_CONFIG } from '@/config/app'
 
 interface ChatMessage {
   id: string
@@ -132,8 +133,7 @@ export const P2PTradeChatBox = ({
       wsRef.current.close()
     }
 
-    const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8000'
-    const ws = new WebSocket(`${wsUrl}/ws/chat/${roomId}?token=${token}`)
+    const ws = new WebSocket(`${APP_CONFIG.api.wsUrl}/chat/ws/${roomId}?token=${encodeURIComponent(token || '')}`)
 
     ws.onopen = () => {
       console.log('✅ WebSocket connected')

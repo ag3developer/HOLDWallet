@@ -557,6 +557,37 @@ Digite "ajuda" ou "menu" para começar!`,
     loadChatHistory()
   }, [chatRoomId, selectedContact])
 
+  // Plano B: se o WebSocket não estiver conectado, busca mensagens novas a cada 4 s (sem duplicar)
+  useEffect(() => {
+    if (!chatRoomId || connectionStatus === 'connected') return
+    const contact = contacts.find(c => c.id === selectedContact)
+    if (contact?.isBot) return
+    const poll = async () => {
+      try {
+        const res = await chatP2PService.getChatHistory(chatRoomId)
+        const incoming: Message[] = (res.messages || []).map((msg: ChatMessageP2P) => ({
+          id: msg.id || `${msg.created_at}`,
+          content: msg.content || '',
+          timestamp: new Date(msg.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+          isOwn: msg.sender_id === localStorage.getItem('userId'),
+          status: 'read' as const,
+          type: msg.message_type === 'text' || msg.message_type === 'system' ? 'text' : 'file',
+          fileType: msg.message_type === 'image' ? 'image' : msg.message_type === 'document' ? 'document' : undefined,
+          sender_id: msg.sender_id,
+        }))
+        setMessages(prev => {
+          const known = new Set(prev.map(m => m.id))
+          const fresh = incoming.filter(m => !known.has(m.id))
+          return fresh.length ? [...prev, ...fresh] : prev
+        })
+      } catch {
+        /* tenta de novo no próximo ciclo */
+      }
+    }
+    const interval = setInterval(poll, 4000)
+    return () => clearInterval(interval)
+  }, [chatRoomId, connectionStatus, selectedContact]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // ✅ Marcar como lido quando selecionar um contato
   useEffect(() => {
     if (selectedContact > 1000) {

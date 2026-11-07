@@ -23,7 +23,9 @@ export const APP_CONFIG = {
   // URLs da API - CARREGADAS DO .env
   api: {
     baseUrl: import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000',
-    wsUrl: import.meta.env.VITE_WS_URL || 'ws://127.0.0.1:8000', // ✅ REMOVIDO /ws do final
+    // WebSocket no MESMO endereço da API (https://api…/v1 → wss://api…/v1). As rotas são /chat/ws/{sala}.
+    // Antes vinha de VITE_WS_URL (wss://api.wolknow.com/ws), que não existe → chat sem tempo real em produção.
+    wsUrl: (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000').replace(/^http/, 'ws').replace(/\/+$/, ''),
     endpoints: {
       auth: '', // Auth endpoints are at root level: /auth, /auth/register, etc
       users: '/users',
