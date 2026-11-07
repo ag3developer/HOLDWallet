@@ -12,8 +12,8 @@ const STABLE = new Set(['USDT', 'USDC', 'DAI', 'BUSD'])
 /** Rede/token da API de saldos → símbolo do ativo. */
 export const symbolFromKey = (key: string): string => {
   const k = key.toLowerCase()
-  if (k.includes('_usdt')) return 'USDT'
-  if (k.includes('_usdc')) return 'USDC'
+  // Tokens vêm como "<rede>_<token>": polygon_usdt, polygon_tray, ethereum_shib, polygon_link…
+  if (k.includes('_')) return (k.split('_')[1] || k).toUpperCase()
   const map: Record<string, string> = {
     bitcoin: 'BTC',
     ethereum: 'ETH',

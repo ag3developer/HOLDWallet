@@ -32,7 +32,7 @@ type DateRange = 'all' | '7d' | '30d' | '90d' | 'custom'
 const ITEMS_PER_PAGE = 10
 
 // Função para gerar CSV
-const generateCSV = (transactions: Transaction[], walletId: string, walletAddress: string) => {
+export const generateCSV = (transactions: Transaction[], walletId: string, walletAddress: string) => {
   // Cabeçalho com informações da carteira
   const header = `RELATÓRIO DE TRANSAÇÕES - HOLDWALLET
 ID da Carteira,${walletId}
@@ -73,7 +73,7 @@ Total de Transações,${transactions.length}
 }
 
 // Função para gerar JSON
-const generateJSON = (transactions: Transaction[], walletId: string, walletAddress: string) => {
+export const generateJSON = (transactions: Transaction[], walletId: string, walletAddress: string) => {
   const data = {
     export_date: new Date().toISOString(),
     wallet_id: walletId,
@@ -119,7 +119,7 @@ const getDateRangeFilter = (range: DateRange): { start: Date; end: Date } => {
 }
 
 // Função para gerar PDF
-const generatePDF = (transactions: Transaction[], walletId: string, walletAddress: string) => {
+export const generatePDF = (transactions: Transaction[], walletId: string, walletAddress: string) => {
   // Simple HTML-based PDF generation
   let html = `
     <!DOCTYPE html>

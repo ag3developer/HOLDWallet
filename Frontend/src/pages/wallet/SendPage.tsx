@@ -69,14 +69,24 @@ interface AddressBookEntry {
   is_favorite: boolean
 }
 
-export const SendPage = () => {
+interface SendPageProps {
+  /** Moeda já escolhida (ex.: vinda da carteira por ativo) */
+  readonly initialToken?: string
+  /** Rede já escolhida */
+  readonly initialNetwork?: string
+}
+
+export const SendPage = ({ initialToken, initialNetwork }: SendPageProps = {}) => {
   // Ref para prevenir double-submit (mais confiável que state)
   const isSubmittingRef = useRef(false)
 
   // Estados principais
   const [showSuccess, setShowSuccess] = useState(false)
-  const [selectedToken, setSelectedToken] = useState<string>('USDT')
-  const [selectedNetwork, setSelectedNetwork] = useState<string>('polygon')
+  // ETH na rede Base é tratado como "BASE" neste formulário
+  const [selectedToken, setSelectedToken] = useState<string>(
+    initialToken === 'ETH' && initialNetwork === 'base' ? 'BASE' : initialToken || 'USDT'
+  )
+  const [selectedNetwork, setSelectedNetwork] = useState<string>(initialNetwork || 'polygon')
   const [toAddress, setToAddress] = useState<string>('')
   const [amount, setAmount] = useState<string>('')
   const [memo, setMemo] = useState<string>('')
