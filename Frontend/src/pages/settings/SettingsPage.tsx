@@ -19,6 +19,7 @@ import { useToast } from '@/hooks/useToast'
 import { useCurrencyStore, type Currency } from '@/stores/useCurrencyStore'
 import { ToastContainer } from '@/components/ui/Toast'
 import { LanguageDemo } from '@/components/ui/LanguageDemo'
+import { saveCurrencyPreference } from '@/hooks/useCurrencyPreferenceSync'
 import {
   Settings,
   Shield,
@@ -480,6 +481,7 @@ export const SettingsPage = () => {
                   onChange={e => {
                     const newCurrency = e.target.value as Currency
                     setCurrency(newCurrency)
+                    saveCurrencyPreference(newCurrency)
                     toast.success(`Moeda alterada para ${newCurrency}`)
                   }}
                   className='block w-full sm:w-48 px-3 py-2 text-sm md:text-base border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 rounded-lg text-gray-900 dark:text-white'

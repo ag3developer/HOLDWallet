@@ -2,10 +2,12 @@ import { Outlet, useLocation } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { Header } from './Header'
 import { MobileTabBar } from './MobileTabBar'
+import { useCurrencyPreferenceSync } from '@/hooks/useCurrencyPreferenceSync'
 
 export const Layout = () => {
   const location = useLocation()
   const isChatPage = location.pathname.startsWith('/chat')
+  useCurrencyPreferenceSync()
 
   return (
     <div className='min-h-screen bg-gray-50 dark:bg-gray-900'>

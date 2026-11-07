@@ -17,6 +17,7 @@ Author: HOLD Wallet Team
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
 from typing import Optional
 from datetime import datetime, timezone
@@ -319,6 +320,58 @@ async def update_notification_settings(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error updating settings: {str(e)}"
         )
+
+
+# ============================================
+# DISPLAY PREFERENCES (moeda de exibição)
+# ============================================
+
+SUPPORTED_DISPLAY_CURRENCIES = ("BRL", "USD", "EUR")
+
+
+class DisplayPreferences(BaseModel):
+    currency: str
+
+
+def _get_or_create_settings(db: Session, user_id: str) -> UserSettings:
+    settings = db.query(UserSettings).filter(UserSettings.user_id == user_id).first()
+    if not settings:
+        settings = UserSettings(user_id=user_id)
+        db.add(settings)
+        db.flush()
+    return settings
+
+
+@router.get("/me/preferences", response_model=DisplayPreferences)
+async def get_display_preferences(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Moeda de exibição salva no perfil (o frontend converte os valores em USD para ela)."""
+    settings = db.query(UserSettings).filter(UserSettings.user_id == str(current_user.id)).first()
+    currency = (settings.default_currency if settings else None) or "USD"
+    return DisplayPreferences(currency=currency if currency in SUPPORTED_DISPLAY_CURRENCIES else "USD")
+
+
+@router.put("/me/preferences", response_model=DisplayPreferences)
+async def update_display_preferences(
+    prefs: DisplayPreferences,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Salva a moeda de exibição no perfil para valer em qualquer aparelho."""
+    currency = (prefs.currency or "").upper()
+    if currency not in SUPPORTED_DISPLAY_CURRENCIES:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Moeda não suportada")
+    try:
+        settings = _get_or_create_settings(db, str(current_user.id))
+        settings.default_currency = currency
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error updating display preferences: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Não foi possível salvar a preferência")
+    return DisplayPreferences(currency=currency)
 
 
 # ============================================
