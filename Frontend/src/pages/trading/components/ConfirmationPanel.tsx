@@ -12,7 +12,6 @@ import {
   Plus,
   ExternalLink,
   ArrowDownToLine,
-  Zap,
   QrCode,
   Copy,
   CheckCheck,
@@ -27,6 +26,7 @@ import { TradeStatusMonitor } from './TradeStatusMonitor'
 import { useCurrencyStore, type Currency } from '@/stores/useCurrencyStore'
 import { currencyManager } from '@/services/currency'
 import { usePaymentMethods } from '@/hooks/usePaymentMethods'
+import { CryptoIcon } from '@/components/CryptoIcon'
 
 /**
  * Sanitiza string base64 removendo prefixos e caracteres inválidos
@@ -570,813 +570,458 @@ export function ConfirmationPanel({
     }).format(num)
   }
 
-  // Renderização especial para BB-AUTO com QR Code PIX (apenas para BUY)
+
+  // ───────────────────────── Apresentação (mesma identidade da Home/OTC) ─────────────────────────
+  const qtyStr = (n: number) =>
+    `${(n ?? 0).toLocaleString('pt-BR', { maximumFractionDigits: quote.symbol === 'USDT' || quote.symbol === 'USDC' ? 2 : 8 })} ${quote.symbol}`
+  const validity = Math.max(1, quote.expires_in_seconds || 30)
+
+  const goToTracking = () => {
+    if (!tradeCreated) return
+    onSuccess(tradeCreated, {
+      id: tradeCreated,
+      operation: quote.operation,
+      symbol: quote.symbol,
+      crypto_amount: quote.crypto_amount,
+      fiat_amount: quote.fiat_amount,
+      total_amount: quote.total_amount,
+      ...(quote.brl_total_amount !== undefined && { brl_total_amount: quote.brl_total_amount }),
+      ...(quote.usd_to_brl_rate !== undefined && { usd_to_brl_rate: quote.usd_to_brl_rate }),
+      payment_method: 'pix',
+      status: pixStatus === 'paid' ? 'PAYMENT_CONFIRMED' : 'PENDING',
+      created_at: new Date().toISOString(),
+    })
+  }
+
+  const Row = ({ k, v, strong }: { k: React.ReactNode; v: React.ReactNode; strong?: boolean }) => (
+    <div className='flex justify-between gap-4'>
+      <dt className={strong ? 'font-semibold text-gray-900 dark:text-[#EEF1F7]' : MUTED}>{k}</dt>
+      <dd className={`text-right tabular-nums ${strong ? 'font-semibold text-gray-900 dark:text-[#EEF1F7]' : 'font-medium text-gray-900 dark:text-[#EEF1F7]'}`}>
+        {v}
+      </dd>
+    </div>
+  )
+
+  // Etapa de pagamento Pix automático (QR Code)
   if (isBuy && tradeCreated && pixData && selectedPayment === 'bb_auto') {
     return (
-      <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 p-5 space-y-4'>
-        {/* Header */}
-        <div className='flex items-center gap-3 pb-3 border-b border-gray-200 dark:border-gray-700'>
-          <button
-            onClick={onBack}
-            className='p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors'
-            title='Voltar'
-            aria-label='Voltar'
-          >
-            <ArrowLeft className='w-4 h-4 text-gray-600 dark:text-gray-400' />
-          </button>
-          <div className='flex-1'>
-            <div className='flex items-center gap-2'>
-              <div className='p-1.5 bg-green-100 dark:bg-green-900/30 rounded-lg'>
-                <Zap className='w-4 h-4 text-green-600 dark:text-green-400' />
-              </div>
-              <h2 className='text-sm font-bold text-gray-900 dark:text-white'>PIX - BB</h2>
-            </div>
-            <p className='text-xs text-gray-500 dark:text-gray-400 mt-0.5'>
-              Escaneie o QR Code ou copie o código
-            </p>
-          </div>
-        </div>
-
-        {/* Status do PIX */}
-        {pixStatus === 'paid' ? (
-          <div className='bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-xl p-4'>
-            <div className='flex items-center gap-3'>
-              <div className='p-2 bg-green-100 dark:bg-green-900/30 rounded-full'>
-                <CheckCircle className='w-6 h-6 text-green-600 dark:text-green-400' />
-              </div>
+      <div className='grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px] 2xl:grid-cols-[minmax(0,1fr)_420px] items-start text-gray-900 dark:text-[#EEF1F7]'>
+        <section aria-labelledby='pix-title' className={`${CARD} p-5 sm:p-8`}>
+          {pixStatus === 'paid' ? (
+            <div className='flex flex-col items-center text-center py-8 gap-4'>
+              <span className='w-16 h-16 rounded-full bg-emerald-50 text-emerald-600 dark:bg-[#34C77B]/10 dark:text-[#34C77B] flex items-center justify-center'>
+                <CheckCircle className='w-8 h-8' aria-hidden='true' />
+              </span>
               <div>
-                <h3 className='font-semibold text-green-900 dark:text-green-100'>
-                  Pagamento Confirmado
-                </h3>
-                <p className='text-sm text-green-700 dark:text-green-300 mt-0.5'>
-                  Sua crypto será enviada automaticamente
+                <h2 id='pix-title' className='text-xl font-semibold'>
+                  Pagamento confirmado
+                </h2>
+                <p className={`mt-1 ${SOFT}`}>
+                  Seus {qtyStr(quote.crypto_amount)} estão sendo enviados para a sua carteira.
                 </p>
               </div>
+              <button type='button' onClick={goToTracking} className={`${BTN_PRIMARY} px-6`}>
+                Acompanhar a ordem
+              </button>
             </div>
-          </div>
-        ) : (
-          <>
-            {/* QR Code Container */}
-            <div className='flex flex-col items-center py-4'>
-              <div className='bg-white p-3 rounded-xl shadow-md border-2 border-green-500 dark:border-green-400'>
-                <QRCodeImage
-                  base64Image={pixData.qrcode_image}
-                  pixCode={pixData.qrcode}
-                  size={192}
-                  className='w-48 h-48'
-                />
-              </div>
-
-              {/* Valor */}
-              <div className='mt-4 text-center'>
-                <p className='text-xs text-gray-500 dark:text-gray-400 font-medium'>
-                  Valor a pagar
-                </p>
-                <p className='text-2xl font-bold text-gray-900 dark:text-white mt-1'>
-                  R$ {formatBRL(pixData.valor)}
-                </p>
-              </div>
-            </div>
-
-            {/* Código PIX para copiar */}
-            <div className='space-y-2'>
-              <div className='flex items-center justify-between'>
-                <p className='text-xs font-medium text-gray-600 dark:text-gray-400'>
-                  Código Copia e Cola
-                </p>
-                <button
-                  onClick={copyPixCode}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                    pixCopied
-                      ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
-                      : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300'
-                  }`}
-                >
-                  {pixCopied ? (
-                    <>
-                      <CheckCheck className='w-3.5 h-3.5' />
-                      Copiado
-                    </>
-                  ) : (
-                    <>
-                      <Copy className='w-3.5 h-3.5' />
-                      Copiar
-                    </>
-                  )}
-                </button>
-              </div>
-              <div className='bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3 font-mono text-xs text-gray-700 dark:text-gray-300 break-all max-h-20 overflow-y-auto'>
-                {pixData.qrcode}
-              </div>
-            </div>
-
-            {/* Timer de expiração */}
-            <div className='bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg p-3'>
-              <div className='flex items-center gap-2'>
-                <Clock className='w-4 h-4 text-amber-600 dark:text-amber-400' />
-                <span className='text-sm text-amber-800 dark:text-amber-200'>
-                  Expira em{' '}
-                  <span className='font-semibold'>
-                    {Math.floor(pixData.expiracao_segundos / 60)} minutos
-                  </span>
+          ) : (
+            <div className='flex flex-col md:flex-row gap-8 items-center md:items-start'>
+              <div className='shrink-0 flex flex-col items-center gap-3'>
+                <div className='bg-white p-3 rounded-2xl border border-gray-200 dark:border-transparent'>
+                  <QRCodeImage base64Image={pixData.qrcode_image} pixCode={pixData.qrcode} size={220} className='w-[220px] h-[220px]' />
+                </div>
+                <span className={`inline-flex items-center gap-2 text-sm ${SOFT}`}>
+                  <Loader className='w-4 h-4 animate-spin' aria-hidden='true' />
+                  Aguardando o pagamento…
                 </span>
               </div>
+              <div className='flex-1 min-w-0 w-full'>
+                <h2 id='pix-title' className='text-xl font-semibold'>
+                  Pague com Pix
+                </h2>
+                <p className={`mt-1 text-sm ${SOFT}`}>
+                  Abra o app do seu banco, escaneie o QR Code ou use o Pix copia e cola.
+                </p>
+                <p className={`mt-6 text-sm ${SOFT}`}>Valor a pagar</p>
+                <p className='font-["Space_Grotesk",Inter,sans-serif] text-4xl font-semibold tracking-tight tabular-nums'>
+                  {formatBRL(pixData.valor)}
+                </p>
+                <div className='mt-6'>
+                  <p className={`text-sm mb-2 ${SOFT}`}>Pix copia e cola</p>
+                  <div className='flex flex-col sm:flex-row gap-2'>
+                    <code className='flex-1 min-w-0 rounded-xl bg-gray-50 dark:bg-[#0D121C] border border-gray-200 dark:border-[#222B3D] px-3 py-3 text-xs font-mono break-all max-h-24 overflow-y-auto text-gray-700 dark:text-[#A3ADC2]'>
+                      {pixData.qrcode}
+                    </code>
+                    <button
+                      type='button'
+                      onClick={copyPixCode}
+                      className={`h-12 sm:h-auto px-5 rounded-xl font-semibold text-sm inline-flex items-center justify-center gap-2 transition-colors ${
+                        pixCopied
+                          ? 'bg-emerald-600 text-white dark:bg-[#34C77B] dark:text-[#0A0E15]'
+                          : 'bg-blue-600 text-white hover:bg-blue-700 dark:bg-[#5B8CFF] dark:text-[#0A0E15] dark:hover:bg-[#7AA2FF]'
+                      }`}
+                    >
+                      {pixCopied ? <CheckCheck className='w-4 h-4' aria-hidden='true' /> : <Copy className='w-4 h-4' aria-hidden='true' />}
+                      {pixCopied ? 'Copiado' : 'Copiar código'}
+                    </button>
+                  </div>
+                </div>
+                <p className={`mt-5 inline-flex items-center gap-2 text-sm ${SOFT}`}>
+                  <Clock className='w-4 h-4' aria-hidden='true' />
+                  O Pix expira em {Math.max(1, Math.floor(pixData.expiracao_segundos / 60))} minutos.
+                </p>
+              </div>
             </div>
+          )}
+        </section>
 
-            {/* Status de verificação */}
-            <div className='flex items-center justify-center gap-2 py-2'>
-              <Loader className='w-4 h-4 animate-spin text-blue-600 dark:text-blue-400' />
-              <span className='text-sm text-gray-600 dark:text-gray-400'>
-                Aguardando pagamento...
-              </span>
+        <aside className={`${CARD} p-5 sm:p-6 lg:sticky lg:top-4`}>
+          <h3 className='text-lg font-semibold mb-4'>Resumo da ordem</h3>
+          <dl className='space-y-2.5 text-sm'>
+            <Row k='Operação' v={`Compra de ${quote.symbol}`} />
+            <Row k='Você paga' v={formatBRL(pixData.valor)} />
+            <div className='pt-3 mt-1 border-t border-gray-100 dark:border-[#1E2738]'>
+              <Row k='Você recebe' v={qtyStr(quote.crypto_amount)} strong />
             </div>
-          </>
-        )}
-
-        {/* Informações do Trade */}
-        <div className='bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 space-y-2'>
-          <div className='flex justify-between items-center text-xs'>
-            <span className='text-gray-500 dark:text-gray-400'>Trade ID</span>
-            <span className='font-mono text-gray-700 dark:text-gray-300'>
-              {tradeCreated.substring(0, 8)}...
-            </span>
-          </div>
-          <div className='flex justify-between items-center text-xs'>
-            <span className='text-gray-500 dark:text-gray-400'>PIX TXID</span>
-            <span className='font-mono text-gray-700 dark:text-gray-300 text-[10px]'>
-              {pixData.txid.length > 20 ? `${pixData.txid.substring(0, 20)}...` : pixData.txid}
-            </span>
-          </div>
-          <div className='flex justify-between items-center text-xs pt-2 border-t border-gray-200 dark:border-gray-600'>
-            <span className='text-gray-500 dark:text-gray-400'>Você receberá</span>
-            <span className='font-bold text-green-600 dark:text-green-400'>
-              {quote.crypto_amount.toFixed(8)} {quote.symbol}
-            </span>
-          </div>
-        </div>
-
-        {/* Badge de segurança */}
-        <div className='flex items-center justify-center gap-2 text-xs text-gray-500 dark:text-gray-400 pt-1'>
-          <Shield className='w-3.5 h-3.5' />
-          <span>Processado via API Banco do Brasil</span>
-        </div>
+            <Row k='Ordem' v={<span className='font-mono text-xs'>{tradeCreated.substring(0, 8)}…</span>} />
+            <Row k='TXID Pix' v={<span className='font-mono text-xs'>{pixData.txid.length > 16 ? `${pixData.txid.substring(0, 16)}…` : pixData.txid}</span>} />
+          </dl>
+          {pixStatus !== 'paid' && (
+            <button type='button' onClick={goToTracking} className={`${BTN_SECONDARY} w-full mt-5`}>
+              Já paguei · acompanhar a ordem
+            </button>
+          )}
+          <p className={`mt-4 flex items-center justify-center gap-2 text-xs ${MUTED}`}>
+            <Shield className='w-3.5 h-3.5' aria-hidden='true' />
+            Pix processado pelo Banco do Brasil
+          </p>
+        </aside>
       </div>
     )
   }
 
+  // Ordem criada por outro meio (TED aguardando comprovante ou acompanhamento)
   if (tradeCreated) {
     return (
-      <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-4'>
-        <div className='flex items-center gap-2 mb-4 pb-3 border-b border-gray-200 dark:border-gray-700'>
-          <div className='flex-1'>
-            <h2 className='text-sm font-bold text-gray-900 dark:text-white'>
-              {pendingProof ? 'Awaiting Payment Proof' : 'Trade Status'}
-            </h2>
-          </div>
-        </div>
-
+      <section className={`${CARD} p-5 sm:p-8 max-w-3xl text-gray-900 dark:text-[#EEF1F7]`}>
         {pendingProof ? (
-          <div className='space-y-4'>
-            {/* Pending Status Message */}
-            <div className='bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg p-4'>
-              <div className='flex items-start gap-3'>
-                <div className='flex-shrink-0'>
-                  <div className='flex items-center justify-center h-8 w-8 rounded-full bg-amber-100 dark:bg-amber-900/30'>
-                    <svg
-                      className='h-5 w-5 text-amber-600 dark:text-amber-400'
-                      fill='currentColor'
-                      viewBox='0 0 20 20'
-                    >
-                      <path
-                        fillRule='evenodd'
-                        d='M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z'
-                        clipRule='evenodd'
-                      />
-                    </svg>
-                  </div>
-                </div>
-                <div>
-                  <h3 className='text-sm font-medium text-amber-900 dark:text-amber-100'>
-                    Payment Proof Required
-                  </h3>
-                  <p className='text-xs text-amber-700 dark:text-amber-300 mt-1'>
-                    Your trade is waiting for payment confirmation. Please send your payment
-                    receipt/proof to proceed.
-                  </p>
-                </div>
+          <div className='space-y-6'>
+            <div className='flex items-start gap-4'>
+              <span className='w-12 h-12 shrink-0 rounded-full bg-amber-50 text-amber-600 dark:bg-amber-400/10 dark:text-amber-300 flex items-center justify-center'>
+                <ClipboardList className='w-6 h-6' aria-hidden='true' />
+              </span>
+              <div>
+                <h2 className='text-xl font-semibold'>Envie o comprovante</h2>
+                <p className={`mt-1 text-sm ${SOFT}`}>Sua ordem está aguardando a confirmação do pagamento.</p>
               </div>
             </div>
-
-            {/* Trade ID */}
-            <div className='bg-gray-50 dark:bg-gray-700 p-3 rounded'>
-              <p className='text-xs text-gray-600 dark:text-gray-400'>Trade ID:</p>
-              <p className='font-mono text-sm text-gray-900 dark:text-white break-all'>
-                {tradeCreated}
-              </p>
-            </div>
-
-            {/* Payment Details Summary */}
-            <div className='bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg p-3 space-y-2'>
-              <p className='text-xs font-semibold text-gray-700 dark:text-gray-300'>
-                Payment Details:
-              </p>
-              <div className='space-y-1 text-xs'>
-                <div className='flex justify-between'>
-                  <span className='text-gray-600 dark:text-gray-400'>Amount:</span>
-                  <span className='font-medium text-gray-900 dark:text-white'>
-                    {formatValue(quote.fiat_amount ?? 0)}
-                  </span>
-                </div>
-                <div className='flex justify-between'>
-                  <span className='text-gray-600 dark:text-gray-400'>Method:</span>
-                  <span className='font-medium text-gray-900 dark:text-white capitalize'>
-                    {selectedPayment}
-                  </span>
-                </div>
-                <div className='flex justify-between border-t border-blue-200 dark:border-blue-700 pt-1'>
-                  <span className='text-gray-600 dark:text-gray-400'>Receiving:</span>
-                  <span className='font-bold text-blue-600 dark:text-blue-400'>
-                    {(quote.crypto_amount ?? 0).toFixed(8)} {quote.symbol}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Instructions */}
-            <div className='bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-3'>
-              <p className='text-xs font-semibold text-blue-900 dark:text-blue-100 mb-2'>
-                Next Steps:
-              </p>
-              <ol className='text-xs text-blue-800 dark:text-blue-200 space-y-1 list-decimal list-inside'>
-                <li>Send payment using the method above</li>
-                <li>Save your payment receipt/proof</li>
-                <li>Go to "Support" or "Chat" and upload your proof</li>
-                <li>Our team will verify and complete your trade</li>
-              </ol>
-            </div>
-
-            <button
-              onClick={onBack}
-              className='w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors'
-            >
-              Back to Trading
+            <dl className='space-y-2.5 text-sm rounded-xl bg-gray-50 dark:bg-[#0D121C] p-4'>
+              <Row k='Ordem' v={<span className='font-mono text-xs break-all'>{tradeCreated}</span>} />
+              <Row k='Valor' v={formatValue(quote.fiat_amount ?? 0)} />
+              <Row k='Forma de pagamento' v={selectedPayment.toUpperCase()} />
+              <Row k='Você recebe' v={qtyStr(quote.crypto_amount)} strong />
+            </dl>
+            <ol className={`space-y-2 text-sm ${SOFT} list-decimal list-inside`}>
+              <li>Faça a transferência para a conta informada.</li>
+              <li>Guarde o comprovante.</li>
+              <li>Envie o comprovante pelo Suporte ou Chat.</li>
+              <li>Nossa equipe confere e conclui a ordem.</li>
+            </ol>
+            <button type='button' onClick={onBack} className={`${BTN_SECONDARY} w-full sm:w-auto px-6`}>
+              Voltar para comprar e vender
             </button>
           </div>
         ) : (
-          <>
+          <div className='space-y-6'>
             <TradeStatusMonitor
               tradeId={tradeCreated}
               initialStatus='PENDING'
               onStatusChange={newStatus => {
-                if (newStatus === 'COMPLETED') {
-                  toast.success('Trade completed successfully!')
-                }
+                if (newStatus === 'COMPLETED') toast.success('Ordem concluída!')
               }}
             />
-            <button
-              onClick={onBack}
-              className='w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors'
-            >
-              Back to Trading
+            <button type='button' onClick={onBack} className={`${BTN_SECONDARY} w-full sm:w-auto px-6`}>
+              Voltar para comprar e vender
             </button>
-          </>
+          </div>
         )}
-      </div>
+      </section>
     )
   }
 
+  // Revisão + forma de pagamento (compra) ou conta de recebimento (venda)
+  const selectedMethod = !isBuy ? userPaymentMethods?.find((m: any) => m.id === selectedReceivingMethod) : null
+  const methodLabel = (m: any) =>
+    m.type === 'pix' ? 'Pix' : m.type === 'bank_transfer' ? 'TED / transferência' : String(m.type || '').toUpperCase()
+  const methodDetail = (m: any) =>
+    m.type === 'pix'
+      ? `${m.details?.keyType || 'Chave'}: ${m.details?.keyValue || m.details?.key_value || m.details?.pix_key || '••••'}`
+      : `${m.details?.bank || m.details?.bank_name || 'Banco'} · Ag ${m.details?.agency || '••••'} · CC ${m.details?.account || m.details?.account_number || '••••'}`
+  const blocked = quoteExpired || (!isBuy && !selectedReceivingMethod)
+
   return (
-    <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-4'>
-      {/* Header with Back Button */}
-      <div className='flex items-center gap-2 mb-4 pb-3 border-b border-gray-200 dark:border-gray-700'>
-        <button
-          onClick={onBack}
-          disabled={loading}
-          title='Go back'
-          className='p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors disabled:opacity-50'
-        >
-          <ArrowLeft className='w-4 h-4 text-gray-600 dark:text-gray-400' />
-        </button>
-        <div className='flex-1'>
-          <h2 className='text-sm font-bold text-gray-900 dark:text-white'>Review Trade</h2>
-        </div>
-      </div>
-
-      {/* Trade Summary */}
-      <div className='space-y-3'>
-        {/* Main Layout: Summary + Quote Side by Side */}
-        <div className='grid grid-cols-1 lg:grid-cols-2 gap-3'>
-          {/* Left Column: Summary Card */}
-          <div>
-            {/* Summary Card */}
-            <div className='bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded p-3 space-y-2'>
-              <div className='flex items-center gap-2 mb-2'>
-                <div className='h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0'>
-                  <CheckCircle className='w-5 h-5 text-white' />
-                </div>
-                <div>
-                  <p className='text-sm font-semibold text-gray-900 dark:text-white'>
-                    {isBuy ? 'Buy' : 'Sell'} {quote.symbol}
-                  </p>
-                </div>
-              </div>
-
-              <div className='space-y-2 text-sm'>
-                <div className='flex justify-between'>
-                  <span className='text-gray-700 dark:text-gray-300'>Type:</span>
-                  <span className='font-medium text-gray-900 dark:text-white capitalize'>
-                    {quote.operation}
-                  </span>
-                </div>
-                <div className='flex justify-between'>
-                  <span className='text-gray-700 dark:text-gray-300'>Asset:</span>
-                  <span className='font-medium text-gray-900 dark:text-white'>{quote.symbol}</span>
-                </div>
-                <div className='flex justify-between'>
-                  <span className='text-gray-700 dark:text-gray-300'>
-                    {isBuy ? 'Pay:' : 'Amount:'}
-                  </span>
-                  <span className='font-medium text-gray-900 dark:text-white'>
-                    {isBuy
-                      ? formatValue(quote.fiat_amount ?? 0)
-                      : `${(quote.crypto_amount ?? 0).toFixed(8)} ${quote.symbol}`}
-                  </span>
-                </div>
-                <div className='flex justify-between border-t border-blue-200 dark:border-blue-700 pt-2'>
-                  <span className='font-semibold text-gray-900 dark:text-white'>
-                    {isBuy ? 'Receive:' : 'Get:'}
-                  </span>
-                  <span className='font-bold text-blue-600 dark:text-blue-400'>
-                    {isBuy
-                      ? `${(quote.crypto_amount ?? 0).toFixed(8)} ${quote.symbol}`
-                      : formatValue(quote.total_amount ?? 0)}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column: Quote Details (Price breakdown) */}
-          <div className='bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900/20 dark:to-gray-800/20 rounded p-3 space-y-2 border border-gray-200 dark:border-gray-700'>
-            <p className='text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide'>
-              Quote Details
-            </p>
-
-            <div className='space-y-1 text-xs'>
-              <div className='flex justify-between'>
-                <span className='text-gray-600 dark:text-gray-400'>Price:</span>
-                <span className='font-medium text-gray-900 dark:text-white'>
-                  {formatValue(quote.crypto_price ?? 0)}
-                </span>
-              </div>
-              <div className='flex justify-between'>
-                <span className='text-gray-600 dark:text-gray-400'>
-                  Spread ({quote.spread_percentage ?? 0}%):
-                </span>
-                <span className='font-medium text-gray-900 dark:text-white'>
-                  {formatValue(quote.spread_amount ?? 0)}
-                </span>
-              </div>
-              <div className='flex justify-between'>
-                <span className='text-gray-600 dark:text-gray-400'>
-                  Fee ({quote.network_fee_percentage ?? 0}%):
-                </span>
-                <span className='font-medium text-gray-900 dark:text-white'>
-                  {formatValue(quote.network_fee_amount ?? 0)}
-                </span>
-              </div>
-              <div className='flex justify-between border-t border-gray-300 dark:border-gray-600 pt-1'>
-                <span className='font-semibold text-gray-900 dark:text-white'>Total:</span>
-                <span className='font-bold text-blue-600 dark:text-blue-400'>
-                  {formatValue(quote.total_amount ?? 0)}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* SEÇÃO DIFERENTE PARA BUY vs SELL */}
+    <div className='grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px] 2xl:grid-cols-[minmax(0,1fr)_420px] items-start text-gray-900 dark:text-[#EEF1F7]'>
+      {/* Escolha do pagamento / recebimento */}
+      <section aria-labelledby='pay-title' className={`${CARD} p-5 sm:p-6 order-2 lg:order-1`}>
         {isBuy ? (
-          /* BUY: Payment Method Selection - Como o usuário vai PAGAR */
-          <div>
-            <div className='text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2'>
-              Método de Pagamento
-            </div>
-            <div className='grid grid-cols-5 gap-2'>
+          <>
+            <h2 id='pay-title' className='text-lg font-semibold'>
+              Como você quer pagar?
+            </h2>
+            <p className={`mt-1 text-sm ${SOFT}`}>Pagamentos em reais, de conta no seu nome.</p>
+            <div role='radiogroup' aria-labelledby='pay-title' className='mt-5 grid gap-3 sm:grid-cols-2'>
               {BUY_PAYMENT_METHODS.map(method => {
-                const IconComponent = method.icon
-                const isHighlight = 'highlight' in method && method.highlight
-                const badge = 'badge' in method ? method.badge : null
+                const Icon = method.icon
+                const active = selectedPayment === method.id
                 return (
                   <button
                     key={method.id}
-                    onClick={() => setSelectedPayment(method.id)}
+                    type='button'
+                    role='radio'
+                    aria-checked={active}
                     disabled={loading}
-                    className={`relative p-2 rounded border transition-all disabled:opacity-50 text-center ${
-                      selectedPayment === method.id
-                        ? isHighlight
-                          ? 'border-yellow-500 bg-yellow-50 dark:bg-yellow-900/30 ring-2 ring-yellow-400'
-                          : 'border-blue-600 bg-blue-50 dark:bg-blue-900/30'
-                        : isHighlight
-                          ? 'border-yellow-400 dark:border-yellow-600 bg-yellow-50/50 dark:bg-yellow-900/10 hover:border-yellow-500'
-                          : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                    onClick={() => setSelectedPayment(method.id)}
+                    className={`relative text-left rounded-xl border p-4 flex items-start gap-3 transition-colors disabled:opacity-50 ${
+                      active
+                        ? 'border-blue-600 bg-blue-50/60 dark:border-[#5B8CFF] dark:bg-[#172033]'
+                        : 'border-gray-200 hover:border-gray-300 dark:border-[#222B3D] dark:hover:border-[#2F3D5C]'
                     }`}
                   >
-                    {badge && (
-                      <div className='absolute -top-2 left-1/2 -translate-x-1/2'>
-                        <span className='px-1.5 py-0.5 text-[9px] font-bold bg-yellow-500 text-white rounded-full whitespace-nowrap'>
-                          {badge}
-                        </span>
-                      </div>
-                    )}
-                    <IconComponent
-                      className={`w-5 h-5 mx-auto mb-1 ${
-                        isHighlight
-                          ? 'text-yellow-600 dark:text-yellow-400'
-                          : 'text-blue-600 dark:text-blue-400'
-                      }`}
-                    />
-                    <div
-                      className={`text-xs font-medium ${
-                        isHighlight
-                          ? 'text-yellow-700 dark:text-yellow-300'
-                          : 'text-gray-700 dark:text-gray-300'
-                      }`}
-                    >
-                      {method.name}
-                    </div>
+                    <span className='w-10 h-10 shrink-0 rounded-xl bg-gray-100 dark:bg-[#0D121C] flex items-center justify-center text-gray-700 dark:text-[#A3ADC2]'>
+                      <Icon className='w-5 h-5' aria-hidden='true' />
+                    </span>
+                    <span className='flex-1 min-w-0'>
+                      <span className='flex items-center gap-2 font-semibold'>
+                        {method.id === 'bb_auto' ? 'Pix' : 'TED'}
+                        {method.id === 'bb_auto' && (
+                          <span className='text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-[#34C77B]/10 dark:text-[#34C77B]'>
+                            Recomendado
+                          </span>
+                        )}
+                      </span>
+                      <span className={`block text-sm mt-0.5 ${SOFT}`}>
+                        {method.id === 'bb_auto'
+                          ? 'Confirmação automática em segundos, 24 h por dia.'
+                          : 'Transferência com envio de comprovante. Pode levar algumas horas.'}
+                      </span>
+                    </span>
+                    {active && <CheckCircle className='w-5 h-5 text-blue-600 dark:text-[#8FB0FF] shrink-0' aria-hidden='true' />}
                   </button>
                 )
               })}
             </div>
-          </div>
+
+            {selectedPayment === 'ted' && (
+              <div className='mt-5 rounded-xl border border-gray-200 dark:border-[#222B3D] p-4'>
+                <p className='text-sm font-semibold flex items-center gap-2'>
+                  <Building2 className='w-4 h-4' aria-hidden='true' />
+                  Dados para a transferência (após confirmar)
+                </p>
+                <dl className='mt-3 space-y-2 text-sm'>
+                  <Row k='Banco' v='Banco do Brasil (001)' />
+                  <Row k='CNPJ' v={<span className='font-mono'>24.275.355/0001-51</span>} />
+                  <Row k='Agência' v={<span className='font-mono'>5271-0</span>} />
+                  <Row k='Conta' v={<span className='font-mono'>26689-2</span>} />
+                  <Row k='Titular' v='HOLD DIGITAL ASSETS LTDA' />
+                  <div className='pt-2 mt-1 border-t border-gray-100 dark:border-[#1E2738]'>
+                    <Row k='Valor' v={formatBRL(quote.total_amount ?? quote.fiat_amount ?? 0)} strong />
+                  </div>
+                </dl>
+                <p className={`mt-3 text-xs flex items-start gap-2 ${SOFT}`}>
+                  <AlertTriangle className='w-3.5 h-3.5 mt-0.5 shrink-0' aria-hidden='true' />
+                  Depois de confirmar, você tem 15 minutos para transferir e enviar o comprovante.
+                </p>
+              </div>
+            )}
+
+            {selectedPayment === 'ted' && bankDetails && (
+              <dl className='mt-4 space-y-2 text-sm rounded-xl bg-gray-50 dark:bg-[#0D121C] p-4'>
+                <Row k='Banco' v={bankDetails.bank_name} />
+                <Row k='CNPJ' v={<span className='font-mono'>{bankDetails.cnpj}</span>} />
+                <Row k='Agência' v={<span className='font-mono'>{bankDetails.agency}</span>} />
+                <Row k='Conta' v={<span className='font-mono'>{bankDetails.account_number}</span>} />
+                <Row k='Titular' v={bankDetails.account_holder} />
+              </dl>
+            )}
+          </>
         ) : (
-          /* SELL: Receiving Method Selection - Onde o usuário vai RECEBER */
-          <div>
-            <div className='text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2'>
-              <ArrowDownToLine className='w-4 h-4 text-green-600 dark:text-green-400' />
-              Conta para Recebimento
-            </div>
+          <>
+            <h2 id='pay-title' className='text-lg font-semibold flex items-center gap-2'>
+              <ArrowDownToLine className='w-5 h-5' aria-hidden='true' />
+              Onde você quer receber?
+            </h2>
+            <p className={`mt-1 text-sm ${SOFT}`}>O valor da venda vai para a conta escolhida.</p>
 
             {loadingPaymentMethods ? (
-              <div className='flex items-center justify-center p-4'>
-                <Loader className='w-5 h-5 animate-spin text-blue-600' />
-                <span className='ml-2 text-sm text-gray-600 dark:text-gray-400'>
-                  Carregando suas contas...
-                </span>
+              <div className={`mt-5 flex items-center gap-2 text-sm ${SOFT}`}>
+                <Loader className='w-4 h-4 animate-spin' aria-hidden='true' />
+                Carregando suas contas…
               </div>
             ) : !userPaymentMethods || userPaymentMethods.length === 0 ? (
-              /* Nenhuma conta cadastrada */
-              <div className='bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg p-4'>
-                <div className='flex items-start gap-3'>
-                  <AlertTriangle className='w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5' />
-                  <div className='flex-1'>
-                    <p className='text-sm font-medium text-amber-900 dark:text-amber-100'>
-                      Nenhuma conta cadastrada
-                    </p>
-                    <p className='text-xs text-amber-700 dark:text-amber-300 mt-1'>
-                      Para vender crypto, você precisa cadastrar uma conta bancária ou chave PIX
-                      para receber o pagamento.
-                    </p>
-                    <Link
-                      to='/settings/payment-methods'
-                      className='inline-flex items-center gap-1 mt-3 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium rounded transition-colors'
-                    >
-                      <Plus className='w-3 h-3' />
-                      Cadastrar Conta
-                      <ExternalLink className='w-3 h-3' />
-                    </Link>
-                  </div>
-                </div>
+              <div className='mt-5 rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-400/20 dark:bg-amber-400/5 p-4'>
+                <p className='font-semibold flex items-center gap-2'>
+                  <AlertTriangle className='w-4 h-4 text-amber-600 dark:text-amber-300' aria-hidden='true' />
+                  Nenhuma conta cadastrada
+                </p>
+                <p className={`mt-1 text-sm ${SOFT}`}>Cadastre uma chave Pix ou conta bancária no seu nome para receber.</p>
+                <Link to='/settings/payment-methods' className={`${BTN_PRIMARY} mt-4 px-5 inline-flex`}>
+                  <Plus className='w-4 h-4' aria-hidden='true' />
+                  Cadastrar conta
+                  <ExternalLink className='w-3.5 h-3.5' aria-hidden='true' />
+                </Link>
               </div>
             ) : (
-              /* Lista de contas cadastradas */
-              <div className='space-y-2'>
-                {userPaymentMethods.map((method: any) => (
-                  <button
-                    key={method.id}
-                    onClick={() => setSelectedReceivingMethod(method.id)}
-                    disabled={loading}
-                    className={`w-full p-3 rounded-lg border transition-all disabled:opacity-50 text-left ${
-                      selectedReceivingMethod === method.id
-                        ? 'border-green-600 bg-green-50 dark:bg-green-900/30'
-                        : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
-                    }`}
-                  >
-                    <div className='flex items-center gap-3'>
-                      <div
-                        className={`p-2 rounded-full ${
-                          method.type === 'pix'
-                            ? 'bg-green-100 dark:bg-green-900/50'
-                            : 'bg-blue-100 dark:bg-blue-900/50'
-                        }`}
-                      >
-                        {method.type === 'pix' ? (
-                          <Banknote className='w-4 h-4 text-green-600 dark:text-green-400' />
-                        ) : (
-                          <Building2 className='w-4 h-4 text-blue-600 dark:text-blue-400' />
-                        )}
-                      </div>
-                      <div className='flex-1 min-w-0'>
-                        <div className='flex items-center gap-2'>
-                          <span className='text-sm font-medium text-gray-900 dark:text-white'>
-                            {method.type === 'pix'
-                              ? 'PIX'
-                              : method.type === 'bank_transfer'
-                                ? 'TED/Transferência'
-                                : method.type?.toUpperCase()}
-                          </span>
+              <div role='radiogroup' aria-labelledby='pay-title' className='mt-5 space-y-3'>
+                {userPaymentMethods.map((method: any) => {
+                  const active = selectedReceivingMethod === method.id
+                  return (
+                    <button
+                      key={method.id}
+                      type='button'
+                      role='radio'
+                      aria-checked={active}
+                      disabled={loading}
+                      onClick={() => setSelectedReceivingMethod(method.id)}
+                      className={`w-full text-left rounded-xl border p-4 flex items-center gap-3 transition-colors disabled:opacity-50 ${
+                        active
+                          ? 'border-blue-600 bg-blue-50/60 dark:border-[#5B8CFF] dark:bg-[#172033]'
+                          : 'border-gray-200 hover:border-gray-300 dark:border-[#222B3D] dark:hover:border-[#2F3D5C]'
+                      }`}
+                    >
+                      <span className='w-10 h-10 shrink-0 rounded-xl bg-gray-100 dark:bg-[#0D121C] flex items-center justify-center text-gray-700 dark:text-[#A3ADC2]'>
+                        {method.type === 'pix' ? <Banknote className='w-5 h-5' aria-hidden='true' /> : <Building2 className='w-5 h-5' aria-hidden='true' />}
+                      </span>
+                      <span className='flex-1 min-w-0'>
+                        <span className='flex items-center gap-2 font-semibold'>
+                          {methodLabel(method)}
                           {method.is_primary && (
-                            <span className='px-1.5 py-0.5 text-[10px] font-medium bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded'>
+                            <span className='text-[11px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 dark:bg-[#0D121C] dark:text-[#A3ADC2]'>
                               Principal
                             </span>
                           )}
-                        </div>
-                        <p className='text-xs text-gray-600 dark:text-gray-400 truncate'>
-                          {method.type === 'pix'
-                            ? `${method.details?.keyType || 'Chave'}: ${method.details?.keyValue || method.details?.key_value || method.details?.pix_key || '****'}`
-                            : `${method.details?.bank || method.details?.bank_name || 'Banco'} - Ag ${method.details?.agency || '****'} / CC ${method.details?.account || method.details?.account_number || '****'}`}
-                        </p>
-                        {/* Mostrar nome do titular */}
-                        <p className='text-[10px] text-gray-500 dark:text-gray-500 truncate'>
-                          {method.details?.holderName || method.details?.holder_name || ''}
-                        </p>
-                      </div>
-                      {selectedReceivingMethod === method.id && (
-                        <CheckCircle className='w-5 h-5 text-green-600 dark:text-green-400' />
-                      )}
-                    </div>
-                  </button>
-                ))}
-
-                {/* Link para adicionar nova conta */}
+                        </span>
+                        <span className={`block text-sm truncate ${SOFT}`}>{methodDetail(method)}</span>
+                        {(method.details?.holderName || method.details?.holder_name) && (
+                          <span className={`block text-xs truncate ${MUTED}`}>{method.details?.holderName || method.details?.holder_name}</span>
+                        )}
+                      </span>
+                      {active && <CheckCircle className='w-5 h-5 text-blue-600 dark:text-[#8FB0FF] shrink-0' aria-hidden='true' />}
+                    </button>
+                  )
+                })}
                 <Link
                   to='/settings/payment-methods'
-                  className='flex items-center justify-center gap-2 w-full p-2 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-xs text-gray-600 dark:text-gray-400 hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors'
+                  className={`flex items-center justify-center gap-2 h-11 rounded-xl border border-dashed border-gray-300 dark:border-[#2A3449] text-sm ${SOFT} hover:border-blue-500 hover:text-blue-600 dark:hover:border-[#5B8CFF] dark:hover:text-[#8FB0FF]`}
                 >
-                  <Plus className='w-3 h-3' />
+                  <Plus className='w-4 h-4' aria-hidden='true' />
                   Adicionar outra conta
                 </Link>
               </div>
             )}
-          </div>
+          </>
         )}
+      </section>
 
-        {/* Bank Transfer Details - Show BEFORE confirming for TED (only for BUY) */}
-        {isBuy && selectedPayment === 'ted' && (
-          <div className='bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg p-3 space-y-2'>
-            <p className='text-xs font-semibold text-amber-900 dark:text-amber-100 flex items-center gap-1'>
-              <ClipboardList className='w-3 h-3' />
-              Transfer to this account after confirming:
-            </p>
-            <div className='space-y-1 text-xs'>
-              <div className='flex justify-between'>
-                <span className='text-gray-600 dark:text-gray-400'>Bank:</span>
-                <span className='font-medium text-gray-900 dark:text-white'>
-                  Banco do Brasil (001)
-                </span>
-              </div>
-              <div className='flex justify-between'>
-                <span className='text-gray-600 dark:text-gray-400'>CNPJ:</span>
-                <span className='font-mono text-gray-900 dark:text-white'>24.275.355/0001-51</span>
-              </div>
-              <div className='flex justify-between'>
-                <span className='text-gray-600 dark:text-gray-400'>Agency:</span>
-                <span className='font-mono text-gray-900 dark:text-white'>5271-0</span>
-              </div>
-              <div className='flex justify-between'>
-                <span className='text-gray-600 dark:text-gray-400'>Account:</span>
-                <span className='font-mono text-gray-900 dark:text-white'>26689-2</span>
-              </div>
-              <div className='flex justify-between'>
-                <span className='text-gray-600 dark:text-gray-400'>Holder:</span>
-                <span className='font-medium text-gray-900 dark:text-white'>
-                  HOLD DIGITAL ASSETS LTDA
-                </span>
-              </div>
-              <div className='flex justify-between border-t border-amber-200 dark:border-amber-700 pt-1 mt-1'>
-                <span className='text-gray-600 dark:text-gray-400'>Amount:</span>
-                <span className='font-bold text-amber-700 dark:text-amber-300'>
-                  {formatBRL(quote.total_amount ?? quote.fiat_amount ?? 0)}
-                </span>
-              </div>
-            </div>
-            <p className='text-xs text-amber-700 dark:text-amber-300 mt-2 flex items-center gap-1'>
-              <AlertTriangle className='w-3 h-3' />
-              After confirming, you have 15 minutes to complete the transfer and upload the receipt.
-            </p>
+      {/* Resumo + confirmação */}
+      <aside className={`${CARD} p-5 sm:p-6 order-1 lg:order-2 lg:sticky lg:top-4`}>
+        <div className='flex items-center gap-3'>
+          <CryptoIcon symbol={quote.symbol} size={40} className='rounded-full shrink-0' />
+          <div>
+            <p className={`text-sm ${SOFT}`}>{isBuy ? 'Compra' : 'Venda'}</p>
+            <h3 className='text-lg font-semibold'>{quote.symbol}</h3>
           </div>
-        )}
-
-        {/* Legacy Bank Transfer Details - After trade created (only for BUY) */}
-        {isBuy && selectedPayment === 'ted' && bankDetails && (
-          <div className='bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-3 space-y-2'>
-            <p className='text-xs font-semibold text-blue-900 dark:text-blue-100'>
-              Transfer to this account:
-            </p>
-            <div className='space-y-1 text-xs'>
-              <div className='flex justify-between'>
-                <span className='text-gray-600 dark:text-gray-400'>Bank:</span>
-                <span className='font-medium text-gray-900 dark:text-white'>
-                  {bankDetails.bank_name}
-                </span>
-              </div>
-              <div className='flex justify-between'>
-                <span className='text-gray-600 dark:text-gray-400'>CNPJ:</span>
-                <span className='font-mono text-gray-900 dark:text-white'>{bankDetails.cnpj}</span>
-              </div>
-              <div className='flex justify-between'>
-                <span className='text-gray-600 dark:text-gray-400'>Agency:</span>
-                <span className='font-mono text-gray-900 dark:text-white'>
-                  {bankDetails.agency}
-                </span>
-              </div>
-              <div className='flex justify-between'>
-                <span className='text-gray-600 dark:text-gray-400'>Account:</span>
-                <span className='font-mono text-gray-900 dark:text-white'>
-                  {bankDetails.account_number}
-                </span>
-              </div>
-              <div className='flex justify-between'>
-                <span className='text-gray-600 dark:text-gray-400'>Holder:</span>
-                <span className='font-medium text-gray-900 dark:text-white'>
-                  {bankDetails.account_holder}
-                </span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* SELL: Resumo da conta de recebimento selecionada */}
-        {!isBuy &&
-          selectedReceivingMethod &&
-          userPaymentMethods &&
-          (() => {
-            const selectedMethod = userPaymentMethods.find(
-              (m: any) => m.id === selectedReceivingMethod
-            )
-            if (!selectedMethod) return null
-
-            return (
-              <div className='bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg p-3 space-y-2'>
-                <p className='text-xs font-semibold text-green-900 dark:text-green-100 flex items-center gap-1'>
-                  <CheckCircle className='w-3 h-3' />
-                  Você receberá em:
-                </p>
-                <div className='space-y-1 text-xs'>
-                  <div className='flex justify-between'>
-                    <span className='text-gray-600 dark:text-gray-400'>Tipo:</span>
-                    <span className='font-medium text-gray-900 dark:text-white'>
-                      {selectedMethod.type?.toUpperCase()}
-                    </span>
-                  </div>
-                  {selectedMethod.type === 'pix' ? (
-                    <div className='flex justify-between'>
-                      <span className='text-gray-600 dark:text-gray-400'>Chave:</span>
-                      <span className='font-mono text-gray-900 dark:text-white'>
-                        {selectedMethod.details?.key_value || selectedMethod.details?.pix_key}
-                      </span>
-                    </div>
-                  ) : (
-                    <>
-                      <div className='flex justify-between'>
-                        <span className='text-gray-600 dark:text-gray-400'>Banco:</span>
-                        <span className='font-medium text-gray-900 dark:text-white'>
-                          {selectedMethod.details?.bank_name}
-                        </span>
-                      </div>
-                      <div className='flex justify-between'>
-                        <span className='text-gray-600 dark:text-gray-400'>Agência/Conta:</span>
-                        <span className='font-mono text-gray-900 dark:text-white'>
-                          {selectedMethod.details?.agency} /{' '}
-                          {selectedMethod.details?.account_number}
-                        </span>
-                      </div>
-                    </>
-                  )}
-                  <div className='flex justify-between border-t border-green-200 dark:border-green-700 pt-1 mt-1'>
-                    <span className='text-gray-600 dark:text-gray-400'>Valor a receber:</span>
-                    <span className='font-bold text-green-700 dark:text-green-300'>
-                      {formatBRL(quote.total_amount ?? 0)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )
-          })()}
-
-        {/* Quote ID Info */}
-        <div className='bg-gray-50 dark:bg-gray-700 p-3 rounded text-xs'>
-          <span className='text-gray-600 dark:text-gray-400'>ID: </span>
-          <span className='font-mono text-gray-900 dark:text-white'>
-            {(quote.quote_id ?? '').substring(0, 12)}...
-          </span>
         </div>
 
-        {/* Quote Expiration Timer */}
-        {!tradeCreated && (
-          <div
-            className={`p-3 rounded text-xs flex items-center justify-between ${
-              quoteExpired
-                ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700'
-                : timeLeft <= 10
-                  ? 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700'
-                  : 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700'
-            }`}
-          >
-            <div className='flex items-center gap-2'>
-              {quoteExpired ? (
-                <>
-                  <AlertTriangle className='w-4 h-4 text-red-600 dark:text-red-400' />
-                  <span className='font-medium text-red-700 dark:text-red-300'>Quote Expired</span>
-                </>
-              ) : (
-                <>
-                  <Clock
-                    className={`w-4 h-4 ${
-                      timeLeft <= 10
-                        ? 'text-amber-600 dark:text-amber-400'
-                        : 'text-green-600 dark:text-green-400'
-                    }`}
-                  />
-                  <span
-                    className={`font-medium ${
-                      timeLeft <= 10
-                        ? 'text-amber-700 dark:text-amber-300'
-                        : 'text-green-700 dark:text-green-300'
-                    }`}
-                  >
-                    Quote valid for: {timeLeft}s
-                  </span>
-                </>
+        <p className={`mt-5 text-sm ${SOFT}`}>{isBuy ? 'Você recebe' : 'Você recebe'}</p>
+        <p className='font-["Space_Grotesk",Inter,sans-serif] text-3xl font-semibold tracking-tight tabular-nums break-all'>
+          {isBuy ? qtyStr(quote.crypto_amount) : formatValue(quote.total_amount ?? 0)}
+        </p>
+
+        <dl className='mt-5 pt-5 border-t border-gray-100 dark:border-[#1E2738] space-y-2.5 text-sm'>
+          <Row k={isBuy ? 'Você paga' : 'Você vende'} v={isBuy ? formatValue(quote.fiat_amount ?? 0) : qtyStr(quote.crypto_amount)} />
+          <Row k={`Preço por ${quote.symbol}`} v={formatValue(quote.crypto_price ?? 0)} />
+          <Row k={`Spread (${quote.spread_percentage ?? 0}%)`} v={formatValue(quote.spread_amount ?? 0)} />
+          <Row k={`Taxa de rede (${quote.network_fee_percentage ?? 0}%)`} v={formatValue(quote.network_fee_amount ?? 0)} />
+          {!isBuy && selectedMethod && <Row k='Recebe em' v={methodLabel(selectedMethod)} />}
+        </dl>
+
+        {/* Validade da cotação */}
+        <div className='mt-5'>
+          {quoteExpired ? (
+            <div className='flex items-center justify-between gap-3 rounded-xl bg-red-50 dark:bg-[#FF7A7A]/10 px-4 py-3'>
+              <span className='text-sm font-medium text-red-700 dark:text-[#FF9A9A] flex items-center gap-2'>
+                <AlertTriangle className='w-4 h-4' aria-hidden='true' />
+                Cotação expirada
+              </span>
+              {onRefreshQuote && (
+                <button
+                  type='button'
+                  onClick={onRefreshQuote}
+                  className='inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 dark:text-[#8FB0FF]'
+                >
+                  <RefreshCw className='w-4 h-4' aria-hidden='true' />
+                  Nova cotação
+                </button>
               )}
             </div>
-            {quoteExpired && onRefreshQuote && (
-              <button
-                onClick={onRefreshQuote}
-                className='flex items-center gap-1 px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs transition-colors'
-              >
-                <RefreshCw className='w-3 h-3' />
-                New Quote
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Action Buttons */}
-        <div className='flex gap-2 pt-3 border-t border-gray-200 dark:border-gray-700'>
-          <button
-            onClick={onBack}
-            disabled={loading}
-            className='px-3 py-1.5 text-xs border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
-          >
-            Voltar
-          </button>
-          <button
-            onClick={createTrade}
-            disabled={loading || quoteExpired || (!isBuy && !selectedReceivingMethod)}
-            className={`flex-1 px-3 py-1.5 text-xs rounded disabled:cursor-not-allowed flex items-center justify-center gap-1 transition-colors ${
-              quoteExpired || (!isBuy && !selectedReceivingMethod)
-                ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
-                : isBuy
-                  ? 'bg-blue-600 hover:bg-blue-700 text-white disabled:bg-gray-400'
-                  : 'bg-green-600 hover:bg-green-700 text-white disabled:bg-gray-400'
-            }`}
-          >
-            {loading ? (
-              <>
-                <Loader className='w-3 h-3 animate-spin' />
-                <span>Processando...</span>
-              </>
-            ) : quoteExpired ? (
-              <>
-                <AlertTriangle className='w-3 h-3' />
-                <span>Cotação Expirada</span>
-              </>
-            ) : !isBuy && !selectedReceivingMethod ? (
-              <>
-                <AlertTriangle className='w-3 h-3' />
-                <span>Selecione uma conta</span>
-              </>
-            ) : (
-              <>
-                <CheckCircle className='w-3 h-3' />
-                <span>{isBuy ? 'Confirmar Compra' : 'Confirmar Venda'}</span>
-              </>
-            )}
-          </button>
+          ) : (
+            <div>
+              <div className={`flex justify-between text-xs mb-1.5 ${MUTED}`}>
+                <span className='inline-flex items-center gap-1.5'>
+                  <Clock className='w-3.5 h-3.5' aria-hidden='true' />
+                  Preço garantido por
+                </span>
+                <span className={`tabular-nums font-semibold ${timeLeft <= 10 ? 'text-amber-600 dark:text-amber-300' : ''}`}>{timeLeft} s</span>
+              </div>
+              <div className='h-1.5 rounded-full bg-gray-100 dark:bg-[#1E2738] overflow-hidden' aria-hidden='true'>
+                <div
+                  className={`h-full rounded-full transition-[width] duration-1000 ease-linear ${timeLeft <= 10 ? 'bg-amber-500' : 'bg-blue-600 dark:bg-[#5B8CFF]'}`}
+                  style={{ width: `${Math.min(100, (timeLeft / validity) * 100)}%` }}
+                />
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Info Message */}
-        <div className='bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded p-3 flex items-start gap-2'>
-          <CheckCircle className='w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0' />
-          <p className='text-xs text-amber-700 dark:text-amber-400'>
-            {isBuy
-              ? 'Cotação válida por 5 min. Após confirmação, a transação não pode ser revertida.'
-              : 'Após confirmar, sua crypto será reservada e o pagamento enviado para a conta selecionada.'}
-          </p>
-        </div>
-      </div>
+        <button
+          type='button'
+          onClick={createTrade}
+          disabled={loading || blocked}
+          className={`${BTN_PRIMARY} w-full mt-5 h-[52px] text-[15px]`}
+        >
+          {loading ? (
+            <>
+              <Loader className='w-4 h-4 animate-spin' aria-hidden='true' />
+              Processando…
+            </>
+          ) : quoteExpired ? (
+            'Cotação expirada'
+          ) : !isBuy && !selectedReceivingMethod ? (
+            'Escolha uma conta para receber'
+          ) : isBuy ? (
+            selectedPayment === 'bb_auto' ? 'Confirmar e gerar o Pix' : 'Confirmar compra'
+          ) : (
+            'Confirmar venda'
+          )}
+        </button>
+        <button type='button' onClick={onBack} disabled={loading} className={`${BTN_SECONDARY} w-full mt-2`}>
+          Voltar
+        </button>
+        <p className={`mt-4 text-xs text-center ${MUTED}`}>
+          {isBuy
+            ? 'Ao confirmar, o preço fica travado e a ordem não pode ser desfeita.'
+            : 'Ao confirmar, sua cripto é reservada e o valor é enviado para a conta escolhida.'}
+        </p>
+        <p className={`mt-1 text-[11px] text-center font-mono ${MUTED}`}>Cotação {(quote.quote_id ?? '').substring(0, 12)}</p>
+      </aside>
     </div>
   )
 }
+
+const CARD = 'bg-white border border-gray-200 dark:bg-[#111724] dark:border-[#1E2738] rounded-2xl'
+const MUTED = 'text-gray-500 dark:text-[#8590A6]'
+const SOFT = 'text-gray-600 dark:text-[#A3ADC2]'
+const BTN_PRIMARY =
+  'h-12 rounded-xl bg-blue-600 text-white hover:bg-blue-700 dark:bg-[#5B8CFF] dark:text-[#0A0E15] dark:hover:bg-[#7AA2FF] font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
+const BTN_SECONDARY =
+  'h-12 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 dark:border-[#2A3449] dark:text-[#EEF1F7] dark:hover:bg-[#172033] font-medium inline-flex items-center justify-center gap-2 disabled:opacity-50 transition-colors'

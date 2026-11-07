@@ -1935,5 +1935,60 @@
       "trade": "Negociar",
       "services": "Serviços"
     }
+  },
+  "otc": {
+    "title": "Comprar e vender",
+    "live": "Preços ao vivo · Binance",
+    "connecting": "Conectando aos preços ao vivo…",
+    "steps": {
+      "label": "Etapas da ordem",
+      "order": "Valor",
+      "confirm": "Pagamento",
+      "track": "Acompanhar"
+    },
+    "backToOrder": "Voltar e alterar o valor",
+    "spotRef": "preço spot de referência",
+    "in24h": "em 24 horas",
+    "range": "Período do gráfico",
+    "chartAria": "Preço de {{symbol}} no período",
+    "chartUnavailable": "Gráfico indisponível no momento.",
+    "chartNoSpot": "Este ativo não tem preço de referência na Binance.",
+    "high24h": "Máxima 24h",
+    "low24h": "Mínima 24h",
+    "rangeChange": "Variação {{range}}",
+    "assets": "Ativos disponíveis",
+    "spotNote": "Preços de referência do mercado spot da Binance, atualizados em tempo real. O valor da sua ordem é o da cotação OTC, travado ao confirmar.",
+    "myOrders": "Suas ordens",
+    "trust": {
+      "instant": "Liquidação na hora",
+      "locked": "Preço travado ao confirmar",
+      "noHidden": "Sem taxas escondidas"
+    },
+    "ticket": {
+      "title": "Nova ordem",
+      "operation": "Operação",
+      "buy": "Comprar",
+      "sell": "Vender",
+      "asset": "Ativo",
+      "search": "Buscar ativo",
+      "amountBuy": "Quanto você quer investir",
+      "amountSell": "Quanto você quer vender",
+      "available": "Disponível",
+      "insufficient": "Saldo insuficiente para essa venda.",
+      "max": "Máx",
+      "youGet": "Você recebe",
+      "validFor": "válida por {{seconds}} s",
+      "quoting": "Calculando cotação",
+      "quoteError": "Não foi possível cotar agora. Tente de novo.",
+      "price": "Preço OTC por {{symbol}}",
+      "spread": "Spread",
+      "networkFee": "Taxa de rede",
+      "youPay": "Você paga",
+      "youSell": "Você vende",
+      "marketValue": "Valor de mercado",
+      "continueBuy": "Continuar para o pagamento",
+      "continueSell": "Continuar para a venda",
+      "lockNote": "A cotação é renovada sozinha a cada expiração."
+    }
   }
 }

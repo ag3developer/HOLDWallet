@@ -1655,5 +1655,60 @@
       "trade": "Negociar",
       "services": "Servicios"
     }
+  },
+  "otc": {
+    "title": "Comprar y vender",
+    "live": "Precios en vivo · Binance",
+    "connecting": "Conectando a los precios en vivo…",
+    "steps": {
+      "label": "Etapas de la orden",
+      "order": "Monto",
+      "confirm": "Pago",
+      "track": "Seguimiento"
+    },
+    "backToOrder": "Volver y cambiar el monto",
+    "spotRef": "precio spot de referencia",
+    "in24h": "en 24 horas",
+    "range": "Período del gráfico",
+    "chartAria": "Precio de {{symbol}} en el período",
+    "chartUnavailable": "Gráfico no disponible en este momento.",
+    "chartNoSpot": "Este activo no tiene precio de referencia en Binance.",
+    "high24h": "Máximo 24h",
+    "low24h": "Mínimo 24h",
+    "rangeChange": "Variación {{range}}",
+    "assets": "Activos disponibles",
+    "spotNote": "Precios de referencia del mercado spot de Binance, actualizados en tiempo real. Tu orden usa la cotización OTC, fijada al confirmar.",
+    "myOrders": "Tus órdenes",
+    "trust": {
+      "instant": "Liquidación inmediata",
+      "locked": "Precio fijado al confirmar",
+      "noHidden": "Sin comisiones ocultas"
+    },
+    "ticket": {
+      "title": "Nueva orden",
+      "operation": "Operación",
+      "buy": "Comprar",
+      "sell": "Vender",
+      "asset": "Activo",
+      "search": "Buscar activo",
+      "amountBuy": "Cuánto quieres invertir",
+      "amountSell": "Cuánto quieres vender",
+      "available": "Disponible",
+      "insufficient": "Saldo insuficiente para esta venta.",
+      "max": "Máx",
+      "youGet": "Recibes",
+      "validFor": "válida por {{seconds}} s",
+      "quoting": "Calculando cotización",
+      "quoteError": "No fue posible cotizar ahora. Inténtalo de nuevo.",
+      "price": "Precio OTC por {{symbol}}",
+      "spread": "Spread",
+      "networkFee": "Tarifa de red",
+      "youPay": "Pagas",
+      "youSell": "Vendes",
+      "marketValue": "Valor de mercado",
+      "continueBuy": "Continuar al pago",
+      "continueSell": "Continuar a la venta",
+      "lockNote": "La cotización se renueva sola al expirar."
+    }
   }
 }

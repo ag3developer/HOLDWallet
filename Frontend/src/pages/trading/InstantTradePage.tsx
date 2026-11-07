@@ -1,718 +1,400 @@
-import React, { useState, useEffect } from 'react'
+import { useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { ArrowLeft, ChevronDown, ShieldCheck, Timer, Zap } from 'lucide-react'
 import { useCurrencyStore } from '@/stores/useCurrencyStore'
+import { currencyManager } from '@/services/currency'
 import { usePrices } from '@/hooks/usePrices'
-import { TradingForm } from './components/TradingForm'
-import { MarketPricesCarousel } from './components/MarketPricesCarousel'
-import { QuoteDisplay } from './components/QuoteDisplay'
+import { useWallets, useMultipleWalletBalances } from '@/hooks/useWallet'
+import { CryptoIcon } from '@/components/CryptoIcon'
+import { useHoldings } from '@/pages/dashboard/home/usePortfolio'
+import { PortfolioChart } from '@/pages/dashboard/home/PortfolioChart'
 import { ConfirmationPanel, TradeData } from './components/ConfirmationPanel'
-import { BenefitsSidebar } from './components/BenefitsSidebar'
 import { TradeHistoryPanel } from './components/TradeHistoryPanel'
 import { TradeDetailsPage } from './components/TradeDetailsPage'
-import {
-  ChevronDown,
-  TrendingUp,
-  Zap,
-  Clock,
-  Globe,
-  ArrowUpRight,
-  ArrowDownRight,
-  Sparkles,
-  Shield,
-  History,
-  Activity,
-  Flame,
-  BarChart3,
-  Wallet,
-  RefreshCw,
-  ArrowLeftRight,
-} from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { OrderTicket, type AssetRow, type OtcQuote } from './components/otc/OrderTicket'
+import { BINANCE_PAIRS, type ChartRange, chartPairFor, useBinanceCloses, useBinanceTickers } from './hooks/useBinanceMarket'
 
-interface Quote {
-  quote_id: string
-  operation: 'buy' | 'sell'
-  symbol: string
-  crypto_price: number
-  fiat_amount: number
-  crypto_amount: number
-  spread_percentage: number
-  spread_amount: number
-  network_fee_percentage: number
-  network_fee_amount: number
-  total_amount: number
-  expires_in_seconds: number
-}
-
-interface CryptoPrice {
-  symbol: string
-  name: string
-  price: number
-  change24h: number
-  high24h: number
-  low24h: number
-}
-
-const getCurrencySymbol = (currency: string): string => {
-  if (currency === 'BRL') return 'R$'
-  if (currency === 'USD') return '$'
-  return '€'
-}
-
-const getCurrencyLocale = (currency: string): string => {
-  if (currency === 'BRL') return 'pt-BR'
-  if (currency === 'USD') return 'en-US'
-  return 'de-DE'
-}
-
-const SUPPORTED_CRYPTOS = [
-  // 🪙 MOEDAS NATIVAS (15 blockchains)
-  { symbol: 'BTC', name: 'Bitcoin', category: 'Native' },
-  { symbol: 'ETH', name: 'Ethereum', category: 'Native' },
-  { symbol: 'MATIC', name: 'Polygon', category: 'Native' },
-  { symbol: 'BNB', name: 'Binance Smart Chain', category: 'Native' },
-  { symbol: 'TRX', name: 'TRON', category: 'Native' },
-  { symbol: 'SOL', name: 'Solana', category: 'Native' },
-  { symbol: 'LTC', name: 'Litecoin', category: 'Native' },
-  { symbol: 'DOGE', name: 'Dogecoin', category: 'Native' },
-  { symbol: 'ADA', name: 'Cardano', category: 'Native' },
-  { symbol: 'AVAX', name: 'Avalanche', category: 'Native' },
-  { symbol: 'DOT', name: 'Polkadot', category: 'Native' },
-  { symbol: 'LINK', name: 'Chainlink', category: 'Native' },
-  { symbol: 'SHIB', name: 'Shiba Inu', category: 'Native' },
-  { symbol: 'XRP', name: 'XRP', category: 'Native' },
-
-  // 💵 STABLECOINS (Criptodólares)
-  { symbol: 'USDT', name: 'Tether USD', category: 'Stablecoin' },
-  { symbol: 'USDC', name: 'USD Coin', category: 'Stablecoin' },
-  { symbol: 'DAI', name: 'Dai Stablecoin', category: 'Stablecoin' },
-
-  // 🟣 TOKENS DEX
-  { symbol: 'TRAY', name: 'Trayon', category: 'DeFi' },
+const SUPPORTED = [
+  { symbol: 'BTC', name: 'Bitcoin' },
+  { symbol: 'ETH', name: 'Ethereum' },
+  { symbol: 'USDT', name: 'Tether USD' },
+  { symbol: 'SOL', name: 'Solana' },
+  { symbol: 'BNB', name: 'BNB' },
+  { symbol: 'XRP', name: 'XRP' },
+  { symbol: 'USDC', name: 'USD Coin' },
+  { symbol: 'TRX', name: 'TRON' },
+  { symbol: 'MATIC', name: 'Polygon (POL)' },
+  { symbol: 'LTC', name: 'Litecoin' },
+  { symbol: 'DOGE', name: 'Dogecoin' },
+  { symbol: 'ADA', name: 'Cardano' },
+  { symbol: 'AVAX', name: 'Avalanche' },
+  { symbol: 'DOT', name: 'Polkadot' },
+  { symbol: 'LINK', name: 'Chainlink' },
+  { symbol: 'SHIB', name: 'Shiba Inu' },
+  { symbol: 'DAI', name: 'Dai' },
+  { symbol: 'TRAY', name: 'Trayon' },
 ]
+const RANGES: ChartRange[] = ['24h', '7D', '30D', '1A']
 
-const generatePriceVariation = (
-  basePrice: number
-): { change24h: number; high24h: number; low24h: number } => {
-  const variation = (Math.random() - 0.5) * 0.08
-  const change24h = variation * 100
-  const high24h = basePrice * (1 + Math.abs(variation) + 0.02)
-  const low24h = basePrice * (1 - Math.abs(variation) - 0.02)
-  return { change24h, high24h, low24h }
-}
+const card = 'bg-white border border-gray-200 dark:bg-[#111724] dark:border-[#1E2738] rounded-2xl'
+const muted = 'text-gray-500 dark:text-[#8590A6]'
+const soft = 'text-gray-600 dark:text-[#A3ADC2]'
+const upText = 'text-emerald-600 dark:text-[#34C77B]'
+const downText = 'text-red-600 dark:text-[#FF7A7A]'
+
+const pct = (n: number) => `${n >= 0 ? '+' : '−'}${Math.abs(n).toFixed(2).replace('.', ',')}%`
+
+type Step = 'order' | 'confirm' | 'track'
 
 export function InstantTradePage() {
   const { t, i18n } = useTranslation()
-  const { currency } = useCurrencyStore()
-  // ⚠️ IMPORTANTE: Sempre buscar preços em USD!
-  // O formatCurrency do useCurrencyStore converte USD → moeda do usuário
-  // Se buscar em BRL e depois usar formatCurrency, o valor será multiplicado 2x
-  const { prices: priceData } = usePrices(
-    SUPPORTED_CRYPTOS.map(c => c.symbol),
-    'USD'
-  )
+  const locale = i18n.language || 'pt-BR'
+  const [params] = useSearchParams()
+  const { currency, formatCurrency } = useCurrencyStore()
 
-  // Inicializar com SUPPORTED_CRYPTOS para garantir que as moedas apareçam mesmo antes dos preços carregarem
-  const [cryptoPrices, setCryptoPrices] = useState<CryptoPrice[]>(() =>
-    SUPPORTED_CRYPTOS.map(crypto => ({
-      symbol: crypto.symbol,
-      name: crypto.name,
-      price: 0,
-      change24h: 0,
-      high24h: 0,
-      low24h: 0,
-    }))
-  )
-  const [operation, setOperation] = useState<'buy' | 'sell'>('buy')
-  const [symbol, setSymbol] = useState('BTC')
-  const [quote, setQuote] = useState<Quote | null>(null)
-  const [showConfirmation, setShowConfirmation] = useState(false)
+  const [side, setSide] = useState<'buy' | 'sell'>(params.get('side') === 'sell' ? 'sell' : 'buy')
+  const [symbol, setSymbol] = useState(() => {
+    const s = (params.get('symbol') || 'BTC').toUpperCase()
+    return SUPPORTED.some(c => c.symbol === s) ? s : 'BTC'
+  })
+  const initialAmount = useMemo(() => {
+    const a = Number(params.get('amount'))
+    return a > 0 ? a.toLocaleString('pt-BR', { maximumFractionDigits: 8 }) : undefined
+  }, [params])
+  const [range, setRange] = useState<ChartRange>('24h')
+  const [step, setStep] = useState<Step>('order')
+  const [quote, setQuote] = useState<OtcQuote | null>(null)
+  const [tradeId, setTradeId] = useState<string | null>(null)
+  const [tradeData, setTradeData] = useState<TradeData | null>(null)
   const [showHistory, setShowHistory] = useState(false)
-  const [selectedTradeId, setSelectedTradeId] = useState<string | null>(null) // Nova trade criada
-  const [initialTradeData, setInitialTradeData] = useState<TradeData | null>(null) // Dados iniciais para render rápido
 
-  // Update cryptoPrices when hook provides new prices
-  useEffect(() => {
-    // Verificar se temos dados de preço válidos
-    if (!priceData || Object.keys(priceData).length === 0) {
-      return
+  // Preço spot em tempo real (Binance) + reserva do backend para ativos fora da Binance
+  const { ticks, usdtBrl, connected } = useBinanceTickers()
+  const { prices: backendPrices } = usePrices(SUPPORTED.map(c => c.symbol), 'USD')
+
+  /** Preço (em USD/USDT) e variação 24h do ativo. */
+  const spot = (s: string): { usd: number; change: number } | null => {
+    const tk = ticks[s]
+    if (tk) return { usd: tk.last, change: tk.change }
+    if (s === 'USDT') return { usd: 1, change: currency === 'BRL' && usdtBrl ? usdtBrl.change : 0 }
+    const b = backendPrices[s]
+    return b?.price ? { usd: b.price, change: b.change_24h || 0 } : null
+  }
+  /** USD → moeda do usuário; em reais usa o USDT/BRL ao vivo. */
+  const fmt = (usd: number) => {
+    if (currency === 'BRL' && usdtBrl) {
+      const v = usd * usdtBrl.last
+      return v.toLocaleString('pt-BR', {
+        style: 'currency',
+        currency: 'BRL',
+        maximumFractionDigits: v < 1 ? 6 : 2,
+      })
     }
-
-    console.log('[InstantTradePage] priceData received from usePrices:', priceData)
-
-    // Mapear dados de preço para CryptoPrice com fallback seguro
-    const prices: CryptoPrice[] = []
-
-    for (const crypto of SUPPORTED_CRYPTOS) {
-      const priceInfo = priceData[crypto.symbol]
-
-      // Se não tiver preço, usar um valor padrão para manter a moeda na lista
-      if (priceInfo) {
-        const price = priceInfo.price || 0
-        const change24h = priceInfo.change_24h || 0
-
-        console.log(`[InstantTradePage] ${crypto.symbol}: price=${price}, change=${change24h}%`)
-
-        prices.push({
-          symbol: crypto.symbol,
-          name: crypto.name,
-          price: price,
-          change24h: change24h,
-          high24h: priceInfo.high_24h || 0, // Use real backend data if available
-          low24h: priceInfo.low_24h || 0, // Use real backend data if available
-        })
-      } else {
-        // Manter a moeda mesmo sem preço atual (vai carregar em breve)
-        prices.push({
-          symbol: crypto.symbol,
-          name: crypto.name,
-          price: 0,
-          change24h: 0,
-          high24h: 0,
-          low24h: 0,
-        })
-      }
-    }
-
-    console.log('[InstantTradePage] cryptoPrices state updated:', prices)
-    // Atualizar lista de preços
-    setCryptoPrices(prices)
-
-    // Auto-select primeiro crypto apenas se não há seleção válida
-    // Usar um ref para evitar re-renders infinitos
-    if (!symbol || !prices.some(p => p.symbol === symbol)) {
-      if (prices.length > 0) {
-        setSymbol(prices[0]?.symbol || 'BTC')
-      }
-    }
-  }, [priceData]) // IMPORTANTE: Remover 'symbol' da dependência para evitar loops
-
-  const convertFromBRL = (value: number): number => {
-    // ⚠️ IMPORTANTE: Os preços já vêm convertidos do PriceService!
-    // O PriceService.parseResponse() já converte USD → currency selecionada
-    // Esta função agora é apenas uma função de passagem para compatibilidade
-
-    if (!value || typeof value !== 'number' || Number.isNaN(value)) {
-      return 0
-    }
-
-    // Retornar valor diretamente - a conversão já foi feita no PriceService
-    return value
+    return formatCurrency(usd)
   }
 
-  const handleQuoteReceived = (newQuote: Quote) => {
-    // Backend já retorna crypto_price correto em USD
-    // NÃO sobrescrever com preços locais que estão em outra moeda!
-    setQuote(newQuote)
+  const assets: AssetRow[] = SUPPORTED.map(c => {
+    const p = spot(c.symbol)
+    return { symbol: c.symbol, name: c.name, price: p ? fmt(p.usd) : '—', change: p?.change ?? 0 }
+  })
+  const current = spot(symbol)
+  const tick = ticks[symbol]
+  const selectedName = SUPPORTED.find(c => c.symbol === symbol)?.name || symbol
+
+  // Gráfico de linha do ativo
+  const pair = chartPairFor(symbol)
+  const pairInBrl = pair === 'USDTBRL'
+  const { data: closes = [], isLoading: chartLoading } = useBinanceCloses(pair, range)
+  const chartFormat = (v: number) => {
+    if (!pairInBrl) return fmt(v)
+    const local = currencyManager.convert(v, 'BRL', currency).convertedValue
+    return local.toLocaleString(currency === 'BRL' ? 'pt-BR' : currency === 'EUR' ? 'de-DE' : 'en-US', {
+      style: 'currency',
+      currency,
+      maximumFractionDigits: 4,
+    })
   }
+  const rangeChange = closes.length > 1 && closes[0]!.v ? ((closes[closes.length - 1]!.v - closes[0]!.v) / closes[0]!.v) * 100 : null
 
-  const handleConfirmSuccess = (tradeId: string, tradeData?: TradeData) => {
-    setShowConfirmation(false)
-    setQuote(null)
-    // Armazenar dados da trade para renderização instantânea
-    if (tradeData) {
-      setInitialTradeData(tradeData)
-    }
-    // Redirecionar para a página de detalhes da trade criada
-    setSelectedTradeId(tradeId)
-  }
+  // Saldo disponível para venda (todas as carteiras e redes)
+  const { data: wallets } = useWallets()
+  const walletIds = useMemo(() => wallets?.map((w: any) => String(w.id)) || [], [wallets])
+  const balanceQueries = useMultipleWalletBalances(walletIds)
+  const balancesKey = balanceQueries.map(q => q.dataUpdatedAt).join('|')
+  const balanceData = useMemo(() => balanceQueries.map(q => q.data as Record<string, any> | undefined), [balancesKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  const noPrices = useMemo(() => ({}), [])
+  const { holdings } = useHoldings(balanceData, noPrices)
+  const balance = holdings.find(h => h.symbol === symbol)?.quantity ?? 0
 
-  // Voltar da página de detalhes para o formulário
-  const handleBackFromDetails = () => {
-    setSelectedTradeId(null)
-    setInitialTradeData(null)
-  }
+  const steps: Array<{ id: Step; label: string }> = [
+    { id: 'order', label: t('otc.steps.order') },
+    { id: 'confirm', label: t('otc.steps.confirm') },
+    { id: 'track', label: t('otc.steps.track') },
+  ]
+  const stepIndex = steps.findIndex(s => s.id === step)
 
-  const handleRefreshQuote = () => {
-    // Go back to trading form to get a new quote
-    setShowConfirmation(false)
-    setQuote(null)
-  }
+  const header = (
+    <div className='flex flex-wrap items-center justify-between gap-4 mb-6'>
+      <div className='min-w-0'>
+        <h1 className='text-xl sm:text-2xl font-semibold text-gray-900 dark:text-[#EEF1F7]'>{t('otc.title')}</h1>
+        <p className={`text-sm ${muted} flex items-center gap-2`}>
+          <span
+            aria-hidden='true'
+            className={`w-2 h-2 rounded-full ${connected ? 'bg-emerald-500 dark:bg-[#34C77B]' : 'bg-amber-500'}`}
+          />
+          {connected ? t('otc.live') : t('otc.connecting')}
+        </p>
+      </div>
+      <ol aria-label={t('otc.steps.label')} className='flex items-center gap-2 text-sm'>
+        {steps.map((s, i) => (
+          <li key={s.id} className='flex items-center gap-2'>
+            <span
+              aria-current={i === stepIndex ? 'step' : undefined}
+              className={`inline-flex items-center gap-2 h-9 pl-1.5 pr-3 rounded-full border ${
+                i === stepIndex
+                  ? 'border-blue-600 text-gray-900 dark:border-[#5B8CFF] dark:text-[#EEF1F7] font-semibold'
+                  : i < stepIndex
+                    ? `border-gray-200 dark:border-[#222B3D] ${soft}`
+                    : `border-gray-200 dark:border-[#222B3D] ${muted}`
+              }`}
+            >
+              <span
+                className={`w-6 h-6 rounded-full text-xs flex items-center justify-center ${
+                  i <= stepIndex ? 'bg-blue-600 text-white dark:bg-[#5B8CFF] dark:text-[#0A0E15]' : 'bg-gray-100 dark:bg-[#172033]'
+                }`}
+              >
+                {i + 1}
+              </span>
+              <span className={i === stepIndex ? '' : 'hidden sm:inline'}>{s.label}</span>
+            </span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  )
 
-  // Update quote if price changed
-  useEffect(() => {
-    if (quote) {
-      // Backend gerencia os preços em USD, não precisamos atualizar aqui
-      // O countdown do quote_id já garante que preços antigos expiram
-    }
-  }, [cryptoPrices])
-
-  // Se há uma trade selecionada, mostrar página de detalhes
-  if (selectedTradeId) {
+  // Etapa 3: ordem criada → instruções de pagamento e acompanhamento
+  if (step === 'track' && tradeId) {
     return (
-      <div className='space-y-6'>
-        {/* Header */}
-        <div>
-          <h1 className='text-3xl font-bold text-gray-900 dark:text-white'>
-            {t('instantTrade.title')} OTC
-          </h1>
-          <p className='text-gray-600 dark:text-gray-400 mt-1'>{t('instantTrade.orderDetails')}</p>
-        </div>
-
+      <div className='max-w-[1600px] mx-auto' key={i18n.language}>
+        {header}
         <TradeDetailsPage
-          tradeId={selectedTradeId}
-          onBack={handleBackFromDetails}
-          initialData={initialTradeData as unknown as Record<string, unknown> | undefined}
+          tradeId={tradeId}
+          onBack={() => {
+            setTradeId(null)
+            setTradeData(null)
+            setStep('order')
+          }}
+          initialData={tradeData as unknown as Record<string, unknown> | undefined}
         />
       </div>
     )
   }
 
-  return (
-    <div className='space-y-6' key={i18n.language}>
-      {/* Clean Header */}
-      <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4'>
-        <div>
-          <div className='flex items-center gap-3 mb-1'>
-            <h1 className='text-2xl md:text-3xl font-bold text-gray-900 dark:text-white'>
-              {t('instantTrade.title')}
-            </h1>
-            <div className='flex items-center gap-1.5 px-2.5 py-1 bg-green-100 dark:bg-green-900/30 rounded-full'>
-              <span className='w-2 h-2 bg-green-500 rounded-full animate-pulse' />
-              <span className='text-xs font-medium text-green-700 dark:text-green-400'>
-                {t('instantTrade.live')}
-              </span>
-            </div>
-          </div>
-          <p className='text-gray-500 dark:text-gray-400 text-sm'>{t('instantTrade.subtitle')}</p>
-        </div>
-
-        {/* Stats Pills */}
-        <div className='flex gap-2'>
-          <div className='flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm'>
-            <Activity className='w-4 h-4 text-blue-500' />
-            <div>
-              <p className='text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wide'>
-                {t('instantTrade.volume24h')}
-              </p>
-              <p className='text-sm font-bold text-gray-900 dark:text-white'>$2.4M</p>
-            </div>
-          </div>
-          <div className='flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm'>
-            <Flame className='w-4 h-4 text-orange-500' />
-            <div>
-              <p className='text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wide'>
-                {t('instantTrade.trades')}
-              </p>
-              <p className='text-sm font-bold text-gray-900 dark:text-white'>847</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Swap Promo Banner */}
-      <Link to='/swap' className='block group'>
-        <div className='relative overflow-hidden bg-gradient-to-r from-purple-600 via-blue-600 to-cyan-500 rounded-2xl p-4 md:p-5 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.01]'>
-          {/* Background Pattern */}
-          <div className='absolute inset-0 opacity-10'>
-            <div className='absolute top-0 right-0 w-32 h-32 bg-white rounded-full blur-3xl transform translate-x-10 -translate-y-10' />
-            <div className='absolute bottom-0 left-0 w-24 h-24 bg-white rounded-full blur-2xl transform -translate-x-5 translate-y-5' />
-          </div>
-
-          <div className='relative flex items-center justify-between'>
-            <div className='flex items-center gap-4'>
-              <div className='p-3 bg-white/20 backdrop-blur-sm rounded-xl'>
-                <ArrowLeftRight className='w-6 h-6 text-white' />
-              </div>
-              <div>
-                <div className='flex items-center gap-2'>
-                  <h3 className='text-lg md:text-xl font-bold text-white'>
-                    {t('swap.promoBanner.title', 'Token Swap')}
-                  </h3>
-                  <span className='px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-yellow-400 text-yellow-900 rounded-full'>
-                    {t('swap.promoBanner.badge', 'New')}
-                  </span>
-                </div>
-                <p className='text-sm text-white/80 mt-0.5'>
-                  {t(
-                    'swap.promoBanner.description',
-                    'Exchange tokens at the best rates via DEX aggregators'
-                  )}
-                </p>
-              </div>
-            </div>
-            <div className='hidden sm:flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-xl text-white font-medium group-hover:bg-white/30 transition-colors'>
-              <span>{t('swap.promoBanner.cta', 'Try Now')}</span>
-              <ArrowUpRight className='w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform' />
-            </div>
-          </div>
-        </div>
-      </Link>
-
-      {/* Market Prices Carousel */}
-      <MarketPricesCarousel
-        cryptoPrices={cryptoPrices}
-        selectedSymbol={symbol}
-        onSelectSymbol={setSymbol}
-      />
-
-      {/* Main Trading Area */}
-      {showConfirmation && quote ? (
+  // Etapa 2: forma de pagamento e confirmação
+  if (step === 'confirm' && quote) {
+    return (
+      <div className='max-w-[1600px] mx-auto' key={i18n.language}>
+        {header}
+        <button
+          type='button'
+          onClick={() => setStep('order')}
+          className={`mb-4 inline-flex items-center gap-2 h-10 text-sm font-medium ${soft} hover:text-gray-900 dark:hover:text-white`}
+        >
+          <ArrowLeft className='w-4 h-4' aria-hidden='true' />
+          {t('otc.backToOrder')}
+        </button>
         <ConfirmationPanel
           quote={quote}
-          onBack={() => setShowConfirmation(false)}
-          onSuccess={handleConfirmSuccess}
-          onRefreshQuote={handleRefreshQuote}
+          onBack={() => setStep('order')}
+          onRefreshQuote={() => {
+            setQuote(null)
+            setStep('order')
+          }}
+          onSuccess={(id, data) => {
+            setTradeId(id)
+            if (data) setTradeData(data)
+            setQuote(null)
+            setStep('track')
+          }}
         />
-      ) : (
-        <div className='space-y-6'>
-          {/* Desktop Layout: Side by side */}
-          <div className='hidden lg:grid lg:grid-cols-3 gap-6'>
-            {/* Left Column: Trading Form */}
-            <div className='lg:col-span-1'>
-              <TradingForm
-                cryptoPrices={cryptoPrices}
-                selectedSymbol={symbol}
-                onSymbolChange={setSymbol}
-                isBuy={operation === 'buy'}
-                onOperationChange={isBuy => setOperation(isBuy ? 'buy' : 'sell')}
-                onQuoteReceived={handleQuoteReceived}
-                currency={currency}
-                convertFromBRL={convertFromBRL}
+      </div>
+    )
+  }
+
+  // Etapa 1: mercado + boleta
+  return (
+    <div className='max-w-[1600px] mx-auto text-gray-900 dark:text-[#EEF1F7] tabular-nums' key={i18n.language}>
+      {header}
+
+      <div className='grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px] 2xl:grid-cols-[minmax(0,1fr)_420px] items-start'>
+        {/* Boleta: primeiro no celular, à direita (fixa ao rolar) no desktop */}
+        <div className='lg:col-start-2 lg:row-start-1 lg:sticky lg:top-4'>
+          <OrderTicket
+            side={side}
+            onSideChange={setSide}
+            symbol={symbol}
+            onSymbolChange={setSymbol}
+            assets={assets}
+            balance={balance}
+            initialAmount={initialAmount}
+            onContinue={q => {
+              setQuote(q)
+              setStep('confirm')
+            }}
+          />
+          <ul className={`mt-4 grid grid-cols-3 gap-2 text-xs ${muted}`}>
+            <li className='flex flex-col items-center gap-1 text-center'>
+              <Zap className='w-4 h-4' aria-hidden='true' />
+              {t('otc.trust.instant')}
+            </li>
+            <li className='flex flex-col items-center gap-1 text-center'>
+              <Timer className='w-4 h-4' aria-hidden='true' />
+              {t('otc.trust.locked')}
+            </li>
+            <li className='flex flex-col items-center gap-1 text-center'>
+              <ShieldCheck className='w-4 h-4' aria-hidden='true' />
+              {t('otc.trust.noHidden')}
+            </li>
+          </ul>
+        </div>
+
+        {/* Mercado */}
+        <div className='lg:col-start-1 lg:row-start-1 flex flex-col gap-6 min-w-0'>
+          <section aria-labelledby='otc-market' className={`${card} p-5 sm:p-6`}>
+            <div className='flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4'>
+              <div className='flex items-center gap-4 min-w-0'>
+                <CryptoIcon symbol={symbol} size={44} className='rounded-full shrink-0' />
+                <div className='min-w-0'>
+                  <h2 id='otc-market' className={`text-sm ${soft}`}>
+                    {selectedName} · {t('otc.spotRef')}
+                  </h2>
+                  <p className='font-["Space_Grotesk",Inter,sans-serif] text-3xl sm:text-4xl font-semibold tracking-tight'>
+                    {current ? fmt(current.usd) : '—'}
+                  </p>
+                  {current && (
+                    <p className='text-sm flex flex-wrap gap-x-2'>
+                      <span className={`font-semibold ${current.change >= 0 ? upText : downText}`}>{pct(current.change)}</span>
+                      <span className={muted}>{t('otc.in24h')}</span>
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div role='tablist' aria-label={t('otc.range')} className='grid grid-cols-4 gap-1 p-1 rounded-xl bg-gray-100 dark:bg-[#0D121C] dark:border dark:border-[#1E2738]'>
+                {RANGES.map(r => (
+                  <button
+                    key={r}
+                    type='button'
+                    role='tab'
+                    aria-selected={r === range}
+                    onClick={() => setRange(r)}
+                    className={`h-9 sm:min-w-[52px] px-3 rounded-lg text-sm ${
+                      r === range
+                        ? 'bg-white shadow-sm font-semibold dark:bg-[#172033] dark:shadow-none'
+                        : `font-medium ${muted} hover:text-gray-900 dark:hover:text-[#EEF1F7]`
+                    }`}
+                  >
+                    {r}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className='-mx-5 sm:mx-0 mt-5'>
+              <PortfolioChart
+                points={closes}
+                period={range}
+                loading={chartLoading}
+                hidden={false}
+                format={chartFormat}
+                locale={locale}
+                emptyLabel={BINANCE_PAIRS[symbol] || pairInBrl ? t('otc.chartUnavailable') : t('otc.chartNoSpot')}
+                ariaLabel={t('otc.chartAria', { symbol })}
               />
             </div>
 
-            {/* Middle Column: Quote Display */}
-            <div className='lg:col-span-1'>
-              {quote ? (
-                <QuoteDisplay quote={quote} onConfirmClick={() => setShowConfirmation(true)} />
-              ) : (
-                <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 p-6'>
-                  <div className='flex items-center gap-2 mb-4'>
-                    <div className='p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl'>
-                      <Sparkles className='w-5 h-5 text-white' />
-                    </div>
-                    <div>
-                      <h3 className='font-bold text-gray-900 dark:text-white'>
-                        {t('instantTrade.quickTips')}
-                      </h3>
-                      <p className='text-xs text-gray-500 dark:text-gray-400'>
-                        {t('instantTrade.maximizeGains')}
-                      </p>
-                    </div>
-                  </div>
+            <dl className='mt-4 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-3 text-sm'>
+              <div>
+                <dt className={muted}>{t('otc.high24h')}</dt>
+                <dd className='font-semibold'>{tick ? fmt(tick.high) : '—'}</dd>
+              </div>
+              <div>
+                <dt className={muted}>{t('otc.low24h')}</dt>
+                <dd className='font-semibold'>{tick ? fmt(tick.low) : '—'}</dd>
+              </div>
+              <div>
+                <dt className={muted}>{t('otc.rangeChange', { range })}</dt>
+                <dd className={`font-semibold ${rangeChange == null ? '' : rangeChange >= 0 ? upText : downText}`}>
+                  {rangeChange == null ? '—' : pct(rangeChange)}
+                </dd>
+              </div>
+              <div>
+                <dt className={muted}>USDT/BRL</dt>
+                <dd className='font-semibold'>
+                  {usdtBrl ? usdtBrl.last.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 4 }) : '—'}
+                </dd>
+              </div>
+            </dl>
+          </section>
 
-                  <div className='space-y-3'>
-                    <div className='group p-3 bg-gradient-to-r from-blue-50 to-transparent dark:from-blue-900/20 rounded-xl border-l-4 border-blue-500 hover:scale-[1.02] transition-transform cursor-default'>
-                      <div className='flex items-start gap-3'>
-                        <div className='p-1.5 bg-blue-100 dark:bg-blue-900/50 rounded-lg'>
-                          <TrendingUp className='w-4 h-4 text-blue-600 dark:text-blue-400' />
-                        </div>
-                        <div>
-                          <p className='font-semibold text-sm text-gray-900 dark:text-white'>
-                            {t('instantTrade.bestRates')}
-                          </p>
-                          <p className='text-xs text-gray-600 dark:text-gray-400'>
-                            {t('instantTrade.bestRatesDesc')}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
+          {/* Lista de ativos com preço ao vivo */}
+          <section aria-labelledby='otc-assets' className={`${card} p-5 sm:p-6`}>
+            <h2 id='otc-assets' className='text-lg font-semibold mb-2'>
+              {t('otc.assets')}
+            </h2>
+            <ul className='grid sm:grid-cols-2 2xl:grid-cols-3 gap-x-6'>
+              {assets.map(a => (
+                <li key={a.symbol} className='border-b border-gray-100 dark:border-[#1A2232]'>
+                  <button
+                    type='button'
+                    aria-pressed={a.symbol === symbol}
+                    onClick={() => {
+                      setSymbol(a.symbol)
+                      window.scrollTo({ top: 0, behavior: 'smooth' })
+                    }}
+                    className={`w-full flex items-center gap-3 py-3 px-2 -mx-2 rounded-lg text-left hover:bg-gray-50 dark:hover:bg-white/[0.03] ${
+                      a.symbol === symbol ? 'bg-blue-50/60 dark:bg-[#172033]' : ''
+                    }`}
+                  >
+                    <CryptoIcon symbol={a.symbol} size={32} className='rounded-full shrink-0' />
+                    <span className='flex-1 min-w-0'>
+                      <span className='block text-sm font-semibold'>{a.symbol}</span>
+                      <span className={`block text-xs ${muted} truncate`}>{a.name}</span>
+                    </span>
+                    <span className='text-right'>
+                      <span className='block text-sm font-semibold'>{a.price}</span>
+                      <span className={`block text-xs ${a.change >= 0 ? upText : downText}`}>{pct(a.change)}</span>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <p className={`mt-4 text-xs ${muted}`}>{t('otc.spotNote')}</p>
+          </section>
 
-                    <div className='group p-3 bg-gradient-to-r from-green-50 to-transparent dark:from-green-900/20 rounded-xl border-l-4 border-green-500 hover:scale-[1.02] transition-transform cursor-default'>
-                      <div className='flex items-start gap-3'>
-                        <div className='p-1.5 bg-green-100 dark:bg-green-900/50 rounded-lg'>
-                          <Zap className='w-4 h-4 text-green-600 dark:text-green-400' />
-                        </div>
-                        <div>
-                          <p className='font-semibold text-sm text-gray-900 dark:text-white'>
-                            {t('instantTrade.fastExecution')}
-                          </p>
-                          <p className='text-xs text-gray-600 dark:text-gray-400'>
-                            {t('instantTrade.fastExecutionDesc')}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className='group p-3 bg-gradient-to-r from-amber-50 to-transparent dark:from-amber-900/20 rounded-xl border-l-4 border-amber-500 hover:scale-[1.02] transition-transform cursor-default'>
-                      <div className='flex items-start gap-3'>
-                        <div className='p-1.5 bg-amber-100 dark:bg-amber-900/50 rounded-lg'>
-                          <Clock className='w-4 h-4 text-amber-600 dark:text-amber-400' />
-                        </div>
-                        <div>
-                          <p className='font-semibold text-sm text-gray-900 dark:text-white'>
-                            {t('instantTrade.quoteExpires')}
-                          </p>
-                          <p className='text-xs text-gray-600 dark:text-gray-400'>
-                            {t('instantTrade.quoteExpiresDesc')}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className='group p-3 bg-gradient-to-r from-purple-50 to-transparent dark:from-purple-900/20 rounded-xl border-l-4 border-purple-500 hover:scale-[1.02] transition-transform cursor-default'>
-                      <div className='flex items-start gap-3'>
-                        <div className='p-1.5 bg-purple-100 dark:bg-purple-900/50 rounded-lg'>
-                          <Globe className='w-4 h-4 text-purple-600 dark:text-purple-400' />
-                        </div>
-                        <div>
-                          <p className='font-semibold text-sm text-gray-900 dark:text-white'>
-                            {t('instantTrade.trading247')}
-                          </p>
-                          <p className='text-xs text-gray-600 dark:text-gray-400'>
-                            {t('instantTrade.trading247Desc')}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Security Badge */}
-                  <div className='mt-4 pt-4 border-t border-gray-100 dark:border-gray-700'>
-                    <div className='flex items-center justify-center gap-2 text-xs text-gray-500 dark:text-gray-400'>
-                      <Shield className='w-4 h-4 text-green-500' />
-                      <span>{t('instantTrade.secureTransactions')}</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Right Column: Benefits Sidebar */}
-            <div className='lg:col-span-1'>
-              <BenefitsSidebar />
-            </div>
-          </div>
-
-          {/* Tablet Layout: Stacked */}
-          <div className='hidden md:block lg:hidden space-y-6'>
-            {/* Trading Form */}
-            <TradingForm
-              cryptoPrices={cryptoPrices}
-              selectedSymbol={symbol}
-              onSymbolChange={setSymbol}
-              isBuy={operation === 'buy'}
-              onOperationChange={isBuy => setOperation(isBuy ? 'buy' : 'sell')}
-              onQuoteReceived={handleQuoteReceived}
-              currency={currency}
-              convertFromBRL={convertFromBRL}
-            />
-
-            {/* Quote or Tips */}
-            {quote ? (
-              <QuoteDisplay quote={quote} onConfirmClick={() => setShowConfirmation(true)} />
-            ) : (
-              <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 p-5 space-y-4'>
-                <div className='flex items-center gap-3 mb-4'>
-                  <div className='p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-md'>
-                    <Zap className='w-5 h-5 text-white' />
-                  </div>
-                  <div>
-                    <h3 className='font-bold text-gray-900 dark:text-white'>
-                      {t('instantTrade.quickTips')}
-                    </h3>
-                    <p className='text-xs text-gray-500 dark:text-gray-400'>
-                      {t('instantTrade.maximizeGains')}
-                    </p>
-                  </div>
-                </div>
-                <div className='space-y-3'>
-                  <div className='group p-3 bg-gradient-to-r from-blue-50 to-transparent dark:from-blue-900/20 rounded-xl border-l-4 border-blue-500 hover:scale-[1.02] transition-transform'>
-                    <div className='flex items-start gap-3'>
-                      <div className='p-1.5 bg-blue-100 dark:bg-blue-900/50 rounded-lg'>
-                        <TrendingUp className='w-4 h-4 text-blue-600 dark:text-blue-400' />
-                      </div>
-                      <div>
-                        <p className='font-semibold text-sm text-gray-900 dark:text-white'>
-                          {t('instantTrade.bestRates')}
-                        </p>
-                        <p className='text-xs text-gray-600 dark:text-gray-400'>
-                          {t('instantTrade.bestRatesDesc')}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className='group p-3 bg-gradient-to-r from-green-50 to-transparent dark:from-green-900/20 rounded-xl border-l-4 border-green-500 hover:scale-[1.02] transition-transform'>
-                    <div className='flex items-start gap-3'>
-                      <div className='p-1.5 bg-green-100 dark:bg-green-900/50 rounded-lg'>
-                        <Zap className='w-4 h-4 text-green-600 dark:text-green-400' />
-                      </div>
-                      <div>
-                        <p className='font-semibold text-sm text-gray-900 dark:text-white'>
-                          {t('instantTrade.fastExecution')}
-                        </p>
-                        <p className='text-xs text-gray-600 dark:text-gray-400'>
-                          {t('instantTrade.fastExecutionDesc')}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className='group p-3 bg-gradient-to-r from-amber-50 to-transparent dark:from-amber-900/20 rounded-xl border-l-4 border-amber-500 hover:scale-[1.02] transition-transform'>
-                    <div className='flex items-start gap-3'>
-                      <div className='p-1.5 bg-amber-100 dark:bg-amber-900/50 rounded-lg'>
-                        <Clock className='w-4 h-4 text-amber-600 dark:text-amber-400' />
-                      </div>
-                      <div>
-                        <p className='font-semibold text-sm text-gray-900 dark:text-white'>
-                          {t('instantTrade.quoteExpires')}
-                        </p>
-                        <p className='text-xs text-gray-600 dark:text-gray-400'>
-                          {t('instantTrade.quoteExpiresDesc')}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className='group p-3 bg-gradient-to-r from-purple-50 to-transparent dark:from-purple-900/20 rounded-xl border-l-4 border-purple-500 hover:scale-[1.02] transition-transform'>
-                    <div className='flex items-start gap-3'>
-                      <div className='p-1.5 bg-purple-100 dark:bg-purple-900/50 rounded-lg'>
-                        <Globe className='w-4 h-4 text-purple-600 dark:text-purple-400' />
-                      </div>
-                      <div>
-                        <p className='font-semibold text-sm text-gray-900 dark:text-white'>
-                          {t('instantTrade.trading247')}
-                        </p>
-                        <p className='text-xs text-gray-600 dark:text-gray-400'>
-                          {t('instantTrade.trading247Desc')}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+          {/* Suas ordens */}
+          <section className={`${card} overflow-hidden`}>
+            <button
+              type='button'
+              aria-expanded={showHistory}
+              onClick={() => setShowHistory(s => !s)}
+              className='w-full flex items-center justify-between px-5 sm:px-6 py-4 hover:bg-gray-50 dark:hover:bg-white/[0.02]'
+            >
+              <span className='text-lg font-semibold'>{t('otc.myOrders')}</span>
+              <ChevronDown className={`w-5 h-5 ${muted} transition-transform ${showHistory ? 'rotate-180' : ''}`} aria-hidden='true' />
+            </button>
+            {showHistory && (
+              <div className='border-t border-gray-100 dark:border-[#1E2738]'>
+                <TradeHistoryPanel
+                  currencySymbol={currency === 'BRL' ? 'R$' : currency === 'EUR' ? '€' : '$'}
+                  currencyLocale={currency === 'BRL' ? 'pt-BR' : currency === 'EUR' ? 'de-DE' : 'en-US'}
+                  isVisible={showHistory}
+                />
               </div>
             )}
-
-            {/* Benefits */}
-            <BenefitsSidebar />
-          </div>
-
-          {/* Mobile Layout: Full width stacked */}
-          <div className='md:hidden space-y-6'>
-            {/* Trading Form */}
-            <TradingForm
-              cryptoPrices={cryptoPrices}
-              selectedSymbol={symbol}
-              onSymbolChange={setSymbol}
-              isBuy={operation === 'buy'}
-              onOperationChange={isBuy => setOperation(isBuy ? 'buy' : 'sell')}
-              onQuoteReceived={handleQuoteReceived}
-              currency={currency}
-              convertFromBRL={convertFromBRL}
-            />
-
-            {/* Quote or Tips */}
-            {quote ? (
-              <QuoteDisplay quote={quote} onConfirmClick={() => setShowConfirmation(true)} />
-            ) : (
-              <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 p-5 space-y-4'>
-                <div className='flex items-center gap-3 mb-4'>
-                  <div className='p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-md'>
-                    <Zap className='w-5 h-5 text-white' />
-                  </div>
-                  <div>
-                    <h3 className='font-bold text-gray-900 dark:text-white'>
-                      {t('instantTrade.quickTips')}
-                    </h3>
-                    <p className='text-xs text-gray-500 dark:text-gray-400'>
-                      {t('instantTrade.maximizeGains')}
-                    </p>
-                  </div>
-                </div>
-                <div className='space-y-3'>
-                  <div className='group p-3 bg-gradient-to-r from-blue-50 to-transparent dark:from-blue-900/20 rounded-xl border-l-4 border-blue-500 hover:scale-[1.02] transition-transform'>
-                    <div className='flex items-start gap-3'>
-                      <div className='p-1.5 bg-blue-100 dark:bg-blue-900/50 rounded-lg'>
-                        <TrendingUp className='w-4 h-4 text-blue-600 dark:text-blue-400' />
-                      </div>
-                      <div>
-                        <p className='font-semibold text-sm text-gray-900 dark:text-white'>
-                          {t('instantTrade.bestRates')}
-                        </p>
-                        <p className='text-xs text-gray-600 dark:text-gray-400'>
-                          {t('instantTrade.bestRatesDesc')}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className='group p-3 bg-gradient-to-r from-green-50 to-transparent dark:from-green-900/20 rounded-xl border-l-4 border-green-500 hover:scale-[1.02] transition-transform'>
-                    <div className='flex items-start gap-3'>
-                      <div className='p-1.5 bg-green-100 dark:bg-green-900/50 rounded-lg'>
-                        <Zap className='w-4 h-4 text-green-600 dark:text-green-400' />
-                      </div>
-                      <div>
-                        <p className='font-semibold text-sm text-gray-900 dark:text-white'>
-                          {t('instantTrade.fastExecution')}
-                        </p>
-                        <p className='text-xs text-gray-600 dark:text-gray-400'>
-                          {t('instantTrade.fastExecutionDesc')}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className='group p-3 bg-gradient-to-r from-amber-50 to-transparent dark:from-amber-900/20 rounded-xl border-l-4 border-amber-500 hover:scale-[1.02] transition-transform'>
-                    <div className='flex items-start gap-3'>
-                      <div className='p-1.5 bg-amber-100 dark:bg-amber-900/50 rounded-lg'>
-                        <Clock className='w-4 h-4 text-amber-600 dark:text-amber-400' />
-                      </div>
-                      <div>
-                        <p className='font-semibold text-sm text-gray-900 dark:text-white'>
-                          {t('instantTrade.quoteExpires')}
-                        </p>
-                        <p className='text-xs text-gray-600 dark:text-gray-400'>
-                          {t('instantTrade.quoteExpiresDesc')}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className='group p-3 bg-gradient-to-r from-purple-50 to-transparent dark:from-purple-900/20 rounded-xl border-l-4 border-purple-500 hover:scale-[1.02] transition-transform'>
-                    <div className='flex items-start gap-3'>
-                      <div className='p-1.5 bg-purple-100 dark:bg-purple-900/50 rounded-lg'>
-                        <Globe className='w-4 h-4 text-purple-600 dark:text-purple-400' />
-                      </div>
-                      <div>
-                        <p className='font-semibold text-sm text-gray-900 dark:text-white'>
-                          {t('instantTrade.trading247')}
-                        </p>
-                        <p className='text-xs text-gray-600 dark:text-gray-400'>
-                          {t('instantTrade.trading247Desc')}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Benefits */}
-            <BenefitsSidebar />
-          </div>
+          </section>
         </div>
-      )}
-
-      {/* Trade History Section */}
-      <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden'>
-        <button
-          onClick={() => setShowHistory(!showHistory)}
-          className='w-full flex items-center justify-between p-5 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors'
-        >
-          <div className='flex items-center gap-3'>
-            <div className='p-2 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl shadow-md'>
-              <History className='w-5 h-5 text-white' />
-            </div>
-            <div className='text-left'>
-              <h2 className='text-lg font-bold text-gray-900 dark:text-white'>
-                {t('instantTrade.tradeHistory')}
-              </h2>
-              <p className='text-xs text-gray-500 dark:text-gray-400'>
-                {t('instantTrade.previousTrades')}
-              </p>
-            </div>
-          </div>
-          <ChevronDown
-            className={`w-5 h-5 text-gray-600 dark:text-gray-400 transition-transform duration-200 ${
-              showHistory ? 'rotate-180' : ''
-            }`}
-          />
-        </button>
-        {showHistory && (
-          <div className='border-t border-gray-100 dark:border-gray-700'>
-            <TradeHistoryPanel
-              currencySymbol={getCurrencySymbol(currency)}
-              currencyLocale={getCurrencyLocale(currency)}
-              isVisible={showHistory}
-            />
-          </div>
-        )}
       </div>
     </div>
   )

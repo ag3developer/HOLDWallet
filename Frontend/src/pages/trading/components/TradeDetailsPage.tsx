@@ -23,7 +23,6 @@ import {
   Wallet,
   QrCode,
   Timer,
-  FileText,
   Smartphone,
 } from 'lucide-react'
 import { apiClient } from '@/services/api'
@@ -137,65 +136,6 @@ interface TradeDetailsPageProps {
 // CONSTANTES
 // ============================================================================
 
-const STATUS_CONFIG: Record<
-  string,
-  {
-    label: string
-    color: string
-    bgColor: string
-    icon: React.ReactNode
-  }
-> = {
-  PENDING: {
-    label: 'Aguardando Pagamento',
-    color: 'text-yellow-600 dark:text-yellow-400',
-    bgColor: 'bg-yellow-100 dark:bg-yellow-900/30',
-    icon: <Clock className='w-5 h-5' />,
-  },
-  PAYMENT_PROCESSING: {
-    label: 'Processando',
-    color: 'text-blue-600 dark:text-blue-400',
-    bgColor: 'bg-blue-100 dark:bg-blue-900/30',
-    icon: <Clock className='w-5 h-5' />,
-  },
-  PAYMENT_CONFIRMED: {
-    label: 'Pagamento Confirmado',
-    color: 'text-blue-600 dark:text-blue-400',
-    bgColor: 'bg-blue-100 dark:bg-blue-900/30',
-    icon: <CheckCircle className='w-5 h-5' />,
-  },
-  CRYPTO_RECEIVED: {
-    label: 'Crypto Recebida',
-    color: 'text-green-600 dark:text-green-400',
-    bgColor: 'bg-green-100 dark:bg-green-900/30',
-    icon: <CheckCircle className='w-5 h-5' />,
-  },
-  COMPLETED: {
-    label: 'Concluído',
-    color: 'text-green-600 dark:text-green-400',
-    bgColor: 'bg-green-100 dark:bg-green-900/30',
-    icon: <CheckCircle className='w-5 h-5' />,
-  },
-  CANCELLED: {
-    label: 'Cancelado',
-    color: 'text-gray-600 dark:text-gray-400',
-    bgColor: 'bg-gray-100 dark:bg-gray-900/30',
-    icon: <XCircle className='w-5 h-5' />,
-  },
-  EXPIRED: {
-    label: 'Expirado',
-    color: 'text-orange-600 dark:text-orange-400',
-    bgColor: 'bg-orange-100 dark:bg-orange-900/30',
-    icon: <AlertCircle className='w-5 h-5' />,
-  },
-  FAILED: {
-    label: 'Falha',
-    color: 'text-red-600 dark:text-red-400',
-    bgColor: 'bg-red-100 dark:bg-red-900/30',
-    icon: <XCircle className='w-5 h-5' />,
-  },
-}
-
 const PAYMENT_METHOD_LABELS: Record<string, { label: string; icon: React.ReactNode }> = {
   pix: { label: 'PIX Instantâneo', icon: <QrCode className='w-4 h-4' /> },
   bb_auto: { label: 'PIX Instantâneo', icon: <QrCode className='w-4 h-4' /> },
@@ -241,6 +181,27 @@ export function TradeDetailsPage({
       fetchTradeDetails()
     }
   }, [tradeId])
+
+  // Atualização automática do status até a ordem terminar (e completa os dados iniciais)
+  useEffect(() => {
+    if (trade && ['COMPLETED', 'CANCELLED', 'EXPIRED', 'FAILED'].includes(trade.status)) return
+    let alive = true
+    const refresh = async () => {
+      try {
+        const response = await apiClient.get(`/instant-trade/${tradeId}`)
+        const fresh = response.data.trade || response.data
+        if (alive && fresh?.id) setTrade(prev => ({ ...(prev || {}), ...fresh }))
+      } catch {
+        /* mantém o último estado; tenta de novo no próximo ciclo */
+      }
+    }
+    if (initialData) refresh()
+    const interval = setInterval(refresh, 8000)
+    return () => {
+      alive = false
+      clearInterval(interval)
+    }
+  }, [tradeId, trade?.status]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Timer para expiração
   useEffect(() => {
@@ -456,98 +417,20 @@ export function TradeDetailsPage({
     })
   }
 
+  // ───────────────────────── Apresentação (mesma identidade da Home/OTC) ─────────────────────────
   if (loading) {
     return (
-      <div className='bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden'>
-        {/* Header - estrutura real, conteúdo shimmer */}
-        <div className='bg-gradient-to-r from-blue-600 to-purple-600 p-4'>
-          <div className='flex items-center gap-3'>
-            <div className='w-8 h-8 bg-white/20 rounded-lg' />
-            <div className='flex-1'>
-              <div className='h-4 bg-white/20 rounded w-32 mb-2 overflow-hidden relative'>
-                <div className='absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer' />
-              </div>
-              <div className='h-3 bg-white/20 rounded w-24 overflow-hidden relative'>
-                <div className='absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer' />
-              </div>
-            </div>
-            <div className='h-6 bg-white/20 rounded-full w-20 overflow-hidden relative'>
-              <div className='absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer' />
-            </div>
-          </div>
+      <div className='grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px] 2xl:grid-cols-[minmax(0,1fr)_420px] items-start' aria-busy='true'>
+        <div className={`${CARD} p-6 space-y-4`}>
+          <div className='h-12 w-12 rounded-full bg-gray-100 dark:bg-white/5 animate-pulse' />
+          <div className='h-6 w-64 rounded bg-gray-100 dark:bg-white/5 animate-pulse' />
+          <div className='h-4 w-80 max-w-full rounded bg-gray-100 dark:bg-white/5 animate-pulse' />
+          <div className='h-48 rounded-xl bg-gray-100 dark:bg-white/5 animate-pulse' />
         </div>
-
-        {/* Content - estrutura real com shimmer interno */}
-        <div className='p-4 space-y-4'>
-          {/* Resumo da Operação */}
-          <div className='bg-gray-50 dark:bg-gray-900 rounded-lg p-3'>
-            <div className='flex items-center gap-2 mb-2'>
-              <div className='w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden relative'>
-                <div className='absolute inset-0 bg-gradient-to-r from-transparent via-gray-100 dark:via-gray-600 to-transparent animate-shimmer' />
-              </div>
-              <div>
-                <div className='h-3 bg-gray-200 dark:bg-gray-700 rounded w-16 mb-1 overflow-hidden relative'>
-                  <div className='absolute inset-0 bg-gradient-to-r from-transparent via-gray-100 dark:via-gray-600 to-transparent animate-shimmer' />
-                </div>
-                <div className='h-5 bg-gray-200 dark:bg-gray-700 rounded w-28 overflow-hidden relative'>
-                  <div className='absolute inset-0 bg-gradient-to-r from-transparent via-gray-100 dark:via-gray-600 to-transparent animate-shimmer' />
-                </div>
-              </div>
-            </div>
-            <div className='grid grid-cols-2 gap-2 pt-2 border-t border-gray-200 dark:border-gray-700'>
-              <div>
-                <div className='h-2 bg-gray-200 dark:bg-gray-700 rounded w-12 mb-1 overflow-hidden relative'>
-                  <div className='absolute inset-0 bg-gradient-to-r from-transparent via-gray-100 dark:via-gray-600 to-transparent animate-shimmer' />
-                </div>
-                <div className='h-4 bg-gray-200 dark:bg-gray-700 rounded w-20 overflow-hidden relative'>
-                  <div className='absolute inset-0 bg-gradient-to-r from-transparent via-gray-100 dark:via-gray-600 to-transparent animate-shimmer' />
-                </div>
-              </div>
-              <div>
-                <div className='h-2 bg-gray-200 dark:bg-gray-700 rounded w-14 mb-1 overflow-hidden relative'>
-                  <div className='absolute inset-0 bg-gradient-to-r from-transparent via-gray-100 dark:via-gray-600 to-transparent animate-shimmer' />
-                </div>
-                <div className='h-4 bg-gray-200 dark:bg-gray-700 rounded w-24 overflow-hidden relative'>
-                  <div className='absolute inset-0 bg-gradient-to-r from-transparent via-gray-100 dark:via-gray-600 to-transparent animate-shimmer' />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Método de Pagamento skeleton */}
-          <div className='flex items-center gap-2 bg-gray-50 dark:bg-gray-900 rounded-lg p-2.5'>
-            <div className='p-1.5 bg-gray-200 dark:bg-gray-700 rounded overflow-hidden relative'>
-              <div className='w-4 h-4' />
-              <div className='absolute inset-0 bg-gradient-to-r from-transparent via-gray-100 dark:via-gray-600 to-transparent animate-shimmer' />
-            </div>
-            <div className='flex-1'>
-              <div className='h-3 bg-gray-200 dark:bg-gray-700 rounded w-20 mb-1 overflow-hidden relative'>
-                <div className='absolute inset-0 bg-gradient-to-r from-transparent via-gray-100 dark:via-gray-600 to-transparent animate-shimmer' />
-              </div>
-              <div className='h-2 bg-gray-200 dark:bg-gray-700 rounded w-28 overflow-hidden relative'>
-                <div className='absolute inset-0 bg-gradient-to-r from-transparent via-gray-100 dark:via-gray-600 to-transparent animate-shimmer' />
-              </div>
-            </div>
-          </div>
-
-          {/* Dados Bancários skeleton */}
-          <div className='bg-gray-50 dark:bg-gray-900 rounded-lg p-3'>
-            <div className='h-3 bg-gray-200 dark:bg-gray-700 rounded w-32 mb-3 overflow-hidden relative'>
-              <div className='absolute inset-0 bg-gradient-to-r from-transparent via-gray-100 dark:via-gray-600 to-transparent animate-shimmer' />
-            </div>
-            <div className='grid grid-cols-2 gap-2'>
-              {[1, 2, 3, 4].map(i => (
-                <div key={i} className='bg-white dark:bg-gray-800 rounded p-2'>
-                  <div className='h-2 bg-gray-200 dark:bg-gray-700 rounded w-10 mb-1 overflow-hidden relative'>
-                    <div className='absolute inset-0 bg-gradient-to-r from-transparent via-gray-100 dark:via-gray-600 to-transparent animate-shimmer' />
-                  </div>
-                  <div className='h-4 bg-gray-200 dark:bg-gray-700 rounded w-16 overflow-hidden relative'>
-                    <div className='absolute inset-0 bg-gradient-to-r from-transparent via-gray-100 dark:via-gray-600 to-transparent animate-shimmer' />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+        <div className={`${CARD} p-6 space-y-3`}>
+          {[0, 1, 2, 3, 4].map(i => (
+            <div key={i} className='h-4 rounded bg-gray-100 dark:bg-white/5 animate-pulse' />
+          ))}
         </div>
       </div>
     )
@@ -555,885 +438,370 @@ export function TradeDetailsPage({
 
   if (!trade) {
     return (
-      <div className='p-6 text-center'>
-        <AlertCircle className='w-12 h-12 mx-auto text-red-500 mb-4' />
-        <p className='text-gray-600 dark:text-gray-400'>Trade não encontrada</p>
-        <button
-          onClick={onBack}
-          className='mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700'
-        >
+      <div className={`${CARD} p-8 text-center max-w-lg`}>
+        <AlertCircle className='w-10 h-10 mx-auto text-red-500 dark:text-[#FF7A7A]' aria-hidden='true' />
+        <p className={`mt-3 ${SOFT}`}>Não encontramos essa ordem.</p>
+        <button type='button' onClick={onBack} className={`${BTN_PRIMARY} mt-5 px-6`}>
           Voltar
         </button>
       </div>
     )
   }
 
-  // Default values for status config
-  const defaultStatusConfig = {
-    label: 'Aguardando',
-    color: 'text-yellow-600 dark:text-yellow-400',
-    bgColor: 'bg-yellow-100 dark:bg-yellow-900/30',
-    icon: <Clock className='w-5 h-5' />,
-  }
-
-  // Default values for payment config
-  const defaultPaymentConfig = {
-    label: trade.payment_method || 'Desconhecido',
+  const paymentMethod = trade.payment_method?.toLowerCase() || ''
+  const paymentConfig = PAYMENT_METHOD_LABELS[paymentMethod] ?? {
+    label: trade.payment_method || '—',
     icon: <CreditCard className='w-4 h-4' />,
   }
-
-  // Use explicit fallback to avoid undefined
-  const statusKey = trade.status as keyof typeof STATUS_CONFIG
-  const statusConfig = STATUS_CONFIG[statusKey] ?? defaultStatusConfig
-
-  const paymentMethod = trade.payment_method?.toLowerCase() || ''
-  const paymentConfig =
-    PAYMENT_METHOD_LABELS[
-      paymentMethod as 'pix' | 'ted' | 'credit_card' | 'debit_card' | 'crypto'
-    ] ?? defaultPaymentConfig
-
   const isPending = trade.status === 'PENDING'
   const isBuy = trade.operation === 'buy'
   const isSell = trade.operation === 'sell'
+  const isFinal = FINAL_STATUSES.includes(trade.status)
+  const failed = trade.status === 'CANCELLED' || trade.status === 'EXPIRED' || trade.status === 'FAILED'
+  const showBankDetails = isPending && bankDetails && ['ted', 'pix'].includes(paymentMethod) && isBuy
+  const payAmount = trade.brl_total_amount ?? trade.total_amount
+  const qty = `${(trade.crypto_amount ?? 0).toLocaleString('pt-BR', { maximumFractionDigits: 8 })} ${trade.symbol}`
 
-  // Para SELL, ajustar o label do status
-  // SELL com PENDING = "Processando Venda" não "Aguardando Pagamento"
-  const adjustedStatusConfig =
-    isSell && isPending
-      ? {
-          ...statusConfig,
-          label: 'Processando Venda',
-          color: 'text-green-600 dark:text-green-400',
-          bgColor: 'bg-green-100 dark:bg-green-900/30',
-        }
-      : statusConfig
+  const hero = heroFor(trade.status, isBuy, qty)
+  const stepLabels = isBuy
+    ? ['Ordem criada', 'Pagamento', 'Envio da cripto', 'Concluída']
+    : ['Ordem criada', 'Análise OTC', 'Retirada da cripto', 'Pix enviado']
+  const current = progressIndex(trade.status, isBuy)
 
-  // Mostrar dados bancários da empresa SOMENTE para COMPRA (BUY)
-  // Para VENDA (SELL), mostrar confirmação da venda com dados do usuário
-  const showBankDetails =
-    isPending && bankDetails && ['ted', 'pix'].includes(paymentMethod) && isBuy
+  const CopyBtn = ({ value, field, label }: { value: string; field: string; label: string }) => (
+    <button
+      type='button'
+      onClick={() => copyToClipboard(value, field)}
+      aria-label={`Copiar ${label}`}
+      className={`w-9 h-9 shrink-0 rounded-lg flex items-center justify-center ${MUTED} hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-[#172033] dark:hover:text-white`}
+    >
+      {copiedField === field ? (
+        <CheckCircle className='w-4 h-4 text-emerald-600 dark:text-[#34C77B]' aria-hidden='true' />
+      ) : (
+        <Copy className='w-4 h-4' aria-hidden='true' />
+      )}
+    </button>
+  )
+
+  const Field = ({ label, value, field, mono }: { label: string; value: string; field?: string; mono?: boolean }) => (
+    <div className='flex items-center justify-between gap-3 py-2.5 border-b border-gray-100 dark:border-[#1A2232] last:border-0'>
+      <div className='min-w-0'>
+        <p className={`text-xs ${MUTED}`}>{label}</p>
+        <p className={`text-sm font-semibold truncate ${mono ? 'font-mono' : ''}`}>{value}</p>
+      </div>
+      {field && <CopyBtn value={value} field={field} label={label} />}
+    </div>
+  )
+
+  const Row = ({ k, v, strong }: { k: React.ReactNode; v: React.ReactNode; strong?: boolean }) => (
+    <div className='flex justify-between gap-4'>
+      <dt className={strong ? 'font-semibold' : MUTED}>{k}</dt>
+      <dd className={`text-right tabular-nums ${strong ? 'font-semibold' : 'font-medium'}`}>{v}</dd>
+    </div>
+  )
 
   return (
-    <div className='bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden'>
-      {/* Header - mais compacto */}
-      <div className='bg-gradient-to-r from-blue-600 to-purple-600 p-4 text-white'>
-        <div className='flex items-center gap-3'>
-          <button
-            onClick={onBack}
-            title='Voltar'
-            aria-label='Voltar para lista de trades'
-            className='p-1.5 rounded-lg bg-white/20 hover:bg-white/30 transition-colors'
-          >
-            <ArrowLeft className='w-4 h-4' />
-          </button>
-          <div className='flex-1 min-w-0'>
-            <h1 className='text-base font-bold'>Detalhes da Ordem</h1>
-            <p className='text-blue-100 text-xs font-mono truncate'>{trade.reference_code}</p>
-          </div>
-          <div
-            className={`px-2 py-0.5 rounded-full ${adjustedStatusConfig.bgColor} ${adjustedStatusConfig.color} flex items-center gap-1 text-xs`}
-          >
-            {React.cloneElement(adjustedStatusConfig.icon as React.ReactElement, {
-              className: 'w-3.5 h-3.5',
-            })}
-            <span className='font-medium hidden sm:inline'>{adjustedStatusConfig.label}</span>
-          </div>
-        </div>
-
-        {/* Timer para trades pendentes - APENAS PARA COMPRA (BUY) */}
-        {isPending && isBuy && timeRemaining && (
-          <div className='flex items-center gap-2 bg-white/20 rounded-lg px-3 py-1.5 mt-2 text-xs'>
-            <Timer className='w-4 h-4' />
-            <span>
-              Expira em: <strong>{timeRemaining}</strong>
+    <div className='grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px] 2xl:grid-cols-[minmax(0,1fr)_420px] items-start text-gray-900 dark:text-[#EEF1F7]'>
+      <div className='flex flex-col gap-6 min-w-0'>
+        {/* Status atual */}
+        <section aria-live='polite' className={`${CARD} p-5 sm:p-7`}>
+          <div className='flex items-start gap-4'>
+            <span className={`w-12 h-12 shrink-0 rounded-full flex items-center justify-center ${TONES[hero.tone]}`}>
+              {hero.tone === 'ok' ? (
+                <CheckCircle className='w-6 h-6' aria-hidden='true' />
+              ) : hero.tone === 'bad' ? (
+                <XCircle className='w-6 h-6' aria-hidden='true' />
+              ) : (
+                <Clock className='w-6 h-6' aria-hidden='true' />
+              )}
             </span>
-          </div>
-        )}
-      </div>
-
-      {/* Content - espaçamentos reduzidos */}
-      <div className='p-4 space-y-4'>
-        {/* Resumo da Operação */}
-        <div className='bg-gray-50 dark:bg-gray-900 rounded-lg p-3'>
-          <div className='flex items-center gap-3 mb-2'>
-            {/* Logo da crypto com indicador de operação */}
-            <div className='relative flex-shrink-0'>
-              <CryptoIcon symbol={trade.symbol} size={48} />
-              {/* Indicador de operação */}
-              <div
-                className={`absolute -bottom-0.5 -right-0.5 p-1 rounded-full ${
-                  trade.operation === 'buy' ? 'bg-green-500' : 'bg-red-500'
-                }`}
-              >
-                {trade.operation === 'buy' ? (
-                  <ArrowDownLeft className='w-3 h-3 text-white' />
-                ) : (
-                  <ArrowUpRight className='w-3 h-3 text-white' />
+            <div className='flex-1 min-w-0'>
+              <h2 className='text-xl font-semibold'>{hero.title}</h2>
+              <p className={`mt-1 ${SOFT}`}>{hero.body}</p>
+              <div className={`mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm ${MUTED}`}>
+                {isPending && isBuy && timeRemaining && (
+                  <span className='inline-flex items-center gap-1.5 font-medium text-amber-700 dark:text-amber-300 tabular-nums'>
+                    <Timer className='w-4 h-4' aria-hidden='true' />
+                    {timeRemaining === 'Expirado' ? 'Prazo de pagamento encerrado' : `Pague em até ${timeRemaining}`}
+                  </span>
+                )}
+                {!isFinal && (
+                  <span className='inline-flex items-center gap-1.5'>
+                    <span className='w-2 h-2 rounded-full bg-emerald-500 dark:bg-[#34C77B] animate-pulse' aria-hidden='true' />
+                    Atualizando automaticamente
+                  </span>
                 )}
               </div>
             </div>
-
-            <div>
-              <p className='text-xs text-gray-600 dark:text-gray-400'>
-                {trade.operation === 'buy' ? 'Compra de' : 'Venda de'}
-              </p>
-              <p className='text-lg font-bold text-gray-900 dark:text-white'>
-                {formatCrypto(trade.crypto_amount)} {trade.symbol}
-              </p>
-            </div>
           </div>
 
-          <div className='grid grid-cols-2 gap-2 pt-2 border-t border-gray-200 dark:border-gray-700'>
-            <div>
-              <p className='text-[10px] text-gray-500 dark:text-gray-400'>
-                {isSell ? `Valor de Mercado (${userCurrency})` : `Valor (${userCurrency})`}
-              </p>
-              <p className='text-sm font-semibold text-gray-900 dark:text-white'>
-                {formatOtcValue(trade.fiat_amount)}
-              </p>
-            </div>
-            <div>
-              <p className='text-[10px] text-gray-500 dark:text-gray-400'>
-                {isSell ? `Você Recebe (${userCurrency})` : `Total c/ Taxas (${userCurrency})`}
-              </p>
-              <p
-                className={`text-sm font-semibold ${isSell ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400'}`}
-              >
-                {isSell
-                  ? trade.brl_total_amount
-                    ? formatOtcValue(trade.brl_total_amount)
-                    : formatOtcValue(trade.total_amount)
-                  : formatOtcValue(trade.total_amount)}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Detalhes Financeiros - Colapsável em mobile */}
-        <details className='group'>
-          <summary className='text-xs font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2 cursor-pointer list-none'>
-            <FileText className='w-3.5 h-3.5' />
-            Detalhes Financeiros
-            <span className='ml-auto text-gray-400 group-open:rotate-180 transition-transform'>
-              ▼
-            </span>
-          </summary>
-          <div className='mt-2 bg-gray-50 dark:bg-gray-900 rounded-lg divide-y divide-gray-200 dark:divide-gray-700 text-xs'>
-            {trade.crypto_price && (
-              <div className='flex justify-between py-2 px-3'>
-                <span className='text-gray-600 dark:text-gray-400'>
-                  Preço Unit. ({userCurrency})
-                </span>
-                <span className='font-medium text-gray-900 dark:text-white'>
-                  {formatOtcValue(trade.crypto_price)}
-                </span>
-              </div>
-            )}
-            <div className='flex justify-between py-2 px-3'>
-              <span className='text-gray-600 dark:text-gray-400'>
-                Spread ({trade.spread_percentage}%)
-              </span>
-              <span className='font-medium text-gray-900 dark:text-white'>
-                {trade.spread_amount ? formatOtcValue(trade.spread_amount) : '-'}
-              </span>
-            </div>
-            <div className='flex justify-between py-2 px-3'>
-              <span className='text-gray-600 dark:text-gray-400'>
-                Taxa Rede ({trade.network_fee_percentage}%)
-              </span>
-              <span className='font-medium text-gray-900 dark:text-white'>
-                {trade.network_fee_amount ? formatOtcValue(trade.network_fee_amount) : '-'}
-              </span>
-            </div>
-          </div>
-        </details>
-
-        {/* Método de Pagamento/Recebimento - Compacto */}
-        <div className='flex items-center gap-2 bg-gray-50 dark:bg-gray-900 rounded-lg p-2.5'>
-          <div className='p-1.5 bg-blue-100 dark:bg-blue-900/30 rounded'>
-            {React.cloneElement(paymentConfig.icon as React.ReactElement, {
-              className: 'w-3.5 h-3.5',
-            })}
-          </div>
-          <div className='flex-1'>
-            <p className='text-xs font-medium text-gray-900 dark:text-white'>
-              {paymentConfig.label}
-            </p>
-            {isPending && isBuy && (
-              <p className='text-[10px] text-yellow-600 dark:text-yellow-400'>
-                Aguardando pagamento
-              </p>
-            )}
-            {isPending && isSell && (
-              <p className='text-[10px] text-green-600 dark:text-green-400'>
-                Aguardando processamento
-              </p>
-            )}
-          </div>
-        </div>
-
-        {/* Dados Bancários (para TED/PIX pendente) */}
-        {showBankDetails && (
-          <div className='space-y-2'>
-            <h3 className='text-xs font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1.5'>
-              <Building2 className='w-3.5 h-3.5' />
-              Dados para Pagamento
-            </h3>
-
-            {/* Toggle PIX QR / TED */}
-            {pixQrCode && (
-              <div className='flex bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5 text-xs'>
-                <button
-                  onClick={() => setShowPixQr(true)}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md font-medium transition-colors ${
-                    showPixQr
-                      ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                      : 'text-gray-600 dark:text-gray-400'
-                  }`}
-                >
-                  <Smartphone className='w-3.5 h-3.5' />
-                  PIX QR Code
-                </button>
-                <button
-                  onClick={() => setShowPixQr(false)}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md font-medium transition-colors ${
-                    showPixQr
-                      ? 'text-gray-600 dark:text-gray-400'
-                      : 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                  }`}
-                >
-                  <Building2 className='w-3.5 h-3.5' />
-                  TED
-                </button>
-              </div>
-            )}
-
-            {/* PIX QR Code Section - Compacto */}
-            {showPixQr && pixQrCode && (
-              <div className='bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-lg p-3 border border-green-200 dark:border-green-800'>
-                <div className='flex flex-col sm:flex-row items-center gap-3'>
-                  {/* QR Code */}
-                  <div className='p-2 bg-white rounded-lg shadow'>
-                    <img src={pixQrCode} alt='PIX QR Code' className='w-32 h-32 sm:w-28 sm:h-28' />
-                  </div>
-
-                  {/* Info lado direito */}
-                  <div className='flex-1 text-center sm:text-left'>
-                    {/* Valor */}
-                    <div className='mb-2'>
-                      <p className='text-[10px] text-green-700 dark:text-green-400'>Valor</p>
-                      <p className='text-xl font-bold text-green-800 dark:text-green-300'>
-                        {trade?.brl_total_amount
-                          ? formatBRL(trade.brl_total_amount)
-                          : formatBRL(trade?.total_amount ?? 0)}
-                      </p>
-                    </div>
-
-                    {/* PIX Copia e Cola */}
-                    {pixPayload && (
-                      <button
-                        onClick={() => copyToClipboard(pixPayload, 'pixPayload')}
-                        className='w-full flex items-center justify-center gap-1.5 py-2 px-3 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-medium transition-colors'
-                      >
-                        {copiedField === 'pixPayload' ? (
-                          <>
-                            <CheckCircle className='w-4 h-4' />
-                            Copiado!
-                          </>
-                        ) : (
-                          <>
-                            <Copy className='w-4 h-4' />
-                            Copia e Cola
-                          </>
-                        )}
-                      </button>
-                    )}
-
-                    {/* Chave PIX */}
-                    <p className='text-[10px] text-gray-500 dark:text-gray-400 mt-2'>
-                      CNPJ: <span className='font-mono'>24.275.355/0001-51</span>
-                    </p>
-                  </div>
-                </div>
-
-                {/* Aviso com código de referência */}
-                <div className='mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded border border-yellow-200 dark:border-yellow-800'>
-                  <p className='text-[10px] text-yellow-700 dark:text-yellow-400'>
-                    <strong>Use na descrição:</strong>{' '}
-                    <button
-                      onClick={() => copyToClipboard(trade?.reference_code ?? '', 'reference')}
-                      className='inline-flex items-center gap-0.5 px-1 py-0.5 bg-yellow-100 dark:bg-yellow-800/50 rounded font-mono font-bold text-[11px] hover:bg-yellow-200 transition-colors'
-                    >
-                      {trade?.reference_code}
-                      {copiedField === 'reference' ? (
-                        <CheckCircle className='w-3 h-3 text-green-600' />
-                      ) : (
-                        <Copy className='w-3 h-3' />
-                      )}
-                    </button>
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Bank Details Section (TED) - Compacto */}
-            {(!pixQrCode || !showPixQr) && (
-              <div className='bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg p-3 border border-blue-200 dark:border-blue-800'>
-                {/* PIX Key */}
-                {bankDetails.pix_key && trade.payment_method?.toLowerCase() === 'pix' && (
-                  <div className='mb-2 p-2 bg-white dark:bg-gray-800 rounded-lg flex items-center justify-between'>
-                    <div>
-                      <p className='text-[10px] text-gray-500 dark:text-gray-400'>Chave PIX</p>
-                      <span className='font-mono text-sm font-semibold text-gray-900 dark:text-white'>
-                        {bankDetails.pix_key}
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => copyToClipboard(bankDetails.pix_key!, 'pix')}
-                      className='p-1.5 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded transition-colors'
-                    >
-                      {copiedField === 'pix' ? (
-                        <CheckCircle className='w-4 h-4 text-green-600' />
-                      ) : (
-                        <Copy className='w-4 h-4' />
-                      )}
-                    </button>
-                  </div>
-                )}
-
-                {/* Bank Details Grid - 3 colunas em telas maiores */}
-                <div className='grid grid-cols-2 sm:grid-cols-3 gap-1.5 text-xs'>
-                  <BankDetailItemCompact
-                    label='Banco'
-                    value={`${bankDetails.bank_code}`}
-                    subValue={bankDetails.bank_name}
-                    onCopy={() => copyToClipboard(bankDetails.bank_code, 'bank')}
-                    copied={copiedField === 'bank'}
-                  />
-                  <BankDetailItemCompact
-                    label='Agência'
-                    value={bankDetails.agency}
-                    onCopy={() => copyToClipboard(bankDetails.agency, 'agency')}
-                    copied={copiedField === 'agency'}
-                  />
-                  <BankDetailItemCompact
-                    label='Conta'
-                    value={bankDetails.account}
-                    subValue={bankDetails.account_type}
-                    onCopy={() => copyToClipboard(bankDetails.account, 'account')}
-                    copied={copiedField === 'account'}
-                  />
-                  <div className='col-span-2 sm:col-span-3'>
-                    <BankDetailItemCompact
-                      label='Titular'
-                      value={bankDetails.holder_name}
-                      subValue={`CNPJ: ${bankDetails.holder_document}`}
-                      onCopy={() => copyToClipboard(bankDetails.holder_name, 'holder')}
-                      copied={copiedField === 'holder'}
+          {!failed && (
+            <ol className='mt-6 grid grid-cols-4 gap-2' aria-label='Andamento da ordem'>
+              {stepLabels.map((label, i) => {
+                const done = i < current || trade.status === 'COMPLETED'
+                const active = i === current && trade.status !== 'COMPLETED'
+                return (
+                  <li key={label} className='flex flex-col gap-2' aria-current={active ? 'step' : undefined}>
+                    <span
+                      className={`h-1.5 rounded-full ${
+                        done ? 'bg-blue-600 dark:bg-[#5B8CFF]' : active ? 'bg-blue-600/40 dark:bg-[#5B8CFF]/40 animate-pulse' : 'bg-gray-100 dark:bg-[#1E2738]'
+                      }`}
                     />
-                  </div>
-                </div>
+                    <span className={`text-xs leading-tight ${done || active ? 'font-medium text-gray-900 dark:text-[#EEF1F7]' : MUTED}`}>{label}</span>
+                  </li>
+                )
+              })}
+            </ol>
+          )}
+        </section>
 
-                {/* Valor a transferir */}
-                <div className='mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded border border-yellow-200 dark:border-yellow-800 flex items-center justify-between'>
-                  <div>
-                    <p className='text-[10px] text-yellow-700 dark:text-yellow-400'>Valor BRL</p>
-                    <span className='text-lg font-bold text-yellow-800 dark:text-yellow-300'>
-                      {trade.brl_total_amount
-                        ? formatBRL(trade.brl_total_amount)
-                        : formatBRL(trade.total_amount)}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() =>
-                      copyToClipboard(
-                        (trade.brl_total_amount ?? trade.total_amount).toFixed(2),
-                        'amount'
-                      )
-                    }
-                    className='p-1.5 text-yellow-700 hover:bg-yellow-100 rounded transition-colors'
-                  >
-                    {copiedField === 'amount' ? (
-                      <CheckCircle className='w-4 h-4 text-green-600' />
-                    ) : (
-                      <Copy className='w-4 h-4' />
-                    )}
-                  </button>
-                </div>
-
-                {/* Aviso importante */}
-                <div className='mt-2 p-2 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-800'>
-                  <p className='text-[10px] text-red-700 dark:text-red-400'>
-                    <strong>Código:</strong>{' '}
-                    <button
-                      onClick={() => copyToClipboard(trade.reference_code, 'reference')}
-                      className='inline-flex items-center gap-0.5 px-1 py-0.5 bg-red-100 dark:bg-red-800/50 rounded font-mono font-bold hover:bg-red-200 transition-colors'
-                    >
-                      {trade.reference_code}
-                      {copiedField === 'reference' ? (
-                        <CheckCircle className='w-3 h-3 text-green-600' />
-                      ) : (
-                        <Copy className='w-3 h-3' />
-                      )}
-                    </button>
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Seção de Confirmação de VENDA - Mostrar dados do recebimento */}
-        {isSell &&
-          (trade.status === 'PENDING' ||
-            trade.status === 'PAYMENT_PROCESSING' ||
-            trade.status === 'CRYPTO_RECEIVED') && (
-            <div className='space-y-3'>
-              <h3 className='text-xs font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1.5'>
-                {trade.status === 'PENDING' ? (
-                  <Clock className='w-3.5 h-3.5 text-yellow-600' />
-                ) : (
-                  <CheckCircle className='w-3.5 h-3.5 text-green-600' />
-                )}
-                {trade.status === 'CRYPTO_RECEIVED'
-                  ? 'Crypto Recebida - Aguardando PIX'
-                  : trade.status === 'PAYMENT_PROCESSING'
-                    ? 'Processando Retirada'
-                    : 'Ordem de Venda Registrada'}
+        {/* Como pagar (compra pendente) */}
+        {showBankDetails && bankDetails && (
+          <section aria-labelledby='how-to-pay' className={`${CARD} p-5 sm:p-7`}>
+            <div className='flex flex-wrap items-center justify-between gap-3'>
+              <h3 id='how-to-pay' className='text-lg font-semibold'>
+                Como pagar
               </h3>
-
-              {/* Card de Status */}
-              <div
-                className={`rounded-lg p-4 border ${
-                  trade.status === 'PENDING'
-                    ? 'bg-gradient-to-br from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20 border-yellow-200 dark:border-yellow-800'
-                    : 'bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-green-200 dark:border-green-800'
-                }`}
-              >
-                <div className='text-center space-y-3'>
-                  {/* Ícone de Status */}
-                  <div
-                    className={`mx-auto w-12 h-12 rounded-full flex items-center justify-center ${
-                      trade.status === 'PENDING'
-                        ? 'bg-yellow-100 dark:bg-yellow-800/50'
-                        : 'bg-green-100 dark:bg-green-800/50'
-                    }`}
-                  >
-                    {trade.status === 'PENDING' ? (
-                      <Clock className='w-6 h-6 text-yellow-600 dark:text-yellow-400' />
-                    ) : (
-                      <CheckCircle className='w-6 h-6 text-green-600 dark:text-green-400' />
-                    )}
-                  </div>
-
-                  <div>
-                    <h4
-                      className={`text-sm font-bold ${
-                        trade.status === 'PENDING'
-                          ? 'text-yellow-800 dark:text-yellow-300'
-                          : 'text-green-800 dark:text-green-300'
+              {pixQrCode && (
+                <div role='tablist' aria-label='Forma de pagamento' className='grid grid-cols-2 gap-1 p-1 rounded-xl bg-gray-100 dark:bg-[#0D121C] dark:border dark:border-[#1E2738]'>
+                  {[
+                    { id: true, label: 'Pix', icon: Smartphone },
+                    { id: false, label: 'TED', icon: Building2 },
+                  ].map(o => (
+                    <button
+                      key={o.label}
+                      type='button'
+                      role='tab'
+                      aria-selected={showPixQr === o.id}
+                      onClick={() => setShowPixQr(o.id)}
+                      className={`h-9 px-4 rounded-lg text-sm inline-flex items-center justify-center gap-1.5 ${
+                        showPixQr === o.id
+                          ? 'bg-white shadow-sm font-semibold dark:bg-[#172033] dark:shadow-none'
+                          : `font-medium ${MUTED} hover:text-gray-900 dark:hover:text-[#EEF1F7]`
                       }`}
                     >
-                      {trade.status === 'CRYPTO_RECEIVED'
-                        ? 'Crypto Recebida pela Plataforma!'
-                        : trade.status === 'PAYMENT_PROCESSING'
-                          ? 'Operador Processando Retirada...'
-                          : 'Aguardando Análise OTC'}
-                    </h4>
-                    <p
-                      className={`text-xs mt-1 ${
-                        trade.status === 'PENDING'
-                          ? 'text-yellow-700 dark:text-yellow-400'
-                          : 'text-green-700 dark:text-green-400'
-                      }`}
-                    >
-                      {trade.status === 'CRYPTO_RECEIVED'
-                        ? 'Sua crypto foi recebida. O operador enviará o PIX em breve.'
-                        : trade.status === 'PAYMENT_PROCESSING'
-                          ? 'O operador está retirando a crypto da sua carteira.'
-                          : 'Sua ordem está sendo analisada pela equipe OTC. Aguarde a aprovação.'}
-                    </p>
-                  </div>
-
-                  {/* Detalhes da Operação */}
-                  <div className='bg-white dark:bg-gray-800 rounded-lg p-3 space-y-2'>
-                    <div className='flex justify-between text-xs'>
-                      <span className='text-gray-600 dark:text-gray-400'>Código da Ordem:</span>
-                      <button
-                        onClick={() => copyToClipboard(trade.reference_code, 'reference')}
-                        className='flex items-center gap-1 font-mono font-bold text-gray-900 dark:text-white hover:text-blue-600 transition-colors'
-                      >
-                        {trade.reference_code}
-                        {copiedField === 'reference' ? (
-                          <CheckCircle className='w-3 h-3 text-green-600' />
-                        ) : (
-                          <Copy className='w-3 h-3' />
-                        )}
-                      </button>
-                    </div>
-
-                    <div className='flex justify-between text-xs'>
-                      <span className='text-gray-600 dark:text-gray-400'>ID da Transação:</span>
-                      <button
-                        onClick={() => copyToClipboard(trade.id, 'tradeId')}
-                        className='flex items-center gap-1 font-mono text-[10px] text-gray-700 dark:text-gray-300 hover:text-blue-600 transition-colors'
-                      >
-                        {trade.id.substring(0, 8)}...
-                        {copiedField === 'tradeId' ? (
-                          <CheckCircle className='w-3 h-3 text-green-600' />
-                        ) : (
-                          <Copy className='w-3 h-3' />
-                        )}
-                      </button>
-                    </div>
-
-                    {/* TX Hash se disponível */}
-                    {trade.tx_hash && (
-                      <div className='flex justify-between text-xs'>
-                        <span className='text-gray-600 dark:text-gray-400'>TX Hash:</span>
-                        <button
-                          onClick={() => copyToClipboard(trade.tx_hash || '', 'txHash')}
-                          className='flex items-center gap-1 font-mono text-[10px] text-blue-600 dark:text-blue-400 hover:text-blue-700 transition-colors'
-                        >
-                          {trade.tx_hash.substring(0, 10)}...
-                          {trade.tx_hash.substring(trade.tx_hash.length - 6)}
-                          {copiedField === 'txHash' ? (
-                            <CheckCircle className='w-3 h-3 text-green-600' />
-                          ) : (
-                            <Copy className='w-3 h-3' />
-                          )}
-                        </button>
-                      </div>
-                    )}
-
-                    <div className='flex justify-between text-xs'>
-                      <span className='text-gray-600 dark:text-gray-400'>Data/Hora:</span>
-                      <span className='text-gray-900 dark:text-white'>
-                        {formatDate(trade.created_at)}
-                      </span>
-                    </div>
-
-                    <div className='flex justify-between text-xs'>
-                      <span className='text-gray-600 dark:text-gray-400'>Quantidade:</span>
-                      <span className='font-medium text-gray-900 dark:text-white'>
-                        {trade.crypto_amount.toFixed(8)} {trade.symbol}
-                      </span>
-                    </div>
-
-                    <div className='flex justify-between text-xs'>
-                      <span className='text-gray-600 dark:text-gray-400'>
-                        Valor a Receber (BRL):
-                      </span>
-                      <span className='font-bold text-green-600 dark:text-green-400'>
-                        {trade.brl_total_amount
-                          ? formatBRL(trade.brl_total_amount)
-                          : formatBRL(trade.total_amount)}
-                      </span>
-                    </div>
-
-                    <div className='flex justify-between text-xs'>
-                      <span className='text-gray-600 dark:text-gray-400'>
-                        Método de Recebimento:
-                      </span>
-                      <span className='font-medium text-gray-900 dark:text-white uppercase'>
-                        {trade.receiving_method?.method_type === 'pix'
-                          ? 'PIX'
-                          : trade.receiving_method?.method_type === 'ted'
-                            ? 'TED'
-                            : trade.payment_method?.toLowerCase() === 'bb_auto'
-                              ? 'PIX Instantâneo'
-                              : trade.payment_method}
-                      </span>
-                    </div>
-
-                    {/* Detalhes da conta de recebimento */}
-                    {trade.receiving_method && (
-                      <div className='mt-2 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg space-y-1'>
-                        <p className='text-[10px] font-semibold text-gray-700 dark:text-gray-300 mb-1'>
-                          Dados para Pagamento:
-                        </p>
-                        {trade.receiving_method.holder_name && (
-                          <div className='flex justify-between text-[10px]'>
-                            <span className='text-gray-500 dark:text-gray-400'>Titular:</span>
-                            <span className='text-gray-900 dark:text-white font-medium'>
-                              {trade.receiving_method.holder_name}
-                            </span>
-                          </div>
-                        )}
-                        {trade.receiving_method.pix_key && (
-                          <div className='flex justify-between text-[10px]'>
-                            <span className='text-gray-500 dark:text-gray-400'>
-                              Chave PIX (
-                              {trade.receiving_method.pix_key_type?.toUpperCase() || 'CPF'}):
-                            </span>
-                            <span className='text-gray-900 dark:text-white font-medium'>
-                              {trade.receiving_method.pix_key}
-                            </span>
-                          </div>
-                        )}
-                        {trade.receiving_method.bank_name && (
-                          <div className='flex justify-between text-[10px]'>
-                            <span className='text-gray-500 dark:text-gray-400'>Banco:</span>
-                            <span className='text-gray-900 dark:text-white font-medium'>
-                              {trade.receiving_method.bank_name}
-                            </span>
-                          </div>
-                        )}
-                        {trade.receiving_method.branch_number && (
-                          <div className='flex justify-between text-[10px]'>
-                            <span className='text-gray-500 dark:text-gray-400'>Agência:</span>
-                            <span className='text-gray-900 dark:text-white font-medium'>
-                              {trade.receiving_method.branch_number}
-                            </span>
-                          </div>
-                        )}
-                        {trade.receiving_method.account_number && (
-                          <div className='flex justify-between text-[10px]'>
-                            <span className='text-gray-500 dark:text-gray-400'>Conta:</span>
-                            <span className='text-gray-900 dark:text-white font-medium'>
-                              {trade.receiving_method.account_number}
-                              {trade.receiving_method.account_type &&
-                                ` (${trade.receiving_method.account_type})`}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Informativo */}
-                  <div
-                    className={`rounded-lg p-2 border ${
-                      trade.status === 'CRYPTO_RECEIVED'
-                        ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
-                        : trade.status === 'PENDING'
-                          ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800'
-                          : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
-                    }`}
-                  >
-                    <p
-                      className={`text-[10px] ${
-                        trade.status === 'CRYPTO_RECEIVED'
-                          ? 'text-green-700 dark:text-green-400'
-                          : trade.status === 'PENDING'
-                            ? 'text-yellow-700 dark:text-yellow-400'
-                            : 'text-blue-700 dark:text-blue-400'
-                      }`}
-                    >
-                      {trade.status === 'CRYPTO_RECEIVED'
-                        ? 'Crypto recebida! O operador enviará o PIX para sua conta em breve.'
-                        : trade.status === 'PAYMENT_PROCESSING'
-                          ? 'Aguarde... O operador está processando a retirada da sua crypto.'
-                          : 'Sua ordem está aguardando análise da equipe OTC. Após aprovação, o operador processará a retirada da crypto e enviará o PIX.'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-        {/* Timeline - Compacto */}
-        <details className='group' open>
-          <summary className='text-xs font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1.5 cursor-pointer list-none'>
-            <Clock className='w-3.5 h-3.5' />
-            Timeline
-            <span className='ml-auto text-gray-400 group-open:rotate-180 transition-transform'>
-              ▼
-            </span>
-          </summary>
-          <div className='mt-2 bg-gray-50 dark:bg-gray-900 rounded-lg p-3 space-y-2'>
-            {/* Ordem Criada - Sempre mostra */}
-            <TimelineItem
-              label='Ordem Criada'
-              date={trade.created_at}
-              completed
-              formatDate={formatDate}
-            />
-
-            {/* ========== FLUXO COMPRA (BUY) ========== */}
-            {isBuy && (
-              <>
-                {/* Aguardando pagamento PIX */}
-                {trade.status === 'PENDING' && (
-                  <TimelineItem label='Aguardando Pagamento' pending formatDate={formatDate} />
-                )}
-                {/* Pagamento confirmado */}
-                {trade.payment_confirmed_at && (
-                  <TimelineItem
-                    label='Pagamento Confirmado'
-                    date={trade.payment_confirmed_at}
-                    completed
-                    formatDate={formatDate}
-                  />
-                )}
-              </>
-            )}
-
-            {/* ========== FLUXO VENDA (SELL) ========== */}
-            {isSell && (
-              <>
-                {/* Etapa 1: Aguardando Análise OTC */}
-                {trade.status === 'PENDING' && (
-                  <TimelineItem label='Aguardando Análise OTC' pending formatDate={formatDate} />
-                )}
-
-                {/* Etapa 2: Crypto sendo retirada pelo operador */}
-                {trade.status === 'PAYMENT_PROCESSING' && (
-                  <>
-                    <TimelineItem label='Análise Aprovada' completed formatDate={formatDate} />
-                    <TimelineItem label='Processando Retirada' pending formatDate={formatDate} />
-                  </>
-                )}
-
-                {/* Etapa 3: Crypto recebida pela plataforma */}
-                {trade.status === 'CRYPTO_RECEIVED' && (
-                  <>
-                    <TimelineItem label='Análise Aprovada' completed formatDate={formatDate} />
-                    <TimelineItem label='Crypto Recebida' completed formatDate={formatDate} />
-                    <TimelineItem label='Aguardando Envio do PIX' pending formatDate={formatDate} />
-                  </>
-                )}
-              </>
-            )}
-
-            {/* Ordem Concluída - Ambos os fluxos */}
-            {trade.completed_at && (
-              <TimelineItem
-                label='Ordem Concluída'
-                date={trade.completed_at}
-                completed
-                formatDate={formatDate}
-              />
-            )}
-          </div>
-        </details>
-
-        {/* Informações de Blockchain (se concluído) - Compacto */}
-        {trade.status === 'COMPLETED' && trade.tx_hash && (
-          <details className='group'>
-            <summary className='text-xs font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1.5 cursor-pointer list-none'>
-              <Wallet className='w-3.5 h-3.5' />
-              Blockchain
-              <span className='ml-auto text-gray-400 group-open:rotate-180 transition-transform'>
-                ▼
-              </span>
-            </summary>
-            <div className='mt-2 bg-gray-50 dark:bg-gray-900 rounded-lg p-3 space-y-2 text-xs'>
-              {trade.wallet_address && (
-                <div>
-                  <p className='text-[10px] text-gray-500 dark:text-gray-400'>Endereço</p>
-                  <p className='font-mono text-gray-900 dark:text-white break-all'>
-                    {trade.wallet_address}
-                  </p>
+                      <o.icon className='w-4 h-4' aria-hidden='true' />
+                      {o.label}
+                    </button>
+                  ))}
                 </div>
               )}
-              {trade.network && (
-                <div>
-                  <p className='text-[10px] text-gray-500 dark:text-gray-400'>Rede</p>
-                  <p className='text-gray-900 dark:text-white capitalize'>{trade.network}</p>
-                </div>
-              )}
-              <div>
-                <p className='text-[10px] text-gray-500 dark:text-gray-400'>TX Hash</p>
-                <p className='font-mono text-blue-600 dark:text-blue-400 break-all'>
-                  {trade.tx_hash}
-                </p>
-              </div>
             </div>
-          </details>
-        )}
 
-        {/* ID da Trade - Compacto */}
-        <div className='pt-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between'>
-          <div className='min-w-0 flex-1'>
-            <p className='text-[10px] text-gray-500 dark:text-gray-400'>ID</p>
-            <code className='text-[10px] font-mono text-gray-600 dark:text-gray-400 truncate block'>
-              {trade.id}
-            </code>
-          </div>
-          <button
-            onClick={() => copyToClipboard(trade.id, 'id')}
-            className='p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
-          >
-            {copiedField === 'id' ? (
-              <CheckCircle className='w-3.5 h-3.5 text-green-600' />
+            <p className={`mt-4 text-sm ${SOFT}`}>Valor exato a pagar</p>
+            <div className='flex items-center gap-2'>
+              <p className='font-["Space_Grotesk",Inter,sans-serif] text-3xl sm:text-4xl font-semibold tracking-tight tabular-nums'>
+                {formatBRL(payAmount)}
+              </p>
+              <CopyBtn value={payAmount.toFixed(2)} field='amount' label='valor' />
+            </div>
+
+            {showPixQr && pixQrCode ? (
+              <div className='mt-6 flex flex-col sm:flex-row gap-6 items-center sm:items-start'>
+                <div className='bg-white p-3 rounded-2xl border border-gray-200 dark:border-transparent shrink-0'>
+                  <img src={pixQrCode} alt='QR Code do Pix' className='w-52 h-52' />
+                </div>
+                <div className='flex-1 min-w-0 w-full space-y-4'>
+                  <p className={`text-sm ${SOFT}`}>Escaneie o QR Code no app do seu banco ou use o Pix copia e cola.</p>
+                  {pixPayload && (
+                    <button
+                      type='button'
+                      onClick={() => copyToClipboard(pixPayload, 'pixPayload')}
+                      className={`${BTN_PRIMARY} w-full`}
+                    >
+                      {copiedField === 'pixPayload' ? <CheckCircle className='w-4 h-4' aria-hidden='true' /> : <Copy className='w-4 h-4' aria-hidden='true' />}
+                      {copiedField === 'pixPayload' ? 'Código copiado' : 'Copiar Pix copia e cola'}
+                    </button>
+                  )}
+                  {!trade.pix_qrcode && trade.reference_code && (
+                    <div className='rounded-xl bg-amber-50 dark:bg-amber-400/5 border border-amber-200 dark:border-amber-400/20 p-3 flex items-center justify-between gap-3'>
+                      <p className='text-sm'>
+                        Escreva na descrição do Pix: <strong className='font-mono'>{trade.reference_code}</strong>
+                      </p>
+                      <CopyBtn value={trade.reference_code} field='reference' label='código' />
+                    </div>
+                  )}
+                </div>
+              </div>
             ) : (
-              <Copy className='w-3.5 h-3.5' />
+              <div className='mt-6'>
+                <div className='rounded-xl border border-gray-200 dark:border-[#222B3D] px-4'>
+                  {bankDetails.pix_key && paymentMethod === 'pix' && <Field label='Chave Pix (CNPJ)' value={bankDetails.pix_key} field='pix' mono />}
+                  <Field label='Banco' value={`${bankDetails.bank_code} · ${bankDetails.bank_name}`} field='bank' />
+                  <Field label='Agência' value={bankDetails.agency} field='agency' mono />
+                  <Field label={`Conta (${bankDetails.account_type})`} value={bankDetails.account} field='account' mono />
+                  <Field label='Titular' value={bankDetails.holder_name} field='holder' />
+                  <Field label='CNPJ' value={bankDetails.holder_document} field='doc' mono />
+                </div>
+                {trade.reference_code && (
+                  <div className='mt-4 rounded-xl bg-amber-50 dark:bg-amber-400/5 border border-amber-200 dark:border-amber-400/20 p-3 flex items-center justify-between gap-3'>
+                    <p className='text-sm'>
+                      Informe o código na descrição: <strong className='font-mono'>{trade.reference_code}</strong>
+                    </p>
+                    <CopyBtn value={trade.reference_code} field='reference' label='código' />
+                  </div>
+                )}
+              </div>
             )}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ============================================================================
-// SUB-COMPONENTES
-// ============================================================================
-
-interface BankDetailItemProps {
-  readonly label: string
-  readonly value: string
-  readonly onCopy: () => void
-  readonly copied: boolean
-}
-
-function BankDetailItem({ label, value, onCopy, copied }: BankDetailItemProps) {
-  return (
-    <div className='bg-white dark:bg-gray-800 rounded-lg p-3'>
-      <p className='text-xs text-gray-500 dark:text-gray-400 mb-1'>{label}</p>
-      <div className='flex items-center justify-between'>
-        <span className='font-medium text-gray-900 dark:text-white text-sm'>{value}</span>
-        <button
-          onClick={onCopy}
-          className='p-1 text-gray-500 hover:text-blue-600 transition-colors'
-        >
-          {copied ? (
-            <CheckCircle className='w-4 h-4 text-green-600' />
-          ) : (
-            <Copy className='w-4 h-4' />
-          )}
-        </button>
-      </div>
-    </div>
-  )
-}
-
-interface BankDetailItemCompactProps {
-  readonly label: string
-  readonly value: string
-  readonly subValue?: string
-  readonly onCopy: () => void
-  readonly copied: boolean
-}
-
-function BankDetailItemCompact({
-  label,
-  value,
-  subValue,
-  onCopy,
-  copied,
-}: BankDetailItemCompactProps) {
-  return (
-    <div className='bg-white dark:bg-gray-800 rounded p-2 flex items-center justify-between'>
-      <div className='min-w-0 flex-1'>
-        <p className='text-[10px] text-gray-500 dark:text-gray-400'>{label}</p>
-        <p className='font-semibold text-gray-900 dark:text-white truncate'>{value}</p>
-        {subValue && <p className='text-[10px] text-gray-400 truncate'>{subValue}</p>}
-      </div>
-      <button
-        onClick={onCopy}
-        className='p-1 text-gray-400 hover:text-blue-600 transition-colors flex-shrink-0'
-      >
-        {copied ? (
-          <CheckCircle className='w-3.5 h-3.5 text-green-600' />
-        ) : (
-          <Copy className='w-3.5 h-3.5' />
+            <p className={`mt-5 text-xs ${MUTED}`}>Pague com uma conta no seu nome. Pagamentos de terceiros são devolvidos.</p>
+          </section>
         )}
-      </button>
+
+        {/* Venda: para onde vai o dinheiro */}
+        {isSell && trade.receiving_method && !failed && (
+          <section className={`${CARD} p-5 sm:p-7`}>
+            <h3 className='text-lg font-semibold'>Você recebe em</h3>
+            <dl className='mt-4 space-y-2.5 text-sm'>
+              <Row
+                k='Forma'
+                v={trade.receiving_method.method_type === 'pix' ? 'Pix' : trade.receiving_method.method_type === 'ted' ? 'TED' : trade.receiving_method.method_type}
+              />
+              {trade.receiving_method.holder_name && <Row k='Titular' v={trade.receiving_method.holder_name} />}
+              {trade.receiving_method.pix_key && (
+                <Row k={`Chave Pix (${trade.receiving_method.pix_key_type?.toUpperCase() || 'CPF'})`} v={trade.receiving_method.pix_key} />
+              )}
+              {trade.receiving_method.bank_name && <Row k='Banco' v={trade.receiving_method.bank_name} />}
+              {trade.receiving_method.branch_number && <Row k='Agência' v={trade.receiving_method.branch_number} />}
+              {trade.receiving_method.account_number && (
+                <Row
+                  k='Conta'
+                  v={`${trade.receiving_method.account_number}${trade.receiving_method.account_type ? ` (${trade.receiving_method.account_type})` : ''}`}
+                />
+              )}
+              <div className='pt-3 mt-1 border-t border-gray-100 dark:border-[#1E2738]'>
+                <Row k='Valor a receber' v={formatBRL(payAmount)} strong />
+              </div>
+            </dl>
+          </section>
+        )}
+
+        {/* Blockchain */}
+        {trade.tx_hash && (
+          <section className={`${CARD} p-5 sm:p-7`}>
+            <h3 className='text-lg font-semibold'>Transação na blockchain</h3>
+            <div className='mt-3 rounded-xl border border-gray-200 dark:border-[#222B3D] px-4'>
+              {trade.network && <Field label='Rede' value={trade.network} />}
+              {trade.wallet_address && <Field label='Endereço' value={trade.wallet_address} field='wallet' mono />}
+              <Field label='Hash da transação' value={trade.tx_hash} field='txHash' mono />
+            </div>
+          </section>
+        )}
+      </div>
+
+      {/* Resumo */}
+      <aside className={`${CARD} p-5 sm:p-6 lg:sticky lg:top-4`}>
+        <div className='flex items-center gap-3'>
+          <span className='relative shrink-0'>
+            <CryptoIcon symbol={trade.symbol} size={44} className='rounded-full' />
+            <span
+              className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center ring-2 ring-white dark:ring-[#111724] ${
+                isBuy ? 'bg-emerald-600 text-white dark:bg-[#34C77B] dark:text-[#0A0E15]' : 'bg-gray-700 text-white dark:bg-[#2A3449]'
+              }`}
+            >
+              {isBuy ? <ArrowDownLeft className='w-3 h-3' aria-hidden='true' /> : <ArrowUpRight className='w-3 h-3' aria-hidden='true' />}
+            </span>
+          </span>
+          <div className='min-w-0'>
+            <p className={`text-sm ${SOFT}`}>{isBuy ? 'Compra de' : 'Venda de'}</p>
+            <p className='text-lg font-semibold tabular-nums truncate'>{qty}</p>
+          </div>
+        </div>
+
+        <dl className='mt-5 pt-5 border-t border-gray-100 dark:border-[#1E2738] space-y-2.5 text-sm'>
+          {isSell ? (
+            <>
+              <Row k='Valor de mercado' v={formatOtcValue(trade.fiat_amount)} />
+              <Row k='Você recebe' v={formatOtcValue(trade.brl_total_amount ?? trade.total_amount)} strong />
+            </>
+          ) : (
+            <Row k='Total pago' v={formatOtcValue(trade.total_amount)} strong />
+          )}
+          {trade.crypto_price ? <Row k={`Preço por ${trade.symbol}`} v={formatOtcValue(trade.crypto_price)} /> : null}
+          <Row k={`Spread (${trade.spread_percentage}%)`} v={trade.spread_amount ? formatOtcValue(trade.spread_amount) : '—'} />
+          <Row k={`Taxa de rede (${trade.network_fee_percentage}%)`} v={trade.network_fee_amount ? formatOtcValue(trade.network_fee_amount) : '—'} />
+          <Row
+            k={isBuy ? 'Pagamento' : 'Recebimento'}
+            v={
+              <span className='inline-flex items-center gap-1.5'>
+                {React.cloneElement(paymentConfig.icon as React.ReactElement, { className: 'w-4 h-4', 'aria-hidden': true })}
+                {paymentConfig.label}
+              </span>
+            }
+          />
+        </dl>
+
+        <ol className='mt-5 pt-5 border-t border-gray-100 dark:border-[#1E2738] space-y-3 text-sm' aria-label='Histórico da ordem'>
+          <TimelineItem label='Ordem criada' date={trade.created_at} completed formatDate={formatDate} />
+          {trade.payment_confirmed_at && (
+            <TimelineItem label={isBuy ? 'Pagamento confirmado' : 'Análise aprovada'} date={trade.payment_confirmed_at} completed formatDate={formatDate} />
+          )}
+          {trade.completed_at && <TimelineItem label='Ordem concluída' date={trade.completed_at} completed formatDate={formatDate} />}
+          {!isFinal && <TimelineItem label={stepLabels[Math.min(current, 3)] ?? ''} pending formatDate={formatDate} />}
+        </ol>
+
+        <div className='mt-5 pt-4 border-t border-gray-100 dark:border-[#1E2738]'>
+          {trade.reference_code && <Field label='Código da ordem' value={trade.reference_code} field='ref2' mono />}
+          <Field label='ID' value={trade.id} field='id' mono />
+        </div>
+
+        <button type='button' onClick={onBack} className={`${BTN_SECONDARY} w-full mt-4`}>
+          <ArrowLeft className='w-4 h-4' aria-hidden='true' />
+          {isFinal ? 'Nova ordem' : 'Voltar para comprar e vender'}
+        </button>
+      </aside>
     </div>
   )
 }
+
+// ============================================================================
+// AUXILIARES DE APRESENTAÇÃO
+// ============================================================================
+
+const CARD = 'bg-white border border-gray-200 dark:bg-[#111724] dark:border-[#1E2738] rounded-2xl'
+const MUTED = 'text-gray-500 dark:text-[#8590A6]'
+const SOFT = 'text-gray-600 dark:text-[#A3ADC2]'
+const BTN_PRIMARY =
+  'h-12 rounded-xl bg-blue-600 text-white hover:bg-blue-700 dark:bg-[#5B8CFF] dark:text-[#0A0E15] dark:hover:bg-[#7AA2FF] font-semibold inline-flex items-center justify-center gap-2 transition-colors'
+const BTN_SECONDARY =
+  'h-12 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 dark:border-[#2A3449] dark:text-[#EEF1F7] dark:hover:bg-[#172033] font-medium inline-flex items-center justify-center gap-2 transition-colors'
+const TONES = {
+  wait: 'bg-amber-50 text-amber-600 dark:bg-amber-400/10 dark:text-amber-300',
+  info: 'bg-blue-50 text-blue-600 dark:bg-[#5B8CFF]/10 dark:text-[#8FB0FF]',
+  ok: 'bg-emerald-50 text-emerald-600 dark:bg-[#34C77B]/10 dark:text-[#34C77B]',
+  bad: 'bg-red-50 text-red-600 dark:bg-[#FF7A7A]/10 dark:text-[#FF7A7A]',
+} as const
+
+function heroFor(status: string, isBuy: boolean, qty: string): { title: string; body: string; tone: keyof typeof TONES } {
+  if (status === 'CANCELLED') return { title: 'Ordem cancelada', body: 'Nenhum valor foi movimentado.', tone: 'bad' }
+  if (status === 'EXPIRED')
+    return { title: 'Ordem expirada', body: 'O prazo de pagamento acabou. Faça uma nova cotação para continuar.', tone: 'bad' }
+  if (status === 'FAILED') return { title: 'Falha na ordem', body: 'Fale com o suporte e informe o código da ordem.', tone: 'bad' }
+  if (status === 'COMPLETED')
+    return isBuy
+      ? { title: 'Ordem concluída', body: `${qty} foram creditados na sua carteira.`, tone: 'ok' }
+      : { title: 'Venda concluída', body: 'O valor foi enviado para a sua conta.', tone: 'ok' }
+  if (isBuy) {
+    if (status === 'PENDING')
+      return { title: 'Aguardando o seu pagamento', body: 'Assim que o pagamento cair, enviamos a cripto para a sua carteira.', tone: 'wait' }
+    if (status === 'PAYMENT_PROCESSING') return { title: 'Confirmando o pagamento', body: 'Estamos conferindo o seu pagamento.', tone: 'info' }
+    return { title: 'Pagamento confirmado', body: `Estamos enviando ${qty} para a sua carteira.`, tone: 'info' }
+  }
+  if (status === 'PENDING') return { title: 'Venda registrada', body: 'A equipe OTC está analisando a sua ordem.', tone: 'wait' }
+  if (status === 'PAYMENT_PROCESSING') return { title: 'Retirando a cripto', body: 'O operador está retirando a cripto da sua carteira.', tone: 'info' }
+  return { title: 'Cripto recebida', body: 'O Pix para a sua conta será enviado em breve.', tone: 'info' }
+}
+
+/** Índice da etapa atual na barra de progresso (0–3). */
+function progressIndex(status: string, isBuy: boolean): number {
+  if (status === 'COMPLETED') return 3
+  if (status === 'PENDING') return 1
+  if (isBuy) return 2
+  if (status === 'PAYMENT_PROCESSING') return 2
+  if (status === 'CRYPTO_RECEIVED') return 3
+  return 1
+}
+
+const FINAL_STATUSES: string[] = ['COMPLETED', 'CANCELLED', 'EXPIRED', 'FAILED']
 
 interface TimelineItemProps {
   readonly label: string
@@ -1444,26 +812,19 @@ interface TimelineItemProps {
 }
 
 function TimelineItem({ label, date, completed, pending, formatDate }: TimelineItemProps) {
-  const getStatusColor = () => {
-    if (completed) return 'bg-green-500'
-    if (pending) return 'bg-yellow-500 animate-pulse'
-    return 'bg-gray-300 dark:bg-gray-600'
-  }
-
   return (
-    <div className='flex items-center gap-2'>
-      <div className={`w-2 h-2 rounded-full ${getStatusColor()}`} />
-      <div className='flex-1 flex items-center justify-between'>
-        <p
-          className={`text-xs ${
-            completed || pending ? 'text-gray-900 dark:text-white font-medium' : 'text-gray-500'
-          }`}
-        >
-          {label}
-        </p>
-        {date && <p className='text-[10px] text-gray-500 dark:text-gray-400'>{formatDate(date)}</p>}
-      </div>
-    </div>
+    <li className='flex items-start gap-3'>
+      <span
+        aria-hidden='true'
+        className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${
+          completed ? 'bg-blue-600 dark:bg-[#5B8CFF]' : pending ? 'bg-amber-500 animate-pulse' : 'bg-gray-300 dark:bg-[#2A3449]'
+        }`}
+      />
+      <span className='flex-1 flex items-baseline justify-between gap-3'>
+        <span className={completed || pending ? 'font-medium' : 'text-gray-500 dark:text-[#8590A6]'}>{label}</span>
+        {date && <span className='text-xs text-gray-500 dark:text-[#8590A6] tabular-nums'>{formatDate(date)}</span>}
+      </span>
+    </li>
   )
 }
 

@@ -394,8 +394,17 @@ export const DashboardPage = () => {
                   const Icon = incoming ? ArrowDownLeft : ArrowUpRight
                   return (
                     <li key={tx.id} className='flex items-center gap-3.5 py-3'>
-                      <span className='w-10 h-10 shrink-0 rounded-xl bg-gray-100 dark:bg-[#172033] flex items-center justify-center text-gray-600 dark:text-[#A3ADC2]'>
-                        <Icon className='w-[18px] h-[18px]' aria-hidden='true' />
+                      <span className='relative w-10 h-10 shrink-0'>
+                        <CryptoIcon symbol={symbol} size={40} className='rounded-full' />
+                        <span
+                          className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center ring-2 ring-white dark:ring-[#111724] ${
+                            incoming
+                              ? 'bg-emerald-600 text-white dark:bg-[#34C77B] dark:text-[#0A0E15]'
+                              : 'bg-gray-700 text-white dark:bg-[#2A3449] dark:text-[#EEF1F7]'
+                          }`}
+                        >
+                          <Icon className='w-3 h-3' strokeWidth={2.5} aria-hidden='true' />
+                        </span>
                       </span>
                       <span className='flex-1 min-w-0'>
                         <span className='block text-[15px] font-medium truncate'>

@@ -1949,5 +1949,60 @@
       "trade": "Trade",
       "services": "Services"
     }
+  },
+  "otc": {
+    "title": "Buy and sell",
+    "live": "Live prices · Binance",
+    "connecting": "Connecting to live prices…",
+    "steps": {
+      "label": "Order steps",
+      "order": "Amount",
+      "confirm": "Payment",
+      "track": "Track"
+    },
+    "backToOrder": "Back to change the amount",
+    "spotRef": "spot reference price",
+    "in24h": "in 24 hours",
+    "range": "Chart range",
+    "chartAria": "{{symbol}} price over the period",
+    "chartUnavailable": "Chart unavailable right now.",
+    "chartNoSpot": "This asset has no reference price on Binance.",
+    "high24h": "24h high",
+    "low24h": "24h low",
+    "rangeChange": "{{range}} change",
+    "assets": "Available assets",
+    "spotNote": "Reference prices from the Binance spot market, updated in real time. Your order uses the OTC quote, locked when you confirm.",
+    "myOrders": "Your orders",
+    "trust": {
+      "instant": "Instant settlement",
+      "locked": "Price locked on confirm",
+      "noHidden": "No hidden fees"
+    },
+    "ticket": {
+      "title": "New order",
+      "operation": "Operation",
+      "buy": "Buy",
+      "sell": "Sell",
+      "asset": "Asset",
+      "search": "Search asset",
+      "amountBuy": "How much to invest",
+      "amountSell": "How much to sell",
+      "available": "Available",
+      "insufficient": "Not enough balance for this sale.",
+      "max": "Max",
+      "youGet": "You receive",
+      "validFor": "valid for {{seconds}} s",
+      "quoting": "Getting quote",
+      "quoteError": "Couldn't get a quote right now. Please try again.",
+      "price": "OTC price per {{symbol}}",
+      "spread": "Spread",
+      "networkFee": "Network fee",
+      "youPay": "You pay",
+      "youSell": "You sell",
+      "marketValue": "Market value",
+      "continueBuy": "Continue to payment",
+      "continueSell": "Continue to sale",
+      "lockNote": "The quote refreshes automatically when it expires."
+    }
   }
 }
